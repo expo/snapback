@@ -31,3 +31,8 @@
 - **Status on landing:** Draft, review loop converged; acceptance is the
   author's call.
 - **Acceptance:** Accepted by author ruling (Charlie Cheever), 2026-08-16.
+- **Trim round (2026-08-16, v0.6):** author-authorized trim 815 → 578 lines,
+  no normative change intended. Dual-family diff review: codex clean on 0267;
+  grok caught two compression losses (the six-field all-zero first-page
+  ledger invariant, the within-node bound-kind check order) — both restored
+  and re-verified READY by both families in the delta round.

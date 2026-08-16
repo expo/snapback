@@ -24,3 +24,10 @@
   ownership stays with LLP 0190 D3 and the mechanism LLPs (0155/0129, 0166,
   0218, 0053) per the RFC's deferrals.
 - **Acceptance:** Accepted by author ruling (Charlie Cheever), 2026-08-16.
+- **Rollout-order amendment (2026-08-16, v0.4):** flip order recorded as an
+  orchestrator ruling under the author's delegation. Dual-family review:
+  codex caught the wave-3/5 split violating LLP 0190's D3.2-D3.6 stage order
+  (protected retention would have flipped before D3.3-D3.5) — restructured;
+  grok + codex both flagged the Expo gate parenthetical (over-broad /
+  stale wave numbers) — rescoped to carrier-dependent flips per D4. Delta
+  round: both families READY.

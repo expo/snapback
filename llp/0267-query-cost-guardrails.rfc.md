@@ -5,7 +5,7 @@
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-16 (v0.5 — Status Draft → Accepted, author ruling 2026-08-16)
+**Revised:** 2026-08-16 (v0.6 — author-authorized trim, no normative change)
 **Related:** LLP 0209 (bounded live graph profile, especially §§1–2, 8–9),
 LLP 0183 §D2 (bounded relational graph charter), LLP 0198 (typed,
 evidence-heavy strategic frame), LLP 0200 (live evaluation scheduling and
@@ -19,25 +19,19 @@ LLP 0108 (result contracts and value-free diagnostics),
 ## 0. Charter and position
 
 Snapback will make expensive queries predictable before production. Every query produces one cost
-observation containing scanned rows, index ranges consulted, result rows and bytes,
-evaluation/delivery-turn time, and estimated live fan-out cost. One policy contract compares it
-with one declaration surface and applies **warn, require an index, require pagination, refuse**.
+observation containing scanned rows, index consultations, result rows/bytes, evaluation or delivery
+time, and estimated live fan-out cost. One declaration and policy apply **warn, require an index,
+require pagination, refuse**.
 
-LLP 0209 §1 measured one 5.5M-row subscription evaluation at p50 863 ms and max 3.6 s; E-3 found
-six same-partition observers serialized like six mixed observers before G1. The workstream ticket
-records correct mutation settlement from 111 ms to 148 s, median about 74 s
-(`issues/20260808-live-query-reevaluation-cost-at-scale.md`). G1 shares only complete identical
-inputs, and LLP 0209 v0.3 explains why distinct sessions remain distinct before G0 proves narrower
-handler inputs. Correct eventual convergence does not admit a roughly one-second unpreemptible turn
-or a live wave that queues several such turns.
+LLP 0209 §1 measured a 5.5M-row subscription evaluation at p50 863 ms and max 3.6 s, with six
+same-partition observers serializing like six mixed observers before G1. Correct convergence does
+not admit roughly one-second unpreemptible turns or waves that queue several of them. Predictable
+bounded refusal—not a copied Convex API—preserves LLP 0198 §II.2/§II.4's typed, evidence-heavy
+strategy.
 
-Convex is the lesson, not an API to copy: predictable bounded refusal is preferable to
-correct-but-multi-second queueing. This preserves LLP 0198 §II.2/§II.4's typed, evidence-heavy
-strategy. This RFC decides new work; it does **not** claim the unified record, declarations,
-instance configuration, qualification artifact, diagnostics, terminal cost envelope, client
-terminal handling, or guide page ship today. It does build on shipped measurement seams named
-below; “new” means the unified qualification-grade capture and policy, not an absence of existing
-counters or timing.
+This RFC decides new work; it does **not** claim the unified record, declarations, configuration,
+qualification, diagnostics, terminal protocol/client handling, or guide ship today. “New” means
+qualification-grade unified capture and policy over the shipped seams named below.
 
 ## 1. One cost observation, with ladder-complete measurements and one estimate
 
@@ -101,200 +95,135 @@ type LiveFanoutBasisV1 = Readonly<{
 }>
 ```
 
-Every actual storage consultation gets one entry; repeated identical reads remain separate and
-receive consecutive ordinals. `indexRangeCount` is exactly
-`accessPathConsultations.length`, and `scannedRows` is exactly the checked sum of every entry's
-`examinedEntries`. A partially observed early refusal has `complete: false` and retains only work
-actually charged through refusal; it cannot qualify a function. `resultRows` is the top-level array
-length for a collection result, zero for an empty collection, and `null` for a non-collection or an
-execution that produced no result. `resultBytes` is likewise `null` until a result is serialized.
-An executed turn has `evaluationTurnMs`; a memo-only delivery has `memoDeliveryTurnMs`; the fields
-are otherwise `null`. A skipped turn has neither. Qualification requires complete successful
-observations with every field needed by the applicable ladder rung.
+Each actual consultation gets an entry; repeats stay separate with consecutive ordinals.
+`indexRangeCount == accessPathConsultations.length`, and `scannedRows` is the checked sum of their
+`examinedEntries`. Early refusal retains charged work with `complete: false` and cannot qualify.
+`resultRows` is a top-level collection's length (including zero), otherwise `null`; `resultBytes`
+is `null` until serialization. Executed and memo-only turns carry only `evaluationTurnMs` and
+`memoDeliveryTurnMs`, respectively; skipped turns carry neither. Qualification requires a complete
+successful observation with every applicable field.
 
-Status invariants are exact. `executed` carries the real access ledger and has
-`memoDeliveryTurnMs: null`. `memoDelivery` carries an empty access ledger, zero `scannedRows` and
-`indexRangeCount`, copies `resultRows`/`resultBytes` from the keyed executed observation it reuses,
-and has `evaluationTurnMs: null`. `skipped` carries empty/zero access facts, null result/timing
-facts, and `complete: true`. `refused` carries every fact charged before refusal and
-`complete: false` unless refusal occurred only after a complete result/turn was measured. Real and
-memo qualification samples are selected by status and never pooled with each other or across
-`executionKind` values.
+Status invariants are exact: `executed` has the real ledger and no memo time; `memoDelivery` has an
+empty ledger, zero scan/range counts, copied keyed `resultRows`/`resultBytes`, and no evaluation
+time; `skipped` has empty/zero access, null result/timing facts, and `complete: true`; `refused`
+retains charged facts and is incomplete unless refusal followed a fully measured result/turn. Real
+and memo samples never pool with each other or across `executionKind`.
 
-All counts are checked unsigned 64-bit integers; overflow is a bound refusal, never saturation.
-Milliseconds are finite non-negative binary64 values read from a monotonic clock. The serialized
-schema uses JSON numbers only while they are exact safe integers for count fields; larger target
-counts refuse as unrepresentable evidence.
+Counts are checked `u64`; overflow refuses rather than saturates. Milliseconds are finite,
+non-negative binary64 values from a monotonic clock. Count fields serialize as JSON numbers only
+while exact safe integers; larger target counts are unrepresentable evidence and refuse.
 
-`scannedRows`, each consultation's work, result rows/bytes, and turn times are measured;
-`indexRangeCount` is the exact derived ledger length. `estimatedLiveFanoutMs` is always labelled
-`estimated`, carries `estimateBasis` that distinguishes measured timing maxima, the fixed factor,
-and declared population inputs, and is never presented as measured settlement.
-Public diagnostics may name the structural `functionId`, host-recomputed `planIdentity`, table,
-index, and node id. They omit fixture/data identity and forbid arguments, literal endpoints,
-principal/session/connection identities, row ids, and application values. That scoped prohibition
-follows `src/result_contract.rs` and LLP 0108's value-free diagnostic discipline.
+Scan/consultation work, result rows/bytes, and turn times are measured; the range count is derived.
+`estimatedLiveFanoutMs` is always labelled `estimated`, carries measured maxima, the fixed factor,
+and declared populations in `estimateBasis`, and is never called measured settlement. Public
+diagnostics may name `functionId`, host-recomputed `planIdentity`, table, index, and node id; they
+omit fixture/data identity and forbid arguments, literal endpoints, principal/session/connection
+identities, row ids, and application values (LLP 0108's value-free discipline).
 
 ### 1.2 Scanned rows — measured at storage, new work
 
-`scannedRows` counts physical candidates visited before filters, visibility, joins, or projection.
-A point lookup contributes zero or one; a miss contributes zero rows but one range consultation.
-Membership, relational-child, search-membership, and opaque-handler `ctx.db.query` reads share the
-invocation accumulator. Repeats count repeatedly so N+1 work is not hidden by dependency
-deduplication.
+`scannedRows` counts physical candidates before filters, visibility, joins, or projection. A point
+lookup contributes zero or one; a miss contributes zero rows but one consultation. Membership,
+relational-child, search-membership, and opaque `ctx.db.query` reads share the accumulator, and
+repeats count repeatedly so deduplication cannot hide N+1 work.
 
-The repository already has four relevant work-accounting seams, and this RFC assigns each one an
-explicit boundary:
+Four shipped seams map into, but do not duplicate, this accounting:
 
-- `src/storage.rs::query_on_with_examined_entry_ceiling` physically charges the closed
-  `single_table_v1@1` path and refuses before entry 1,025 with
-  `SNAPBACK_SINGLE_TABLE_EXAMINED_ENTRY_CEILING_EXCEEDED`. The unified accumulator **inherits** its
-  candidate hook and adds the successful count that the shipped path does not return.
-- `src/storage.rs::RelationalExecutionObservation` reports `examined_root_entries` and
-  `joined_lookups`; `src/local.rs` compares them, plus bounded-child `rows.len()`, with owner-pinned
-  per-node ceilings and emits `SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED`. Those are successful
-  structural/result-count facts, not physical candidates. They are **inherited** losslessly into
-  `structuralWork` and §5 relationship/root checks, but never substituted for `scannedRows`.
-- `cfg(test)` `KeysetScanStats` reports SQLite full-scan steps, VM steps, and fetched rows. It stays
-  as a target conformance oracle; the product observation **does not inherit** its test-only or
-  SQLite-specific units.
-- `src/vector/query.rs::VectorQueryEvaluationV1` and
-  `src/vector/sqlite.rs::VectorSqliteQueryResultV1` already return
-  `VectorWorkCountersV1`—postings enumerated, filter comparisons, candidates scored, scalar pairs,
-  and release-source reads—beside each vector result, and
-  `SNAPBACK_VECTOR_WORK_LIMIT` enforces vector-specific logical ceilings. The counters are
-  **inherited** unchanged as `targetWork.vector`; their units are not re-labelled physical rows.
-  The specialized vector refusal remains in place as a capability boundary, and a vector query
-  must pass both that boundary and the generic query-cost ladder.
+- `query_on_with_examined_entry_ceiling` physically charges `single_table_v1@1` and refuses before
+  entry 1,025 with `SNAPBACK_SINGLE_TABLE_EXAMINED_ENTRY_CEILING_EXCEEDED`; inherit its hook and add
+  the successful count it does not return.
+- `RelationalExecutionObservation`'s `examined_root_entries`/`joined_lookups` and bounded-child
+  `rows.len()` are successful structural/result-count facts enforced with
+  `SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED`; inherit them into `structuralWork` and §5 root/
+  relationship checks, never `scannedRows`.
+- Test-only SQLite `KeysetScanStats` (full-scan steps, VM steps, fetched rows) remains a conformance
+  oracle; its target-specific units are not product-observation units.
+- `VectorWorkCountersV1` (postings, comparisons, scored candidates, scalar pairs, release-source
+  reads) is inherited unchanged as `targetWork.vector`, never relabelled as rows. The specialized
+  `SNAPBACK_VECTOR_WORK_LIMIT` remains, and vector queries must also pass this generic ladder.
 
-For a query carrying `queryCost`, the policy **wraps rather than removes** the two shipped
-examined-entry refusal paths. Their owner-pinned numbers become structural fields inside the one
-`queryCost` declaration. The low-level early-abort hooks remain, but the outer policy normalizes an
-early abort to the applicable query-cost code and closed details. The legacy
-`SNAPBACK_SINGLE_TABLE_EXAMINED_ENTRY_CEILING_EXCEEDED` and
-`SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED` codes remain byte-compatible only for executions without
-a v1 `queryCost` declaration; they are not a second numeric authority for admitted v1 executions.
-The import mapping is exact: `single_table_v1@1.examinedEntryCeiling = 1_024` becomes that plan's
-target/declared physical `maxScannedRows` ceiling; snapshot-batch
-`node_examined_entry_ceilings`, despite their shipped name, bound returned/consumed root rows and
-therefore become per-node `maxRootRowsPerPage`; and `node_joined_lookup_ceilings` become per-node
-`maxRelationshipLookupsPerExecution`. Neither snapshot-batch field becomes a physical
-`maxExaminedEntriesPerExecution` without the new candidate instrumentation. The shipped relational
-check that `joined_lookups == examined_root_entries` remains an executor invariant, not a numeric
-bound; a mismatch makes v1 evidence incomplete and normalizes to
+For v1 `queryCost`, low-level early-abort hooks remain but the outer policy normalizes them to the
+applicable query-cost code/details; their owner-pinned numbers live inside the one declaration.
+The two legacy codes above remain byte-compatible only without v1 `queryCost`, not as a second
+numeric authority. Exact imports are: `single_table_v1@1.examinedEntryCeiling = 1_024` → that plan's
+physical `maxScannedRows`; snapshot-batch `node_examined_entry_ceilings` → per-node
+`maxRootRowsPerPage`; `node_joined_lookup_ceilings` → per-node
+`maxRelationshipLookupsPerExecution`. The latter two never become physical
+`maxExaminedEntriesPerExecution` without candidate instrumentation. The executor invariant
+`joined_lookups == examined_root_entries` remains; mismatch yields incomplete v1 evidence and
 `SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED`.
 
-Every storage executor must increment the target-neutral accumulator at its physical candidate
-seam. The generic SQLite success path does not yet expose that count, and the relational logical
-facts above do not fill the gap. A target unable to report complete successful scan work produces
-`SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED`; result count is never a substitute.
+Every executor increments the target-neutral accumulator at its physical candidate seam. Generic
+SQLite does not yet expose the successful count; relational logical facts cannot substitute. A
+target lacking complete scan work refuses with `SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED`.
 
 ### 1.3 Index ranges consulted — measured after target plan selection, new work
 
-An index consultation is recorded after target physical-plan selection, not from an author hint.
-`src/storage.rs::validate_query_index` validates `QueryPlan.indexed_by`, but its comment says v0
-SQLite does not yet consult the hint for planning. `src/live_matcher.rs` dependencies retain the
-logical plan and invalidation facts; they do not prove SQLite's physical range.
-
-An executor-owned ledger must obtain SQLite's selected path from actual prepared-statement
-plan/scan instrumentation and record full scans explicitly; pinned host plans record the selected
-index. Other targets emit the same vocabulary. Planner estimate alone makes the signal unavailable
-and qualification refuse. The ledger is not compressed: each consultation carries its own
-`examinedEntries`, which makes §3.2 evaluable even when one invocation mixes indexed and full-scan
-reads.
+Record consultations after target physical-plan selection, never from `QueryPlan.indexed_by` or
+live-matcher hints, which do not prove SQLite's chosen range. Executor-owned prepared-statement
+plan/scan instrumentation records SQLite's path and explicit full scans; pinned host plans record
+their selected index, and other targets use the same vocabulary. An estimate alone is unavailable
+evidence and refuses qualification. Each uncompressed entry carries `examinedEntries`, including
+when one invocation mixes indexed and full-scan reads.
 
 ### 1.4 Result bytes — measured after validation, partly present
 
-`resultBytes` is exactly `serde_json::to_vec(value).len()` for the post-JSON value, measured after
-result-contract validation and before envelope framing. It deliberately uses the shipped serializer,
-not RFC 8785 JCS: LLP 0108 uses JCS for contract identity, while `src/result_contract.rs` uses
-`serde_json::to_vec` for the 4 MiB result ceiling. A memo hit reuses the authored-result byte fact
-and separately measures delivery.
-
-`src/result_contract.rs` already computes this byte length for a 4 MiB post-JSON ceiling;
-`src/local.rs::prepare_scheduler_live_delivery_enqueue` counts exact live wire bytes globally and
-per current evaluation. Neither is this per-query authored-result signal. Implementation threads
-the already-computed post-contract length into `QueryInvocation`; wire bytes remain a separate
-delivery measurement and are never compared with `maxResultBytes`.
+`resultBytes` is `serde_json::to_vec(value).len()` after result-contract validation and before
+framing—the shipped 4 MiB serializer, not LLP 0108's identity-only JCS. Thread that existing length
+into `QueryInvocation`; memo hits reuse it while measuring delivery separately. Existing exact live
+wire-byte accounting remains a different signal and is never compared with `maxResultBytes`.
 
 ### 1.5 Evaluation time — measured at the complete turn, partly present
 
-The timing boundary is execution-lane-specific, never defined by mutex ownership:
+Timing is lane-specific, never defined by mutex ownership:
 
-- Every ordinary finite invocation outside a mixed bundle already opens and finishes a
-  per-invocation `FUNCTION_QUERY` telemetry span around `execute_query_invocation`, including the
-  file-backed read lane in
-  `src/local.rs::ReadLane::invoke_query_prepared_generation_with_facts`, which runs without the
-  global mutex. Finite `evaluationTurnMs` **inherits that span's monotonic start/finish boundary**:
-  after admission and input preparation, through execution, dependency capture, result validation,
-  and query accounting, excluding any outer HTTP/lock queue and response transport.
-- Live establishment outside a mixed bundle **inherits the distinct shipped `FUNCTION_QUERY` span
-  inside `src/local.rs::subscribe_live_prepared_with_invalidation_generation` around its
-  `execute_query_invocation`**. It includes the same execution, dependency, validation, and query-
-  accounting work as the finite span, but excludes subscription-registry work, initial-snapshot
-  serialization, outer HTTP response work, and transport. Those excluded establishment costs do
-  not occupy the live scheduler; result rows/bytes still have their independent hard bounds.
-- Mixed bundles require **new per-child instrumentation** in
-  `src/local.rs::evaluate_mixed_bundle_v2`: each `prepared_children.iter().map(...)` child opens one
-  `FUNCTION_QUERY` observation immediately before its own `execute_query_invocation` call and
-  finishes it immediately after that call returns, before sibling collection, pinned-version
-  coherence checks, or registration. A finite child records that interval as finite
-  `evaluationTurnMs`; a live child records it as `liveEstablishment` `evaluationTurnMs` and carries
-  the completed timing fact with its `QueryInvocation` through
-  `subscribe_live_prepared_from_pinned_bundle`. The `pinned_bundle_invocation` branch in
-  `subscribe_live_prepared_with_invalidation_generation` consumes that fact and must neither replace
-  it nor add registration time. Thus each boundary includes only that child's execution, dependency
-  capture, result validation, and query accounting; it excludes shared read-view acquisition,
-  sibling work, version/route aggregation, live registration, and transport. Until this seam lands,
-  every mixed-bundle child has incomplete timing evidence and refuses cost qualification under
-  §3.4(5).
-- Live re-evaluation **inherits**
-  `src/local.rs::run_pending_live_subscription_with_path`'s
-  `CurrentLiveEvaluation.started_at` through `finish_current_live_evaluation`. That boundary encloses
-  the nested `FUNCTION_QUERY` span, authored-result and durable-envelope serialization, delivery
-  accounting, and transfer into `enqueue_subscription_durable` custody for one subscription; it
-  excludes scheduler queue time and later socket/poll transport. Serialize/enqueue is included
-  because the scheduler cannot start the next subscription turn before that custody transfer. A
-  real turn writes `evaluationTurnMs`; a future G1 memo-only turn writes `memoDeliveryTurnMs`, so
-  cheap delivery cannot hide computation.
-- `FUNCTION_QUERY` telemetry remains as the nested execution diagnostic and continues to emit
-  `duration_ms`. The served app-data invocation ring in `src/server.rs::record_app_data_invocation`
-  remains an outer service diagnostic carrying `function_id` and integer `duration_ms`; it can
-  include request-level work and is **left in place**, not used as qualification evidence.
-  `LiveEvaluationStats` and the spike trace likewise remain aggregate/diagnostic projections of the
-  same live boundary, not separate cost profiles.
+- Ordinary finite invocations outside mixed bundles inherit the monotonic `FUNCTION_QUERY` span
+  around `execute_query_invocation`, including mutex-free
+  `ReadLane::invoke_query_prepared_generation_with_facts`. It starts after
+  admission/input preparation and covers execution, dependencies, validation, and accounting, but
+  excludes outer HTTP/lock queueing and response transport.
+- Non-mixed live establishment inherits the distinct `FUNCTION_QUERY` span in
+  `subscribe_live_prepared_with_invalidation_generation`. It covers the same work as finite timing,
+  excluding registry work, initial-snapshot serialization, outer HTTP work, and transport; result
+  rows/bytes keep their independent bounds.
+- Mixed bundles add a per-child span in `evaluate_mixed_bundle_v2`, immediately around each
+  `prepared_children.iter().map(...)` child's `execute_query_invocation`, before sibling collection,
+  pinned-version coherence checks, or registration. Finite and live children record it as their
+  respective `evaluationTurnMs`; live timing travels with
+  `QueryInvocation` through `subscribe_live_prepared_from_pinned_bundle`, and the
+  `pinned_bundle_invocation` branch consumes it without replacement or registration time. It covers
+  only that child's execution/dependencies/validation/accounting, excluding shared read-view,
+  siblings, version/route aggregation, registration, and transport. Until this new seam lands,
+  every mixed child has incomplete evidence and refuses under §3.4(5).
+- Live re-evaluation inherits `run_pending_live_subscription_with_path`'s
+  `CurrentLiveEvaluation.started_at` through `finish_current_live_evaluation`: nested query,
+  authored-result/durable-envelope serialization, delivery accounting, and transfer to
+  `enqueue_subscription_durable` custody, excluding scheduler queue and later transport. Custody is
+  included because it blocks the next turn. Real and G1 memo-only turns write `evaluationTurnMs`
+  and `memoDeliveryTurnMs`, respectively.
+- Nested `FUNCTION_QUERY duration_ms`, `src/server.rs::record_app_data_invocation`'s outer
+  `function_id`/integer `duration_ms`, `LiveEvaluationStats`, and the spike trace remain diagnostics, not separate
+  qualification profiles. The outer ring may include request-level work.
 
-No `turn_prof` symbol remains in `src/`. The closed overhead ticket records targeted timing and the
-staged-authorization cause; this RFC extends the shipped seams into a keyed observation and does not
-claim they were absent.
+No `turn_prof` symbol remains. This RFC extends existing seams into the keyed observation.
 
 ### 1.6 Estimated live fan-out — one conservative formula
 
-Each fixture/authority cell takes at least three warm samples **for each applicable
-`executionKind`**. Qualification computes maxima inside that kind: finite,
-`liveEstablishment`, and `liveReevaluation` executed samples are three separate populations and
-must never be pooled. The qualification record stores each population's `rawEvaluationMaxMs`;
-for both live kinds it also stores
-`admissionEvaluationBasisMs = rawEvaluationMaxMs × 1.25`. `memoDelivery` is a
-`liveReevaluation`-only status in v1 and has its own `rawMemoDeliveryMaxMs` and
-`memoDeliveryBasisMs = rawMemoDeliveryMaxMs × 1.25`. Any memo sample carrying another kind is
-invalid evidence. The factor is an admission margin, not a p95 claim.
+Each fixture/authority cell takes at least three warm samples per applicable `executionKind`.
+Finite, `liveEstablishment`, and `liveReevaluation` executed populations never pool. Qualification
+stores each `rawEvaluationMaxMs`; both live kinds also store
+`admissionEvaluationBasisMs = rawEvaluationMaxMs × 1.25`. V1 `memoDelivery` is
+`liveReevaluation`-only, with its own raw maximum and ×1.25 basis; another kind is invalid evidence.
+The factor is an admission margin, not p95.
 
-`LiveFanoutBasisV1` is specifically the `liveReevaluation` projection: its
-`rawRealEvaluationMaxMs`/`realEvaluationBasisMs` and memo counterparts come only from that kind.
-Those basis values, not finite or establishment samples, enter the fan-out formula. Live declarations
-must satisfy `0 < maxObservers` and
-`0 < maxDistinctEvaluationGroups <= maxObservers`. When the two population values are equal, the
-memo term is zero and `rawMemoDeliveryMaxMs`/`memoDeliveryBasisMs` are exactly zero; otherwise the
-memo-delivery fixture and its three samples are required.
+`LiveFanoutBasisV1` projects only `liveReevaluation` real/memo maxima and bases. Live declarations
+require `0 < maxObservers` and `0 < maxDistinctEvaluationGroups <= maxObservers`. Equal populations
+make both memo maxima/bases exactly zero; otherwise a three-sample memo fixture is required.
 
-Raw `evaluationTurnMs` samples are compared with the function's inclusive
-`maxEvaluationTurnMs`; scaling does not rewrite that semantic declaration. Each live kind's
-post-scale basis is compared separately with the refuse-at safety boundary; only the
-`liveReevaluation` basis is used in the fan-out estimate. A runtime live turn is a new raw
-measurement at that kind's named §1.5 boundary: it is compared with both the declaration and the
-safety boundary and is never scaled. Finite timing is compared with the declaration but not the
-live-scheduler safety boundary.
+Raw samples compare with inclusive `maxEvaluationTurnMs`; scaling never rewrites that declaration.
+Each live kind's basis separately meets the refuse-at safety check, while only re-evaluation enters
+fan-out. Runtime live turns are new, unscaled raw measurements at their §1.5 boundary and compare
+with both declaration and safety boundary. Finite timing compares only with its declaration.
 
 For one invalidation wave:
 
@@ -304,59 +233,46 @@ estimatedLiveFanoutMs =
   + memoDeliveryBasisMs * (maxObservers - maxDistinctEvaluationGroups)
 ```
 
-Both population multiplicands are declared, never inferred from a small dev run. Before G0, opaque
-handlers group only on the complete G1 memo key (generation, args, every handler-visible authority
-field, cut, drain cycle), so distinct sessions remain distinct. G0 may prove fewer groups under
-LLP 0209 §§3, 6, and 9. Unknown means `maxDistinctEvaluationGroups = maxObservers`.
+Both populations are declared. Pre-G0 opaque handlers group only on the complete G1 memo key
+(generation, args, every handler-visible authority field, cut, drain cycle), so distinct sessions
+remain distinct; G0 may prove fewer groups under LLP 0209 §§3, 6, 9. Unknown means groups equal
+observers.
 
-This estimates one wave's queue occupancy, not convergence. LLP 0200 moved fan-out off commit, so
-a read-evaluation or fan-out overage never refuses the mutation that triggered re-evaluation. It
-gates function activation and prospective live registration. LLP 0209's separate
-maintained-write bound can refuse a mutation before commit under §5; that write-side structural
-guard is not a fan-out consequence.
+The estimate is one wave's queue occupancy, not convergence. Read/fan-out overage gates activation
+and prospective registration, never the triggering mutation; only §5's independent maintained-write
+bound may refuse a mutation before commit (LLP 0200 settlement isolation).
 
-The 1,000 ms admission boundary in §§2.2/3.4 applies **after scaling**, separately to
-`liveEstablishment` and `liveReevaluation`: a raw fixture maximum of 800.000 ms produces a
-1,000.000 ms basis and refuses, while a raw maximum below 800.000 ms may pass this boundary. At
-runtime, post-admission drift is not scaled again: either live kind measured at 1,000.000 ms at its
-own §1.5 boundary refuses. Section 6's 999.999/1,000/1,000.001 fixtures are per-kind post-scale
-policy inputs or same-kind runtime measured turns, never raw fixture samples.
+The 1,000 ms admission boundary applies after scaling per live kind: raw 800.000 ms becomes
+1,000.000 ms and refuses. Runtime drift is not rescaled: 1,000.000 ms at either §1.5 live boundary
+refuses. Section 6's 999.999/1,000/1,000.001 inputs are post-scale bases or same-kind runtime turns,
+never raw fixture samples.
 
 ## 2. One declaration surface; instance policy may only tighten it
 
 ### 2.1 Function/plan declaration owns semantic bounds
 
-Every query eligible for production activation must carry one closed
-`queryCost` declaration in its generated function/plan artifact. This is a new
-manifest surface. Codegen authors it from explicit schema/function syntax;
-the host validates it and recomputes its identity. It is not a client argument
-and not an environment variable.
+Every production query carries one closed `queryCost` declaration in its generated function/plan
+artifact. Codegen authors this new manifest surface from explicit schema/function syntax; the host
+validates it and recomputes identity. It is neither client input nor an environment variable.
 
 The v1 declaration contains:
 
-- `maxScannedRows`, `maxIndexRanges`, `maxResultRows`, `maxResultBytes`, and
-  `maxEvaluationTurnMs`;
-- `maxObservers`, `maxDistinctEvaluationGroups`, and
-  `maxEstimatedLiveFanoutMs` for live queries (all zero/absent for finite-only
-  queries);
-- an index posture: the allowed schema index identities for each declared
-  consultation, with `fullScan` admitted only when that consultation's declared
-  examined-entry bound is at most the effective unindexed threshold;
-- a pagination posture: `keyset` with a declared maximum page-row/page-byte
-  bound and stable continuation identity, or `notPageable` under §3.3's closed
-  proof; and
+- `maxScannedRows`, `maxIndexRanges`, `maxResultRows`, `maxResultBytes`, `maxEvaluationTurnMs`;
+- live-only `maxObservers`, `maxDistinctEvaluationGroups`, `maxEstimatedLiveFanoutMs` (zero/absent
+  for finite-only queries);
+- allowed schema index identities per declared consultation; `fullScan` requires that
+  consultation's declared examined-entry bound to fit the effective unindexed threshold;
+- `keyset` pagination with page-row/page-byte maxima and stable continuation identity, or
+  `notPageable` under §3.3's closed proof; and
 - the structural graph bounds when the query is a G0 graph (§5).
 
-These are hard maxima, not targets. A declaration may be tighter than the
-instance policy and may not use `unbounded`. Values are sized from normal and
-large fixtures before production, not inferred from production traffic. A
-function-generation or plan-identity change invalidates its qualification
-record.
+These are hard maxima, never `unbounded`, sized from normal/large fixtures rather than production
+traffic. They may tighten instance policy. Function-generation or plan-identity change invalidates
+qualification.
 
-Local development may execute an undeclared query in the explicit
-qualification/authoring lane to produce observations and warnings. The same
-artifact is not production-admissible until its declaration and matching
-evidence exist. There is no production “learn mode.”
+An explicit local authoring/qualification lane may run undeclared queries for observations and
+warnings; production requires the declaration and matching evidence. There is no production learn
+mode.
 
 ### 2.2 Instance configuration owns uniform operational ceilings
 
@@ -375,212 +291,126 @@ function syntax. Its v1 defaults are:
 | `maxUnpreemptibleLiveTurnMs` | 1,000 | absolute inclusive refusal boundary |
 | `maxEstimatedLiveFanoutMs` | 1,000 | absolute inclusive one-wave refusal boundary |
 
-Every numeric default in this table is a product ceiling. Instance
-configuration may only tighten it: `warnFraction` must be greater than zero
-and at most 0.50 (lower warns earlier), while every other instance value must
-be at most its listed default. A target capability may tighten again. For an
-ordinary inclusive maximum with a corresponding function field, the effective
-maximum is the minimum of the present function, target-capability, and instance
-operands; absent inapplicable operands are omitted. The index/pagination rung
-thresholds have no function operand: their effective values are the minimum of
-target capability and instance value, while the function's closed
-access/pagination posture must fit beneath them. An observation refuses when it
-is greater than an applicable inclusive maximum. For the two millisecond safety
-boundaries, the function's `maxEvaluationTurnMs` and
-`maxEstimatedLiveFanoutMs` remain inclusive declared maxima, but the
-target/instance safety boundary is a refuse-at threshold: either
-`observed > declared max` or
-`observed >= min(target refuse-at, instance refuse-at)` refuses. Therefore an
-operator cannot raise 256 to 10^7, raise any other listed ceiling, or turn
-warnings later. Any loosening requires a new RFC/author ruling and a
-capability-version change, not an instance flag.
+Every default is a product ceiling. Instance configuration may only tighten it:
+`0 < warnFraction <= 0.50` (lower warns earlier), and every other value is at most its default; a
+target capability may tighten again. Ordinary effective inclusive maxima are the minimum of present
+function, target, and instance operands. Index/pagination thresholds omit a function operand and
+use `min(target, instance)` while the declaration posture must fit beneath them. Crossing means
+`observed > effective max`. For millisecond safety, declared timing/fan-out maxima remain inclusive,
+but target/instance values are refuse-at: either `observed > declared max` or
+`observed >= min(target refuse-at, instance refuse-at)` refuses. No operator may raise 256 to 10^7,
+raise another ceiling, or delay warnings; loosening needs a new RFC/author ruling and capability
+version.
 
-The existing `max_eval_turn` default of 30 seconds in
-`src/live_coalesce.rs::LiveCoalesceTunables` and `src/server.rs` remains a
-catastrophic containment timeout: after one timeout the scheduler retries a
-refresh, and after a second it tears the subscription down with
-`SNAPBACK_LIVE_EVALUATION_TIMEOUT` (`src/local.rs`; LLP 0200 §2.5). It is not
-the query-cost budget and cannot loosen the new 1,000 ms admission ceiling.
+The existing 30 s `max_eval_turn` is only catastrophic containment: one timeout retries a refresh;
+a second tears down with `SNAPBACK_LIVE_EVALUATION_TIMEOUT` (LLP 0200 §2.5). It cannot loosen the
+1,000 ms query-cost admission ceiling.
 
 ## 3. Enforcement ladder and exact precedence
 
-All available signals are collected before the policy engine chooses a
-verdict. The highest crossed rung wins: hard refusal, then pagination, then
-index, then warning. Missing evidence is a hard refusal. Lower-rung diagnostics
-may appear as remediation notes but cannot mask the deciding rung. Within one
-rung, deterministic signal order is the schema order in §1.1 followed by §5's
-canonical node order.
+Collect all available signals before verdict. Precedence is hard refusal > pagination > index >
+warning; missing evidence is hard refusal. Lower rungs may be remediation notes but never mask the
+winner. Ties use §1.1 schema order, then §5 canonical node order.
 
 ### 3.1 Rung 1 — warn
 
-Warn when a measured/estimated signal reaches `warnFraction` of its next
-effective blocking or hard bound. With defaults, examples are 128 unindexed
-entries in one full-scan consultation, 128 unpaged result rows, 128 KiB
-unpaged result bytes, 256 index
-consultations, or 500 ms for a live turn/fan-out estimate. A declaration at
-half its own maximum warns similarly.
-
-Warnings use `SNAPBACK_QUERY_COST_WARNING`, include the signal, observed or
-estimated quantity, unit, effective limit, function/plan identity, and next
-remediation rung, and never include application values. Warnings are emitted
-by codegen/verify and retained in local/operator diagnostics. They do not
-change query results.
+Warn when a measured/estimated signal reaches `warnFraction` of its next bound. At defaults this is
+128 unindexed entries, 128 unpaged rows, 128 KiB unpaged bytes, 256 consultations, or 500 ms; a
+declaration at half its own maximum likewise warns. `SNAPBACK_QUERY_COST_WARNING` includes signal,
+measured/estimated quantity, unit, effective limit, function/plan identity, and next rung—never app
+values. Codegen/verify and local/operator diagnostics retain it; results do not change.
 
 ### 3.2 Rung 2 — require an index
 
-For each `AccessPathConsultationV1` independently, if `selectedPath.kind` is
-`fullScan` and `examinedEntries` is greater than the effective
-`maxUnindexedScannedRows`, activation/qualification refuses with
-`SNAPBACK_QUERY_COST_INDEX_REQUIRED`. No invocation-total inference is needed:
-the counter is attached to the consultation that performed the work. Codegen
-may issue the same code earlier when a closed plan proves a full scan's
-declared consultation bound already exceeds the threshold; runtime measurement
-remains authoritative for opaque handlers and target planner choices.
-
-The fix is a declared schema index selected by the executed plan, followed by
-new fixture evidence. Merely spelling `.withIndex(...)` is insufficient while
-the target does not prove that it used the index (§1.3). An indexed range may
-still hit later rungs.
+Independently refuse any `fullScan` consultation whose `examinedEntries` exceeds effective
+`maxUnindexedScannedRows`, using `SNAPBACK_QUERY_COST_INDEX_REQUIRED`; no invocation-total inference
+is allowed. Codegen may issue it earlier for a provably over-bound closed plan, but runtime remains
+authoritative for opaque handlers/planner choices. Remediation requires an executed, declared schema
+index plus new evidence; `.withIndex(...)` alone is insufficient, and indexed ranges still face
+later rungs.
 
 ### 3.3 Rung 3 — require pagination
 
-A collection-shaped query whose measured `resultRows` is greater than the
-effective `maxUnpagedRows`, or whose measured `resultBytes` is greater than the
-effective `maxUnpagedResultBytes`, refuses with
-`SNAPBACK_QUERY_COST_PAGINATION_REQUIRED` unless this result is one page of an
-admitted keyset continuation. Offset pagination does not satisfy the rung
-because it does not bound skipped work. The declaration must name a stable
-keyset order, tie-break, page-row maximum, page-byte maximum, and §5
-summed-window maxima when it is a G0 graph.
+Unless it is one page of an admitted keyset continuation, a collection exceeding effective
+`maxUnpagedRows` or `maxUnpagedResultBytes` refuses with
+`SNAPBACK_QUERY_COST_PAGINATION_REQUIRED`. Offset does not bound skipped work. Declarations name
+stable keyset order/tie-break, page row/byte maxima, and for G0 the §5 window maxima.
 
-Point and scalar contracts use `resultRows: null` and may declare
-`notPageable`. A collection/aggregate is “closed-small” and may declare
-`notPageable` only when the host-recomputed declaration proves both
-`maxResultRows <= effective maxUnpagedRows` and
-`maxResultBytes <= effective maxUnpagedResultBytes`; qualification evidence
-must then stay within both. The shipped `single_table_v1@1` profile has
-whole-result/no-public-cursor semantics and an examined-entry ceiling of
-1,024, so class membership is **not** a pagination exemption. An individual
-single-table plan qualifies as `notPageable` only if its own closed
-`maxResultRows` and `maxResultBytes` meet the two limits. A wider plan refuses
-production qualification with `SNAPBACK_QUERY_COST_PAGINATION_REQUIRED` until
-a reviewed cursor-capable successor profile exists. `.take(1_024)` remains a
-result-count bound, not proof of cheap scan work or a waiver.
+Point/scalar contracts use `resultRows: null` and may be `notPageable`. A collection/aggregate may
+be closed-small `notPageable` only if the host proves declared result rows/bytes at or below both
+effective limits and evidence stays within both. `single_table_v1@1`'s whole result, no cursor, and
+1,024 examined-entry ceiling is no exemption: only individually bounded narrow plans qualify;
+wider plans refuse until a reviewed cursor-capable successor. `.take(1_024)` bounds results, not
+scan work or this rung.
 
 ### 3.4 Rung 4 — refuse
 
-Refuse when any of the following holds:
+Refuse when:
 
-1. an integer/byte measurement is greater than its effective inclusive maximum,
-   or an evaluation measurement is greater than its declared inclusive maximum;
-2. index consultations are greater than the effective (at most 512) maximum or
-   `serde_json` result bytes are greater than the effective (at most 4 MiB)
-   maximum;
-3. a `liveEstablishment` post-scale `admissionEvaluationBasisMs`, a
-   `liveReevaluation` post-scale `realEvaluationBasisMs` or
-   `memoDeliveryBasisMs`, or an actual runtime measurement of either live kind
-   at its named §1.5 boundary is at least the effective (at most 1,000 ms)
-   safety boundary;
-4. `estimatedLiveFanoutMs` is at least the effective (at most 1,000 ms)
-   boundary for the declared observer population; or
-5. matching, target-specific qualification evidence is absent, stale by
-   identity, incomplete, or unable to measure a field required by the
-   applicable ladder rung.
+1. an integer/byte value exceeds its effective inclusive maximum, or evaluation exceeds its
+   declared inclusive maximum;
+2. consultations exceed the effective maximum (at most 512), or `serde_json` bytes exceed the
+   effective maximum (at most 4 MiB);
+3. `liveEstablishment.admissionEvaluationBasisMs`, live-re-evaluation
+   `realEvaluationBasisMs`/`memoDeliveryBasisMs`, or a same-kind runtime §1.5 turn reaches its
+   effective refuse-at boundary (at most 1,000 ms);
+4. `estimatedLiveFanoutMs` reaches its effective refuse-at boundary (at most 1,000 ms); or
+5. matching target-specific qualification is absent, identity-stale, incomplete, or cannot
+   measure an applicable field.
 
-The millisecond safety boundary is inclusive and evaluated per live
-`executionKind`: a **post-scale basis or same-kind runtime turn** at 999.999 ms
-is below it; 1,000.000 ms refuses. Raw qualification samples are scaled exactly
-once per §1.6, so with the 1.25 factor the raw fixture boundary is 800.000 ms.
-No finite, establishment, re-evaluation, real, or memo population can average
-with another to pass.
+The live boundary is per kind: post-scale basis or same-kind runtime turn 999.999 ms passes and
+1,000.000 ms refuses. Raw qualification is scaled exactly once, making 800.000 ms the raw boundary;
+no finite/establishment/re-evaluation or real/memo population averages with another.
 
-Generic bound excess uses `SNAPBACK_QUERY_COST_BOUND_EXCEEDED`; the one-second
-live cases use `SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED`; missing or unusable
-evidence uses `SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED`. Index and pagination
-violations retain their more actionable rung-specific codes even though they
-also block activation.
+Generic, one-second-live, and evidence failures use `SNAPBACK_QUERY_COST_BOUND_EXCEEDED`,
+`SNAPBACK_QUERY_COST_LIVE_TURN_REFUSED`, and `SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED`; index and
+pagination keep their actionable codes. Activation validates fixture-bound qualification;
+registration recomputes prospective observer/group totals before insertion. Later drift may still
+cross a limit after elapsed work that cannot be undone.
 
-Production activation validates the fixture-bound qualification record before
-serving. Live registration recomputes the prospective observer/evaluation-
-group totals and refuses before inserting the subscription. A later data or
-hardware drift can still make one already-admitted turn cross the limit; the
-runtime cannot undo elapsed unpreemptible work.
+Quarantine key and rollup are exact:
+`CostQuarantineKeyV1 = (functionId, functionGeneration, planIdentity, targetProfile)`; each
+qualification cell adds `(fixtureIdentity, authorityClass, executionKind)`. Drift in any cell
+quarantines the key. Clearing requires one atomic artifact whose host-declared manifest covers and
+passes **every currently required fixture/data × authority-class × applicable-kind cell** for that
+key; one rerun cannot clear it. Other targets/generations/plans do not participate. A new key must
+pass its full matrix and does not erase historical quarantine.
 
-The quarantine rollup is exact. Its four-field key is
-`CostQuarantineKeyV1 = (functionId, functionGeneration, planIdentity,
-targetProfile)`. A qualification cell is that key plus `(fixtureIdentity,
-authorityClass, executionKind)`. Runtime drift in any cell quarantines the
-four-field key. Clearing requires one new atomic qualification artifact whose
-host-declared cell manifest covers **every currently required fixture/data ×
-authority-class × applicable-execution-kind cell for that four-field key** and
-whose cells all pass; rerunning only the violating cell cannot clear it. Cells
-for another target or another function/plan generation do not participate. A
-new generation/plan is a different key and must pass its own complete matrix
-before activation; it does not erase the historical quarantine record.
+Do not use `ResyncRequired`: its free-form reason makes full/micro clients auto-resubscribe. Add the
+snake-case durable `query_cost_terminal { subscription_id, code, details }`, offer-gated per
+LLP 0093 D1/0094 §0C.2. `OpenConnectionRequest.queryCostTerminalProtocol: 1` (snake-case alias
+accepted) is immutable on the connection lineage and echoed exactly as
+`ConnectionGrant.queryCostTerminalProtocol: 1`. Unknown
+values refuse open with `SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED`; absent is legacy and works only
+where guardrails are disabled. **On an enabled instance, every live subscribe synchronously refuses
+before snapshot/establishment without the echoed offer; there is no legacy live fallback.**
 
-The shipped `LiveEnvelope::ResyncRequired` is deliberately **not** used for
-this case: it carries only a free-form reason, and both full and micro clients
-automatically fresh-subscribe on receipt. This RFC adds a distinct
-`query_cost_terminal` durable envelope carrying
-`{ subscription_id, code, details }` in the existing durable-lane snake-case
-convention. Per LLP 0093 D1 and LLP 0094 §0C.2, the kind is offer-gated. The
-open-time offer is `OpenConnectionRequest.queryCostTerminalProtocol: 1`
-(snake-case alias accepted); the exact value is stored immutably on the
-connection lineage and echoed as `ConnectionGrant.queryCostTerminalProtocol:
-1`. Unknown values refuse open with `SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED`.
-Absent means a legacy connection that can use an instance with guardrails
-disabled, but **every live subscribe on a `queryCostGuardrails`-enabled
-instance synchronously refuses before snapshot/subscription establishment
-unless its connection has the echoed offer**. There is no legacy live fallback.
-This follows `CurrentAsOf`: a server emits a new kind only after the client has
-proved it can decode the required transition.
+Rollout: QT1 server accepts/echoes the optional offer with policy disabled; QT2 full/micro clients
+offer and require the echo; only QT3 enables policy and subscribe gate. V1 configuration is fixed
+before connections, so old clients either use a disabled instance or receive a typed pre-snapshot
+refusal, never an ignored terminal frame.
 
-Rollout is staged: QT1 servers accept and echo the optional offer while the
-cost policy remains disabled; QT2 full and micro clients offer it and require
-the exact echo before claiming support; only QT3 may enable
-`queryCostGuardrails` and the subscribe gate. The configuration is fixed before
-the instance accepts connections in v1, so enabling it cannot strand already-
-established legacy subscriptions. An old client therefore either uses a
-guardrails-disabled instance or receives a typed subscribe refusal before any
-snapshot; it can never receive and ignore `query_cost_terminal`.
+Atomically: (1) record the turn, (2) quarantine its key with deciding code/details, (3) install one
+terminal obligation per using subscription and retire them, and (4) make fresh registrations refuse
+with identical details; publish only afterward. Obligations use sticky out-of-band custody keyed by
+`(connection effect fence, subscription_id)`, bounded by existing live-subscription caps. A retired
+tombstone consumes its connection/global slot until acknowledgement or teardown, outranks
+`RecoveryMarkerPriority::{Poison, Unbound, Exact}`, and cannot be erased or converted by
+`OutboundQueue::overflow` to `resync_required`. Teardown leaves connection-independent quarantine
+to refuse the next subscribe. Other subscriptions retain any connection-wide overflow marker, but
+terminals select first and their client ignores later recovery markers for the retired handle.
 
-The server atomically (1) records the completed turn, (2) quarantines its
-`CostQuarantineKeyV1` with the deciding code/details, (3) installs one terminal
-obligation for every subscription using that key and retires those
-subscriptions, and (4) makes fresh registrations for the key refuse with the
-identical code/details; terminal publication follows that state transition.
-Terminal obligations use out-of-band sticky custody keyed by
-`(connection effect fence, subscription_id)`, bounded by the already-enforced
-live-subscription caps, rather than the ordinary durable deque; each retired
-terminal tombstone continues to consume its connection/global subscription
-slot until acknowledgement or teardown. They outrank
-`src/ephemeral.rs`'s `RecoveryMarkerPriority::{Poison, Unbound, Exact}`, remain
-until transport acknowledgement or connection teardown, and cannot be erased
-or converted by `OutboundQueue::overflow` into its `resync_required` sentinel.
-If teardown wins, the connection-independent quarantine record supplies the
-same typed refusal on the next subscribe. A pending connection-wide overflow
-marker remains valid for other subscriptions, but terminal obligations are
-selected first and a terminal client ignores every later recovery marker for
-that retired handle.
-
-Full and micro clients classify both the envelope and the same-code quarantine
-subscribe refusal as terminal: clear in-memory and persisted retained
-continuity, mark the handle refused, surface the typed error, cancel pending
-fresh-subscribe work and retry timers, and **never auto-resubscribe** that
-handle. Existing `resync_required` semantics remain unchanged only for
-nonterminal recoverable resnapshot cases. Thus every client generation either
-fails establishment before holding a cost-policy snapshot or performs the
-terminal transition; no silent-stale-retention outcome exists. The drift-
-triggering mutation still settles. This new offer, wire/server custody, and
-full/micro behavior must land before post-drift enforcement, preserving LLP
-0200's settlement isolation without a resubscribe loop.
+Full/micro clients treat both envelope and same-code subscribe refusal as terminal: clear memory
+and persisted continuity, mark refused, surface the typed error, cancel fresh-subscribe/retry work,
+and **never auto-resubscribe** that handle. `resync_required` remains only nonterminal recovery. The
+drift-triggering mutation still settles. Offer, custody, and both client behaviors must precede
+post-drift enforcement, preserving LLP 0200 settlement isolation without stale retention or loops.
 
 ## 4. Refusal contract, guide, and local/server parity
 
 ### 4.1 Stable diagnostic register
 
-Add these codes to the generated register and typed unions in the style of
-`guide/reference/diagnostics.md`:
+Add these codes to the generated register and typed unions:
 
 | Code | Severity/domain | Meaning and primary remediation |
 | --- | --- | --- |
@@ -592,70 +422,47 @@ Add these codes to the generated register and typed unions in the style of
 | `SNAPBACK_QUERY_COST_EVIDENCE_REQUIRED` | error / queries | production evidence is missing, identity-stale, incomplete, or unmeasurable |
 | `SNAPBACK_QUERY_COST_CLIENT_UNSUPPORTED` | error / realtime | the connection did not offer exactly `queryCostTerminalProtocol: 1`; update the client and reconnect before subscribing |
 
-HTTP uses 400 when plan/client changes are required and 409 for missing/stale activation evidence;
-the `query_cost_terminal` envelope carries the same code/details after drift. Identical inputs fail
-identically. None is 429: these are admission defects, not rate limits. Query-cost verdict details
-are the closed value-free shape `{ functionId, planIdentity?, signal, kind:
-measured|estimated|missing, observed?, limit, unit, rung, remediation }`. `functionId` and
-`planIdentity` are expressly permitted structural identifiers. Arguments, literal endpoints,
-content, fixture/data identity, principal/session/connection identity, and row ids are forbidden.
-The protocol-offer refusal instead carries the closed value-free shape
+HTTP is 400 for required plan/client changes and 409 for missing/stale activation evidence; none is
+429. Identical inputs fail identically, including post-drift terminal code/details. Query-cost
+details are closed and value-free:
+`{ functionId, planIdentity?, signal, kind: measured|estimated|missing, observed?, limit, unit, rung,
+remediation }`; the two identities are permitted, while arguments, literal endpoints, content,
+fixture/data, principal/session/connection, and row ids are forbidden. Offer refusal instead uses
 `{ requiredProtocol: 1, offeredProtocol: missing|unsupported, remediation }`.
 
 ### 4.2 One guide page
 
-Add `guide/backend/query-costs.md`, linked from query/live guidance and every new diagnostic. It
-teaches:
-
-- how to read the observation, its ladder-supporting `resultRows` and
-  per-consultation scan attribution, and distinguish measurement from estimate;
-- why `.take()` bounds output but may not bound scanned rows;
-- how to add an index and prove it was selected;
-- how to convert a list to stable keyset pagination;
-- how observer/evaluation-group declarations affect live fan-out; and
-- how local fixture qualification produces the production admission record.
-
-The page states target coverage and cannot claim scan/range measurement before paired conformance.
+Add `guide/backend/query-costs.md`, linked from query/live guidance and every diagnostic. It teaches
+observation reading (`resultRows`, per-consultation scan, measurement vs estimate); why `.take()`
+does not bound scans; selected-index proof; stable keyset conversion; observer/group fan-out; and
+local-fixture production qualification. It states target coverage and cannot claim scan/range
+measurement before paired conformance.
 
 ### 4.3 One policy contract, server and local evaluators
 
-LLP 0209 §8 requires one graph IR evaluated by server and D3 local evaluators, with identical graph
-refusals. It does **not** already require a shared host function. This RFC newly decides a pure,
-versioned `QueryCostPolicyV1` in service of that parity requirement. It consumes the
-host-recomputed declaration, observation, target capability, instance configuration,
-qualification, and current observer groups and returns a verdict plus diagnostics without I/O or
-ambient configuration. For G0 argument checks, the relevant inputs are specifically the
-declaration's host-recomputed `argumentId → maxItems` map and the observation's
-`structuralWork.argumentItemsByArgument`; the policy receives no argument values and never tries to
-reconstruct per-argument cardinality from the aggregate `argumentItems`.
+LLP 0209 §8 requires one IR and identical server/D3-local refusals, not a shared host function. This
+RFC newly defines pure, versioned `QueryCostPolicyV1`: declaration, observation, target capability,
+instance configuration, qualification, and current groups in; verdict/diagnostics out, without I/O
+or ambient config. G0 also inputs host-recomputed `argumentId → maxItems` and
+`structuralWork.argumentItemsByArgument`; it receives no values and never reconstructs per-argument
+facts from aggregate `argumentItems`.
 
-The server evaluator and every D3-capable local evaluator must apply this same policy contract and
-the same target facts. They may share one portable implementation or use separate implementations
-qualified by the corpus; implementation sharing is not the normative claim. An ordinary remote
-client does not override server admission, but a client/runtime claiming LLP 0209 D3 local graph
-evaluation **does** implement these refusals and returns `refused` rather than evaluating a graph
-the server would reject.
+Server and every D3 local evaluator apply this contract and the same target facts, via a portable
+implementation or corpus-qualified twins. Ordinary remote clients do not override admission; a D3
+claim must return `refused` for any server-refused graph.
 
-The parity corpus compares exact code, rung, signal, observed value, limit, unit, and detail shape
-for below/at/above thresholds; scan/index and implicit-take/keyset pairs;
-identical-key/distinct-session fan-out; missing/stale/unmeasurable evidence; and post-admission
-drift. It also drives the new terminal envelope through full and micro clients and proves that
-neither auto-resubscribes. The same target facts cannot pass locally and refuse on server, or vice
-versa.
-
-Qualifications are target-specific: different measurements may decide differently; identical
-observations may not.
+The parity corpus exact-compares code, rung, signal, observed, limit, unit, and details across
+below/at/above; scan/index and implicit-take/keyset pairs; identical-key/distinct-session fan-out;
+missing/stale/unmeasurable evidence; post-admission drift; and full/micro terminal handling without
+auto-resubscribe. Qualifications are target-specific: differing measurements may decide
+differently, identical observations may not.
 
 ## 5. LLP 0209 G0 bounds and guardrails are one system
 
-`queryCost` is the one declaration/enforcement surface for ordinary pre-G0 queries and later graph
-plans. LLP 0209 §2 requires eight distinct G0 bound kinds: root, examined-entry, relationship,
-fanout, argument, byte, summed-window, and maintained-write. The `queryCost.graph` member carries
-all eight; there is no `g0Bounds` twin. Canonical node order means the order encoded in the
-host-recomputed graph IR.
-
-Every structurally owned plan may populate `structuralWork`; a G0 graph must
-populate every applicable entry in this closed value-free shape:
+`queryCost` is the sole pre-G0/G0 declaration and enforcement surface. `queryCost.graph` carries
+LLP 0209 §2's root, examined-entry, relationship, fanout, argument, byte, summed-window, and
+maintained-write bounds; there is no `g0Bounds` twin. Canonical order is host-recomputed IR order.
+Any structurally owned plan may populate `structuralWork`; G0 must populate every applicable entry:
 
 ```ts
 type StructuralWorkV1 = Readonly<{
@@ -682,78 +489,58 @@ The exact consumption rules are:
 | summed-window | A pageable graph declares the tuple `maxWindowPages`, `maxWindowRootRows`, `maxWindowScannedRows`, `maxWindowResultRows`, `maxWindowResultBytes`, and `maxWindowIndexRanges`. | Use the cumulative mechanism below. Every field is a checked sum across published pages; no per-page value substitutes for it. |
 | maintained-write | The graph declares `maxMaintainedWritesPerMutation`; one maintained write is one graph-owned row/index effect attempted because a source mutation changes a maintained graph fact. | The write path emits sibling `QueryCostMaintenanceObservationV1 { graphPlanIdentity, mutationVersion, maintainedWrites }`, checked per graph before commit. `maintainedWrites` is a checked sum of effects, not read `scannedRows`; exceeding it refuses the mutation before commit with `SNAPBACK_QUERY_COST_BOUND_EXCEEDED`. |
 
-For argument accounting, an absent optional argument has cardinality zero, an array has its exact
-length, and every other canonical JSON argument—including `null` and objects—has cardinality one.
-The observer records that count beside the host-recomputed structural `argumentId`, never the name
-or value. Each declared top-level argument is summed once. Missing, duplicate, unknown, or
-out-of-order ids are incomplete evidence and refuse. A node's expansion product includes only the
-distinct top-level arguments that its IR edges mark multiplicative; reuse elsewhere does not
-multiply that node again.
+Argument cardinality is zero for absent optional, array length for arrays, and one for every other
+canonical JSON value including `null`/objects. Record it only beside host-recomputed `argumentId`;
+sum each top-level argument once. Missing/duplicate/unknown/out-of-order ids refuse as incomplete.
+Node expansion multiplies only distinct arguments marked multiplicative by its IR edges; reuse does
+not multiply again.
 
-The summed-window mechanism is a host-authenticated
-`QueryCostWindowLedgerV1` carried inside the opaque keyset continuation. It binds function
-generation, plan identity, canonical-args hash, authority partition, target profile, and the stable
-window identity, and contains `pages`, `rootRows`, `scannedRows`, `resultRows`, `resultBytes`, and
-`indexRanges`. The first page starts from all-zero prior totals. Before executing a resumed page,
-the host verifies the binding, refuses immediately if `pages == maxWindowPages`, and derives the
-remaining root/scan/row/byte/range budgets. The page executors receive the remaining count budgets
-and stop before charging a unit that would exceed one, but that stop is a **refusal boundary, never
-a short-page boundary**: unless the executor independently proves source exhaustion or the end of a
-declared named interval, failure to complete the requested page within every remaining budget makes
-the page `refused`, with no result or successor cursor published. Result rows and bytes are checked
-before publication. The host then checked-adds a completed page's observation to the prior ledger
-and checks all six declared summed-window maxima. Any overflow, binding mismatch, incomplete page,
-or exceeded maximum refuses the page.
+The opaque keyset cursor carries host-authenticated `QueryCostWindowLedgerV1`, bound to generation,
+plan, canonical-args hash, authority partition, target, and stable window identity, with `pages`,
+`rootRows`, `scannedRows`, `resultRows`, `resultBytes`, and `indexRanges`. The first page starts
+from all-zero prior totals across all six ledger fields.
+On resume, verify binding, refuse if `pages == maxWindowPages`, and derive remaining
+root/scan/row/byte/range budgets. Executors receive those count budgets and stop before charging a
+unit that would exceed one; this is a **refusal boundary, never a short-page boundary**:
+without independent source exhaustion or named-interval end, inability to complete the requested
+page within every budget publishes neither result nor successor. Check rows/bytes before publication,
+then checked-add the page and check all six maxima. Overflow, mismatch, incompleteness, or excess
+refuses.
 
-Every published nonterminal keyset page is labelled `prefix` and carries its successor, including a
-page that exactly reaches a window maximum while proving more data exists; a later resume then
-returns `refused`. A no-successor result may be published only when execution independently proves
-the entire named graph exhausted (`complete`) or the declared named interval ended (`window`), never
-because a cost budget ran out. The final ledger is retained in qualification/inspection. These are
-exactly LLP 0209 §4's `prefix` / `window` / `refused` outcomes, so budget exhaustion cannot be
-indistinguishable from end-of-data. Server and D3 local evaluators use the same ledger encoding,
-labels, and checks.
+Every published nonterminal page is `prefix` with successor—even exactly at a maximum when more data
+exists, so the next resume refuses. No-successor requires independently proved graph exhaustion
+(`complete`) or named-interval end (`window`), never budget exhaustion. Retain the final ledger in
+qualification/inspection; server and D3 local use identical encoding, labels, and checks.
 
-Structural and aggregate limits are conjunctive; neither can loosen the other. For examined work,
-the static whole-graph ceiling is effectively
-`min(maxScannedRows, checked_sum(node.maxExaminedEntriesPerExecution))`: a smaller aggregate limit
-tightens the node sum, while smaller node limits remain enforceable even when the aggregate is
-larger. Runtime checks evaluate canonical nodes in order and, within each node, the bound-kind
-order root, examined-entry, relationship, fanout, argument; then summed-window limits in the tuple
-order above; then whole-query aggregates. If structural and aggregate limits
-are both crossed, the first structural violation is the primary diagnostic and the aggregate miss
-may be a remediation note. This precedence changes diagnostics, never admission: crossing either
-refuses with the same `QueryCostPolicyV1`.
+Structural and aggregate limits are conjunctive. Examined work is effectively
+`min(maxScannedRows, checked_sum(node.maxExaminedEntriesPerExecution))`. Runtime checks evaluate canonical
+nodes in order and, within each node, the bound kinds in the order root, examined-entry,
+relationship, fanout, argument; then summed-window limits in the tuple order above; then
+whole-query aggregates.
+If both cross, the first structural miss is primary and aggregate may be a note; either refuses.
 
-Live query-cost fields (`maxObservers`, `maxDistinctEvaluationGroups`, and
-`maxEstimatedLiveFanoutMs`) are **not** a ninth LLP 0209 §2 G0 bound and do not appear in the table.
-They are orthogonal live-admission fields on `queryCost`; G0 authority/input proofs may reduce
-`maxDistinctEvaluationGroups`, but the §1.6 formula and §3.4 safety boundary remain unchanged.
+`maxObservers`, `maxDistinctEvaluationGroups`, and `maxEstimatedLiveFanoutMs` are orthogonal live
+fields, **not a ninth G0 bound**. G0 proof may reduce groups, never alter §§1.6/3.4.
 
-Guardrails are the pre-G0 measured-enforcement rung of the same system: opaque queries get
-whole-invocation limits, while G0 adds closed IR, node attribution, proved inputs, structural
-checks, and the cumulative window ledger. One qualification run executes every normal/large G0
-cell, records the complete observation, computes fan-out, and checks all eight declared bound
-kinds. Placeholder large ceilings cannot pass merely because instance absolutes did not fire; LLP
-0209 §9's values remain fixture-derived.
+Pre-G0 opaque queries use whole-invocation limits; G0 adds closed IR, node attribution, proved
+inputs, structural checks, and the window ledger. One run executes every normal/large cell, records
+a complete observation, computes fan-out, and checks all eight kinds. Placeholder ceilings cannot
+pass merely because instance absolutes did not fire; values remain fixture-derived (LLP 0209 §9).
 
 ## 6. Landing and acceptance sequence
 
-Land: (1) target-neutral accumulator, per-consultation SQLite scan/range measurement, and adapters
-for shipped relational/vector facts and examined-entry guards; (2) exact `serde_json` result bytes,
-`resultRows`, keyed finite/live/memo timing, and the new mixed-bundle per-child span while otherwise
-preserving shipped timing boundaries; (3)
-declaration, cumulative window ledger, target qualification, and identity invalidation; (4) pure
-policy contract, tighten-only defaults, diagnostics, activation/registration gates, cost
-quarantine, the staged terminal-protocol offer, sticky `query_cost_terminal` custody, and terminal
-full/micro client handling; (5) server/D3 parity
-corpus; then (6) guide and generated references. No slice may claim a later surface, and
-post-drift enforcement cannot land before its terminal client behavior.
+Land: (1) target-neutral accumulator, per-consultation SQLite scan/range measurement, and shipped
+relational/vector/guard adapters; (2) exact `serde_json` bytes, `resultRows`, keyed finite/live/memo
+timing, and mixed-bundle per-child spans without changing other boundaries; (3) declaration, window
+ledger, target qualification, and identity invalidation; (4) pure policy, tighten-only defaults,
+diagnostics, activation/registration gates, quarantine, staged terminal offer, sticky custody, and
+terminal full/micro handling; (5) server/D3 parity corpus; (6) guide/generated references. No slice
+claims a later surface; post-drift enforcement waits for terminal client behavior.
 
-Acceptance requires execution-derived physical scan measurement (never result-count or hint
-substitution), exact per-consultation attribution for empty/correlated/repeated/full-scan reads,
-exact top-level result rows, and a fan-out estimate reproducing both conservative six-observer
-serialization and complete-key G1 sharing. The millisecond matrix is explicit:
+Acceptance requires physical scan measurement from execution (never results/hints), exact
+per-consultation attribution for empty/correlated/repeated/full scans, exact top-level result rows,
+and fan-out reproducing conservative six-observer serialization and complete-key G1 sharing.
+Timing acceptance is:
 
 - separately for `liveEstablishment` and `liveReevaluation`, post-scale policy inputs and runtime
   measurements at their named §1.5 boundaries at
@@ -763,53 +550,32 @@ serialization and complete-key G1 sharing. The millisecond matrix is explicit:
 - no fixture maximum pools execution kinds, and no policy path scales an already-scaled basis or a
   runtime drift measurement again.
 
-The corpus also pins equality and just-over behavior for every inclusive integer/byte maximum;
-mixed-bundle finite/live-establishment per-child timing without sibling or registration time; mixed
-indexed/full-scan attribution; `resultRows` null/zero/nonzero; lowered instance limits and
-rejection of every attempted raise; `notPageable` just below/at/above both closed-small limits;
-`single_table_v1@1` narrow-plan admission and wider-plan pagination refusal; legacy versus
-queryCost-wrapped examined-entry codes; `serde_json` byte cases that differ from JCS; every §5
-per-node/sum/max/product/cumulative rule and conflict precedence; swapped per-argument cases such as
-`a=6,b=4` versus `a=4,b=6` under distinct `maxItems`; prefix/window/refused page outcomes at every
-summed-window edge; vector-counter preservation; all-cells quarantine clearing; and quarantine
-persistence across attempted auto-resubscribe.
+The corpus also pins: every inclusive integer/byte equality and just-over case; mixed-bundle finite/
+establishment child timing without sibling/registration time; mixed indexed/full-scan attribution;
+`resultRows` null/zero/nonzero; lowered instance limits and every attempted raise; `notPageable`
+below/at/above both limits; narrow/wide `single_table_v1@1`; legacy/wrapped examined-entry codes;
+`serde_json` cases differing from JCS; every §5 per-node/sum/max/product/cumulative and conflict rule;
+`a=6,b=4` versus `a=4,b=6` under distinct `maxItems`; every prefix/window/refused edge; vector
+counters; all-cell quarantine clearing; and persistence through attempted auto-resubscribe.
 
-Index/pagination remedies must lower normal and large-fixture cost rather than silence diagnostics;
-the drift-triggering mutation must still commit; refusals must be value-free and local/served
-code/detail-parity-tested; terminal fixtures must cover known/unknown/absent offers, ordinary
-delivery, durable-capacity overflow, connection teardown followed by subscribe refusal, and full/
-micro cancellation of auto-resubscribe; and G0
-must consume this declaration/report without another registry. Claims follow LLP 0189;
-deterministic thresholds are product contract while measured magnitudes remain snapshot-scoped.
+Remedies must lower normal/large-fixture cost, not silence diagnostics. The triggering mutation must
+commit; refusals must be value-free with local/served code/detail parity. Terminal fixtures cover
+known/unknown/absent offers, ordinary delivery, durable-capacity overflow, teardown then subscribe
+refusal, and full/micro auto-resubscribe cancellation. G0 consumes this declaration/report without
+another registry. Claims follow LLP 0189: thresholds are product contract; measured magnitudes are
+snapshot-scoped.
 
 ## Open questions
 
-None at v0.4. The signal dispositions, capture points, defaults, declaration
-versus instance split, diagnostic vocabulary, refusal parity, and G0
-relationship are decided here. Calibration data may motivate a later dated
-amendment, but implementation may not silently retune the defaults or create a
-second bounds surface.
+None. Signal dispositions, capture points, defaults, declaration/instance split, diagnostics,
+refusal parity, and the G0 relationship are decided. Calibration may motivate a dated amendment;
+implementation may not silently retune defaults or add another bounds surface.
 
 ## Revision history
 
+- **v0.6 (2026-08-16).** Author-authorized trim: -237 lines, no normative change.
 - **v0.5 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.4 (2026-08-16).** Resolves the round 3 residual by binding mixed-bundle finite and live-establishment executions to a new exact per-child timing seam carried through pinned live registration.
-- **v0.3 (2026-08-16).** Applies review round 2: binds and isolates all three
-  execution-kind timing seams; records and checks each argument's cardinality;
-  defines all-cell qualification-to-quarantine rollup; offer-gates terminal
-  wire behavior and gives it overflow-proof sticky custody plus terminal retry
-  handling; and makes summed-window budget exhaustion a legal `refused`
-  outcome rather than a short end-of-data lookalike.
-- **v0.2 (2026-08-16).** Applies review round 1: reconciles shipped relational,
-  examined-entry, finite/live timing, invocation-ring, result-byte, and vector
-  seams; adds per-consultation examined work, result rows, and memo-delivery
-  timing; makes all defaults tighten-only; resolves raw-versus-scaled time
-  boundaries; defines a terminal cost envelope plus generation quarantine;
-  attributes LLP 0209 §8 correctly; specifies all eight G0 consumption and
-  cumulative-window rules; scopes diagnostic identities; parameterizes
-  messages; and closes `notPageable`/`single_table_v1@1` pagination behavior.
-- **v0.1 (2026-08-16).** Initial commissioned draft. Decides four measured
-  signals plus one explicitly estimated fan-out signal; a single
-  declaration/observation/policy system shared with LLP 0209 G0; the
-  warn→index→pagination→refuse thresholds and instance-tightening rule; six
-  typed diagnostics and one guide page; and exact local/server refusal parity.
+- **v0.3 (2026-08-16).** Applies review round 2: isolates all three timing kinds; records per-argument cardinality; defines all-cell quarantine clearing; offer-gates terminal wire behavior with sticky custody and terminal retry handling; and makes window exhaustion `refused`, never a short end-of-data lookalike.
+- **v0.2 (2026-08-16).** Applies review round 1: reconciles relational, examined-entry, finite/live timing, invocation-ring, result-byte, and vector seams; adds per-consultation work, result rows, and memo timing; makes defaults tighten-only; resolves raw/scaled boundaries; defines terminal quarantine; corrects LLP 0209 §8 attribution; specifies all eight G0/window rules; scopes identities; parameterizes messages; and closes `notPageable`/`single_table_v1@1`.
+- **v0.1 (2026-08-16).** Initial commissioned draft: four measured signals plus estimated fan-out; one declaration/observation/policy system with G0; warn→index→pagination→refuse; instance tightening; six diagnostics, one guide, and exact local/server parity.

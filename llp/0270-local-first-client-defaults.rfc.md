@@ -8,13 +8,15 @@ evaluation, Optimistic mutations, Offline outbox, Client storage
 (commissioned by the author performance-direction ruling 2026-08-15, Charlie
 Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
+**Revised:** 2026-08-16 (v0.4 — rollout order recorded under delegated authority)
 **Related:** LLP 0053, LLP 0129, LLP 0155, LLP 0166, LLP 0190, LLP 0198,
 LLP 0209, LLP 0218,
 `issues/20260815-local-first-defaults-audit.md`
 
 ## Revision history
 
+- **v0.4 (2026-08-16).** Rollout section: recorded the flip order (waves 1-6)
+  as an orchestrator ruling under the author's 2026-08-16 delegation.
 - **v0.3 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.2 (2026-08-16)** — Applied review-round-1 evidence corrections: public
   JS retention and optimistic-view signatures, Expo automatic-queue fallback
@@ -328,6 +330,42 @@ Each ticket lands affected-scope tests and documentation with its mechanism.
 Capability promotion follows LLP 0189's scoped qualification-digest posture;
 one arm or risk class need not wait for all others, and no partial landing is
 described as universal defaultness.
+
+### Rollout order (orchestrator ruling under delegated authority, 2026-08-16)
+
+The author delegated the flip order to the orchestration session of
+2026-08-16. The order is ascending semantic risk under the dependency
+structure above, and it is revisable by the author at any time:
+
+1. **Headless outbox-drain default** (ticket 3) — smallest blast radius; the
+   queueing half is already default and LLP 0218 §4.3's barriers are
+   preserved; no carrier or evaluator dependency.
+2. **Generated optimistic projection default** (ticket 2) — presentation-layer
+   semantics on machinery that already ships (generated IR, ledger, rebase);
+   no carrier dependency; prediction never becomes authority.
+3. **JS retained-facts default, public-exact slice** (ticket 1) —
+   device-storage and custody consequences. Per LLP 0190's stage order this
+   wave flips only the D3.2 public-exact risk class; protected retention
+   (D3.6) does not flip here — it graduates in wave 5 after the intervening
+   D3.3-D3.5 stages.
+4. **Expo carrier qualification** (ticket 4) — a parallel track, not a wave:
+   code may land early, but the carrier-dependent Expo flips — durable
+   retention (wave 3), outbox settlement, and local evaluation (wave 5) —
+   activate only on the real-device receipts ticket 4's acceptance requires,
+   per D4. Wave 2's Expo optimistic projection has no carrier dependency and
+   is not gated here; only its restart-replay of queued intent waits for the
+   qualified carrier.
+5. **D3 stages D3.3-D3.6, including local evaluation and protected
+   retention** (ticket 5 plus the protected slice of ticket 1) — a program,
+   executed in LLP 0190's mandatory stage order after wave 3's public-exact
+   slice: D3.3 local-evaluation receipt/refusal, D3.4 compatible-projection
+   decision, D3.5 private-exact, then D3.6 protected retention, with
+   LLP 0209 §8's agreement corpus governing the evaluator seam.
+6. **Swift read path, then write path** (tickets 6–7) — after the JS defaults
+   stabilize the admission/receipt shape those arms must consume.
+
+Waves land independently per LLP 0189's scoped posture; a later wave never
+retroactively blocks an earlier landed flip.
 
 ## Alternatives considered
 
