@@ -14,6 +14,7 @@ export const OPTIMISTIC_REBASE_SNAPSHOT_FORMAT_V1:
   'snapback.optimistic-rebase-snapshot.v1';
 export const OPTIMISTIC_REBASE_OUTCOME_FORMAT_V1:
   'snapback.optimistic-rebase-outcome.v1';
+export const OPTIMISTIC_REBASE_OUTCOME_CAP: 64;
 
 export interface OptimisticReplayEntryV1 {
   readonly clientMutationId: string;
