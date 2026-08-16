@@ -23,3 +23,4 @@
   the default-flip rollout order are the author's call. Implementation
   ownership stays with LLP 0190 D3 and the mechanism LLPs (0155/0129, 0166,
   0218, 0053) per the RFC's deferrals.
+- **Acceptance:** Accepted by author ruling (Charlie Cheever), 2026-08-16.

@@ -1,11 +1,11 @@
 # LLP 0268: Broadcast-shaped realtime with durable shared deltas
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Live queries, Realtime, Auth, Performance, Local-first sync
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-16 (v0.2 — review round 1 fixes)
+**Revised:** 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
 **Related:** LLP 0209, LLP 0200, LLP 0008, LLP 0170, LLP 0013, LLP 0090,
 LLP 0265,
 `issues/20260815-broadcast-shaped-realtime-commission.md`,
@@ -479,6 +479,7 @@ placement are constrained implementation choices; unresolved classification fact
 
 ## Revision history
 
+- **v0.3 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.1 (2026-08-16).** Initial draft: adopts G0's class-1-base plus establishment check, extends
   DK-3/G3 with a bounded group distributor, keeps LLP 0200 §2.4 unchanged, and fixes the fail-closed boundary.
 - **v0.2 (2026-08-16).** Review round 1 fixes: binds admission scope and exact fail-closed audience to the

@@ -30,3 +30,4 @@
   an acceptance-time author call.
 - **Status on landing:** Draft, review loop converged; acceptance is the
   author's call.
+- **Acceptance:** Accepted by author ruling (Charlie Cheever), 2026-08-16.

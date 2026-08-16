@@ -1,11 +1,11 @@
 # LLP 0267: Query-cost guardrails before production admission
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Live queries, Relational queries, Performance, Diagnostics, Schema
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned by the author performance-direction ruling 2026-08-15, Charlie Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-16 (v0.4 — round 3 residual: mixed-bundle timing seam)
+**Revised:** 2026-08-16 (v0.5 — Status Draft → Accepted, author ruling 2026-08-16)
 **Related:** LLP 0209 (bounded live graph profile, especially §§1–2, 8–9),
 LLP 0183 §D2 (bounded relational graph charter), LLP 0198 (typed,
 evidence-heavy strategic frame), LLP 0200 (live evaluation scheduling and
@@ -792,6 +792,7 @@ second bounds surface.
 
 ## Revision history
 
+- **v0.5 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.4 (2026-08-16).** Resolves the round 3 residual by binding mixed-bundle finite and live-establishment executions to a new exact per-child timing seam carried through pinned live registration.
 - **v0.3 (2026-08-16).** Applies review round 2: binds and isolates all three
   execution-kind timing seams; records and checks each argument's cardinality;

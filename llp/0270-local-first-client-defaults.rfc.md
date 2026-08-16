@@ -1,20 +1,21 @@
 # LLP 0270: Local-first client defaults
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** React, Expo, Swift, Headless client, Retained facts, Local query
 evaluation, Optimistic mutations, Offline outbox, Client storage
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5
 (commissioned by the author performance-direction ruling 2026-08-15, Charlie
 Cheever)
 **Date:** 2026-08-16
-**Revised:** 2026-08-16 (v0.2 — review round 1 fixes)
+**Revised:** 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
 **Related:** LLP 0053, LLP 0129, LLP 0155, LLP 0166, LLP 0190, LLP 0198,
 LLP 0209, LLP 0218,
 `issues/20260815-local-first-defaults-audit.md`
 
 ## Revision history
 
+- **v0.3 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.2 (2026-08-16)** — Applied review-round-1 evidence corrections: public
   JS retention and optimistic-view signatures, Expo automatic-queue fallback
   behavior, the target replay-capability prerequisite, Swift's shipped

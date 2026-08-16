@@ -27,3 +27,4 @@
 - **Status on landing:** Draft, review round complete; acceptance is the
   author's call; implementation blocked on LLP 0209 G0 exit by the RFC's own
   gates.
+- **Acceptance:** Accepted by author ruling (Charlie Cheever), 2026-08-16.

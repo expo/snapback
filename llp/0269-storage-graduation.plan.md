@@ -1,11 +1,11 @@
 # LLP 0269: Storage graduation through Postgres and transactional cells
 
 **Type:** Plan
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Storage, Performance, Schema, Sync, Realtime, Deployment, Testing
 **Author:** Codex gpt-5.6-sol xhigh, orchestrated by Claude Fable 5 (commissioned in the author's 2026-08-16 orchestration session under Charlie Cheever's 2026-08-15 performance-direction ruling)
 **Date:** 2026-08-16
-**Revised:** 2026-08-16 (v0.2 — review round 1 fixes)
+**Revised:** 2026-08-16 (v0.3 — Status Draft → Accepted, author ruling 2026-08-16)
 **Related:** LLP 0007, LLP 0012, LLP 0046, LLP 0080, LLP 0113, LLP 0128, LLP 0163, LLP 0189, LLP 0198, LLP 0209, LLP 0225, LLP 0265, `issues/20260815-storage-graduation-plan-commission.md`
 
 ## 0. Charter and position
@@ -497,6 +497,7 @@ The recommendation is a default for decision, not a silent ruling.
 
 ## 5. Revision history
 
+- **v0.3 (2026-08-16).** Status Draft → Accepted by author ruling (Charlie Cheever, 2026-08-16 session), on the converged dual-family review record in the run journal.
 - **v0.2 (2026-08-16).** Applies review round 1: corrects implementation and
   LLP citations; scopes envelopes to identity-bearing lanes; adds the
   process-wide writer-gate removal and concurrency proof; makes Phase 2

@@ -23,3 +23,4 @@
   resolution note landed with this journal is the repository record.
 - **Status on landing:** Draft, review round complete; acceptance is the
   author's call.
+- **Acceptance:** Accepted by author ruling (Charlie Cheever), 2026-08-16.
