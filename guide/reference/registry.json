@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-symbol-registry.v1",
   "generatedBy": "scripts/generate-symbol-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:2d29074848b12d86890d54011ff7d6e4ea1f55934233ba748be73328943eeb01",
+    "sourceDigest": "sha256:ad3ce53807b3e22db464c12788fc627f0fdbec04e6c6f9df1340ec979342d418",
     "publishedClosureVersion": "0.1.23",
     "packageVersions": {
       "@expo/snapback-cli": "0.1.23",
@@ -417,6 +417,7 @@
       "symbolIds": [
         "npm:@expo/snapback-client/app-client-internal#adoptSupervisedBootstrapAuthority",
         "npm:@expo/snapback-client/app-client-internal#applicationDescriptorForAppClient",
+        "npm:@expo/snapback-client/app-client-internal#classifyHostedDevelopmentHostname",
         "npm:@expo/snapback-client/app-client-internal#createSnapbackAppClientWithBootstrapObserver"
       ]
     },
@@ -1998,6 +1999,7 @@
         "npm:@expo/snapback-expo#ExpoFetchResponseLike",
         "npm:@expo/snapback-expo#ExpoPickerAssetSource",
         "npm:@expo/snapback-expo#FirstPartyExpoBootState",
+        "npm:@expo/snapback-expo#HostedDevelopmentAppBindingV1",
         "npm:@expo/snapback-expo#invokeSnapbackCommand",
         "npm:@expo/snapback-expo#invokeSnapbackMutation",
         "npm:@expo/snapback-expo#isAppBindingDiagnostic",
@@ -2139,6 +2141,7 @@
         "npm:@expo/snapback-expo/app-binding#AppBindingV1",
         "npm:@expo/snapback-expo/app-binding#AppBindingValidationProblem",
         "npm:@expo/snapback-expo/app-binding#AppDescriptorV1Like",
+        "npm:@expo/snapback-expo/app-binding#HostedDevelopmentAppBindingV1",
         "npm:@expo/snapback-expo/app-binding#isAppBindingDiagnostic",
         "npm:@expo/snapback-expo/app-binding#publicBindingFacts",
         "npm:@expo/snapback-expo/app-binding#PublicBindingFacts",
@@ -5590,16 +5593,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 88,
+        "line": 124,
         "column": 1,
-        "endLine": 91
+        "endLine": 127
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 88,
+          "line": 124,
           "column": 1,
-          "endLine": 91
+          "endLine": 127
         }
       ],
       "publicDeclaration": {
@@ -5634,16 +5637,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 81,
+        "line": 117,
         "column": 1,
-        "endLine": 86
+        "endLine": 122
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 81,
+          "line": 117,
           "column": 1,
-          "endLine": 86
+          "endLine": 122
         }
       ],
       "publicDeclaration": {
@@ -5678,16 +5681,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 93,
+        "line": 129,
         "column": 1,
-        "endLine": 113
+        "endLine": 149
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 93,
+          "line": 129,
           "column": 1,
-          "endLine": 113
+          "endLine": 149
         }
       ],
       "publicDeclaration": {
@@ -8951,16 +8954,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 132,
+        "line": 168,
         "column": 1,
-        "endLine": 144
+        "endLine": 180
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 132,
+          "line": 168,
           "column": 1,
-          "endLine": 144
+          "endLine": 180
         }
       ],
       "publicDeclaration": {
@@ -17784,16 +17787,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 73,
+        "line": 109,
         "column": 1,
-        "endLine": 79
+        "endLine": 115
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 73,
+          "line": 109,
           "column": 1,
-          "endLine": 79
+          "endLine": 115
         }
       ],
       "publicDeclaration": {
@@ -24808,7 +24811,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type SnapbackAppBindingV1 = Readonly<{\n  format: 'snapback.app-binding.v1';\n  source: 'supervised-dev' | 'release';\n  descriptorIdentity: string;\n  target: Readonly<{\n    app: string;\n    schema: string;\n    functions: string;\n    origin: string;\n    routing: 'loopback' | 'port-forward' | 'https';\n  }>;\n  capabilities: Readonly<{ offered: readonly string[] }>;\n  provenance:\n    /** A supervised binding is admitted only while unexpired. Within one live\n     * owner, issuedAt is a non-rewinding watermark; generated identities and\n     * the opaque supervisor generation are the currently available successor\n     * facts, pending the full LLP 0241 activation receipt. */\n    | Readonly<{ supervisorGeneration: string; issuedAt: string; expiresAt: string }>\n    | Readonly<{ environment: string; releaseChannel: string; buildReceipt: string }>;\n  integrity:\n    | Readonly<{ channel: 'local-supervised-ipc' }>\n    | Readonly<{ channel: 'signed-artifact'; signature: string }>\n    | Readonly<{ channel: 'embedded-at-build' }>;\n}>;",
+      "signature": "export type SnapbackAppBindingV1 = Readonly<{\n  format: 'snapback.app-binding.v1';\n  descriptorIdentity: string;\n  capabilities: Readonly<{ offered: readonly string[] }>;\n}> & (\n  /** A supervised binding is admitted only while unexpired. Within one live\n   * owner, issuedAt is a non-rewinding watermark; generated identities and\n   * the opaque supervisor generation are the currently available successor\n   * facts, pending the full LLP 0241 activation receipt. */\n  | Readonly<{\n      source: 'supervised-dev';\n      target: Readonly<{\n        app: string;\n        schema: string;\n        functions: string;\n        origin: string;\n        routing: 'loopback' | 'port-forward';\n      }>;\n      provenance: Readonly<{\n        supervisorGeneration: string;\n        issuedAt: string;\n        expiresAt: string;\n      }>;\n      integrity: Readonly<{ channel: 'local-supervised-ipc' }>;\n    }>\n  | Readonly<{\n      /** Runtime use requires the exact object admitted through the app export\n       * hydrated by the generated binding module; a hand-built or cloned\n       * receipt-bearing value is shape-compatible but is refused before\n       * transport I/O. */\n      source: 'hosted-development';\n      target: Readonly<{\n        app: string;\n        schema: string;\n        functions: string;\n        origin: string;\n        routing: 'https';\n      }>;\n      provenance: Readonly<{ hostedTargetReceipt: string }>;\n      integrity: Readonly<{ channel: 'hosted-target-admission' }>;\n    }>\n  | Readonly<{\n      source: 'release';\n      target: Readonly<{\n        app: string;\n        schema: string;\n        functions: string;\n        origin: string;\n        routing: 'https';\n      }>;\n      provenance: Readonly<{\n        environment: string;\n        releaseChannel: string;\n        buildReceipt: string;\n      }>;\n      integrity:\n        | Readonly<{ channel: 'signed-artifact'; signature: string }>\n        | Readonly<{ channel: 'embedded-at-build' }>;\n    }>\n);",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -24819,14 +24822,14 @@
         "file": "packages/snapback-client/app-client.d.mts",
         "line": 36,
         "column": 1,
-        "endLine": 59
+        "endLine": 95
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
           "line": 36,
           "column": 1,
-          "endLine": 59
+          "endLine": 95
         }
       ],
       "publicDeclaration": {
@@ -24868,9 +24871,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 125,
+              "line": 161,
               "column": 3,
-              "endLine": 125
+              "endLine": 161
             }
           ]
         },
@@ -24887,9 +24890,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 126,
+              "line": 162,
               "column": 3,
-              "endLine": 126
+              "endLine": 162
             }
           ]
         },
@@ -24906,9 +24909,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 127,
+              "line": 163,
               "column": 3,
-              "endLine": 127
+              "endLine": 163
             }
           ]
         },
@@ -24925,9 +24928,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 128,
+              "line": 164,
               "column": 3,
-              "endLine": 128
+              "endLine": 164
             }
           ]
         },
@@ -24944,9 +24947,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 129,
+              "line": 165,
               "column": 3,
-              "endLine": 129
+              "endLine": 165
             }
           ]
         }
@@ -24957,16 +24960,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 124,
+        "line": 160,
         "column": 1,
-        "endLine": 130
+        "endLine": 166
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 124,
+          "line": 160,
           "column": 1,
-          "endLine": 130
+          "endLine": 166
         }
       ],
       "publicDeclaration": {
@@ -25001,16 +25004,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 61,
+        "line": 97,
         "column": 1,
-        "endLine": 71
+        "endLine": 107
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 61,
+          "line": 97,
           "column": 1,
-          "endLine": 71
+          "endLine": 107
         }
       ],
       "publicDeclaration": {
@@ -25357,9 +25360,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 116,
+              "line": 152,
               "column": 3,
-              "endLine": 116
+              "endLine": 152
             }
           ]
         },
@@ -25376,9 +25379,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 117,
+              "line": 153,
               "column": 3,
-              "endLine": 117
+              "endLine": 153
             }
           ]
         },
@@ -25395,9 +25398,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 118,
+              "line": 154,
               "column": 3,
-              "endLine": 118
+              "endLine": 154
             }
           ]
         },
@@ -25414,9 +25417,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 119,
+              "line": 155,
               "column": 3,
-              "endLine": 119
+              "endLine": 155
             }
           ]
         },
@@ -25433,9 +25436,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 120,
+              "line": 156,
               "column": 3,
-              "endLine": 120
+              "endLine": 156
             }
           ]
         },
@@ -25452,9 +25455,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 121,
+              "line": 157,
               "column": 3,
-              "endLine": 121
+              "endLine": 157
             }
           ]
         }
@@ -25465,16 +25468,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 115,
+        "line": 151,
         "column": 1,
-        "endLine": 122
+        "endLine": 158
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 115,
+          "line": 151,
           "column": 1,
-          "endLine": 122
+          "endLine": 158
         }
       ],
       "publicDeclaration": {
@@ -35369,16 +35372,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client-internal.d.mts",
-        "line": 25,
+        "line": 29,
         "column": 1,
-        "endLine": 34
+        "endLine": 38
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client-internal.d.mts",
-          "line": 25,
+          "line": 29,
           "column": 1,
-          "endLine": 34
+          "endLine": 38
         }
       ],
       "publicDeclaration": {
@@ -35417,21 +35420,69 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client-internal.d.mts",
-        "line": 21,
+        "line": 25,
         "column": 1,
-        "endLine": 23
+        "endLine": 27
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client-internal.d.mts",
-          "line": 21,
+          "line": 25,
           "column": 1,
-          "endLine": 23
+          "endLine": 27
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-client/app-client-internal.d.mts",
         "exportName": "applicationDescriptorForAppClient"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-client/app-client-internal#classifyHostedDevelopmentHostname",
+      "originIdentity": "packages/snapback-client/app-client-internal.d.mts#classifyHostedDevelopmentHostname",
+      "anchor": "symbol-classifyhosteddevelopmenthostname-7c095af5f0",
+      "name": "classifyHostedDevelopmentHostname",
+      "package": "@expo/snapback-client",
+      "module": "@expo/snapback-client/app-client-internal",
+      "moduleSubpath": "./app-client-internal",
+      "kind": "runtime-function",
+      "runtime": {
+        "kind": "value",
+        "exportNames": [
+          "classifyHostedDevelopmentHostname"
+        ],
+        "conditions": [
+          "import"
+        ]
+      },
+      "signature": "export function classifyHostedDevelopmentHostname(\n  hostname: string,\n): 'loopback' | 'private-ip-literal' | 'unspecified-address' | null;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-client/app-client-internal.d.mts",
+        "line": 9,
+        "column": 1,
+        "endLine": 11
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-client/app-client-internal.d.mts",
+          "line": 9,
+          "column": 1,
+          "endLine": 11
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-client/app-client-internal.d.mts",
+        "exportName": "classifyHostedDevelopmentHostname"
       },
       "closure": {
         "status": "build-bound",
@@ -35465,16 +35516,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client-internal.d.mts",
-        "line": 9,
+        "line": 13,
         "column": 1,
-        "endLine": 19
+        "endLine": 23
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client-internal.d.mts",
-          "line": 9,
+          "line": 13,
           "column": 1,
-          "endLine": 19
+          "endLine": 23
         }
       ],
       "publicDeclaration": {
@@ -91052,16 +91103,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 289,
+        "line": 312,
         "column": 1,
-        "endLine": 296
+        "endLine": 319
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 289,
+          "line": 312,
           "column": 1,
-          "endLine": 296
+          "endLine": 319
         }
       ],
       "publicDeclaration": {
@@ -91145,16 +91196,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 175,
+        "line": 198,
         "column": 1,
-        "endLine": 185
+        "endLine": 208
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 175,
+          "line": 198,
           "column": 1,
-          "endLine": 185
+          "endLine": 208
         }
       ],
       "publicDeclaration": {
@@ -91224,7 +91275,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type AppBindingV1 = SupervisedDevAppBindingV1 | ReleaseAppBindingV1;",
+      "signature": "export type AppBindingV1 =\n  | SupervisedDevAppBindingV1\n  | HostedDevelopmentAppBindingV1\n  | ReleaseAppBindingV1;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -91233,16 +91284,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 84,
+        "line": 100,
         "column": 1,
-        "endLine": 84
+        "endLine": 103
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 84,
+          "line": 100,
           "column": 1,
-          "endLine": 84
+          "endLine": 103
         }
       ],
       "publicDeclaration": {
@@ -91284,9 +91335,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 109,
+              "line": 128,
               "column": 3,
-              "endLine": 109
+              "endLine": 128
             }
           ]
         },
@@ -91303,9 +91354,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 110,
+              "line": 129,
               "column": 3,
-              "endLine": 110
+              "endLine": 129
             }
           ]
         },
@@ -91322,9 +91373,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 111,
+              "line": 130,
               "column": 3,
-              "endLine": 111
+              "endLine": 130
             }
           ]
         },
@@ -91341,9 +91392,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 112,
+              "line": 131,
               "column": 3,
-              "endLine": 112
+              "endLine": 131
             }
           ]
         }
@@ -91354,16 +91405,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 108,
+        "line": 127,
         "column": 1,
-        "endLine": 113
+        "endLine": 132
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 108,
+          "line": 127,
           "column": 1,
-          "endLine": 113
+          "endLine": 132
         }
       ],
       "publicDeclaration": {
@@ -91405,9 +91456,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 87,
+              "line": 106,
               "column": 3,
-              "endLine": 87
+              "endLine": 106
             }
           ]
         },
@@ -91424,9 +91475,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 88,
+              "line": 107,
               "column": 3,
-              "endLine": 93
+              "endLine": 112
             }
           ]
         },
@@ -91443,9 +91494,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 95,
+              "line": 114,
               "column": 3,
-              "endLine": 95
+              "endLine": 114
             }
           ]
         },
@@ -91462,9 +91513,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 96,
+              "line": 115,
               "column": 3,
-              "endLine": 102
+              "endLine": 121
             }
           ]
         },
@@ -91481,9 +91532,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 103,
+              "line": 122,
               "column": 3,
-              "endLine": 103
+              "endLine": 122
             }
           ]
         },
@@ -91500,9 +91551,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 104,
+              "line": 123,
               "column": 3,
-              "endLine": 104
+              "endLine": 123
             }
           ]
         },
@@ -91519,9 +91570,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 105,
+              "line": 124,
               "column": 3,
-              "endLine": 105
+              "endLine": 124
             }
           ]
         }
@@ -91532,16 +91583,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 86,
+        "line": 105,
         "column": 1,
-        "endLine": 106
+        "endLine": 125
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 86,
+          "line": 105,
           "column": 1,
-          "endLine": 106
+          "endLine": 125
         }
       ],
       "publicDeclaration": {
@@ -91632,9 +91683,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 209,
+              "line": 232,
               "column": 3,
-              "endLine": 209
+              "endLine": 232
             }
           ]
         },
@@ -91651,9 +91702,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 210,
+              "line": 233,
               "column": 3,
-              "endLine": 213
+              "endLine": 236
             }
           ]
         }
@@ -91664,16 +91715,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 208,
+        "line": 231,
         "column": 1,
-        "endLine": 214
+        "endLine": 237
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 208,
+          "line": 231,
           "column": 1,
-          "endLine": 214
+          "endLine": 237
         }
       ],
       "publicDeclaration": {
@@ -93529,16 +93580,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 187,
+        "line": 210,
         "column": 1,
-        "endLine": 206
+        "endLine": 229
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 187,
+          "line": 210,
           "column": 1,
-          "endLine": 206
+          "endLine": 229
         }
       ],
       "publicDeclaration": {
@@ -94567,16 +94618,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 312,
+        "line": 335,
         "column": 1,
-        "endLine": 341
+        "endLine": 364
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 312,
+          "line": 335,
           "column": 1,
-          "endLine": 341
+          "endLine": 364
         }
       ],
       "publicDeclaration": {
@@ -94714,16 +94765,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 310,
+        "line": 333,
         "column": 14,
-        "endLine": 310
+        "endLine": 333
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 310,
+          "line": 333,
           "column": 14,
-          "endLine": 310
+          "endLine": 333
         }
       ],
       "publicDeclaration": {
@@ -94807,16 +94858,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 173,
+        "line": 196,
         "column": 1,
-        "endLine": 173
+        "endLine": 196
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 173,
+          "line": 196,
           "column": 1,
-          "endLine": 173
+          "endLine": 196
         }
       ],
       "publicDeclaration": {
@@ -95035,21 +95086,65 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 166,
+        "line": 189,
         "column": 1,
-        "endLine": 171
+        "endLine": 194
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 166,
+          "line": 189,
           "column": 1,
-          "endLine": 171
+          "endLine": 194
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-expo/index.d.mts",
         "exportName": "FirstPartyExpoBootState"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-expo#HostedDevelopmentAppBindingV1",
+      "originIdentity": "packages/snapback-expo/index.d.mts#HostedDevelopmentAppBindingV1",
+      "anchor": "symbol-hosteddevelopmentappbindingv1-3aaa77810c",
+      "name": "HostedDevelopmentAppBindingV1",
+      "package": "@expo/snapback-expo",
+      "module": "@expo/snapback-expo",
+      "moduleSubpath": ".",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type HostedDevelopmentAppBindingV1 = Readonly<{\n  format: 'snapback.app-binding.v1';\n  source: 'hosted-development';\n  descriptorIdentity: string;\n  target: Readonly<{\n    app: string;\n    schema: string;\n    functions: string;\n    origin: string;\n    routing: 'https';\n  }>;\n  capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;\n  provenance: Readonly<{ hostedTargetReceipt: string }>;\n  integrity: Readonly<{ channel: 'hosted-target-admission' }>;\n}>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-expo/index.d.mts",
+        "line": 84,
+        "column": 1,
+        "endLine": 98
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-expo/index.d.mts",
+          "line": 84,
+          "column": 1,
+          "endLine": 98
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-expo/index.d.mts",
+        "exportName": "HostedDevelopmentAppBindingV1"
       },
       "closure": {
         "status": "build-bound",
@@ -95191,16 +95286,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 298,
+        "line": 321,
         "column": 1,
-        "endLine": 298
+        "endLine": 321
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 298,
+          "line": 321,
           "column": 1,
-          "endLine": 298
+          "endLine": 321
         }
       ],
       "publicDeclaration": {
@@ -95289,16 +95384,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 354,
+        "line": 377,
         "column": 1,
-        "endLine": 354
+        "endLine": 377
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 354,
+          "line": 377,
           "column": 1,
-          "endLine": 354
+          "endLine": 377
         }
       ],
       "publicDeclaration": {
@@ -95333,16 +95428,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 147,
+        "line": 170,
         "column": 1,
-        "endLine": 164
+        "endLine": 187
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 147,
+          "line": 170,
           "column": 1,
-          "endLine": 164
+          "endLine": 187
         }
       ],
       "publicDeclaration": {
@@ -97171,16 +97266,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 137,
+        "line": 160,
         "column": 1,
-        "endLine": 145
+        "endLine": 168
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 137,
+          "line": 160,
           "column": 1,
-          "endLine": 145
+          "endLine": 168
         }
       ],
       "publicDeclaration": {
@@ -97220,16 +97315,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 297,
+        "line": 320,
         "column": 1,
-        "endLine": 297
+        "endLine": 320
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 297,
+          "line": 320,
           "column": 1,
-          "endLine": 297
+          "endLine": 320
         }
       ],
       "publicDeclaration": {
@@ -97255,7 +97350,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type PublicBindingFacts = Readonly<{\n  format: 'snapback.app-binding.v1';\n  source: 'supervised-dev' | 'release';\n  descriptorIdentity: string;\n  target: AppBindingTargetV1;\n  capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;\n  provenance: AppBindingV1['provenance'];\n  integrity: Readonly<{\n    channel: 'local-supervised-ipc' | 'signed-artifact' | 'embedded-at-build';\n  }>;\n}>;",
+      "signature": "export type PublicBindingFacts = Readonly<{\n  format: 'snapback.app-binding.v1';\n  source: 'supervised-dev' | 'hosted-development' | 'release';\n  descriptorIdentity: string;\n  target: AppBindingTargetV1;\n  capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;\n  provenance: AppBindingV1['provenance'];\n  integrity: Readonly<{\n    channel:\n      | 'local-supervised-ipc'\n      | 'hosted-target-admission'\n      | 'signed-artifact'\n      | 'embedded-at-build';\n  }>;\n}>;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -97264,16 +97359,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 125,
+        "line": 144,
         "column": 1,
-        "endLine": 135
+        "endLine": 158
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 125,
+          "line": 144,
           "column": 1,
-          "endLine": 135
+          "endLine": 158
         }
       ],
       "publicDeclaration": {
@@ -98637,9 +98732,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 301,
+              "line": 324,
               "column": 3,
-              "endLine": 301
+              "endLine": 324
             }
           ]
         },
@@ -98656,9 +98751,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 302,
+              "line": 325,
               "column": 3,
-              "endLine": 302
+              "endLine": 325
             }
           ]
         },
@@ -98675,9 +98770,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 303,
+              "line": 326,
               "column": 3,
-              "endLine": 303
+              "endLine": 326
             }
           ]
         },
@@ -98694,9 +98789,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 304,
+              "line": 327,
               "column": 3,
-              "endLine": 304
+              "endLine": 327
             }
           ]
         },
@@ -98713,9 +98808,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 305,
+              "line": 328,
               "column": 3,
-              "endLine": 305
+              "endLine": 328
             }
           ]
         },
@@ -98732,9 +98827,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 306,
+              "line": 329,
               "column": 3,
-              "endLine": 306
+              "endLine": 329
             }
           ]
         },
@@ -98751,9 +98846,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 307,
+              "line": 330,
               "column": 3,
-              "endLine": 307
+              "endLine": 330
             }
           ]
         }
@@ -98764,16 +98859,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 300,
+        "line": 323,
         "column": 1,
-        "endLine": 308
+        "endLine": 331
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 300,
+          "line": 323,
           "column": 1,
-          "endLine": 308
+          "endLine": 331
         }
       ],
       "publicDeclaration": {
@@ -98815,9 +98910,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 217,
+              "line": 240,
               "column": 3,
-              "endLine": 217
+              "endLine": 240
             }
           ]
         },
@@ -98834,9 +98929,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 218,
+              "line": 241,
               "column": 3,
-              "endLine": 218
+              "endLine": 241
             }
           ]
         },
@@ -98853,9 +98948,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 219,
+              "line": 242,
               "column": 3,
-              "endLine": 219
+              "endLine": 242
             }
           ]
         },
@@ -98872,9 +98967,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 220,
+              "line": 243,
               "column": 3,
-              "endLine": 220
+              "endLine": 243
             }
           ]
         },
@@ -98891,9 +98986,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 222,
+              "line": 245,
               "column": 3,
-              "endLine": 224
+              "endLine": 247
             }
           ]
         },
@@ -98910,9 +99005,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 225,
+              "line": 248,
               "column": 3,
-              "endLine": 235
+              "endLine": 258
             }
           ]
         },
@@ -98929,9 +99024,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 236,
+              "line": 259,
               "column": 3,
-              "endLine": 240
+              "endLine": 263
             }
           ]
         },
@@ -98948,9 +99043,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 242,
+              "line": 265,
               "column": 3,
-              "endLine": 263
+              "endLine": 286
             }
           ]
         },
@@ -98967,9 +99062,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 264,
+              "line": 287,
               "column": 3,
-              "endLine": 284
+              "endLine": 307
             }
           ]
         },
@@ -98986,9 +99081,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 285,
+              "line": 308,
               "column": 3,
-              "endLine": 285
+              "endLine": 308
             }
           ]
         }
@@ -98999,16 +99094,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 216,
+        "line": 239,
         "column": 1,
-        "endLine": 286
+        "endLine": 309
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 216,
+          "line": 239,
           "column": 1,
-          "endLine": 286
+          "endLine": 309
         }
       ],
       "publicDeclaration": {
@@ -99048,16 +99143,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 343,
+        "line": 366,
         "column": 1,
-        "endLine": 351
+        "endLine": 374
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 343,
+          "line": 366,
           "column": 1,
-          "endLine": 351
+          "endLine": 374
         }
       ],
       "publicDeclaration": {
@@ -101597,16 +101692,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 115,
+        "line": 134,
         "column": 1,
-        "endLine": 123
+        "endLine": 142
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 115,
+          "line": 134,
           "column": 1,
-          "endLine": 123
+          "endLine": 142
         }
       ],
       "publicDeclaration": {
@@ -102136,16 +102231,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 353,
+        "line": 376,
         "column": 1,
-        "endLine": 353
+        "endLine": 376
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 353,
+          "line": 376,
           "column": 1,
-          "endLine": 353
+          "endLine": 376
         }
       ],
       "publicDeclaration": {
@@ -102693,16 +102788,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 288,
+        "line": 311,
         "column": 1,
-        "endLine": 288
+        "endLine": 311
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 288,
+          "line": 311,
           "column": 1,
-          "endLine": 288
+          "endLine": 311
         }
       ],
       "publicDeclaration": {
@@ -102741,16 +102836,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 289,
+        "line": 312,
         "column": 1,
-        "endLine": 296
+        "endLine": 319
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 289,
+          "line": 312,
           "column": 1,
-          "endLine": 296
+          "endLine": 319
         }
       ],
       "publicDeclaration": {
@@ -102833,16 +102928,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 175,
+        "line": 198,
         "column": 1,
-        "endLine": 185
+        "endLine": 208
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 175,
+          "line": 198,
           "column": 1,
-          "endLine": 185
+          "endLine": 208
         }
       ],
       "publicDeclaration": {
@@ -102868,7 +102963,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type AppBindingV1 = SupervisedDevAppBindingV1 | ReleaseAppBindingV1;",
+      "signature": "export type AppBindingV1 =\n  | SupervisedDevAppBindingV1\n  | HostedDevelopmentAppBindingV1\n  | ReleaseAppBindingV1;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -102877,16 +102972,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 84,
+        "line": 100,
         "column": 1,
-        "endLine": 84
+        "endLine": 103
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 84,
+          "line": 100,
           "column": 1,
-          "endLine": 84
+          "endLine": 103
         }
       ],
       "publicDeclaration": {
@@ -102928,9 +103023,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 109,
+              "line": 128,
               "column": 3,
-              "endLine": 109
+              "endLine": 128
             }
           ]
         },
@@ -102947,9 +103042,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 110,
+              "line": 129,
               "column": 3,
-              "endLine": 110
+              "endLine": 129
             }
           ]
         },
@@ -102966,9 +103061,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 111,
+              "line": 130,
               "column": 3,
-              "endLine": 111
+              "endLine": 130
             }
           ]
         },
@@ -102985,9 +103080,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 112,
+              "line": 131,
               "column": 3,
-              "endLine": 112
+              "endLine": 131
             }
           ]
         }
@@ -102998,16 +103093,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 108,
+        "line": 127,
         "column": 1,
-        "endLine": 113
+        "endLine": 132
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 108,
+          "line": 127,
           "column": 1,
-          "endLine": 113
+          "endLine": 132
         }
       ],
       "publicDeclaration": {
@@ -103049,9 +103144,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 87,
+              "line": 106,
               "column": 3,
-              "endLine": 87
+              "endLine": 106
             }
           ]
         },
@@ -103068,9 +103163,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 88,
+              "line": 107,
               "column": 3,
-              "endLine": 93
+              "endLine": 112
             }
           ]
         },
@@ -103087,9 +103182,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 95,
+              "line": 114,
               "column": 3,
-              "endLine": 95
+              "endLine": 114
             }
           ]
         },
@@ -103106,9 +103201,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 96,
+              "line": 115,
               "column": 3,
-              "endLine": 102
+              "endLine": 121
             }
           ]
         },
@@ -103125,9 +103220,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 103,
+              "line": 122,
               "column": 3,
-              "endLine": 103
+              "endLine": 122
             }
           ]
         },
@@ -103144,9 +103239,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 104,
+              "line": 123,
               "column": 3,
-              "endLine": 104
+              "endLine": 123
             }
           ]
         },
@@ -103163,9 +103258,9 @@
           "sources": [
             {
               "file": "packages/snapback-expo/index.d.mts",
-              "line": 105,
+              "line": 124,
               "column": 3,
-              "endLine": 105
+              "endLine": 124
             }
           ]
         }
@@ -103176,21 +103271,65 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 86,
+        "line": 105,
         "column": 1,
-        "endLine": 106
+        "endLine": 125
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 86,
+          "line": 105,
           "column": 1,
-          "endLine": 106
+          "endLine": 125
         }
       ],
       "publicDeclaration": {
         "file": "packages/snapback-expo/app-binding.d.mts",
         "exportName": "AppDescriptorV1Like"
+      },
+      "closure": {
+        "status": "build-bound",
+        "note": "Derived from this checkout public declaration and applicable runtime export target."
+      }
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/app-binding#HostedDevelopmentAppBindingV1",
+      "originIdentity": "packages/snapback-expo/index.d.mts#HostedDevelopmentAppBindingV1",
+      "anchor": "symbol-hosteddevelopmentappbindingv1-3ddde69406",
+      "name": "HostedDevelopmentAppBindingV1",
+      "package": "@expo/snapback-expo",
+      "module": "@expo/snapback-expo/app-binding",
+      "moduleSubpath": "./app-binding",
+      "kind": "type-type-alias",
+      "runtime": {
+        "kind": "type-only",
+        "exportNames": [],
+        "conditions": []
+      },
+      "signature": "export type HostedDevelopmentAppBindingV1 = Readonly<{\n  format: 'snapback.app-binding.v1';\n  source: 'hosted-development';\n  descriptorIdentity: string;\n  target: Readonly<{\n    app: string;\n    schema: string;\n    functions: string;\n    origin: string;\n    routing: 'https';\n  }>;\n  capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;\n  provenance: Readonly<{ hostedTargetReceipt: string }>;\n  integrity: Readonly<{ channel: 'hosted-target-admission' }>;\n}>;",
+      "overloads": [],
+      "members": [],
+      "documentation": {
+        "text": "",
+        "tags": []
+      },
+      "source": {
+        "file": "packages/snapback-expo/index.d.mts",
+        "line": 84,
+        "column": 1,
+        "endLine": 98
+      },
+      "sources": [
+        {
+          "file": "packages/snapback-expo/index.d.mts",
+          "line": 84,
+          "column": 1,
+          "endLine": 98
+        }
+      ],
+      "publicDeclaration": {
+        "file": "packages/snapback-expo/app-binding.d.mts",
+        "exportName": "HostedDevelopmentAppBindingV1"
       },
       "closure": {
         "status": "build-bound",
@@ -103224,16 +103363,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 298,
+        "line": 321,
         "column": 1,
-        "endLine": 298
+        "endLine": 321
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 298,
+          "line": 321,
           "column": 1,
-          "endLine": 298
+          "endLine": 321
         }
       ],
       "publicDeclaration": {
@@ -103272,16 +103411,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 297,
+        "line": 320,
         "column": 1,
-        "endLine": 297
+        "endLine": 320
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 297,
+          "line": 320,
           "column": 1,
-          "endLine": 297
+          "endLine": 320
         }
       ],
       "publicDeclaration": {
@@ -103307,7 +103446,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type PublicBindingFacts = Readonly<{\n  format: 'snapback.app-binding.v1';\n  source: 'supervised-dev' | 'release';\n  descriptorIdentity: string;\n  target: AppBindingTargetV1;\n  capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;\n  provenance: AppBindingV1['provenance'];\n  integrity: Readonly<{\n    channel: 'local-supervised-ipc' | 'signed-artifact' | 'embedded-at-build';\n  }>;\n}>;",
+      "signature": "export type PublicBindingFacts = Readonly<{\n  format: 'snapback.app-binding.v1';\n  source: 'supervised-dev' | 'hosted-development' | 'release';\n  descriptorIdentity: string;\n  target: AppBindingTargetV1;\n  capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;\n  provenance: AppBindingV1['provenance'];\n  integrity: Readonly<{\n    channel:\n      | 'local-supervised-ipc'\n      | 'hosted-target-admission'\n      | 'signed-artifact'\n      | 'embedded-at-build';\n  }>;\n}>;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -103316,16 +103455,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 125,
+        "line": 144,
         "column": 1,
-        "endLine": 135
+        "endLine": 158
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 125,
+          "line": 144,
           "column": 1,
-          "endLine": 135
+          "endLine": 158
         }
       ],
       "publicDeclaration": {
@@ -103452,16 +103591,16 @@
       },
       "source": {
         "file": "packages/snapback-expo/index.d.mts",
-        "line": 288,
+        "line": 311,
         "column": 1,
-        "endLine": 288
+        "endLine": 311
       },
       "sources": [
         {
           "file": "packages/snapback-expo/index.d.mts",
-          "line": 288,
+          "line": 311,
           "column": 1,
-          "endLine": 288
+          "endLine": 311
         }
       ],
       "publicDeclaration": {
@@ -114776,6 +114915,9 @@
       "applicationDescriptorForAppClient": [
         "npm:@expo/snapback-client/app-client-internal#applicationDescriptorForAppClient"
       ],
+      "classifyHostedDevelopmentHostname": [
+        "npm:@expo/snapback-client/app-client-internal#classifyHostedDevelopmentHostname"
+      ],
       "createSnapbackAppClientWithBootstrapObserver": [
         "npm:@expo/snapback-client/app-client-internal#createSnapbackAppClientWithBootstrapObserver"
       ],
@@ -118435,6 +118577,10 @@
       ],
       "FirstPartyExpoBootState": [
         "npm:@expo/snapback-expo#FirstPartyExpoBootState"
+      ],
+      "HostedDevelopmentAppBindingV1": [
+        "npm:@expo/snapback-expo#HostedDevelopmentAppBindingV1",
+        "npm:@expo/snapback-expo/app-binding#HostedDevelopmentAppBindingV1"
       ],
       "isAppBindingDiagnostic": [
         "npm:@expo/snapback-expo#isAppBindingDiagnostic",

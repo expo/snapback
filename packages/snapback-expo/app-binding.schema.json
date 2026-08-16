@@ -48,6 +48,43 @@
       "required": ["format", "source", "descriptorIdentity", "target", "capabilities", "provenance", "integrity"],
       "properties": {
         "format": { "const": "snapback.app-binding.v1" },
+        "source": { "const": "hosted-development" },
+        "descriptorIdentity": { "type": "string", "minLength": 1 },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["app", "schema", "functions", "origin", "routing"],
+          "properties": {
+            "app": { "type": "string", "minLength": 1 },
+            "schema": { "type": "string", "minLength": 1 },
+            "functions": { "type": "string", "minLength": 1 },
+            "origin": { "type": "string", "format": "uri", "pattern": "^https://" },
+            "routing": { "const": "https" }
+          }
+        },
+        "capabilities": { "$ref": "#/$defs/capabilities" },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["hostedTargetReceipt"],
+          "properties": {
+            "hostedTargetReceipt": { "type": "string", "minLength": 1 }
+          }
+        },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["channel"],
+          "properties": { "channel": { "const": "hosted-target-admission" } }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "source", "descriptorIdentity", "target", "capabilities", "provenance", "integrity"],
+      "properties": {
+        "format": { "const": "snapback.app-binding.v1" },
         "source": { "const": "release" },
         "descriptorIdentity": { "type": "string", "minLength": 1 },
         "target": {

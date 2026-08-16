@@ -1,3 +1,10 @@
+import {
+  classifyHostedDevelopmentHostname,
+} from '@expo/snapback-client/app-client-internal';
+import {
+  admitHostedDevelopmentBindingForAppClient,
+} from './app-binding-internal.mjs';
+
 export const APP_BINDING_FORMAT = 'snapback.app-binding.v1';
 
 const ROOT_KEYS = [
@@ -12,6 +19,7 @@ const ROOT_KEYS = [
 const TARGET_KEYS = ['app', 'functions', 'origin', 'routing', 'schema'];
 const CAPABILITY_KEYS = ['offered'];
 const DEV_PROVENANCE_KEYS = ['expiresAt', 'issuedAt', 'supervisorGeneration'];
+const HOSTED_DEVELOPMENT_PROVENANCE_KEYS = ['hostedTargetReceipt'];
 const RELEASE_PROVENANCE_KEYS = ['buildReceipt', 'environment', 'releaseChannel'];
 const SUPERVISED_ISSUANCE_CLOCK_SKEW_MS = 60_000;
 const AUTHORING_PROFILES = new Set([
@@ -124,8 +132,9 @@ function validTimestamp(value) {
 }
 
 // @ref LLP 0181#appbinding-v1 — source is the union discriminator: the exact
-// key sets below prevent release provenance, supervised provenance, and any
-// authority-bearing extension from being combined in one portable value.
+// key sets below prevent release provenance, supervised provenance, hosted-
+// target provenance, and any authority-bearing extension from being combined
+// in one portable value.
 export function validateAppBindingV1(candidate) {
   const problems = [];
   if (!exactKeys(candidate, ROOT_KEYS)) {
@@ -145,11 +154,11 @@ export function validateAppBindingV1(candidate) {
       { observedFormat: candidate.format ?? null },
     ));
   }
-  if (!['supervised-dev', 'release'].includes(candidate.source)) {
+  if (!['supervised-dev', 'hosted-development', 'release'].includes(candidate.source)) {
     problems.push(problem(
       'SNAPBACK_APP_BINDING_SOURCE_UNSUPPORTED',
       '$.source',
-      'AppBinding source must be supervised-dev or release',
+      'AppBinding source must be supervised-dev, hosted-development, or release',
       { observedSource: candidate.source ?? null },
     ));
   }
@@ -198,6 +207,27 @@ export function validateAppBindingV1(candidate) {
           '$.target.origin',
           'supervised-dev origins must be HTTP(S) loopback or the Android-emulator host alias under port-forward routing',
           { hostname: origin.hostname, protocol: origin.protocol },
+        ));
+      }
+    } else if (candidate.source === 'hosted-development') {
+      const refusedHostnameClass = classifyHostedDevelopmentHostname(origin.hostname);
+      if (origin.protocol !== 'https:' || refusedHostnameClass !== null) {
+        problems.push(problem(
+          'SNAPBACK_APP_BINDING_TARGET_INVALID',
+          '$.target.origin',
+          'hosted-development origins must use public HTTPS, not a loopback name, unspecified address, or private IP literal',
+          {
+            hostname: origin.hostname,
+            protocol: origin.protocol,
+            classification: refusedHostnameClass,
+          },
+        ));
+      }
+      if (candidate.target.routing !== 'https') {
+        problems.push(problem(
+          'SNAPBACK_APP_BINDING_SOURCE_MISMATCH',
+          '$.target.routing',
+          'hosted-development bindings admit only https routing',
         ));
       }
     } else if (candidate.source === 'release') {
@@ -272,6 +302,28 @@ export function validateAppBindingV1(candidate) {
         'SNAPBACK_APP_BINDING_SOURCE_MISMATCH',
         '$.integrity',
         'supervised-dev integrity must name only local-supervised-ipc',
+      ));
+    }
+  } else if (candidate.source === 'hosted-development') {
+    if (!exactKeys(candidate.provenance, HOSTED_DEVELOPMENT_PROVENANCE_KEYS)) {
+      problems.push(problem(
+        'SNAPBACK_APP_BINDING_SOURCE_MISMATCH',
+        '$.provenance',
+        'hosted-development provenance must contain only hostedTargetReceipt',
+      ));
+    } else if (!nonEmptyString(candidate.provenance.hostedTargetReceipt)) {
+      problems.push(problem(
+        'SNAPBACK_APP_BINDING_SCHEMA_INVALID',
+        '$.provenance.hostedTargetReceipt',
+        'hostedTargetReceipt must be non-empty',
+      ));
+    }
+    if (!exactKeys(candidate.integrity, ['channel'])
+      || candidate.integrity.channel !== 'hosted-target-admission') {
+      problems.push(problem(
+        'SNAPBACK_APP_BINDING_INTEGRITY_INVALID',
+        '$.integrity',
+        'hosted-development integrity must name only hosted-target-admission',
       ));
     }
   } else if (candidate.source === 'release') {
@@ -372,8 +424,9 @@ async function verified(callback, ...args) {
 // @ref LLP 0179#appbinding-seam — all four stable identities plus capability,
 // provenance, expiry, and source facts are admitted before a client exists.
 // @ref LLP 0181#appbinding-v1 — override proofs split by source; a live
-// supervisor confirms dev overrides while release targets and attestations
-// come from generated build facts.
+// supervisor confirms supervised-dev overrides while hosted-development facts
+// come from the generated app-binding module and release facts come from their
+// separate generated target/attestation inputs.
 export async function admitAppBindingV1(candidate, app, {
   mode = 'resolved',
   now = Date.now(),
@@ -384,6 +437,7 @@ export async function admitAppBindingV1(candidate, app, {
   verifySignedArtifact,
   verifyBuildReceipt,
 } = {}) {
+  let admittedHostedDevelopmentBinding = null;
   const descriptor = assertDescriptorV1(app);
   const problems = validateAppBindingV1(candidate);
   if (problems.length > 0) {
@@ -494,6 +548,66 @@ export async function admitAppBindingV1(candidate, app, {
         },
       );
     }
+  } else if (candidate.source === 'hosted-development') {
+    if (productionCondition === true) {
+      bindingFailure(
+        'SNAPBACK_APP_BINDING_SOURCE_MISMATCH',
+        'A hosted development binding cannot be admitted in a production release condition',
+        { source: candidate.source, productionCondition: true },
+      );
+    }
+    const hostedAdmission = await admitHostedDevelopmentBindingForAppClient(
+      candidate,
+      descriptor,
+    );
+    if (hostedAdmission.status === 'target-invalid') {
+      bindingFailure(
+        'SNAPBACK_APP_BINDING_TARGET_INVALID',
+        'The hosted development target must use public HTTPS, not a loopback name, unspecified address, or private IP literal',
+        {
+          target: freezeClone(candidate.target),
+          classification: hostedAdmission.classification,
+        },
+      );
+    }
+    if (hostedAdmission.status === 'target-unadmitted') {
+      bindingFailure(
+        'SNAPBACK_APP_BINDING_TARGET_UNADMITTED',
+        'The hosted development target tuple is absent from generated hosted target facts',
+        { target: freezeClone(candidate.target), mode },
+        [remediation(
+          'selectGeneratedHostedTarget',
+          'Select an already-admitted hosted target generated for this application.',
+          { descriptorIdentity: candidate.descriptorIdentity },
+        )],
+      );
+    }
+    if (hostedAdmission.status === 'generated-module-unavailable') {
+      bindingFailure(
+        'SNAPBACK_APP_BINDING_INTEGRITY_INVALID',
+        'Hosted development requires the generated app export that carries this application\'s hosted-target admission facts',
+        {
+          descriptorIdentity: candidate.descriptorIdentity,
+          generatedBindingModuleAvailable: false,
+        },
+        [remediation(
+          'importGeneratedAppBinding',
+          'Import app from the generated app-binding module path instead of loading the descriptor JSON directly.',
+          { descriptorIdentity: candidate.descriptorIdentity },
+        )],
+      );
+    }
+    if (hostedAdmission.status === 'integrity-invalid') {
+      bindingFailure(
+        'SNAPBACK_APP_BINDING_INTEGRITY_INVALID',
+        'The generated app-binding module did not admit this hosted development receipt',
+        {
+          channel: candidate.integrity.channel,
+          hostedTargetReceipt: candidate.provenance.hostedTargetReceipt,
+        },
+      );
+    }
+    admittedHostedDevelopmentBinding = hostedAdmission.binding;
   } else {
     const targetAdmitted = Array.isArray(generatedReleaseTargets)
       && generatedReleaseTargets.some((target) => exactTarget(target, candidate.target));
@@ -523,7 +637,7 @@ export async function admitAppBindingV1(candidate, app, {
       );
     }
   }
-  return freezeClone(candidate);
+  return admittedHostedDevelopmentBinding ?? freezeClone(candidate);
 }
 
 export function publicBindingFacts(binding) {

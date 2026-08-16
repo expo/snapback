@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:155e5ac0323108f126c4d76a421bbf1ce7bd85c59e7d
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:2d29074848b12d86890d54011ff7d6e4ea1f55934233ba748be73328943eeb01`.
+`sha256:ad3ce53807b3e22db464c12788fc627f0fdbec04e6c6f9df1340ec979342d418`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -1076,7 +1076,7 @@ export type AssetBearingCommandReferenceV1 = Pick<
 
 Stable identity: `npm:@expo/snapback-client#AuthBootstrapAdvisory`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:88`
+Source: `packages/snapback-client/app-client.d.mts:124`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthBootstrapAdvisory = Readonly<{
@@ -1090,7 +1090,7 @@ export type AuthBootstrapAdvisory = Readonly<{
 
 Stable identity: `npm:@expo/snapback-client#AuthBootstrapAuthoritySource`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:81`
+Source: `packages/snapback-client/app-client.d.mts:117`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthBootstrapAuthoritySource =
@@ -1106,7 +1106,7 @@ export type AuthBootstrapAuthoritySource =
 
 Stable identity: `npm:@expo/snapback-client#AuthBootstrapSnapshot`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:93`
+Source: `packages/snapback-client/app-client.d.mts:129`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthBootstrapSnapshot =
@@ -1991,7 +1991,7 @@ export function createRqsRegisteredRegistry(bundle: unknown): RqsRegisteredRegis
 
 Stable identity: `npm:@expo/snapback-client#createSnapbackAppClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/app-client.d.mts:132`
+Source: `packages/snapback-client/app-client.d.mts:168`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createSnapbackAppClient(input: Readonly<{
@@ -3951,7 +3951,7 @@ export function projectDiagnosticV1(
 
 Stable identity: `npm:@expo/snapback-client#PublicAuthCustodyFacts`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:73`
+Source: `packages/snapback-client/app-client.d.mts:109`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type PublicAuthCustodyFacts = Readonly<{
@@ -5610,28 +5610,64 @@ Source: `packages/snapback-client/app-client.d.mts:36`
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SnapbackAppBindingV1 = Readonly<{
   format: 'snapback.app-binding.v1';
-  source: 'supervised-dev' | 'release';
   descriptorIdentity: string;
-  target: Readonly<{
-    app: string;
-    schema: string;
-    functions: string;
-    origin: string;
-    routing: 'loopback' | 'port-forward' | 'https';
-  }>;
   capabilities: Readonly<{ offered: readonly string[] }>;
-  provenance:
-    /** A supervised binding is admitted only while unexpired. Within one live
-     * owner, issuedAt is a non-rewinding watermark; generated identities and
-     * the opaque supervisor generation are the currently available successor
-     * facts, pending the full LLP 0241 activation receipt. */
-    | Readonly<{ supervisorGeneration: string; issuedAt: string; expiresAt: string }>
-    | Readonly<{ environment: string; releaseChannel: string; buildReceipt: string }>;
-  integrity:
-    | Readonly<{ channel: 'local-supervised-ipc' }>
-    | Readonly<{ channel: 'signed-artifact'; signature: string }>
-    | Readonly<{ channel: 'embedded-at-build' }>;
-}>;
+}> & (
+  /** A supervised binding is admitted only while unexpired. Within one live
+   * owner, issuedAt is a non-rewinding watermark; generated identities and
+   * the opaque supervisor generation are the currently available successor
+   * facts, pending the full LLP 0241 activation receipt. */
+  | Readonly<{
+      source: 'supervised-dev';
+      target: Readonly<{
+        app: string;
+        schema: string;
+        functions: string;
+        origin: string;
+        routing: 'loopback' | 'port-forward';
+      }>;
+      provenance: Readonly<{
+        supervisorGeneration: string;
+        issuedAt: string;
+        expiresAt: string;
+      }>;
+      integrity: Readonly<{ channel: 'local-supervised-ipc' }>;
+    }>
+  | Readonly<{
+      /** Runtime use requires the exact object admitted through the app export
+       * hydrated by the generated binding module; a hand-built or cloned
+       * receipt-bearing value is shape-compatible but is refused before
+       * transport I/O. */
+      source: 'hosted-development';
+      target: Readonly<{
+        app: string;
+        schema: string;
+        functions: string;
+        origin: string;
+        routing: 'https';
+      }>;
+      provenance: Readonly<{ hostedTargetReceipt: string }>;
+      integrity: Readonly<{ channel: 'hosted-target-admission' }>;
+    }>
+  | Readonly<{
+      source: 'release';
+      target: Readonly<{
+        app: string;
+        schema: string;
+        functions: string;
+        origin: string;
+        routing: 'https';
+      }>;
+      provenance: Readonly<{
+        environment: string;
+        releaseChannel: string;
+        buildReceipt: string;
+      }>;
+      integrity:
+        | Readonly<{ channel: 'signed-artifact'; signature: string }>
+        | Readonly<{ channel: 'embedded-at-build' }>;
+    }>
+);
 ```
 
 <a id="symbol-snapbackappclient-1d9fb255f3"></a>
@@ -5639,7 +5675,7 @@ export type SnapbackAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAppClient`
 Kind: `type-interface`
-Source: `packages/snapback-client/app-client.d.mts:124`
+Source: `packages/snapback-client/app-client.d.mts:160`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackAppClient {
@@ -5664,7 +5700,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAppClientPlatform`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/app-client.d.mts:61`
+Source: `packages/snapback-client/app-client.d.mts:97`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SnapbackAppClientPlatform =
@@ -5777,7 +5813,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#SnapbackAuthFacade`
 Kind: `type-interface`
-Source: `packages/snapback-client/app-client.d.mts:115`
+Source: `packages/snapback-client/app-client.d.mts:151`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackAuthFacade {

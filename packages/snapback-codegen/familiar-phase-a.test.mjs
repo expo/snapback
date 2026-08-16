@@ -457,6 +457,10 @@ export const createTodo = defineMutation({
       schemaVersion: 'snapback.codegen-policy.v1',
       committedProjections: [],
       authoringProfile,
+      hostedDevelopmentTargets: [{
+        origin: 'https://hosted.example.test',
+        hostedTargetReceipt: 'sha256:hosted-target-admission',
+      }],
     }), true, JSON.stringify(validatePolicy.errors));
   }
   assert.equal(validatePolicy({
@@ -468,6 +472,14 @@ export const createTodo = defineMutation({
     schemaVersion: 'snapback.codegen-policy.v1',
     committedProjections: [],
     extra: true,
+  }), false);
+  assert.equal(validatePolicy({
+    schemaVersion: 'snapback.codegen-policy.v1',
+    committedProjections: [],
+    hostedDevelopmentTargets: [{
+      origin: 'http://127.0.0.1:4137',
+      hostedTargetReceipt: 'sha256:not-hosted',
+    }],
   }), false);
 
   const before = readFileSync(normalizedPath);

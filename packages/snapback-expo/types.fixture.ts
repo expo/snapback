@@ -52,6 +52,22 @@ const binding = {
 } as const satisfies AppBindingV1;
 
 const boot = createSnapbackExpoBoot({ app, binding, environment });
+const hostedDevelopmentBinding = {
+  format: 'snapback.app-binding.v1',
+  source: 'hosted-development',
+  descriptorIdentity: 'sha256:descriptor',
+  target: {
+    app: 'app',
+    schema: 'sha256:schema',
+    functions: 'sha256:functions',
+    origin: 'https://hosted.example.test',
+    routing: 'https',
+  },
+  capabilities: { offered: ['live_subscriptions'] },
+  provenance: { hostedTargetReceipt: 'sha256:hosted-target-receipt' },
+  integrity: { channel: 'hosted-target-admission' },
+} as const satisfies AppBindingV1;
+void hostedDevelopmentBinding;
 const pickerAdapter = createExpoAssetSourceAdapter({
   fetch: async () => ({ blob: async () => new Blob(['fixture'], { type: 'image/png' }) }),
 });
@@ -66,7 +82,7 @@ if (state.status === 'starting') {
   const stage: 'binding' | 'custody' | 'authority' | 'client' = state.stage;
   void stage;
 } else if (state.status === 'ready') {
-  const source: 'supervised-dev' | 'release' = state.binding.source;
+  const source: 'supervised-dev' | 'hosted-development' | 'release' = state.binding.source;
   void source;
   if ('authority' in state) {
     const kind: 'session' = state.authority.kind;

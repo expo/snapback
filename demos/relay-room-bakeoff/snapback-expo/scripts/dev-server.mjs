@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// Snapback dev backend for Relay Room. A phone-reachable bind is an explicit,
-// unsupported workaround. This launcher deliberately uses client provisioning
-// instead of the packaged managed dev loop because the current wrapper cannot
-// parse native `load`'s two JSON result documents.
+// Snapback dev backend for Relay Room. Its opt-in phone-reachable mode is an
+// unsupported workaround that deliberately defeats two fences: SNAPBACK_PROFILE=dev
+// overrides the non-loopback production fallback, and --allow-insecure-dev-auth
+// permits client-asserted identity on plaintext LAN transport. Do not copy this
+// launcher as a carrier or production pattern. It remains loopback-only by default.
+// The launcher uses client provisioning instead of the packaged managed dev loop
+// because the current wrapper cannot parse native `load`'s two JSON result documents.
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';

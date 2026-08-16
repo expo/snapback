@@ -49,7 +49,8 @@ schema, visibility, functions, seed data, and live behavior stayed together in
 the app directory. The tradeoff is local delivery: the physical phone needs
 both Metro and the local Snapback backend exposed from the development
 machine. Tuft made that workable with stable HTTPS names, and both processes
-run under persistent launch agents.
+run under persistent launch agents. That delivery is an unsupported workaround,
+not a Snapback physical-device carrier or a retained live-device receipt.
 
 Expo itself was straightforward. The app stays Expo Go compatible by using
 the pure React binding rather than the optional Snapback Expo native carrier.
@@ -70,4 +71,5 @@ iOS, accessible controls, and no platform-specific build.
 - Expo web production export: passed
 - Public Snapback inspect endpoint: healthy at the Tuft-hosted backend URL
 - Public Metro manifest/web response: healthy at the Tuft-hosted app URL
-- Physical-device carrier: Expo Go link prepared; awaiting user launch
+- Physical-device carrier: Expo Go link prepared as an unsupported workaround;
+  awaiting user launch; no live-device receipt

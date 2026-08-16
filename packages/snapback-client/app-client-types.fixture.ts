@@ -47,6 +47,23 @@ const binding = {
   integrity: { channel: 'local-supervised-ipc' },
 } as const satisfies SnapbackAppBindingV1;
 
+const hostedDevelopmentBinding = {
+  format: 'snapback.app-binding.v1',
+  source: 'hosted-development',
+  descriptorIdentity: 'descriptor',
+  target: {
+    app: 'app',
+    schema: 'schema',
+    functions: 'functions',
+    origin: 'https://hosted.example.test',
+    routing: 'https',
+  },
+  capabilities: { offered: ['auth.passwords'] },
+  provenance: { hostedTargetReceipt: 'sha256:hosted-target-receipt' },
+  integrity: { channel: 'hosted-target-admission' },
+} as const satisfies SnapbackAppBindingV1;
+void hostedDevelopmentBinding;
+
 async function fixture() {
   const appClient = await createSnapbackAppClient({ app, binding, platform: 'memory' });
   const principal: CurrentPrincipalSnapshot = appClient.auth.currentPrincipal();

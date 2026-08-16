@@ -6,6 +6,42 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-16 (s) — Fix round 4 makes the ruled generated-artifact
+trust root usable: codegen derives exact app/schema/functions/HTTPS target
+tuples from closed `codegen.policy.json` hosted-development declarations and
+emits a frozen, non-enumerable target-set/receipt-predicate record on `app`.
+Undeclared targets, negative receipts, descriptor-only inputs, and legacy
+modules without the record still refuse. Hosted-origin classification also
+refuses the complete deprecated IPv4-compatible IPv6 `::/96` block in both
+admission and framework-neutral client validation.
+**Revised:** 2026-08-16 (r) — Grok delta fix round 3 closes the live-candidate
+TOCTOU seam: hosted-development admission snapshots the complete candidate into
+a plain frozen record before its first verifier await, then matches, verifies,
+and derives the marked transport binding only from that snapshot. Unspecified-
+address coverage explicitly includes IPv4-mapped unspecified `[::ffff:0:0]`
+alongside `0.0.0.0` and `[::]` in both admission and client validation.
+**Revised:** 2026-08-16 (q) — Adjudicated fix round 2 makes the generated
+application artifact set the hosted-development trust root: the admission path
+reads the target set and receipt predicate only from the exact `app` export
+hydrated by the generated binding module, accepts no caller-supplied hosted
+facts, and refuses when that generated-module record is absent. The enforcement
+claim is process-local and explicitly excludes same-process code that bypasses
+the generated path. Hosted-origin classification also refuses unspecified IPv4
+and IPv6 addresses, including `0.0.0.0` and `[::]`.
+**Revised:** 2026-08-16 (p) — Fail-closed review correction: hosted-development
+origin admission now refuses loopback names and private IP literals, and the
+framework-neutral application client accepts only the exact binding object
+returned by generated-target-and-receipt admission. This revision deliberately
+does not classify DNS names: DNS-named private origins remain outside the
+client arm's guarantees while packet ruling 6 stays open.
+**Revised:** 2026-08-15 (o) — Executes Charlie Cheever's accepted iOS
+physical-device carrier ruling recorded in
+`issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`: topology
+(c) is adopted and `source: "hosted-development"` makes a development bundle
+against an already-admitted hosted HTTPS backend representable without adding
+a listener, relay, tunnel, or E5 carrier. The LLP 0168 successor-RFC gate stays
+closed on A3 grounds; a client using the admitted hosted target is outside that
+edge gate. Rulings 4–6 remain open.
 **Revised:** 2026-08-15 (n) — Reconciles ordinary-session custody ownership
 with Accepted LLP 0258: E1/E2 adopt and rotate a bearer only for the life of
 the supervised client, and restart-persistent ordinary custody is owned by
@@ -210,7 +246,7 @@ The integrated design has exactly two descriptor-shaped objects:
 | Object | Owner | Lifetime | Contains |
 | --- | --- | --- | --- |
 | `AppDescriptor` | LLP 0179 | Stable for generated application artifacts | API refs, commands, surfaces, required capabilities, artifact identities |
-| `AppBinding` | LLP 0181 | Specific development run or release target | Endpoint/routing, offered capabilities, source, provenance, compatibility/expiry facts |
+| `AppBinding` | LLP 0181 | Specific supervised run, hosted development target, or release target | Endpoint/routing, offered capabilities, source, provenance, compatibility/expiry facts |
 
 A session, pairing secret, persona, or bearer is neither object. Authority is
 adopted through the existing auth owner and stored/transmitted according to
@@ -220,9 +256,9 @@ its own rules.
 
 The logical portable shape is a **discriminated union on `source`**, not a
 struct whose `source` and `provenance` fields could independently disagree —
-a reviewer correctly found the earlier struct shape let a value claim
-`source: "supervised-dev"` while carrying release provenance or vice versa,
-with nothing in the type preventing it:
+a reviewer correctly found the earlier struct shape let a value claim one
+source while carrying another source's provenance, with nothing in the type
+preventing it:
 
 ```ts
 type AppBindingV1 =
@@ -242,6 +278,19 @@ type AppBindingV1 =
         readonly expiresAt: string
       }
       readonly integrity: { readonly channel: "local-supervised-ipc" }
+    }
+  | {
+      readonly format: "snapback.app-binding.v1"
+      readonly source: "hosted-development"
+      readonly descriptorIdentity: string
+      readonly target: {
+        readonly app: string; readonly schema: string
+        readonly functions: string; readonly origin: string
+        readonly routing: "https"
+      }
+      readonly capabilities: { readonly offered: readonly CapabilityOffer[] }
+      readonly provenance: { readonly hostedTargetReceipt: string }
+      readonly integrity: { readonly channel: "hosted-target-admission" }
     }
   | {
       readonly format: "snapback.app-binding.v1"
@@ -280,37 +329,58 @@ attestation format for the same fact.
 The exact identity tuple and capability vocabulary reuse existing owners. The
 load-bearing properties are:
 
-- the schema is the same for development and release;
+- the schema is the same for supervised development, hosted development, and
+  release;
 - `source` and `provenance` cannot disagree, because the type itself couples
   them;
-- `routing: "https"` is only reachable through the `release` arm — a
-  supervised-dev binding cannot claim the release-only routing mode, closing
-  the ambiguity a struct shape left open;
-- development bindings expire and are tied to one supervisor generation;
+- `routing: "https"` is reachable only through the `hosted-development` and
+  `release` arms — a supervised-dev binding cannot claim the hosted routing
+  mode, closing the ambiguity a struct shape left open;
+- supervised-development bindings expire and are tied to one supervisor
+  generation;
 - supervised-development admission tolerates at most 60 seconds of the
   binding issuer's clock running ahead of the simulator/emulator clock. This
   bounded allowance applies only to the `issuedAt` lower bound over
   `local-supervised-ipc`; expiry remains strict and the window grants no
   release-binding or network authority;
+- hosted-development bindings are tied to an exact target tuple in the app's
+  generated binding artifact and a receipt accepted by that artifact's
+  admission predicate; the arm has
+  no supervisor generation, local delivery channel, port-forward routing, or
+  release build receipt. Runtime admission also refuses loopback names
+  (`localhost`, subdomains of `.localhost`, IPv4 `127/8`, and IPv6 `::1`) and
+  private IP literals (RFC 1918, IPv4 link-local `169.254/16`, IPv6 link-local
+  `fe80::/10`, and ULA `fc00::/7`), plus unspecified IPv4/IPv6 addresses
+  including `0.0.0.0`, `[::]`, IPv4-mapped `[::ffff:0:0]`, and equivalent
+  literal forms, and the complete deprecated IPv4-compatible IPv6 `::/96`
+  block from RFC 5156 §2.3. It does not
+  resolve or classify DNS names,
+  so a DNS-named origin that resolves privately is outside this arm's client-
+  detectable guarantees pending packet ruling 6;
 - release bindings are tied to an admitted build/deployment receipt;
 - `descriptorIdentity` must match the imported `app`;
 - an offered capability does not upgrade the descriptor's requirement or LLP
   0064's evidence;
 - no secret or application authority appears in the binding;
-- **binding integrity.** A development binding travels only over the local
-  supervised IPC channel between `snapback dev --expo` and the provider —
+- **binding integrity.** A supervised-development binding travels only over
+  the local supervised IPC channel between `snapback dev --expo` and the provider —
   never a network hop, so there is no remote party to authenticate against.
-  A release binding must verify through one of `integrity`'s two arms so a
-  substituted binding cannot silently redirect a shipped app to an
-  attacker-controlled origin: the provider refuses a `signed-artifact`
-  binding whose `signature` does not verify against the admitted release
-  trust root, and refuses an `embedded-at-build` binding whose
-  `provenance.buildReceipt` does not verify — in both cases before adopting
-  `target.origin` for anything, and with no third, unverified path; and
+  A hosted-development binding must match an exact target tuple in the exact
+  generated `app` artifact and its generated-module predicate must accept
+  `provenance.hostedTargetReceipt` before the client adopts `target.origin`;
+  local supervised delivery cannot substitute for that generated path. A
+  release binding
+  must verify through one of `integrity`'s two arms so a substituted binding
+  cannot silently redirect a shipped app to an attacker-controlled origin:
+  the provider refuses a `signed-artifact` binding whose `signature` does not
+  verify against the admitted release trust root, and refuses an
+  `embedded-at-build` binding whose `provenance.buildReceipt` does not verify
+  — in both cases before adopting `target.origin` for anything, and with no
+  third, unverified path; and
 - v1 admits no arbitrary hostname or runtime URL override from application
   data or remote configuration. The one exception is the explicit test/
   advanced-multi-target `binding` override prop (§Provider), and its
-  admission rule is **not one rule but two, split by `source`** — a round-3
+  admission rule is **not one rule but three, split by `source`** — a round-3
   delta review correctly found the round-2 fix's single rule
   self-defeating: "generated target facts" is, everywhere else in this RFC,
   a build-time set of declared **release** targets (§Release binding); a
@@ -320,7 +390,7 @@ load-bearing properties are:
   override to match generated target facts therefore closed the
   arbitrary-origin hole but made every `supervised-dev` override
   unsatisfiable too — including the legitimate test/advanced-multi-target
-  use this prop exists for. The two arms need different admission proofs
+  use this prop exists for. The three arms need different admission proofs
   because they have different trust roots:
   - **`source: "release"` override:** must match the complete `target`
     tuple (`app`, `schema`, `functions`, `origin`, `routing` together)
@@ -340,12 +410,25 @@ load-bearing properties are:
     origin no running supervisor actually resolved, which is what closes
     the arbitrary-origin path for this arm without disabling it — merely
     matching an app name, the round-1 rule, did neither.
+  - **`source: "hosted-development"` override:** must match the complete target
+    tuple against the hosted-target set carried by the exact generated `app`
+    export, and that module's admission predicate must accept the
+    `hostedTargetReceipt`. `admitAppBindingV1` exposes no option for supplying
+    either fact. A descriptor JSON without the generated-module record, a
+    `local-supervised-ipc` delivery claim, supervisor issuance callback,
+    loopback name, unspecified address, private IP literal, or port-forward
+    route cannot admit it. DNS-named private origins are not client-detectable
+    and remain outside this arm's guarantees pending packet ruling 6.
+    This is the representability seam for a development bundle pointing at an
+    already-admitted hosted target, not authority to create that target or the
+    development-asset carrier that delivered the bundle.
 
-  The provider also refuses a `source: "supervised-dev"` override inside a
-  release build's production condition, regardless of which admission arm
-  it would otherwise satisfy.
+  The provider also refuses a `source: "supervised-dev"` or
+  `source: "hosted-development"` override inside a release build's production
+  condition, regardless of which admission arm it would otherwise satisfy.
 
-The provider verifies the binding — including `integrity` — before it
+The provider admits the binding — including its source-specific `integrity`
+contract — before it
 prepares any application stores.
 
 ## Package contract
@@ -630,17 +713,20 @@ listener or alternate binding format.
 A round-2 delta review correctly found this section orphaned by the
 `AppBindingV1` discriminated union fix (§AppBinding v1): the `supervised-dev`
 arm admits only `routing: "loopback" | "port-forward"` and
-`integrity.channel: "local-supervised-ipc"`, so no value the union can
-represent is "an appropriately defined secure development binding" reaching
-a physical device — that phrase named an option that does not exist. In the
-baseline, a physical device has exactly one representable path: an already
-admitted hosted HTTPS target using a `source: "release"` binding. There is
-no development-binding path to a physical device until E5 defines and the
-union is extended with whatever arm its accepted carrier design actually
-specifies — this RFC does not pre-declare that arm's shape here, since doing
-so would be exactly the "appropriately defined" hand-wave this correction
-removes. This RFC does not claim that a LAN Metro relay is safe merely
-because the Snapback backend behind it remains loopback-bound.
+`integrity.channel: "local-supervised-ipc"`, so it cannot represent an iOS
+physical-device path to the local backend. Charlie Cheever's 2026-08-15 ruling
+adds one different, deliberately narrow backend path: `source:
+"hosted-development"` represents a development bundle pointing at an
+already-admitted hosted HTTPS target. It does not make the bundle's Metro/asset
+delivery a Snapback carrier, and it creates no listener or route composition.
+
+A physical device therefore has two representable hosted-backend paths:
+`release` for a release build and `hosted-development` for a development
+bundle whose asset carrier is separately admitted. There is still no iOS
+development-binding path to the local backend. E5 remains the owner only for a
+future accepted physical-device carrier that creates Snapback reachability;
+this RFC does not pre-declare that carrier's shape. A LAN Metro relay is not
+safe merely because the Snapback backend behind it remains loopback-bound.
 
 The G1/E1 baseline is complete with iOS simulator and Android emulator. This
 keeps zero-URL development moving while the harder physical-device network
@@ -664,6 +750,66 @@ only far enough to distinguish USB from `localNetwork`, then emits
 `SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE` without starting owned
 children. A bounded device-side bridge or a separately authorized posture must
 precede iOS physical-device evidence.
+
+## Hosted development binding
+
+The `source: "hosted-development"` arm represents exactly one composition:
+a development bundle, delivered by a separately admitted asset carrier,
+pointing at an already-admitted hosted Snapback HTTPS target. Resolution is
+closed over the application's generated artifact set: the complete target tuple
+must match the hosted-target facts carried by the exact generated `app` export,
+and that binding module's admission predicate must accept
+`provenance.hostedTargetReceipt`. A missing generated-module record, a target
+miss, or a negative predicate result refuses.
+
+Codegen obtains that immutable record from the closed
+`hostedDevelopmentTargets` rows in `codegen.policy.json`. Each row declares
+only a canonical hosted HTTPS `origin` and its already-admitted
+`hostedTargetReceipt`; codegen derives `app`, `schema`, `functions`, and
+`routing: "https"` from the generated descriptor, binds the receipt predicate
+to that complete tuple, freezes the target set and verifier, and installs the
+record non-enumerably before freezing `app`. The receipt is public provenance,
+not application authority or a secret. Omission emits an empty set whose
+predicate admits nothing; a module with no record remains an integrity refusal.
+
+The framework-neutral `createSnapbackAppClient` path does not treat a receipt
+string or channel label as proof. A legitimate hosted-development raw-client
+flow imports `app` from the codegen-emitted binding module, calls
+`admitAppBindingV1(candidate, app)` with no hosted-evidence options, then passes
+the **exact returned binding object** into `createSnapbackAppClient`. The
+admission owner reads the module's non-enumerable generated record; loading only
+`app.descriptor.json` or passing caller-chosen `generatedHostedTargets` and a
+verifier cannot substitute for it. The raw parameterized helper is absent from
+the client package's exported subpaths; Expo owns a relative, package-private
+handshake module omitted from its `exports` map. Before the receipt predicate
+can await, admission snapshots the complete candidate into a plain frozen
+record. Generated-target matching, predicate verification, the ephemeral mark,
+and the transport origin all derive from that snapshot; a live getter cannot
+change the adopted origin after verification. Serialization, cloning, or
+reconstruction drops the mark and refuses before transport I/O. Expo follows
+this same handshake after environment resolution.
+
+This is a process-local protocol boundary, in the same register as the client
+custody limits: it binds hosted-development clients that follow the app's
+generated artifact path. It is not protection against JavaScript already
+running in the same process constructing its own module record, mutating
+pre-freeze objects, importing lower-level clients, or bypassing the generated
+path entirely. Such same-process bypass is outside this arm's threat model,
+just as LLP 0055's agent-custody protocol does not claim protection against a
+malicious process already operating inside its OS-user boundary. The word
+"admission" here means generated-set membership plus the generated predicate;
+it does not claim an unforgeable JavaScript identity.
+
+This arm does not start or adopt a local backend, Metro, bootstrap exchange,
+listener, tunnel, relay, or port forward. It does not use
+`local-supervised-ipc`, invoke supervised session adoption, accept loopback
+names, unspecified addresses, or private IP literals, or become valid in a
+production release condition. The client classifier performs no DNS lookup: a
+DNS-named origin that resolves to private-network addresses is outside this
+arm's guarantees pending packet ruling 6. Application authority comes from the
+ordinary auth owner at the already-hosted target. The arm says nothing about
+whether the separate development asset carrier is supported; that carrier
+keeps its own admission and evidence.
 
 ## Release binding
 
@@ -832,17 +978,19 @@ it was superseded by the current `llp/0168-browser-carrier-dev-edge.research.md`
 which states "no edge decisions from that draft survive" except one narrow
 policy-sharing boundary. The current LLP 0168's own recommendation, as
 written, is **do not build a LAN/tunnel dev edge on the present record**.
-Reopening the question is gated on its own §Go/no-go preconditions —
-demonstrated demand for a workflow no cheaper carrier serves, an on-paper
-answer to the loopback-front auth-inference problem above, and a named
-hostname/certificate strategy — before an RFC can even be opened, and on
-running-code proof (access-capability, stable-origin, proxy-compatibility,
-and targeted hostile-network tests, plus one policy authority) before that
-RFC could be accepted. This RFC's E5 is gated on whatever that eventual,
-still-unopened successor RFC actually specifies — the bullet list below is
-this document's own best current restatement of that bar, offered as a
-starting checklist for whoever eventually opens it, not a claim that LLP
-0168 already contains a ready-to-implement requirements set:
+LLP 0168's A1 is now explicitly scoped to the browser carrier that Research
+studied. A native Metro/Expo physical-device carrier is a different carrier
+whose demand precondition must be stated by its own future owner, using the
+native alternative set; it cannot satisfy or fail the browser-shaped A1 by
+implication. The 2026-08-15 ruling nevertheless keeps the successor-RFC gate
+closed on A3 grounds for the route-composing iOS carrier. Any future owner must
+state its own A1 and still supply reviewable A2/A3 answers before opening the
+successor RFC; the running-code B1–B5 proof still precedes acceptance. This
+RFC's E5 starts only after that eventual successor reaches Accepted. The
+`hosted-development` arm above is outside this gate because it creates no
+Snapback listener, front, or route composition. The bullet list below is this
+document's own best current restatement of the future edge bar, not authority
+to implement it:
 
 - secure transport or an equivalently reviewed confidentiality/integrity
   channel for session-bearing traffic;
@@ -1053,8 +1201,8 @@ E5 is LLP 0176 G5 and does not block E0–E4.
   for the admitted baseline.
 - One `AppDescriptor` plus one `AppBinding` is the complete non-secret boot
   input; the provider refuses mismatch before preparing stores.
-- Development and release use the same binding schema with distinct explicit
-  source/provenance facts.
+- Supervised development, hosted development, and release use the same binding
+  schema with distinct explicit source/provenance facts.
 - Simulator/emulator development does not bind Snapback publicly or depend on
   a LAN relay, and every owned listener — Metro included, not only the
   backend — is verified loopback-bound in the default baseline.
@@ -1071,6 +1219,14 @@ E5 is LLP 0176 G5 and does not block E0–E4.
   construction — refuses unless `provenance.buildReceipt` verifies through
   the existing build-receipt mechanism. Neither arm falls back to a
   supervised or arbitrary origin on a verification failure.
+- A hosted-development binding adopts only an exact HTTPS target in the app's
+  generated binding artifact whose module-owned predicate accepts the
+  hosted-target receipt. The public admission surface accepts no replacement
+  target set or predicate. Missing generated-module evidence,
+  local-supervised delivery, a loopback name, unspecified address, private IP
+  literal, port-forward target, fabricated raw-client receipt, or production
+  release condition refuses. DNS-named private origins remain outside the
+  client classifier's guarantees pending ruling 6.
 - `snapback dev --expo` reaches one readiness state, survives HMR, remints its
   binding when a function edit rotates the loaded descriptor, proves the new
   digest callable without a supervisor restart, and cleans up every owned
@@ -1136,6 +1292,9 @@ Review. E0/E1 are implemented as the first slice: the correctly named package, o
 `AppBinding`, no-URL provider boot, direct simulator/emulator routing, and the
 headless-proven Android USB extension. Its live receipt is pending; iOS USB is
 a typed non-capability after the concrete tool-direction probe above.
+The 2026-08-15 amendment makes a development bundle against an already-admitted
+hosted HTTPS target representable as `hosted-development`; it does not claim or
+implement an iOS local-development carrier, Metro/tunnel carrier, or E5 edge.
 E2 adds the ordinary-session image command and in-process bearer adoption; it
 does not ship restart-persistent custody. Ordinary durable custody is owned
 by Accepted LLP 0258 — E2C above is this RFC's integration slice of that
@@ -1176,3 +1335,27 @@ This amendment is gated by both generated facts: the descriptor carries an
 `snapback.application-auth-bootstrap.v1`, and its required capabilities include
 `auth.application-bootstrap.v1`. If either opt-in fact is absent, the legacy
 non-opted-in provider path retains its prior contract unchanged.
+
+## Amendment — 2026-08-15 (iOS physical-device carrier ruling)
+
+Charlie Cheever accepted the NOT-YET recommendation and topology (c) in
+`issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`. Packet
+ruling 1 is implemented by the `hosted-development` arm specified above:
+development bundle, separately admitted development asset carrier, and an
+already-admitted hosted HTTPS backend. The arm's generated-target match and
+generated-module receipt predicate fail closed, and raw application-client use
+requires the exact ephemeral result admitted through the generated `app`
+export. The public path accepts neither hosted fact as a free parameter. The
+arm refuses loopback names, unspecified addresses, and private IP literals; it
+makes no stronger claim for DNS-named private origins pending ruling 6. This
+process-local enforcement does not claim protection from same-process code
+that bypasses the generated path. It authorizes no listener, tunnel, relay,
+port forward, supervisor exchange, or local backend.
+
+Packet ruling 2 places a client pointing at that already-admitted hosted target
+outside LLP 0168's front-edge gate. Packet ruling 3 scopes LLP 0168 A1 to its
+browser carrier and leaves a native carrier's own A1 to its future owner. The
+NOT-YET local iOS nonclaim and A3-closed successor-RFC gate remain in force.
+Packet rulings 4–6 — F-A2-4 blast-radius measurement, the Android USB live
+receipt, and private-overlay posture — remain visibly open and are not changed
+by this amendment.

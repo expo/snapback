@@ -38,6 +38,14 @@ const POLICY_MECHANISMS = [
   'email-code-v1',
   'external-session-explicit-v1',
 ];
+const HOSTED_DEVELOPMENT_ADMISSION = Symbol.for(
+  '@expo/snapback-client/hosted-development-admission.v1',
+);
+const HOSTED_DEVELOPMENT_ADMISSION_KEYS = [
+  'descriptorIdentity',
+  'format',
+  'targetTuple',
+];
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const nonEmptyString = (value) => typeof value === 'string' && value.length > 0;
@@ -136,6 +144,85 @@ const isLoopbackHost = (hostname) => hostname === 'localhost'
   || hostname === '::1'
   || /^127(?:\.[0-9]{1,3}){3}$/u.test(hostname);
 
+const ipv4Octets = (hostname) => {
+  const parts = hostname.split('.');
+  if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/u.test(part))) return null;
+  const octets = parts.map(Number);
+  return octets.every((octet) => octet >= 0 && octet <= 255) ? octets : null;
+};
+
+const ipv6Bytes = (hostname) => {
+  const literal = hostname.replace(/^\[|\]$/gu, '').toLowerCase();
+  if (!literal.includes(':')) return null;
+  const halves = literal.split('::');
+  if (halves.length > 2) return null;
+  const parseHalf = (half) => {
+    if (half === '') return [];
+    const fields = half.split(':');
+    if (fields.some((field) => !/^[0-9a-f]{1,4}$/u.test(field))) return null;
+    return fields.map((field) => Number.parseInt(field, 16));
+  };
+  const left = parseHalf(halves[0]);
+  const right = parseHalf(halves[1] ?? '');
+  if (left === null || right === null) return null;
+  const omitted = 8 - left.length - right.length;
+  if ((halves.length === 1 && omitted !== 0) || (halves.length === 2 && omitted < 1)) return null;
+  const fields = [...left, ...Array.from({ length: omitted }, () => 0), ...right];
+  if (fields.length !== 8) return null;
+  return fields.flatMap((field) => [field >>> 8, field & 0xff]);
+};
+
+const privateIpv4Class = (octets) => {
+  if (octets === null) return null;
+  if (octets.every((octet) => octet === 0)) return 'unspecified-address';
+  if (octets[0] === 127) return 'loopback';
+  if (
+    octets[0] === 10
+    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+    || (octets[0] === 192 && octets[1] === 168)
+    || (octets[0] === 169 && octets[1] === 254)
+  ) return 'private-ip-literal';
+  return null;
+};
+
+// @ref LLP 0181#hosted-development-binding — this intentionally classifies
+// only loopback names, unspecified addresses, and private IP literals.
+// DNS-named private origins stay outside the client arm's guarantees while
+// packet ruling 6 remains open.
+export function __classifyHostedDevelopmentHostname(hostname) {
+  const normalized = hostname.toLowerCase().replace(/\.$/u, '');
+  if (isLoopbackHost(normalized) || normalized.endsWith('.localhost')) return 'loopback';
+  const ipv4Class = privateIpv4Class(ipv4Octets(normalized));
+  if (ipv4Class !== null) return ipv4Class;
+  const bytes = ipv6Bytes(normalized);
+  if (bytes === null) return null;
+  if (bytes.every((byte) => byte === 0)) return 'unspecified-address';
+  const ipv6Loopback = bytes.slice(0, 15).every((byte) => byte === 0) && bytes[15] === 1;
+  if (ipv6Loopback) return 'loopback';
+  // RFC 5156 §2.3 reserves the deprecated IPv4-compatible ::/96 block.
+  // Refuse the complete block, not only compatible spellings whose embedded
+  // IPv4 value independently falls into the private/loopback classifier.
+  const ipv4Compatible = bytes.slice(0, 12).every((byte) => byte === 0);
+  if (ipv4Compatible) return 'ipv4-compatible-ipv6';
+  const ipv4Mapped = bytes.slice(0, 10).every((byte) => byte === 0)
+    && bytes[10] === 0xff
+    && bytes[11] === 0xff;
+  if (ipv4Mapped) return privateIpv4Class(bytes.slice(12));
+  if ((bytes[0] & 0xfe) === 0xfc || (bytes[0] === 0xfe && (bytes[1] & 0xc0) === 0x80)) {
+    return 'private-ip-literal';
+  }
+  return null;
+}
+
+const targetTuple = (target) => TARGET_KEYS.map((key) => target?.[key]).join('\u0000');
+const hasHostedDevelopmentAdmission = (binding) => {
+  const admission = binding?.[HOSTED_DEVELOPMENT_ADMISSION];
+  return exactKeys(admission, HOSTED_DEVELOPMENT_ADMISSION_KEYS)
+    && admission.format === 'snapback.hosted-development-admission.v1'
+    && admission.descriptorIdentity === binding.descriptorIdentity
+    && admission.targetTuple === targetTuple(binding.target);
+};
+
 function validateAppPolicy(app) {
   if (
     !isRecord(app)
@@ -196,7 +283,7 @@ function validateBinding(binding, app, policy, now = Date.now) {
   if (
     !exactKeys(binding, BINDING_KEYS)
     || binding.format !== 'snapback.app-binding.v1'
-    || !['supervised-dev', 'release'].includes(binding.source)
+    || !['supervised-dev', 'hosted-development', 'release'].includes(binding.source)
     || !nonEmptyString(binding.descriptorIdentity)
     || !exactKeys(binding.target, TARGET_KEYS)
     || !TARGET_KEYS.filter((key) => key !== 'routing').every(
@@ -216,7 +303,10 @@ function validateBinding(binding, app, policy, now = Date.now) {
     );
   }
   const origin = canonicalOrigin(binding.target.origin);
+  // @ref LLP 0181#appbinding-v1 — hosted-development is a closed HTTPS-only
+  // arm; it cannot inherit supervised loopback/forwarding semantics.
   const supervised = binding.source === 'supervised-dev';
+  const hostedDevelopment = binding.source === 'hosted-development';
   const supervisedProvenance = exactKeys(
     binding.provenance,
     ['expiresAt', 'issuedAt', 'supervisorGeneration'],
@@ -230,6 +320,10 @@ function validateBinding(binding, app, policy, now = Date.now) {
     binding.provenance,
     ['buildReceipt', 'environment', 'releaseChannel'],
   ) && Object.values(binding.provenance).every(nonEmptyString);
+  const hostedDevelopmentProvenance = exactKeys(
+    binding.provenance,
+    ['hostedTargetReceipt'],
+  ) && nonEmptyString(binding.provenance.hostedTargetReceipt);
   const supervisedIntegrity = exactKeys(binding.integrity, ['channel'])
     && binding.integrity.channel === 'local-supervised-ipc';
   const releaseIntegrity = (
@@ -240,6 +334,31 @@ function validateBinding(binding, app, policy, now = Date.now) {
     && binding.integrity.channel === 'signed-artifact'
     && nonEmptyString(binding.integrity.signature)
   );
+  const hostedDevelopmentIntegrity = exactKeys(binding.integrity, ['channel'])
+    && binding.integrity.channel === 'hosted-target-admission';
+  const hostedDevelopmentOriginClassification = hostedDevelopment && origin !== null
+    ? __classifyHostedDevelopmentHostname(origin.hostname)
+    : null;
+  if (
+    hostedDevelopment
+    && (
+      origin === null
+      || binding.target.routing !== 'https'
+      || origin.protocol !== 'https:'
+      || hostedDevelopmentOriginClassification !== null
+    )
+  ) {
+    throw refusal(
+      'SNAPBACK_APP_BINDING_TARGET_INVALID',
+      'Hosted-development bindings require a public HTTPS origin, not a loopback name, unspecified address, or private IP literal.',
+      {
+        appId: app.identity.app,
+        hostname: origin?.hostname ?? null,
+        classification: hostedDevelopmentOriginClassification,
+      },
+      [retryBootstrap('SNAPBACK_APP_BINDING_TARGET_INVALID')],
+    );
+  }
   const validRoute = origin !== null && (supervised
     ? ['loopback', 'port-forward'].includes(binding.target.routing)
       && ['http:', 'https:'].includes(origin.protocol)
@@ -248,7 +367,11 @@ function validateBinding(binding, app, policy, now = Date.now) {
     : binding.target.routing === 'https' && origin.protocol === 'https:');
   if (
     !validRoute
-    || (supervised ? !supervisedProvenance || !supervisedIntegrity : !releaseProvenance || !releaseIntegrity)
+    || (supervised
+      ? !supervisedProvenance || !supervisedIntegrity
+      : hostedDevelopment
+        ? !hostedDevelopmentProvenance || !hostedDevelopmentIntegrity
+        : !releaseProvenance || !releaseIntegrity)
     || binding.target.app !== app.identity.app
     || binding.target.schema !== app.identity.schema
     || binding.target.functions !== app.identity.functions
@@ -259,6 +382,14 @@ function validateBinding(binding, app, policy, now = Date.now) {
       'The AppBinding does not admit the generated application identities and route.',
       { appId: app.identity.app, source: binding.source },
       [retryBootstrap('SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID')],
+    );
+  }
+  if (hostedDevelopment && !hasHostedDevelopmentAdmission(binding)) {
+    throw refusal(
+      'SNAPBACK_APP_BINDING_INTEGRITY_INVALID',
+      'Hosted-development bootstrap requires the exact binding object admitted through the generated app-binding module.',
+      { appId: app.identity.app, channel: binding.integrity.channel },
+      [retryBootstrap('SNAPBACK_APP_BINDING_INTEGRITY_INVALID')],
     );
   }
   if (

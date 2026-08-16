@@ -16,8 +16,9 @@
 **Packet:** [`20260811-ios-physical-device-dev-carrier-decision-packet.packet.md`](./20260811-ios-physical-device-dev-carrier-decision-packet.packet.md)
 — assembled 2026-08-11. Recommends topology (c), an already-hosted backend plus a
 separately admitted development asset carrier, and holds the LLP 0168
-successor-RFC gate closed (not-yet) on A3 grounds. Awaiting author go/no-go and
-the six rulings in its §9.
+successor-RFC gate closed (not-yet) on A3 grounds. Charlie Cheever accepted the
+recommendation and rulings 1–3 on 2026-08-15; the execution record below names
+the implemented-in-lane amendments. Rulings 4–6 remain open.
 
 ## Problem
 
@@ -42,6 +43,10 @@ reachable. Two convenient URLs do not establish transport security, route
 admission, or an authorized binding.
 
 ## Scope: decision packet only
+
+This section records the packet's original assembly scope. The later author
+ruling commissioned the bounded LLP 0181/code and documentation execution
+recorded at the end of this ticket.
 
 This ticket does not authorize a relay, tunnel supervisor, public listener, or
 new binding arm. It assembles the evidence and on-paper decisions required to
@@ -117,3 +122,41 @@ Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):
   carrier question are not resolved by this ruling.
 - The due non-authorizing doc-posture fixes (react-expo carrier-table row,
   diary hedge, relay-room launcher note) may proceed.
+
+## Accepted ruling execution — 2026-08-15
+
+The commissioned items are executed in the iOS-carrier documentation lane:
+
+1. **Ruling 1 / LLP 0181 binding arm.** `source: "hosted-development"`
+   represents a development bundle pointing at an already-admitted hosted
+   HTTPS target. Admission requires an exact target tuple in the app's
+   generated binding artifact and that module's predicate accepting the
+   `hostedTargetReceipt`; these facts are not caller-supplied options. The
+   runtime schema, public TypeScript
+   unions, Expo provider admission evidence, framework-neutral application
+   client mirror, and targeted tests are updated under
+   `packages/snapback-expo/` and `packages/snapback-client/`. Loopback,
+   unspecified-address, port-forward, local-supervisor delivery,
+   missing/negative generated-module admission, and production release
+   conditions fail closed; the arm starts no listener, relay, tunnel, or
+   supervisor exchange. Same-process code bypassing the generated path remains
+   outside the client arm's threat model.
+2. **Ruling 2 / gate scope.** LLP 0181 and LLP 0168 now state that a client
+   pointing at an already-admitted hosted target creates no front or route
+   composition and is outside LLP 0168's gate. The separately admitted
+   development asset carrier retains its own posture.
+3. **Ruling 3 / A1 accuracy.** LLP 0168 A1 and its deliberately-open wording
+   are scoped to the browser carrier the Research studied. A native Metro/Expo
+   physical-device carrier is explicitly different and must state its own A1
+   against simulator, Android USB, static export, and a hosted release target.
+4. **Documentation posture.** The React/Expo guide says a tunnel is not a
+   carrier, Diary 0075 labels the prepared Expo Go/Tuft path an unsupported
+   workaround with no live-device receipt, and the Relay Room launcher header
+   says its opt-in LAN mode defeats both named fences and must not be copied.
+
+The accepted NOT-YET result remains unchanged: iOS physical-device **local**
+development is still an explicit nonclaim and the LLP 0168 successor-RFC gate
+is still closed on A3 grounds. This ticket remains **Open only for rulings
+4–6**: F-A2-4 blast-radius measurement scheduling, the Android USB live receipt
+schedule, and the private-overlay carrier question. This execution does not
+answer or schedule any of them.

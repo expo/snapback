@@ -35,28 +35,64 @@ export type SnapbackApplicationDescriptorV1 = Readonly<{
 
 export type SnapbackAppBindingV1 = Readonly<{
   format: 'snapback.app-binding.v1';
-  source: 'supervised-dev' | 'release';
   descriptorIdentity: string;
-  target: Readonly<{
-    app: string;
-    schema: string;
-    functions: string;
-    origin: string;
-    routing: 'loopback' | 'port-forward' | 'https';
-  }>;
   capabilities: Readonly<{ offered: readonly string[] }>;
-  provenance:
-    /** A supervised binding is admitted only while unexpired. Within one live
-     * owner, issuedAt is a non-rewinding watermark; generated identities and
-     * the opaque supervisor generation are the currently available successor
-     * facts, pending the full LLP 0241 activation receipt. */
-    | Readonly<{ supervisorGeneration: string; issuedAt: string; expiresAt: string }>
-    | Readonly<{ environment: string; releaseChannel: string; buildReceipt: string }>;
-  integrity:
-    | Readonly<{ channel: 'local-supervised-ipc' }>
-    | Readonly<{ channel: 'signed-artifact'; signature: string }>
-    | Readonly<{ channel: 'embedded-at-build' }>;
-}>;
+}> & (
+  /** A supervised binding is admitted only while unexpired. Within one live
+   * owner, issuedAt is a non-rewinding watermark; generated identities and
+   * the opaque supervisor generation are the currently available successor
+   * facts, pending the full LLP 0241 activation receipt. */
+  | Readonly<{
+      source: 'supervised-dev';
+      target: Readonly<{
+        app: string;
+        schema: string;
+        functions: string;
+        origin: string;
+        routing: 'loopback' | 'port-forward';
+      }>;
+      provenance: Readonly<{
+        supervisorGeneration: string;
+        issuedAt: string;
+        expiresAt: string;
+      }>;
+      integrity: Readonly<{ channel: 'local-supervised-ipc' }>;
+    }>
+  | Readonly<{
+      /** Runtime use requires the exact object admitted through the app export
+       * hydrated by the generated binding module; a hand-built or cloned
+       * receipt-bearing value is shape-compatible but is refused before
+       * transport I/O. */
+      source: 'hosted-development';
+      target: Readonly<{
+        app: string;
+        schema: string;
+        functions: string;
+        origin: string;
+        routing: 'https';
+      }>;
+      provenance: Readonly<{ hostedTargetReceipt: string }>;
+      integrity: Readonly<{ channel: 'hosted-target-admission' }>;
+    }>
+  | Readonly<{
+      source: 'release';
+      target: Readonly<{
+        app: string;
+        schema: string;
+        functions: string;
+        origin: string;
+        routing: 'https';
+      }>;
+      provenance: Readonly<{
+        environment: string;
+        releaseChannel: string;
+        buildReceipt: string;
+      }>;
+      integrity:
+        | Readonly<{ channel: 'signed-artifact'; signature: string }>
+        | Readonly<{ channel: 'embedded-at-build' }>;
+    }>
+);
 
 export type SnapbackAppClientPlatform =
   | 'browser'

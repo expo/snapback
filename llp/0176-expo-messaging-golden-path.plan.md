@@ -7,6 +7,9 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-15 (y) — Reconciles the AppBinding product-decision summary
+with LLP 0181's ruled `hosted-development` arm. This is documentation drift
+repair only; LLP 0181 owns the arm's admission semantics.
 **Revised:** 2026-08-10 (x) — Recorded the G4 external re-rerun against live
 0.1.17 in a third fresh quarry: **PASS**. Both platforms reached their pass
 markers through published bytes only — iOS `G4_IOS_PASS` on the Air, and
@@ -402,11 +405,12 @@ exports may alias nodes from this tree; they are not separate authorities.
 
 ### One environment binding
 
-LLP 0181 resolves exactly one `AppBinding` for a running client. Development
-and release are variants of the same closed schema, distinguished by
-`source: "supervised-dev" | "release"`. A binding carries public endpoint,
-identity, capability, and provenance facts. It does not carry or mint session
-authority.
+LLP 0181 resolves exactly one `AppBinding` for a running client. Supervised
+development, a development bundle against an admitted hosted target, and
+release are variants of the same closed schema, distinguished by `source:
+"supervised-dev" | "hosted-development" | "release"`. A binding carries public
+endpoint, identity, capability, and provenance facts. It does not carry or mint
+session authority.
 
 ### Three deliberately separate action namespaces
 

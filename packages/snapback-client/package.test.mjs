@@ -15,6 +15,7 @@ import {
   SnapbackClient as OnlineSnapbackClient,
   bindSnapbackAppLifecycle as bindOnlineSnapbackAppLifecycle,
 } from './online.mjs';
+import * as appClientInternal from './app-client-internal.mjs';
 
 const packageManifest = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 const packageFiles = new Set(packageManifest.files);
@@ -25,6 +26,11 @@ const exportedTargets = Object.values(packageManifest.exports)
 for (const target of exportedTargets) {
   assert.ok(packageFiles.has(target), `package files must include exported target ${target}`);
 }
+assert.equal(
+  Object.hasOwn(appClientInternal, 'admitHostedDevelopmentBindingForAppClient'),
+  false,
+  'the published framework subpath must not expose raw hosted admission',
+);
 
 assert.equal(typeof SnapbackClient, 'function');
 assert.equal(admitSnapbackId('todos', 'todo_01'), 'todo_01');

@@ -3459,6 +3459,47 @@ client generated for one backend shape from being bound to another.
 | Android emulator | Preferred: one verified `adb reverse` rule for each of the backend, Metro, and bootstrap ports, so the app still addresses `127.0.0.1`. Fallback: the emulator-only `10.0.2.2` host alias under `routing: "port-forward"`. | Every host listener. The fallback is routing posture, not permission to bind on LAN. |
 | Android USB device | Select the exact USB serial with `--android-serial`. The supervisor classifies the `adb devices -l` row, rejects TCP/IP/mDNS adb, and installs/verifies/removes the same three `adb -s <serial> reverse` rules under `routing: "port-forward"`. | Every host listener. The USB mechanism is headless-proven; its live LLP 0064 Online receipt is pending. |
 | iOS USB device | `--ios-udid` enumerates physical devices with `xcrun devicectl` and rejects network transports. The current command then refuses with `SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE`: `devicectl` 518.33 has no TCP forward, while `iproxy` forwards Mac-to-device, the wrong direction for device loopback-to-Mac. | No listener or forward is created. A device-side bridge or a new author-approved posture is still required. |
+| Tunnelled Metro plus tunnelled backend (**not a carrier**) | No supervised route is selected. A tunnel adds reachability; it does not admit the Metro asset path, the backend target, or their composition. | Nothing is newly guaranteed loopback-only: a front can make a loopback listener remotely reachable while the server still sees its loopback bind. Treat this as an unsupported workaround, per [Targets — a public tunnel does not make the loopback server production-ready](../auth/targets.md#a-public-tunnel-does-not-make-the-loopback-server-production-ready). |
+
+The separate `source: "hosted-development"` binding arm represents only a
+development bundle pointing at an already-admitted hosted HTTPS backend. It
+does not admit, create, or supervise the Metro/development-asset carrier, so a
+tunnel does not become a carrier by being paired with that arm. Admission
+refuses `localhost`/`.localhost` names, IPv4 `127/8`, IPv6 `::1`, RFC 1918 and
+link-local IP literals, IPv6 link-local/ULA literals, and unspecified addresses
+such as `0.0.0.0`, `[::]`, and IPv4-mapped `[::ffff:0:0]`, plus the deprecated
+IPv4-compatible IPv6 `::/96` block. This is deliberately not a DNS
+private-network classifier: DNS-named origins that resolve privately remain
+outside the client arm's guarantees while carrier ruling 6 is open.
+
+Declare each already-admitted hosted development origin and its public receipt
+identity in the closed `hostedDevelopmentTargets` array in
+`snapback/codegen.policy.json`, then regenerate. Codegen derives the app,
+schema, functions, and HTTPS routing fields and installs the frozen target set
+and target-bound receipt predicate non-enumerably on the generated `app`.
+Omitting the array emits an empty set that admits no hosted target; stale
+generated modules with no admission record fail integrity validation. The
+receipt is provenance, not an application bearer or other secret.
+
+The raw `createSnapbackAppClient` constructor does not accept a receipt string
+as proof. Import `app` from the codegen-emitted binding module, call
+`admitAppBindingV1(candidate, app)`, then pass the exact returned binding object
+to the constructor. Admission takes the hosted-target set and receipt predicate
+only from that generated `app` export; loading the descriptor JSON or passing
+caller-chosen replacements refuses. No raw parameterized admission helper is
+exported from the client package; the Expo handshake is package-private.
+The handshake takes one plain frozen snapshot before its receipt predicate can
+await; target matching, verification, marking, and transport all use that
+snapshot, so a live getter cannot swap the origin after verification. Cloning,
+serializing, reconstructing, or hand-building the returned binding drops its
+in-process admission and refuses before any request is made.
+`SnapbackExpoProvider` performs this handshake for its resolved environment
+binding.
+
+This is a process-local client contract, not an unforgeable JavaScript security
+boundary. It binds callers that use the application's generated artifact path;
+same-process code that manufactures its own module record or bypasses the
+generated client path is outside this arm's threat model.
 
 These routes and their cleanup are the closed iOS/Android branches in the
 [supervisor](repo:packages/snapback-cli/expo-dev.mjs),

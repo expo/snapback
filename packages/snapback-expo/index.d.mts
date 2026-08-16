@@ -81,7 +81,26 @@ export type ReleaseAppBindingV1 = Readonly<{
     | Readonly<{ channel: 'embedded-at-build' }>;
 }>;
 
-export type AppBindingV1 = SupervisedDevAppBindingV1 | ReleaseAppBindingV1;
+export type HostedDevelopmentAppBindingV1 = Readonly<{
+  format: 'snapback.app-binding.v1';
+  source: 'hosted-development';
+  descriptorIdentity: string;
+  target: Readonly<{
+    app: string;
+    schema: string;
+    functions: string;
+    origin: string;
+    routing: 'https';
+  }>;
+  capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;
+  provenance: Readonly<{ hostedTargetReceipt: string }>;
+  integrity: Readonly<{ channel: 'hosted-target-admission' }>;
+}>;
+
+export type AppBindingV1 =
+  | SupervisedDevAppBindingV1
+  | HostedDevelopmentAppBindingV1
+  | ReleaseAppBindingV1;
 
 export interface AppDescriptorV1Like {
   readonly format: 'snapback.app.v1';
@@ -124,13 +143,17 @@ export type TypedRemediation = Readonly<{
 
 export type PublicBindingFacts = Readonly<{
   format: 'snapback.app-binding.v1';
-  source: 'supervised-dev' | 'release';
+  source: 'supervised-dev' | 'hosted-development' | 'release';
   descriptorIdentity: string;
   target: AppBindingTargetV1;
   capabilities: Readonly<{ offered: readonly CapabilityOffer[] }>;
   provenance: AppBindingV1['provenance'];
   integrity: Readonly<{
-    channel: 'local-supervised-ipc' | 'signed-artifact' | 'embedded-at-build';
+    channel:
+      | 'local-supervised-ipc'
+      | 'hosted-target-admission'
+      | 'signed-artifact'
+      | 'embedded-at-build';
   }>;
 }>;
 

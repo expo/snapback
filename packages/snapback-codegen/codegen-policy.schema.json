@@ -22,6 +22,26 @@
     "contractMetadata": {
       "const": "exact",
       "description": "Emit Exact-dependent .contract-meta.ts sidecars in addition to Contract-neutral bindings."
+    },
+    "hostedDevelopmentTargets": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Closed hosted HTTPS origins and their already-admitted receipt identities. Codegen derives the application identity tuple and emits the immutable client admission record.",
+      "items": {
+        "type": "object",
+        "required": ["origin", "hostedTargetReceipt"],
+        "properties": {
+          "origin": {
+            "type": "string",
+            "pattern": "^https://[^/]+$"
+          },
+          "hostedTargetReceipt": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
     }
   },
   "additionalProperties": false

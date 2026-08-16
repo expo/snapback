@@ -25,6 +25,7 @@ const APPLICATION_BEARER = 'sbs_expo_application_authority_secret';
 const SUPERVISED_BEARER = 'sbs_expo_supervised_authority_secret';
 const SUPERVISED_REMINT = 'sbs_expo_supervised_remint_secret';
 const PASSWORD = 'expo-bootstrap-password-secret';
+const TEST_NOW_MS = Date.now();
 
 const generatedRoot = new URL(
   '../snapback-react/fixtures/conversation/app/snapback/generated/',
@@ -57,8 +58,8 @@ const binding = Object.freeze({
   }),
   provenance: Object.freeze({
     supervisorGeneration: 'expo-auth-bootstrap-test',
-    issuedAt: '2026-08-15T12:00:00.000Z',
-    expiresAt: '2026-08-15T13:00:00.000Z',
+    issuedAt: new Date(TEST_NOW_MS - 30 * 60_000).toISOString(),
+    expiresAt: new Date(TEST_NOW_MS + 30 * 60_000).toISOString(),
   }),
   integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
 });
@@ -260,7 +261,7 @@ const supervisor = { bearer: SUPERVISED_BEARER, events: [], diagnostics: [] };
 const boot = createSnapbackExpoBoot({
   app,
   environment: environmentFor(platform, supervisor),
-  now: () => Date.parse('2026-08-15T12:30:00.000Z'),
+  now: () => TEST_NOW_MS,
   async createApplicationClient(input, observer) {
     const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
     appClient.client.prepareReactBinding = async () => ({ source: 'deployment' });
@@ -334,7 +335,7 @@ const anonymousSupervisor = { bearer: SUPERVISED_BEARER, events: [], diagnostics
 const anonymousBoot = createSnapbackExpoBoot({
   app,
   environment: environmentFor(anonymousPlatform, anonymousSupervisor),
-  now: () => Date.parse('2026-08-15T12:30:00.000Z'),
+  now: () => TEST_NOW_MS,
   async createApplicationClient(input, observer) {
     const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
     appClient.client.prepareReactBinding = async () => ({ source: 'deployment' });

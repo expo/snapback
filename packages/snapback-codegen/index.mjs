@@ -7054,9 +7054,20 @@ async function generateInProcessLocked({
     return { ok: false, diagnostics };
   }
   const appDescriptorSource = serializeAppDescriptorV1(appDescriptor);
+  const hostedDevelopmentAdmissions = codegenPolicy.hostedDevelopmentTargets.map((entry) => ({
+    target: {
+      app: appDescriptor.identity.app,
+      schema: appDescriptor.identity.schema,
+      functions: appDescriptor.identity.functions,
+      origin: entry.origin,
+      routing: 'https',
+    },
+    hostedTargetReceipt: entry.hostedTargetReceipt,
+  }));
   const appBindingIdentity = compositionDomainHash('snapback:app-binding:v1:', {
     descriptor: appDescriptor.identity.descriptor,
     artifacts: { trustedCompositionActivation },
+    ...(hostedDevelopmentAdmissions.length === 0 ? {} : { hostedDevelopmentAdmissions }),
   });
   const contentAddressedDescriptorFile = contentAddressedArtifactPath(
     'app.descriptor.json',
@@ -7070,6 +7081,7 @@ async function generateInProcessLocked({
     functionManifest.functions,
     appDescriptor.identity.descriptor,
     trustedCompositionActivation,
+    hostedDevelopmentAdmissions,
   );
   const appBindingModule = renderAppBindingAlias(
     functionManifest.functions,
@@ -15046,6 +15058,7 @@ function renderAppBindingModule(
   functions,
   descriptorIdentity,
   trustedCompositionActivation = null,
+  hostedDevelopmentAdmissions = [],
 ) {
   const standalone = standaloneIdentifierFunctions(functions);
   const aliases = standalone.map(({ name, kind }) => {
@@ -15053,12 +15066,21 @@ function renderAppBindingModule(
     return `export const ${name} = app.api.${namespace}[${JSON.stringify(name)}];`;
   });
   const descriptorSpecifier = contentAddressedModuleSpecifier('./app.descriptor.json', descriptorIdentity);
+  // @ref LLP 0181#hosted-development-binding — the hydrated generated app is
+  // the trust root: its frozen, non-enumerable record owns both the exact
+  // hosted target set and the target-bound receipt predicate.
   return `${HEADER}\n` +
     `import descriptorDocument from ${JSON.stringify(descriptorSpecifier)} with { type: 'json' };\n` +
     `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
+    `const hostedDevelopmentAdmissions = deepFreeze(${stableJson(hostedDevelopmentAdmissions)});\n` +
+    `const targetTuple = (target) => ['app', 'functions', 'origin', 'routing', 'schema'].map((key) => target?.[key]).join('\\u0000');\n` +
+    `const generatedHostedTargets = deepFreeze(hostedDevelopmentAdmissions.map(({ target }) => structuredClone(target)));\n` +
+    `const verifyHostedTargetAdmission = Object.freeze((receipt, candidate) => hostedDevelopmentAdmissions.some((entry) => entry.hostedTargetReceipt === receipt && targetTuple(entry.target) === targetTuple(candidate?.target)));\n` +
+    `const generatedHostedDevelopmentAdmission = Object.freeze({ format: 'snapback.generated-hosted-development-admission.v1', generatedHostedTargets, verifyHostedTargetAdmission });\n` +
     `/** @type {import('./api.d.ts').GeneratedArtifacts} */\n` +
     `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
     `const hydratedDescriptor = structuredClone(descriptorDocument);\n` +
+    `Object.defineProperty(hydratedDescriptor, Symbol.for('@expo/snapback-client/generated-hosted-development-admission.v1'), { value: generatedHostedDevelopmentAdmission, enumerable: false });\n` +
     `const hydrateFunctionReference = (reference) => { reference.authoringProfile = hydratedDescriptor.authoringProfile; reference.retention ??= 'none'; if (reference.kind === 'LiveQuery') reference.delivery = 'live'; else if (reference.kind === 'Query') reference.delivery = 'read'; Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); };\n` +
     `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) hydrateFunctionReference(reference); }\n` +
     `for (const group of Object.values(hydratedDescriptor.api.queryGroups)) { for (const query of group.queries) hydrateFunctionReference(query.ref); }\n` +
@@ -17201,6 +17223,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       committedProjections: [],
       contractMetadata: null,
       authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+      hostedDevelopmentTargets: [],
     };
   }
   let source;
@@ -17225,16 +17248,18 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       committedProjections: [],
       contractMetadata: null,
       authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+      hostedDevelopmentTargets: [],
     };
   }
   const requiredKeys = ['committedProjections', 'schemaVersion'];
-  const allowedKeys = [...requiredKeys, 'authoringProfile', 'contractMetadata'];
+  const allowedKeys = [...requiredKeys, 'authoringProfile', 'contractMetadata', 'hostedDevelopmentTargets'];
   const actualKeys = policy && typeof policy === 'object' && !Array.isArray(policy)
     ? Object.keys(policy).sort()
     : [];
   const committed = policy?.committedProjections;
   const contractMetadata = policy?.contractMetadata;
   const authoringProfile = policy?.authoringProfile;
+  const hostedDevelopmentTargets = policy?.hostedDevelopmentTargets;
   if (
     authoringProfile !== undefined
     && authoringProfile !== EXPLICIT_AUTHORING_PROFILE
@@ -17251,7 +17276,57 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       committedProjections: [],
       contractMetadata: null,
       authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+      hostedDevelopmentTargets: [],
     };
+  }
+  let normalizedHostedDevelopmentTargets = [];
+  let hostedDevelopmentTargetsValid = true;
+  if (hostedDevelopmentTargets !== undefined) {
+    hostedDevelopmentTargetsValid = Array.isArray(hostedDevelopmentTargets);
+    const seenOrigins = new Set();
+    if (hostedDevelopmentTargetsValid) {
+      normalizedHostedDevelopmentTargets = hostedDevelopmentTargets.map((entry) => {
+        const keys = entry && typeof entry === 'object' && !Array.isArray(entry)
+          ? Object.keys(entry).sort()
+          : [];
+        if (
+          keys.length !== 2
+          || keys[0] !== 'hostedTargetReceipt'
+          || keys[1] !== 'origin'
+          || typeof entry.hostedTargetReceipt !== 'string'
+          || entry.hostedTargetReceipt.length === 0
+          || entry.hostedTargetReceipt.trim() !== entry.hostedTargetReceipt
+          || typeof entry.origin !== 'string'
+        ) {
+          hostedDevelopmentTargetsValid = false;
+          return null;
+        }
+        try {
+          const origin = new URL(entry.origin);
+          if (
+            origin.protocol !== 'https:'
+            || origin.username !== ''
+            || origin.password !== ''
+            || origin.pathname !== '/'
+            || origin.search !== ''
+            || origin.hash !== ''
+            || origin.origin !== entry.origin
+            || seenOrigins.has(origin.origin)
+          ) {
+            hostedDevelopmentTargetsValid = false;
+            return null;
+          }
+          seenOrigins.add(origin.origin);
+          return {
+            origin: origin.origin,
+            hostedTargetReceipt: entry.hostedTargetReceipt,
+          };
+        } catch {
+          hostedDevelopmentTargetsValid = false;
+          return null;
+        }
+      });
+    }
   }
   if (
     !policy
@@ -17261,6 +17336,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
     || requiredKeys.some((key) => !actualKeys.includes(key))
     || actualKeys.some((key) => !allowedKeys.includes(key))
     || (contractMetadata !== undefined && contractMetadata !== 'exact')
+    || !hostedDevelopmentTargetsValid
     || !Array.isArray(committed)
     || new Set(committed).size !== committed.length
     || committed.some((entry) => (
@@ -17275,7 +17351,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       code: 'CODEGEN_POLICY_INVALID',
       severity: 'error',
       subsystem: 'codegen',
-      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections, optional authoringProfile, and optional contractMetadata: "exact"`,
+      message: `codegen policy ${path} must be a closed snapback.codegen-policy.v1 record with unique portable committedProjections, optional authoringProfile, optional contractMetadata: "exact", and optional unique canonical-HTTPS hostedDevelopmentTargets`,
       path,
     });
     return {
@@ -17283,6 +17359,7 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
       committedProjections: [],
       contractMetadata: null,
       authoringProfile: EXPLICIT_AUTHORING_PROFILE,
+      hostedDevelopmentTargets: [],
     };
   }
   return {
@@ -17290,6 +17367,9 @@ function readCodegenPolicy(backendRoot, diagnostics, err) {
     committedProjections: [...committed].sort(compareCodeUnits),
     contractMetadata: contractMetadata ?? null,
     authoringProfile: authoringProfile ?? EXPLICIT_AUTHORING_PROFILE,
+    hostedDevelopmentTargets: normalizedHostedDevelopmentTargets.sort((left, right) => (
+      compareCodeUnits(left.origin, right.origin)
+    )),
   };
 }
 

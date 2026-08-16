@@ -16,6 +16,7 @@
   "files": [
     "README.md",
     "app-binding.d.mts",
+    "app-binding-internal.mjs",
     "app-binding.mjs",
     "app-binding.schema.json",
     "app-state.mjs",

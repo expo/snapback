@@ -5,6 +5,12 @@
 **Systems:** Developer experience, Browser carriers, Client integration, Local server lifecycle, Security, Tooling, Packaging, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-04
+**Revised:** 2026-08-15 — Executes Charlie Cheever's accepted packet rulings:
+the NOT-YET recommendation stands with the successor-RFC gate closed on A3
+grounds; a client pointing at an already-admitted hosted target is outside this
+front-edge gate; and A1 is explicitly scoped to the browser carrier studied
+here. A native Metro/Expo physical-device carrier is a different carrier whose
+own A1 is not stated here. Packet rulings 4–6 remain open.
 **Related:** LLP 0008, LLP 0017, LLP 0030, LLP 0031, LLP 0041, LLP 0043, LLP 0060, LLP 0064, LLP 0090, LLP 0129, LLP 0166, LLP 0169, `diaries/0056-warble-local-first-microblog.diary.md`
 
 ## Summary
@@ -30,10 +36,12 @@ requires an RFC already opened under section A. Three rounds of
 dual-family review found a new bypass in the edge's dev-auth model each time.
 The current evidence also leaves a narrower benefit than the original proposal
 claimed: several carriers have cheaper partial answers, and a TLS tunnel is
-useful only when it fronts a route-composing relay. The present recommendation
-is therefore **do not build the edge on this record**. Reopen the question as an
-RFC only after demand for the uncovered carrier/workflow is demonstrated and
-the security preconditions in this Research have a reviewable answer.
+useful only when it fronts a route-composing relay. The present recommendation,
+accepted by Charlie Cheever on 2026-08-15, is therefore **do not build the edge
+on this record**. Browser-carrier demand under A1 remains distinct from the
+separately established native Metro/Expo demand; a future native carrier owner
+must state its own A1. Any successor also needs the security preconditions in
+this Research to have a reviewable answer.
 
 ## Research question and authority
 
@@ -235,10 +243,15 @@ gate is therefore split by *when* each condition must hold.
 All must be present before the question is reopened. None requires an
 implementation.
 
-- **A1. Demand evidence.** A real workflow requires remote browser HMR and is
-  not acceptably served by the LLP 0030 Vite relay, Android forwarding, a
-  static HTTPS export, or a bundler-embedded shared relay. Names the carrier
-  and frequency, not a theoretical matrix cell.
+- **A1. Browser-carrier demand evidence.** Within the browser carrier studied
+  by this Research, a real workflow requires remote browser HMR and is not
+  acceptably served by the LLP 0030 Vite relay, Android forwarding, a static
+  HTTPS export, or a bundler-embedded shared relay. Names the browser carrier
+  and frequency, not a theoretical matrix cell. A native Metro/Expo
+  physical-device carrier is a different carrier whose demand precondition is
+  not stated here; whichever document eventually owns it must state its own A1
+  against the native alternative set: simulator, Android USB, static export,
+  and a hosted release target.
 - **A2. Auth-boundary answer, on paper.** A reviewable design in which the
   server no longer infers safe client-asserted identity from a loopback peer
   that may be a front — or an argued trust channel that is unforgeable under an
@@ -293,20 +306,38 @@ stops at LLP 0169 and at documentation and proofs for the cheaper paths.
 
 Confidence is **high** in the browser/store causal chain and in the conclusion
 that the current server cannot detect an undeclared local front. Confidence is
-**medium** in the product recommendation because carrier demand has not been
-measured. The browser causal chain itself is receipt-backed; what remains
-unmeasured is carrier demand and cross-browser breadth.
+**medium** in the browser-edge product recommendation because demand for this
+browser carrier has not been measured. The native Metro/Expo packet establishes
+demand for a different carrier and does not silently satisfy browser A1. The
+browser causal chain itself is receipt-backed; what remains unmeasured is
+browser-carrier demand and cross-browser breadth.
 
 Deliberately open:
 
-- whether remote iOS/second-machine browser HMR is common enough to justify an
-  edge;
+- within the browser carrier studied here, whether remote iOS/second-machine
+  browser HMR is common enough to justify an edge; a native Metro/Expo carrier
+  must state its own A1 elsewhere;
 - whether the winning topology is a front edge or per-bundler shared relay;
 - the client-asserted-identity rule and front/server trust channel;
 - the browser access-capability lifecycle;
 - the paved hostname/certificate strategy; and
 - placement in the packaged loop, which remains LLP 0041's decision only after
   a topology is authorized.
+
+## Author ruling — 2026-08-15
+
+Charlie Cheever accepted the iOS physical-device packet's NOT-YET
+recommendation: the route-composing successor-RFC gate stays closed on A3
+grounds, and topology (c) — an already-hosted backend plus a separately
+admitted development asset carrier — is adopted. Packet ruling 2 is recorded
+here as a scope boundary: a client pointing at an already-admitted hosted target
+creates no listener or route composition and is outside this gate. Packet
+ruling 3 is the A1 scoping edit above. Packet ruling 1 is implemented by LLP
+0181's `hosted-development` binding arm.
+
+Packet rulings 4–6 remain open: this Research does not schedule the F-A2-4
+blast-radius measurement, the Android USB live receipt, or a ruling on whether
+a peer-authenticated private overlay is a carrier or an undeclared front.
 
 ## Provenance
 

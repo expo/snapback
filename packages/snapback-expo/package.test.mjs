@@ -20,6 +20,11 @@ const targets = Object.values(manifest.exports)
 for (const target of targets) {
   assert(files.has(target), `package files must include exported target ${target}`);
 }
+assert.equal(
+  Object.hasOwn(manifest.exports, './app-binding-internal'),
+  false,
+  'the generated-module handshake must remain an internal-only entry point',
+);
 
 assert.deepEqual(Object.keys(manifest.imports), ['#app-state']);
 const appStateImports = manifest.imports?.['#app-state'];
@@ -79,6 +84,7 @@ assert.match(
 const productionSources = [
   'index.mjs',
   'provider.mjs',
+  'app-binding-internal.mjs',
   'app-binding.mjs',
   'supervised-environment.mjs',
   'asset-source.mjs',

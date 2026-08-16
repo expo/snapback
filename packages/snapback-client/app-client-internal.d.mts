@@ -6,6 +6,10 @@ import type {
   SnapbackApplicationDescriptorV1,
 } from './app-client.mjs';
 
+export function classifyHostedDevelopmentHostname(
+  hostname: string,
+): 'loopback' | 'private-ip-literal' | 'unspecified-address' | null;
+
 export function createSnapbackAppClientWithBootstrapObserver(
   input: Readonly<{
     app: SnapbackApplicationDescriptorV1;

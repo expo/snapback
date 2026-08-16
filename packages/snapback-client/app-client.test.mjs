@@ -14,6 +14,10 @@ import {
   __bootstrapHistoryForTests,
   __recordSupervisedBootstrapAdoptionForTests,
 } from './app-client.mjs';
+import * as publishedAppClientInternal from './app-client-internal.mjs';
+import {
+  admitHostedDevelopmentBindingForAppClient,
+} from '../snapback-expo/app-binding-internal.mjs';
 
 const APP_ID = '018f0d90-7c20-7a22-8c33-445566778899';
 const INCARNATION = '018f0d90-7c21-7a22-8c33-445566778899';
@@ -32,6 +36,29 @@ const PEER_BEARER = 'sbs_app_client_peer_secret';
 const RECOVERY_CODES = Object.freeze(Array.from({ length: 8 }, (_, index) => (
   `sbrv1_${String(index).padStart(2, '0')}${'R'.repeat(25)}`
 )));
+const GENERATED_HOSTED_DEVELOPMENT_ADMISSION = Symbol.for(
+  '@expo/snapback-client/generated-hosted-development-admission.v1',
+);
+
+const freezeRecursively = (value) => {
+  if ((value === null || typeof value !== 'object') || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) freezeRecursively(child);
+  return Object.freeze(value);
+};
+
+function generatedHostedApp(app, generatedHostedTargets, verifyHostedTargetAdmission) {
+  const hydratedApp = structuredClone(app);
+  const evidence = freezeRecursively({
+    format: 'snapback.generated-hosted-development-admission.v1',
+    generatedHostedTargets: structuredClone(generatedHostedTargets),
+    verifyHostedTargetAdmission,
+  });
+  Object.defineProperty(hydratedApp, GENERATED_HOSTED_DEVELOPMENT_ADMISSION, {
+    value: evidence,
+    enumerable: false,
+  });
+  return freezeRecursively(hydratedApp);
+}
 
 const availability = Object.freeze({
   onlineRequestResponse: { available: true, reason: null },
@@ -109,6 +136,48 @@ function makeBinding(app, {
     provenance: Object.freeze({ supervisorGeneration, issuedAt, expiresAt }),
     integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
   });
+}
+
+function makeHostedDevelopmentBinding(app, {
+  origin = 'https://hosted.example.test',
+  hostedTargetReceipt = 'sha256:hosted-target-receipt',
+} = {}) {
+  return Object.freeze({
+    format: 'snapback.app-binding.v1',
+    source: 'hosted-development',
+    descriptorIdentity: app.identity.descriptor,
+    target: Object.freeze({
+      app: app.identity.app,
+      schema: app.identity.schema,
+      functions: app.identity.functions,
+      origin,
+      routing: 'https',
+    }),
+    capabilities: Object.freeze({ offered: Object.freeze(['auth.passwords']) }),
+    provenance: Object.freeze({ hostedTargetReceipt }),
+    integrity: Object.freeze({ channel: 'hosted-target-admission' }),
+  });
+}
+
+let generatedHostedModuleSerial = 0;
+
+async function importGeneratedHostedApp(app, binding, {
+  generatedHostedTargets = [binding.target],
+  admittedReceipt = binding.provenance.hostedTargetReceipt,
+} = {}) {
+  generatedHostedModuleSerial += 1;
+  const source = `
+const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };
+const targetTuple = (target) => ['app', 'functions', 'origin', 'routing', 'schema'].map((key) => target?.[key]).join('\\u0000');
+const generatedHostedTargets = deepFreeze(${JSON.stringify(generatedHostedTargets)});
+export let verifierCalls = 0;
+const verifyHostedTargetAdmission = (receipt, candidate) => { verifierCalls += 1; return receipt === ${JSON.stringify(admittedReceipt)} && generatedHostedTargets.some((target) => targetTuple(target) === targetTuple(candidate?.target)); };
+const hydratedApp = ${JSON.stringify(app)};
+Object.defineProperty(hydratedApp, Symbol.for('@expo/snapback-client/generated-hosted-development-admission.v1'), { value: Object.freeze({ format: 'snapback.generated-hosted-development-admission.v1', generatedHostedTargets, verifyHostedTargetAdmission }), enumerable: false });
+export const app = deepFreeze(hydratedApp);
+export default app;
+`;
+  return import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}#${generatedHostedModuleSerial}`);
 }
 
 const deploymentIdentity = (appId) => Object.freeze({
@@ -349,6 +418,144 @@ test('policy, binding, and durable-custody refusals happen before transport I/O'
     );
     assert.equal(server.requests.length, afterNoPasswordBoot);
     await noPasswordClient.dispose();
+  } finally {
+    server.restore();
+  }
+});
+
+test('hosted-development raw bootstrap requires generated-module admission', async () => {
+  const server = installServer();
+  const app = makeApp();
+  const binding = makeHostedDevelopmentBinding(app);
+  const generatedModule = await importGeneratedHostedApp(app, binding);
+  const admission = await admitHostedDevelopmentBindingForAppClient(
+    binding,
+    generatedModule.app,
+  );
+  assert.equal(admission.status, 'admitted');
+  assert.equal(generatedModule.verifierCalls, 1);
+  const appClient = await createSnapbackAppClient(optionsFor(
+    app,
+    admission.binding,
+  ));
+  try {
+    assert.equal(appClient.bootstrapState().status, 'ready');
+    assert.equal(appClient.bootstrapState().authoritySource, 'fresh-anonymous');
+    assert.equal(
+      server.requests.filter(({ path }) => path === '/auth/session').length,
+      1,
+    );
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('hosted-development transport uses the target snapshot verified before await', async () => {
+  const server = installServer();
+  const app = makeApp();
+  const generatedOrigin = 'https://hosted.example.test';
+  const attackerOrigin = 'https://attacker.example';
+  const generatedTarget = makeHostedDevelopmentBinding(app, {
+    origin: generatedOrigin,
+  }).target;
+  let liveOriginFlipped = false;
+  const liveTarget = { ...generatedTarget };
+  Object.defineProperty(liveTarget, 'origin', {
+    enumerable: true,
+    get() {
+      return liveOriginFlipped ? attackerOrigin : generatedOrigin;
+    },
+  });
+  const liveBinding = {
+    ...makeHostedDevelopmentBinding(app, { origin: generatedOrigin }),
+    target: liveTarget,
+  };
+  const generatedApp = generatedHostedApp(app, [generatedTarget], (receipt, candidate) => {
+    assert.equal(candidate.target.origin, generatedOrigin);
+    queueMicrotask(() => { liveOriginFlipped = true; });
+    return receipt === liveBinding.provenance.hostedTargetReceipt;
+  });
+  const admission = await admitHostedDevelopmentBindingForAppClient(
+    liveBinding,
+    generatedApp,
+  );
+  assert.equal(admission.status, 'admitted');
+  assert.equal(liveBinding.target.origin, attackerOrigin);
+  assert.equal(admission.binding.target.origin, generatedOrigin);
+  const appClient = await createSnapbackAppClient(optionsFor(app, admission.binding));
+  try {
+    assert.equal(appClient.bootstrapState().status, 'ready');
+    assert.deepEqual(
+      server.requests.map(({ origin }) => origin),
+      [generatedOrigin],
+      'transport must never re-read the attacker origin from the live candidate',
+    );
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('raw bootstrap refuses fabricated receipts and local, private, or unspecified hosted targets', async () => {
+  const server = installServer();
+  const app = makeApp();
+  try {
+    assert.equal(
+      Object.hasOwn(
+        publishedAppClientInternal,
+        'admitHostedDevelopmentBindingForAppClient',
+      ),
+      false,
+      'the raw admission helper must not be exported by the published internal subpath',
+    );
+    const fabricated = makeHostedDevelopmentBinding(app, {
+      origin: 'https://demo.ngrok.app',
+      hostedTargetReceipt: 'sha256:fabricated-receipt',
+    });
+    await assert.rejects(
+      createSnapbackAppClient(optionsFor(app, fabricated)),
+      (error) => error?.code === 'SNAPBACK_APP_BINDING_INTEGRITY_INVALID',
+    );
+    assert.equal(
+      (await admitHostedDevelopmentBindingForAppClient(fabricated, app)).status,
+      'generated-module-unavailable',
+      'descriptor JSON without the generated binding module must refuse',
+    );
+    assert.equal(
+      (await admitHostedDevelopmentBindingForAppClient(fabricated, {
+        generatedHostedTargets: [fabricated.target],
+        verifyHostedTargetAdmission: () => true,
+      })).status,
+      'generated-module-unavailable',
+      'the former raw parameter object must not remain an admission surface',
+    );
+    for (const origin of [
+      'https://127.0.0.1:4137',
+      'https://10.0.0.5',
+      'https://[::1]',
+      'https://0.0.0.0',
+      'https://[::]',
+      'https://[::ffff:0:0]',
+      'https://0',
+      'https://00.00.00.00',
+      'https://[0:0:0:0:0:0:0:0]',
+      'https://[::0]',
+      'https://[::ffff:0.0.0.0]',
+      'https://[::7f00:1]',
+      'https://[::a00:1]',
+      'https://[::ac10:1]',
+      'https://[::c0a8:1]',
+      'https://[::a9fe:1]',
+    ]) {
+      const invalidTarget = makeHostedDevelopmentBinding(app, { origin });
+      await assert.rejects(
+        createSnapbackAppClient(optionsFor(app, invalidTarget)),
+        (error) => error?.code === 'SNAPBACK_APP_BINDING_TARGET_INVALID',
+        origin,
+      );
+    }
+    assert.equal(server.requests.length, 0);
   } finally {
     server.restore();
   }
