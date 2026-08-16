@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-profile-fixture/createPostMutation.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetIds": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 4,
+      "type": "array"
+    },
+    "body": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "body",
+    "assetIds"
+  ],
+  "title": "media-profile-fixture:createPostMutation arguments",
+  "type": "object"
+}

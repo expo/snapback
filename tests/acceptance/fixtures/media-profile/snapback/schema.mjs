@@ -16,4 +16,22 @@ export const profiles = defineTable({
   .assetSharing({ kind: 'owner', field: 'ownerId' })
   .sync();
 
-export default defineSchema({ profiles });
+// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+export const posts = defineTable({
+  ownerId: v.principal(),
+  body: v.string(),
+})
+  .visibility({ kind: 'owner', field: 'ownerId' })
+  .assetSharing({ kind: 'owner', field: 'ownerId' })
+  .sync();
+
+export const messages = defineTable({
+  ownerId: v.principal(),
+  conversationId: v.string(),
+  text: v.string(),
+})
+  .visibility({ kind: 'owner', field: 'ownerId' })
+  .assetSharing({ kind: 'owner', field: 'ownerId' })
+  .sync();
+
+export default defineSchema({ profiles, posts, messages });

@@ -1,0 +1,1044 @@
+{
+  "appId": "media-profile-fixture",
+  "artifactKind": "clientLifecycleManifest",
+  "authoredSourceHash": "sha256:bb707bea2e0cb3060eb7eae94562f493647c86821c0ec2e06f7bcb4daf139a75",
+  "commands": [
+    {
+      "authRequirement": "authenticated",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:cb48e74adc903ec028ad696b4a2cdc8d4def9cda59cbf471dd1ffc42046eb510",
+      "kind": "Command",
+      "legalVerbs": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "mutationIdentity": "media-profile-fixture:createPostMutation",
+      "name": "createPost",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-command.v1",
+        "assets.media-ref-projection.v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "media-command.v1",
+      "semanticIdentity": "media-profile-fixture:command:createPost",
+      "states": [
+        "validating",
+        "uploading",
+        "committing",
+        "committed",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    },
+    {
+      "authRequirement": "authenticated",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:6c798920417ab7da8f86938b36f2e629c586fc818ee2ed8c411abc497fd13985",
+      "kind": "Command",
+      "legalVerbs": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "mutationIdentity": "media-profile-fixture:sendMessageMutation",
+      "name": "sendMessage",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-command.v1",
+        "assets.media-ref-projection.v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "media-command.v1",
+      "semanticIdentity": "media-profile-fixture:command:sendMessage",
+      "states": [
+        "validating",
+        "uploading",
+        "committing",
+        "committed",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    }
+  ],
+  "compatibilityAliases": [
+    {
+      "current": "useSnapbackQuery",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackLiveQuery",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackMutation",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationDispatch",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackOutbox().mutationStatus",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackMutationStatus",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "useSnapbackCommand",
+      "emittedInRollout1": false,
+      "plannedCanonical": "useSnapbackTask",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    },
+    {
+      "current": "client.query",
+      "emittedInRollout1": false,
+      "plannedCanonical": "client.read",
+      "removalEpoch": "declared-major-after-stage-2-measurement"
+    }
+  ],
+  "custody": {
+    "committedProjectionRequired": false,
+    "consumer": "developer-tooling",
+    "rationale": "rollout 1 has no runtime consumer; codegen, generated declarations, tests, and guide checks consume the same source table",
+    "storageClass": "regenerable-cache"
+  },
+  "diagnostics": [
+    {
+      "acceptedField": "acceptedKinds",
+      "code": "SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "phase": "client-call-boundary-before-transport",
+      "receivedField": "receivedKind",
+      "remediationField": "correctVerb"
+    }
+  ],
+  "futureClassM": {
+    "forbiddenMeaning": "raw row version, app commit, or storage snapshot",
+    "note": "when class-M handles ship, snapshotVersion identifies the authorized principal/query view",
+    "shippedInRollout1": false,
+    "snapshotVersionMeaning": "authorized principal/query viewRevision"
+  },
+  "handleStates": {
+    "commandTask": {
+      "nonterminal": [
+        "preparing",
+        "transferring",
+        "committing"
+      ],
+      "terminal": [
+        "succeeded",
+        "failed",
+        "cancelled",
+        "ambiguous"
+      ]
+    },
+    "liveQueryHandle": {
+      "disposalMeaning": "disposed handles publish no further rows and release their subscription resources",
+      "nonterminalConnection": [
+        "connecting",
+        "live",
+        "polling",
+        "stale"
+      ],
+      "terminalConnection": [
+        "disconnected"
+      ]
+    }
+  },
+  "inputsHash": "8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015",
+  "mutationSettlement": {
+    "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
+    "dispositions": [
+      "pending",
+      "settled",
+      "failed",
+      "stranded",
+      "quarantined",
+      "resultGone",
+      "unknown"
+    ],
+    "nonterminal": [
+      "pending",
+      "unknown"
+    ],
+    "settlement": "mutationStatus()/subscribeMutation() project durable disposition by clientMutationId",
+    "terminal": [
+      "settled",
+      "failed",
+      "stranded",
+      "quarantined",
+      "resultGone"
+    ]
+  },
+  "operations": [
+    {
+      "argsContractHash": "sha256:4e0df690bda9e8cbd5f82778919e005920dda466cc8db8a57b4aa34912b48445",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:cb48e74adc903ec028ad696b4a2cdc8d4def9cda59cbf471dd1ffc42046eb510",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "createPostMutation",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-command.v1",
+        "assets.media-ref-projection.v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:aae29e9209b06064547b06cbdb50f9d841d9a55159d431a254e6256553748e46",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:createPostMutation",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "public",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:366df3df5beadf039d5d0bdbf15ae6b90afabe5b6e5247921b88efa3d476168d",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "listProfiles",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:fdba488a1c2e90ff8d992d648077042d017b66b7e9b9e3fe21a280d0fb5eed67",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "media-profile-fixture:listProfiles",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:33ca17cbf6f38990d2ae9e7cf30568d2f0c3036cf88a2f9ee8b73898fc186acc",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:3bf644e8d3d6645e9e7138fd3aad7042b86611eb0754e3f244e8934045fd2a4b",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "messageMediaAppend",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:45caf8e3ec3f1192aa0d6cb0696a81b45cf1f4a60385c4aea10bf6825d1ce09b",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:messageMediaAppend",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:3aaac9fed91604737b9a4ff5ae48428025c3536053da692aa4881b17556d6e10",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:8ffab5bca7412cbdec4442f6f420c2eb0ed69dadcc8fceac87061d0ae5c5b5e0",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "messageMediaList",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-ref-projection.v1",
+        "bounded_children_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:daba776040102e61102dd38a4cd45d7023d1c713f76d3e5f6c00f86b215dd35c",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "media-profile-fixture:messageMediaList",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:e18e258ddc0a340d3a737c9d5c51a88ab152333fd85a26bb5745e5964e9e4859",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:85df928ec14d42b9ef5a698e1cda29c35f195bb05226bfba7ebe0c3aae02a981",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "messageMediaRemove",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:45caf8e3ec3f1192aa0d6cb0696a81b45cf1f4a60385c4aea10bf6825d1ce09b",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:messageMediaRemove",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:62e3966cd234b0cb70b0356cbf6f38f84281273e8e0331c9c2be3881b56f5579",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:76c6372cfcaefcb815d5639be1b4914fa41f6fd9ae45007108606611710ad878",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "messageMediaReorder",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:45caf8e3ec3f1192aa0d6cb0696a81b45cf1f4a60385c4aea10bf6825d1ce09b",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:messageMediaReorder",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:33ca17cbf6f38990d2ae9e7cf30568d2f0c3036cf88a2f9ee8b73898fc186acc",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:c5d0b599aba1d270cfe56611dd5f65a44d6a0bb6124cccc370278840f01964a9",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "messageMediaReplace",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:45caf8e3ec3f1192aa0d6cb0696a81b45cf1f4a60385c4aea10bf6825d1ce09b",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:messageMediaReplace",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:a7401457d1fded0fce5dd3357849692c4a807a66ea374fbae419aabaebc7dd58",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:3633b1c63e67841f58f1083f4cc03b085cc6b8147d80e6d508db32503cafca9f",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "postMediaAppend",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:postMediaAppend",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:4762ed00946d309828f17a457ed4bcc2efd3005df16ff3774e1ff80876fdafed",
+      "authRequirement": "authenticated",
+      "correctVerb": "liveQuery",
+      "delivery": "live",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:cda1455da37ff0d01e9361cadd5455af0011493c19f39511c2f0095a8463e17f",
+      "kind": "LiveQuery",
+      "legalVerbs": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "name": "postMediaList",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-ref-projection.v1",
+        "bounded_children_v1",
+        "host_plan_runtime",
+        "live_subscriptions",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:0df5cc3498426f3b3b03d143239c0989933c83f1e850b907f43485a4713bde2a",
+      "retention": "none",
+      "runtimeDiscriminant": "LiveQuery",
+      "semanticIdentity": "media-profile-fixture:postMediaList",
+      "states": [
+        "connecting",
+        "live",
+        "polling",
+        "stale",
+        "disconnected"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:677c197c0ef0e1ad1bb742eafb459bad59ff17c500fe1b6b0c4605152531e3ec",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:a27f670ce5d4b54bcb66224a75631d765c21c7d6ace07432f6548126d772cb57",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "postMediaRemove",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:postMediaRemove",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:5551f12b58b356fda23d4e2de1e12edd025621b0d035ff6fbe26e14efef8dbb3",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:3243d906dde6813a9fc50b9cf41f2205719c2faaba9cbdb2ac51666f92ae8b8e",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "postMediaReorder",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:postMediaReorder",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:a7401457d1fded0fce5dd3357849692c4a807a66ea374fbae419aabaebc7dd58",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:2817562021fc0cbe9f8abd9c27149a7b25bf5b051c5b78edb383c4727f84f318",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "postMediaReplace",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "host_plan_runtime",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:postMediaReplace",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    },
+    {
+      "argsContractHash": "sha256:e7fe1fd60f2b469129a7f9ccf6f41c61e4db653012fb21f9ad248245596ce0b9",
+      "authRequirement": "authenticated",
+      "correctVerb": "mutate",
+      "delivery": "mutation",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "implementationHash": "sha256:6c798920417ab7da8f86938b36f2e629c586fc818ee2ed8c411abc497fd13985",
+      "kind": "Mutation",
+      "legalVerbs": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "name": "sendMessageMutation",
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-command.v1",
+        "assets.media-ref-projection.v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContractHash": "sha256:2efd7f25d51cec783bc48ee0d3de7207befbaffd888d33fd0efba95036a3e6e6",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "semanticIdentity": "media-profile-fixture:sendMessageMutation",
+      "states": [
+        "dispatch:settled",
+        "dispatch:queued",
+        "disposition:pending",
+        "disposition:settled",
+        "disposition:failed",
+        "disposition:stranded",
+        "disposition:quarantined",
+        "disposition:resultGone",
+        "disposition:unknown"
+      ]
+    }
+  ],
+  "referenceKinds": [
+    {
+      "acceptedBy": [
+        "query",
+        "liveQuery"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "query",
+      "freshness": "one-shot authoritative response or liveQuery snapshot followed by updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Query",
+      "retention": "none",
+      "runtimeDiscriminant": "Query",
+      "stateCarrier": "Promise<QueryOutput<Result>>"
+    },
+    {
+      "acceptedBy": [
+        "query",
+        "liveQuery",
+        "useSnapbackQuery",
+        "useSnapbackQueries"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "liveQuery",
+      "freshness": "authoritative initial snapshot followed by live updates",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "LiveQuery",
+      "retention": "per-operation retainable/retentionClass declaration",
+      "runtimeDiscriminant": "LiveQuery",
+      "stateCarrier": "LiveQueryHandle or React QueryState"
+    },
+    {
+      "acceptedBy": [
+        "mutate",
+        "useSnapbackMutation",
+        "useSnapbackSettledMutation"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "mutate",
+      "freshness": "dispatch result is not durable settlement",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Mutation",
+      "retention": "durable outbox identity until terminal disposition/acknowledgement",
+      "runtimeDiscriminant": "Mutation",
+      "stateCarrier": "MutationDispatchOutcome plus MutationDisposition"
+    },
+    {
+      "acceptedBy": [
+        "action"
+      ],
+      "auth": "per-operation authRequirement and requiredCapabilities",
+      "correctVerb": "action",
+      "freshness": "one-shot online response",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Action",
+      "retention": "none",
+      "runtimeDiscriminant": "Action",
+      "stateCarrier": "Promise<ActionOutput<Result>>"
+    },
+    {
+      "acceptedBy": [
+        "commandClient.start",
+        "useSnapbackCommand"
+      ],
+      "auth": "inherited from the descriptor mutation and asset intent",
+      "correctVerb": "commandClient.start",
+      "freshness": "task snapshot is process-local; mutation settlement remains durable",
+      "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
+      "kind": "Command",
+      "retention": "command task is process-local; constituent mutation follows outbox retention",
+      "runtimeDiscriminant": "asset-bearing-command.v1",
+      "stateCarrier": "CommandTask"
+    }
+  ],
+  "resourceIdentity": {
+    "ingredients": [
+      "reference semantic identity",
+      "canonical argument contract and canonical argument bytes",
+      "authority partition",
+      "normalized lifecycle options",
+      "build identity inputsHash"
+    ],
+    "version": "snapback.client-resource-key.v1"
+  },
+  "rows": {
+    "anchors": {
+      "diagnostics": [
+        "SNAPBACK_ARGUMENT_NORMALIZATION_FAILED",
+        "SNAPBACK_ARGUMENT_VALIDATION_FAILED",
+        "SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID"
+      ],
+      "guide": [
+        "guide/clients/headless.md",
+        "guide/clients/react.md",
+        "guide/realtime/ephemeral-state.md"
+      ]
+    },
+    "argumentNormalization": {
+      "operations": [
+        {
+          "functionId": "media-profile-fixture:createPostMutation",
+          "kind": "Mutation",
+          "name": "createPostMutation",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:listProfiles",
+          "kind": "LiveQuery",
+          "name": "listProfiles",
+          "optionalPropertyPaths": [],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "media-profile-fixture:sendMessageMutation",
+          "kind": "Mutation",
+          "name": "sendMessageMutation",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:messageMediaAppend",
+          "kind": "Mutation",
+          "name": "messageMediaAppend",
+          "optionalPropertyPaths": [
+            "args.sharing"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:messageMediaReplace",
+          "kind": "Mutation",
+          "name": "messageMediaReplace",
+          "optionalPropertyPaths": [
+            "args.sharing"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:messageMediaRemove",
+          "kind": "Mutation",
+          "name": "messageMediaRemove",
+          "optionalPropertyPaths": [
+            "args.sharing"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:messageMediaReorder",
+          "kind": "Mutation",
+          "name": "messageMediaReorder",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:messageMediaList",
+          "kind": "LiveQuery",
+          "name": "messageMediaList",
+          "optionalPropertyPaths": [
+            "args.cursor"
+          ],
+          "verb": "liveQuery"
+        },
+        {
+          "functionId": "media-profile-fixture:postMediaAppend",
+          "kind": "Mutation",
+          "name": "postMediaAppend",
+          "optionalPropertyPaths": [
+            "args.sharing"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:postMediaReplace",
+          "kind": "Mutation",
+          "name": "postMediaReplace",
+          "optionalPropertyPaths": [
+            "args.sharing"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:postMediaRemove",
+          "kind": "Mutation",
+          "name": "postMediaRemove",
+          "optionalPropertyPaths": [
+            "args.sharing"
+          ],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:postMediaReorder",
+          "kind": "Mutation",
+          "name": "postMediaReorder",
+          "optionalPropertyPaths": [],
+          "verb": "mutate"
+        },
+        {
+          "functionId": "media-profile-fixture:postMediaList",
+          "kind": "LiveQuery",
+          "name": "postMediaList",
+          "optionalPropertyPaths": [
+            "args.cursor"
+          ],
+          "verb": "liveQuery"
+        }
+      ],
+      "version": "snapback.argument-normalization.v1"
+    },
+    "authorityAdmission": {
+      "operations": [
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:createPostMutation",
+          "kind": "Mutation",
+          "name": "createPostMutation",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "public",
+          "functionId": "media-profile-fixture:listProfiles",
+          "kind": "LiveQuery",
+          "name": "listProfiles",
+          "outcome": "dispatch-under-captured-authority",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:sendMessageMutation",
+          "kind": "Mutation",
+          "name": "sendMessageMutation",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:messageMediaAppend",
+          "kind": "Mutation",
+          "name": "messageMediaAppend",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:messageMediaReplace",
+          "kind": "Mutation",
+          "name": "messageMediaReplace",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:messageMediaRemove",
+          "kind": "Mutation",
+          "name": "messageMediaRemove",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:messageMediaReorder",
+          "kind": "Mutation",
+          "name": "messageMediaReorder",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:messageMediaList",
+          "kind": "LiveQuery",
+          "name": "messageMediaList",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:postMediaAppend",
+          "kind": "Mutation",
+          "name": "postMediaAppend",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:postMediaReplace",
+          "kind": "Mutation",
+          "name": "postMediaReplace",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:postMediaRemove",
+          "kind": "Mutation",
+          "name": "postMediaRemove",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:postMediaReorder",
+          "kind": "Mutation",
+          "name": "postMediaReorder",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "mutate"
+        },
+        {
+          "authRequirement": "authenticated",
+          "functionId": "media-profile-fixture:postMediaList",
+          "kind": "LiveQuery",
+          "name": "postMediaList",
+          "outcome": "local-refusal-until-authenticated",
+          "verb": "liveQuery"
+        }
+      ]
+    },
+    "presenceLifecycle": {
+      "authorityLossBarrierOwner": "server-connection-cleanup",
+      "collections": [],
+      "disposeAction": "fenced-withdrawal",
+      "neverPublishedAction": "none",
+      "stopAction": "fenced-withdrawal"
+    },
+    "primaryFailureCarrier": {
+      "publicErrorType": "SnapbackDiagnosticError",
+      "verbs": [
+        {
+          "carrier": "throw",
+          "operationKind": "Query",
+          "verb": "query"
+        },
+        {
+          "carrier": "throw",
+          "operationKind": "Action",
+          "verb": "run"
+        },
+        {
+          "carrier": "throw-immediate",
+          "operationKind": "Mutation",
+          "verb": "mutate"
+        },
+        {
+          "carrier": "raw-envelope-deprecated",
+          "operationKind": "Action",
+          "verb": "action"
+        },
+        {
+          "carrier": "resolved-queued-union",
+          "operationKind": "Mutation",
+          "verb": "queued-mutate"
+        }
+      ]
+    }
+  },
+  "schemaVersion": "snapback.client-lifecycle.v1",
+  "surfaceFamilies": [
+    "query",
+    "liveQuery",
+    "mutate",
+    "action",
+    "commands"
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

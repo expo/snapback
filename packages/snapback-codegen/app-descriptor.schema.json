@@ -150,7 +150,7 @@
     "assetMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/assetReference" } },
     "ephemeralMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/ephemeralReference" } },
     "queryGroupMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/queryGroupReference" } },
-    "commandDescriptor": {
+    "assetCommandDescriptor": {
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "mutation", "asset", "passthroughArgs"],
@@ -179,6 +179,47 @@
           "items": { "type": "string", "minLength": 1 }
         }
       }
+    },
+    "mediaCommandBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "identity", "command", "targetMutation", "passthroughArgs", "media", "parentResultPath", "collection", "itemIdentityPlan", "sharing", "taskProfile"],
+      "properties": {
+        "format": { "const": "snapback.media-command-binding.v1" },
+        "identity": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "command": { "type": "object" },
+        "targetMutation": { "type": "object" },
+        "passthroughArgs": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "media": { "type": "object" },
+        "parentResultPath": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "collection": { "type": "object" },
+        "itemIdentityPlan": { "type": "object" },
+        "sharing": { "type": "object" },
+        "taskProfile": { "type": "object" },
+        "principalInput": { "type": "object" }
+      }
+    },
+    "mediaCommandDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "mutation", "intent", "binding", "passthroughArgs"],
+      "properties": {
+        "kind": { "const": "media-command.v1" },
+        "mutation": { "$ref": "#/$defs/mutationReference" },
+        "intent": { "$ref": "#/$defs/assetReference" },
+        "binding": { "$ref": "#/$defs/mediaCommandBinding" },
+        "passthroughArgs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "commandDescriptor": {
+      "oneOf": [
+        { "$ref": "#/$defs/assetCommandDescriptor" },
+        { "$ref": "#/$defs/mediaCommandDescriptor" }
+      ]
     },
     "commandMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/commandDescriptor" } },
     "surfaceBindingValue": {

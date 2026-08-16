@@ -7,18 +7,18 @@
   ],
   "qualificationReceiptSha256": "sha256:362ed2bc9443a6a027b224705c21ad516b647583a1dfda7d2056205e3a4fa6da",
   "executorSourceSha256": {
-    "src/local.rs": "sha256:9905416c8e6666592b38c544e520db56af1243d7a67d006b7beb546ce4c8ce28",
+    "src/local.rs": "sha256:28b929c421f89032a2b37f5deeeca946953ad7f6e670079468a7ff8aa4f83101",
     "src/local/auth_room_kick_acceptance.rs": "sha256:338320055523cd8bcc6b993ffc0a62bb55b95579d9ffa3fbd6cb52b9105a723f",
     "src/local/authorization_acceptance.rs": "sha256:f42194cabdfed5167a75a6f4aad313cd53a965dc5df841423ec5985acca88c64",
     "src/local/config_types.rs": "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85",
     "src/local/inspection.rs": "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679",
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:1435f0664bb3e9d0de9396e547c1132f7ff6afd683e9dae1d148c8eafb538020",
-    "src/storage.rs": "sha256:3b66038c3c86e3f72bdb177b09888e0afa7c034f63f88a9ffb5e4e378f719ef7",
+    "src/local/tests.rs": "sha256:c8a52c528a4103a796f55558eea0b5ca493c29fbfd1c4d9ef6a78776433e1666",
+    "src/storage.rs": "sha256:7ff8e8ae7a5bba792d4c0d0bc63a64d0b96fe8e9a5bf15c1522f3935ce38836a",
     "src/storage/auth.rs": "sha256:3f6e71b3b32d7beda075b336b98aeb618a1fe0eaf54e8049540119b3dea16820",
     "src/storage/auth_agent_credentials.rs": "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e",
-    "src/storage/auth_agents.rs": "sha256:8a96d922d85a006f9924a6b557769d9af9b38343d7352fc2dd19034ab9764959",
+    "src/storage/auth_agents.rs": "sha256:221bff2b8468479f3b5fa601d677133f7be22e117ee8b81a90e28e88cd90051f",
     "src/storage/auth_asset_callbacks.rs": "sha256:2a49e582b22738dcb43cb02a3570abc8771e95b0c220a66b050aa1a369bc77c9",
     "src/storage/auth_grants.rs": "sha256:9ccc7da5ba2877b1b31f0b55b81acae602a35229abd6feccd686a584f2e96cb7",
     "src/storage/auth_invalidation.rs": "sha256:575782a9d656905c0a127ab6b2c0fd83d7951cc3452f0944b3c04e3df17a9099",
@@ -36,11 +36,11 @@
     "src/storage/migration_scan.rs": "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d",
     "src/storage/projection_rebuild.rs": "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996",
     "src/storage/schema_transition.rs": "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952",
-    "src/storage/tests.rs": "sha256:bbc2923abe8616d4c0075f4daa67504dc0af42a2e19466cc37719f2a8a9377be",
+    "src/storage/tests.rs": "sha256:8bfda9def80cae86a996e6a5f3329d57943b8b2459c485764a0e01c7edd1c91f",
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:9a90a958d05b3e126c0a2eaf8454cc0792230622831116c8be6b71384e7e6bbd"
+    "packages/snapback-codegen/define.mjs": "sha256:ef3097dd006d7c45a9e08b8229c34a244ac723e6a04312647a8a0318d2f63795"
   },
   "packageClosureSha256": null,
   "buildProvenanceRequirement": "source-commit-and-embedded-carrier-sha256"

@@ -6,6 +6,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
+export type AuthoringProfile = 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';
 export type SearchMatchAtomV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } };
 export type SearchClauseV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } } | { Any: readonly SearchMatchAtomV1[] } | { Not: SearchMatchAtomV1 } | { Filter: { field: string; op: "eq"; value: string | number | boolean } };
 export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }
@@ -35,15 +36,23 @@ export interface GeneratedMutationIrV1 {
   readonly usesRuntimeNow: boolean;
   readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
 }
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
+/** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */
+export type FunctionReferenceDelivery<Kind extends FunctionKind> = Kind extends 'LiveQuery' ? Readonly<{ delivery: 'live' }> : Kind extends 'Query' ? Readonly<{ delivery: 'read' }> : Readonly<Record<never, never>>;
+export interface FunctionReferenceBase<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
   id: string;
   name: Name;
   kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
+  authoringProfile: Profile;
+  retention: string;
+  readonly __snapbackAuthoringProfile?: Profile;
+  authRequirement: 'public' | 'optional-user' | 'authenticated';
   implementationHash: string;
   argsContractHash: string;
+  argsContract: Readonly<{ fields: readonly Readonly<{ name: string; required: boolean; value: Readonly<Record<string, unknown>> }>[] }>;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
   authoredSourceHash: `sha256:${string}`;
@@ -56,6 +65,11 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
+export type FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReferenceBase<Name, Kind, Args, Result, Profile> & FunctionReferenceDelivery<Kind>;
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Query', Args, Result, Profile>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'LiveQuery', Args, Result, Profile>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Mutation', Args, Result, Profile>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Action', Args, Result, Profile>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -137,6 +151,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value,
   routingFields: readonly string[];
   defaultTtlMs: number;
   maxTtlMs: number;
+  withdrawalVisibilityDeadlineMs: number;
   maxValueBytes: number;
   publishRate: { readonly sustainedHz: number; readonly burst: number };
   deliveryMode: 'latest';
@@ -145,6 +160,8 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value,
 }
 export interface GeneratedDataModel {
   profiles: { _id: Id<'profiles'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; displayName: string; image: null | string };
+  posts: { _id: Id<'posts'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; body: string };
+  messages: { _id: Id<'messages'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; conversationId: string; text: string };
 }
 export type GeneratedTableName = keyof GeneratedDataModel & string;
 export type GeneratedReadableTableName = Exclude<GeneratedTableName, never>;
@@ -153,12 +170,23 @@ export type GeneratedPatchableTableName = GeneratedReadableTableName;
 export type GeneratedDeletableTableName = Exclude<GeneratedReadableTableName, never>;
 export interface GeneratedInsertModel {
   "profiles": { "ownerId": Principal; "displayName": string; "image"?: null | string };
+  "posts": { "ownerId": Principal; "body": string };
+  "messages": { "ownerId": Principal; "conversationId": string; "text": string };
 }
 export interface GeneratedPatchModel {
   "profiles": { "ownerId"?: Principal; "displayName"?: string; "image"?: null | string };
+  "posts": { "ownerId"?: Principal; "body"?: string };
+  "messages": { "ownerId"?: Principal; "conversationId"?: string; "text"?: string };
 }
 export interface GeneratedIndexNames {
   "profiles": never;
+  "posts": never;
+  "messages": never;
+}
+export interface GeneratedUniqueIndexKeys {
+  "profiles": {  };
+  "posts": {  };
+  "messages": {  };
 }
 export interface GeneratedTableAdmissionMaps {
   readonly read: Record<GeneratedReadableTableName, true>;
@@ -166,7 +194,7 @@ export interface GeneratedTableAdmissionMaps {
   readonly patch: Record<GeneratedPatchableTableName, true>;
   readonly delete: Record<GeneratedDeletableTableName, true>;
 }
-export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps>;
+export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps, GeneratedUniqueIndexKeys>;
 export type GeneratedQueryBuilder<Table extends GeneratedReadableTableName> = QueryBuilder<GeneratedHandlerSchema, Table>;
 export type GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>;
 export type GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>;
@@ -184,17 +212,148 @@ export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedA
 export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, never>;
 export interface GeneratedFunctionContexts {
-  listProfiles: GeneratedQueryContext;
+  "createPostMutation": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "listProfiles": GeneratedQueryContext;
+  "sendMessageMutation": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "messageMediaAppend": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "messageMediaReplace": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "messageMediaRemove": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "messageMediaReorder": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "messageMediaList": GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
+  "postMediaAppend": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "postMediaReplace": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "postMediaRemove": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "postMediaReorder": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "postMediaList": GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;
 }
 export interface GeneratedEphemeral {
 }
 export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
-  listProfiles: FunctionReference<'listProfiles', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["profiles"]>>;
+  /**
+   * LiveQuery reference `media-profile-fixture:listProfiles`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "listProfiles": FunctionReference<"listProfiles", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["profiles"]>, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:messageMediaAppend`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "messageMediaAppend": FunctionReference<"messageMediaAppend", 'Mutation', { parentId: Id<'messages'>; assetIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<Principal> } }, { "parentId": Id<"messages">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:messageMediaReplace`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "messageMediaReplace": FunctionReference<"messageMediaReplace", 'Mutation', { parentId: Id<'messages'>; assetIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<Principal> } }, { "parentId": Id<"messages">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:messageMediaRemove`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "messageMediaRemove": FunctionReference<"messageMediaRemove", 'Mutation', { parentId: Id<'messages'>; itemIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<Principal> } }, { "parentId": Id<"messages">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:messageMediaReorder`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "messageMediaReorder": FunctionReference<"messageMediaReorder", 'Mutation', { parentId: Id<'messages'>; itemIds: ReadonlyArray<string> }, { "parentId": Id<"messages">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `media-profile-fixture:messageMediaList`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-ref-projection.v1`, `bounded_children_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "messageMediaList": FunctionReference<"messageMediaList", 'LiveQuery', { parentId: Id<'messages'>; cursor?: string }, readonly [{ "kind": "absent"; "parent": null; "children": ReadonlyArray<{ "itemId": Id<"_snapback_asset_collection_4f682e8526bbc2877b4a">; "ordinal": number; "media": { readonly assetId: string; readonly kind: "image" | "video" } }>; "continuation": null } | { "kind": "visible"; "parent": { "parentId": Id<"messages"> }; "children": ReadonlyArray<{ "itemId": Id<"_snapback_asset_collection_4f682e8526bbc2877b4a">; "ordinal": number; "media": { readonly assetId: string; readonly kind: "image" | "video" } }>; "continuation": null | string }], "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:postMediaAppend`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "postMediaAppend": FunctionReference<"postMediaAppend", 'Mutation', { parentId: Id<'posts'>; assetIds: ReadonlyArray<string>; sharing?: { plan: "none" } }, { "parentId": Id<"posts">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:postMediaReplace`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "postMediaReplace": FunctionReference<"postMediaReplace", 'Mutation', { parentId: Id<'posts'>; assetIds: ReadonlyArray<string>; sharing?: { plan: "none" } }, { "parentId": Id<"posts">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:postMediaRemove`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "postMediaRemove": FunctionReference<"postMediaRemove", 'Mutation', { parentId: Id<'posts'>; itemIds: ReadonlyArray<string>; sharing?: { plan: "none" } }, { "parentId": Id<"posts">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:postMediaReorder`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "postMediaReorder": FunctionReference<"postMediaReorder", 'Mutation', { parentId: Id<'posts'>; itemIds: ReadonlyArray<string> }, { "parentId": Id<"posts">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `media-profile-fixture:postMediaList`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-ref-projection.v1`, `bounded_children_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "postMediaList": FunctionReference<"postMediaList", 'LiveQuery', { parentId: Id<'posts'>; cursor?: string }, readonly [{ "kind": "absent"; "parent": null; "children": ReadonlyArray<{ "itemId": Id<"_snapback_asset_collection_65c27f4eedd8b26fcd76">; "ordinal": number; "media": { readonly assetId: string; readonly kind: "image" | "video" } }>; "continuation": null } | { "kind": "visible"; "parent": { "parentId": Id<"posts"> }; "children": ReadonlyArray<{ "itemId": Id<"_snapback_asset_collection_65c27f4eedd8b26fcd76">; "ordinal": number; "media": { readonly assetId: string; readonly kind: "image" | "video" } }>; "continuation": null | string }], "snapback-explicit-v1">;
   profileImageUpload: AssetUploadReference<"profileImageUpload", Record<string, never>>;
+  sharedMediaUpload: AssetUploadReference<"sharedMediaUpload", Record<string, never>>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
+}
+export interface GeneratedCommandTargets {
+  /**
+   * Mutation reference `media-profile-fixture:createPostMutation`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-command.v1`, `assets.media-ref-projection.v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "createPostMutation": FunctionReference<"createPostMutation", 'Mutation', { body: string; assetIds: ReadonlyArray<string> }, { "_id": Id<"posts"> }, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `media-profile-fixture:sendMessageMutation`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-command.v1`, `assets.media-ref-projection.v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "sendMessageMutation": FunctionReference<"sendMessageMutation", 'Mutation', { conversationId: string; text: string; assetIds: ReadonlyArray<string> }, { "_id": Id<"messages"> }, "snapback-explicit-v1">;
 }
 export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;
 export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? Handler<GeneratedFunctionContexts[Name], Args, Result> : never;
@@ -204,6 +363,6 @@ export interface GeneratedAssetUploadDefaults {
 }
 export declare const defaults: GeneratedAssetUploadDefaults;
 export declare const api: GeneratedApi;
-export { app, listProfiles } from './app';
+export { app, listProfiles, messageMediaAppend, messageMediaReplace, messageMediaRemove, messageMediaReorder, messageMediaList, postMediaAppend, postMediaReplace, postMediaRemove, postMediaReorder, postMediaList } from './app';
 export type { AppDescriptorV1, CapabilityRequirement, CommandDescriptor, GeneratedAppDescriptorV1, SurfaceDescriptor } from './app';
 export default api;

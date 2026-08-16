@@ -14198,10 +14198,12 @@ function buildGeneratedCommands({
         (candidate) => candidate.command.name === commandName,
       );
       const mutation = generatedReferences.api.mutations[target?.name];
-      if (binding && mutation) {
+      const intent = generatedReferences.api.assets[binding?.media?.intent];
+      if (binding && mutation && intent) {
         commands[commandName] = {
           kind: 'media-command.v1',
           mutation,
+          intent,
           binding,
           passthroughArgs: binding.passthroughArgs,
         };
@@ -15030,7 +15032,7 @@ function renderAppBindingModule(
     `for (const namespace of [hydratedDescriptor.api.queries, hydratedDescriptor.api.mutations]) { for (const reference of Object.values(namespace)) hydrateFunctionReference(reference); }\n` +
     `for (const group of Object.values(hydratedDescriptor.api.queryGroups)) { for (const query of group.queries) hydrateFunctionReference(query.ref); }\n` +
     `const commandReferences = new Map(Object.values(hydratedDescriptor.commands).map((command) => [JSON.stringify(command), command]));\n` +
-    `for (const command of Object.values(hydratedDescriptor.commands)) { if (command.kind === 'media-command.v1') hydrateFunctionReference(command.mutation); else command.mutation = hydratedDescriptor.api.mutations[command.mutation.name]; if (command.asset) command.asset.intent = hydratedDescriptor.api.assets[command.asset.intent.name]; }\n` +
+    `for (const command of Object.values(hydratedDescriptor.commands)) { if (command.kind === 'media-command.v1') { hydrateFunctionReference(command.mutation); command.intent = hydratedDescriptor.api.assets[command.intent.name]; } else command.mutation = hydratedDescriptor.api.mutations[command.mutation.name]; if (command.asset) command.asset.intent = hydratedDescriptor.api.assets[command.asset.intent.name]; }\n` +
     `for (const surface of Object.values(hydratedDescriptor.surfaces)) { for (const member of Object.values(surface.reads)) member.reference = hydratedDescriptor.api.queries[member.reference.name]; for (const member of Object.values(surface.mutations)) member.reference = hydratedDescriptor.api.mutations[member.reference.name]; for (const member of Object.values(surface.commands)) member.reference = commandReferences.get(JSON.stringify(member.reference)); for (const member of Object.values(surface.assets)) member.reference = hydratedDescriptor.api.assets[member.reference.name]; for (const member of Object.values(surface.presence)) member.reference = hydratedDescriptor.api.ephemeral[member.reference.name]; }\n` +
     `/** @type {import('./app.d.ts').GeneratedAppDescriptorV1} */\n` +
     `export const app = deepFreeze(hydratedDescriptor);\n` +
@@ -15120,7 +15122,7 @@ function renderAppTypes(
   const union = (names) => names.join(' | ') || 'never';
   const lines = [
     HEADER,
-    "import type { GeneratedApi, GeneratedArtifacts, GeneratedEphemeral, GeneratedQueryGroups, Id, Principal } from './api.d.ts';",
+    "import type { GeneratedApi, GeneratedArtifacts, GeneratedCommandTargets, GeneratedEphemeral, GeneratedQueryGroups, Id, Principal } from './api.d.ts';",
     `export type GeneratedAppQueryName = ${union(queryNames)};`,
     `export type GeneratedAppMutationName = ${union(mutationNames)};`,
     `export type GeneratedAppAssetName = ${union(assetNames)};`,
@@ -15142,11 +15144,12 @@ function renderAppTypes(
     '  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & CommandAssetInput<Input, Optional>;',
     '  readonly __result?: ReferenceResult<Mutation>;',
     '}',
-    'export interface MediaCommandDescriptor<Mutation = unknown, Input extends string = string, MutationArg extends string = string, MinItems extends number = number, MaxItems extends number = number, PrincipalInput extends string | never = never> {',
+    'export interface MediaCommandDescriptor<Mutation = unknown, Input extends string = string, MutationArg extends string = string, MinItems extends number = number, MaxItems extends number = number, PrincipalInput extends string | never = never, Intent = unknown> {',
     "  readonly kind: 'media-command.v1';",
     "  readonly __snapbackReferenceKind: 'Command';",
     '  readonly mutation: Mutation;',
-    '  readonly binding: Readonly<Record<string, unknown>> & Readonly<{ identity: `sha256:${string}`; media: Readonly<{ input: Input; mutationArg: MutationArg; minItems: MinItems; maxItems: MaxItems }>; principalInput?: Readonly<{ input: PrincipalInput; minItems: number; maxItems: number }> }>;',
+    '  readonly intent: Intent;',
+    '  readonly binding: Readonly<Record<string, unknown>> & Readonly<{ format: \'snapback.media-command-binding.v1\'; identity: `sha256:${string}`; command: Readonly<{ id: string; name: string }>; media: Readonly<{ input: Input; intent: string; mutationArg: MutationArg; minItems: MinItems; maxItems: MaxItems }>; taskProfile: Readonly<{ concurrency: number }>; principalInput?: Readonly<{ input: PrincipalInput; minItems: number; maxItems: number }> }>;',
     '  readonly passthroughArgs: readonly string[];',
     '  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & MediaCommandAssetInput<Input, MinItems> & CommandPrincipalInput<PrincipalInput>;',
     '  readonly __result?: ReferenceResult<Mutation>;',
@@ -15161,7 +15164,7 @@ function renderAppTypes(
         .split('\n')
         .map((line) => `  ${line}`),
       command.kind === 'media-command.v1'
-        ? `  readonly ${JSON.stringify(name)}: MediaCommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${JSON.stringify(command.binding.media.input)}, ${JSON.stringify(command.binding.media.mutationArg)}, ${command.binding.media.minItems}, ${command.binding.media.maxItems}, ${command.binding.principalInput ? JSON.stringify(command.binding.principalInput.input) : 'never'}>;`
+        ? `  readonly ${JSON.stringify(name)}: MediaCommandDescriptor<GeneratedCommandTargets[${JSON.stringify(command.mutation.name)}], ${JSON.stringify(command.binding.media.input)}, ${JSON.stringify(command.binding.media.mutationArg)}, ${command.binding.media.minItems}, ${command.binding.media.maxItems}, ${command.binding.principalInput ? JSON.stringify(command.binding.principalInput.input) : 'never'}, GeneratedApi[${JSON.stringify(command.intent.name)}]>;`
         : `  readonly ${JSON.stringify(name)}: CommandDescriptor<GeneratedApi[${JSON.stringify(command.mutation.name)}], ${command.asset ? JSON.stringify(command.asset.input) : 'never'}, ${command.asset ? JSON.stringify(command.asset.mutationArg) : 'never'}, ${command.asset?.optional === true}, ${command.asset ? `GeneratedApi[${JSON.stringify(command.asset.intent.name)}]` : 'never'}>;`,
     ]),
     '}',
@@ -15775,7 +15778,7 @@ function renderApiTypes(
     '}',
     'export interface GeneratedApi {',
   );
-  for (const fn of functions) {
+  const renderGeneratedFunctionReference = (fn) => {
     const def = functionsModule[fn.name];
     const search = fn.runtime?.HostPlan?.SearchQuery;
     const vector = fn.runtime?.HostPlan?.VectorQuery;
@@ -15796,12 +15799,15 @@ function renderApiTypes(
           [search.resourceArg]: def?.args?.[search.resourceArg],
         })}`
       : typeForGeneratedArgs(def?.args ?? {});
-    lines.push(
+    return [
       ...renderReferenceJSDoc(fn, clientLifecycleManifest, authoringProfile)
         .split('\n')
         .map((line) => `  ${line}`),
       `  ${JSON.stringify(fn.name)}: FunctionReference<${JSON.stringify(fn.name)}, '${fn.kind}', ${args}, ${result}, ${JSON.stringify(authoringProfile)}>;`,
-    );
+    ];
+  };
+  for (const fn of standaloneDescriptorFunctions(functions)) {
+    lines.push(...renderGeneratedFunctionReference(fn));
   }
   for (const profileName of authorityProfileNames) {
     lines.push(
@@ -15821,6 +15827,13 @@ function renderApiTypes(
   }
   lines.push('  ephemeral: GeneratedEphemeral;');
   lines.push('  groups: GeneratedQueryGroups;');
+  lines.push('}');
+  lines.push('export interface GeneratedCommandTargets {');
+  for (const fn of functions.filter(({ mediaCommandBindings }) => (
+    Array.isArray(mediaCommandBindings) && mediaCommandBindings.length > 0
+  ))) {
+    lines.push(...renderGeneratedFunctionReference(fn));
+  }
   lines.push('}');
   lines.push('export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;');
   lines.push('export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? Handler<GeneratedFunctionContexts[Name], Args, Result> : never;');

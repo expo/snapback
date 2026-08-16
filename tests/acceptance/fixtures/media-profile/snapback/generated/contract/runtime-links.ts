@@ -2,7 +2,19 @@
 // @ref LLP 0021#phase-1-specify-contractdatamanifest - Contract runtime links are projected from Snapback generated artifacts.
 
 export interface SnapbackContractLinks {
+  createPostMutation(args: { body: string; assetIds: ReadonlyArray<string> }): unknown;
   listProfiles(args: Record<string, never>): unknown;
+  sendMessageMutation(args: { conversationId: string; text: string; assetIds: ReadonlyArray<string> }): unknown;
+  messageMediaAppend(args: { parentId: string; assetIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<string> } }): unknown;
+  messageMediaReplace(args: { parentId: string; assetIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<string> } }): unknown;
+  messageMediaRemove(args: { parentId: string; itemIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<string> } }): unknown;
+  messageMediaReorder(args: { parentId: string; itemIds: ReadonlyArray<string> }): unknown;
+  messageMediaList(args: { parentId: string; cursor?: string }): unknown;
+  postMediaAppend(args: { parentId: string; assetIds: ReadonlyArray<string>; sharing?: { plan: "none" } }): unknown;
+  postMediaReplace(args: { parentId: string; assetIds: ReadonlyArray<string>; sharing?: { plan: "none" } }): unknown;
+  postMediaRemove(args: { parentId: string; itemIds: ReadonlyArray<string>; sharing?: { plan: "none" } }): unknown;
+  postMediaReorder(args: { parentId: string; itemIds: ReadonlyArray<string> }): unknown;
+  postMediaList(args: { parentId: string; cursor?: string }): unknown;
 }
 
 let links: SnapbackContractLinks | null = null;

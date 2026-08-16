@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:155e5ac0323108f126c4d76a421bbf1ce7bd85c59e7d
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:2d3b61a0db955462a304fee5ee9cac90c793d760a8bf9f01c8e947e8bfd367ad`.
+`sha256:98fa8ab83ea529f3ec0fa415524bea069d58f4e6733846b2587cc7b37a127cde`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -1062,7 +1062,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#AssetBearingCommandReferenceV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/commands.d.mts:83`
+Source: `packages/snapback-client/commands.d.mts:85`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AssetBearingCommandReferenceV1 = Pick<
@@ -1551,7 +1551,7 @@ export declare function clearNativeRqsFiles(): void;
 
 Stable identity: `npm:@expo/snapback-client#CommandArgs`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/commands.d.mts:93`
+Source: `packages/snapback-client/commands.d.mts:103`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type CommandArgs<Command> = Command extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;
@@ -1586,7 +1586,7 @@ export type CommandAssetSourceAdapter = (
 
 Stable identity: `npm:@expo/snapback-client#CommandOutcome`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/commands.d.mts:152`
+Source: `packages/snapback-client/commands.d.mts:162`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type CommandOutcome<Result> =
@@ -1602,7 +1602,7 @@ export type CommandOutcome<Result> =
 
 Stable identity: `npm:@expo/snapback-client#CommandRef`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/commands.d.mts:91`
+Source: `packages/snapback-client/commands.d.mts:101`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type CommandRef = AssetBearingCommandReferenceV1 | MediaCommandReferenceV1;
@@ -1613,7 +1613,7 @@ export type CommandRef = AssetBearingCommandReferenceV1 | MediaCommandReferenceV
 
 Stable identity: `npm:@expo/snapback-client#CommandResidue`
 Kind: `type-interface`
-Source: `packages/snapback-client/commands.d.mts:111`
+Source: `packages/snapback-client/commands.d.mts:121`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface CommandResidue {
@@ -1636,7 +1636,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#CommandResult`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/commands.d.mts:94`
+Source: `packages/snapback-client/commands.d.mts:104`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type CommandResult<Command> = Command extends { readonly __result?: infer Result } ? Result : unknown;
@@ -1647,7 +1647,7 @@ export type CommandResult<Command> = Command extends { readonly __result?: infer
 
 Stable identity: `npm:@expo/snapback-client#CommandTask`
 Kind: `type-interface`
-Source: `packages/snapback-client/commands.d.mts:158`
+Source: `packages/snapback-client/commands.d.mts:168`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface CommandTask<Result> {
@@ -1676,7 +1676,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#CommandTaskSnapshot`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/commands.d.mts:139`
+Source: `packages/snapback-client/commands.d.mts:149`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type CommandTaskSnapshot<Result> =
@@ -1728,7 +1728,7 @@ export function consumePreparedReactQueryGroup<
 
 Stable identity: `npm:@expo/snapback-client#createAssetClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/assets.d.mts:248`
+Source: `packages/snapback-client/assets.d.mts:278`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function createAssetClient(
@@ -1771,7 +1771,7 @@ export function createClientDiagnosticsChannel<
 
 Stable identity: `npm:@expo/snapback-client#createCommandClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/commands.d.mts:224`
+Source: `packages/snapback-client/commands.d.mts:234`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function createCommandClient(
@@ -3089,7 +3089,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#MutationAttemptSnapshot`
 Kind: `type-interface`
-Source: `packages/snapback-client/commands.d.mts:132`
+Source: `packages/snapback-client/commands.d.mts:142`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface MutationAttemptSnapshot<Result = unknown> {
@@ -6627,7 +6627,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#SnapbackCommandClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/commands.d.mts:207`
+Source: `packages/snapback-client/commands.d.mts:217`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare class SnapbackCommandClient {
@@ -6663,7 +6663,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#SnapbackCommandDiagnostic`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/commands.d.mts:96`
+Source: `packages/snapback-client/commands.d.mts:106`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SnapbackCommandDiagnostic = Readonly<{
@@ -10746,7 +10746,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#TypedRemediation`
 Kind: `type-interface`
-Source: `packages/snapback-client/commands.d.mts:103`
+Source: `packages/snapback-client/commands.d.mts:113`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface TypedRemediation {

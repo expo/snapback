@@ -386,15 +386,6 @@ export interface GeneratedApi {
    */
   "startReply": FunctionReference<"startReply", 'Mutation', { conversationId: Id<'conversations'>; content: string; idempotencyKey: string }, unknown, "snapback-explicit-v1">;
   /**
-   * Action reference `competitive-checkpoint:streamReply`.
-   * Legal client verbs/hooks: `action`.
-   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `bounded_response_stream_v1`, `cron_action_run_mutation`, `ibex_ctx_db_host_bridge`, `result_contract_v1`.
-   * Freshness: one-shot online response Retention: none.
-   * Dispatch/task states: promise-only (no handle state table).
-   * Build identity: `5d0c202bb25940d1d5b12b5f9fc564cbacda1648f0d17dc3346868f6a6f3709c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
-   */
-  "streamReply": FunctionReference<"streamReply", 'Action', { attemptId: string; streamUrl: string; method: string; upstreamIdempotent: boolean }, unknown, "snapback-explicit-v1">;
-  /**
    * Mutation reference `competitive-checkpoint:updateConversation`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
@@ -405,6 +396,8 @@ export interface GeneratedApi {
   "updateConversation": FunctionReference<"updateConversation", 'Mutation', { id: Id<'conversations'>; title: string; model: string }, GeneratedDataModel["conversations"], "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
+}
+export interface GeneratedCommandTargets {
 }
 export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;
 export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? Handler<GeneratedFunctionContexts[Name], Args, Result> : never;

@@ -251,11 +251,15 @@
     "asset_lifecycle_v1": "experimental",
     "asset_reference_gc_v1": "experimental",
     "asset_video_finalization_v1": "experimental",
+    "assets.media-collection.v1": "experimental",
+    "assets.media-command.v1": "experimental",
     "assets.media-ref-projection.v1": "experimental",
+    "bounded_batch_reads_v1": "experimental",
     "bounded_children_v1": "experimental",
     "inline_handler_v1": "experimental",
     "jobs_one_off_v1": "experimental",
     "mixed_bundle_boot_v2": "experimental",
+    "offline_mutation_replay": "experimental",
     "realtime.connected-client-predicate": "experimental",
     "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
@@ -469,6 +473,16 @@
     }
   ],
   "runtimeEngine": "ibex",
+  "runtimeFacts": {
+    "boundedBatchReadsV1": {
+      "logicalBatchesPerHostCall": 1,
+      "maxCanonicalInputBytes": 1048576,
+      "maxItems": 256,
+      "maxPolicyProbesPerItem": 8,
+      "maxResponseBytes": 4194304,
+      "sqliteVariableFloor": 999
+    }
+  },
   "schemaVersion": "snapback.v0",
   "standardPatterns": {
     "authScopeDisjointnessSkip": "disabled",
@@ -496,6 +510,7 @@
   "supportedCapabilities": [
     "auth.sessions.v1",
     "bounded_children_v1",
+    "bounded_batch_reads_v1",
     "cron",
     "cron_action_run_mutation",
     "host_plan_runtime",
@@ -505,6 +520,7 @@
     "notifications.expoPushSeam",
     "realtime.connected-client-predicate",
     "live_subscriptions",
+    "offline_mutation_replay",
     "mutation_read_set_validation",
     "mixed_bundle_boot_v2",
     "permission_epoch_resync",
@@ -525,11 +541,13 @@
     "versioned_seed_reset_v1",
     "write_activity_v1",
     "asset_lifecycle_v1",
-    "assets.media-ref-projection.v1",
     "asset_image_finalization_v1",
     "asset_image_pipeline_v1",
     "asset_reference_gc_v1",
-    "asset_video_finalization_v1"
+    "asset_video_finalization_v1",
+    "assets.media-collection.v1",
+    "assets.media-command.v1",
+    "assets.media-ref-projection.v1"
   ],
   "supportedQueryForms": [
     "host-plan-single-table-eq",

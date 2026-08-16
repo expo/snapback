@@ -658,10 +658,18 @@ const mediaMutation = Object.freeze({
     required: ['roomId', 'assetIds'],
   },
 });
+const mediaIntent = Object.freeze({
+  artifactKind: 'assetUploadReference',
+  id: 'fixture:messageMedia',
+  name: 'messageMedia',
+  intentPolicyHash: 'sha256:media-policy',
+  implementationHash: 'sha256:media-implementation',
+});
 const mediaCommand = Object.freeze({
   kind: 'media-command.v1',
   __snapbackReferenceKind: 'Command',
   mutation: mediaMutation,
+  intent: mediaIntent,
   binding: Object.freeze({
     format: 'snapback.media-command-binding.v1',
     identity: 'sha256:media-binding',
@@ -669,6 +677,7 @@ const mediaCommand = Object.freeze({
     media: Object.freeze({
       input: 'media',
       intent: 'messageMedia',
+      intentPolicyHash: 'sha256:media-policy',
       mutationArg: 'assetIds',
       minItems: 0,
       maxItems: 8,

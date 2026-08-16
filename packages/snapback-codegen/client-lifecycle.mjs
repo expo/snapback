@@ -172,7 +172,7 @@ export function buildClientLifecycleManifest({
         semanticIdentity: `${appId}:command:${name}`,
         name,
         kind: 'Command',
-        runtimeDiscriminant: 'asset-bearing-command.v1',
+        runtimeDiscriminant: command.kind,
         mutationIdentity: mutation?.semanticIdentity ?? command.mutation?.id ?? null,
         implementationHash: mutation?.implementationHash ?? command.mutation?.implementationHash ?? null,
         authRequirement: mutation?.authRequirement ?? 'optional-user',
@@ -181,10 +181,18 @@ export function buildClientLifecycleManifest({
         correctVerb: lifecycleForReferenceKind('Command').correctVerb,
         freshness: lifecycleForReferenceKind('Command').freshness,
         retention: lifecycleForReferenceKind('Command').retention,
-        states: [
-          'preparing', 'transferring', 'committing',
-          'succeeded', 'failed', 'cancelled', 'ambiguous',
-        ],
+        // @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
+        // — generated lifecycle metadata projects the actual media task
+        // grammar instead of relabeling it as the single-asset command.
+        states: command.kind === 'media-command.v1'
+          ? [
+              'validating', 'uploading', 'committing',
+              'committed', 'failed', 'cancelled', 'ambiguous',
+            ]
+          : [
+              'preparing', 'transferring', 'committing',
+              'succeeded', 'failed', 'cancelled', 'ambiguous',
+            ],
         guideAnchor: CLIENT_REFERENCE_GUIDE,
       };
     })

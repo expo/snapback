@@ -20,6 +20,15 @@ const app = json('app.descriptor.json');
 const functions = json('functions.manifest.json');
 const schema = json('schema.manifest.json');
 const capabilityManifest = json('capability.manifest.json');
+const mediaFixtureRoot = new URL(
+  '../../tests/acceptance/fixtures/media-profile/snapback/generated/',
+  import.meta.url,
+);
+const mediaJson = (name) => JSON.parse(readFileSync(new URL(name, mediaFixtureRoot)));
+const mediaApp = mediaJson('app.descriptor.json');
+const mediaFunctions = mediaJson('functions.manifest.json');
+const mediaSchema = mediaJson('schema.manifest.json');
+const mediaCapabilityManifest = mediaJson('capability.manifest.json');
 const file = Object.freeze({
   size: 4,
   slice() { return { async arrayBuffer() { return new ArrayBuffer(4); } }; },
@@ -47,11 +56,11 @@ function settleWithin(promise, message) {
   });
 }
 
-function readyAssetTask() {
+function readyAssetTask(assetId = 'asset-command-1') {
   const snapshot = Object.freeze({
-    assetId: 'asset-command-1',
-    assetRef: 'asset-command-1',
-    attemptId: 'attempt-command-1',
+    assetId,
+    assetRef: assetId,
+    attemptId: `attempt-${assetId}`,
     attemptExpiresAtMs: null,
     status: 'ready',
     diagnostic: null,
@@ -311,5 +320,109 @@ await assert.rejects(
     return true;
   },
 );
+
+// Real generated media-command descriptors project through both the hook and
+// imperative React seams while retaining the one headless command owner.
+{
+  const mutations = [];
+  const assetStarts = [];
+  const capture = Object.freeze({ generation: 'media-react-1' });
+  const mediaClient = {
+    authProtocols: {},
+    liveQuery() {},
+    captureAuthority: () => capture,
+    isAuthorityCaptureCurrent: (candidate) => candidate === capture,
+    async inspect() {
+      return {
+        targetProfileId: 'local-dev-sqlite-ibex',
+        target: 'local-dev-sqlite-ibex',
+        schema: mediaSchema,
+        functions: mediaFunctions,
+        capabilityManifest: mediaCapabilityManifest,
+      };
+    },
+    async authSession() { return { activeMode: 'sessions' }; },
+    registerAuthBarrierParticipant() { return async () => {}; },
+    async releaseConnection() { return { released: true }; },
+    async mutate(reference, options) {
+      mutations.push({ reference, options });
+      const table = reference.name === 'createPostMutation' ? 'post' : 'message';
+      return { result: { _id: `${table}-${mutations.length}` }, version: mutations.length };
+    },
+  };
+  const mediaBinding = await prepareReactBindingForClient(
+    mediaClient,
+    { generatedManifest: mediaApp },
+  );
+  let assetSequence = 0;
+  const mediaProvider = createSnapbackReactProvider(mediaBinding, {
+    assets: {
+      start(options) {
+        const assetId = `asset-media-react-${assetSequence}`;
+        assetSequence += 1;
+        assetStarts.push({ assetId, options });
+        return readyAssetTask(assetId);
+      },
+    },
+  });
+  let createPost;
+  function MediaCommandProbe() {
+    createPost = useSnapbackCommand(mediaApp.commands.createPost);
+    return null;
+  }
+  let mediaRenderer;
+  act(() => {
+    mediaRenderer = TestRenderer.create(React.createElement(
+      SnapbackProvider,
+      { provider: mediaProvider },
+      React.createElement(MediaCommandProbe),
+    ));
+  });
+  let postAssetOffset = 0;
+  for (const count of [1, 2, 3, 4]) {
+    const postTask = createPost({
+      body: `${count}-item image/video web post`,
+      media: Array.from({ length: count }, () => file),
+    });
+    assert.equal((await postTask.done).kind, 'committed');
+    assert.equal(postTask.snapshot().status, 'committed');
+    assert.deepEqual(
+      postTask.snapshot().items.map(({ ordinal }) => ordinal),
+      Array.from({ length: count }, (_, ordinal) => ordinal),
+    );
+    const expectedItems = Array.from({ length: count }, (_, ordinal) => ({
+      ordinal,
+      assetId: `asset-media-react-${postAssetOffset + ordinal}`,
+    }));
+    assert.deepEqual(mutations.at(-1).options.args.assetIds, expectedItems.map(({ assetId }) => assetId));
+    assert.deepEqual(mutations.at(-1).options.mediaCommand.items, expectedItems);
+    postAssetOffset += count;
+  }
+
+  const messageTask = invokeSnapbackCommand(
+    mediaProvider,
+    mediaApp.commands.sendMessage,
+    {
+      conversationId: 'conversation-media',
+      text: 'multi-media message',
+      media: [file, file, file],
+      recipients: ['principal-recipient'],
+    },
+  );
+  assert.equal((await messageTask.done).kind, 'committed');
+  assert.equal(messageTask.snapshot().items.length, 3);
+  assert.deepEqual(mutations.at(-1).options.mediaCommand.principals, ['principal-recipient']);
+  assert.equal(assetStarts.length, 13);
+  assert.equal(
+    assetStarts.every(({ options }) => options.upload.name === 'sharedMediaUpload'),
+    true,
+  );
+  assert.equal(
+    assetStarts.every(({ options }) => options.authorityCapture === capture),
+    true,
+  );
+  act(() => mediaRenderer.unmount());
+  await mediaProvider.dispose();
+}
 
 console.log('commands.test.mjs: hook/surface commands and provider disposal share command ownership');

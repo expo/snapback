@@ -128,7 +128,12 @@ export function buildApiEnvelopeMembers(
     memberDigests[operationMemberKey(fn.id)] = memberDigest(jcsCanonical(argsSchema));
   }
   const appBindings = renderAppBindings(
-    functionManifest.functions,
+    // @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
+    // — the target remains in the server operation envelope, but it is not a
+    // directly callable generated application binding.
+    functionManifest.functions.filter(({ mediaCommandBindings }) => (
+      !Array.isArray(mediaCommandBindings) || mediaCommandBindings.length === 0
+    )),
     clientLifecycleManifest,
     authoringProfile,
   );

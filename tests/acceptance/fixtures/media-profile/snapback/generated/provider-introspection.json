@@ -3,13 +3,13 @@
   "capabilities": {
     "claims": {
       "branchableFixtures": false,
-      "derivedOptimisticOverlays": false,
+      "derivedOptimisticOverlays": true,
       "forceStates": true,
       "headlessBoot": true,
       "initialSnapshot": true,
       "localReplica": false,
       "offlineReplay": false,
-      "optimisticMutations": false,
+      "optimisticMutations": true,
       "rowSyncState": true,
       "serverRunnableQueries": true,
       "subscriptions": true
@@ -22,7 +22,1120 @@
   "operations": {
     "actions": [],
     "ephemeral": [],
-    "mutations": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "assetIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "body",
+            "assetIds"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:4e0df690bda9e8cbd5f82778919e005920dda466cc8db8a57b4aa34912b48445",
+          "implementationHash": "sha256:eb2522913d8df00502c2e29d2bd2dd7157143a0c507494b44da50728a3b6339d",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "posts"
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:aae29e9209b06064547b06cbdb50f9d841d9a55159d431a254e6256553748e46",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "createPostMutation",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assetIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sharing": {
+              "optional": true,
+              "shape": "union",
+              "variants": [
+                {
+                  "fields": {
+                    "plan": {
+                      "shape": "literal",
+                      "value": "owner"
+                    }
+                  },
+                  "shape": "object"
+                },
+                {
+                  "fields": {
+                    "plan": {
+                      "shape": "literal",
+                      "value": "recipients"
+                    },
+                    "principals": {
+                      "items": {
+                        "name": "string",
+                        "shape": "primitive"
+                      },
+                      "shape": "array"
+                    }
+                  },
+                  "shape": "object"
+                }
+              ]
+            }
+          },
+          "order": [
+            "parentId",
+            "assetIds",
+            "sharing"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:33ca17cbf6f38990d2ae9e7cf30568d2f0c3036cf88a2f9ee8b73898fc186acc",
+          "implementationHash": "sha256:3bf644e8d3d6645e9e7138fd3aad7042b86611eb0754e3f244e8934045fd2a4b",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "parentId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                },
+                {
+                  "name": "itemIds",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    },
+                    "kind": "array",
+                    "maxItems": 8
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:45caf8e3ec3f1192aa0d6cb0696a81b45cf1f4a60385c4aea10bf6825d1ce09b",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ],
+          "writes": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "AssetCollection": {
+                    "childTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+                    "collection": "messageMedia",
+                    "defaultSharingPlan": "owner",
+                    "duplicatePolicy": "refuse.v1",
+                    "generation": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                    "intent": "sharedMediaUpload",
+                    "itemsArg": "assetIds",
+                    "kinds": [
+                      "image",
+                      "video"
+                    ],
+                    "maxItems": 8,
+                    "operation": "append",
+                    "order": "manual",
+                    "ownerField": "ownerId",
+                    "ownerTable": "messages",
+                    "parentIdArg": "parentId",
+                    "policyGeneration": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                    "sharingArg": "sharing",
+                    "sharingDerivationTables": [],
+                    "sharingGrantCapable": true
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "messageMediaAppend",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "itemIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sharing": {
+              "optional": true,
+              "shape": "union",
+              "variants": [
+                {
+                  "fields": {
+                    "plan": {
+                      "shape": "literal",
+                      "value": "owner"
+                    }
+                  },
+                  "shape": "object"
+                },
+                {
+                  "fields": {
+                    "plan": {
+                      "shape": "literal",
+                      "value": "recipients"
+                    },
+                    "principals": {
+                      "items": {
+                        "name": "string",
+                        "shape": "primitive"
+                      },
+                      "shape": "array"
+                    }
+                  },
+                  "shape": "object"
+                }
+              ]
+            }
+          },
+          "order": [
+            "parentId",
+            "itemIds",
+            "sharing"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:e18e258ddc0a340d3a737c9d5c51a88ab152333fd85a26bb5745e5964e9e4859",
+          "implementationHash": "sha256:85df928ec14d42b9ef5a698e1cda29c35f195bb05226bfba7ebe0c3aae02a981",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "parentId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                },
+                {
+                  "name": "itemIds",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    },
+                    "kind": "array",
+                    "maxItems": 8
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:45caf8e3ec3f1192aa0d6cb0696a81b45cf1f4a60385c4aea10bf6825d1ce09b",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ],
+          "writes": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "AssetCollection": {
+                    "childTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+                    "collection": "messageMedia",
+                    "defaultSharingPlan": "owner",
+                    "duplicatePolicy": "refuse.v1",
+                    "generation": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                    "intent": "sharedMediaUpload",
+                    "itemsArg": "itemIds",
+                    "kinds": [
+                      "image",
+                      "video"
+                    ],
+                    "maxItems": 8,
+                    "operation": "remove",
+                    "order": "manual",
+                    "ownerField": "ownerId",
+                    "ownerTable": "messages",
+                    "parentIdArg": "parentId",
+                    "policyGeneration": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                    "sharingArg": "sharing",
+                    "sharingDerivationTables": [],
+                    "sharingGrantCapable": true
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "messageMediaRemove",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "itemIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "parentId",
+            "itemIds"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:62e3966cd234b0cb70b0356cbf6f38f84281273e8e0331c9c2be3881b56f5579",
+          "implementationHash": "sha256:76c6372cfcaefcb815d5639be1b4914fa41f6fd9ae45007108606611710ad878",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "parentId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                },
+                {
+                  "name": "itemIds",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    },
+                    "kind": "array",
+                    "maxItems": 8
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:45caf8e3ec3f1192aa0d6cb0696a81b45cf1f4a60385c4aea10bf6825d1ce09b",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ],
+          "writes": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "AssetCollection": {
+                    "childTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+                    "collection": "messageMedia",
+                    "defaultSharingPlan": "owner",
+                    "duplicatePolicy": "refuse.v1",
+                    "generation": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                    "intent": "sharedMediaUpload",
+                    "itemsArg": "itemIds",
+                    "kinds": [
+                      "image",
+                      "video"
+                    ],
+                    "maxItems": 8,
+                    "operation": "reorder",
+                    "order": "manual",
+                    "ownerField": "ownerId",
+                    "ownerTable": "messages",
+                    "parentIdArg": "parentId",
+                    "policyGeneration": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                    "sharingArg": null,
+                    "sharingDerivationTables": [],
+                    "sharingGrantCapable": true
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "messageMediaReorder",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assetIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sharing": {
+              "optional": true,
+              "shape": "union",
+              "variants": [
+                {
+                  "fields": {
+                    "plan": {
+                      "shape": "literal",
+                      "value": "owner"
+                    }
+                  },
+                  "shape": "object"
+                },
+                {
+                  "fields": {
+                    "plan": {
+                      "shape": "literal",
+                      "value": "recipients"
+                    },
+                    "principals": {
+                      "items": {
+                        "name": "string",
+                        "shape": "primitive"
+                      },
+                      "shape": "array"
+                    }
+                  },
+                  "shape": "object"
+                }
+              ]
+            }
+          },
+          "order": [
+            "parentId",
+            "assetIds",
+            "sharing"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:33ca17cbf6f38990d2ae9e7cf30568d2f0c3036cf88a2f9ee8b73898fc186acc",
+          "implementationHash": "sha256:c5d0b599aba1d270cfe56611dd5f65a44d6a0bb6124cccc370278840f01964a9",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "parentId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                },
+                {
+                  "name": "itemIds",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    },
+                    "kind": "array",
+                    "maxItems": 8
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:45caf8e3ec3f1192aa0d6cb0696a81b45cf1f4a60385c4aea10bf6825d1ce09b",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ],
+          "writes": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "AssetCollection": {
+                    "childTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+                    "collection": "messageMedia",
+                    "defaultSharingPlan": "owner",
+                    "duplicatePolicy": "refuse.v1",
+                    "generation": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                    "intent": "sharedMediaUpload",
+                    "itemsArg": "assetIds",
+                    "kinds": [
+                      "image",
+                      "video"
+                    ],
+                    "maxItems": 8,
+                    "operation": "replace",
+                    "order": "manual",
+                    "ownerField": "ownerId",
+                    "ownerTable": "messages",
+                    "parentIdArg": "parentId",
+                    "policyGeneration": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                    "sharingArg": "sharing",
+                    "sharingDerivationTables": [],
+                    "sharingGrantCapable": true
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "messageMediaReplace",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assetIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sharing": {
+              "fields": {
+                "plan": {
+                  "shape": "literal",
+                  "value": "none"
+                }
+              },
+              "optional": true,
+              "shape": "object"
+            }
+          },
+          "order": [
+            "parentId",
+            "assetIds",
+            "sharing"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:a7401457d1fded0fce5dd3357849692c4a807a66ea374fbae419aabaebc7dd58",
+          "implementationHash": "sha256:3633b1c63e67841f58f1083f4cc03b085cc6b8147d80e6d508db32503cafca9f",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "parentId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "posts"
+                  }
+                },
+                {
+                  "name": "itemIds",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    },
+                    "kind": "array",
+                    "maxItems": 4
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ],
+          "writes": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "AssetCollection": {
+                    "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                    "collection": "postMedia",
+                    "defaultSharingPlan": "none",
+                    "duplicatePolicy": "refuse.v1",
+                    "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                    "intent": "sharedMediaUpload",
+                    "itemsArg": "assetIds",
+                    "kinds": [
+                      "image",
+                      "video"
+                    ],
+                    "maxItems": 4,
+                    "operation": "append",
+                    "order": "manual",
+                    "ownerField": "ownerId",
+                    "ownerTable": "posts",
+                    "parentIdArg": "parentId",
+                    "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                    "sharingArg": "sharing",
+                    "sharingDerivationTables": [],
+                    "sharingGrantCapable": false
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "postMediaAppend",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "itemIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sharing": {
+              "fields": {
+                "plan": {
+                  "shape": "literal",
+                  "value": "none"
+                }
+              },
+              "optional": true,
+              "shape": "object"
+            }
+          },
+          "order": [
+            "parentId",
+            "itemIds",
+            "sharing"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:677c197c0ef0e1ad1bb742eafb459bad59ff17c500fe1b6b0c4605152531e3ec",
+          "implementationHash": "sha256:a27f670ce5d4b54bcb66224a75631d765c21c7d6ace07432f6548126d772cb57",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "parentId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "posts"
+                  }
+                },
+                {
+                  "name": "itemIds",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    },
+                    "kind": "array",
+                    "maxItems": 4
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ],
+          "writes": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "AssetCollection": {
+                    "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                    "collection": "postMedia",
+                    "defaultSharingPlan": "none",
+                    "duplicatePolicy": "refuse.v1",
+                    "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                    "intent": "sharedMediaUpload",
+                    "itemsArg": "itemIds",
+                    "kinds": [
+                      "image",
+                      "video"
+                    ],
+                    "maxItems": 4,
+                    "operation": "remove",
+                    "order": "manual",
+                    "ownerField": "ownerId",
+                    "ownerTable": "posts",
+                    "parentIdArg": "parentId",
+                    "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                    "sharingArg": "sharing",
+                    "sharingDerivationTables": [],
+                    "sharingGrantCapable": false
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "postMediaRemove",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "itemIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "parentId",
+            "itemIds"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:5551f12b58b356fda23d4e2de1e12edd025621b0d035ff6fbe26e14efef8dbb3",
+          "implementationHash": "sha256:3243d906dde6813a9fc50b9cf41f2205719c2faaba9cbdb2ac51666f92ae8b8e",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "parentId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "posts"
+                  }
+                },
+                {
+                  "name": "itemIds",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    },
+                    "kind": "array",
+                    "maxItems": 4
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ],
+          "writes": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "AssetCollection": {
+                    "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                    "collection": "postMedia",
+                    "defaultSharingPlan": "none",
+                    "duplicatePolicy": "refuse.v1",
+                    "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                    "intent": "sharedMediaUpload",
+                    "itemsArg": "itemIds",
+                    "kinds": [
+                      "image",
+                      "video"
+                    ],
+                    "maxItems": 4,
+                    "operation": "reorder",
+                    "order": "manual",
+                    "ownerField": "ownerId",
+                    "ownerTable": "posts",
+                    "parentIdArg": "parentId",
+                    "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                    "sharingArg": null,
+                    "sharingDerivationTables": [],
+                    "sharingGrantCapable": false
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "postMediaReorder",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assetIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sharing": {
+              "fields": {
+                "plan": {
+                  "shape": "literal",
+                  "value": "none"
+                }
+              },
+              "optional": true,
+              "shape": "object"
+            }
+          },
+          "order": [
+            "parentId",
+            "assetIds",
+            "sharing"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:a7401457d1fded0fce5dd3357849692c4a807a66ea374fbae419aabaebc7dd58",
+          "implementationHash": "sha256:2817562021fc0cbe9f8abd9c27149a7b25bf5b051c5b78edb383c4727f84f318",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "parentId",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "posts"
+                  }
+                },
+                {
+                  "name": "itemIds",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    },
+                    "kind": "array",
+                    "maxItems": 4
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ],
+          "writes": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "AssetCollection": {
+                    "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                    "collection": "postMedia",
+                    "defaultSharingPlan": "none",
+                    "duplicatePolicy": "refuse.v1",
+                    "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                    "intent": "sharedMediaUpload",
+                    "itemsArg": "assetIds",
+                    "kinds": [
+                      "image",
+                      "video"
+                    ],
+                    "maxItems": 4,
+                    "operation": "replace",
+                    "order": "manual",
+                    "ownerField": "ownerId",
+                    "ownerTable": "posts",
+                    "parentIdArg": "parentId",
+                    "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                    "sharingArg": "sharing",
+                    "sharingDerivationTables": [],
+                    "sharingGrantCapable": false
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "postMediaReplace",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "assetIds": {
+              "items": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "text": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "conversationId",
+            "text",
+            "assetIds"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:e7fe1fd60f2b469129a7f9ccf6f41c61e4db653012fb21f9ad248245596ce0b9",
+          "implementationHash": "sha256:38af7666c3d8147b69ba41c24b0bdb3b1bc7eb09eb7f298b5e3532ea66e70284",
+          "result": {
+            "kind": "value",
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "messages"
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          },
+          "resultHash": "sha256:2efd7f25d51cec783bc48ee0d3de7207befbaffd888d33fd0efba95036a3e6e6",
+          "revision": "snapback.result-contract.v1"
+        },
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "sendMessageMutation",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
     "queries": [
       {
         "arguments": {
@@ -206,6 +1319,766 @@
             "shape": "object"
           }
         }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "cursor": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "parentId",
+            "cursor"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:3aaac9fed91604737b9a4ff5ae48428025c3536053da692aa4881b17556d6e10",
+          "implementationHash": "sha256:8ffab5bca7412cbdec4442f6f420c2eb0ed69dadcc8fceac87061d0ae5c5b5e0",
+          "result": {
+            "kind": "records",
+            "record": {
+              "kind": "union",
+              "variants": [
+                {
+                  "allowExtra": false,
+                  "fields": [
+                    {
+                      "name": "kind",
+                      "required": true,
+                      "value": {
+                        "kind": "literal",
+                        "value": "absent"
+                      }
+                    },
+                    {
+                      "name": "parent",
+                      "required": true,
+                      "value": {
+                        "kind": "null"
+                      }
+                    },
+                    {
+                      "name": "children",
+                      "required": true,
+                      "value": {
+                        "element": {
+                          "allowExtra": false,
+                          "fields": [
+                            {
+                              "name": "itemId",
+                              "required": true,
+                              "value": {
+                                "kind": "id",
+                                "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+                              }
+                            },
+                            {
+                              "name": "ordinal",
+                              "required": true,
+                              "value": {
+                                "kind": "integer",
+                                "max": 9007199254740991,
+                                "min": -9007199254740991
+                              }
+                            },
+                            {
+                              "name": "media",
+                              "required": true,
+                              "value": {
+                                "classMTreatment": "class-m.none.v1",
+                                "classificationProfile": "detected-content-type.v1",
+                                "delivery": null,
+                                "kind": "mediaRef.v1",
+                                "kinds": [
+                                  "image",
+                                  "video"
+                                ],
+                                "optional": false,
+                                "policyGeneration": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                                "retentionClass": "media-reference.v1",
+                                "sourceField": "assetId",
+                                "sourceFieldGeneration": "sha256:9c2a05434537162cc36cbc0a0259a89ad301f62d0891f026c05b0966ceb568a1",
+                                "sourceTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+                                "uploadIntent": "sharedMediaUpload",
+                                "variants": []
+                              }
+                            }
+                          ],
+                          "kind": "object"
+                        },
+                        "kind": "array",
+                        "maxItems": 0
+                      }
+                    },
+                    {
+                      "name": "continuation",
+                      "required": true,
+                      "value": {
+                        "kind": "null"
+                      }
+                    }
+                  ],
+                  "kind": "object"
+                },
+                {
+                  "allowExtra": false,
+                  "fields": [
+                    {
+                      "name": "kind",
+                      "required": true,
+                      "value": {
+                        "kind": "literal",
+                        "value": "visible"
+                      }
+                    },
+                    {
+                      "name": "parent",
+                      "required": true,
+                      "value": {
+                        "allowExtra": false,
+                        "fields": [
+                          {
+                            "name": "parentId",
+                            "required": true,
+                            "value": {
+                              "kind": "id",
+                              "table": "messages"
+                            }
+                          }
+                        ],
+                        "kind": "object"
+                      }
+                    },
+                    {
+                      "name": "children",
+                      "required": true,
+                      "value": {
+                        "element": {
+                          "allowExtra": false,
+                          "fields": [
+                            {
+                              "name": "itemId",
+                              "required": true,
+                              "value": {
+                                "kind": "id",
+                                "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+                              }
+                            },
+                            {
+                              "name": "ordinal",
+                              "required": true,
+                              "value": {
+                                "kind": "integer",
+                                "max": 9007199254740991,
+                                "min": -9007199254740991
+                              }
+                            },
+                            {
+                              "name": "media",
+                              "required": true,
+                              "value": {
+                                "classMTreatment": "class-m.none.v1",
+                                "classificationProfile": "detected-content-type.v1",
+                                "delivery": null,
+                                "kind": "mediaRef.v1",
+                                "kinds": [
+                                  "image",
+                                  "video"
+                                ],
+                                "optional": false,
+                                "policyGeneration": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                                "retentionClass": "media-reference.v1",
+                                "sourceField": "assetId",
+                                "sourceFieldGeneration": "sha256:9c2a05434537162cc36cbc0a0259a89ad301f62d0891f026c05b0966ceb568a1",
+                                "sourceTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+                                "uploadIntent": "sharedMediaUpload",
+                                "variants": []
+                              }
+                            }
+                          ],
+                          "kind": "object"
+                        },
+                        "kind": "array",
+                        "maxItems": 8
+                      }
+                    },
+                    {
+                      "name": "continuation",
+                      "required": true,
+                      "value": {
+                        "kind": "union",
+                        "variants": [
+                          {
+                            "kind": "null"
+                          },
+                          {
+                            "kind": "string",
+                            "maxBytes": 1024
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "kind": "object"
+                }
+              ]
+            },
+            "rows": {
+              "maxItems": 1,
+              "minItems": 1
+            }
+          },
+          "resultHash": "sha256:daba776040102e61102dd38a4cd45d7023d1c713f76d3e5f6c00f86b215dd35c",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a",
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "messageMediaList",
+        "result": {
+          "kind": "list",
+          "maxItems": 1,
+          "minItems": 1,
+          "row": {
+            "shape": "union",
+            "variants": [
+              {
+                "fields": {
+                  "children": {
+                    "items": {
+                      "fields": {
+                        "itemId": {
+                          "name": "string",
+                          "shape": "primitive"
+                        },
+                        "media": {
+                          "fields": {
+                            "assetId": {
+                              "name": "string",
+                              "shape": "primitive"
+                            },
+                            "kind": {
+                              "shape": "union",
+                              "variants": [
+                                {
+                                  "shape": "literal",
+                                  "value": "image"
+                                },
+                                {
+                                  "shape": "literal",
+                                  "value": "video"
+                                }
+                              ]
+                            }
+                          },
+                          "shape": "object"
+                        },
+                        "ordinal": {
+                          "name": "number",
+                          "shape": "primitive"
+                        }
+                      },
+                      "shape": "object"
+                    },
+                    "shape": "array"
+                  },
+                  "continuation": {
+                    "shape": "literal",
+                    "value": null
+                  },
+                  "kind": {
+                    "shape": "literal",
+                    "value": "absent"
+                  },
+                  "parent": {
+                    "shape": "literal",
+                    "value": null
+                  }
+                },
+                "shape": "object"
+              },
+              {
+                "fields": {
+                  "children": {
+                    "items": {
+                      "fields": {
+                        "itemId": {
+                          "name": "string",
+                          "shape": "primitive"
+                        },
+                        "media": {
+                          "fields": {
+                            "assetId": {
+                              "name": "string",
+                              "shape": "primitive"
+                            },
+                            "kind": {
+                              "shape": "union",
+                              "variants": [
+                                {
+                                  "shape": "literal",
+                                  "value": "image"
+                                },
+                                {
+                                  "shape": "literal",
+                                  "value": "video"
+                                }
+                              ]
+                            }
+                          },
+                          "shape": "object"
+                        },
+                        "ordinal": {
+                          "name": "number",
+                          "shape": "primitive"
+                        }
+                      },
+                      "shape": "object"
+                    },
+                    "shape": "array"
+                  },
+                  "continuation": {
+                    "shape": "union",
+                    "variants": [
+                      {
+                        "shape": "literal",
+                        "value": null
+                      },
+                      {
+                        "name": "string",
+                        "shape": "primitive"
+                      }
+                    ]
+                  },
+                  "kind": {
+                    "shape": "literal",
+                    "value": "visible"
+                  },
+                  "parent": {
+                    "fields": {
+                      "parentId": {
+                        "name": "string",
+                        "shape": "primitive"
+                      }
+                    },
+                    "shape": "object"
+                  }
+                },
+                "shape": "object"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "cursor": {
+              "name": "string",
+              "optional": true,
+              "shape": "primitive"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "parentId",
+            "cursor"
+          ]
+        },
+        "contract": {
+          "argumentsHash": "sha256:4762ed00946d309828f17a457ed4bcc2efd3005df16ff3774e1ff80876fdafed",
+          "implementationHash": "sha256:cda1455da37ff0d01e9361cadd5455af0011493c19f39511c2f0095a8463e17f",
+          "result": {
+            "kind": "records",
+            "record": {
+              "kind": "union",
+              "variants": [
+                {
+                  "allowExtra": false,
+                  "fields": [
+                    {
+                      "name": "kind",
+                      "required": true,
+                      "value": {
+                        "kind": "literal",
+                        "value": "absent"
+                      }
+                    },
+                    {
+                      "name": "parent",
+                      "required": true,
+                      "value": {
+                        "kind": "null"
+                      }
+                    },
+                    {
+                      "name": "children",
+                      "required": true,
+                      "value": {
+                        "element": {
+                          "allowExtra": false,
+                          "fields": [
+                            {
+                              "name": "itemId",
+                              "required": true,
+                              "value": {
+                                "kind": "id",
+                                "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+                              }
+                            },
+                            {
+                              "name": "ordinal",
+                              "required": true,
+                              "value": {
+                                "kind": "integer",
+                                "max": 9007199254740991,
+                                "min": -9007199254740991
+                              }
+                            },
+                            {
+                              "name": "media",
+                              "required": true,
+                              "value": {
+                                "classMTreatment": "class-m.none.v1",
+                                "classificationProfile": "detected-content-type.v1",
+                                "delivery": null,
+                                "kind": "mediaRef.v1",
+                                "kinds": [
+                                  "image",
+                                  "video"
+                                ],
+                                "optional": false,
+                                "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                                "retentionClass": "media-reference.v1",
+                                "sourceField": "assetId",
+                                "sourceFieldGeneration": "sha256:44a4d9ead962e1e84b7e1c3390863adb5bd102d0a062235258aa951685887a3e",
+                                "sourceTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                                "uploadIntent": "sharedMediaUpload",
+                                "variants": []
+                              }
+                            }
+                          ],
+                          "kind": "object"
+                        },
+                        "kind": "array",
+                        "maxItems": 0
+                      }
+                    },
+                    {
+                      "name": "continuation",
+                      "required": true,
+                      "value": {
+                        "kind": "null"
+                      }
+                    }
+                  ],
+                  "kind": "object"
+                },
+                {
+                  "allowExtra": false,
+                  "fields": [
+                    {
+                      "name": "kind",
+                      "required": true,
+                      "value": {
+                        "kind": "literal",
+                        "value": "visible"
+                      }
+                    },
+                    {
+                      "name": "parent",
+                      "required": true,
+                      "value": {
+                        "allowExtra": false,
+                        "fields": [
+                          {
+                            "name": "parentId",
+                            "required": true,
+                            "value": {
+                              "kind": "id",
+                              "table": "posts"
+                            }
+                          }
+                        ],
+                        "kind": "object"
+                      }
+                    },
+                    {
+                      "name": "children",
+                      "required": true,
+                      "value": {
+                        "element": {
+                          "allowExtra": false,
+                          "fields": [
+                            {
+                              "name": "itemId",
+                              "required": true,
+                              "value": {
+                                "kind": "id",
+                                "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+                              }
+                            },
+                            {
+                              "name": "ordinal",
+                              "required": true,
+                              "value": {
+                                "kind": "integer",
+                                "max": 9007199254740991,
+                                "min": -9007199254740991
+                              }
+                            },
+                            {
+                              "name": "media",
+                              "required": true,
+                              "value": {
+                                "classMTreatment": "class-m.none.v1",
+                                "classificationProfile": "detected-content-type.v1",
+                                "delivery": null,
+                                "kind": "mediaRef.v1",
+                                "kinds": [
+                                  "image",
+                                  "video"
+                                ],
+                                "optional": false,
+                                "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                                "retentionClass": "media-reference.v1",
+                                "sourceField": "assetId",
+                                "sourceFieldGeneration": "sha256:44a4d9ead962e1e84b7e1c3390863adb5bd102d0a062235258aa951685887a3e",
+                                "sourceTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                                "uploadIntent": "sharedMediaUpload",
+                                "variants": []
+                              }
+                            }
+                          ],
+                          "kind": "object"
+                        },
+                        "kind": "array",
+                        "maxItems": 4
+                      }
+                    },
+                    {
+                      "name": "continuation",
+                      "required": true,
+                      "value": {
+                        "kind": "union",
+                        "variants": [
+                          {
+                            "kind": "null"
+                          },
+                          {
+                            "kind": "string",
+                            "maxBytes": 1024
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "kind": "object"
+                }
+              ]
+            },
+            "rows": {
+              "maxItems": 1,
+              "minItems": 1
+            }
+          },
+          "resultHash": "sha256:0df5cc3498426f3b3b03d143239c0989933c83f1e850b907f43485a4713bde2a",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+            "posts"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "postMediaList",
+        "result": {
+          "kind": "list",
+          "maxItems": 1,
+          "minItems": 1,
+          "row": {
+            "shape": "union",
+            "variants": [
+              {
+                "fields": {
+                  "children": {
+                    "items": {
+                      "fields": {
+                        "itemId": {
+                          "name": "string",
+                          "shape": "primitive"
+                        },
+                        "media": {
+                          "fields": {
+                            "assetId": {
+                              "name": "string",
+                              "shape": "primitive"
+                            },
+                            "kind": {
+                              "shape": "union",
+                              "variants": [
+                                {
+                                  "shape": "literal",
+                                  "value": "image"
+                                },
+                                {
+                                  "shape": "literal",
+                                  "value": "video"
+                                }
+                              ]
+                            }
+                          },
+                          "shape": "object"
+                        },
+                        "ordinal": {
+                          "name": "number",
+                          "shape": "primitive"
+                        }
+                      },
+                      "shape": "object"
+                    },
+                    "shape": "array"
+                  },
+                  "continuation": {
+                    "shape": "literal",
+                    "value": null
+                  },
+                  "kind": {
+                    "shape": "literal",
+                    "value": "absent"
+                  },
+                  "parent": {
+                    "shape": "literal",
+                    "value": null
+                  }
+                },
+                "shape": "object"
+              },
+              {
+                "fields": {
+                  "children": {
+                    "items": {
+                      "fields": {
+                        "itemId": {
+                          "name": "string",
+                          "shape": "primitive"
+                        },
+                        "media": {
+                          "fields": {
+                            "assetId": {
+                              "name": "string",
+                              "shape": "primitive"
+                            },
+                            "kind": {
+                              "shape": "union",
+                              "variants": [
+                                {
+                                  "shape": "literal",
+                                  "value": "image"
+                                },
+                                {
+                                  "shape": "literal",
+                                  "value": "video"
+                                }
+                              ]
+                            }
+                          },
+                          "shape": "object"
+                        },
+                        "ordinal": {
+                          "name": "number",
+                          "shape": "primitive"
+                        }
+                      },
+                      "shape": "object"
+                    },
+                    "shape": "array"
+                  },
+                  "continuation": {
+                    "shape": "union",
+                    "variants": [
+                      {
+                        "shape": "literal",
+                        "value": null
+                      },
+                      {
+                        "name": "string",
+                        "shape": "primitive"
+                      }
+                    ]
+                  },
+                  "kind": {
+                    "shape": "literal",
+                    "value": "visible"
+                  },
+                  "parent": {
+                    "fields": {
+                      "parentId": {
+                        "name": "string",
+                        "shape": "primitive"
+                      }
+                    },
+                    "shape": "object"
+                  }
+                },
+                "shape": "object"
+              }
+            ]
+          }
+        }
       }
     ]
   },
@@ -215,9 +2088,9 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "authoredSourceHash": "sha256:ebb04301732af2158a37669fddbcc3799457e154db36468e841d273e7c3ba895",
-    "implementationHash": "sha256:3c79312be6ee5b58",
-    "inputsHash": "8253ae0b273a16e547288102e0a0843b5ea0d4a3cd0534d6a166808c89fd71de",
-    "schemaHash": "sha256:1166da2451a839e5"
+    "authoredSourceHash": "sha256:bb707bea2e0cb3060eb7eae94562f493647c86821c0ec2e06f7bcb4daf139a75",
+    "implementationHash": "sha256:09e266882f63752d",
+    "inputsHash": "8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015",
+    "schemaHash": "sha256:4268f67fe6dcabfd"
   }
 }

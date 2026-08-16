@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import Ajv2020 from 'ajv/dist/2020.js';
 
 import { generate } from './index.mjs';
 
@@ -95,6 +96,32 @@ const app = JSON.parse(readFileSync(join(happy, 'generated/app.descriptor.json')
 assert.equal(app.api.mutations.sendMessageMutation, undefined, 'command-only target is not directly generated');
 assert.equal(app.commands.sendMessage.kind, 'media-command.v1');
 assert.equal(app.commands.sendMessage.binding.identity, binding.identity);
+assert.deepEqual(app.commands.sendMessage.intent, app.api.assets.messageMedia);
+const appDescriptorSchema = JSON.parse(readFileSync(join(
+  dirname(fileURLToPath(import.meta.url)),
+  'app-descriptor.schema.json',
+)));
+const validateAppDescriptor = new Ajv2020({ allErrors: true, strict: false })
+  .compile(appDescriptorSchema);
+assert.equal(validateAppDescriptor(app), true, JSON.stringify(validateAppDescriptor.errors));
+const lifecycle = JSON.parse(readFileSync(join(happy, 'generated/client-lifecycle.v1.json')));
+const lifecycleCommand = lifecycle.commands.find(({ name }) => name === 'sendMessage');
+assert.equal(lifecycleCommand.runtimeDiscriminant, 'media-command.v1');
+assert.deepEqual(lifecycleCommand.states, [
+  'validating', 'uploading', 'committing',
+  'committed', 'failed', 'cancelled', 'ambiguous',
+]);
+const apiTypes = readFileSync(join(happy, 'generated/api.d.ts'), 'utf8');
+const publicApi = /export interface GeneratedApi \{([\s\S]*?)\n\}\nexport interface GeneratedCommandTargets/u.exec(apiTypes)?.[1];
+const commandTargets = /export interface GeneratedCommandTargets \{([\s\S]*?)\n\}/u.exec(apiTypes)?.[1];
+assert.ok(publicApi);
+assert.ok(commandTargets);
+assert.doesNotMatch(publicApi, /sendMessageMutation/u);
+assert.match(commandTargets, /sendMessageMutation/u);
+const appTypes = readFileSync(join(happy, 'generated/app.d.ts'), 'utf8');
+assert.match(appTypes, /MediaCommandDescriptor<GeneratedCommandTargets\["sendMessageMutation"\]/u);
+const apiEnvelope = JSON.parse(readFileSync(join(happy, 'generated/api-envelope.members.json')));
+assert.doesNotMatch(apiEnvelope.declarations.appBindings, /sendMessageMutation/u);
 
 const invalid = await generate(fixture(functions().replace(
   "parentResultPath: '_id'",

@@ -36,6 +36,9 @@ import type {
   AssetSignedUrlOptions,
   AssetTaskSnapshot,
   AssetUploadTask,
+  MediaCollectionItem,
+  MediaCollectionItemState,
+  MediaCollectionState,
   MediaKind,
   MediaRef,
   MediaState,
@@ -50,6 +53,11 @@ import type {
   CommandResult,
   CommandTask,
   CommandTaskSnapshot,
+  MediaCommandDescriptorV1,
+  MediaCommandOutcome,
+  MediaCommandReferenceV1,
+  MediaCommandTask,
+  MediaCommandTaskSnapshot,
   MutationAttemptSnapshot,
   SnapbackCommandDiagnostic,
   TypedRemediation,
@@ -62,6 +70,9 @@ export type {
   AssetSignedUrlOptions,
   AssetTaskSnapshot,
   AssetUploadTask,
+  MediaCollectionItem,
+  MediaCollectionItemState,
+  MediaCollectionState,
   MediaKind,
   MediaRef,
   MediaState,
@@ -76,6 +87,11 @@ export type {
   CommandResult,
   CommandTask,
   CommandTaskSnapshot,
+  MediaCommandDescriptorV1,
+  MediaCommandOutcome,
+  MediaCommandReferenceV1,
+  MediaCommandTask,
+  MediaCommandTaskSnapshot,
   MutationAttemptSnapshot,
   SnapbackCommandDiagnostic,
   TypedRemediation,
@@ -528,6 +544,10 @@ type SurfacePresence<Surface> = Surface extends SnapbackSurfaceDescriptor<any, a
 type SurfaceAssets<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, any, any, infer Assets> ? Assets : never;
 type SurfaceMemberReference<Member> = Member extends SnapbackSurfaceMember<infer Reference, any> ? Reference : never;
 type SurfaceMemberInput<Member> = Member extends SnapbackSurfaceMember<any, infer Input> ? Input : never;
+type ProjectedCommandTask<Command extends CommandRef> =
+  Command extends MediaCommandReferenceV1
+    ? MediaCommandTask<CommandResult<Command>>
+    : CommandTask<CommandResult<Command>>;
 export type SurfaceOptions<Surface extends SnapbackSurfaceDescriptor> = Readonly<{
   presence?: Readonly<{
     [Name in keyof SurfacePresence<Surface>]?: SurfaceMemberReference<SurfacePresence<Surface>[Name]> extends ConnectionEphemeralCollectionReference
@@ -554,8 +574,8 @@ export type SurfaceResult<Surface extends SnapbackSurfaceDescriptor> = Readonly<
       : never
   }>;
   commands: Readonly<{
-    [Name in keyof SurfaceCommands<Surface>]: SurfaceMemberReference<SurfaceCommands<Surface>[Name]> extends AssetBearingCommandReferenceV1
-      ? (input: SurfaceMemberInput<SurfaceCommands<Surface>[Name]>) => CommandTask<CommandResult<SurfaceMemberReference<SurfaceCommands<Surface>[Name]>>>
+    [Name in keyof SurfaceCommands<Surface>]: SurfaceMemberReference<SurfaceCommands<Surface>[Name]> extends CommandRef
+      ? (input: SurfaceMemberInput<SurfaceCommands<Surface>[Name]>) => ProjectedCommandTask<SurfaceMemberReference<SurfaceCommands<Surface>[Name]>>
       : never
   }>;
   presence: Readonly<{
@@ -748,9 +768,9 @@ export function useSnapbackOptimisticCreate<
   query: QueryState<Selected>;
   create(args: FunctionArgs<Ref>): Promise<SnapbackMutationDispatchOutcome<FunctionResult<Ref>>>;
 }>;
-export function useSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
+export function useSnapbackCommand<Command extends CommandRef>(
   reference: Command,
-): (args: CommandArgs<Command>) => CommandTask<CommandResult<Command>>;
+): (args: CommandArgs<Command>) => ProjectedCommandTask<Command>;
 
 export type SnapbackConnectionState = Readonly<{
   status: SnapbackConnection;
@@ -919,11 +939,11 @@ export function invokeSnapbackMutation<
   args: FunctionArgs<Ref>,
   options?: SnapbackOptimisticMutationOptions<Ref, Q> & Readonly<{ queue?: undefined }>,
 ): Promise<SnapbackMutationDispatchOutcome<FunctionResult<Ref>>>;
-export function invokeSnapbackCommand<Command extends AssetBearingCommandReferenceV1>(
+export function invokeSnapbackCommand<Command extends CommandRef>(
   provider: SnapbackReactProvider,
   reference: Command,
   args: CommandArgs<Command>,
-): CommandTask<CommandResult<Command>>;
+): ProjectedCommandTask<Command>;
 
 export function bindSnapbackAppLifecycle(
   appState: {
@@ -969,6 +989,11 @@ export function useSnapbackMedia<K extends MediaKind>(
   mediaRefOrNull: MediaRef<K> | null | undefined,
   options?: AssetSignedUrlOptions,
 ): MediaHookState<K>;
+
+export function useSnapbackMediaCollection<K extends MediaKind>(
+  items: readonly MediaCollectionItem<K>[],
+  options?: AssetSignedUrlOptions,
+): MediaCollectionState<K>;
 
 export type AssetUploadHookState = Readonly<
   Omit<AssetTaskSnapshot, 'status' | 'integrityBasis'> & {

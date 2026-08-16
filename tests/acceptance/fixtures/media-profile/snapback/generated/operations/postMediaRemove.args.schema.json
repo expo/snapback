@@ -1,0 +1,35 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-profile-fixture/postMediaRemove.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "itemIds": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 4,
+      "type": "array"
+    },
+    "parentId": {
+      "type": "string"
+    },
+    "sharing": {
+      "additionalProperties": false,
+      "properties": {
+        "plan": {
+          "const": "none"
+        }
+      },
+      "required": [
+        "plan"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "parentId",
+    "itemIds"
+  ],
+  "title": "media-profile-fixture:postMediaRemove arguments",
+  "type": "object"
+}

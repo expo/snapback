@@ -1,0 +1,942 @@
+{
+  "appId": "media-profile-fixture",
+  "authMode": "dev",
+  "authorityProfiles": [],
+  "authorizationTables": [],
+  "fieldPolicies": [],
+  "inputsHash": "8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "posts"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "createPostMutation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "posts",
+        "tables": [
+          "posts"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "public"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "profiles"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "profiles"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "listProfiles",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "profiles",
+        "tables": [
+          "profiles"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "assetGrantCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          },
+          {
+            "access": "point",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "append"
+            ],
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "messageMediaAppend",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a",
+          "messages"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "parentVisibility"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "byParentOrdinal",
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          },
+          {
+            "access": "point",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "messageMediaList",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a",
+          "messages"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "assetGrantCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          },
+          {
+            "access": "point",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "remove"
+            ],
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "messageMediaRemove",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a",
+          "messages"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "assetGrantCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          },
+          {
+            "access": "point",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "reorder"
+            ],
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "messageMediaReorder",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a",
+          "messages"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "assetGrantCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          },
+          {
+            "access": "point",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "replace"
+            ],
+            "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "messageMediaReplace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a",
+          "messages"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+        "tables": [
+          "_snapback_asset_collection_4f682e8526bbc2877b4a"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "append"
+            ],
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "postMediaAppend",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+          "posts"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "parentVisibility"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "byParentOrdinal",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "postMediaList",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+          "posts"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "remove"
+            ],
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "postMediaRemove",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+          "posts"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "reorder"
+            ],
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "postMediaReorder",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+          "posts"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "replace"
+            ],
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "postMediaReplace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+          "posts"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "sendMessageMutation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "_snapback_asset_collection_4f682e8526bbc2877b4a"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+    },
+    {
+      "origin": "declared",
+      "policy": {
+        "field": "ownerId",
+        "kind": "owner"
+      },
+      "table": "messages"
+    },
+    {
+      "origin": "declared",
+      "policy": {
+        "field": "ownerId",
+        "kind": "owner"
+      },
+      "table": "posts"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "profiles"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

@@ -225,6 +225,13 @@ function normalizedManifest(input) {
     const definitions = [
       ...Object.values(api?.queries ?? {}),
       ...Object.values(api?.mutations ?? {}),
+      // Command-bound media mutations are intentionally absent from the
+      // directly callable mutation namespace, but their exact generated
+      // reference still participates in deployment admission.
+      // @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit
+      ...Object.values(descriptor.commands ?? {})
+        .filter((command) => command?.kind === 'media-command.v1')
+        .map((command) => command.mutation),
     ];
     if (
       !identity
@@ -1225,23 +1232,48 @@ async function prepareReactBindingOnce(
       const intent = carried?.asset === null
         ? null
         : assetIntentsById.get(carried?.asset?.intent?.id);
-      if (
-        !carried
-        || carried.kind !== 'asset-bearing-command.v1'
-        || !mutation
-        || mutation.kind !== 'Mutation'
-        || !Array.isArray(carried.passthroughArgs)
-        || !(carried.asset === null || intent)
-      ) {
+      const mediaIntent = carried?.kind === 'media-command.v1'
+        ? assetIntentsById.get(carried?.intent?.id)
+        : null;
+      const validMutation = mutation?.kind === 'Mutation';
+      const validPassthrough = Array.isArray(carried?.passthroughArgs)
+        && carried.passthroughArgs.every((member) => typeof member === 'string');
+      const validAssetCommand = carried?.kind === 'asset-bearing-command.v1'
+        && validMutation
+        && validPassthrough
+        && (carried.asset === null || intent);
+      const mediaBinding = carried?.binding;
+      const validMediaCommand = carried?.kind === 'media-command.v1'
+        && validMutation
+        && validPassthrough
+        && Boolean(mediaIntent)
+        && mediaBinding?.format === 'snapback.media-command-binding.v1'
+        && typeof mediaBinding.identity === 'string'
+        && mediaBinding.command?.name === name
+        && mediaBinding.targetMutation?.id === mutation.id
+        && mediaBinding.targetMutation?.name === mutation.name
+        && Array.isArray(mediaBinding.passthroughArgs)
+        && canonicalizeClientValueV1(mediaBinding.passthroughArgs)
+          === canonicalizeClientValueV1(carried.passthroughArgs)
+        && typeof mediaBinding.media?.input === 'string'
+        && typeof mediaBinding.media?.intent === 'string'
+        && mediaBinding.media.intent === mediaIntent?.name
+        && mediaBinding.media.intentPolicyHash === mediaIntent?.intentPolicyHash
+        && typeof mediaBinding.media?.mutationArg === 'string'
+        && Number.isSafeInteger(mediaBinding.media?.minItems)
+        && Number.isSafeInteger(mediaBinding.media?.maxItems)
+        && Number.isSafeInteger(mediaBinding.taskProfile?.concurrency);
+      if (!validAssetCommand && !validMediaCommand) {
         throw diagnosticError(
           'SNAPBACK_REACT_MANIFEST_INVALID',
-          'AppDescriptor contains an invalid asset-bearing command',
+          'AppDescriptor contains an invalid generated command',
           { command: name },
         );
       }
       const command = structuredClone(carried);
       command.mutation = mutation;
       if (command.asset) command.asset.intent = intent;
+      if (command.kind === 'media-command.v1') command.intent = mediaIntent;
       const admitted = deepFreeze(command);
       const key = canonicalizeClientValueV1(admitted);
       commands[name] = admitted;
@@ -1339,6 +1371,9 @@ async function prepareReactBindingOnce(
         if (candidate?.asset?.intent?.id) {
           candidate.asset.intent = assetIntentsById.get(candidate.asset.intent.id)
             ?? candidate.asset.intent;
+        }
+        if (candidate?.kind === 'media-command.v1' && candidate?.intent?.id) {
+          candidate.intent = assetIntentsById.get(candidate.intent.id) ?? candidate.intent;
         }
         const admitted = commandsByCanonical.get(canonicalizeClientValueV1(candidate));
         if (member?.artifactKind !== 'surfaceMemberBinding' || !admitted) {
@@ -1688,6 +1723,10 @@ export function admittedReactCommand(binding, reference) {
   if (normalized?.asset?.intent?.id) {
     normalized.asset.intent = prepared.assetIntentsById.get(normalized.asset.intent.id)
       ?? normalized.asset.intent;
+  }
+  if (normalized?.kind === 'media-command.v1' && normalized?.intent?.id) {
+    normalized.intent = prepared.assetIntentsById.get(normalized.intent.id)
+      ?? normalized.intent;
   }
   const expected = prepared.commandsByCanonical.get(canonicalizeClientValueV1(normalized));
   if (!expected) {

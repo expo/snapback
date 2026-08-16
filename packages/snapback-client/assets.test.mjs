@@ -910,6 +910,170 @@ globalThis.fetch = server.fetch;
   console.log('media unavailable state: ok');
 }
 
+// --- bounded collection projection: empty, mixed media, sibling isolation,
+// refresh, denial/unavailability, and synchronous authority blanking ---
+{
+  let currentCapture = Object.freeze({ id: 'collection-authority-a' });
+  let blankAuthority;
+  const pending = [];
+  const collectionAssets = new SnapbackAssetClient({
+    baseUrl,
+    authProtocols: { authClient: 1 },
+    authorityFence: {
+      capture: () => currentCapture,
+      isCurrent: (capture) => capture === currentCapture,
+      credentialFor: () => ({ bearer: `bearer-${currentCapture.id}` }),
+    },
+    registerAuthMaterialization: ({ blank }) => {
+      blankAuthority = blank;
+      return () => {};
+    },
+    subscribeLive: () => {},
+  }, {
+    fetch: async (input) => {
+      const match = /\/assets\/records\/([^/]+)\/signed-url$/u.exec(new URL(input).pathname);
+      assert.ok(match, `unexpected collection issuance URL ${input}`);
+      return new Promise((resolve) => pending.push({
+        assetId: decodeURIComponent(match[1]),
+        resolve,
+      }));
+    },
+  });
+
+  const empty = collectionAssets.mediaCollectionStore([], null);
+  assert.strictEqual(empty.getSnapshot(), empty.getServerSnapshot());
+  assert.deepEqual(empty.getSnapshot(), []);
+  const releaseEmpty = empty.subscribe(() => assert.fail('empty collection never publishes'));
+  await empty.refresh();
+  assert.equal(pending.length, 0, 'empty collection creates zero issuance/network work');
+  releaseEmpty();
+
+  const items = Object.freeze([
+    Object.freeze({ itemId: 'item-image', ordinal: 0, media: Object.freeze({ assetId: 'asset-image', kind: 'image' }) }),
+    Object.freeze({ itemId: 'item-video', ordinal: 1, media: Object.freeze({ assetId: 'asset-video', kind: 'video' }) }),
+    Object.freeze({ itemId: 'item-unavailable', ordinal: 2, media: Object.freeze({ assetId: 'asset-unavailable', kind: 'file' }) }),
+    Object.freeze({ itemId: 'item-denied', ordinal: 3, media: Object.freeze({ assetId: 'asset-denied', kind: 'image' }) }),
+  ]);
+  const collection = collectionAssets.mediaCollectionStore(items);
+  const construction = collection.getSnapshot();
+  assert.strictEqual(collection.getSnapshot(), construction, 'unchanged collection snapshot is stable');
+  assert.deepEqual(
+    construction.map(({ itemId, ordinal, state }) => ({ itemId, ordinal, status: state.status })),
+    [
+      { itemId: 'item-image', ordinal: 0, status: 'issuing' },
+      { itemId: 'item-video', ordinal: 1, status: 'issuing' },
+      { itemId: 'item-unavailable', ordinal: 2, status: 'issuing' },
+      { itemId: 'item-denied', ordinal: 3, status: 'issuing' },
+    ],
+  );
+  const release = collection.subscribe(() => {});
+  await waitFor(() => pending.length === 4, 'every collection child begins issuance independently');
+  const resolveAsset = (assetId, response) => {
+    const index = pending.findIndex((request) => request.assetId === assetId);
+    assert.notEqual(index, -1, `missing pending request for ${assetId}`);
+    pending.splice(index, 1)[0].resolve(response);
+  };
+  const readyExpiry = Date.now() + 60_000;
+  resolveAsset('asset-image', Response.json({
+    url: '/assets/signed/collection-image',
+    expiresAtMs: readyExpiry,
+    variant: 'primary',
+  }));
+  await waitFor(
+    () => collection.getSnapshot()[0].state.status === 'ready',
+    'valid image sibling becomes ready',
+  );
+  const stableImageItem = collection.getSnapshot()[0];
+  resolveAsset('asset-video', Response.json({
+    url: '/assets/signed/collection-video-original',
+    expiresAtMs: readyExpiry,
+    variant: 'primary',
+  }));
+  resolveAsset('asset-unavailable', diagnosticResponse(
+    'SNAPBACK_ASSET_STORE_UNAVAILABLE',
+    'collection asset store unavailable',
+    503,
+  ));
+  resolveAsset('asset-denied', diagnosticResponse(
+    'SNAPBACK_ASSET_FORBIDDEN',
+    'collection media access denied',
+    403,
+  ));
+  await waitFor(
+    () => collection.getSnapshot().every(({ state }) => state.status !== 'issuing'),
+    'collection children settle independently',
+  );
+  const settled = collection.getSnapshot();
+  assert.strictEqual(settled[0], stableImageItem, 'unaffected item projection retains identity');
+  assert.deepEqual(settled.map(({ itemId, state }) => [itemId, state.status]), [
+    ['item-image', 'ready'],
+    ['item-video', 'ready'],
+    ['item-unavailable', 'unavailable'],
+    ['item-denied', 'denied'],
+  ]);
+  assert.equal('url' in settled[2].state, false);
+  assert.equal('url' in settled[3].state, false);
+  assert.equal(
+    settled[1].state.rendition,
+    'primary',
+    'video delivery is projected without a portable-playability claim',
+  );
+
+  const sharedMedia = Object.freeze({ assetId: 'asset-shared', kind: 'image' });
+  const shared = collectionAssets.mediaCollectionStore([
+    { itemId: 'item-shared-a', ordinal: 0, media: sharedMedia },
+    { itemId: 'item-shared-b', ordinal: 1, media: sharedMedia },
+  ]);
+  const releaseShared = shared.subscribe(() => {});
+  await waitFor(
+    () => pending.filter(({ assetId }) => assetId === 'asset-shared').length === 1,
+    'equal collection selections share exactly one issued-URL request',
+  );
+  resolveAsset('asset-shared', Response.json({
+    url: '/assets/signed/collection-shared',
+    expiresAtMs: readyExpiry,
+    variant: 'primary',
+  }));
+  await waitFor(
+    () => shared.getSnapshot().every(({ state }) => state.status === 'ready'),
+    'both stable items project the shared issued-URL entry',
+  );
+  assert.equal(shared.getSnapshot()[0].state.url, shared.getSnapshot()[1].state.url);
+  releaseShared();
+
+  const refreshing = settled[0].refresh();
+  await waitFor(() => pending.some(({ assetId }) => assetId === 'asset-image'), 'item refresh reuses its controller');
+  assert.equal(collection.getSnapshot()[0].state.status, 'refreshing');
+  resolveAsset('asset-image', Response.json({
+    url: '/assets/signed/collection-image-refreshed',
+    expiresAtMs: Date.now() + 60_000,
+    variant: 'primary',
+  }));
+  await refreshing;
+  assert.equal(collection.getSnapshot()[0].state.status, 'ready');
+  assert.match(collection.getSnapshot()[0].state.url, /collection-image-refreshed$/u);
+  assert.throws(() => collection.refresh('missing-item'), /unknown itemId/);
+
+  currentCapture = Object.freeze({ id: 'collection-authority-b' });
+  blankAuthority({ reason: 'authority_replaced', disposition: 'delete' });
+  assert.deepEqual(
+    collection.getSnapshot().map(({ state }) => state.status),
+    ['issuing', 'issuing', 'issuing', 'issuing'],
+    'authority replacement synchronously blanks every collection URL',
+  );
+  assert.ok(collection.getSnapshot().every(({ state }) => !('url' in state)));
+  release();
+
+  assert.throws(
+    () => collectionAssets.mediaCollectionStore([
+      items[0],
+      { ...items[1], itemId: items[0].itemId },
+    ]),
+    /itemId .* is duplicated/,
+  );
+  console.log('media collection empty/mixed/sibling/refresh/revocation states: ok');
+}
+
 // --- upload(): frozen terminal table and picker-shaped normalization ---
 {
   const assets = new SnapbackAssetClient(client, {

@@ -19,7 +19,7 @@ export interface AppInspectionCommandAssetV1 {
   readonly intent: AppInspectionReferenceV1;
 }
 
-export interface AppInspectionCommandV1 {
+export interface AppInspectionAssetCommandV1 {
   readonly name: string;
   readonly kind: 'asset-bearing-command.v1';
   readonly mutation: AppInspectionReferenceV1;
@@ -27,6 +27,20 @@ export interface AppInspectionCommandV1 {
   readonly passthroughArgs: readonly string[];
   readonly requiredCapabilities: readonly string[];
 }
+
+export interface AppInspectionMediaCommandV1 {
+  readonly name: string;
+  readonly kind: 'media-command.v1';
+  readonly mutation: AppInspectionReferenceV1;
+  readonly intent: AppInspectionReferenceV1;
+  readonly binding: Readonly<Record<string, unknown>>;
+  readonly passthroughArgs: readonly string[];
+  readonly requiredCapabilities: readonly string[];
+}
+
+export type AppInspectionCommandV1 =
+  | AppInspectionAssetCommandV1
+  | AppInspectionMediaCommandV1;
 
 export interface AppInspectionNamedBindingV1 {
   readonly kind: 'param' | 'input';

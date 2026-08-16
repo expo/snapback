@@ -136,6 +136,32 @@ export interface MediaStore<K extends MediaKind = MediaKind> {
   refresh(): Promise<void>;
 }
 
+/** One stable generated assetCollection child returned by its bounded read. */
+export interface MediaCollectionItem<K extends MediaKind = MediaKind> {
+  readonly itemId: string;
+  readonly ordinal: number;
+  readonly media: MediaRef<K>;
+}
+
+/** Render projection for one collection child. `itemId` remains the durable
+ * identity even when ordinal or delivery state changes. */
+export interface MediaCollectionItemState<K extends MediaKind = MediaKind> {
+  readonly itemId: string;
+  readonly ordinal: number;
+  readonly state: MediaState<K>;
+  readonly refresh: () => Promise<void>;
+}
+
+export type MediaCollectionState<K extends MediaKind = MediaKind> =
+  readonly MediaCollectionItemState<K>[];
+
+export interface MediaCollectionStore<K extends MediaKind = MediaKind> {
+  getSnapshot(): MediaCollectionState<K>;
+  getServerSnapshot(): MediaCollectionState<K>;
+  subscribe(listener: (snapshot: MediaCollectionState<K>) => void): () => void;
+  refresh(itemId?: string): Promise<void>;
+}
+
 export interface AssetUploadTerminalError extends Error {
   readonly code: string;
   readonly status: Exclude<AssetTaskStatus, 'creating' | 'uploading' | 'paused' | 'finalizing' | 'ready'>;
@@ -226,6 +252,10 @@ export declare class SnapbackAssetClient {
     mediaRefOrNull: MediaRef<K> | null | undefined,
     options?: AssetSignedUrlOptions,
   ): MediaStore<K>;
+  mediaCollectionStore<K extends MediaKind>(
+    items: readonly MediaCollectionItem<K>[],
+    options?: AssetSignedUrlOptions,
+  ): MediaCollectionStore<K>;
   watchStore(
     assetId: string,
     options?: { userId?: string | null; connectionId?: string | null },

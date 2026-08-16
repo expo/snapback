@@ -169,3 +169,31 @@ picker -> multi-upload -> single parent/collection commit -> authorized render
 path without the named workarounds. Record the as-built rollout and evidence in
 LLP 0239; leave the LLP `Accepted` until its complete rollout, including any
 remaining separately gated phases, is actually implemented.
+
+## Progress record (orchestrator, 2026-08-16)
+
+- **Scope A landed** `26e0ee26c`: full `assetCollection` per D2/D4, with the
+  2026-08-15 author rulings (closed sharing grammar; created-order omits
+  reorder) recorded as dated LLP 0239 amendments.
+  `assets.media-collection.v1` experimental via the LLP 0134 same-commit act.
+- **Scope B landed** `d4b14d33b`: `defineMediaCommand` per D3, with the
+  2026-08-16 rulings (explicit required `mapping.operation`; closed
+  direct-recipient `mapping.principals`). `assets.media-command.v1`
+  experimental via its own act. Every production-reachable code carries a
+  reviewed HTTP status; the s5_d10 inventory stays at its 11-code inherited
+  baseline.
+- **Scope C landed** (this landing): neutral `mediaCollectionStore`,
+  `useSnapbackMediaCollection` React/Expo projections with sibling
+  isolation, command projection completeness, and guide Paths 2/4 as
+  CI-transcluded executable paths with the honesty constraints intact. Web
+  acceptance covers 1–4-source ordered commits, direct-recipient messaging,
+  and the full rendering matrix.
+
+Remaining before close (definition of done):
+
+1. Physical-device Expo acceptance of the picker → multi-upload → single
+   commit → authorized render path.
+2. The published-package rerun of the Relay Room / Tandem / Clique media
+   slices (blocked on the umbrella first-publish gate,
+   issues/20260814-umbrella-first-publish-gate.md, as of this record) and
+   the as-built rollout/evidence note in LLP 0239.

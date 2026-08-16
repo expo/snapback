@@ -1,0 +1,59 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-profile-fixture/messageMediaReplace.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetIds": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 8,
+      "type": "array"
+    },
+    "parentId": {
+      "type": "string"
+    },
+    "sharing": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "plan": {
+              "const": "owner"
+            }
+          },
+          "required": [
+            "plan"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "plan": {
+              "const": "recipients"
+            },
+            "principals": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 8,
+              "type": "array"
+            }
+          },
+          "required": [
+            "plan",
+            "principals"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "required": [
+    "parentId",
+    "assetIds"
+  ],
+  "title": "media-profile-fixture:messageMediaReplace arguments",
+  "type": "object"
+}

@@ -3,7 +3,178 @@
   "bindings": {
     "actions": [],
     "ephemeral": [],
-    "mutations": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"assetIds\": ReadonlyArray<string>; \"body\": string }",
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "name": "createPostMutation",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"_id\": string }"
+      },
+      {
+        "argumentsType": "{ \"assetIds\": ReadonlyArray<string>; \"parentId\": string; \"sharing\"?: { \"plan\": \"owner\" } | { \"plan\": \"recipients\"; \"principals\": ReadonlyArray<string> } }",
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ],
+          "writes": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ]
+        },
+        "name": "messageMediaAppend",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"parentId\": string; \"itemIds\": ReadonlyArray<string> }"
+      },
+      {
+        "argumentsType": "{ \"itemIds\": ReadonlyArray<string>; \"parentId\": string; \"sharing\"?: { \"plan\": \"owner\" } | { \"plan\": \"recipients\"; \"principals\": ReadonlyArray<string> } }",
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ],
+          "writes": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ]
+        },
+        "name": "messageMediaRemove",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"parentId\": string; \"itemIds\": ReadonlyArray<string> }"
+      },
+      {
+        "argumentsType": "{ \"itemIds\": ReadonlyArray<string>; \"parentId\": string }",
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ],
+          "writes": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ]
+        },
+        "name": "messageMediaReorder",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"parentId\": string; \"itemIds\": ReadonlyArray<string> }"
+      },
+      {
+        "argumentsType": "{ \"assetIds\": ReadonlyArray<string>; \"parentId\": string; \"sharing\"?: { \"plan\": \"owner\" } | { \"plan\": \"recipients\"; \"principals\": ReadonlyArray<string> } }",
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ],
+          "writes": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a"
+          ]
+        },
+        "name": "messageMediaReplace",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"parentId\": string; \"itemIds\": ReadonlyArray<string> }"
+      },
+      {
+        "argumentsType": "{ \"assetIds\": ReadonlyArray<string>; \"parentId\": string; \"sharing\"?: { \"plan\": \"none\" } }",
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ],
+          "writes": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ]
+        },
+        "name": "postMediaAppend",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"parentId\": string; \"itemIds\": ReadonlyArray<string> }"
+      },
+      {
+        "argumentsType": "{ \"itemIds\": ReadonlyArray<string>; \"parentId\": string; \"sharing\"?: { \"plan\": \"none\" } }",
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ],
+          "writes": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ]
+        },
+        "name": "postMediaRemove",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"parentId\": string; \"itemIds\": ReadonlyArray<string> }"
+      },
+      {
+        "argumentsType": "{ \"itemIds\": ReadonlyArray<string>; \"parentId\": string }",
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ],
+          "writes": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ]
+        },
+        "name": "postMediaReorder",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"parentId\": string; \"itemIds\": ReadonlyArray<string> }"
+      },
+      {
+        "argumentsType": "{ \"assetIds\": ReadonlyArray<string>; \"parentId\": string; \"sharing\"?: { \"plan\": \"none\" } }",
+        "effects": {
+          "invalidates": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ],
+          "writes": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          ]
+        },
+        "name": "postMediaReplace",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        },
+        "resultType": "{ \"parentId\": string; \"itemIds\": ReadonlyArray<string> }"
+      },
+      {
+        "argumentsType": "{ \"assetIds\": ReadonlyArray<string>; \"conversationId\": string; \"text\": string }",
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "name": "sendMessageMutation",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "{ \"_id\": string }"
+      }
+    ],
     "queries": [
       {
         "argumentsType": "Record<string, never>",
@@ -30,6 +201,60 @@
         },
         "name": "listProfiles",
         "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"displayName\": string; \"image\": null | { \"assetId\": string; \"kind\": \"image\" }; \"ownerId\": string }>"
+      },
+      {
+        "argumentsType": "{ \"cursor\"?: string; \"parentId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "_snapback_asset_collection_4f682e8526bbc2877b4a",
+            "messages"
+          ]
+        },
+        "name": "messageMediaList",
+        "resultType": "readonly [{ \"children\": ReadonlyArray<{ \"itemId\": string; \"media\": { \"assetId\": string; \"kind\": \"image\" | \"video\" }; \"ordinal\": number }>; \"continuation\": null; \"kind\": \"absent\"; \"parent\": null } | { \"children\": ReadonlyArray<{ \"itemId\": string; \"media\": { \"assetId\": string; \"kind\": \"image\" | \"video\" }; \"ordinal\": number }>; \"continuation\": null | string; \"kind\": \"visible\"; \"parent\": { \"parentId\": string } }]"
+      },
+      {
+        "argumentsType": "{ \"cursor\"?: string; \"parentId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+            "posts"
+          ]
+        },
+        "name": "postMediaList",
+        "resultType": "readonly [{ \"children\": ReadonlyArray<{ \"itemId\": string; \"media\": { \"assetId\": string; \"kind\": \"image\" | \"video\" }; \"ordinal\": number }>; \"continuation\": null; \"kind\": \"absent\"; \"parent\": null } | { \"children\": ReadonlyArray<{ \"itemId\": string; \"media\": { \"assetId\": string; \"kind\": \"image\" | \"video\" }; \"ordinal\": number }>; \"continuation\": null | string; \"kind\": \"visible\"; \"parent\": { \"parentId\": string } }]"
       }
     ]
   },
@@ -39,7 +264,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "8253ae0b273a16e547288102e0a0843b5ea0d4a3cd0534d6a166808c89fd71de",
+    "inputsHash": "8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

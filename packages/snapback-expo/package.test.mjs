@@ -3,7 +3,11 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 
 import * as packageEntry from './index.mjs';
-import { useSnapbackActivityPresence as reactActivityPresence } from '@expo/snapback-react';
+import {
+  useSnapbackActivityPresence as reactActivityPresence,
+  useSnapbackCommand as reactCommand,
+  useSnapbackMediaCollection as reactMediaCollection,
+} from '@expo/snapback-react';
 
 const require = createRequire(import.meta.url);
 
@@ -56,6 +60,8 @@ assert.equal(typeof packageEntry.useSnapbackQuery, 'function');
 assert.equal(typeof packageEntry.useSnapbackMutation, 'function');
 assert.equal(typeof packageEntry.useSnapbackSettledMutation, 'function');
 assert.equal(typeof packageEntry.useSnapbackActivityPresence, 'function');
+assert.equal(packageEntry.useSnapbackCommand, reactCommand);
+assert.equal(packageEntry.useSnapbackMediaCollection, reactMediaCollection);
 assert.notEqual(
   packageEntry.useSnapbackActivityPresence,
   reactActivityPresence,

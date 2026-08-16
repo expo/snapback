@@ -2,15 +2,109 @@
   "appId": "media-profile-fixture",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:ebb04301732af2158a37669fddbcc3799457e154db36468e841d273e7c3ba895",
+  "assetCollections": [
+    {
+      "childTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+      "duplicatePolicy": "refuse.v1",
+      "fields": {
+        "assetId": "assetId",
+        "kind": "kind",
+        "ordinal": "ordinal",
+        "parentId": "parentId",
+        "parentIncarnation": "parentIncarnation",
+        "policyGeneration": "policyGeneration"
+      },
+      "format": "snapback.asset-collection.v1",
+      "generation": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+      "intent": "sharedMediaUpload",
+      "kinds": [
+        "image",
+        "video"
+      ],
+      "maxItems": 8,
+      "name": "messageMedia",
+      "operations": {
+        "append": "messageMediaAppend",
+        "query": "messageMediaList",
+        "remove": "messageMediaRemove",
+        "reorder": "messageMediaReorder",
+        "replace": "messageMediaReplace"
+      },
+      "order": "manual",
+      "ownerField": "ownerId",
+      "ownerTable": "messages",
+      "sharing": {
+        "ceiling": [
+          {
+            "kind": "owner-only",
+            "name": "owner"
+          },
+          {
+            "kind": "recipients",
+            "maxRecipients": 8,
+            "name": "recipients",
+            "state": "active"
+          }
+        ],
+        "default": "owner",
+        "format": "snapback.asset-collection-sharing.v1"
+      }
+    },
+    {
+      "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+      "duplicatePolicy": "refuse.v1",
+      "fields": {
+        "assetId": "assetId",
+        "kind": "kind",
+        "ordinal": "ordinal",
+        "parentId": "parentId",
+        "parentIncarnation": "parentIncarnation",
+        "policyGeneration": "policyGeneration"
+      },
+      "format": "snapback.asset-collection.v1",
+      "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+      "intent": "sharedMediaUpload",
+      "kinds": [
+        "image",
+        "video"
+      ],
+      "maxItems": 4,
+      "name": "postMedia",
+      "operations": {
+        "append": "postMediaAppend",
+        "query": "postMediaList",
+        "remove": "postMediaRemove",
+        "reorder": "postMediaReorder",
+        "replace": "postMediaReplace"
+      },
+      "order": "manual",
+      "ownerField": "ownerId",
+      "ownerTable": "posts",
+      "sharing": {
+        "ceiling": [
+          {
+            "kind": "none",
+            "name": "none"
+          }
+        ],
+        "default": "none",
+        "format": "snapback.asset-collection-sharing.v1"
+      }
+    }
+  ],
+  "authoredSourceHash": "sha256:bb707bea2e0cb3060eb7eae94562f493647c86821c0ec2e06f7bcb4daf139a75",
+  "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "8253ae0b273a16e547288102e0a0843b5ea0d4a3cd0534d6a166808c89fd71de",
+  "inputsHash": "8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015",
   "portabilityFlags": [],
   "requiredCapabilities": [
-    "assets.media-ref-projection.v1"
+    "assets.media-ref-projection.v1",
+    "assets.media-collection.v1",
+    "bounded_children_v1",
+    "assets.media-command.v1"
   ],
-  "schemaHash": "sha256:1166da2451a839e5",
+  "schemaHash": "sha256:4268f67fe6dcabfd",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -56,6 +150,219 @@
       "indexes": [],
       "name": "profiles",
       "syncable": true
+    },
+    {
+      "assetSharing": {
+        "field": "ownerId",
+        "kind": "owner"
+      },
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "body",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "posts",
+      "syncable": true,
+      "visibility": {
+        "field": "ownerId",
+        "kind": "owner"
+      }
+    },
+    {
+      "assetSharing": {
+        "field": "ownerId",
+        "kind": "owner"
+      },
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "ownerId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "conversationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "text",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "messages",
+      "syncable": true,
+      "visibility": {
+        "field": "ownerId",
+        "kind": "owner"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "messages"
+            }
+          },
+          "name": "parentId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "RelationIncarnation": {
+              "foreignKeyField": "parentId",
+              "parentTable": "messages"
+            }
+          },
+          "name": "parentIncarnation",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "media": {
+                "classificationProfile": "detected-content-type.v1",
+                "intent": "sharedMediaUpload",
+                "kinds": [
+                  "image",
+                  "video"
+                ],
+                "policy": "sha256:8462087d1ad5e9c9a9b2217e965e237a419a1cd4ca75ebbfdfc312aa667b5fd3",
+                "retentionClass": "media-reference.v1",
+                "targetCapability": "assets.media-ref-projection.v1"
+              },
+              "upload": "sharedMediaUpload"
+            }
+          },
+          "name": "assetId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "policyGeneration",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "ordinal",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "parentId",
+            "parentIncarnation",
+            "ordinal"
+          ],
+          "name": "byParentOrdinal"
+        },
+        {
+          "fields": [
+            "parentId",
+            "parentIncarnation",
+            "assetId"
+          ],
+          "name": "uniqueParentAsset",
+          "unique": true
+        }
+      ],
+      "name": "_snapback_asset_collection_4f682e8526bbc2877b4a",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "posts"
+            }
+          },
+          "name": "parentId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "RelationIncarnation": {
+              "foreignKeyField": "parentId",
+              "parentTable": "posts"
+            }
+          },
+          "name": "parentIncarnation",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "AssetRef": {
+              "media": {
+                "classificationProfile": "detected-content-type.v1",
+                "intent": "sharedMediaUpload",
+                "kinds": [
+                  "image",
+                  "video"
+                ],
+                "policy": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                "retentionClass": "media-reference.v1",
+                "targetCapability": "assets.media-ref-projection.v1"
+              },
+              "upload": "sharedMediaUpload"
+            }
+          },
+          "name": "assetId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "kind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "policyGeneration",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "ordinal",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "parentId",
+            "parentIncarnation",
+            "ordinal"
+          ],
+          "name": "byParentOrdinal"
+        },
+        {
+          "fields": [
+            "parentId",
+            "parentIncarnation",
+            "assetId"
+          ],
+          "name": "uniqueParentAsset",
+          "unique": true
+        }
+      ],
+      "name": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+      "syncable": false
     }
   ],
   "targetProfile": "local-dev-sqlite-ibex"

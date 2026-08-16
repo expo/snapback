@@ -21,6 +21,7 @@ import {
   useSnapbackAssetUrl,
   useSnapbackAssetUpload,
   useSnapbackMedia,
+  useSnapbackMediaCollection,
 } from './index.mjs';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -222,11 +223,84 @@ class FakeMediaStore {
   }
 }
 
+const FAKE_EMPTY_MEDIA_COLLECTION_SNAPSHOT = Object.freeze([]);
+const FAKE_EMPTY_MEDIA_COLLECTION_STORE = Object.freeze({
+  getSnapshot: () => FAKE_EMPTY_MEDIA_COLLECTION_SNAPSHOT,
+  getServerSnapshot: () => FAKE_EMPTY_MEDIA_COLLECTION_SNAPSHOT,
+  subscribe: () => () => {},
+  refresh: async () => {},
+});
+
+class FakeMediaCollectionStore {
+  listeners = new Set();
+  releases = [];
+
+  constructor(items, mediaStore) {
+    this.children = items.map((item) => ({
+      item,
+      store: mediaStore(item.media),
+      source: null,
+      projection: null,
+    }));
+    this.snapshot = this.project();
+  }
+
+  project() {
+    let changed = false;
+    const projected = this.children.map((child) => {
+      const source = child.store.getSnapshot();
+      if (source !== child.source) {
+        child.source = source;
+        child.projection = Object.freeze({
+          itemId: child.item.itemId,
+          ordinal: child.item.ordinal,
+          state: source,
+          refresh: child.store.refresh,
+        });
+        changed = true;
+      }
+      return child.projection;
+    });
+    return changed || this.snapshot === undefined
+      ? Object.freeze(projected)
+      : this.snapshot;
+  }
+
+  getSnapshot = () => {
+    this.snapshot = this.project();
+    return this.snapshot;
+  };
+  getServerSnapshot = () => this.snapshot;
+  subscribe = (listener) => {
+    this.listeners.add(listener);
+    if (this.listeners.size === 1) {
+      this.releases = this.children.map((child) => child.store.subscribe(() => {
+        this.snapshot = this.project();
+        for (const observer of [...this.listeners]) observer();
+      }));
+    }
+    return () => {
+      this.listeners.delete(listener);
+      if (this.listeners.size === 0) {
+        for (const release of this.releases) release();
+        this.releases = [];
+      }
+    };
+  };
+  refresh = async (itemId) => {
+    const selected = itemId === undefined
+      ? this.children
+      : this.children.filter((child) => child.item.itemId === itemId);
+    await Promise.all(selected.map((child) => child.store.refresh()));
+  };
+}
+
 function createFakeAssets() {
   const watchListeners = new Set();
   let watchSnapshot = Object.freeze({ status: 'connecting', record: null, mode: 'live' });
   const issuedUrlStores = new Map();
   const mediaStores = new Map();
+  const mediaCollectionStores = new Map();
   const issuedUrlKey = (assetId, options = {}) => JSON.stringify([
     assetId,
     options.variant ?? null,
@@ -237,8 +311,10 @@ function createFakeAssets() {
     started: [],
     issuedUrlStoreCalls: 0,
     mediaStoreCalls: 0,
+    mediaCollectionStoreCalls: 0,
     get issuedUrlStoreCount() { return issuedUrlStores.size; },
     get mediaStoreCount() { return mediaStores.size; },
+    get mediaCollectionStoreCount() { return mediaCollectionStores.size; },
     start({ upload, file }) {
       const task = new FakeTask({ totalBytes: file.size, status: 'uploading' });
       task.upload = upload;
@@ -290,11 +366,29 @@ function createFakeAssets() {
     mediaStoreFor(media, options = {}) {
       return mediaStores.get(JSON.stringify([media.assetId, media.kind, options])) ?? null;
     },
+    mediaCollectionStore(items, options = {}) {
+      assets.mediaCollectionStoreCalls += 1;
+      if (items.length === 0) return FAKE_EMPTY_MEDIA_COLLECTION_STORE;
+      const key = JSON.stringify([items, options]);
+      let store = mediaCollectionStores.get(key);
+      if (!store) {
+        store = new FakeMediaCollectionStore(
+          items,
+          (media) => assets.mediaStore(media, options),
+        );
+        mediaCollectionStores.set(key, store);
+      }
+      return store;
+    },
+    mediaCollectionStoreFor(items, options = {}) {
+      return mediaCollectionStores.get(JSON.stringify([items, options])) ?? null;
+    },
     rotateIssuedUrlAuthority() {
       const predecessors = [...issuedUrlStores.values()];
       const mediaPredecessors = [...mediaStores.values()];
       issuedUrlStores.clear();
       mediaStores.clear();
+      mediaCollectionStores.clear();
       for (const store of predecessors) {
         store.publish(FAKE_ISSUED_URL_CONSTRUCTION_SNAPSHOT);
       }
@@ -571,6 +665,138 @@ function renderHook(provider, hook, { strict = false } = {}) {
   assert.equal(successor.listeners.size, 1);
   act(() => { renderer.unmount(); });
   console.log('media hook ready/refresh and authority successor blanking: ok');
+}
+
+// --- media collection hook: empty, sibling isolation, stable item ids -----
+
+{
+  const { provider, assets } = await harness();
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackMediaCollection([]),
+  );
+  assert.deepEqual(output.current, []);
+  assert.equal(assets.mediaCollectionStoreCalls, 1);
+  assert.equal(assets.mediaStoreCalls, 0);
+  assert.equal(assets.issuedUrlStoreCalls, 0, 'empty collection creates no child issuance');
+  act(() => { renderer.unmount(); });
+  console.log('media collection hook empty is synchronous with zero issuance: ok');
+}
+
+{
+  const { provider, assets, barriers } = await harness();
+  const items = Object.freeze([
+    Object.freeze({
+      itemId: 'collection-image',
+      ordinal: 0,
+      media: Object.freeze({ assetId: 'asset-collection-image', kind: 'image' }),
+    }),
+    Object.freeze({
+      itemId: 'collection-video-ready',
+      ordinal: 1,
+      media: Object.freeze({ assetId: 'asset-collection-video-ready', kind: 'video' }),
+    }),
+    Object.freeze({
+      itemId: 'collection-video-unavailable',
+      ordinal: 2,
+      media: Object.freeze({ assetId: 'asset-collection-video-unavailable', kind: 'video' }),
+    }),
+    Object.freeze({
+      itemId: 'collection-denied',
+      ordinal: 3,
+      media: Object.freeze({ assetId: 'asset-collection-denied', kind: 'image' }),
+    }),
+  ]);
+  const options = Object.freeze({ variant: 'primary' });
+  const { output, renderer } = renderHook(
+    provider,
+    () => useSnapbackMediaCollection(items, options),
+  );
+  const predecessor = assets.mediaCollectionStoreFor(items, options);
+  assert.deepEqual(output.current.map(({ itemId, state }) => [itemId, state.status]), [
+    ['collection-image', 'issuing'],
+    ['collection-video-ready', 'issuing'],
+    ['collection-video-unavailable', 'issuing'],
+    ['collection-denied', 'issuing'],
+  ]);
+  const imageStore = assets.mediaStoreFor(items[0].media, options);
+  const videoStore = assets.mediaStoreFor(items[1].media, options);
+  const unavailableStore = assets.mediaStoreFor(items[2].media, options);
+  const deniedStore = assets.mediaStoreFor(items[3].media, options);
+  act(() => {
+    imageStore.publish({
+      status: 'ready',
+      media: items[0].media,
+      url: 'http://fixture/assets/signed/collection-image',
+      expiresAt: Date.now() + 60_000,
+      rendition: 'primary',
+    });
+    videoStore.publish({
+      status: 'ready',
+      media: items[1].media,
+      url: 'http://fixture/assets/signed/collection-video',
+      expiresAt: Date.now() + 60_000,
+      rendition: 'original',
+    });
+  });
+  const stableImageItem = output.current[0];
+  const stableVideoItem = output.current[1];
+  act(() => {
+    unavailableStore.publish({
+      status: 'unavailable',
+      media: items[2].media,
+      diagnostic: Object.freeze({ code: 'SNAPBACK_ASSET_STORE_UNAVAILABLE' }),
+    });
+    deniedStore.publish({
+      status: 'denied',
+      media: items[2].media,
+      diagnostic: Object.freeze({ code: 'SNAPBACK_ASSET_FORBIDDEN' }),
+    });
+  });
+  assert.strictEqual(output.current[0], stableImageItem, 'bad siblings preserve valid item identity');
+  assert.deepEqual(output.current.map(({ state }) => state.status), [
+    'ready',
+    'ready',
+    'unavailable',
+    'denied',
+  ]);
+  await act(async () => { await output.current[2].refresh(); });
+  assert.equal(unavailableStore.refreshCalls, 1);
+
+  // A later authorization revocation blanks only that item's URL. The ready
+  // video sibling remains the same projection; readiness does not claim a
+  // portable playback contract.
+  act(() => {
+    imageStore.publish({
+      status: 'denied',
+      media: items[0].media,
+      diagnostic: Object.freeze({ code: 'SNAPBACK_ASSET_FORBIDDEN', reason: 'revoked' }),
+    });
+  });
+  assert.equal('url' in output.current[0].state, false);
+  assert.strictEqual(output.current[1], stableVideoItem);
+  assert.equal(output.current[1].state.media.kind, 'video');
+
+  await act(async () => {
+    assets.rotateIssuedUrlAuthority();
+    const assetBarrier = barriers.find(
+      (entry) => entry.name.startsWith('snapback-react-assets:'),
+    );
+    assetBarrier.blank();
+    await assetBarrier.resume();
+  });
+  const successor = assets.mediaCollectionStoreFor(items, options);
+  assert.notEqual(successor, predecessor);
+  assert.deepEqual(output.current.map(({ state }) => state.status), [
+    'issuing',
+    'issuing',
+    'issuing',
+    'issuing',
+  ]);
+  assert.equal(predecessor.listeners.size, 0);
+  assert.equal(successor.listeners.size, 1);
+  act(() => { renderer.unmount(); });
+  console.log('media collection hook mixed sibling states and authority successor: ok');
 }
 
 // --- upload hook reactivity, retry stability, blanking ---------------------

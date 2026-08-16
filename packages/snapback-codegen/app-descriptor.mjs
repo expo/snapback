@@ -36,7 +36,7 @@ const SURFACE_KEYS = [
 const SURFACE_MEMBER_KEYS = ['artifactKind', 'bindings', 'inputs', 'reference'];
 const COMMAND_KEYS = ['asset', 'kind', 'mutation', 'passthroughArgs'];
 const COMMAND_ASSET_KEYS = ['input', 'intent', 'mutationArg', 'optional'];
-const MEDIA_COMMAND_KEYS = ['binding', 'kind', 'mutation', 'passthroughArgs'];
+const MEDIA_COMMAND_KEYS = ['binding', 'intent', 'kind', 'mutation', 'passthroughArgs'];
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -332,12 +332,23 @@ function validateCommandDescriptor(command, path, problems, api = null) {
       new Set(['Mutation']),
       problems,
     );
+    validateReferenceMap(
+      { intent: command.intent },
+      `${path}.intent`,
+      'assetUploadReference',
+      null,
+      problems,
+    );
     const passthroughValid = Array.isArray(command.passthroughArgs)
       && !command.passthroughArgs.some((name) => typeof name !== 'string' || name.length === 0)
       && new Set(command.passthroughArgs).size === command.passthroughArgs.length;
     if (!passthroughValid
       || !samePortableValue(command.passthroughArgs, command.binding.passthroughArgs)
-      || command.mutation?.name !== command.binding.targetMutation?.name) {
+      || command.mutation?.name !== command.binding.targetMutation?.name
+      || command.intent?.name !== command.binding.media?.intent
+      || command.intent?.intentPolicyHash !== command.binding.media?.intentPolicyHash
+      || (isRecord(api?.assets)
+        && !Object.values(api.assets).some((intent) => samePortableValue(intent, command.intent)))) {
       problems.push(problem(
         'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
         path,

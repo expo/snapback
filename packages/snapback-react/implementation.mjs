@@ -1985,6 +1985,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const runCommandMutation = async (mutationReference, mutationArgs, {
     clientMutationId,
     authorityCapture,
+    mediaCommand,
   }) => {
     // @ref LLP 0180#mutation-ambiguity — these terminal checks refuse before
     // client.mutate, proving that no mutation effect left this provider.
@@ -2017,7 +2018,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       args: mutationArgs,
       clientMutationId,
       authorityCapture,
-      queue: false,
+      ...(mediaCommand === undefined ? {} : { mediaCommand }),
+      // @ref LLP 0239#d3-one-mediacommand-owns-multi-upload-plus-atomic-commit —
+      // carry the finalized item plan into the existing mutation/outbox owner;
+      // legacy one-asset commands retain their online-only posture.
+      queue: mediaCommand === undefined ? false : 'auto',
       ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
     });
     return validateResultContract(
@@ -6168,6 +6173,35 @@ export function useSnapbackMedia(mediaRefOrNull, options = {}) {
   const refresh = useCallback(() => store.refresh(), [store]);
   const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   return useMemo(() => Object.freeze({ ...snapshot, refresh }), [snapshot, refresh]);
+}
+
+/**
+ * Bounded collection projection over the neutral media collection store.
+ * Stable item ids and child refresh functions come from that store; React
+ * owns only content-keyed subscription identity.
+ *
+ * @ref LLP 0239#d5-one-media-projection-handles-empty-image-video-denial-and-refresh —
+ * one denied or unavailable child remains a local item state and cannot erase
+ * authorized siblings.
+ */
+export function useSnapbackMediaCollection(items, options = {}) {
+  const provider = useProvider();
+  const registry = assetRegistryFor(provider);
+  const itemsKey = canonicalHookInputKey(items);
+  const optionsKey = canonicalHookInputKey(options);
+  const authorityGeneration = useSyncExternalStore(
+    registry.subscribeIssuedUrlGeneration,
+    registry.getIssuedUrlGeneration,
+    registry.getIssuedUrlGeneration,
+  );
+  const store = useMemo(
+    () => registry.assets.mediaCollectionStore(items, options),
+    [registry, itemsKey, optionsKey, authorityGeneration],
+  );
+  const subscribe = useCallback((listener) => store.subscribe(listener), [store]);
+  const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
+  const getServerSnapshot = useCallback(() => store.getServerSnapshot(), [store]);
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
 function createAssetUploadStore(registry, upload) {

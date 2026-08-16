@@ -1,0 +1,59 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-profile-fixture/messageMediaRemove.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "itemIds": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 8,
+      "type": "array"
+    },
+    "parentId": {
+      "type": "string"
+    },
+    "sharing": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "plan": {
+              "const": "owner"
+            }
+          },
+          "required": [
+            "plan"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "plan": {
+              "const": "recipients"
+            },
+            "principals": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 8,
+              "type": "array"
+            }
+          },
+          "required": [
+            "plan",
+            "principals"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "required": [
+    "parentId",
+    "itemIds"
+  ],
+  "title": "media-profile-fixture:messageMediaRemove arguments",
+  "type": "object"
+}

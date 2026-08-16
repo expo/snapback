@@ -15,23 +15,38 @@ const referenceSummary = (name, reference) => ({
 const commandRequiredCapabilities = (command) => [...new Set([
   ...(command.mutation.requiredCapabilities ?? []),
   ...(command.asset?.intent.requiredCapabilities ?? []),
+  ...(command.intent?.requiredCapabilities ?? []),
 ])].sort();
 
-const commandSummary = (name, command) => ({
-  name,
-  kind: command.kind,
-  mutation: referenceSummary(command.mutation.name, command.mutation),
-  asset: command.asset === null
-    ? null
-    : {
-        input: command.asset.input,
-        mutationArg: command.asset.mutationArg,
-        optional: command.asset.optional,
-        intent: referenceSummary(command.asset.intent.name, command.asset.intent),
-      },
-  passthroughArgs: copy(command.passthroughArgs),
-  requiredCapabilities: commandRequiredCapabilities(command),
-});
+const commandSummary = (name, command) => {
+  const common = {
+    name,
+    kind: command.kind,
+    mutation: referenceSummary(command.mutation.name, command.mutation),
+  };
+  if (command.kind === 'media-command.v1') {
+    return {
+      ...common,
+      intent: referenceSummary(command.intent.name, command.intent),
+      binding: copy(command.binding),
+      passthroughArgs: copy(command.passthroughArgs),
+      requiredCapabilities: commandRequiredCapabilities(command),
+    };
+  }
+  return {
+    ...common,
+    asset: command.asset === null
+      ? null
+      : {
+          input: command.asset.input,
+          mutationArg: command.asset.mutationArg,
+          optional: command.asset.optional,
+          intent: referenceSummary(command.asset.intent.name, command.asset.intent),
+        },
+    passthroughArgs: copy(command.passthroughArgs),
+    requiredCapabilities: commandRequiredCapabilities(command),
+  };
+};
 
 export function enumerateAppDescriptorV1(descriptor) {
   const api = Object.fromEntries(

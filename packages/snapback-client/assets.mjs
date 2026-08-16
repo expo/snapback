@@ -180,6 +180,7 @@ const EMPTY_MEDIA_SNAPSHOT = /* @__PURE__ */ Object.freeze({
   status: 'empty',
   media: null,
 });
+const EMPTY_MEDIA_COLLECTION_SNAPSHOT = /* @__PURE__ */ Object.freeze([]);
 
 /** The exact member set a persisted resume fact may carry. */
 export const PERSISTED_RESUME_FACT_MEMBERS = /* @__PURE__ */ Object.freeze([
@@ -738,6 +739,151 @@ const EMPTY_MEDIA_STORE = /* @__PURE__ */ Object.freeze({
   refresh: () => Promise.resolve(),
 });
 
+function assertMediaCollectionItems(items) {
+  if (!Array.isArray(items)) {
+    throw new TypeError('mediaCollectionStore items must be an array of generated collection items');
+  }
+  if (items.length === 0) return EMPTY_MEDIA_COLLECTION_SNAPSHOT;
+  if (items.length > 32) {
+    throw new TypeError('mediaCollectionStore items must contain at most 32 generated collection items');
+  }
+  const itemIds = new Set();
+  return Object.freeze(items.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new TypeError(`mediaCollectionStore items[${index}] must be a generated collection item`);
+    }
+    if (typeof item.itemId !== 'string' || item.itemId.length === 0) {
+      throw new TypeError(`mediaCollectionStore items[${index}].itemId must be a non-empty string`);
+    }
+    if (itemIds.has(item.itemId)) {
+      throw new TypeError(`mediaCollectionStore itemId ${JSON.stringify(item.itemId)} is duplicated`);
+    }
+    if (!Number.isSafeInteger(item.ordinal) || item.ordinal < 0) {
+      throw new TypeError(`mediaCollectionStore items[${index}].ordinal must be a non-negative integer`);
+    }
+    itemIds.add(item.itemId);
+    return Object.freeze({
+      itemId: item.itemId,
+      ordinal: item.ordinal,
+      media: assertMediaRef(item.media),
+    });
+  }));
+}
+
+/**
+ * Pure bounded aggregation of MediaStore children. Each child retains the one
+ * issued-URL controller selected by asset, authority, and rendition options;
+ * this aggregate owns no transport, timer, retry, or authorization state.
+ *
+ * @ref LLP 0239#d5-one-media-projection-handles-empty-image-video-denial-and-refresh —
+ * item identity remains stable while denial/unavailability stays local to the
+ * affected child and empty collections create no issuance demand.
+ */
+class MediaCollectionStore {
+  #children;
+  #listeners = new Set();
+  #releases = null;
+  #serverSnapshot;
+  #snapshot;
+
+  constructor(assetClient, items, options) {
+    this.#children = items.map((item) => {
+      const store = assetClient.mediaStore(item.media, options);
+      const child = {
+        item,
+        store,
+        refresh: () => store.refresh(),
+        source: null,
+        projection: null,
+        serverSource: null,
+        serverProjection: null,
+      };
+      return child;
+    });
+    this.#snapshot = this.#project(false);
+    this.#serverSnapshot = this.#project(true);
+  }
+
+  #project(server) {
+    let changed = false;
+    const projections = this.#children.map((child) => {
+      const source = server ? child.store.getServerSnapshot() : child.store.getSnapshot();
+      const sourceKey = server ? 'serverSource' : 'source';
+      const projectionKey = server ? 'serverProjection' : 'projection';
+      if (child[sourceKey] !== source) {
+        child[sourceKey] = source;
+        child[projectionKey] = Object.freeze({
+          itemId: child.item.itemId,
+          ordinal: child.item.ordinal,
+          state: source,
+          refresh: child.refresh,
+        });
+        changed = true;
+      }
+      return child[projectionKey];
+    });
+    const current = server ? this.#serverSnapshot : this.#snapshot;
+    return changed || current === undefined ? Object.freeze(projections) : current;
+  }
+
+  getSnapshot() {
+    this.#snapshot = this.#project(false);
+    return this.#snapshot;
+  }
+
+  getServerSnapshot() {
+    return this.#serverSnapshot;
+  }
+
+  subscribe(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('media collection store listener must be a function');
+    }
+    this.#listeners.add(listener);
+    if (this.#listeners.size === 1) {
+      this.#releases = this.#children.map((child) => child.store.subscribe(() => {
+        const previous = this.#snapshot;
+        this.#snapshot = this.#project(false);
+        if (this.#snapshot === previous) return;
+        for (const observer of [...this.#listeners]) {
+          try { observer(this.#snapshot); } catch { /* observational */ }
+        }
+      }));
+    }
+    return () => {
+      this.#listeners.delete(listener);
+      if (this.#listeners.size === 0 && this.#releases !== null) {
+        const releases = this.#releases;
+        this.#releases = null;
+        for (const release of releases) release();
+      }
+    };
+  }
+
+  refresh(itemId) {
+    if (itemId === undefined) {
+      return Promise.all(this.#children.map((child) => child.store.refresh())).then(() => {});
+    }
+    const child = this.#children.find((candidate) => candidate.item.itemId === itemId);
+    if (!child) {
+      throw new TypeError(`mediaCollectionStore cannot refresh unknown itemId ${JSON.stringify(itemId)}`);
+    }
+    return child.store.refresh();
+  }
+}
+
+const EMPTY_MEDIA_COLLECTION_STORE = /* @__PURE__ */ Object.freeze({
+  getSnapshot: () => EMPTY_MEDIA_COLLECTION_SNAPSHOT,
+  getServerSnapshot: () => EMPTY_MEDIA_COLLECTION_SNAPSHOT,
+  subscribe(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('media collection store listener must be a function');
+    }
+    return () => {};
+  },
+  refresh: () => Promise.resolve(),
+});
+
 /** In-memory default store for persisted resume facts. */
 export function createMemoryAssetTaskStore() {
   const map = new Map();
@@ -1149,6 +1295,16 @@ export class SnapbackAssetClient {
     if (media === null) return EMPTY_MEDIA_STORE;
     const normalized = mediaIssuanceOptions(media, options);
     return new MediaStore(this.issuedUrlStore(media.assetId, normalized), media);
+  }
+
+  /**
+   * Project one generated bounded collection through the same neutral media
+   * stores used by scalar media. Empty input is an inert frozen singleton.
+   */
+  mediaCollectionStore(items, options = {}) {
+    const normalizedItems = assertMediaCollectionItems(items);
+    if (normalizedItems.length === 0) return EMPTY_MEDIA_COLLECTION_STORE;
+    return new MediaCollectionStore(this, normalizedItems, options);
   }
 
   start({

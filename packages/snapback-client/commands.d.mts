@@ -1,4 +1,4 @@
-import type { AssetFileLike, AssetTaskSnapshot, AssetUploadTask, SnapbackAssetClient } from './assets.mjs';
+import type { AssetFileLike, AssetTaskSnapshot, AssetUploadReferenceLike, AssetUploadTask, SnapbackAssetClient } from './assets.mjs';
 import type { FunctionArgs, FunctionResult, SnapbackClient, SnapbackFunctionReference } from './index.mjs';
 
 export type PlatformCommandAssetSource = Readonly<{
@@ -56,10 +56,12 @@ export interface MediaCommandDescriptorV1<
   MinItems extends number = number,
   MaxItems extends number = number,
   PrincipalInput extends string | never = never,
+  Intent extends AssetUploadReferenceLike = AssetUploadReferenceLike,
 > {
   readonly kind: 'media-command.v1';
   readonly __snapbackReferenceKind: 'Command';
   readonly mutation: Mutation;
+  readonly intent: Intent;
   readonly binding: Readonly<{
     format: 'snapback.media-command-binding.v1';
     identity: string;
@@ -85,8 +87,16 @@ export type AssetBearingCommandReferenceV1 = Pick<
   'kind' | '__snapbackReferenceKind' | 'mutation' | 'asset' | 'passthroughArgs'
 >;
 export type MediaCommandReferenceV1 = Pick<
-  MediaCommandDescriptorV1,
-  'kind' | '__snapbackReferenceKind' | 'mutation' | 'binding' | 'passthroughArgs'
+  MediaCommandDescriptorV1<
+    SnapbackFunctionReference<string, 'Mutation', unknown, unknown>,
+    string,
+    string,
+    number,
+    number,
+    string,
+    AssetUploadReferenceLike
+  >,
+  'kind' | '__snapbackReferenceKind' | 'mutation' | 'intent' | 'binding' | 'passthroughArgs'
 >;
 export type CommandRef = AssetBearingCommandReferenceV1 | MediaCommandReferenceV1;
 

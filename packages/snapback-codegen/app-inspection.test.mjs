@@ -174,6 +174,24 @@ export const room = defineSurface({
   assert.equal(fixtureCommand.asset?.mutationArg, 'image');
   assert(fixtureSurface?.members.commands.some(({ name }) => name === 'send'));
 
+  const mediaDescriptor = JSON.parse(readFileSync(join(
+    repoRoot,
+    'tests',
+    'acceptance',
+    'fixtures',
+    'media-profile',
+    'snapback',
+    'generated',
+    'app.descriptor.json',
+  ), 'utf8'));
+  const mediaInspection = enumerateAppDescriptorV1(mediaDescriptor);
+  const mediaCommand = mediaInspection.commands.find(({ name }) => name === 'sendMessage');
+  assert(mediaCommand);
+  assert.equal(mediaCommand.kind, 'media-command.v1');
+  assert.equal(mediaCommand.intent.name, 'sharedMediaUpload');
+  assert.equal(mediaCommand.binding.format, 'snapback.media-command-binding.v1');
+  assert.equal(mediaCommand.mutation.name, 'sendMessageMutation');
+
   const inspectionSource = readFileSync(join(packageRoot, 'app-inspection.mjs'), 'utf8');
   assert.doesNotMatch(
     inspectionSource,

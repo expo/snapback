@@ -1,0 +1,18 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-profile-fixture/messageMediaList.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cursor": {
+      "type": "string"
+    },
+    "parentId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "parentId"
+  ],
+  "title": "media-profile-fixture:messageMediaList arguments",
+  "type": "object"
+}

@@ -3,11 +3,47 @@ export type ProviderBindingMetadataVersion = 'provider-binding-metadata.v1';
 
 export type ListProfilesArgs = Record<string, never>;
 export type ListProfilesResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "displayName": string; "image": null | { "assetId": string; "kind": "image" }; "ownerId": string }>;
+export type MessageMediaListArgs = { "cursor"?: string; "parentId": string };
+export type MessageMediaListResult = readonly [{ "children": ReadonlyArray<{ "itemId": string; "media": { "assetId": string; "kind": "image" | "video" }; "ordinal": number }>; "continuation": null; "kind": "absent"; "parent": null } | { "children": ReadonlyArray<{ "itemId": string; "media": { "assetId": string; "kind": "image" | "video" }; "ordinal": number }>; "continuation": null | string; "kind": "visible"; "parent": { "parentId": string } }];
+export type PostMediaListArgs = { "cursor"?: string; "parentId": string };
+export type PostMediaListResult = readonly [{ "children": ReadonlyArray<{ "itemId": string; "media": { "assetId": string; "kind": "image" | "video" }; "ordinal": number }>; "continuation": null; "kind": "absent"; "parent": null } | { "children": ReadonlyArray<{ "itemId": string; "media": { "assetId": string; "kind": "image" | "video" }; "ordinal": number }>; "continuation": null | string; "kind": "visible"; "parent": { "parentId": string } }];
+export type CreatePostMutationArgs = { "assetIds": ReadonlyArray<string>; "body": string };
+export type CreatePostMutationResult = { "_id": string };
+export type MessageMediaAppendArgs = { "assetIds": ReadonlyArray<string>; "parentId": string; "sharing"?: { "plan": "owner" } | { "plan": "recipients"; "principals": ReadonlyArray<string> } };
+export type MessageMediaAppendResult = { "parentId": string; "itemIds": ReadonlyArray<string> };
+export type MessageMediaRemoveArgs = { "itemIds": ReadonlyArray<string>; "parentId": string; "sharing"?: { "plan": "owner" } | { "plan": "recipients"; "principals": ReadonlyArray<string> } };
+export type MessageMediaRemoveResult = { "parentId": string; "itemIds": ReadonlyArray<string> };
+export type MessageMediaReorderArgs = { "itemIds": ReadonlyArray<string>; "parentId": string };
+export type MessageMediaReorderResult = { "parentId": string; "itemIds": ReadonlyArray<string> };
+export type MessageMediaReplaceArgs = { "assetIds": ReadonlyArray<string>; "parentId": string; "sharing"?: { "plan": "owner" } | { "plan": "recipients"; "principals": ReadonlyArray<string> } };
+export type MessageMediaReplaceResult = { "parentId": string; "itemIds": ReadonlyArray<string> };
+export type PostMediaAppendArgs = { "assetIds": ReadonlyArray<string>; "parentId": string; "sharing"?: { "plan": "none" } };
+export type PostMediaAppendResult = { "parentId": string; "itemIds": ReadonlyArray<string> };
+export type PostMediaRemoveArgs = { "itemIds": ReadonlyArray<string>; "parentId": string; "sharing"?: { "plan": "none" } };
+export type PostMediaRemoveResult = { "parentId": string; "itemIds": ReadonlyArray<string> };
+export type PostMediaReorderArgs = { "itemIds": ReadonlyArray<string>; "parentId": string };
+export type PostMediaReorderResult = { "parentId": string; "itemIds": ReadonlyArray<string> };
+export type PostMediaReplaceArgs = { "assetIds": ReadonlyArray<string>; "parentId": string; "sharing"?: { "plan": "none" } };
+export type PostMediaReplaceResult = { "parentId": string; "itemIds": ReadonlyArray<string> };
+export type SendMessageMutationArgs = { "assetIds": ReadonlyArray<string>; "conversationId": string; "text": string };
+export type SendMessageMutationResult = { "_id": string };
 
 export interface ProviderQueryBindings {
   "listProfiles": { args: ListProfilesArgs; result: ListProfilesResult };
+  "messageMediaList": { args: MessageMediaListArgs; result: MessageMediaListResult };
+  "postMediaList": { args: PostMediaListArgs; result: PostMediaListResult };
 }
 export interface ProviderMutationBindings {
+  "createPostMutation": { args: CreatePostMutationArgs; result: CreatePostMutationResult };
+  "messageMediaAppend": { args: MessageMediaAppendArgs; result: MessageMediaAppendResult };
+  "messageMediaRemove": { args: MessageMediaRemoveArgs; result: MessageMediaRemoveResult };
+  "messageMediaReorder": { args: MessageMediaReorderArgs; result: MessageMediaReorderResult };
+  "messageMediaReplace": { args: MessageMediaReplaceArgs; result: MessageMediaReplaceResult };
+  "postMediaAppend": { args: PostMediaAppendArgs; result: PostMediaAppendResult };
+  "postMediaRemove": { args: PostMediaRemoveArgs; result: PostMediaRemoveResult };
+  "postMediaReorder": { args: PostMediaReorderArgs; result: PostMediaReorderResult };
+  "postMediaReplace": { args: PostMediaReplaceArgs; result: PostMediaReplaceResult };
+  "sendMessageMutation": { args: SendMessageMutationArgs; result: SendMessageMutationResult };
 }
 export interface ProviderActionBindings {
 }

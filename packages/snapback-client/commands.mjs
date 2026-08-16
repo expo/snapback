@@ -139,6 +139,9 @@ function assertMediaCommandDescriptor(command) {
     || !command.mutation
     || command.mutation.artifactKind !== 'functionReference'
     || command.mutation.kind !== 'Mutation'
+    || command.intent?.artifactKind !== 'assetUploadReference'
+    || command.intent?.name !== binding?.media?.intent
+    || command.intent?.intentPolicyHash !== binding?.media?.intentPolicyHash
     || !Array.isArray(command.passthroughArgs)
     || binding?.format !== 'snapback.media-command-binding.v1'
     || typeof binding.identity !== 'string'
@@ -814,7 +817,7 @@ class MediaCommandTaskImpl {
       task = await seeded.task.retry();
     } else {
       task = this.#owner.assets.start({
-        upload: this.#command.binding.media.intent,
+        upload: this.#command.intent,
         args: {},
         file: item.source.file,
         declaredFilename: item.source.declaredFilename,

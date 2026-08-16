@@ -1,0 +1,35 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-profile-fixture/postMediaAppend.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assetIds": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 4,
+      "type": "array"
+    },
+    "parentId": {
+      "type": "string"
+    },
+    "sharing": {
+      "additionalProperties": false,
+      "properties": {
+        "plan": {
+          "const": "none"
+        }
+      },
+      "required": [
+        "plan"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "parentId",
+    "assetIds"
+  ],
+  "title": "media-profile-fixture:postMediaAppend arguments",
+  "type": "object"
+}

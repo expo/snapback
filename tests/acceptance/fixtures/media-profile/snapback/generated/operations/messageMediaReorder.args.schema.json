@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/media-profile-fixture/messageMediaReorder.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "itemIds": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 8,
+      "type": "array"
+    },
+    "parentId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "parentId",
+    "itemIds"
+  ],
+  "title": "media-profile-fixture:messageMediaReorder arguments",
+  "type": "object"
+}

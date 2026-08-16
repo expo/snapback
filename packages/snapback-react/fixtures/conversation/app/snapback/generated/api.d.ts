@@ -343,6 +343,8 @@ export interface GeneratedApi {
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
 }
+export interface GeneratedCommandTargets {
+}
 export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;
 export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? Handler<GeneratedFunctionContexts[Name], Args, Result> : never;
 export declare const ephemeral: GeneratedEphemeral;
