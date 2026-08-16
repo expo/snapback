@@ -509,6 +509,28 @@ away.
 Each phase keeps existing primitives usable and advertises only the capability
 rows it has actually qualified.
 
+> **As-built rollout record (2026-08-16,
+> issues/20260815-finish-media-happy-path.md).** Steps 3 and 4 are
+> implemented and landed: the generated `assetCollection` (`26e0ee26c`,
+> `assets.media-collection.v1` experimental via its LLP 0134 same-commit
+> act) and the closed `defineMediaCommand` binding with atomic host staging
+> (`d4b14d33b`, `assets.media-command.v1` experimental likewise), plus the
+> collection controller/hook projections and the executable guide Paths 2/4
+> (`71372c5cc`). Four dated author rulings taken during the rollout are
+> recorded beside D2/D3/D4. Post-landing hardware evidence: a physical-iOS
+> pass (Diary 0087, 2026-08-16 entry) proved picker → bounded multi-upload
+> with per-item progress → one atomic parent/collection commit → signed
+> delivery → authorized render, and forced two defects fixed in place (the
+> preview identity omission, `4b79cc02e`; the JS query-path double
+> projection landed with `bd0f7b0c5`/`9971c640c`) and one client fix
+> (per-kind rendition-option routing). The acceptance suite was adapted to
+> the later ownership-composition enforcement without weakening any proven
+> property (`d4fbc1604`). Step 5 remains generation-refused as designed;
+> step 6's migration preview and published-package reruns remain open on
+> the rollout ticket, alongside the iPhone-MOV strip-walker refusal and the
+> device retained-row staleness filed from the hardware pass. This RFC
+> stays Accepted until step 6 completes.
+
 ## Acceptance
 
 - A fresh agent implements optional avatar, eight-item image/video message,
