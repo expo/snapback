@@ -6,7 +6,7 @@
     "deploymentId": "latency-kanban-move3-exit",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "dev",
-    "authoredSourceHash": "sha256:8db2901ef6ffbe5eafbdef00c8d1c47285da90552a94d4c61fb28409b5ed99b9",
+    "authoredSourceHash": "sha256:50e7901a42ad806a13d19e7954adac4f227ca141be559bb4c1ac7c3dc68cc488",
     "mintedGeneration": {
       "schemaVersion": "snapback.v0",
       "appId": "latency-kanban",
@@ -16,7 +16,7 @@
     },
     "proofKeyManifestDigest": "sha256:046628f9d93830e64cbb072a4b4a43d346a98652fa27ded8260dd014f669eb63"
   },
-  "activationHash": "sha256:60a3eab3ea79fb7e128300f0118f8ba7140a32a9b80bd44654780bc0001862f9",
+  "activationHash": "sha256:f05c258cd5f499f54bea5e02d12c17427a53fdb03eff6f01bfc0bf9ffe40009b",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [

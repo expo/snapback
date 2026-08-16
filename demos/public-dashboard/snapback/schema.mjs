@@ -6,6 +6,7 @@ export default defineSchema({
     label: v.string(),
     value: v.integer(),
   })
+    .visibility({ kind: 'public-read' })
     .index('by_dashboard', ['dashboardId'])
     .sync(),
 });

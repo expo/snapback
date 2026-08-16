@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "provenanceHeadId": "announcements-g1-20260816-v1",
+      "tableId": "announcements"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "provenanceHeadId": "appMembers-g1-20260816-v1",
+      "tableId": "appMembers"
+    }
+  ],
+  "exactSetDigest": "sha256:a278426cdcb63625d724d0a7629f6049b95e6dfb26769d60d68ff66c7c1ff004",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+}

@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:2a90419ccb0c8124853eaac7aaa922b97ce12cf6221ba73f31be66597ff10047",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:bbf1c547a05ac31a8534a574e8238f54478b0fca7a61c972748aaa5c48225043",
   "operations": [
     {
       "authRequirement": {
@@ -136,7 +136,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -197,7 +197,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -258,7 +258,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -319,7 +319,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -628,7 +628,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -675,42 +675,163 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "conversations"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "memberships"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "messages"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "reactions"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "users"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "conversations-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "conversations"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "memberships-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "memberships"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "messages-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "messages"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "reactions-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "reactions"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "users-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "users"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

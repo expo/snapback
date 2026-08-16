@@ -5,7 +5,7 @@ import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 export const resources = defineTable({
   key: v.string(),
   title: v.string(),
-}).index('by_key', ['key'], { unique: true }).sync();
+}).visibility({ kind: 'public-read' }).index('by_key', ['key'], { unique: true }).sync();
 
 export const reservations = defineTable({
   idempotencyKey: v.string(),
@@ -15,7 +15,8 @@ export const reservations = defineTable({
   ownerId: v.string(),
   title: v.string(),
   createdAt: v.integer(),
-}).index('by_idempotency', ['idempotencyKey'], { unique: true })
+}).visibility({ kind: 'public-read' })
+  .index('by_idempotency', ['idempotencyKey'], { unique: true })
   .index('by_resource_slot', ['resourceSlotKey'], { unique: true })
   .index('by_slot_owner', ['slotKey', 'ownerId'])
   .sync();

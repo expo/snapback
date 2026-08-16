@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -416,58 +416,47 @@ export const pairedGate = defineLiveQuery({
   assert.equal(authScopeWarnings[0].severity, 'warning');
   assert.match(authScopeWarnings[0].message, /never|does not authorize/u);
 
-  const omitted = await generate(fixture(`
+  const omittedBackend = fixture(`
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
   publicPosts: defineTable({ body: v.string() }).visibility({ kind: 'public-read' }),
   drafts: defineTable({ body: v.string() }),
 });
-`));
-  assert.equal(omitted.ok, true, JSON.stringify(omitted.diagnostics));
-  const warning = omitted.diagnostics.find(
+`);
+  const omitted = await generate(omittedBackend);
+  assert.equal(omitted.ok, false, JSON.stringify(omitted.diagnostics));
+  const error = omitted.diagnostics.find(
     ({ code }) => code === 'SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT',
   );
-  assert.ok(warning, 'undeclared table emits the warn-phase diagnostic');
-  assert.equal(warning.table, 'drafts');
-  assert.equal(warning.severity, 'warning');
-  assert.equal(warning.subsystem, 'auth');
-  assert.equal(warning.sourceSpan.file, 'schema.mjs');
-  assert(warning.sourceSpan.line > 0);
-  assert.match(warning.message, /drafts.*\.visibility\(\{ kind: 'public-read' \}\)/u);
-  assert.match(warning.message, /guide\/auth\/protecting-data\.md#declare-who-can-read-each-table/u);
+  assert.ok(error, 'undeclared table emits the error-phase diagnostic');
+  assert.equal(error.table, 'drafts');
+  assert.equal(error.severity, 'error');
+  assert.equal(error.subsystem, 'auth');
+  assert.equal(error.sourceSpan.file, 'schema.mjs');
+  assert(error.sourceSpan.line > 0);
+  assert.match(error.message, /drafts.*honest narrowest/u);
+  assert.match(error.message, /never declare public-read merely to unblock generation/u);
+  assert.match(error.message, /guide\/auth\/protecting-data\.md#declare-who-can-read-each-table/u);
   assert.deepEqual(
-    warning.details.remediations.map(({ kind, visibilityKind }) => [kind, visibilityKind]),
+    error.details.remediations.map(({ kind, visibilityKind }) => [kind, visibilityKind]),
     [
       ['setTableVisibility', 'public-read'],
       ['setTableVisibility', 'owner'],
       ['setTableVisibility', 'membership'],
+      ['setTableVisibility', 'any-of'],
       ['guidePointer', undefined],
     ],
   );
-  assert(warning.details.remediations.every((remediation) => (
+  assert(error.details.remediations.every((remediation) => (
     remediation.riskClass === 'policy'
     && remediation.machineApplicable === false
     && remediation.requiresApproval === true
     && remediation.precondition.table === 'drafts'
     && remediation.precondition.authoredVisibility === 'omitted'
   )));
-  assert.deepEqual(omitted.summary.tableVisibility, {
-    declared: [{ table: 'publicPosts', kind: 'public-read' }],
-    implicit: ['drafts'],
-    counts: {
-      total: 2,
-      declared: 1,
-      implicit: 1,
-      publicRead: 1,
-      owner: 0,
-      membership: 0,
-      anyOf: 0,
-    },
-  });
-  const artifacts = JSON.parse(readFileSync(join(omitted.outDir, 'artifacts.json'), 'utf8'));
-  assert.deepEqual(artifacts.summary.tableVisibility, omitted.summary.tableVisibility);
-  assert.match(formatCodegenSummary(omitted.summary), /table visibility 1 declared; 1 implicit/u);
-  assert.match(formatCodegenSummary(omitted.summary), /drafts: add \.visibility/u);
+  assert.equal(omitted.outDir, undefined);
+  assert.equal(existsSync(join(omittedBackend, 'generated')), false,
+    'the fail phase emits no generated artifacts for an implicit table');
 
   await refusal(`
 import { defineSchema, defineTable, v } from '${defineUrl}';

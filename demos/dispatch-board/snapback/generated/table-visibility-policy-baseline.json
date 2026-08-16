@@ -1,0 +1,32 @@
+{
+  "entries": [
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "provenanceHeadId": "auditEntries-g1-20260816-v1",
+      "tableId": "auditEntries"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "provenanceHeadId": "incidents-g1-20260816-v1",
+      "tableId": "incidents"
+    }
+  ],
+  "exactSetDigest": "sha256:2b878f5d4266607aef85f6f45bcd1e00c59162d0bcbf01c8920df57fbefbddb2",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+}

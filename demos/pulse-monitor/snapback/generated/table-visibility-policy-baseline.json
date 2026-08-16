@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "provenanceHeadId": "serviceState-g1-20260816-v1",
+      "tableId": "serviceState"
+    }
+  ],
+  "exactSetDigest": "sha256:624808fbc4b5cc1d540ede3f737784580e4710807e1e77ac7913c99b6605b57f",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+}

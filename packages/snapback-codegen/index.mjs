@@ -2938,12 +2938,13 @@ async function generateInProcessLocked({
     if (visibility === undefined) {
       const authoredSpan = schemaPropertySourceSpans[`table:${name}`];
       const precondition = { table: name, authoredVisibility: 'omitted' };
-      // @ref LLP 0231#d2--a-table-without-a-policy-fails-generation — warn phase; fail phase blocked on override governance
+      // @ref LLP 0231#d2--a-table-without-a-policy-fails-generation — the
+      //   G1 corpus and override-governance closure permit the D2 fail phase.
       diagnostics.push({
         code: 'SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT',
-        severity: 'warning',
+        severity: 'error',
         subsystem: 'auth',
-        message: `${name}: table visibility is implicit. Add .visibility({ kind: 'public-read' }), .visibility({ kind: 'owner', field: 'ownerId' }), or .visibility({ kind: 'membership', declaration: 'members', resourceField: 'resourceId', roles: ['member'] }) to the ${name} defineTable(...) chain (guide/auth/protecting-data.md#declare-who-can-read-each-table).`,
+        message: `${name}: generation requires an explicit table visibility policy. Declare the honest narrowest owner, membership, any-of, or genuinely public-by-design policy on the ${name} defineTable(...) chain. For principal-free scheduled reads, use a governed system/revalidatePrincipal/capturedGrant mode or a job-owned/derived table; never declare public-read merely to unblock generation (guide/auth/protecting-data.md#declare-who-can-read-each-table).`,
         table: name,
         ...(authoredSpan
           ? {
@@ -2957,7 +2958,7 @@ async function generateInProcessLocked({
         details: {
           table: name,
           authoredVisibility: 'omitted',
-          allowed: ['public-read', 'owner', 'membership'],
+          allowed: ['public-read', 'owner', 'membership', 'any-of'],
           guideAnchor: 'guide/auth/protecting-data.md#declare-who-can-read-each-table',
           remediations: [
             {
@@ -2994,11 +2995,22 @@ async function generateInProcessLocked({
               description: `Declare ${name} membership-visible after choosing the declaration, resource field, and admitted roles.`,
             },
             {
+              kind: 'setTableVisibility',
+              visibilityKind: 'any-of',
+              edit: ".visibility(anyOf([owner('<ownerField>'), membership('<membershipId>', '<resourceField>', ['<role>'])]))",
+              riskClass: 'policy',
+              machineApplicable: false,
+              requiresApproval: true,
+              authorityEffect: 'narrows',
+              precondition,
+              description: `Declare ${name} visible to the explicit union only when each arm independently represents intended row authority.`,
+            },
+            {
               kind: 'guidePointer',
               pageId: 'auth.protecting-data',
               path: 'guide/auth/protecting-data.md',
               anchor: 'declare-who-can-read-each-table',
-              reason: 'Choose the table visibility policy that matches the intended row authority.',
+              reason: 'Choose the table policy or scheduled-authority restructuring that matches the intended row authority.',
               riskClass: 'policy',
               machineApplicable: false,
               requiresApproval: true,
@@ -7420,7 +7432,13 @@ async function generateInProcessLocked({
       artifactIndex: null,
     });
     const files = createArtifactFileRecords(tmpOutDir, legacyArtifactIndex.artifacts, {
-      committedProjectionPaths: codegenPolicy.committedProjections,
+      // @ref LLP 0234#d5--exact-ratchets-cover-overrides-and-ordinary-policy-widening
+      // — governance baselines and ledgers are retained review/ratchet state,
+      // never disposable codegen cache bytes.
+      committedProjectionPaths: [
+        ...codegenPolicy.committedProjections,
+        ...governanceArtifactFiles,
+      ],
       targetProfile,
     });
     summary = createCodegenSummary({

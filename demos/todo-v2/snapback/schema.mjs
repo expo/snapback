@@ -12,6 +12,7 @@ export default defineSchema({
     completed: v.boolean(),
     userId: v.string(),
   })
+    .visibility({ kind: 'owner', field: 'userId' })
     // by_user backs the user-scoped live query's index-first lookup.
     .index('by_user', ['userId'])
     // by_user_priority backs the deep-link slice (LLP 0090 D4 rollout

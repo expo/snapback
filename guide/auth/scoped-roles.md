@@ -67,7 +67,7 @@ accept or decline:
 export const appMembers = defineTable({
   userId: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'userId' }).membership({
   principal: 'userId',
   role: 'role',
   roles: ['member', 'admin'],

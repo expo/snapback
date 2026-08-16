@@ -1,0 +1,521 @@
+{
+  "schemaVersion": "snapback.visibility-governance-g1-closure.v1",
+  "closureId": "llp-0234-g1-g2-20260816",
+  "predecessorOid": "3c060a6b06112914ad90c83c84c0ca20b0a3d7d7",
+  "phases": [
+    "G1",
+    "G2"
+  ],
+  "approvedBy": "snapback-project-author",
+  "approvedOn": "2026-08-16",
+  "ruling": "Approve this exact G1 corpus closure and G2 enforcing flip only; no later table, policy change, migration root, or visibility override is grandfathered.",
+  "codegenSourceDigest": "sha256:0d19d655da3b6d60be3056d52b1075565aa6fab5585a25645c64df6fa861c7cd",
+  "completionTestSourceDigest": "sha256:a66efe58f7fdf3cd5db7444d40bde8713ba4d1e92b497d596105d2af8efdbee9",
+  "backends": [
+    {
+      "backendPath": "demos/access-desk/snapback",
+      "authorizationReviewInputsHash": "65625c3a6f1da91f0ee2d80f8690c82ae2d7042f60705cb3d8b3f446808dc8c9",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:9dd80bd100faeab59578022541b7c66f0658a2747ecc7969a39088190015ec13",
+      "transitionLedgerDigest": "sha256:c1e0ded0972091b9ecfa77538029ba05bad6ac8d8226e658e114c4c4705491ed"
+    },
+    {
+      "backendPath": "demos/all-aboard/snapback",
+      "authorizationReviewInputsHash": "821695c62ea3322aa1b7c55f28c107480ea486c247b34b572bc52fe28a007a12",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:6ae654047be6e60e24b7d19ebd1575e957dc964533fc07c75ad56f639385c2c9",
+      "transitionLedgerDigest": "sha256:927323905a5a0987b8ff2457cb6ea5d9216893393a7b9279edb1d100b48bbe05"
+    },
+    {
+      "backendPath": "demos/all-aboard/tests/egress-probe",
+      "authorizationReviewInputsHash": "41664fb5aa54c290cfff2153c33d550a01f8d79192e40563b9dcd70cd089b13e",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:029fdf4a8c482bb83564004395c40c112be07ea7fe4d5c17b2f4b414314c64da",
+      "transitionLedgerDigest": "sha256:2be5b7bcb69cb26884562844d87e071a804c209586258f80fdbfabec9492ece2"
+    },
+    {
+      "backendPath": "demos/browser-local-first/snapback",
+      "authorizationReviewInputsHash": "31539fa6451d8f47bb8f80e516fc059d330a721a77f1ab291f665feaa0393401",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:61e62492ce647c237c4914780220ba6416c58c2c26327c442bd55ce83b9ae584",
+      "transitionLedgerDigest": "sha256:19f122cc18d50078e81b3e885681f5a7355669ff4bc3feed4dfbb9299cfcf68c"
+    },
+    {
+      "backendPath": "demos/browser-local-first/snapback-sessions",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:749d884df3ef78ea2214116e186b634b612fd621bd6a15580b835807e2a5daf2",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:61e62492ce647c237c4914780220ba6416c58c2c26327c442bd55ce83b9ae584",
+      "transitionLedgerDigest": "sha256:19f122cc18d50078e81b3e885681f5a7355669ff4bc3feed4dfbb9299cfcf68c"
+    },
+    {
+      "backendPath": "demos/campfire/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:047007b2ade750cc7a18fa120b5d75d30bb80b37f896da3385f0b0e580ef73e6",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:08afbb3d5b199eb909371043d0a7829e5fafe574397aa1a91ed3f96f47ca240b",
+      "transitionLedgerDigest": "sha256:bf1f5a74ce83684ae96adc9389b7369d17d1769c65f2fd72cd87d3166507a9bb"
+    },
+    {
+      "backendPath": "demos/card-game/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:82227d0eb01026bebd08f961d5b3589034e105ab2514d17c341f1eff91a9beca",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:b466c589120d8bcb2450a07b0619d69596fa288a28ba83bcb7111fdec9311a06",
+      "transitionLedgerDigest": "sha256:46e83928edd14f1ff9d23c0f36f91491f824ac8fb7335f3cad95231be49af6cc"
+    },
+    {
+      "backendPath": "demos/catalog-lens/snapback",
+      "authorizationReviewInputsHash": "55dd00e3e3a63ef6650467b5ad335ed189dac8f1f75bcef9a9cc92ae251f4b28",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:d6e592ebbbc1844457a79361e2e76ff6980f6bf522d42d01aeac7e8f9dbe1d31",
+      "transitionLedgerDigest": "sha256:8811c7d02aa13c576b7cc457de8a0bab5d32b9ec4369efb84a157f8ad886491e"
+    },
+    {
+      "backendPath": "demos/chirp/snapback",
+      "authorizationReviewInputsHash": "ba848bcbe968d29d317a51c1de28a74624b592f32f2432577d125dee540661ca",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:b08954cd4195a2e9e2ed8c7a7c4a2daa50978aab77fc1759e575f284767bb2f1",
+      "transitionLedgerDigest": "sha256:906859dc438f7900a9daec869ca41b56f5e905e29f76747c367067bcd53c4ee2"
+    },
+    {
+      "backendPath": "demos/competitive-checkpoint/snapback",
+      "authorizationReviewInputsHash": "1cb3fb8dcd90f63c9a0edb8e3ab698d193b3e3d573d0e43f66422e93a05b4ba8",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:5c3a54e9ffa1da4ba78a9b884c2196228bc39698c50ebcf580a67df2b4fb6b8f",
+      "transitionLedgerDigest": "sha256:827b872284b7919e4e28ed47355488b336ee5960be2619116cc00a4586210fb8"
+    },
+    {
+      "backendPath": "demos/cursors-web/snapback",
+      "authorizationReviewInputsHash": "6e25c9dfa0e6fe5b6143d17a866148814fed24fd41a145105502fcd687212c39",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:def7f07b5b025c49dc0632059fc6a4fa457fd93cfb43918a46f9de199e691c29",
+      "transitionLedgerDigest": "sha256:9e69162bab12bdbaa95a39f3b6a934d363afa22cbda9bc51911bab240dcad688"
+    },
+    {
+      "backendPath": "demos/dispatch-board/snapback",
+      "authorizationReviewInputsHash": "7e1ce450af609a64e6208bf350c65d46be500476cf2c8699f0b82ff1abae743f",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:2b878f5d4266607aef85f6f45bcd1e00c59162d0bcbf01c8920df57fbefbddb2",
+      "transitionLedgerDigest": "sha256:12fcce63afc8d8eff5ddcfebdf7a4bf86a0caa50767a5f4814a343bc7bbd1e6d"
+    },
+    {
+      "backendPath": "demos/file-drop/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:6d7543167619a59eb2fb3f634b796bafc45d35b3de666f9d409ca516c704efa7",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:f8984f4d1fa5591d3bfa08e5879faa66a22492e916c90c973f79af4062d4c1de",
+      "transitionLedgerDigest": "sha256:ca62e907e3c61af5dd7c018c6f1ce6d232e4f40e4f1909a6da2def24f97d0f0a"
+    },
+    {
+      "backendPath": "demos/fleet-observatory-move1/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:786865fa31a8b7b43d8ea47a487f6f09f68ac505d4b8a65b6c98e0cf93ff8b89",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:c01c6e20e4e38cf61378fbfeda86ec13a96f45fe368c9244d82f79efe114c536",
+      "transitionLedgerDigest": "sha256:8797ee8595c99eb23810eade54bcc274b4faff440c45c880ce2656b098e31068"
+    },
+    {
+      "backendPath": "demos/graffiti/snapback",
+      "authorizationReviewInputsHash": "8981b9b9b5baae7fac2066d4d279d79888fb7f0fa98821ae9a397118fe940808",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:1d918c3438b93d854dae7f043b8e507fa86e62f2c4aca1660282f799274e2110",
+      "transitionLedgerDigest": "sha256:1cc700c3a3eedbb95730632c2bb176315d4c3c5bade9182f10d4938de0cd360f"
+    },
+    {
+      "backendPath": "demos/latency-kanban/snapback",
+      "authorizationReviewInputsHash": "cffd74d25fd5e10745bcad0d9be4e3003a5e2a46c5d3075e796cc06707fb8b57",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:535efa7e530200fb0eed63faeb04ff1cf72c77891634ed9afcf96648fb71c80d",
+      "transitionLedgerDigest": "sha256:956969bc27e7072bfb9181db209b3a2f27a1980dd64ce4c52252d430f322d0a0"
+    },
+    {
+      "backendPath": "demos/messaging-snapback/snapback",
+      "authorizationReviewInputsHash": "90e644e62023778efaddece03c61e4bf1b2da462ff8f82d20361d7c72ee4b279",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:89f60bc02d9a552c9a9afcb0ae65a732e29ecc56997afd47e95157418b680cd5",
+      "transitionLedgerDigest": "sha256:899120399c7686296bd9d4daffcc7238dc0c078c2cf9d4aca5f2f0a16f5fa1f1"
+    },
+    {
+      "backendPath": "demos/partiful-matrix/snapback",
+      "authorizationReviewInputsHash": "30bbe76a97f92a69e4ff5a2aafc75c5681172362ed3500274816496cf863d031",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:eebeba439c0be3c064dbceb5a99faafa3cb17ddb628e2f6071a8313b9be24807",
+      "transitionLedgerDigest": "sha256:af00a78b7f29e3ce056c0b740f2c9d77ef6bf654b6ea260f03b87be13d697148"
+    },
+    {
+      "backendPath": "demos/party-wall/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:6b0d3c102f21ba805ade995b8f7d939d90d5615dbf8ce46eec5825f08321f452",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:0433ec0bc1b7d3873add7a2001f24d35b9971fa663ec6ed16b0aa872ea13fe39",
+      "transitionLedgerDigest": "sha256:4d3568c083adc14169188e81d478074d1424ec97588f3195f4acfe1f90d6a29d"
+    },
+    {
+      "backendPath": "demos/pointing-room/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:febf08ad3c48cdedf95c480dace43c4135566b63eb3ea463d062cf9db01aa53e",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:019c371c8bef748dca031843afbe6c205e2e7392afde8ef0e2ad853b025d1a60",
+      "transitionLedgerDigest": "sha256:bd4101df5cd04137a1aee4fc353a5fd4126977e4ba0c16e143182bdaf303f51d"
+    },
+    {
+      "backendPath": "demos/public-dashboard/snapback",
+      "authorizationReviewInputsHash": "ae1cd2aebf4ebe1ace27c3220dfef9c5f20f9dfc9a83a8d5931c5a7f388e9180",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:bc2c71e8d98403acb81eaba133949d5d9ee1ddc9ba7969c368b4921ff835d2e5",
+      "transitionLedgerDigest": "sha256:cb350d1f149683eaf76c743797e16c7f8f34ee3e39a713a92ee4f495b820c426"
+    },
+    {
+      "backendPath": "demos/pulse-monitor/snapback",
+      "authorizationReviewInputsHash": "fc50614d97e29f6f87dcb8df93578badc78f326d72a8634dae00bf0a242f19a3",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:624808fbc4b5cc1d540ede3f737784580e4710807e1e77ac7913c99b6605b57f",
+      "transitionLedgerDigest": "sha256:26bb7834d04f2562f05d644da59a6f3f84ffaf5d82af906477108075aa29e047"
+    },
+    {
+      "backendPath": "demos/rbac/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:bb717852d06a8c7ee32510419c953381dbed9477b1494eed7fa2ca812182b702",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:a278426cdcb63625d724d0a7629f6049b95e6dfb26769d60d68ff66c7c1ff004",
+      "transitionLedgerDigest": "sha256:87807821aeb5658797e71287476d54b7aae1b1a4aab45b0316b5721dbb995377"
+    },
+    {
+      "backendPath": "demos/shindig/snapback",
+      "authorizationReviewInputsHash": "a010838cbba0b5e5a1611b733acbb8341d79f46e351df61f70e72fe0eaad08b4",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:b7aeac08f685195c85cf33427c5747e59b7c126e539f46dfa78e395d78087012",
+      "transitionLedgerDigest": "sha256:95d0b2d978175e7348cc124112edb29abc1f447b6f12d7c31430ce59c079c815"
+    },
+    {
+      "backendPath": "demos/signal-desk/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:e828dbc8f06486b43a5f96ada95bcc5b5c66c9a1632dbfd6958098c297ae1d9a",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:b7ec928c765a77a15b8f1e7e1ccef9bcbebd0e37a36c0fca92ce49dd5c3f6618",
+      "transitionLedgerDigest": "sha256:b6bfa6bfc10639f23a7c9ff11c02c76501015675228fe81eafd4fdb3a5866161"
+    },
+    {
+      "backendPath": "demos/team-chat/snapback",
+      "authorizationReviewInputsHash": "ef86ba91dee1b964e495dc8872f2a98fa3460f82d41be00b7f4cb7d6a4838d8f",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:15bd13495ed5174f5f45c8be2889e9ed62483a0dd8619b4a7ac10c4360aa136f",
+      "transitionLedgerDigest": "sha256:5899684c8629f953b08ad1714accbb2b48deb2780774f211432a0edb4e7dfe7f"
+    },
+    {
+      "backendPath": "demos/todo-v2/snapback",
+      "authorizationReviewInputsHash": "003ad8ec6a273be14f20468dc7039bacba7988d4822a68b4d4926261e737389c",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:90a541457d056464c40c19c3c27bfe0cec46b0cd3feba5aeea7a9e807e4c7362",
+      "transitionLedgerDigest": "sha256:8eb97a7c6f67b5a9894548211f687ef3eedf881275a91c633ff0b26996a2dd61"
+    },
+    {
+      "backendPath": "demos/todo/snapback",
+      "authorizationReviewInputsHash": "af7cbecc20f8e97d944fd1430c3125eb03f90dbf7370eaec819f44defade9dd6",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:90a541457d056464c40c19c3c27bfe0cec46b0cd3feba5aeea7a9e807e4c7362",
+      "transitionLedgerDigest": "sha256:8eb97a7c6f67b5a9894548211f687ef3eedf881275a91c633ff0b26996a2dd61"
+    },
+    {
+      "backendPath": "demos/triage-graph/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:2400460877636b0a472d338f30cabbdba8736d22b2841cb650ad0c8e7df59ccf",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:4a0599ada3e569dc225d253162ca7b900f672907d61383d6cf4b9f608b8ab95d",
+      "transitionLedgerDigest": "sha256:cd22ac6f2c9ec90fd87adfabdfde76fdc4a1fb486e580b60e1fd0d5aded956f3"
+    },
+    {
+      "backendPath": "demos/zero-bakeoff/apps/contention-calendar/snapback",
+      "authorizationReviewInputsHash": "6668f8e0b5693db2891932629f0b1275b709e7393767a02b5346732a4497dbc9",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:0e81bd3f033335431d39997f508e448d7306124defe4c5bd527ae88cce544dc3",
+      "transitionLedgerDigest": "sha256:b92806108d3fc299d85524f8bfa4cccb3be83280f7626a7c23a73cf01be5512d"
+    },
+    {
+      "backendPath": "packages/snapback-cli/fixtures/comparator/app/snapback",
+      "authorizationReviewInputsHash": "53bf5cadbbb796428e09223a889244d94feec854f1022a38c0582239f8760d9e",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:296faedec21e4ec252f0b7290671214cad2dc5f6cb0e4ee355a0fd5cbaeea2f5",
+      "transitionLedgerDigest": "sha256:bc6d635ac062466c4e65adaf8277be1cdfa7bf17237db3ca256e2f4e0c3e9a31"
+    },
+    {
+      "backendPath": "packages/snapback-cli/fixtures/push-seam/app/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:806f39e046f49eb37823929bf25aa8ba101fb18bd27adb9071b74726802a1329",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:4f54efa96eb68df8cdce26d366817bb0267f0dd2c5a1d12dedd459c07d48fc18",
+      "transitionLedgerDigest": "sha256:a0928adbd5e8efb43a1dda7b75549534b7edffa2c4383804ee0712b75fe38512"
+    },
+    {
+      "backendPath": "packages/snapback-react/fixtures/conversation/app/snapback",
+      "authorizationReviewInputsHash": "snapback.v1:sessions:inputs:sha256:bbf1c547a05ac31a8534a574e8238f54478b0fca7a61c972748aaa5c48225043",
+      "ownerMapDigest": "sha256:1d48b504ab6d5773f4eed3514d001fd233677b6af200eb4b6a73dabd759982b8",
+      "policyBaselineDigest": "sha256:7e934c08caa8ea83869fd5f2ae5cd1850527cee709a87cb326a3e2caa009ce94",
+      "transitionLedgerDigest": "sha256:c0d06c88be2a7d930fd117975d5f47e0716089e67194c7a1fe686a0db5fbb068"
+    }
+  ],
+  "publicTables": [
+    {
+      "backendPath": "demos/all-aboard/snapback",
+      "tableId": "feedRefreshState",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/all-aboard/snapback",
+      "tableId": "feedTicks",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/all-aboard/snapback",
+      "tableId": "liveDepartures",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/all-aboard/snapback",
+      "tableId": "stations",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/all-aboard/snapback",
+      "tableId": "stopTimes",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/all-aboard/snapback",
+      "tableId": "trainStatus",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/all-aboard/snapback",
+      "tableId": "trips",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/all-aboard/tests/egress-probe",
+      "tableId": "deliveries",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/all-aboard/tests/egress-probe",
+      "tableId": "probe",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/browser-local-first/snapback",
+      "tableId": "todos",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/browser-local-first/snapback-sessions",
+      "tableId": "todos",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/campfire/snapback",
+      "tableId": "messages",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/campfire/snapback",
+      "tableId": "reactions",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/campfire/snapback",
+      "tableId": "rooms",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/catalog-lens/snapback",
+      "tableId": "publishers",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/chirp/snapback",
+      "tableId": "likes",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/chirp/snapback",
+      "tableId": "posts",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/chirp/snapback",
+      "tableId": "profiles",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/competitive-checkpoint/snapback",
+      "tableId": "models",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/file-drop/snapback",
+      "tableId": "photos",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/graffiti/snapback",
+      "tableId": "cells",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/latency-kanban/snapback",
+      "tableId": "boards",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/latency-kanban/snapback",
+      "tableId": "cards",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/messaging-snapback/snapback",
+      "tableId": "conversationMembers",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/messaging-snapback/snapback",
+      "tableId": "conversations",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/messaging-snapback/snapback",
+      "tableId": "messages",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/messaging-snapback/snapback",
+      "tableId": "reactions",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/messaging-snapback/snapback",
+      "tableId": "users",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/messaging-snapback/snapback",
+      "tableId": "viewOnceConsumptions",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/messaging-snapback/snapback",
+      "tableId": "viewOnceMessages",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/partiful-matrix/snapback",
+      "tableId": "events",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/partiful-matrix/snapback",
+      "tableId": "posts",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/partiful-matrix/snapback",
+      "tableId": "rsvps",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/pointing-room/snapback",
+      "tableId": "rooms",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/pointing-room/snapback",
+      "tableId": "rounds",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/pointing-room/snapback",
+      "tableId": "votes",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/public-dashboard/snapback",
+      "tableId": "metrics",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/pulse-monitor/snapback",
+      "tableId": "serviceState",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/rbac/snapback",
+      "tableId": "announcements",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/signal-desk/snapback",
+      "tableId": "activity",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/signal-desk/snapback",
+      "tableId": "comments",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/signal-desk/snapback",
+      "tableId": "incidents",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/signal-desk/snapback",
+      "tableId": "tasks",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/zero-bakeoff/apps/contention-calendar/snapback",
+      "tableId": "reservations",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "demos/zero-bakeoff/apps/contention-calendar/snapback",
+      "tableId": "resources",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-cli/fixtures/comparator/app/snapback",
+      "tableId": "activityRows",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-cli/fixtures/comparator/app/snapback",
+      "tableId": "liveRows",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-cli/fixtures/comparator/app/snapback",
+      "tableId": "primaryRows",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-cli/fixtures/comparator/app/snapback",
+      "tableId": "rejectionRows",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-react/fixtures/conversation/app/snapback",
+      "tableId": "conversations",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-react/fixtures/conversation/app/snapback",
+      "tableId": "memberships",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-react/fixtures/conversation/app/snapback",
+      "tableId": "messages",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-react/fixtures/conversation/app/snapback",
+      "tableId": "reactions",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    },
+    {
+      "backendPath": "packages/snapback-react/fixtures/conversation/app/snapback",
+      "tableId": "users",
+      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11"
+    }
+  ],
+  "sourceRevisionDigest": "sha256:902c8fb1369abec71b7b6da75f76eb4943897953223b115477d346ae5fefcc98",
+  "receiptDigest": "sha256:7d339c24c0923ce1fd92e88fded5b1e3b07bbd7755f8ddb5757c999b44137655"
+}

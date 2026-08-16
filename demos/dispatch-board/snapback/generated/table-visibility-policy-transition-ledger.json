@@ -1,0 +1,58 @@
+{
+  "heads": {
+    "auditEntries": "auditEntries-g1-20260816-v1",
+    "incidents": "incidents-g1-20260816-v1"
+  },
+  "ledgerDigest": "sha256:12fcce63afc8d8eff5ddcfebdf7a4bf86a0caa50767a5f4814a343bc7bbd1e6d",
+  "nodes": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "auditEntries-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "auditEntries"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "incidents-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "incidents"
+    }
+  ],
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+}

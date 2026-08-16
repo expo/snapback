@@ -1,0 +1,104 @@
+{
+  "heads": {
+    "activityRows": "activityRows-g1-20260816-v1",
+    "liveRows": "liveRows-g1-20260816-v1",
+    "primaryRows": "primaryRows-g1-20260816-v1",
+    "rejectionRows": "rejectionRows-g1-20260816-v1"
+  },
+  "ledgerDigest": "sha256:bc6d635ac062466c4e65adaf8277be1cdfa7bf17237db3ca256e2f4e0c3e9a31",
+  "nodes": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "activityRows-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "activityRows"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "liveRows-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "liveRows"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "primaryRows-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "primaryRows"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "rejectionRows-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "rejectionRows"
+    }
+  ],
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+}

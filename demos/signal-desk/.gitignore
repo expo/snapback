@@ -6,3 +6,9 @@ dist/
 snapback/generated/*
 !snapback/generated/artifacts.json
 !snapback/generated/authorization-review.json
+!snapback/generated/elevated-read-site-baseline.json
+!snapback/generated/table-visibility-policy-baseline.json
+!snapback/generated/table-visibility-policy-transition-ledger.json
+!snapback/generated/visibility-governance-quarantine-ledger.json
+!snapback/generated/visibility-override-baseline.json
+!snapback/generated/visibility-override-owner-baseline.json

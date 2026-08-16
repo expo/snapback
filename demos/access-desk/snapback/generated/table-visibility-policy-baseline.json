@@ -1,0 +1,83 @@
+{
+  "entries": [
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "workspaceMembers",
+            "membershipTable": "workspaceMembers",
+            "policyResourceField": "workspaceId",
+            "principalField": "userId",
+            "resourceField": "workspaceId",
+            "resourceTable": "workspaces",
+            "roleField": "role",
+            "roles": [
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:c670cb3dcb774a2cf97597a90844b6a315dcc0f6b3d525794e1d1859c8180f43",
+        "policy": {
+          "declaration": "workspaceMembers",
+          "kind": "membership",
+          "resourceField": "workspaceId",
+          "roles": [
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "policyDigest": "sha256:13c5647925a4ceb7ec0c7f7095f8400314ca5f0f85c63cc3314cbc1f7b17b8e8",
+      "provenanceHeadId": "notes-g1-20260816-v1",
+      "tableId": "notes"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "provenanceHeadId": "workspaceMembers-g1-20260816-v1",
+      "tableId": "workspaceMembers"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "workspaceMembers",
+            "membershipTable": "workspaceMembers",
+            "policyResourceField": "_id",
+            "principalField": "userId",
+            "resourceField": "workspaceId",
+            "resourceTable": "workspaces",
+            "roleField": "role",
+            "roles": [
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:21032b0a8e055fc71ef5fbc55b609fce14f972c38573896507e8ab00e4868629",
+        "policy": {
+          "declaration": "workspaceMembers",
+          "kind": "membership",
+          "resourceField": "_id",
+          "roles": [
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "policyDigest": "sha256:ab8fb1fc32db4ec2460da898828c77796ce7d2eba742bfaa1912b9b8f93f22ef",
+      "provenanceHeadId": "workspaces-g1-20260816-v1",
+      "tableId": "workspaces"
+    }
+  ],
+  "exactSetDigest": "sha256:9dd80bd100faeab59578022541b7c66f0658a2747ecc7969a39088190015ec13",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+}

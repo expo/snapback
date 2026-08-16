@@ -1491,6 +1491,23 @@ landed; it is a closure dependency, not new implementation owned by this RFC.
 The initial ordinary-policy baseline, transition-ledger roots, and public-table
 migration closure receipt land here. G1 is a corpus closure, not a date guess.
 
+**Dated closure note (2026-08-16):** G1 is complete for all 34 registered
+codegen jobs (33 unique backend roots). The regenerated corpus contains 90
+tables: 25 owner, 8 membership, 3 any-of, and 54 explicit public-read
+policies, with zero implicit tables, zero production overrides, zero fixture
+overrides, and no `SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE`
+refusals. Most public roots are public-by-design; the retained report calls out
+the RBAC app-scope, pointing-room field-boundary, and messaging view-once cases
+where public-read is the narrowest current policy IR that preserves the demo's
+accepted behavior, rather than representing the desired production audience.
+The package-consumer fixtures are included. Each backend now commits
+its exact ordinary-policy baseline and G1-rooted transition ledger. The
+one-time `visibility-governance-g1-closure.json` receipt binds the G0
+predecessor, every backend authorization-review input hash, policy/ledger and
+owner-map digest, every public table individually, the G2 codegen source, and
+the completion test; the history comparator admits those migration roots only
+with that exact introduction and makes the receipt immutable thereafter.
+
 ### Phase G2 — D2 enforcing closure
 
 Only after G1 may omitted table visibility change from warning to generation
@@ -1506,6 +1523,16 @@ The ordinary-policy widening ratchet is active before that repair can be
 suggested, so an author cannot replace an override with broader table policy.
 An override is accepted only through G0 governance; no temporary bypass flag
 ships with G2.
+
+**Dated closure note (2026-08-16):** G2 is complete.
+`SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` is now a generation error whose
+repairs name the honest owner/membership/any-of/public-by-design choices and
+the governed scheduled-authority alternatives without recommending public
+access merely to get green. The card-game completion test removes the real
+hidden-hand policy in a temporary schema fixture and proves failure for direct,
+relational, bounded, and snapshot reads; card-game declares no search index.
+Its policy-present controls also prove the already-enforcing composition lane
+remains green.
 
 **Failure prevented:** D2 either stranding legitimate cron/jobs/seeds or being
 delayed indefinitely because the migration has no legitimate no-principal

@@ -1,0 +1,32 @@
+{
+  "heads": {
+    "metrics": "metrics-g1-20260816-v1"
+  },
+  "ledgerDigest": "sha256:cb350d1f149683eaf76c743797e16c7f8f34ee3e39a713a92ee4f495b820c426",
+  "nodes": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "metrics-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "metrics"
+    }
+  ],
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+}

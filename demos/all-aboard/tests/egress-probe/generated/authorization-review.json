@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "a0a51eb5d693c64bceca77e5bca6d408173672a2fb5c752c24e9af6dbfeaa799",
+  "inputsHash": "41664fb5aa54c290cfff2153c33d550a01f8d79192e40563b9dcd70cd089b13e",
   "operations": [
     {
       "authRequirement": {
@@ -75,7 +75,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -275,7 +275,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -374,21 +374,70 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "deliveries"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "probe"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "deliveries-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "deliveries"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "probe-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "probe"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

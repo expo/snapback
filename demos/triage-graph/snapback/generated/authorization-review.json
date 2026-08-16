@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:641d09f3d6e8f9627b48c3f9987472d577b8659747966c958084d2ef29567c87",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:2400460877636b0a472d338f30cabbdba8736d22b2841cb650ad0c8e7df59ccf",
   "operations": [
     {
       "authRequirement": {
@@ -20,6 +20,7 @@
       "authorizationPredicates": [],
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "parentVisibility"
         ],
         "basis": "static",
@@ -99,9 +100,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "triageBoards"
@@ -180,9 +182,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "triageBoards"
@@ -257,9 +260,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "projectDirectory"
@@ -326,18 +330,20 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "triageBoards"
         },
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "triageEvents"
@@ -464,9 +470,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "triageBoards"
@@ -514,6 +521,7 @@
       "authorizationPredicates": [],
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "parentVisibility"
         ],
         "basis": "static",
@@ -574,6 +582,7 @@
       "authorizationPredicates": [],
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "parentVisibility"
         ],
         "basis": "static",
@@ -639,42 +648,173 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "activeIssues"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "projectDirectory"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "transitionSummaries"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "triageBoards"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "triageEvents"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "activeIssues-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "activeIssues"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "projectDirectory-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "projectDirectory"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "transitionSummaries-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "transitionSummaries"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "triageBoards-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "triageBoards"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "triageEvents-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "triageEvents"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

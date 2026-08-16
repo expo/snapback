@@ -50,7 +50,7 @@
   ],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "854216ee0ac67f11832e50156363ec05ac81bdb13f674f3d7a6a492995ef38c6",
+  "inputsHash": "65625c3a6f1da91f0ee2d80f8690c82ae2d7042f60705cb3d8b3f446808dc8c9",
   "operations": [
     {
       "authRequirement": {
@@ -241,6 +241,7 @@
       ],
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -258,9 +259,15 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "declaration": "workspaceMembers",
+            "kind": "membership",
+            "resourceField": "workspaceId",
+            "roles": [
+              "member",
+              "owner"
+            ]
           },
           "surface": "host-plan.single-table",
           "table": "notes"
@@ -306,28 +313,155 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "declaration": "workspaceMembers",
+        "kind": "membership",
+        "resourceField": "workspaceId",
+        "roles": [
+          "member",
+          "owner"
+        ]
       },
       "table": "notes"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "userId",
+        "kind": "owner"
       },
       "table": "workspaceMembers"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "declaration": "workspaceMembers",
+        "kind": "membership",
+        "resourceField": "_id",
+        "roles": [
+          "member",
+          "owner"
+        ]
       },
       "table": "workspaces"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "notes-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "workspaceMembers",
+            "membershipTable": "workspaceMembers",
+            "policyResourceField": "workspaceId",
+            "principalField": "userId",
+            "resourceField": "workspaceId",
+            "resourceTable": "workspaces",
+            "roleField": "role",
+            "roles": [
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:c670cb3dcb774a2cf97597a90844b6a315dcc0f6b3d525794e1d1859c8180f43",
+        "policy": {
+          "declaration": "workspaceMembers",
+          "kind": "membership",
+          "resourceField": "workspaceId",
+          "roles": [
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "successorPolicyDigest": "sha256:13c5647925a4ceb7ec0c7f7095f8400314ca5f0f85c63cc3314cbc1f7b17b8e8",
+      "tableId": "notes"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "workspaceMembers-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "tableId": "workspaceMembers"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "workspaces-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "workspaceMembers",
+            "membershipTable": "workspaceMembers",
+            "policyResourceField": "_id",
+            "principalField": "userId",
+            "resourceField": "workspaceId",
+            "resourceTable": "workspaces",
+            "roleField": "role",
+            "roles": [
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:21032b0a8e055fc71ef5fbc55b609fce14f972c38573896507e8ab00e4868629",
+        "policy": {
+          "declaration": "workspaceMembers",
+          "kind": "membership",
+          "resourceField": "_id",
+          "roles": [
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "successorPolicyDigest": "sha256:ab8fb1fc32db4ec2460da898828c77796ce7d2eba742bfaa1912b9b8f93f22ef",
+      "tableId": "workspaces"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

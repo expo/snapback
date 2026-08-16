@@ -5,9 +5,9 @@
   ],
   "appId": "team-chat",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:0719f817f7da0e8d1ca7a21d75b6cd7ba5a1a0fa02d74d86916b20aa2c2e2b71",
+  "authoredSourceHash": "sha256:1801a69ae1ee4c4b55ebe6f8c4e7bce1666872894fa6813d74b84844c3cd74fc",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:305e6f53175dc826",
+  "bundleHash": "sha256:5211f23442fa72c0",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -218,7 +218,7 @@
       "exportedName": "firstInboxPage",
       "handlerForm": "plan",
       "id": "team-chat:firstInboxPage",
-      "implementationHash": "sha256:489d8c5778cf593acf131f993872c34c515d56e48a2b4299f926339e52887faa",
+      "implementationHash": "sha256:708c67bd6ef1dfed44c72f01468706b658adb22432af0ccd7a0546ddcf06b7ce",
       "kind": "LiveQuery",
       "name": "firstInboxPage",
       "readSetSummary": {
@@ -370,7 +370,11 @@
                 "field": "pageKey"
               }
             ],
-            "table": "deliveries"
+            "table": "deliveries",
+            "tableVisibility": {
+              "field": "recipientId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -408,6 +412,7 @@
       "bundleEntrypoint": "firstRoomMessagePage",
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -425,7 +430,7 @@
       "exportedName": "firstRoomMessagePage",
       "handlerForm": "plan",
       "id": "team-chat:firstRoomMessagePage",
-      "implementationHash": "sha256:97ec539014564376065d6bd1a247fd7e3dcf3c03ad58f9f703de6af318d8c236",
+      "implementationHash": "sha256:0ec30286db97d0167a07e7a1ae5bd9cdec31f61212c5a6b6da593e2fe8190a03",
       "kind": "Query",
       "name": "firstRoomMessagePage",
       "readSetSummary": {
@@ -571,7 +576,16 @@
                 "field": "pageKey"
               }
             ],
-            "table": "messages"
+            "table": "messages",
+            "tableVisibility": {
+              "declaration": "roomMembers",
+              "kind": "membership",
+              "resourceField": "roomId",
+              "roles": [
+                "owner",
+                "member"
+              ]
+            }
           }
         }
       },
@@ -816,7 +830,8 @@
       "bundleEntrypoint": "listMyRooms",
       "effectCeiling": {
         "authorizationInputs": [
-          "authUserId"
+          "authUserId",
+          "membershipPredicate"
         ],
         "basis": "static",
         "hostOperations": [],
@@ -833,7 +848,7 @@
       "exportedName": "listMyRooms",
       "handlerForm": "plan",
       "id": "team-chat:listMyRooms",
-      "implementationHash": "sha256:6eb415a2b0ccd1701c3d9eb9f62f974f65cc6bd504ecbfbb41b11f5303cd16df",
+      "implementationHash": "sha256:2eeb9540802e1f53136c97e588fe1b17bb650eaae00d2487c64332d90f4901ba",
       "kind": "LiveQuery",
       "name": "listMyRooms",
       "readSetSummary": {
@@ -841,7 +856,8 @@
         "mode": "singleTable",
         "primaryTable": "roomParticipants",
         "tables": [
-          "roomParticipants"
+          "roomParticipants",
+          "roomMembers"
         ]
       },
       "requiredCapabilities": [
@@ -955,7 +971,25 @@
                 "field": "changedAt"
               }
             ],
-            "table": "roomParticipants"
+            "table": "roomParticipants",
+            "tableVisibility": {
+              "arms": [
+                {
+                  "field": "userId",
+                  "kind": "owner"
+                },
+                {
+                  "declaration": "roomMembers",
+                  "kind": "membership",
+                  "resourceField": "roomId",
+                  "roles": [
+                    "owner",
+                    "member"
+                  ]
+                }
+              ],
+              "kind": "any-of"
+            }
           }
         }
       },
@@ -1088,7 +1122,7 @@
       "exportedName": "nextInboxPage",
       "handlerForm": "plan",
       "id": "team-chat:nextInboxPage",
-      "implementationHash": "sha256:788911e821ee659bc0e41a971eb1218bdf74523ace21806bb357e594b5ff56bf",
+      "implementationHash": "sha256:c65b87b60129e9db5ee3749e2ad8e3d4b9f8c3ddba0f124fcafff5b8f5b17541",
       "kind": "LiveQuery",
       "name": "nextInboxPage",
       "readSetSummary": {
@@ -1247,7 +1281,11 @@
                 "field": "pageKey"
               }
             ],
-            "table": "deliveries"
+            "table": "deliveries",
+            "tableVisibility": {
+              "field": "recipientId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -1293,6 +1331,7 @@
       "bundleEntrypoint": "nextRoomMessagePage",
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -1310,7 +1349,7 @@
       "exportedName": "nextRoomMessagePage",
       "handlerForm": "plan",
       "id": "team-chat:nextRoomMessagePage",
-      "implementationHash": "sha256:9b591f930dbc78fe2ffc74399a5cc718c01dc71d35de1660ac0f5fd3d8789aa5",
+      "implementationHash": "sha256:2948ab3c27f31ee6bb61a7fd39d525f83c150e042521e640059de71f78995741",
       "kind": "Query",
       "name": "nextRoomMessagePage",
       "readSetSummary": {
@@ -1463,7 +1502,16 @@
                 "field": "pageKey"
               }
             ],
-            "table": "messages"
+            "table": "messages",
+            "tableVisibility": {
+              "declaration": "roomMembers",
+              "kind": "membership",
+              "resourceField": "roomId",
+              "roles": [
+                "owner",
+                "member"
+              ]
+            }
           }
         }
       },
@@ -1622,6 +1670,7 @@
       "bundleEntrypoint": "roomDetails",
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -1638,7 +1687,7 @@
       "exportedName": "roomDetails",
       "handlerForm": "plan",
       "id": "team-chat:roomDetails",
-      "implementationHash": "sha256:9cb29f223665331c774d50078d3f10a42a5174196ad18418d1833e2ca07ef2b0",
+      "implementationHash": "sha256:47459d0eb7c040c6aad468d3a02236e4f8f3af44aa33a0b94990ae5c1201d37e",
       "kind": "LiveQuery",
       "name": "roomDetails",
       "readSetSummary": {
@@ -1752,7 +1801,16 @@
               }
             ],
             "order": [],
-            "table": "rooms"
+            "table": "rooms",
+            "tableVisibility": {
+              "declaration": "roomMembers",
+              "kind": "membership",
+              "resourceField": "_id",
+              "roles": [
+                "owner",
+                "member"
+              ]
+            }
           }
         }
       },
@@ -1786,6 +1844,7 @@
       "bundleEntrypoint": "roomMessages",
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -1803,7 +1862,7 @@
       "exportedName": "roomMessages",
       "handlerForm": "plan",
       "id": "team-chat:roomMessages",
-      "implementationHash": "sha256:c0ae31b3e2e97531c1647c6b354e5c5669740a85b3f78dcea956637db84a9c12",
+      "implementationHash": "sha256:6a596aa8edd60e169e999b9e1643c1bdfbf4a8ef4344609d6a04446b35db4739",
       "kind": "LiveQuery",
       "name": "roomMessages",
       "readSetSummary": {
@@ -1946,7 +2005,16 @@
                 "field": "pageKey"
               }
             ],
-            "table": "messages"
+            "table": "messages",
+            "tableVisibility": {
+              "declaration": "roomMembers",
+              "kind": "membership",
+              "resourceField": "roomId",
+              "roles": [
+                "owner",
+                "member"
+              ]
+            }
           }
         }
       },
@@ -2090,7 +2158,7 @@
       "exportedName": "unreadDeliveries",
       "handlerForm": "plan",
       "id": "team-chat:unreadDeliveries",
-      "implementationHash": "sha256:07eab2e1a86a3f45ecd9af97d8893355befcdbcdd175d626d952f941ba0571a8",
+      "implementationHash": "sha256:de53ba058e18e123b5483e42343c9382884e842f8beca52caf0b357bed55634c",
       "kind": "LiveQuery",
       "name": "unreadDeliveries",
       "readSetSummary": {
@@ -2249,7 +2317,11 @@
                 "field": "pageKey"
               }
             ],
-            "table": "deliveries"
+            "table": "deliveries",
+            "tableVisibility": {
+              "field": "recipientId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -2264,7 +2336,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "5ff6e7702d7ec8cfdd3d993c8e356f5bac8acbda392f7d09fb0cf8c5aeb4d529",
+  "inputsHash": "ef86ba91dee1b964e495dc8872f2a98fa3460f82d41be00b7f4cb7d6a4838d8f",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

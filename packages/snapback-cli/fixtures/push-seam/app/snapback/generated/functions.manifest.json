@@ -5,7 +5,7 @@
   ],
   "appId": "app",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:f6fd4094065d4a22a89cfd12c95cd21b2c25d1e5d41369c9bfd941ca9ec0abe7",
+  "authoredSourceHash": "sha256:4f6ab7c81eda04ddea9b3b053bfb8f46475be10a5008abe3575d788af688026f",
   "authoringProfile": "snapback-explicit-v1",
   "bundleHash": "snapback.v1:sessions:function:sha256:0c78b349b938c3b9bc22a103166eab0b74abc50db273503ffbb19c88d3e02dcc",
   "config": [
@@ -795,7 +795,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:931ad8f18c49f72cf6b4d273ba1835bc45d27fc0e0a06f51bce744950076e9fa",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:806f39e046f49eb37823929bf25aa8ba101fb18bd27adb9071b74726802a1329",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

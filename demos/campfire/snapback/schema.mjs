@@ -13,13 +13,14 @@ export default defineSchema(
   {
     rooms: defineTable({
       name: v.string(),
-    }),
+    }).visibility({ kind: 'public-read' }),
     messages: defineTable({
       roomId: v.id('rooms'),
       sequence: v.integer(),
       author: v.string(),
       body: v.string(),
     })
+      .visibility({ kind: 'public-read' })
       .index('by_room_sequence', ['roomId', 'sequence'], { unique: true })
       .sync(),
     reactions: defineTable({
@@ -28,6 +29,7 @@ export default defineSchema(
       emoji: v.string(),
       userKey: v.string(),
     })
+      .visibility({ kind: 'public-read' })
       .index('by_room', ['roomId'])
       .index('by_message', ['messageId'])
       .index('by_message_emoji_user', ['messageId', 'emoji', 'userKey'], { unique: true })

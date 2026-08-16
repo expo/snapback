@@ -299,6 +299,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'auth-crypto-vectors.test.mjs',
       'authorization-review.test.mjs',
       'authoring-validation.test.mjs',
+      'card-game-visibility-completion.test.mjs',
       'client-lifecycle.test.mjs',
       'contract-binding-reads.test.mjs',
       'contract-output-mode.test.mjs',
@@ -510,7 +511,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 292,
+  expectedTotal = 293,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -929,6 +930,8 @@ export function checkPackageTestInventories(options = {}) {
 // visibility override, transition/quarantine, observer, and activation corpus.
 // 290 -> 291 (2026-08-16, LLP 0239 R4): @expo/snapback-codegen gains the
 // defineMediaCommand closed-binding/source-attributed-refusal suite.
+// 292 -> 293 (2026-08-16, LLP 0234 G2): @expo/snapback-codegen gains the
+// card-game implicit-policy completion matrix across every declared read class.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

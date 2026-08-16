@@ -6,13 +6,13 @@
   "appId": "team-chat",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:0719f817f7da0e8d1ca7a21d75b6cd7ba5a1a0fa02d74d86916b20aa2c2e2b71",
+  "authoredSourceHash": "sha256:1801a69ae1ee4c4b55ebe6f8c4e7bce1666872894fa6813d74b84844c3cd74fc",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "5ff6e7702d7ec8cfdd3d993c8e356f5bac8acbda392f7d09fb0cf8c5aeb4d529",
+  "inputsHash": "ef86ba91dee1b964e495dc8872f2a98fa3460f82d41be00b7f4cb7d6a4838d8f",
   "portabilityFlags": [],
-  "schemaHash": "sha256:d53189fe3166558e",
+  "schemaHash": "sha256:4bad7ec5156d0f0f",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -35,7 +35,16 @@
       ],
       "indexes": [],
       "name": "rooms",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "declaration": "roomMembers",
+        "kind": "membership",
+        "resourceField": "_id",
+        "roles": [
+          "owner",
+          "member"
+        ]
+      }
     },
     {
       "fields": [
@@ -127,7 +136,11 @@
         ]
       },
       "name": "roomMembers",
-      "syncable": false
+      "syncable": false,
+      "visibility": {
+        "field": "userId",
+        "kind": "owner"
+      }
     },
     {
       "fields": [
@@ -184,7 +197,25 @@
         }
       ],
       "name": "roomParticipants",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "arms": [
+          {
+            "field": "userId",
+            "kind": "owner"
+          },
+          {
+            "declaration": "roomMembers",
+            "kind": "membership",
+            "resourceField": "roomId",
+            "roles": [
+              "owner",
+              "member"
+            ]
+          }
+        ],
+        "kind": "any-of"
+      }
     },
     {
       "fields": [
@@ -234,7 +265,16 @@
         }
       ],
       "name": "messages",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "declaration": "roomMembers",
+        "kind": "membership",
+        "resourceField": "roomId",
+        "roles": [
+          "owner",
+          "member"
+        ]
+      }
     },
     {
       "fields": [
@@ -318,8 +358,23 @@
         }
       ],
       "name": "deliveries",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "recipientId",
+        "kind": "owner"
+      }
     }
   ],
-  "targetProfile": "local-dev-sqlite-ibex"
+  "targetProfile": "local-dev-sqlite-ibex",
+  "visibilityGovernance": {
+    "fixtureProfiles": [],
+    "generationInputsHash": "sha256:20828f0af216c391d46b759017f5f4cd667fba25cac87b47751f59f469562168",
+    "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
+    "productionWindows": [],
+    "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
+    "required": false,
+    "schemaVersion": "snapback.visibility-governance-activation.v1",
+    "tablePolicyBaselineDigest": "sha256:15bd13495ed5174f5f45c8be2889e9ed62483a0dd8619b4a7ac10c4360aa136f",
+    "visibilityAuthorizationProgramDigest": "sha256:f0449c0b79182bcbf6602cad7c007be77e04a764222ff1d5ad4bd7bafd802118"
+  }
 }

@@ -1,0 +1,32 @@
+{
+  "entries": [
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "provenanceHeadId": "hands-g1-20260816-v1",
+      "tableId": "hands"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "provenanceHeadId": "readySignals-g1-20260816-v1",
+      "tableId": "readySignals"
+    }
+  ],
+  "exactSetDigest": "sha256:b466c589120d8bcb2450a07b0619d69596fa288a28ba83bcb7111fdec9311a06",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+}

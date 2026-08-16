@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "11581c3c954ff5e2e91ef86f90e12b105a08a126fdaae4f6200733dbec91842c",
+  "inputsHash": "fc50614d97e29f6f87dcb8df93578badc78f326d72a8634dae00bf0a242f19a3",
   "operations": [
     {
       "authRequirement": {
@@ -39,7 +39,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -102,7 +102,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -201,14 +201,39 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "serviceState"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "serviceState-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "serviceState"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

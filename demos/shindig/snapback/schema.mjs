@@ -18,7 +18,7 @@ export const eventMembers = defineTable({
   eventId: v.id('events'),
   userId: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'userId' }).membership({
   id: 'eventMembers',
   principal: 'userId',
   resource: 'eventId',
@@ -44,6 +44,11 @@ export default defineSchema({
     location: v.string(),
     startsAt: v.integer(),
     hostName: v.string(),
+  }).visibility({
+    kind: 'membership',
+    declaration: eventMembers,
+    resourceField: '_id',
+    roles: ['host', 'guest'],
   }),
   eventMembers,
   // One row per (event, person): the host's own seat, pending invitations,
@@ -60,6 +65,18 @@ export default defineSchema({
     eventStartsAt: v.integer(),
     hostName: v.string(),
   })
+    .visibility({
+      kind: 'any-of',
+      arms: [
+        { kind: 'owner', field: 'userId' },
+        {
+          kind: 'membership',
+          declaration: eventMembers,
+          resourceField: 'eventId',
+          roles: ['host', 'guest'],
+        },
+      ],
+    })
     .index('by_user', ['userId'])
     .index('by_event', ['eventId'])
     .index('by_event_user', ['eventId', 'userId'], { unique: true })
@@ -70,6 +87,12 @@ export default defineSchema({
     authorName: v.string(),
     message: v.string(),
   })
+    .visibility({
+      kind: 'membership',
+      declaration: eventMembers,
+      resourceField: 'eventId',
+      roles: ['host', 'guest'],
+    })
     .index('by_event', ['eventId'])
     .sync(),
 });

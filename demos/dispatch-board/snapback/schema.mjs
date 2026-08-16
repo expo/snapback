@@ -8,6 +8,7 @@ export default defineSchema({
     eventId: v.string(),
     reportedAt: v.integer(),
   })
+    .visibility({ kind: 'owner', field: 'ownerId' })
     .index('by_owner_time', ['ownerId', 'reportedAt'])
     .index('by_owner_event', ['ownerId', 'eventId'], { unique: true })
     .sync(),
@@ -18,6 +19,7 @@ export default defineSchema({
     kind: v.string(),
     occurredAt: v.integer(),
   })
+    .visibility({ kind: 'owner', field: 'ownerId' })
     .index('by_owner_incident', ['ownerId', 'incidentId'])
     .sync(),
 }, { auth: { mode: 'dev' } });

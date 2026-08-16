@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:82141a16f1058cded9cfb1b32bf2148881a6ce13dd9d
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Canonical registry identity:
-`sha256:98fa8ab83ea529f3ec0fa415524bea069d58f4e6733846b2587cc7b37a127cde`.
+`sha256:2d29074848b12d86890d54011ff7d6e4ea1f55934233ba748be73328943eeb01`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 

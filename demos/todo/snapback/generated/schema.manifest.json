@@ -6,13 +6,13 @@
   "appId": "todo",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:179b9f30c9852db8dbe10d866bb91898fbe03b1c61363dc02da6cf5e9ad7bd23",
+  "authoredSourceHash": "sha256:82e93ba483297aa12b4db240d70a02a7f68866e2d473c7bd3b8b87c358937355",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "a10d05ac03f8567a93dc5c64f725b6de03149c5c048c50139bfc80d739e7bebc",
+  "inputsHash": "af7cbecc20f8e97d944fd1430c3125eb03f90dbf7370eaec819f44defade9dd6",
   "portabilityFlags": [],
-  "schemaHash": "sha256:ebeea8394fc7851d",
+  "schemaHash": "sha256:088188e4bb368213",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -42,8 +42,23 @@
         }
       ],
       "name": "todos",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "userId",
+        "kind": "owner"
+      }
     }
   ],
-  "targetProfile": "local-dev-sqlite-ibex"
+  "targetProfile": "local-dev-sqlite-ibex",
+  "visibilityGovernance": {
+    "fixtureProfiles": [],
+    "generationInputsHash": "sha256:839ef1c66182713dcd08e171df099277ea164954e5ffd3ec0e94d40d1d7e1fc1",
+    "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
+    "productionWindows": [],
+    "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
+    "required": false,
+    "schemaVersion": "snapback.visibility-governance-activation.v1",
+    "tablePolicyBaselineDigest": "sha256:90a541457d056464c40c19c3c27bfe0cec46b0cd3feba5aeea7a9e807e4c7362",
+    "visibilityAuthorizationProgramDigest": "sha256:db64af59828bf1ae81160dbc5e4f16d029670351e66423abb8ed9dbac14dd502"
+  }
 }

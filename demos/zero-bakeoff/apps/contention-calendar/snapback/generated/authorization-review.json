@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "5448745e2aa1fd6d7556033852a7686e39ef4ddbd4338f5a998945d46f8c8fa7",
+  "inputsHash": "6668f8e0b5693db2891932629f0b1275b709e7393767a02b5346732a4497dbc9",
   "operations": [
     {
       "authRequirement": {
@@ -39,7 +39,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -102,7 +102,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -215,7 +215,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -276,7 +276,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -323,21 +323,70 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "reservations"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "resources"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "reservations-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "reservations"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "resources-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "resources"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

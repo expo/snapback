@@ -10,6 +10,7 @@ export const books = defineTable({
   publisherSlug: v.string(),
   createdAt: v.integer(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_owner_created', ['ownerId', 'createdAt'])
   .index('by_owner_isbn', ['ownerId', 'isbn'], { unique: true })
   .sync();
@@ -19,6 +20,7 @@ export const publishers = defineTable({
   name: v.string(),
   country: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_slug', ['slug'], { unique: true })
   .sync();
 

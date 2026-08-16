@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:420df7665aba68a4493b43f9bca55f42f0e71cd867788157b8895e92523335cf",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:e828dbc8f06486b43a5f96ada95bcc5b5c66c9a1632dbfd6958098c297ae1d9a",
   "operations": [
     {
       "authRequirement": {
@@ -121,7 +121,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -130,7 +130,7 @@
         },
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -276,7 +276,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -336,7 +336,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -396,7 +396,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -590,7 +590,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -599,7 +599,7 @@
         },
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -608,7 +608,7 @@
         },
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -617,7 +617,7 @@
         },
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -861,7 +861,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -922,7 +922,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -983,7 +983,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -1044,7 +1044,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -1168,7 +1168,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -1250,7 +1250,7 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
             "kind": "public-read"
           },
@@ -1390,35 +1390,132 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "activity"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "comments"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "incidents"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "tasks"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "activity-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "activity"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "comments-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "comments"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "incidents-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "incidents"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "tasks-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "tasks"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

@@ -15,6 +15,7 @@ export const triageBoards = defineTable({
   name: v.string(),
   workloadRevision: v.integer(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_owner_name', ['ownerId', 'name'])
   .sync();
 
@@ -23,6 +24,7 @@ export const projectDirectory = defineTable({
   projectKey: v.string(),
   projectName: v.string(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_owner_project', ['ownerId', 'projectKey'], { unique: true })
   .sync();
 
@@ -40,6 +42,7 @@ export const activeIssues = defineTable({
   priority: v.integer(),
   rank: v.integer(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_board_rank', ['boardId', 'boardIncarnation', 'rank'])
   .index('by_owner_rank', ['ownerId', 'rank'])
   .sync();
@@ -55,6 +58,7 @@ export const transitionSummaries = defineTable({
   sequence: v.integer(),
   summary: v.string(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_board_sequence', ['boardId', 'boardIncarnation', 'sequence'])
   .sync();
 
@@ -72,6 +76,7 @@ export const triageEvents = defineTable({
   sequence: v.integer(),
   kind: v.string(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_board_sequence', ['boardId', 'boardIncarnation', 'sequence']);
 
 export default defineSchema({

@@ -29,6 +29,7 @@ export const GOVERNANCE_SCHEMA_VERSIONS = Object.freeze({
   governedUpdateVerdict: 'snapback.visibility-governance-update-verdict.v1',
   fixtureProfile: 'snapback.visibility-fixture-profile.v1',
   activation: 'snapback.visibility-governance-activation.v1',
+  g1Closure: 'snapback.visibility-governance-g1-closure.v1',
 });
 
 export const GOVERNANCE_FILES = Object.freeze({
@@ -40,6 +41,7 @@ export const GOVERNANCE_FILES = Object.freeze({
   quarantineLedger: 'generated/visibility-governance-quarantine-ledger.json',
   elevatedReadBaseline: 'generated/elevated-read-site-baseline.json',
   observerKeys: 'visibility-governance-observer-keys.json',
+  g1Closure: 'visibility-governance-g1-closure.json',
 });
 
 export const GOVERNED_REFS_DEFAULT = Object.freeze(['refs/heads/main']);
@@ -52,6 +54,7 @@ const OID = /^[0-9a-f]{40}$/u;
 const UTC_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u;
 const UTC_DATE = /^\d{4}-\d{2}-\d{2}$/u;
 const IDENT = /^[A-Za-z0-9][A-Za-z0-9._:@/-]*$/u;
+const FIELD_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const ZERO_OID = '0'.repeat(40);
 const MAX_GRANT_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_ISSUED_SKEW_MS = 5 * 60 * 1000;
@@ -104,6 +107,14 @@ function identifier(value, label, code) {
   return value;
 }
 
+function fieldIdentifier(value, label, code) {
+  nonEmpty(value, label, code);
+  if (!FIELD_IDENT.test(value)) {
+    refuse(code, `${label} is not a stable schema field identifier`, { field: label, value });
+  }
+  return value;
+}
+
 function exactArray(value, label, code, { min = 0 } = {}) {
   if (!Array.isArray(value) || value.length < min) {
     refuse(code, `${label} must be an array with at least ${min} item(s)`, { field: label });
@@ -149,7 +160,7 @@ function canonicalPolicyLeaf(policy, label, code) {
   }
   if (policy.kind === 'owner') {
     exactKeys(policy, ['kind', 'field'], label, code, ['kind', 'field']);
-    return { kind: 'owner', field: identifier(policy.field, `${label}.field`, code) };
+    return { kind: 'owner', field: fieldIdentifier(policy.field, `${label}.field`, code) };
   }
   if (policy.kind === 'membership') {
     exactKeys(policy, ['kind', 'declaration', 'resourceField', 'roles'], label, code,
@@ -157,7 +168,7 @@ function canonicalPolicyLeaf(policy, label, code) {
     return {
       kind: 'membership',
       declaration: identifier(policy.declaration, `${label}.declaration`, code),
-      resourceField: identifier(policy.resourceField, `${label}.resourceField`, code),
+      resourceField: fieldIdentifier(policy.resourceField, `${label}.resourceField`, code),
       ...(policy.roles === undefined
         ? {}
         : { roles: sortedUniqueStrings(policy.roles, `${label}.roles`, code, { min: 1 }) }),
@@ -1268,11 +1279,20 @@ function validateTransitionLedger(ledger, tables, backendRoot, quarantine = null
       if (separation.receiptDigest !== node.serverSeparationReceiptDigest) {
         refuse(code, `transition ${node.id} receipt digest is stale`);
       }
-    } else if (node.admissionKind !== 'g1-migration'
-      && [node.approvalPath, node.approvalClosureDigest, node.serverSeparationReceipt,
-        node.serverSeparationReceiptDigest, node.quarantineVerdict]
-        .some((value) => value !== null)) {
-      refuse(code, `non-widening transition ${node.id} must not carry authority artifacts`);
+    } else {
+      const authorityArtifacts = [
+        node.approvalPath,
+        node.approvalClosureDigest,
+        node.serverSeparationReceipt,
+        node.serverSeparationReceiptDigest,
+        node.quarantineVerdict,
+      ];
+      if (authorityArtifacts.some((value) => value !== null)) {
+        refuse(code, `non-widening transition ${node.id} must not carry authority artifacts`);
+      }
+      if (node.admissionKind === 'g1-migration' && node.predecessorHeadId !== null) {
+        refuse(code, `G1 migration transition ${node.id} must be a root`);
+      }
     }
     nodes.set(node.id, { ...node, recomputedClassification: classification });
   }
@@ -2225,11 +2245,20 @@ function validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, b
       }
     } else if (node.admissionKind !== expectedKind && node.admissionKind !== 'g1-migration') {
       refuse(code, `transition ${node.id} authored ${node.admissionKind} but recomputes ${expectedKind}`);
-    } else if (node.admissionKind !== 'g1-migration'
-      && [node.approvalPath, node.approvalClosureDigest, node.serverSeparationReceipt,
-        node.serverSeparationReceiptDigest, node.quarantineVerdict]
-        .some((value) => value !== null)) {
-      refuse(code, `non-widening transition ${node.id} carries authority artifacts`);
+    } else {
+      const authorityArtifacts = [
+        node.approvalPath,
+        node.approvalClosureDigest,
+        node.serverSeparationReceipt,
+        node.serverSeparationReceiptDigest,
+        node.quarantineVerdict,
+      ];
+      if (authorityArtifacts.some((value) => value !== null)) {
+        refuse(code, `non-widening transition ${node.id} carries authority artifacts`);
+      }
+      if (node.admissionKind === 'g1-migration' && node.predecessorHeadId !== null) {
+        refuse(code, `G1 migration transition ${node.id} must be a root`);
+      }
     }
     nodes.set(node.id, node);
   }
@@ -2460,7 +2489,201 @@ function validateDelegationOrdering({ root, beforeOid, afterOid, backendPath }) 
   }
 }
 
-function compareGovernanceBackend({ root, beforeOid, afterOid, backendPath }) {
+const G1_CODEGEN_SOURCE = 'packages/snapback-codegen/index.mjs';
+const G1_COMPLETION_TEST_SOURCE = 'packages/snapback-codegen/card-game-visibility-completion.test.mjs';
+
+function g1ClosureSourcePreimage(receipt) {
+  return {
+    predecessorOid: receipt.predecessorOid,
+    phases: receipt.phases,
+    codegenSourceDigest: receipt.codegenSourceDigest,
+    completionTestSourceDigest: receipt.completionTestSourceDigest,
+    backends: receipt.backends,
+    publicTables: receipt.publicTables,
+  };
+}
+
+export function g1ClosureSourceRevisionDigest(receipt) {
+  return governanceDigest(
+    'snapback:visibility-governance-g1-source-revision:v1',
+    g1ClosureSourcePreimage(receipt),
+  );
+}
+
+export function g1ClosureReceiptDigest(receipt) {
+  const { receiptDigest: _receiptDigest, ...payload } = receipt;
+  return governanceDigest('snapback:visibility-governance-g1-closure-receipt:v1', payload);
+}
+
+function validateG1ClosureReceiptShape(receipt) {
+  const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
+  exactKeys(receipt, [
+    'schemaVersion', 'closureId', 'predecessorOid', 'phases', 'approvedBy',
+    'approvedOn', 'ruling', 'codegenSourceDigest', 'completionTestSourceDigest',
+    'backends', 'publicTables', 'sourceRevisionDigest', 'receiptDigest',
+  ], 'G1 migration closure receipt', code, [
+    'schemaVersion', 'closureId', 'predecessorOid', 'phases', 'approvedBy',
+    'approvedOn', 'ruling', 'codegenSourceDigest', 'completionTestSourceDigest',
+    'backends', 'publicTables', 'sourceRevisionDigest', 'receiptDigest',
+  ]);
+  if (receipt.schemaVersion !== GOVERNANCE_SCHEMA_VERSIONS.g1Closure
+    || !OID.test(receipt.predecessorOid ?? '')
+    || canonicalGovernanceJson(receipt.phases) !== canonicalGovernanceJson(['G1', 'G2'])
+    || !UTC_DATE.test(receipt.approvedOn ?? '')
+    || !SHA256.test(receipt.codegenSourceDigest ?? '')
+    || !SHA256.test(receipt.completionTestSourceDigest ?? '')) {
+    refuse(code, 'G1 migration closure receipt identity or source binding is malformed');
+  }
+  for (const field of ['closureId', 'approvedBy', 'ruling']) {
+    nonEmpty(receipt[field], `G1 migration closure receipt.${field}`, code);
+  }
+  const backends = exactArray(receipt.backends, 'G1 migration closure receipt.backends', code);
+  for (const [index, entry] of backends.entries()) {
+    exactKeys(entry, [
+      'backendPath', 'authorizationReviewInputsHash', 'ownerMapDigest',
+      'policyBaselineDigest', 'transitionLedgerDigest',
+    ], `G1 migration closure receipt.backends.${index}`, code, [
+      'backendPath', 'authorizationReviewInputsHash', 'ownerMapDigest',
+      'policyBaselineDigest', 'transitionLedgerDigest',
+    ]);
+    nonEmpty(entry.backendPath, `G1 migration closure receipt.backends.${index}.backendPath`, code);
+    nonEmpty(entry.authorizationReviewInputsHash,
+      `G1 migration closure receipt.backends.${index}.authorizationReviewInputsHash`, code);
+    for (const field of ['ownerMapDigest', 'policyBaselineDigest', 'transitionLedgerDigest']) {
+      if (!SHA256.test(entry[field] ?? '')) {
+        refuse(code, `G1 migration closure receipt.backends.${index}.${field} is not a digest`);
+      }
+    }
+  }
+  const sortedBackends = [...backends].sort((left, right) => compareText(left.backendPath, right.backendPath));
+  if (new Set(backends.map(({ backendPath }) => backendPath)).size !== backends.length
+    || canonicalGovernanceJson(sortedBackends) !== canonicalGovernanceJson(backends)) {
+    refuse(code, 'G1 migration closure backend set must be unique and sorted');
+  }
+  const publicTables = exactArray(
+    receipt.publicTables,
+    'G1 migration closure receipt.publicTables',
+    code,
+  );
+  for (const [index, entry] of publicTables.entries()) {
+    exactKeys(entry, ['backendPath', 'tableId', 'policyDigest'],
+      `G1 migration closure receipt.publicTables.${index}`, code,
+      ['backendPath', 'tableId', 'policyDigest']);
+    nonEmpty(entry.backendPath, `G1 migration closure receipt.publicTables.${index}.backendPath`, code);
+    nonEmpty(entry.tableId, `G1 migration closure receipt.publicTables.${index}.tableId`, code);
+    if (!SHA256.test(entry.policyDigest ?? '')) {
+      refuse(code, `G1 migration closure receipt.publicTables.${index}.policyDigest is not a digest`);
+    }
+  }
+  const publicKey = ({ backendPath, tableId }) => `${backendPath}\u0000${tableId}`;
+  const sortedPublic = [...publicTables].sort((left, right) => compareText(publicKey(left), publicKey(right)));
+  if (new Set(publicTables.map(publicKey)).size !== publicTables.length
+    || canonicalGovernanceJson(sortedPublic) !== canonicalGovernanceJson(publicTables)) {
+    refuse(code, 'G1 migration closure public-table set must be unique and sorted');
+  }
+  if (receipt.sourceRevisionDigest !== g1ClosureSourceRevisionDigest(receipt)
+    || receipt.receiptDigest !== g1ClosureReceiptDigest(receipt)) {
+    refuse(code, 'G1 migration closure receipt digest is stale or rebound');
+  }
+  return receipt;
+}
+
+function sourceDigestAtRevision(root, revision, path, domain) {
+  const source = artifactAtRevision(root, revision, path);
+  if (source === null) {
+    refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+      `G1 migration closure source ${path} is missing`);
+  }
+  return governanceDigest(domain, source);
+}
+
+function validateG1ClosureIntroduction({ root, revision, predecessorOid, backendPaths, receipt }) {
+  const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
+  validateG1ClosureReceiptShape(receipt);
+  if (receipt.predecessorOid !== predecessorOid) {
+    refuse(code, 'G1 migration closure receipt does not bind the governed predecessor');
+  }
+  const expectedPaths = [...new Set(backendPaths)].sort(compareText);
+  if (canonicalGovernanceJson(receipt.backends.map(({ backendPath }) => backendPath))
+    !== canonicalGovernanceJson(expectedPaths)) {
+    refuse(code, 'G1 migration closure receipt does not cover the exact governed backend set');
+  }
+  const codegenSourceDigest = sourceDigestAtRevision(
+    root,
+    revision,
+    G1_CODEGEN_SOURCE,
+    'snapback:visibility-governance-g1-codegen-source:v1',
+  );
+  const completionTestSourceDigest = sourceDigestAtRevision(
+    root,
+    revision,
+    G1_COMPLETION_TEST_SOURCE,
+    'snapback:visibility-governance-g1-completion-test-source:v1',
+  );
+  if (receipt.codegenSourceDigest !== codegenSourceDigest
+    || receipt.completionTestSourceDigest !== completionTestSourceDigest) {
+    refuse(code, 'G1 migration closure receipt does not bind the enforcing code and completion test');
+  }
+  const actualBackends = [];
+  const actualPublicTables = [];
+  for (const backendPath of expectedPaths) {
+    const policy = parseRevisionJson(root, revision,
+      backendGovernancePath(backendPath, GOVERNANCE_FILES.policyBaseline));
+    const ledger = parseRevisionJson(root, revision,
+      backendGovernancePath(backendPath, GOVERNANCE_FILES.transitionLedger));
+    const review = parseRevisionJson(root, revision,
+      backendGovernancePath(backendPath, 'generated/authorization-review.json'));
+    const ownerMapSource = parseRevisionJson(root, revision,
+      backendGovernancePath(backendPath, GOVERNANCE_FILES.ownerMap));
+    if (!policy || !ledger || !review || !ownerMapSource) {
+      refuse(code, `G1 migration closure backend ${backendPath} lacks a required corpus artifact`);
+    }
+    validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, baseline: policy });
+    const ownerMap = canonicalOwnerMap(ownerMapSource);
+    if (ownerMap.fallbackApprovalOwner !== receipt.approvedBy) {
+      refuse(code, `G1 migration closure backend ${backendPath} is not ruled by ${receipt.approvedBy}`);
+    }
+    if (!Array.isArray(review.tablePolicies)
+      || review.tablePolicies.length !== policy.entries.length
+      || review.tablePolicies.some(({ origin }) => origin !== 'declared')) {
+      refuse(code, `G1 migration closure backend ${backendPath} is not corpus-closed`);
+    }
+    if (ledger.nodes.some((node) => (
+      node.admissionKind !== 'g1-migration'
+      || node.predecessorHeadId !== null
+      || [node.approvalPath, node.approvalClosureDigest, node.serverSeparationReceipt,
+        node.serverSeparationReceiptDigest, node.quarantineVerdict].some((value) => value !== null)
+    ))) {
+      refuse(code, `G1 migration closure backend ${backendPath} contains a non-root or authority-bearing migration node`);
+    }
+    actualBackends.push({
+      backendPath,
+      authorizationReviewInputsHash: review.inputsHash,
+      ownerMapDigest: governanceDigest('snapback:visibility-owner-map:v1', ownerMap),
+      policyBaselineDigest: policy.exactSetDigest,
+      transitionLedgerDigest: ledger.ledgerDigest,
+    });
+    for (const entry of policy.entries) {
+      if (entry.normalizedPolicyBody.policy.kind === 'public-read') {
+        actualPublicTables.push({ backendPath, tableId: entry.tableId, policyDigest: entry.policyDigest });
+      }
+    }
+  }
+  actualPublicTables.sort((left, right) => compareText(
+    `${left.backendPath}\u0000${left.tableId}`,
+    `${right.backendPath}\u0000${right.tableId}`,
+  ));
+  if (canonicalGovernanceJson(receipt.backends) !== canonicalGovernanceJson(actualBackends)
+    || canonicalGovernanceJson(receipt.publicTables) !== canonicalGovernanceJson(actualPublicTables)) {
+    refuse(code, 'G1 migration closure receipt does not exactly bind the generated corpus');
+  }
+  return {
+    backendPaths: new Set(actualBackends.map(({ backendPath }) => backendPath)),
+    publicTables: new Set(actualPublicTables.map(({ backendPath, tableId }) => `${backendPath}\u0000${tableId}`)),
+  };
+}
+
+function compareGovernanceBackend({ root, beforeOid, afterOid, backendPath, g1Introduction }) {
   const file = (key) => backendGovernancePath(backendPath, GOVERNANCE_FILES[key]);
   const beforeOwners = validateOwnerBaselineAtRevision({ root, revision: beforeOid, backendPath });
   const afterOwners = validateOwnerBaselineAtRevision({ root, revision: afterOid, backendPath });
@@ -2557,6 +2780,14 @@ function compareGovernanceBackend({ root, beforeOid, afterOid, backendPath }) {
         `transition ledger removes or rebinds retained node ${node.id}`);
     }
   }
+  const introducedMigrationNodes = afterLedger.nodes.filter((node) => (
+    node.admissionKind === 'g1-migration' && !beforeNodes.has(node.id)
+  ));
+  if (introducedMigrationNodes.length > 0
+    && !g1Introduction?.backendPaths.has(backendPath)) {
+    refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+      `backend ${backendPath} introduces G1 migration roots without the one-time closure receipt`);
+  }
   const policyGrowth = [];
   for (const entry of afterPolicy.entries) {
     const before = beforePolicies.get(entry.tableId);
@@ -2570,6 +2801,10 @@ function compareGovernanceBackend({ root, beforeOid, afterOid, backendPath }) {
   }
   for (const entry of policyGrowth) {
     const node = afterLedger.nodes.find(({ id }) => id === entry.provenanceHeadId);
+    if (node?.admissionKind === 'g1-migration'
+      && g1Introduction?.publicTables.has(`${backendPath}\u0000${entry.tableId}`)) {
+      continue;
+    }
     if (!node || node.admissionKind !== 'approved-transition'
       || node.successorPolicyDigest !== entry.policyDigest) {
       refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_RATCHET_GROWTH',
@@ -2645,11 +2880,31 @@ export function compareGovernanceSnapshots({ root, beforeOid, afterOid, backendP
     ...governanceBackendPathsAtRevision(root, beforeOid),
     ...governanceBackendPathsAtRevision(root, afterOid),
   ])].sort(compareText);
+  const beforeG1Closure = parseRevisionJson(root, beforeOid, GOVERNANCE_FILES.g1Closure);
+  const afterG1Closure = parseRevisionJson(root, afterOid, GOVERNANCE_FILES.g1Closure);
+  let g1Introduction = null;
+  if (beforeG1Closure === null && afterG1Closure !== null) {
+    g1Introduction = validateG1ClosureIntroduction({
+      root,
+      revision: afterOid,
+      predecessorOid: beforeOid,
+      backendPaths: paths,
+      receipt: afterG1Closure,
+    });
+  } else if (beforeG1Closure !== null) {
+    validateG1ClosureReceiptShape(beforeG1Closure);
+    if (afterG1Closure === null
+      || canonicalGovernanceJson(beforeG1Closure) !== canonicalGovernanceJson(afterG1Closure)) {
+      refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+        'the one-time G1 migration closure receipt was removed or rebound');
+    }
+  }
   const comparisons = paths.map((backendPath) => compareGovernanceBackend({
     root,
     beforeOid,
     afterOid,
     backendPath,
+    g1Introduction,
   }));
   return {
     growth: comparisons.flatMap(({ growth }) => growth),

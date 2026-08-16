@@ -211,7 +211,8 @@
         },
         "dependencies": {
           "reads": [
-            "roomParticipants"
+            "roomParticipants",
+            "roomMembers"
           ]
         },
         "name": "listMyRooms",
@@ -353,7 +354,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "5ff6e7702d7ec8cfdd3d993c8e356f5bac8acbda392f7d09fb0cf8c5aeb4d529",
+    "inputsHash": "ef86ba91dee1b964e495dc8872f2a98fa3460f82d41be00b7f4cb7d6a4838d8f",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

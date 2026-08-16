@@ -26,5 +26,7 @@ export default defineSchema({
     gameId: v.string(),
     userId: v.string(),
     ready: v.boolean(),
-  }).index('by_game', ['gameId']),
+  })
+    .visibility({ kind: 'owner', field: 'userId' })
+    .index('by_game', ['gameId']),
 }, { auth: { mode: 'sessions' } });

@@ -1,0 +1,33 @@
+{
+  "heads": {
+    "todos": "todos-g1-20260816-v1"
+  },
+  "ledgerDigest": "sha256:8eb97a7c6f67b5a9894548211f687ef3eedf881275a91c633ff0b26996a2dd61",
+  "nodes": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "todos-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "tableId": "todos"
+    }
+  ],
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+}

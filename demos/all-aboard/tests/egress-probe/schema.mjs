@@ -4,6 +4,7 @@
 import { defineSchema, defineTable, v } from '../../../_kit/define.mjs';
 
 export default defineSchema({
-  probe: defineTable({ note: v.string() }),
-  deliveries: defineTable({ url: v.string(), body: v.string() }),
+  probe: defineTable({ note: v.string() }).visibility({ kind: 'public-read' }),
+  deliveries: defineTable({ url: v.string(), body: v.string() })
+    .visibility({ kind: 'public-read' }),
 });

@@ -44,9 +44,17 @@ denial after close, two-recipient delete-for-everyone, and close-then-delete.
 
 Attach the asset once and keep that typed reference on the message row. The
 reference is storage-integrity state: pending grants confer no authority and
-do **not** protect the asset from reference GC. Keep a private, owner-visible
-`grants` map from `recipientPrincipal` to opaque `grantId` beside it so later
-close and delete operations can find only the live edges they own.
+do **not** protect the asset from reference GC. The product rule keeps the
+`grants` map private and owner-visible so later close and delete operations can
+find only the live edges they own.
+
+The current demo's explicit `public-read` row declaration is a compatibility
+boundary, not that product rule: the v1 table-policy IR cannot express its
+author-or-recipient JSON-map audience, while its acceptance inspection and
+recipient mutation flows must keep working. Handler checks still protect the
+demo's operations, but do not copy this declaration into a production view-once
+model; use a row-normalized recipient relation with membership/owner policy or
+wait for a governed alternate-scope implementation.
 
 The demo's durable model makes those two roles explicit and gives the
 consumption record a unique `(message, principal)` identity:
@@ -63,6 +71,7 @@ export const viewOnceMessages = defineTable({
   caption: v.string(),
   createdAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_conversation', ['conversationId']);
 
 export const viewOnceConsumptions = defineTable({
@@ -70,15 +79,16 @@ export const viewOnceConsumptions = defineTable({
   principal: v.string(),
   openedAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   // Product state, not asset state: this is what makes a second logical open
   // refuse even while the first activation remains live.
   .index('by_message_principal', ['viewOnceMessageId', 'principal'], { unique: true });
 ```
 
-The demo's inspection query deliberately relaxes message policy so its
-headless suite can inspect this bookkeeping. That is witness scaffolding, not
-the product rule: a real query must keep the grants map owner-visible and let
-recipients reach only authorized open/close mutations.
+The demo's inspection query deliberately exposes this bookkeeping to its
+headless suite. That is witness scaffolding, not the product rule: a production
+query must keep the grants map owner-visible and let recipients reach only
+authorized open/close mutations.
 
 In one authorized owner mutation, attach first, insert the message with its
 typed reference, mint one **pending** grant per recipient, and persist the map.

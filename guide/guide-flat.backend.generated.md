@@ -3330,6 +3330,12 @@ edge, seed fixture, and live-feed row together:
       caption: v.string(),
       photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
     })
+      .visibility({
+        kind: 'membership',
+        declaration: eventMembers,
+        resourceField: 'eventId',
+        roles: ['host', 'guest'],
+      })
       .index('by_event', ['eventId'])
       .assetSharing({ kind: 'membership', membership: 'eventMembers' })
       .sync(),
@@ -5774,6 +5780,7 @@ export const incidents = defineTable({
   createdAt: v.integer(),
   updatedAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_updated', ['updatedAt'])
   .searchIndex('search_incidents', {
     semanticVersion: 'signal-desk-incidents.v1',

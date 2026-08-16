@@ -7,7 +7,7 @@ export const workspaceMembers = defineTable({
   workspaceId: v.id('workspaces'),
   userId: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'userId' }).membership({
   id: 'workspaceMembers',
   principal: 'userId',
   resource: 'workspaceId',
@@ -26,13 +26,26 @@ export default defineSchema({
   workspaces: defineTable({
     name: v.string(),
     createdBy: v.principal(),
-  }).sync(),
+  })
+    .visibility({
+      kind: 'membership',
+      declaration: workspaceMembers,
+      resourceField: '_id',
+      roles: ['owner', 'member'],
+    })
+    .sync(),
   workspaceMembers,
   notes: defineTable({
     workspaceId: v.id('workspaces'),
     authorId: v.principal(),
     body: v.string(),
   })
+    .visibility({
+      kind: 'membership',
+      declaration: workspaceMembers,
+      resourceField: 'workspaceId',
+      roles: ['owner', 'member'],
+    })
     .index('by_workspace', ['workspaceId'])
     .sync(),
 }, { auth: { mode: 'dev' } });

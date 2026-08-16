@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "7162e7465937d2dbfc16a88a315d57c780d09ba7bcfd00f296bcd10b96a70f4e",
+  "inputsHash": "7e1ce450af609a64e6208bf350c65d46be500476cf2c8699f0b82ff1abae743f",
   "operations": [
     {
       "authRequirement": {
@@ -37,9 +37,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "auditEntries"
@@ -102,9 +103,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "incidents"
@@ -208,21 +210,74 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "auditEntries"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "incidents"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "auditEntries-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "auditEntries"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "incidents-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "incidents"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

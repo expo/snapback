@@ -30,7 +30,7 @@ const authProgram = defineAuth({
 export const appMembers = defineTable({
   userId: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'userId' }).membership({
   principal: 'userId',
   role: 'role',
   roles: ['member', 'admin'],
@@ -50,5 +50,5 @@ export default defineSchema({
   announcements: defineTable({
     authorId: v.principal(),
     message: v.string(),
-  }).sync(),
+  }).visibility({ kind: 'public-read' }).sync(),
 }, { auth: { mode: 'sessions' }, authProgram });

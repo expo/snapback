@@ -8,7 +8,7 @@ import {
 export const appMembers = defineTable({
   principal: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'principal' }).membership({
   principal: 'principal',
   role: 'role',
   roles: ['host'],

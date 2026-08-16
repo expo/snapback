@@ -21,7 +21,7 @@ export const users = defineTable({
   name: v.string(),
   avatarEmoji: v.string(),
   avatarColor: v.string(),
-}).index('by_handle', ['handle'], { unique: true });
+}).visibility({ kind: 'public-read' }).index('by_handle', ['handle'], { unique: true });
 
 export const conversations = defineTable({
   kind: v.string(), // 'dm' | 'group'
@@ -38,6 +38,7 @@ export const conversations = defineTable({
   lastMessageAt: v.integer(),
   createdAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_updated', ['lastMessageAt']);
 
 export const conversationMembers = defineTable({
@@ -45,6 +46,7 @@ export const conversationMembers = defineTable({
   userHandle: v.string(),
   joinedAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_conversation', ['conversationId'])
   .index('by_user', ['userHandle'])
   .index('by_conversation_user', ['conversationId', 'userHandle'], { unique: true });
@@ -58,6 +60,7 @@ export const messages = defineTable({
   replyToId: v.optional(v.id('messages')),
   createdAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_conversation', ['conversationId', 'createdAt'])
   // Demo-scoped sharing: any signed-in persona may view any message image.
   // A production app would gate this by conversation membership instead.
@@ -69,6 +72,7 @@ export const reactions = defineTable({
   emoji: v.string(),
   createdAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_message', ['messageId'])
   // One reaction per (message, user, emoji) — structural dedup instead of a
   // handler scan, same trick as Warble's likes table.
@@ -85,6 +89,7 @@ export const viewOnceMessages = defineTable({
   caption: v.string(),
   createdAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_conversation', ['conversationId']);
 
 export const viewOnceConsumptions = defineTable({
@@ -92,6 +97,7 @@ export const viewOnceConsumptions = defineTable({
   principal: v.string(),
   openedAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   // Product state, not asset state: this is what makes a second logical open
   // refuse even while the first activation remains live.
   .index('by_message_principal', ['viewOnceMessageId', 'principal'], { unique: true });

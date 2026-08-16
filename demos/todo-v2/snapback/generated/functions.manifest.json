@@ -5,9 +5,9 @@
   ],
   "appId": "todo-v2",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:6426fb1ee62c895d0f4ff0b62e73ea9dbe4340419c12d71175e2d30260db1a51",
+  "authoredSourceHash": "sha256:85b5642896badd009a948f23249de1309e047675b34f6054bfb0f32a8f8fa1e4",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:5ad0bf08168959db",
+  "bundleHash": "sha256:bd13d2f74d43394a",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -332,7 +332,7 @@
       "exportedName": "listTodos",
       "handlerForm": "plan",
       "id": "todo-v2:listTodos",
-      "implementationHash": "sha256:e7972722120defce61ef232c266f30885b1864e02d4b63ac20d703918dcba32f",
+      "implementationHash": "sha256:f559ac9d2c613b839f2d9ffd5083e9779cffd703e4baa061c7607a71dc0ffc92",
       "kind": "LiveQuery",
       "name": "listTodos",
       "readSetSummary": {
@@ -445,7 +445,11 @@
                 "field": "_createdAt"
               }
             ],
-            "table": "todos"
+            "table": "todos",
+            "tableVisibility": {
+              "field": "userId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -496,7 +500,7 @@
       "exportedName": "listTodosByPriority",
       "handlerForm": "plan",
       "id": "todo-v2:listTodosByPriority",
-      "implementationHash": "sha256:c60e406af73cb2ce9ac8ca78a4b7acbc4258db35876e86976c3ad201802b4b6d",
+      "implementationHash": "sha256:65c6bbd5982674c0a22c0d8423d72764188d8c0eb548ec07edcd770a72f51833",
       "kind": "LiveQuery",
       "name": "listTodosByPriority",
       "readSetSummary": {
@@ -616,7 +620,11 @@
                 "field": "_createdAt"
               }
             ],
-            "table": "todos"
+            "table": "todos",
+            "tableVisibility": {
+              "field": "userId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -658,7 +666,7 @@
       "exportedName": "listTodosOnce",
       "handlerForm": "plan",
       "id": "todo-v2:listTodosOnce",
-      "implementationHash": "sha256:32ab0b629a662dd26d2fe95828b0eb1b7722f182ebf56df7fb4336129726c10c",
+      "implementationHash": "sha256:95139f55dccd9bca5063a7e9ea5bf295381ad3d10b9e567105910335f052d154",
       "kind": "Query",
       "name": "listTodosOnce",
       "readSetSummary": {
@@ -770,7 +778,11 @@
                 "field": "_createdAt"
               }
             ],
-            "table": "todos"
+            "table": "todos",
+            "tableVisibility": {
+              "field": "userId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -986,7 +998,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "7475eb2b93c21382de2a49a3880edf87d9d578a9acf86d73525b91bbe050cfb3",
+  "inputsHash": "003ad8ec6a273be14f20468dc7039bacba7988d4822a68b4d4926261e737389c",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

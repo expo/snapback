@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "1051b3e926a7a9858ec40fe83d0fb00db27ea5cbac37cb6c7289accd6a0c61a8",
+  "inputsHash": "723c4602e0393fc9fe55cb9db5121e261bdb390e542ce55b07367ba0164f2429",
   "operations": [
     {
       "authRequirement": {
@@ -209,9 +209,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "userId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "todos"
@@ -274,9 +275,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "userId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "todos"
@@ -339,9 +341,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "userId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "todos"
@@ -504,14 +507,41 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "userId",
+        "kind": "owner"
       },
       "table": "todos"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "todos-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "tableId": "todos"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

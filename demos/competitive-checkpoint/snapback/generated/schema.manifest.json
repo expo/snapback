@@ -5,16 +5,16 @@
   "auth": {
     "mode": "dev"
   },
-  "authoredSourceHash": "sha256:4455ef68ce8584f85c901a570550adbc9c2d0f836262cb84106a8116d369242b",
+  "authoredSourceHash": "sha256:c5fdf680ff646e8a6b95b737ea9864980d51665b3e31bb60a701bb5c79fa7eb2",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "2305d6dfbcb3f07e911e452d55e15f524bac0bf718d7131f311b1e73cdd48da6",
+  "inputsHash": "1cb3fb8dcd90f63c9a0edb8e3ab698d193b3e3d573d0e43f66422e93a05b4ba8",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "relational_query_v1"
   ],
-  "schemaHash": "sha256:537c18ba7caf1a11",
+  "schemaHash": "sha256:d2980543eb50998c",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -87,7 +87,11 @@
         }
       ],
       "name": "conversations",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "ownerId",
+        "kind": "owner"
+      }
     },
     {
       "fields": [
@@ -177,7 +181,11 @@
         }
       ],
       "name": "messages",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "ownerId",
+        "kind": "owner"
+      }
     },
     {
       "fields": [
@@ -207,7 +215,10 @@
         }
       ],
       "name": "models",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -236,8 +247,23 @@
         }
       ],
       "name": "conversationCards",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "ownerId",
+        "kind": "owner"
+      }
     }
   ],
-  "targetProfile": "local-dev-sqlite-ibex"
+  "targetProfile": "local-dev-sqlite-ibex",
+  "visibilityGovernance": {
+    "fixtureProfiles": [],
+    "generationInputsHash": "sha256:9157348f7618631ed31d0149ea2d2e77ee44d5badd50c170d44a8d25947e1443",
+    "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
+    "productionWindows": [],
+    "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
+    "required": false,
+    "schemaVersion": "snapback.visibility-governance-activation.v1",
+    "tablePolicyBaselineDigest": "sha256:5c3a54e9ffa1da4ba78a9b884c2196228bc39698c50ebcf580a67df2b4fb6b8f",
+    "visibilityAuthorizationProgramDigest": "sha256:0592ec42da47423085945d7c1c9f3a601424ce08207c9d9af281707b6b9aa31c"
+  }
 }

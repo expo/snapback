@@ -194,7 +194,10 @@
               }
             ],
             "name": "users",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           },
           {
             "fields": [
@@ -228,7 +231,10 @@
               }
             ],
             "name": "conversations",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           },
           {
             "fields": [
@@ -274,7 +280,10 @@
               }
             ],
             "name": "memberships",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           },
           {
             "assetSharing": {
@@ -343,7 +352,10 @@
               }
             ],
             "name": "messages",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           },
           {
             "fields": [
@@ -404,7 +416,10 @@
               }
             ],
             "name": "reactions",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           }
         ],
         "version": "snapback.v1"
@@ -2185,7 +2200,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:f532df6fe388e620691695095a6358e43a1b8721c30b801919c1c98e46aca437",
-  "normalizedSchemaId": "sha256:bed97d28fb66c74c5364b210881d76130e590c4e52aee2d0917ac22b6f0eae63",
+  "normalizedContractId": "sha256:6cf3aac4b540fbbd8ed518fbb6c3ae5f04714aa9666e4cef5004349377aaa380",
+  "normalizedSchemaId": "sha256:15decd1220e7fa07205660af4945c402bb2d18132637fd30f020c8ae1936bf96",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

@@ -12,7 +12,7 @@ export const roomMembers = defineTable({
   roomId: v.id('rooms'),
   userId: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'userId' }).membership({
   id: 'roomMembers',
   principal: 'userId',
   resource: 'roomId',
@@ -35,7 +35,14 @@ export default defineSchema({
     title: v.string(),
     createdBy: v.principal(),
     createdAt: v.integer(),
-  }).sync(),
+  })
+    .visibility({
+      kind: 'membership',
+      declaration: roomMembers,
+      resourceField: '_id',
+      roles: ['owner', 'member'],
+    })
+    .sync(),
   roomMembers,
   roomParticipants: defineTable({
     roomId: v.id('rooms'),
@@ -44,6 +51,18 @@ export default defineSchema({
     status: v.string(),
     changedAt: v.integer(),
   })
+    .visibility({
+      kind: 'any-of',
+      arms: [
+        { kind: 'owner', field: 'userId' },
+        {
+          kind: 'membership',
+          declaration: roomMembers,
+          resourceField: 'roomId',
+          roles: ['owner', 'member'],
+        },
+      ],
+    })
     .index('by_room', ['roomId'])
     .index('by_user', ['userId'])
     .index('by_room_user', ['roomId', 'userId'], { unique: true })
@@ -56,6 +75,12 @@ export default defineSchema({
     pageKey: v.string(),
     createdAt: v.integer(),
   })
+    .visibility({
+      kind: 'membership',
+      declaration: roomMembers,
+      resourceField: 'roomId',
+      roles: ['owner', 'member'],
+    })
     .index('by_room_page_key', ['roomId', 'pageKey'], { unique: true })
     .sync(),
   deliveries: defineTable({
@@ -69,6 +94,7 @@ export default defineSchema({
     createdAt: v.integer(),
     unread: v.boolean(),
   })
+    .visibility({ kind: 'owner', field: 'recipientId' })
     .index('by_recipient_page_key', ['recipientId', 'pageKey'], { unique: true })
     .index('by_recipient_room', ['recipientId', 'roomId'])
     .index('by_message_recipient', ['messageId', 'recipientId'], { unique: true })

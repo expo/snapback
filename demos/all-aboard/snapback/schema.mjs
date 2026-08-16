@@ -26,7 +26,7 @@ export default defineSchema({
     lng: v.real(),
     photoUrl: v.string(),
     photoAttribution: v.string(),
-  }).index('by_order', ['orderIndex']),
+  }).visibility({ kind: 'public-read' }).index('by_order', ['orderIndex']),
 
   // Static service patterns (one row per scheduled service class + direction).
   trips: defineTable({
@@ -38,7 +38,7 @@ export default defineSchema({
     speedFactor: v.real(),
     originStationId: v.string(),
     destinationStationId: v.string(),
-  }).index('by_direction', ['direction']),
+  }).visibility({ kind: 'public-read' }).index('by_direction', ['direction']),
 
   // Static stop pattern, indexed by station to back the per-station board.
   stopTimes: defineTable({
@@ -46,7 +46,7 @@ export default defineSchema({
     stationId: v.string(),
     sequence: v.integer(),
     offsetMinutes: v.integer(),
-  }).index('by_station', ['stationId']),
+  }).visibility({ kind: 'public-read' }).index('by_station', ['stationId']),
 
   // Live, refresh-written. One row per service pattern; the delay the world adds
   // on top of the static schedule. This is the table that makes the screen live.
@@ -56,6 +56,7 @@ export default defineSchema({
     status: v.string(),
     observedAt: v.integer(),
   })
+    .visibility({ kind: 'public-read' })
     .index('by_pattern', ['patternId'])
     .sync(),
 
@@ -79,6 +80,7 @@ export default defineSchema({
     observedAt: v.integer(),
     source: v.string(),
   })
+    .visibility({ kind: 'public-read' })
     .index('by_time', ['predictedDepartureMs'])
     .sync(),
 
@@ -96,7 +98,7 @@ export default defineSchema({
     // is allowed to touch 511, so cron + manual refresh together can never
     // exceed one upstream poll per budget window (ENG-23642: 180s cadence).
     lastUpstreamPollAt: v.optional(v.integer()),
-  }).sync(),
+  }).visibility({ kind: 'public-read' }).sync(),
 
   // The committed "recorded feed" — a cycle of delay profiles the refresh applies
   // one tick at a time (frozen-clock deterministic). delays: { patternId: seconds }.
@@ -104,5 +106,5 @@ export default defineSchema({
     tickIndex: v.integer(),
     delays: v.json(),
     note: v.string(),
-  }).index('by_index', ['tickIndex']),
+  }).visibility({ kind: 'public-read' }).index('by_index', ['tickIndex']),
 });

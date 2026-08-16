@@ -1,0 +1,19 @@
+{
+  "entries": [
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "principal",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:0005acd1411fae5afb50a80e6e5a8d0d97d5c89874befd4ccc1f1a7625bb5baa",
+      "provenanceHeadId": "appMembers-g1-20260816-v1",
+      "tableId": "appMembers"
+    }
+  ],
+  "exactSetDigest": "sha256:4f54efa96eb68df8cdce26d366817bb0267f0dd2c5a1d12dedd459c07d48fc18",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+}

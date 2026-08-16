@@ -17,13 +17,14 @@ export default defineSchema(
     rooms: defineTable({
       name: v.string(),
       ownerId: v.principal(),
-    }).sync(),
+    }).visibility({ kind: 'public-read' }).sync(),
     rounds: defineTable({
       roomId: v.id('rooms'),
       topic: v.string(),
       sequence: v.integer(),
       revealed: v.boolean(),
     })
+      .visibility({ kind: 'public-read' })
       .index('by_room_sequence', ['roomId', 'sequence'])
       .sync(),
     votes: defineTable({
@@ -40,6 +41,7 @@ export default defineSchema(
         v.literal('?'),
       ]),
     })
+      .visibility({ kind: 'public-read' })
       // Deliberately NOT .sync(): votes carry the pre-reveal secret, and only
       // the masking JS live query may publish them. Leaving the table
       // syncable-eligible would let a future defineLiveQuery({table:'votes'})

@@ -9,7 +9,7 @@
   "auth": {
     "mode": "sessions"
   },
-  "authoredSourceHash": "sha256:8a25ad4257453c91a18f9cc4a858b530bc59b48fd566d2cdfde4c7517fc5786d",
+  "authoredSourceHash": "sha256:159dc0370cbe2d0c181eba76d817066fd0fb56b356083e4e574c328eec77659d",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [
     {
@@ -70,12 +70,12 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:94e7df5ecbe0b31f0b6810cc28c9f978b8b59997a2544fc6200644ba65bdbeb3",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:febf08ad3c48cdedf95c480dace43c4135566b63eb3ea463d062cf9db01aa53e",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:f0af620c6b68b255c45e4ad1da4261537494b8e800dd40014197793fef384db7",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:b6dc516ba57cec3054cd0caf197666c87685d68ed617a0c26083b0bf5570b93b",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -93,7 +93,10 @@
       ],
       "indexes": [],
       "name": "rooms",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -132,7 +135,10 @@
         }
       ],
       "name": "rounds",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -194,8 +200,22 @@
         }
       ],
       "name": "votes",
-      "syncable": false
+      "syncable": false,
+      "visibility": {
+        "kind": "public-read"
+      }
     }
   ],
-  "targetProfile": "local-dev-sqlite-ibex"
+  "targetProfile": "local-dev-sqlite-ibex",
+  "visibilityGovernance": {
+    "fixtureProfiles": [],
+    "generationInputsHash": "sha256:7b3e7dc9968d4e4e538677de43dbe7094b337282979184efd36a945975301619",
+    "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
+    "productionWindows": [],
+    "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
+    "required": false,
+    "schemaVersion": "snapback.visibility-governance-activation.v1",
+    "tablePolicyBaselineDigest": "sha256:019c371c8bef748dca031843afbe6c205e2e7392afde8ef0e2ad853b025d1a60",
+    "visibilityAuthorizationProgramDigest": "sha256:40474a264897c17ab57b3fc1f7f7de33bbbfef524be7513301e1e66a293e711f"
+  }
 }

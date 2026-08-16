@@ -1,0 +1,19 @@
+{
+  "entries": [
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "provenanceHeadId": "todos-g1-20260816-v1",
+      "tableId": "todos"
+    }
+  ],
+  "exactSetDigest": "sha256:90a541457d056464c40c19c3c27bfe0cec46b0cd3feba5aeea7a9e807e4c7362",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+}

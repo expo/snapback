@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "2305d6dfbcb3f07e911e452d55e15f524bac0bf718d7131f311b1e73cdd48da6",
+  "inputsHash": "1cb3fb8dcd90f63c9a0edb8e3ab698d193b3e3d573d0e43f66422e93a05b4ba8",
   "operations": [
     {
       "authRequirement": {
@@ -39,9 +39,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "messages"
@@ -108,9 +109,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "messages"
@@ -177,9 +179,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "messages"
@@ -244,9 +247,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "conversations"
@@ -293,7 +297,9 @@
       },
       "authorityIndependent": false,
       "authorityProfileIdentities": [],
-      "authorizationDependence": [],
+      "authorizationDependence": [
+        "userId"
+      ],
       "authorizationPredicates": [],
       "effectCeiling": {
         "authorizationInputs": [
@@ -499,9 +505,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "conversations"
@@ -570,9 +577,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "conversations"
@@ -642,9 +650,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "conversationCards"
@@ -711,9 +720,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "conversations"
@@ -782,9 +792,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "messages"
@@ -851,9 +862,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "host-plan.single-table",
           "table": "conversations"
@@ -977,9 +989,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "messages"
@@ -1050,18 +1063,20 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "conversations"
         },
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "ownerId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "messages"
@@ -1227,35 +1242,138 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "conversationCards"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "conversations"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "ownerId",
+        "kind": "owner"
       },
       "table": "messages"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
         "kind": "public-read"
       },
       "table": "models"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "conversationCards-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "conversationCards"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "conversations-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "conversations"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "messages-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "ownerId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "tableId": "messages"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "models-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "growth",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "kind": "public-read"
+        }
+      },
+      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "tableId": "models"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

@@ -7,7 +7,7 @@ import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 
 export const boards = defineTable({
   name: v.string(),
-}).sync();
+}).visibility({ kind: 'public-read' }).sync();
 
 export const cards = defineTable({
   boardId: v.id('boards'),
@@ -19,6 +19,7 @@ export const cards = defineTable({
   locked: v.boolean(),
   revision: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_board_rank', ['boardId', 'rank'])
   .sync();
 

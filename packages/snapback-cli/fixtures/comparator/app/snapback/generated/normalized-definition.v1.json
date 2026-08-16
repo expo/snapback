@@ -117,7 +117,10 @@
             ],
             "indexes": [],
             "name": "liveRows",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           },
           {
             "fields": [
@@ -129,7 +132,10 @@
             ],
             "indexes": [],
             "name": "primaryRows",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           },
           {
             "fields": [
@@ -141,7 +147,10 @@
             ],
             "indexes": [],
             "name": "activityRows",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           },
           {
             "fields": [
@@ -153,7 +162,10 @@
             ],
             "indexes": [],
             "name": "rejectionRows",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           }
         ],
         "version": "snapback.v0"
@@ -921,7 +933,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:214374280febd913e9ebc51a0721f15d9f59ae01dfaf4f482b55f5515d896fdf",
-  "normalizedSchemaId": "sha256:a5b108ca58cfa87e328564963f68414ac8943e60082eba7df731cf0bbddf1758",
+  "normalizedContractId": "sha256:b851b08ea93d966d80ff7c3149c69d00f0c3c921f458b9264c619e26753b46a2",
+  "normalizedSchemaId": "sha256:df043a8c03b4b08a405c7599e0aee088849ca0c3102ee16952ed215fd129a261",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

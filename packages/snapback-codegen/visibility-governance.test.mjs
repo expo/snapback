@@ -32,6 +32,8 @@ import {
   currentTablePolicyBaseline,
   deepMatchGovernedVerdict,
   exactSetBaseline,
+  g1ClosureReceiptDigest,
+  g1ClosureSourceRevisionDigest,
   governanceDigest,
   installGovernanceNodeChildProcess,
   normalizePolicyBody,
@@ -61,6 +63,36 @@ const tables = {
     fields: [{ name: 'ownerId', fieldType: { String: {} } }],
   },
 };
+
+test('ordinary-policy governance admits the shipped self-resource _id field', () => {
+  const membershipTables = {
+    rooms: {
+      visibility: {
+        kind: 'membership',
+        declaration: 'room-members',
+        resourceField: '_id',
+        roles: ['member'],
+      },
+      fields: [],
+    },
+    roomMembers: {
+      membership: {
+        id: 'room-members',
+        principal: 'userId',
+        resource: 'roomId',
+        resourceTable: 'rooms',
+        role: 'role',
+        roles: ['member'],
+      },
+      fields: [],
+    },
+  };
+  assert.equal(
+    normalizePolicyBody(membershipTables.rooms.visibility, membershipTables)
+      .policy.resourceField,
+    '_id',
+  );
+});
 
 function writeJson(root, path, value) {
   const target = join(root, path);
@@ -318,7 +350,7 @@ test('every G0 governance schema compiles under draft 2020-12', () => {
     (name.startsWith('visibility-') || name.startsWith('table-visibility-'))
     && name.endsWith('.schema.json')
   ));
-  assert.equal(files.length, 14);
+  assert.equal(files.length, 15);
   const schemas = files.map((file) => JSON.parse(readFileSync(join(packageRoot, file))));
   for (const schema of schemas) ajv.addSchema(schema);
   for (const schema of schemas) assert.equal(typeof ajv.getSchema(schema.$id), 'function');
@@ -924,6 +956,132 @@ function commitAll(root, message) {
   git(root, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-m', message);
   return git(root, 'rev-parse', 'HEAD');
 }
+
+test('G1 closure admits only the exact initial public-policy corpus once', () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-visibility-g1-'));
+  const backendPath = 'app/snapback';
+  const backendRoot = join(root, backendPath);
+  try {
+    git(root, 'init', '-q');
+    git(root, 'branch', '-M', 'main');
+    writeFileSync(join(root, 'README.md'), 'pre-G1\n');
+    const predecessorOid = commitAll(root, 'before G1');
+
+    const ownerMap = ownerArtifacts(backendRoot).ownerMap;
+    const migrationTables = {
+      records: {
+        visibility: { kind: 'public-read' },
+        fields: [],
+      },
+    };
+    const successorNormalizedPolicyBody = normalizePolicyBody(
+      migrationTables.records.visibility,
+      migrationTables,
+    );
+    const node = {
+      schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.transitionRecord,
+      id: 'records-g1-v1',
+      tableId: 'records',
+      predecessorHeadId: null,
+      predecessorHeadDigest: null,
+      predecessorNormalizedPolicyBody: null,
+      predecessorPolicyDigest: null,
+      successorNormalizedPolicyBody,
+      successorPolicyDigest: governanceDigest(
+        'snapback:table-visibility-policy-body:v1',
+        successorNormalizedPolicyBody,
+      ),
+      admissionKind: 'g1-migration',
+      approvalPath: null,
+      approvalClosureDigest: null,
+      serverSeparationReceipt: null,
+      serverSeparationReceiptDigest: null,
+      quarantineVerdict: null,
+    };
+    const ledger = {
+      schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.transitionLedger,
+      nodes: [node],
+      heads: { records: node.id },
+      ledgerDigest: transitionLedgerDigest([node], { records: node.id }),
+    };
+    const policy = currentTablePolicyBaseline(migrationTables, ledger);
+    writeJson(backendRoot, GOVERNANCE_FILES.transitionLedger, ledger);
+    writeJson(backendRoot, GOVERNANCE_FILES.policyBaseline, policy);
+    writeJson(backendRoot, GOVERNANCE_FILES.overrideBaseline,
+      exactSetBaseline([], GOVERNANCE_SCHEMA_VERSIONS.overrideBaseline));
+    writeJson(backendRoot, GOVERNANCE_FILES.quarantineLedger, {
+      schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.quarantineLedger,
+      records: [],
+      retiredIds: [],
+      headDigest: governanceDigest('snapback:visibility-quarantine-head:v1', []),
+    });
+    writeJson(backendRoot, 'generated/authorization-review.json', {
+      inputsHash: 'snapback.g1-fixture.inputs.v1',
+      tablePolicies: [{ table: 'records', origin: 'declared', policy: { kind: 'public-read' } }],
+    });
+    const codegenSource = 'export const G1_CODEGEN = true;\n';
+    const completionTestSource = 'export const G1_COMPLETION = true;\n';
+    mkdirSync(join(root, 'packages/snapback-codegen'), { recursive: true });
+    writeFileSync(join(root, 'packages/snapback-codegen/index.mjs'), codegenSource);
+    writeFileSync(
+      join(root, 'packages/snapback-codegen/card-game-visibility-completion.test.mjs'),
+      completionTestSource,
+    );
+    const receipt = {
+      schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.g1Closure,
+      closureId: 'llp-0234-g1-g2-fixture',
+      predecessorOid,
+      phases: ['G1', 'G2'],
+      approvedBy: 'project-author',
+      approvedOn: '2026-08-16',
+      ruling: 'Approve this exact initial public-policy fixture and no successor migration.',
+      codegenSourceDigest: governanceDigest(
+        'snapback:visibility-governance-g1-codegen-source:v1',
+        codegenSource,
+      ),
+      completionTestSourceDigest: governanceDigest(
+        'snapback:visibility-governance-g1-completion-test-source:v1',
+        completionTestSource,
+      ),
+      backends: [{
+        backendPath,
+        authorizationReviewInputsHash: 'snapback.g1-fixture.inputs.v1',
+        ownerMapDigest: governanceDigest('snapback:visibility-owner-map:v1', ownerMap),
+        policyBaselineDigest: policy.exactSetDigest,
+        transitionLedgerDigest: ledger.ledgerDigest,
+      }],
+      publicTables: [{ backendPath, tableId: 'records', policyDigest: node.successorPolicyDigest }],
+      sourceRevisionDigest: null,
+      receiptDigest: null,
+    };
+    receipt.sourceRevisionDigest = g1ClosureSourceRevisionDigest(receipt);
+    receipt.receiptDigest = g1ClosureReceiptDigest(receipt);
+    writeJson(root, GOVERNANCE_FILES.g1Closure, receipt);
+    const afterOid = commitAll(root, 'exact G1 closure');
+    assert.deepEqual(compareGovernanceSnapshots({
+      root,
+      beforeOid: predecessorOid,
+      afterOid,
+      backendPaths: [backendPath],
+    }).policyGrowth, ['records']);
+
+    const rebound = { ...receipt, ruling: 'Rebound ruling.' };
+    rebound.receiptDigest = g1ClosureReceiptDigest(rebound);
+    writeJson(root, GOVERNANCE_FILES.g1Closure, rebound);
+    const reboundOid = commitAll(root, 'rebind G1 receipt');
+    assert.throws(
+      () => compareGovernanceSnapshots({
+        root,
+        beforeOid: afterOid,
+        afterOid: reboundOid,
+        backendPaths: [backendPath],
+      }),
+      ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 function protectedConfigEnv(root, config) {
   const path = join(root, 'protected-visibility-governance-config.json');

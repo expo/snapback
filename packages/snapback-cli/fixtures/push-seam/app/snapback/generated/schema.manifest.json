@@ -5,11 +5,11 @@
   "auth": {
     "mode": "sessions"
   },
-  "authoredSourceHash": "sha256:f6fd4094065d4a22a89cfd12c95cd21b2c25d1e5d41369c9bfd941ca9ec0abe7",
+  "authoredSourceHash": "sha256:4f6ab7c81eda04ddea9b3b053bfb8f46475be10a5008abe3575d788af688026f",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:931ad8f18c49f72cf6b4d273ba1835bc45d27fc0e0a06f51bce744950076e9fa",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:806f39e046f49eb37823929bf25aa8ba101fb18bd27adb9071b74726802a1329",
   "portabilityFlags": [],
   "pushSeam": {
     "appScope": {
@@ -47,7 +47,7 @@
     "auth.sessions.v1",
     "notifications.expoPushSeam"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:06c536dd6faf21b725d42f822ba6d642e7b7754cdb35e3e45c0c89060843c6fa",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:a9ad5ec4337fdc1e5fda113893ff312c8cd3e9351306de3de6f051364f02ac21",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -96,8 +96,23 @@
         ]
       },
       "name": "appMembers",
-      "syncable": false
+      "syncable": false,
+      "visibility": {
+        "field": "principal",
+        "kind": "owner"
+      }
     }
   ],
-  "targetProfile": "local-dev-sqlite-ibex"
+  "targetProfile": "local-dev-sqlite-ibex",
+  "visibilityGovernance": {
+    "fixtureProfiles": [],
+    "generationInputsHash": "sha256:5b3dc887f302a0d8ae2bc91e9515be41ef98d3d0c1461e7ab4f9ed74938809d4",
+    "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
+    "productionWindows": [],
+    "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
+    "required": false,
+    "schemaVersion": "snapback.visibility-governance-activation.v1",
+    "tablePolicyBaselineDigest": "sha256:4f54efa96eb68df8cdce26d366817bb0267f0dd2c5a1d12dedd459c07d48fc18",
+    "visibilityAuthorizationProgramDigest": "sha256:bba9f1ecdb408d44705237e42eb4d4ed120d1ac02b2d0348e4cdc96d04209e36"
+  }
 }

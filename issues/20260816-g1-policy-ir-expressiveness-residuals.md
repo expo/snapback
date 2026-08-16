@@ -1,0 +1,31 @@
+# Three G1-migration tables carry public-read because the Class-R policy IR cannot express their honest policy
+
+**Opened:** 2026-08-16
+**Severity:** P2 (documented residuals; enforcement now fail-closed everywhere else)
+**Systems:** Security/authorization, Code generation
+**Source:** LLP 0234 G1 corpus migration (per-backend choice table in the landing commit).
+
+The G1 closure declared explicit policies on all 90 corpus tables, but three
+cases got `public-read` as the narrowest EXPRESSIBLE policy while their honest
+policy is narrower. Each is documented at the declaration site; this ticket
+keeps them from disappearing into the migration report:
+
+1. **messaging-snapback view-once tables** — honest policy is
+   author-or-recipient, where the recipient set lives in a JSON map on the
+   row. The IR's `any-of` composition has no vocabulary for map-keyed
+   recipient authority. Candidate owners: a Class-R policy-language extension
+   (deliberately deferred by the completion program), or restructuring the
+   demo onto a membership table.
+2. **pointing-room votes** — hidden vote values remain protected only by the
+   declared handler `fieldBoundary:` residual; the row policy is public-read.
+   This is LLP 0235's canonical Class-M case and stays with 0235.
+3. **rbac appMembers app-scope announcements** — app-scope membership (no
+   resource row) cannot be expressed because membership visibility requires a
+   `resourceField`. LLP 0231's 2026-08-15 D7 amendment added bounded
+   `resourceField: '_id'` self-resource visibility; evaluate whether an
+   app-singleton resource row or a scope-level membership form closes this.
+
+Resolution shape: each case either gains an IR form that expresses it (then
+the table narrows in a governed transition per LLP 0234 D5) or is explicitly
+ruled acceptable-as-documented. None of these blocks G2 enforcement, which
+landed with this migration.

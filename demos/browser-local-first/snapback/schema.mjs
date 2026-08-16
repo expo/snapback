@@ -7,6 +7,7 @@ export default defineSchema({
     done: v.boolean(),
     note: v.optional(v.string()),
   })
+    .visibility({ kind: 'public-read' })
     .index('by_list_title', ['listId', 'title'])
     .sync(),
 });

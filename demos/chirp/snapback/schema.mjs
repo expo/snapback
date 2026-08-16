@@ -7,7 +7,7 @@ export const profiles = defineTable({
   avatarUrl: v.string(),
   verified: v.boolean(),
   followers: v.integer(),
-}).index('by_handle', ['handle'], { unique: true });
+}).visibility({ kind: 'public-read' }).index('by_handle', ['handle'], { unique: true });
 
 export const posts = defineTable({
   authorHandle: v.string(),
@@ -16,11 +16,13 @@ export const posts = defineTable({
   replyToId: v.optional(v.id('posts')),
   likeCount: v.integer(),
   replyCount: v.integer(),
-}).index('by_created', ['createdAt']).index('by_author_created', ['authorHandle', 'createdAt']);
+}).visibility({ kind: 'public-read' })
+  .index('by_created', ['createdAt']).index('by_author_created', ['authorHandle', 'createdAt']);
 
 export const likes = defineTable({
   postId: v.id('posts'),
   userHandle: v.string(),
-}).index('by_post_user', ['postId', 'userHandle'], { unique: true });
+}).visibility({ kind: 'public-read' })
+  .index('by_post_user', ['postId', 'userHandle'], { unique: true });
 
 export default defineSchema({ profiles, posts, likes });

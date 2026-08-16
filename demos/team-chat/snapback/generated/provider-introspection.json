@@ -351,7 +351,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
-          "implementationHash": "sha256:489d8c5778cf593acf131f993872c34c515d56e48a2b4299f926339e52887faa",
+          "implementationHash": "sha256:708c67bd6ef1dfed44c72f01468706b658adb22432af0ccd7a0546ddcf06b7ce",
           "result": {
             "document": {
               "allowExtra": false,
@@ -571,7 +571,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
-          "implementationHash": "sha256:97ec539014564376065d6bd1a247fd7e3dcf3c03ad58f9f703de6af318d8c236",
+          "implementationHash": "sha256:0ec30286db97d0167a07e7a1ae5bd9cdec31f61212c5a6b6da593e2fe8190a03",
           "result": {
             "document": {
               "allowExtra": false,
@@ -746,7 +746,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
-          "implementationHash": "sha256:6eb415a2b0ccd1701c3d9eb9f62f974f65cc6bd504ecbfbb41b11f5303cd16df",
+          "implementationHash": "sha256:2eeb9540802e1f53136c97e588fe1b17bb650eaae00d2487c64332d90f4901ba",
           "result": {
             "document": {
               "allowExtra": false,
@@ -853,7 +853,8 @@
         },
         "dependencies": {
           "reads": [
-            "roomParticipants"
+            "roomParticipants",
+            "roomMembers"
           ]
         },
         "execution": {
@@ -920,7 +921,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:5fb6da771a8e374b6a650bf0f7c24bdc27a3033b55784f0a88070244040b25ee",
-          "implementationHash": "sha256:788911e821ee659bc0e41a971eb1218bdf74523ace21806bb357e594b5ff56bf",
+          "implementationHash": "sha256:c65b87b60129e9db5ee3749e2ad8e3d4b9f8c3ddba0f124fcafff5b8f5b17541",
           "result": {
             "document": {
               "allowExtra": false,
@@ -1145,7 +1146,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:7784b070e126a124e4b6c556ea5c6732c19aa00e56489e16602149b9d5def532",
-          "implementationHash": "sha256:9b591f930dbc78fe2ffc74399a5cc718c01dc71d35de1660ac0f5fd3d8789aa5",
+          "implementationHash": "sha256:2948ab3c27f31ee6bb61a7fd39d525f83c150e042521e640059de71f78995741",
           "result": {
             "document": {
               "allowExtra": false,
@@ -1327,7 +1328,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
-          "implementationHash": "sha256:9cb29f223665331c774d50078d3f10a42a5174196ad18418d1833e2ca07ef2b0",
+          "implementationHash": "sha256:47459d0eb7c040c6aad468d3a02236e4f8f3af44aa33a0b94990ae5c1201d37e",
           "result": {
             "document": {
               "allowExtra": false,
@@ -1478,7 +1479,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:ac69fab370bc35c8e6f3699764ee721a3ae3711567bcd85b84bda74666b458fa",
-          "implementationHash": "sha256:c0ae31b3e2e97531c1647c6b354e5c5669740a85b3f78dcea956637db84a9c12",
+          "implementationHash": "sha256:6a596aa8edd60e169e999b9e1643c1bdfbf4a8ef4344609d6a04446b35db4739",
           "result": {
             "document": {
               "allowExtra": false,
@@ -1658,7 +1659,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
-          "implementationHash": "sha256:07eab2e1a86a3f45ecd9af97d8893355befcdbcdd175d626d952f941ba0571a8",
+          "implementationHash": "sha256:de53ba058e18e123b5483e42343c9382884e842f8beca52caf0b357bed55634c",
           "result": {
             "document": {
               "allowExtra": false,
@@ -1872,9 +1873,9 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "authoredSourceHash": "sha256:0719f817f7da0e8d1ca7a21d75b6cd7ba5a1a0fa02d74d86916b20aa2c2e2b71",
-    "implementationHash": "sha256:305e6f53175dc826",
-    "inputsHash": "5ff6e7702d7ec8cfdd3d993c8e356f5bac8acbda392f7d09fb0cf8c5aeb4d529",
-    "schemaHash": "sha256:d53189fe3166558e"
+    "authoredSourceHash": "sha256:1801a69ae1ee4c4b55ebe6f8c4e7bce1666872894fa6813d74b84844c3cd74fc",
+    "implementationHash": "sha256:5211f23442fa72c0",
+    "inputsHash": "ef86ba91dee1b964e495dc8872f2a98fa3460f82d41be00b7f4cb7d6a4838d8f",
+    "schemaHash": "sha256:4bad7ec5156d0f0f"
   }
 }

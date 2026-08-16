@@ -440,6 +440,12 @@ edge, seed fixture, and live-feed row together:
       caption: v.string(),
       photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
     })
+      .visibility({
+        kind: 'membership',
+        declaration: eventMembers,
+        resourceField: 'eventId',
+        roles: ['host', 'guest'],
+      })
       .index('by_event', ['eventId'])
       .assetSharing({ kind: 'membership', membership: 'eventMembers' })
       .sync(),

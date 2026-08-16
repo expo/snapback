@@ -1,7 +1,7 @@
 {
   "appId": "app",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:cfb54cf932c230a1377913a9b7cf6db5630b41b5d189b1ff1199b895b07eab5b",
+  "authoredSourceHash": "sha256:656c5cb3c7bc0a1e725adf7800d428aad4b2ca42b43d1727a47f34d4579e9a38",
   "commands": [
     {
       "authRequirement": "authenticated",
@@ -117,7 +117,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:2a90419ccb0c8124853eaac7aaa922b97ce12cf6221ba73f31be66597ff10047",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:bbf1c547a05ac31a8534a574e8238f54478b0fca7a61c972748aaa5c48225043",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [

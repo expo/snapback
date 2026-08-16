@@ -40,7 +40,7 @@
   ],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "6a1126bbd9e62fef497e0d0eb4c76843e05a4f8de8098cd33b6c1b18d5b63c3a",
+  "inputsHash": "a010838cbba0b5e5a1611b733acbb8341d79f46e351df61f70e72fe0eaad08b4",
   "operations": [
     {
       "authRequirement": {
@@ -134,6 +134,7 @@
       ],
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -150,9 +151,15 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "declaration": "eventMembers",
+            "kind": "membership",
+            "resourceField": "_id",
+            "roles": [
+              "guest",
+              "host"
+            ]
           },
           "surface": "host-plan.single-table",
           "table": "events"
@@ -212,6 +219,7 @@
       ],
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -229,9 +237,15 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "declaration": "eventMembers",
+            "kind": "membership",
+            "resourceField": "eventId",
+            "roles": [
+              "guest",
+              "host"
+            ]
           },
           "surface": "host-plan.single-table",
           "table": "posts"
@@ -296,18 +310,25 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "userId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "eventMembers"
         },
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "declaration": "eventMembers",
+            "kind": "membership",
+            "resourceField": "_id",
+            "roles": [
+              "guest",
+              "host"
+            ]
           },
           "surface": "handler.ctx.db",
           "table": "events"
@@ -367,6 +388,7 @@
       ],
       "effectCeiling": {
         "authorizationInputs": [
+          "authUserId",
           "membershipPredicate"
         ],
         "basis": "static",
@@ -384,9 +406,24 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "arms": [
+              {
+                "declaration": "eventMembers",
+                "kind": "membership",
+                "resourceField": "eventId",
+                "roles": [
+                  "guest",
+                  "host"
+                ]
+              },
+              {
+                "field": "userId",
+                "kind": "owner"
+              }
+            ],
+            "kind": "any-of"
           },
           "surface": "host-plan.single-table",
           "table": "invites"
@@ -456,18 +493,25 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "userId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "eventMembers"
         },
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "declaration": "eventMembers",
+            "kind": "membership",
+            "resourceField": "_id",
+            "roles": [
+              "guest",
+              "host"
+            ]
           },
           "surface": "handler.ctx.db",
           "table": "events"
@@ -516,7 +560,8 @@
       "authorizationPredicates": [],
       "effectCeiling": {
         "authorizationInputs": [
-          "authUserId"
+          "authUserId",
+          "membershipPredicate"
         ],
         "basis": "static",
         "hostOperations": [],
@@ -533,9 +578,24 @@
       "effectiveTablePolicies": [
         {
           "composition": "schema-rederived",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "arms": [
+              {
+                "declaration": "eventMembers",
+                "kind": "membership",
+                "resourceField": "eventId",
+                "roles": [
+                  "guest",
+                  "host"
+                ]
+              },
+              {
+                "field": "userId",
+                "kind": "owner"
+              }
+            ],
+            "kind": "any-of"
           },
           "surface": "host-plan.single-table",
           "table": "invites"
@@ -556,6 +616,7 @@
         "mode": "singleTable",
         "primaryTable": "invites",
         "tables": [
+          "eventMembers",
           "invites"
         ]
       },
@@ -600,9 +661,10 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "field": "userId",
+            "kind": "owner"
           },
           "surface": "handler.ctx.db",
           "table": "eventMembers"
@@ -675,9 +737,24 @@
       "effectiveTablePolicies": [
         {
           "composition": "ordinary-default",
-          "origin": "legacy-default",
+          "origin": "declared",
           "policy": {
-            "kind": "public-read"
+            "arms": [
+              {
+                "declaration": "eventMembers",
+                "kind": "membership",
+                "resourceField": "eventId",
+                "roles": [
+                  "guest",
+                  "host"
+                ]
+              },
+              {
+                "field": "userId",
+                "kind": "owner"
+              }
+            ],
+            "kind": "any-of"
           },
           "surface": "handler.ctx.db",
           "table": "invites"
@@ -725,35 +802,230 @@
   },
   "tablePolicies": [
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "field": "userId",
+        "kind": "owner"
       },
       "table": "eventMembers"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "declaration": "eventMembers",
+        "kind": "membership",
+        "resourceField": "_id",
+        "roles": [
+          "guest",
+          "host"
+        ]
       },
       "table": "events"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "arms": [
+          {
+            "declaration": "eventMembers",
+            "kind": "membership",
+            "resourceField": "eventId",
+            "roles": [
+              "guest",
+              "host"
+            ]
+          },
+          {
+            "field": "userId",
+            "kind": "owner"
+          }
+        ],
+        "kind": "any-of"
       },
       "table": "invites"
     },
     {
-      "origin": "legacy-default",
+      "origin": "declared",
       "policy": {
-        "kind": "public-read"
+        "declaration": "eventMembers",
+        "kind": "membership",
+        "resourceField": "eventId",
+        "roles": [
+          "guest",
+          "host"
+        ]
       },
       "table": "posts"
     }
   ],
-  "tablePolicyTransitions": [],
+  "tablePolicyTransitions": [
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "eventMembers-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "successorPolicyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "tableId": "eventMembers"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "events-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "eventMembers",
+            "membershipTable": "eventMembers",
+            "policyResourceField": "_id",
+            "principalField": "userId",
+            "resourceField": "eventId",
+            "resourceTable": "events",
+            "roleField": "role",
+            "roles": [
+              "guest",
+              "host"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:97ef5ee969e5eee8b8834f23cad2a17d84f052a28044949d3d6be19feec5baea",
+        "policy": {
+          "declaration": "eventMembers",
+          "kind": "membership",
+          "resourceField": "_id",
+          "roles": [
+            "guest",
+            "host"
+          ]
+        }
+      },
+      "successorPolicyDigest": "sha256:f9200721929380ee4b869948193de4a81deedd23dc23a1ec613110cd595b696b",
+      "tableId": "events"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "invites-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "eventMembers",
+            "membershipTable": "eventMembers",
+            "policyResourceField": "eventId",
+            "principalField": "userId",
+            "resourceField": "eventId",
+            "resourceTable": "events",
+            "roleField": "role",
+            "roles": [
+              "guest",
+              "host"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:dbad11a09b1f39d6b6259c5ad0a72622090aebac29cdefcdd16da1f70040c91d",
+        "policy": {
+          "arms": [
+            {
+              "declaration": "eventMembers",
+              "kind": "membership",
+              "resourceField": "eventId",
+              "roles": [
+                "guest",
+                "host"
+              ]
+            },
+            {
+              "field": "userId",
+              "kind": "owner"
+            }
+          ],
+          "kind": "any-of"
+        }
+      },
+      "successorPolicyDigest": "sha256:aba3e248a234266ec4e7762b35a4afda581d7008c04e2dd0c4d547b141182804",
+      "tableId": "invites"
+    },
+    {
+      "admissionKind": "g1-migration",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "posts-g1-20260816-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "recomputedClassification": "new-restricted",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "eventMembers",
+            "membershipTable": "eventMembers",
+            "policyResourceField": "eventId",
+            "principalField": "userId",
+            "resourceField": "eventId",
+            "resourceTable": "events",
+            "roleField": "role",
+            "roles": [
+              "guest",
+              "host"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:dbad11a09b1f39d6b6259c5ad0a72622090aebac29cdefcdd16da1f70040c91d",
+        "policy": {
+          "declaration": "eventMembers",
+          "kind": "membership",
+          "resourceField": "eventId",
+          "roles": [
+            "guest",
+            "host"
+          ]
+        }
+      },
+      "successorPolicyDigest": "sha256:765dffb9a1efea8cdddb96861af95d2b5d73b3df4a213e14a07decc648981b43",
+      "tableId": "posts"
+    }
+  ],
   "visibilityOverrides": [],
   "writePolicyChecks": []
 }

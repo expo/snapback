@@ -14,10 +14,12 @@ export const fleetViews = defineTable({
   filterKey: v.string(),
   label: v.string(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_owner_filter', ['ownerId', 'filterKey'], { unique: true })
   .sync();
 
 export const fleetRollups = defineTable({
+  ownerId: v.principal(),
   viewId: v.id('fleetViews'),
   viewIncarnation: v.relationIncarnationOf({
     foreignKeyField: 'viewId',
@@ -30,6 +32,7 @@ export const fleetRollups = defineTable({
   currentMessage: v.string(),
   activeMatch: v.boolean(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_view_rank', ['viewId', 'viewIncarnation', 'rank'])
   .index('by_event_key', ['eventKey'], { unique: true })
   .sync();
@@ -44,6 +47,7 @@ export const vehicleFacts = defineTable({
   region: v.string(),
   status: v.string(),
 })
+  .visibility({ kind: 'owner', field: 'fixtureOwnerId' })
   .index('by_device_key', ['deviceKey'], { unique: true })
   .sync();
 
@@ -59,6 +63,13 @@ export const events = defineTable({
   queryRank: v.integer(),
   occurredAt: v.integer(),
 })
+  .visibility({
+    kind: 'any-of',
+    arms: [
+      { kind: 'owner', field: 'fixtureOwnerId' },
+      { kind: 'owner', field: 'queryOwnerId' },
+    ],
+  })
   .index('by_event_key', ['eventKey'], { unique: true })
   .index('by_fixture_rank', ['fixtureOwnerId', 'fixtureRank'], { unique: true })
   .index('by_query_owner_rank', ['queryOwnerId', 'queryRank'], { unique: true })

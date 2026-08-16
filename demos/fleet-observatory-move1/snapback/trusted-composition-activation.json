@@ -6,7 +6,7 @@
     "deploymentId": "fleet-observatory-move1-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
-    "authoredSourceHash": "sha256:c7d430e3bfcc4d92732c6b1a5d294921858dc72c6474b23ba139350caf8e69fb",
+    "authoredSourceHash": "sha256:7cbd8140031c12f5382992e03de4afb2c478741411953ed8177c2b9818e94ced",
     "mintedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "fleet-observatory-move1",
@@ -16,7 +16,7 @@
     },
     "proofKeyManifestDigest": "sha256:feeac84a644a9d480bacd55f2ff97c0e1161e045d2473cd527b15b3fe581e919"
   },
-  "activationHash": "sha256:aadea9d34cadd59af43969c01119420daa25a52dd8c2a3a1919600f6e4fbf2a1",
+  "activationHash": "sha256:77d72d5a1ec33aed1a96d850e5297275feda8ddce0026f39065d122b51afe498",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [

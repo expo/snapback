@@ -837,3 +837,10 @@ and the uncomposed-surface diagnostic is now a generation refusal.
   root invocation provenance, so an action cannot regain call-local elevation
   by entering a nested mutation; recorded LLP 0173's landed per-operation
   `elevatedDatabase` projection in D5.
+- 2026-08-16 — discharged D2 phase 2 through LLP 0234 G1/G2: all 34 registered
+  codegen jobs now declare ordinary table visibility with governed policy
+  roots and zero implicit tables, and
+  `SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` now refuses generation. The
+  card-game completion matrix removes the real hand policy in a temporary
+  fixture and proves the direct, relational, bounded, and snapshot paths fail;
+  card-game has no search index.

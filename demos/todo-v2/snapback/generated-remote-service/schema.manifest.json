@@ -6,7 +6,7 @@
   "appId": "todo-v2",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:6426fb1ee62c895d0f4ff0b62e73ea9dbe4340419c12d71175e2d30260db1a51",
+  "authoredSourceHash": "sha256:85b5642896badd009a948f23249de1309e047675b34f6054bfb0f32a8f8fa1e4",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [
     {
@@ -67,9 +67,9 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "1051b3e926a7a9858ec40fe83d0fb00db27ea5cbac37cb6c7289accd6a0c61a8",
+  "inputsHash": "723c4602e0393fc9fe55cb9db5121e261bdb390e542ce55b07367ba0164f2429",
   "portabilityFlags": [],
-  "schemaHash": "sha256:902b390c3a2676d6",
+  "schemaHash": "sha256:1904c693f8df0a87",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -111,8 +111,23 @@
         }
       ],
       "name": "todos",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "field": "userId",
+        "kind": "owner"
+      }
     }
   ],
-  "targetProfile": "remote-service-sqlite-ibex"
+  "targetProfile": "remote-service-sqlite-ibex",
+  "visibilityGovernance": {
+    "fixtureProfiles": [],
+    "generationInputsHash": "sha256:839ef1c66182713dcd08e171df099277ea164954e5ffd3ec0e94d40d1d7e1fc1",
+    "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
+    "productionWindows": [],
+    "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
+    "required": false,
+    "schemaVersion": "snapback.visibility-governance-activation.v1",
+    "tablePolicyBaselineDigest": "sha256:90a541457d056464c40c19c3c27bfe0cec46b0cd3feba5aeea7a9e807e4c7362",
+    "visibilityAuthorizationProgramDigest": "sha256:db64af59828bf1ae81160dbc5e4f16d029670351e66423abb8ed9dbac14dd502"
+  }
 }

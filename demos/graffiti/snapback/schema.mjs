@@ -34,6 +34,7 @@ export default defineSchema(
       color: v.string(),
       authorId: v.string(),
     })
+      .visibility({ kind: 'public-read' })
       // by_board backs the wall's index-first live query (everyone shares a board).
       .index('by_board', ['boardId'])
       // Declared syncable so it can back the restricted syncable-live subset.

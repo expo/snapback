@@ -21,6 +21,7 @@ export const incidents = defineTable({
   createdAt: v.integer(),
   updatedAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_updated', ['updatedAt'])
   .searchIndex('search_incidents', {
     semanticVersion: 'signal-desk-incidents.v1',
@@ -62,6 +63,7 @@ export const tasks = defineTable({
   position: v.integer(),
   createdAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_incident_position', ['incidentId', 'incidentIncarnation', 'position'])
   .sync();
 
@@ -75,6 +77,7 @@ export const comments = defineTable({
   body: v.string(),
   createdAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_incident_created', ['incidentId', 'incidentIncarnation', 'createdAt'])
   .sync();
 
@@ -98,6 +101,7 @@ export const activity = defineTable({
   createdAt: v.integer(),
   sortKey: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_incident_created', ['incidentId', 'createdAt'])
   .index('by_incident_sort_key', ['incidentId', 'incidentIncarnation', 'sortKey'])
   .sync();

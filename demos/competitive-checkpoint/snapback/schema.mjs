@@ -9,6 +9,7 @@ export const conversations = defineTable({
   createdAt: v.integer(),
   updatedAt: v.integer(),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
   .index('by_owner_created', ['ownerId', 'createdAt'])
@@ -34,6 +35,7 @@ export const messages = defineTable({
   // record is the authority; this column only reflects it.
   effectMayHaveExecuted: v.optional(v.boolean()),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('by_owner_conversation', ['ownerId', 'conversationId'])
   .index('by_owner_attempt', ['ownerId', 'attemptId'], { unique: true })
   .index('by_owner_idempotency', ['ownerId', 'idempotencyKey'], { unique: true })
@@ -50,6 +52,7 @@ export const models = defineTable({
   displayName: v.string(),
   provider: v.optional(v.string()),
 })
+  .visibility({ kind: 'public-read' })
   .index('models_by_slug', ['slug'], { unique: true })
   .sync();
 
@@ -61,6 +64,7 @@ export const conversationCards = defineTable({
   title: v.string(),
   modelName: v.optional(v.string()),
 })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .index('cards_by_owner', ['ownerId'])
   .sync();
 

@@ -1,0 +1,137 @@
+{
+  "entries": [
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "recipientId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:f4f5f5ef2a1a76c32b75fe50e0caad0146dca6d8c68a8ccf6bd8e1fb1db5ba9d",
+      "provenanceHeadId": "deliveries-g1-20260816-v1",
+      "tableId": "deliveries"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "roomMembers",
+            "membershipTable": "roomMembers",
+            "policyResourceField": "roomId",
+            "principalField": "userId",
+            "resourceField": "roomId",
+            "resourceTable": "rooms",
+            "roleField": "role",
+            "roles": [
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:f38274ddf135f87c23b087f9177d591c88e8603a35b86bc1de8aa1b6ff2df5a2",
+        "policy": {
+          "declaration": "roomMembers",
+          "kind": "membership",
+          "resourceField": "roomId",
+          "roles": [
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "policyDigest": "sha256:624038bdbaa82e5ace29ffc70cc7e34c28e8f146a3fb6446583f98864463146e",
+      "provenanceHeadId": "messages-g1-20260816-v1",
+      "tableId": "messages"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        }
+      },
+      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "provenanceHeadId": "roomMembers-g1-20260816-v1",
+      "tableId": "roomMembers"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "roomMembers",
+            "membershipTable": "roomMembers",
+            "policyResourceField": "roomId",
+            "principalField": "userId",
+            "resourceField": "roomId",
+            "resourceTable": "rooms",
+            "roleField": "role",
+            "roles": [
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:f38274ddf135f87c23b087f9177d591c88e8603a35b86bc1de8aa1b6ff2df5a2",
+        "policy": {
+          "arms": [
+            {
+              "declaration": "roomMembers",
+              "kind": "membership",
+              "resourceField": "roomId",
+              "roles": [
+                "member",
+                "owner"
+              ]
+            },
+            {
+              "field": "userId",
+              "kind": "owner"
+            }
+          ],
+          "kind": "any-of"
+        }
+      },
+      "policyDigest": "sha256:c83c5af72eb2196c73e343a2437bd240ca26a4749d119d0bc7e396418db42be7",
+      "provenanceHeadId": "roomParticipants-g1-20260816-v1",
+      "tableId": "roomParticipants"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [
+          {
+            "id": "roomMembers",
+            "membershipTable": "roomMembers",
+            "policyResourceField": "_id",
+            "principalField": "userId",
+            "resourceField": "roomId",
+            "resourceTable": "rooms",
+            "roleField": "role",
+            "roles": [
+              "member",
+              "owner"
+            ]
+          }
+        ],
+        "audienceDeclarationClosureDigest": "sha256:45dfabc6f929936304e9f148bb05d06dae9638d4a6f3ed2c727b679004cd85a0",
+        "policy": {
+          "declaration": "roomMembers",
+          "kind": "membership",
+          "resourceField": "_id",
+          "roles": [
+            "member",
+            "owner"
+          ]
+        }
+      },
+      "policyDigest": "sha256:fb9fbc9b180cffd6253836468e7131e3fc3fe587415227b9dac3baf176cce2db",
+      "provenanceHeadId": "rooms-g1-20260816-v1",
+      "tableId": "rooms"
+    }
+  ],
+  "exactSetDigest": "sha256:15bd13495ed5174f5f45c8be2889e9ed62483a0dd8619b4a7ac10c4360aa136f",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+}

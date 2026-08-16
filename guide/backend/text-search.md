@@ -44,6 +44,7 @@ export const incidents = defineTable({
   createdAt: v.integer(),
   updatedAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_updated', ['updatedAt'])
   .searchIndex('search_incidents', {
     semanticVersion: 'signal-desk-incidents.v1',

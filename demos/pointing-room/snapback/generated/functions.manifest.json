@@ -6,7 +6,7 @@
   ],
   "appId": "pointing-room",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:8a25ad4257453c91a18f9cc4a858b530bc59b48fd566d2cdfde4c7517fc5786d",
+  "authoredSourceHash": "sha256:159dc0370cbe2d0c181eba76d817066fd0fb56b356083e4e574c328eec77659d",
   "authoringProfile": "snapback-explicit-v1",
   "bundleHash": "snapback.v1:sessions:function:sha256:6f68cc9d6f95703291f14efe9ccf9aeadac9ba34a6a7ed71c366efec75781f07",
   "config": [],
@@ -626,7 +626,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:94e7df5ecbe0b31f0b6810cc28c9f978b8b59997a2544fc6200644ba65bdbeb3",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:febf08ad3c48cdedf95c480dace43c4135566b63eb3ea463d062cf9db01aa53e",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

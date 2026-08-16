@@ -7,6 +7,7 @@ export default defineSchema({
     tickCount: v.integer(),
     lastCheckedAt: v.integer(),
   })
+    .visibility({ kind: 'public-read' })
     .index('by_service', ['serviceId'], { unique: true })
     .sync(),
 });

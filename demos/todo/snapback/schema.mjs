@@ -11,6 +11,7 @@ export default defineSchema({
     completed: v.boolean(),
     userId: v.string(),
   })
+    .visibility({ kind: 'owner', field: 'userId' })
     // by_user backs the user-scoped live query's index-first lookup.
     .index('by_user', ['userId'])
     // Declared syncable so it can back the restricted syncable-live subset.

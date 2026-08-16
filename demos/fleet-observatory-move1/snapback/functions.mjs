@@ -142,6 +142,7 @@ export const seedRollupBatch = defineJsMutation({
     await ownedView(ctx, args.viewId);
     for (const row of args.rows) {
       await ctx.db.insert('fleetRollups', {
+        ownerId: ctx.auth.userId,
         viewId: args.viewId,
         eventKey: row.eventKey,
         deviceKey: row.deviceKey,

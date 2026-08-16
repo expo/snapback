@@ -2,7 +2,7 @@
   "admissionVersion": "snapback.handler-admission.legacy.v1",
   "appId": "contention-calendar",
   "artifactKind": "handlerRuntimeProfile",
-  "authoredSourceHash": "sha256:47b548c7748a2fd4e13c77c89368ce0876d114d5b271969062cc5b9b51d04fee",
+  "authoredSourceHash": "sha256:069b6676e668d2abdb1f779035847638c00b5567166cfe1b5d3224e9e2a3a91f",
   "computedAccess": {
     "dynamicProperties": "forbidden",
     "forbiddenReflectionProperties": [
@@ -557,7 +557,7 @@
       ]
     }
   },
-  "inputsHash": "5448745e2aa1fd6d7556033852a7686e39ef4ddbd4338f5a998945d46f8c8fa7",
+  "inputsHash": "6668f8e0b5693db2891932629f0b1275b709e7393767a02b5346732a4497dbc9",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",

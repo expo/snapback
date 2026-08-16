@@ -5,9 +5,9 @@
   ],
   "appId": "competitive-checkpoint",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:4455ef68ce8584f85c901a570550adbc9c2d0f836262cb84106a8116d369242b",
+  "authoredSourceHash": "sha256:c5fdf680ff646e8a6b95b737ea9864980d51665b3e31bb60a701bb5c79fa7eb2",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:eed3dc5a0f18e088",
+  "bundleHash": "sha256:f6a7490296f0e531",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -314,7 +314,7 @@
       "exportedName": "conversationBySlug",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:conversationBySlug",
-      "implementationHash": "sha256:ddef74324015869cef34ef11459e603369140a506016466257b2cf7a3076ad1e",
+      "implementationHash": "sha256:14193cdd99c10d3da08b64eef78340ecf7e39049e95fa509c501362a0d81c47d",
       "kind": "LiveQuery",
       "name": "conversationBySlug",
       "readSetSummary": {
@@ -455,7 +455,11 @@
             "limit": 1,
             "membershipFilters": [],
             "order": [],
-            "table": "conversations"
+            "table": "conversations",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -487,6 +491,9 @@
       },
       "argsContractHash": "sha256:9711de0904a7da5915cf4f5771f6cdd88176e3dbda49d642661741f0d745a6bc",
       "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
       "bundleEntrypoint": "conversationsWithModel",
       "effectCeiling": {
         "authorizationInputs": [
@@ -512,7 +519,7 @@
       "exportedName": "conversationsWithModel",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:conversationsWithModel",
-      "implementationHash": "sha256:7d4e2dbf629c6d3d0779105aca5eeeafb8ca0c26e6bfd748a888e8f62a133d91",
+      "implementationHash": "sha256:8b9a77bfaac72202d5188a5555940bcad77b17da0abea58df78b71709293a183",
       "kind": "LiveQuery",
       "name": "conversationsWithModel",
       "readSetSummary": {
@@ -657,6 +664,10 @@
             "rootAlias": "conversations",
             "rootFilters": [],
             "rootIndex": "by_owner_created",
+            "rootTableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            },
             "rootVisibility": [
               {
                 "field": "ownerId",
@@ -1054,7 +1065,7 @@
       "exportedName": "firstConversationPage",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:firstConversationPage",
-      "implementationHash": "sha256:0f682defa408b4ea0c701b015eede03ed8a07f4c0f4fb1beb9bfc5322a8e6be6",
+      "implementationHash": "sha256:29fd4e1263a5042142567ac6ec1297cabacf4a14cd0ccd379dd21d390b9e2c7f",
       "kind": "LiveQuery",
       "name": "firstConversationPage",
       "readSetSummary": {
@@ -1193,7 +1204,11 @@
                 "field": "pageKey"
               }
             ],
-            "table": "conversations"
+            "table": "conversations",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -1247,7 +1262,7 @@
       "exportedName": "getConversation",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:getConversation",
-      "implementationHash": "sha256:317e37670b4bcefa38b6a4127529304470a701d53b56150cf8a85b1e1d53e555",
+      "implementationHash": "sha256:1a086829c881cc01f55a1de125662b124e4e5f484c2436b16c8dfa357cb35436",
       "kind": "LiveQuery",
       "name": "getConversation",
       "readSetSummary": {
@@ -1388,7 +1403,11 @@
             "limit": null,
             "membershipFilters": [],
             "order": [],
-            "table": "conversations"
+            "table": "conversations",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -1434,7 +1453,7 @@
       "exportedName": "listConversationCards",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:listConversationCards",
-      "implementationHash": "sha256:bca3911b131cf4640834d3a62b2698e383fcc1c8cb49b53c6c3fd7ed2c82094a",
+      "implementationHash": "sha256:683fdf23d96e1ba2776ca162f9b1dc881e594cfa31eda7a04136bf44d642da19",
       "kind": "LiveQuery",
       "name": "listConversationCards",
       "readSetSummary": {
@@ -1542,7 +1561,11 @@
             "limit": null,
             "membershipFilters": [],
             "order": [],
-            "table": "conversationCards"
+            "table": "conversationCards",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -1584,7 +1607,7 @@
       "exportedName": "listConversations",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:listConversations",
-      "implementationHash": "sha256:fcbabc5981cedef2ec30106593843e43bccaed5e73b9bcddc99aa98aefc4149f",
+      "implementationHash": "sha256:0c803a7458bf87fd5895b987e783002836ea413b3c0826c9f4a7f15e1d7c18e7",
       "kind": "LiveQuery",
       "name": "listConversations",
       "readSetSummary": {
@@ -1723,7 +1746,11 @@
                 "field": "createdAt"
               }
             ],
-            "table": "conversations"
+            "table": "conversations",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -1973,7 +2000,7 @@
       "exportedName": "nextConversationPage",
       "handlerForm": "plan",
       "id": "competitive-checkpoint:nextConversationPage",
-      "implementationHash": "sha256:159ecf5427af0463a6d3cbc78fe0d3c44d7d75f81c28b80c2901046f2daf9a9d",
+      "implementationHash": "sha256:a4fef7eecac2963d262db584f67b9e33023a71c9ab01432fcd52864e72d634c8",
       "kind": "LiveQuery",
       "name": "nextConversationPage",
       "readSetSummary": {
@@ -2119,7 +2146,11 @@
                 "field": "pageKey"
               }
             ],
-            "table": "conversations"
+            "table": "conversations",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
           }
         }
       },
@@ -2780,7 +2811,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "2305d6dfbcb3f07e911e452d55e15f524bac0bf718d7131f311b1e73cdd48da6",
+  "inputsHash": "1cb3fb8dcd90f63c9a0edb8e3ab698d193b3e3d573d0e43f66422e93a05b4ba8",
   "projections": [
     {
       "fanOutLimit": 64,

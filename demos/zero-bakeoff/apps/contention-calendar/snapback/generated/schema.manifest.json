@@ -2,13 +2,13 @@
   "appId": "contention-calendar",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:47b548c7748a2fd4e13c77c89368ce0876d114d5b271969062cc5b9b51d04fee",
+  "authoredSourceHash": "sha256:069b6676e668d2abdb1f779035847638c00b5567166cfe1b5d3224e9e2a3a91f",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "5448745e2aa1fd6d7556033852a7686e39ef4ddbd4338f5a998945d46f8c8fa7",
+  "inputsHash": "6668f8e0b5693db2891932629f0b1275b709e7393767a02b5346732a4497dbc9",
   "portabilityFlags": [],
-  "schemaHash": "sha256:1247f529f500a2e1",
+  "schemaHash": "sha256:840e26274ddee995",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -34,7 +34,10 @@
         }
       ],
       "name": "resources",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -98,8 +101,22 @@
         }
       ],
       "name": "reservations",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     }
   ],
-  "targetProfile": "local-dev-sqlite-ibex"
+  "targetProfile": "local-dev-sqlite-ibex",
+  "visibilityGovernance": {
+    "fixtureProfiles": [],
+    "generationInputsHash": "sha256:f2475cfb91832b506168d201418150cd526a02c1c7a88ede07c1b2807d30cb44",
+    "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
+    "productionWindows": [],
+    "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
+    "required": false,
+    "schemaVersion": "snapback.visibility-governance-activation.v1",
+    "tablePolicyBaselineDigest": "sha256:0e81bd3f033335431d39997f508e448d7306124defe4c5bd527ae88cce544dc3",
+    "visibilityAuthorizationProgramDigest": "sha256:a028ea9d1f8c478fddf88071ce1bf942242a18cb59cf2d950074900cbcf9c48c"
+  }
 }

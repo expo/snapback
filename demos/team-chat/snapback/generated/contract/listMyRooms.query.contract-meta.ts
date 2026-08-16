@@ -2,6 +2,6 @@
 import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./listMyRooms.query.ts', {
-  listMyRooms: query({ reads: ["roomParticipants"], readMode: 'sync', cacheKey: 'roomParticipants', result: 'ListMyRoomsRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
+  listMyRooms: query({ reads: ["roomParticipants","roomMembers"], readMode: 'sync', cacheKey: 'roomParticipants', result: 'ListMyRoomsRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
   ListMyRoomsRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","changedAt":"number","displayName":"string","roomId":"string","status":"string","userId":"string"} }),
 });

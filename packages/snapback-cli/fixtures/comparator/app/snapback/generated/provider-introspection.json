@@ -721,9 +721,9 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "authoredSourceHash": "sha256:48933a9f387041dc300ace217029cf2c36a03503fe78c280feda81a31b66bf38",
+    "authoredSourceHash": "sha256:74d9a88573fa8ba3c64051cc1d2b5cdfa99601561bbb856d9602255ae0a31919",
     "implementationHash": "sha256:c287b1035b95fd69",
-    "inputsHash": "c83d61f2b8e1d44dd2a220a55895559a8796c89f34105f0611ea3d70071b36de",
-    "schemaHash": "sha256:b8771059214686c8"
+    "inputsHash": "53bf5cadbbb796428e09223a889244d94feec854f1022a38c0582239f8760d9e",
+    "schemaHash": "sha256:0e569e264b45e5d8"
   }
 }

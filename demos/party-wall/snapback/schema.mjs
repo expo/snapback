@@ -18,7 +18,7 @@ export const eventMembers = defineTable({
   eventId: v.id('events'),
   userId: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'userId' }).membership({
   id: 'eventMembers',
   principal: 'userId',
   resource: 'eventId',
@@ -45,6 +45,12 @@ export default defineSchema(
       // session. Metadata reads still follow the sharing declaration below.
       cover: v.optional(v.assetRef({ upload: 'coverUpload' })),
     })
+      .visibility({
+        kind: 'membership',
+        declaration: eventMembers,
+        resourceField: '_id',
+        roles: ['host', 'guest'],
+      })
       .assetSharing({ kind: 'membership', membership: 'eventMembers' })
       .sync(),
     eventMembers,
@@ -58,6 +64,12 @@ export default defineSchema(
       caption: v.string(),
       photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
     })
+      .visibility({
+        kind: 'membership',
+        declaration: eventMembers,
+        resourceField: 'eventId',
+        roles: ['host', 'guest'],
+      })
       .index('by_event', ['eventId'])
       .assetSharing({ kind: 'membership', membership: 'eventMembers' })
       .sync(),
