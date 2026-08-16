@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import {
+  existsSync,
   globSync,
   readFileSync,
   writeFileSync,
@@ -14,7 +15,9 @@ import { fileURLToPath } from 'node:url';
 // introduced outstanding fingerprints and silent baseline growth, and keeps
 // the legacy unassigned bucket shrink-only.
 // @ref LLP 0175#d22-affected-proof — Rust and ownership-authority changes
-// select this cheap textual gate through the checked local-proof policy.
+// select this affected ownership gate through the checked local-proof policy.
+// @ref LLP 0273#3.1 — content-derived ownership identity uses pinned syn item
+// fingerprints; lineage never proves a move or authorizes a discharge.
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST_PATH = join(ROOT, 'ownership.manifest.json');
@@ -25,11 +28,28 @@ const BASELINE_SCHEMA_V1 = 'snapback.module-ownership-baseline.v1';
 const BASELINE_SCHEMA = 'snapback.module-ownership-baseline.v2';
 const PREDECESSORS_ENV = 'SNAPBACK_MODULE_OWNERSHIP_PREDECESSORS';
 const FROZEN_EDGE_MARKER = 'module-ownership-frozen-edge:';
+const AMENDMENT_MARKER = 'module-ownership-amendment:';
+const AMENDMENT_GRANT_MARKER = 'module-ownership-amendment-grant:';
+const AST_HELPER_MANIFEST = join(ROOT, 'scripts', 'module-ownership-ast', 'Cargo.toml');
+const AST_HELPER_BINARY = join(
+  ROOT,
+  'scripts',
+  'module-ownership-ast',
+  'target',
+  'release',
+  process.platform === 'win32'
+    ? 'snapback-module-ownership-ast.exe'
+    : 'snapback-module-ownership-ast',
+);
+const AST_VERSION = 'syn-2.0.118+proc-macro2-1.0.106';
 const FROZEN_DISPOSITIONS = new Set([
   'analyzer-upgrade',
   'relocation',
   'time-bounded-waiver',
 ]);
+const LINEAGE_KINDS = new Set(['relocation', 'split', 'merge', 'module-relocation']);
+const AMENDMENT_KINDS = new Set(['deadline-change', 'lineage-change', 'ownership-correction']);
+const AMENDMENT_DIRECTIONS = new Set(['strengthen', 'weaken', 'any']);
 const OWNER_ORDINALS = new Map([
   ['shared-contract-types-leaf', 0],
   ['generation-activation-coordinator', 1],
@@ -40,6 +60,7 @@ const OWNER_ORDINALS = new Map([
   ['embed-facade', 6],
   ['unassigned', null],
 ]);
+const astItemCache = new Map();
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -67,6 +88,20 @@ function validateUniqueStrings(values, label) {
   assert(Array.isArray(values), `${label} must be an array`);
   assert(values.every((value) => typeof value === 'string' && value.length > 0), `${label} must contain non-empty strings`);
   assert(new Set(values).size === values.length, `${label} contains duplicates`);
+}
+
+function stableValue(value) {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableValue(value[key])]));
+}
+
+function stableStringify(value) {
+  return JSON.stringify(stableValue(value));
+}
+
+function deepEqual(left, right) {
+  return stableStringify(left) === stableStringify(right);
 }
 
 export function validateManifest(manifest, rustFiles) {
@@ -589,9 +624,11 @@ export function analyzeSources(manifest, sources) {
     path,
     extractModuleSyntax(sources.get(path), moduleSegmentsByFile.get(path) ?? []),
   ]));
+  const astItems = loadAstItems(sources);
   const reexportIndex = buildReexportIndex(extracted);
   const resolutionCache = new Map();
   const edges = new Map();
+  const occurrenceItems = new Map();
   let unresolvedReferenceCount = 0;
   const unresolvedReferences = [];
 
@@ -625,16 +662,40 @@ export function analyzeSources(manifest, sources) {
           to,
           toOwner: assignment.get(to),
         };
-        edges.set(edgeKey(edge), edge);
+        const key = edgeKey(edge);
+        edges.set(key, edge);
+        const carrier = astItems.get(from)
+          .filter((item) => item.start <= reference.index && reference.index < item.end)
+          .sort((left, right) => (left.end - left.start) - (right.end - right.start))[0];
+        if (carrier) {
+          const items = occurrenceItems.get(key) ?? new Map();
+          items.set(`${carrier.start}:${carrier.end}`, carrier.fingerprint);
+          occurrenceItems.set(key, items);
+        }
       }
     }
   }
+
+  const ownItemsByModule = new Map([...astItems].map(([path, items]) => {
+    const counts = new Map();
+    for (const item of items) counts.set(item.fingerprint, (counts.get(item.fingerprint) ?? 0) + 1);
+    return [path, counts];
+  }));
+  const edgeOccurrences = new Map([...occurrenceItems].map(([key, items]) => {
+    const counts = new Map();
+    for (const fingerprint of items.values()) {
+      counts.set(fingerprint, (counts.get(fingerprint) ?? 0) + 1);
+    }
+    return [key, counts];
+  }));
 
   return {
     assignment,
     edges: [...edges.values()].sort(compareEdges),
     godFiles,
     moduleCount: rustFiles.length,
+    ownItemsByModule,
+    edgeOccurrences,
     unresolvedReferenceCount,
     unresolvedReferences,
   };
@@ -642,22 +703,113 @@ export function analyzeSources(manifest, sources) {
 
 function validateAttribution(attribution, label) {
   assert(attribution && typeof attribution === 'object' && !Array.isArray(attribution), `${label} attribution must be an object`);
-  assert(FROZEN_DISPOSITIONS.has(attribution.disposition), `${label} has invalid disposition ${attribution.disposition}`);
   assert(/^[0-9a-f]{7,40}$/u.test(attribution.observationRevision ?? ''), `${label} needs an observationRevision`);
   assert(/^issues\/[^/]+\.md$/u.test(attribution.worklist ?? ''), `${label} needs an open issues/ worklist path`);
   assert(typeof attribution.provenance === 'string' && attribution.provenance.trim().length >= 20, `${label} needs substantive provenance`);
-  if (attribution.disposition === 'time-bounded-waiver') {
-    assert(OWNER_ORDINALS.has(attribution.inversionOwner), `${label} waiver needs a real inversionOwner`);
-    assert(attribution.inversionOwner !== 'unassigned', `${label} waiver inversionOwner must be a real owner`);
-    assert(/^\d{4}-\d{2}-\d{2}$/u.test(attribution.deadline ?? ''), `${label} waiver needs a YYYY-MM-DD deadline`);
+  if (attribution.disposition !== undefined) {
+    assert(FROZEN_DISPOSITIONS.has(attribution.disposition), `${label} has invalid disposition ${attribution.disposition}`);
+    if (attribution.disposition === 'time-bounded-waiver') {
+      assert(OWNER_ORDINALS.has(attribution.inversionOwner), `${label} waiver needs a real inversionOwner`);
+      assert(attribution.inversionOwner !== 'unassigned', `${label} waiver inversionOwner must be a real owner`);
+      assert(/^\d{4}-\d{2}-\d{2}$/u.test(attribution.deadline ?? ''), `${label} waiver needs a YYYY-MM-DD deadline`);
+    }
+    if (attribution.disposition === 'relocation') {
+      assert(
+        typeof attribution.predecessorFingerprint === 'string'
+          && attribution.predecessorFingerprint.length > 0,
+        `${label} relocation needs its exact predecessorFingerprint`,
+      );
+    }
+    return;
   }
+
+  assert(Object.hasOwn(attribution, 'lineage'), `${label} needs an explicit lineage field`);
+  assert(Object.hasOwn(attribution, 'obligation'), `${label} needs an explicit obligation field`);
+  if (attribution.lineage !== null) {
+    assert(attribution.lineage && typeof attribution.lineage === 'object' && !Array.isArray(attribution.lineage), `${label} lineage must be an object or null`);
+    assert(LINEAGE_KINDS.has(attribution.lineage.kind), `${label} has invalid lineage kind ${attribution.lineage.kind}`);
+    validateUniqueStrings(attribution.lineage.predecessors, `${label}.lineage.predecessors`);
+    assert(attribution.lineage.predecessors.length > 0, `${label} lineage needs at least one predecessor`);
+  }
+  if (attribution.obligation !== null) {
+    assert(attribution.obligation && typeof attribution.obligation === 'object' && !Array.isArray(attribution.obligation), `${label} obligation must be an object or null`);
+    assert(attribution.obligation.kind === 'time-bounded-waiver', `${label} obligation kind must be time-bounded-waiver`);
+    assert(/^\d{4}-\d{2}-\d{2}$/u.test(attribution.obligation.deadline ?? ''), `${label} obligation needs a YYYY-MM-DD deadline`);
+    validateUniqueStrings(attribution.obligation.inversionOwners, `${label}.obligation.inversionOwners`);
+    assert(attribution.obligation.inversionOwners.length > 0, `${label} obligation needs inversionOwners`);
+    for (const owner of attribution.obligation.inversionOwners) {
+      assert(OWNER_ORDINALS.has(owner) && owner !== 'unassigned', `${label} obligation has invalid inversion owner ${owner}`);
+    }
+  }
+  if (attribution.origin !== undefined) {
+    assert(['freeze', 'analyzer-upgrade'].includes(attribution.origin), `${label} has invalid obligation origin ${attribution.origin}`);
+    assert(attribution.obligation === null, `${label} origin is only valid for a null obligation`);
+  }
+  for (const legacyField of ['deadline', 'inversionOwner', 'predecessorFingerprint']) {
+    assert(attribution[legacyField] === undefined, `${label} must not mix legacy ${legacyField} with lineage/obligation`);
+  }
+}
+
+function normalizedLineage(attribution) {
+  if (!attribution) return null;
   if (attribution.disposition === 'relocation') {
-    assert(
-      typeof attribution.predecessorFingerprint === 'string'
-        && attribution.predecessorFingerprint.length > 0,
-      `${label} relocation needs its exact predecessorFingerprint`,
-    );
+    return { kind: 'relocation', predecessors: [attribution.predecessorFingerprint] };
   }
+  if (attribution.disposition !== undefined) return null;
+  if (attribution.lineage === null) return null;
+  return {
+    kind: attribution.lineage.kind,
+    predecessors: [...attribution.lineage.predecessors].sort(),
+  };
+}
+
+function normalizedObligation(attribution) {
+  if (!attribution) return null;
+  if (attribution.disposition === 'time-bounded-waiver') {
+    return {
+      kind: 'time-bounded-waiver',
+      deadline: attribution.deadline,
+      inversionOwners: [attribution.inversionOwner],
+    };
+  }
+  if (attribution.disposition !== undefined || attribution.obligation === null) return null;
+  return {
+    kind: 'time-bounded-waiver',
+    deadline: attribution.obligation.deadline,
+    inversionOwners: [...attribution.obligation.inversionOwners].sort(),
+  };
+}
+
+function obligationsEqual(left, right) {
+  return deepEqual(left, right);
+}
+
+function aggregateObligations(obligations) {
+  const waivers = obligations.filter((obligation) => obligation !== null);
+  if (waivers.length === 0) return null;
+  return {
+    kind: 'time-bounded-waiver',
+    deadline: waivers.map((obligation) => obligation.deadline).sort()[0],
+    inversionOwners: [...new Set(waivers.flatMap((obligation) => obligation.inversionOwners))].sort(),
+  };
+}
+
+function obligationStrengthens(candidate, predecessor) {
+  if (predecessor === null) return candidate !== null;
+  if (candidate === null) return false;
+  return candidate.deadline <= predecessor.deadline
+    && predecessor.inversionOwners.every((owner) => candidate.inversionOwners.includes(owner));
+}
+
+function compareObligationDescriptors(left, right) {
+  if (left.obligation === null && right.obligation !== null) return 1;
+  if (left.obligation !== null && right.obligation === null) return -1;
+  if (left.obligation !== null && right.obligation !== null) {
+    return left.obligation.deadline.localeCompare(right.obligation.deadline)
+      || left.obligation.inversionOwners.join('\0').localeCompare(right.obligation.inversionOwners.join('\0'))
+      || left.fingerprint.localeCompare(right.fingerprint);
+  }
+  return left.fingerprint.localeCompare(right.fingerprint);
 }
 
 function validateBaseline(baseline, manifest, godFiles) {
@@ -752,6 +904,11 @@ function loadRepositoryIssues() {
   return new Map(issuePaths.map((path) => [path, readFileSync(join(ROOT, path), 'utf8')]));
 }
 
+function loadRepositoryLlps() {
+  const paths = globSync('llp/*.md', { cwd: ROOT }).sort();
+  return new Map(paths.map((path) => [path, readFileSync(join(ROOT, path), 'utf8')]));
+}
+
 function git(args) {
   return execFileSync('git', args, {
     cwd: ROOT,
@@ -760,16 +917,65 @@ function git(args) {
   });
 }
 
+function loadAstItems(sources) {
+  const missing = new Map([...sources]
+    .filter(([, source]) => !astItemCache.has(source)));
+  if (missing.size > 0) {
+    if (!existsSync(AST_HELPER_BINARY)) {
+      const build = (offline) => execFileSync('cargo', [
+        'build', '--release', ...(offline ? ['--offline'] : []), '--locked',
+        '--manifest-path', AST_HELPER_MANIFEST,
+      ], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      try {
+        build(true);
+      } catch {
+        // A fresh machine may not have the pinned crates in Cargo's local
+        // cache yet. Keep the usual network-capable Cargo fallback.
+        build(false);
+      }
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(execFileSync(AST_HELPER_BINARY, [], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        input: JSON.stringify(Object.fromEntries(missing)),
+        maxBuffer: 256 * 1024 * 1024,
+      }));
+    } catch (error) {
+      throw new Error(`pinned Rust item parser failed closed: ${error.stderr?.trim() || error.message}`);
+    }
+    assert(parsed?.astVersion === AST_VERSION, `Rust item parser version must be ${AST_VERSION}`);
+    for (const [path, source] of missing) {
+      const items = parsed.files?.[path];
+      assert(Array.isArray(items), `Rust item parser omitted ${path}`);
+      for (const item of items) {
+        assert(Number.isInteger(item?.start) && Number.isInteger(item?.end), `${path} item span is invalid`);
+        assert(item.start < item.end && item.end <= source.length, `${path} item span is out of bounds`);
+        assert(/^[0-9a-f]{64}$/u.test(item.fingerprint ?? ''), `${path} item fingerprint is invalid`);
+      }
+      astItemCache.set(source, items);
+    }
+  }
+  return new Map([...sources].map(([path, source]) => [path, astItemCache.get(source)]));
+}
+
 function loadRevisionSnapshot(revision) {
   const resolvedRevision = git(['rev-parse', '--verify', `${revision}^{commit}`]).trim();
   const paths = git(['ls-tree', '-r', '--name-only', resolvedRevision]).trim().split('\n').filter(Boolean);
   const read = (path) => git(['show', `${resolvedRevision}:${path}`]);
   const rustFiles = paths.filter((path) => /^src\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path)).sort();
   const issuePaths = paths.filter((path) => /^issues\/[^/]+\.md$/u.test(path)).sort();
+  const llpPaths = paths.filter((path) => /^llp\/[^/]+\.md$/u.test(path)).sort();
   const manifest = JSON.parse(read('ownership.manifest.json'));
   const baseline = JSON.parse(read('ownership.baseline.json'));
   const sources = new Map(rustFiles.map((path) => [path, read(path)]));
   const issues = new Map(issuePaths.map((path) => [path, read(path)]));
+  const llps = new Map(llpPaths.map((path) => [path, read(path)]));
   // A predecessor may itself be the red being fixed forward. Treat modules
   // already missing there as historical residue so the pushed tree can remove
   // them or explicitly park them in unassigned. A module new in the pushed
@@ -781,7 +987,7 @@ function loadRevisionSnapshot(revision) {
     ...missing,
   ].sort();
   const analysis = analyzeSources(manifest, sources);
-  return { analysis, baseline, issues, manifest, revision: resolvedRevision };
+  return { analysis, baseline, issues, llps, manifest, revision: resolvedRevision };
 }
 
 function normalizeIssueText(text) {
@@ -802,22 +1008,125 @@ export function parseFrozenEdgeRecords(issueSources) {
       const fingerprint = record?.fingerprint;
       assert(typeof fingerprint === 'string' && fingerprint.length > 0, `${path} frozen-edge record needs a fingerprint`);
       assert(!records.has(fingerprint), `duplicate frozen-edge worklist record for ${fingerprint}`);
-      const attribution = {
-        disposition: record.disposition,
-        observationRevision: record.observationRevision,
-        worklist: path,
-        provenance: record.provenance,
-        ...(record.inversionOwner === undefined ? {} : { inversionOwner: record.inversionOwner }),
-        ...(record.deadline === undefined ? {} : { deadline: record.deadline }),
-        ...(record.predecessorFingerprint === undefined
-          ? {}
-          : { predecessorFingerprint: record.predecessorFingerprint }),
-      };
+      const attribution = record.disposition !== undefined
+        ? {
+          disposition: record.disposition,
+          observationRevision: record.observationRevision,
+          worklist: path,
+          provenance: record.provenance,
+          ...(record.inversionOwner === undefined ? {} : { inversionOwner: record.inversionOwner }),
+          ...(record.deadline === undefined ? {} : { deadline: record.deadline }),
+          ...(record.predecessorFingerprint === undefined
+            ? {}
+            : { predecessorFingerprint: record.predecessorFingerprint }),
+        }
+        : {
+          lineage: record.lineage,
+          obligation: record.obligation,
+          observationRevision: record.observationRevision,
+          worklist: path,
+          provenance: record.provenance,
+          ...(record.origin === undefined ? {} : { origin: record.origin }),
+        };
       validateAttribution(attribution, `${path}: ${fingerprint}`);
       records.set(fingerprint, { fingerprint, attribution });
     }
   }
   return records;
+}
+
+export function parseAmendmentRecords(issueSources) {
+  const amendments = [];
+  const pattern = /<!--\s*module-ownership-amendment:\s*(\{[^\r\n]*\})\s*-->/gu;
+  for (const [path, source] of issueSources) {
+    for (const match of source.matchAll(pattern)) {
+      let amendment;
+      try {
+        amendment = JSON.parse(match[1]);
+      } catch (error) {
+        throw new Error(`${path} has malformed ${AMENDMENT_MARKER} JSON: ${error.message}`);
+      }
+      assert(typeof amendment?.priorFingerprint === 'string' && amendment.priorFingerprint.length > 0, `${path} amendment needs priorFingerprint`);
+      assert(typeof amendment?.newFingerprint === 'string' && amendment.newFingerprint.length > 0, `${path} amendment needs newFingerprint`);
+      assert(AMENDMENT_KINDS.has(amendment.kind), `${path} amendment has invalid kind ${amendment.kind}`);
+      assert(Object.hasOwn(amendment, 'priorFields') && Object.hasOwn(amendment, 'newFields'), `${path} amendment must pin priorFields and newFields`);
+      assert(/^llp\/[^/]+\.md$/u.test(amendment.authorization?.record ?? ''), `${path} amendment authorization must name an llp/ record`);
+      assert(typeof amendment.authorization?.clauseId === 'string' && amendment.authorization.clauseId.length > 0, `${path} amendment authorization needs clauseId`);
+      assert(typeof amendment.provenance === 'string' && amendment.provenance.trim().length >= 20, `${path} amendment needs substantive provenance`);
+      amendments.push({ ...amendment, worklist: path });
+    }
+  }
+  return amendments;
+}
+
+export function parseAmendmentGrants(llpSources) {
+  const grants = new Map();
+  const pattern = /<!--\s*module-ownership-amendment-grant:\s*(\{[^\r\n]*\})\s*-->/gu;
+  for (const [path, source] of llpSources ?? []) {
+    for (const match of source.matchAll(pattern)) {
+      let grant;
+      try {
+        grant = JSON.parse(match[1]);
+      } catch (error) {
+        throw new Error(`${path} has malformed ${AMENDMENT_GRANT_MARKER} JSON: ${error.message}`);
+      }
+      assert(typeof grant?.grantId === 'string' && grant.grantId.length > 0, `${path} amendment grant needs grantId`);
+      assert(!grants.has(grant.grantId), `duplicate amendment grantId ${grant.grantId} on predecessor snapshot`);
+      assert(grant.scope && typeof grant.scope === 'object' && !Array.isArray(grant.scope), `${path} grant ${grant.grantId} needs scope`);
+      const scopeKeys = Object.keys(grant.scope);
+      assert(scopeKeys.length === 1 && ['fingerprint', 'target'].includes(scopeKeys[0]), `${path} grant ${grant.grantId} scope must pin one fingerprint or target`);
+      assert(typeof grant.scope[scopeKeys[0]] === 'string' && grant.scope[scopeKeys[0]].length > 0, `${path} grant ${grant.grantId} scope is empty`);
+      assert(AMENDMENT_KINDS.has(grant.kind), `${path} grant ${grant.grantId} has invalid kind ${grant.kind}`);
+      assert(AMENDMENT_DIRECTIONS.has(grant.direction), `${path} grant ${grant.grantId} needs an explicit direction`);
+      assert(Object.hasOwn(grant, 'priorFields') && Object.hasOwn(grant, 'newFields'), `${path} grant ${grant.grantId} must pin priorFields/newFields or explicit null`);
+      if (grant.kind === 'ownership-correction') {
+        assert(grant.priorFields !== null && grant.newFields !== null, `${path} ownership-correction grant ${grant.grantId} must pin non-null fields`);
+      }
+      grants.set(grant.grantId, { ...grant, record: path });
+    }
+  }
+  return grants;
+}
+
+function amendmentDirection(amendment) {
+  if (amendment.kind === 'ownership-correction') return 'weaken';
+  if (amendment.kind === 'lineage-change') return 'any';
+  const prior = amendment.priorFields?.obligation ?? amendment.priorFields;
+  const next = amendment.newFields?.obligation ?? amendment.newFields;
+  return obligationStrengthens(next, prior) ? 'strengthen' : 'weaken';
+}
+
+function matchingAmendment(current, predecessor, {
+  kind,
+  newFingerprint,
+  newFields,
+  priorFingerprint,
+  priorFields,
+  target,
+}) {
+  const amendments = parseAmendmentRecords(current.issues);
+  const grants = parseAmendmentGrants(predecessor.llps ?? new Map());
+  const amendment = amendments.find((candidate) => (
+    candidate.kind === kind
+      && candidate.priorFingerprint === priorFingerprint
+      && candidate.newFingerprint === newFingerprint
+      && deepEqual(candidate.priorFields, priorFields)
+      && deepEqual(candidate.newFields, newFields)
+  ));
+  if (!amendment) return null;
+  const grant = grants.get(amendment.authorization.clauseId);
+  assert(grant, `${amendment.worklist} amendment grant ${amendment.authorization.clauseId} is absent from predecessor ${predecessor.revision}`);
+  assert(grant.record === amendment.authorization.record, `${amendment.worklist} amendment grant record does not match predecessor bytes`);
+  assert(grant.kind === amendment.kind, `${amendment.worklist} amendment kind does not match grant ${grant.grantId}`);
+  const scopeMatches = grant.scope.fingerprint === priorFingerprint
+    || grant.scope.fingerprint === newFingerprint
+    || grant.scope.target === target;
+  assert(scopeMatches, `${amendment.worklist} amendment scope does not match ${priorFingerprint}`);
+  const direction = amendmentDirection(amendment);
+  assert(grant.direction === 'any' || grant.direction === direction, `${amendment.worklist} amendment direction ${direction} is not granted`);
+  assert(grant.priorFields === null || deepEqual(grant.priorFields, amendment.priorFields), `${amendment.worklist} amendment priorFields do not match grant ${grant.grantId}`);
+  assert(grant.newFields === null || deepEqual(grant.newFields, amendment.newFields), `${amendment.worklist} amendment newFields do not match grant ${grant.grantId}`);
+  return amendment;
 }
 
 function forbiddenEdges(manifest, analysis) {
@@ -828,14 +1137,13 @@ function forbiddenEdges(manifest, analysis) {
 
 function waiverFingerprints(records) {
   return new Set([...records.values()]
-    .filter((record) => record.attribution.disposition === 'time-bounded-waiver')
+    .filter((record) => normalizedObligation(record.attribution) !== null)
     .map((record) => record.fingerprint));
 }
 
 function expiredWaiverFingerprints(records, today) {
   return [...records.values()]
-    .filter((record) => record.attribution.disposition === 'time-bounded-waiver'
-      && record.attribution.deadline < today)
+    .filter((record) => normalizedObligation(record.attribution)?.deadline < today)
     .map((record) => record.fingerprint)
     .sort();
 }
@@ -870,6 +1178,382 @@ function attributedRecordMatches(candidate, worklistRecord) {
   return JSON.stringify(candidate) === JSON.stringify(worklistRecord);
 }
 
+function multisetContains(superset, subset) {
+  if (!subset || subset.size === 0) return false;
+  for (const [fingerprint, count] of subset) {
+    if ((superset?.get(fingerprint) ?? 0) < count) return false;
+  }
+  return true;
+}
+
+function multisetsIntersect(left, right) {
+  for (const fingerprint of left?.keys() ?? []) {
+    if ((right?.get(fingerprint) ?? 0) > 0) return true;
+  }
+  return false;
+}
+
+function admissionRecord(snapshot, validatedBaseline, fingerprint) {
+  const frozen = validatedBaseline.frozen.get(fingerprint);
+  if (frozen) return frozen;
+  const worklist = parseFrozenEdgeRecords(snapshot.issues).get(fingerprint);
+  return normalizedObligation(worklist?.attribution) === null ? null : worklist;
+}
+
+function obligationDescriptors(snapshot, validatedBaseline) {
+  const forbidden = new Map(forbiddenEdges(snapshot.manifest, snapshot.analysis)
+    .map((edge) => [edgeFingerprint(edge), edge]));
+  const descriptors = [];
+  const seen = new Set();
+  const add = (record) => {
+    const edge = forbidden.get(record.fingerprint);
+    if (!edge || seen.has(record.fingerprint)) return;
+    seen.add(record.fingerprint);
+    descriptors.push({
+      edge,
+      fingerprint: record.fingerprint,
+      obligation: normalizedObligation(record.attribution),
+      record,
+    });
+  };
+  for (const record of validatedBaseline.frozen.values()) add(record);
+  for (const record of parseFrozenEdgeRecords(snapshot.issues).values()) {
+    if (normalizedObligation(record.attribution) !== null) add(record);
+  }
+  return descriptors;
+}
+
+function currentForbiddenByTarget(snapshot) {
+  const byTarget = new Map();
+  for (const edge of forbiddenEdges(snapshot.manifest, snapshot.analysis)) {
+    const bucket = byTarget.get(edge.to) ?? [];
+    bucket.push(edge);
+    byTarget.set(edge.to, bucket);
+  }
+  return byTarget;
+}
+
+function ownSuccessors(predecessorOwn, current) {
+  if (!predecessorOwn || predecessorOwn.size === 0) return [];
+  return [...current.analysis.ownItemsByModule]
+    .filter(([, own]) => multisetContains(own, predecessorOwn))
+    .map(([path]) => path)
+    .sort();
+}
+
+function resolveHostIdentities(predecessor, current, descriptors) {
+  const hosts = new Map();
+  for (const descriptor of descriptors) {
+    const path = descriptor.edge.from;
+    if (hosts.has(path)) continue;
+    const predecessorOwn = predecessor.analysis.ownItemsByModule.get(path) ?? new Map();
+    const successors = ownSuccessors(predecessorOwn, current);
+    const presentOwn = current.analysis.ownItemsByModule.get(path);
+    const presentContentMatch = multisetContains(presentOwn, predecessorOwn);
+    const resolved = presentContentMatch
+      ? path
+      : (successors.length === 1 ? successors[0] : null);
+    hosts.set(path, {
+      path,
+      predecessorOwn,
+      presentContentMatch,
+      resolved,
+      successors,
+    });
+  }
+  return hosts;
+}
+
+function computedTargetIdentity(predecessor, current, target, descriptors, directCurrentEdges) {
+  if (directCurrentEdges.length > 0) {
+    return {
+      candidates: [target],
+      hosts: resolveHostIdentities(predecessor, current, descriptors),
+      leftovers: new Set(),
+      target,
+      verdict: 'carry',
+    };
+  }
+  // LLP 0273 §3.6 normative order: S/SH from own-items, H, L, T, then LH.
+  const predecessorOwn = predecessor.analysis.ownItemsByModule.get(target) ?? new Map();
+  const candidates = ownSuccessors(predecessorOwn, current);
+  const hosts = resolveHostIdentities(predecessor, current, descriptors);
+  const leftovers = new Set();
+  for (const host of hosts.values()) {
+    if (!host.resolved) continue;
+    const previousTargets = new Set(predecessor.analysis.edges
+      .filter((edge) => edge.from === host.resolved)
+      .map((edge) => edge.to));
+    for (const edge of current.analysis.edges.filter((candidate) => candidate.from === host.resolved)) {
+      const targetOwn = current.analysis.ownItemsByModule.get(edge.to) ?? new Map();
+      if (!previousTargets.has(edge.to) || multisetsIntersect(targetOwn, predecessorOwn)) {
+        leftovers.add(edge.to);
+      }
+    }
+  }
+  if (candidates.length === 1 && [...leftovers].every((path) => path === candidates[0])) {
+    return { candidates, hosts, leftovers, target: candidates[0], verdict: 'carry' };
+  }
+  if (candidates.length === 0 && leftovers.size === 0) {
+    return { candidates, hosts, leftovers, target: null, verdict: 'genuine-removal' };
+  }
+  return { candidates, hosts, leftovers, target: null, verdict: 'block' };
+}
+
+function currentOccurrenceFingerprints(analysis, target, excludedFingerprint = null) {
+  const fingerprints = new Set();
+  if (target === null) return fingerprints;
+  for (const edge of analysis.edges.filter((candidate) => candidate.to === target)) {
+    if (edgeFingerprint(edge) === excludedFingerprint) continue;
+    for (const fingerprint of analysis.edgeOccurrences.get(edgeKey(edge))?.keys() ?? []) {
+      fingerprints.add(fingerprint);
+    }
+  }
+  return fingerprints;
+}
+
+function predecessorCarrierFingerprints(predecessor, descriptor) {
+  return new Set(predecessor.analysis.edgeOccurrences.get(edgeKey(descriptor.edge))?.keys() ?? []);
+}
+
+function dischargeState(predecessor, current, identity, descriptors) {
+  const promoted = new Set(descriptors
+    .filter((descriptor) => {
+      const currentCarriers = currentOccurrenceFingerprints(
+        current.analysis,
+        identity.target,
+        descriptor.fingerprint,
+      );
+      return [...predecessorCarrierFingerprints(predecessor, descriptor)]
+        .some((fingerprint) => currentCarriers.has(fingerprint));
+    })
+    .map((descriptor) => descriptor.fingerprint));
+  const refusals = [];
+  const predecessorSources = new Set(descriptors.map((descriptor) => descriptor.edge.from));
+  for (const host of identity.hosts.values()) {
+    const liveToTarget = identity.target === null
+      ? []
+      : current.analysis.edges.filter((edge) => (
+        edge.to === identity.target
+          && violationReason(edge, current.manifest, current.analysis.godFiles) === null
+      ));
+    const leftovers = liveToTarget.filter((edge) => (
+      !predecessorSources.has(edge.from)
+        || multisetsIntersect(
+          current.analysis.ownItemsByModule.get(edge.from) ?? new Map(),
+          host.predecessorOwn,
+        )
+    ));
+    const resolvedSet = new Set(host.resolved ? [host.resolved] : []);
+    const outside = leftovers.filter((edge) => !resolvedSet.has(edge.from));
+    const direct = host.resolved === null || identity.target === null
+      ? []
+      : liveToTarget.filter((edge) => edge.from === host.resolved);
+    const unresolved = current.analysis.unresolvedReferences
+      .filter((reference) => reference.from === host.resolved || reference.from === host.path);
+    if (outside.length > 0 || (host.resolved === null && leftovers.length > 0)) {
+      refusals.push({ host, kind: 'host-leftover', edges: outside.length > 0 ? outside : leftovers });
+    }
+    if (direct.length > 0) refusals.push({ host, kind: 'occurrence', edges: direct });
+    if (unresolved.length > 0) refusals.push({ host, kind: 'unresolved', edges: [] });
+  }
+
+  const unauthorized = [];
+  const authorizedCorrections = new Set();
+  for (const refusal of refusals) {
+    if (refusal.kind === 'unresolved') {
+      unauthorized.push(refusal);
+      continue;
+    }
+    for (const descriptor of descriptors) {
+      const related = refusal.edges.find((edge) => (
+        edge.from === refusal.host.resolved
+          || multisetsIntersect(
+            current.analysis.ownItemsByModule.get(edge.from) ?? new Map(),
+            refusal.host.predecessorOwn,
+          )
+      ));
+      if (!related) continue;
+      const priorFields = { obligation: descriptor.obligation };
+      const newFields = { obligation: null };
+      const amendment = matchingAmendment(current, predecessor, {
+        kind: 'ownership-correction',
+        priorFingerprint: descriptor.fingerprint,
+        newFingerprint: edgeFingerprint(related),
+        priorFields,
+        newFields,
+        target: identity.target ?? descriptor.edge.to,
+      });
+      if (!amendment) unauthorized.push({ ...refusal, descriptor });
+      else authorizedCorrections.add(descriptor.fingerprint);
+    }
+  }
+  for (const fingerprint of authorizedCorrections) promoted.delete(fingerprint);
+  return { promoted, refused: unauthorized.length > 0, refusals: unauthorized };
+}
+
+function recordWithoutObligation(record) {
+  if (!record?.attribution) return record;
+  const attribution = { ...record.attribution };
+  if (attribution.disposition === 'time-bounded-waiver') {
+    delete attribution.deadline;
+    delete attribution.inversionOwner;
+  } else {
+    delete attribution.obligation;
+  }
+  return { ...record, attribution };
+}
+
+function validateIntersectionRecord(current, predecessor, fingerprint, currentRecord, predecessorRecord) {
+  if (deepEqual(currentRecord, predecessorRecord)) return;
+  const priorObligation = normalizedObligation(predecessorRecord.attribution);
+  const newObligation = normalizedObligation(currentRecord.attribution);
+  const strengthenOnly = deepEqual(
+    recordWithoutObligation(currentRecord),
+    recordWithoutObligation(predecessorRecord),
+  ) && obligationStrengthens(newObligation, priorObligation);
+  if (strengthenOnly) return;
+  const lineageChanged = !deepEqual(
+    normalizedLineage(currentRecord.attribution),
+    normalizedLineage(predecessorRecord.attribution),
+  );
+  const kind = lineageChanged ? 'lineage-change' : 'deadline-change';
+  const priorFields = lineageChanged
+    ? { lineage: normalizedLineage(predecessorRecord.attribution) }
+    : { obligation: priorObligation };
+  const newFields = lineageChanged
+    ? { lineage: normalizedLineage(currentRecord.attribution) }
+    : { obligation: newObligation };
+  const amendment = matchingAmendment(current, predecessor, {
+    kind,
+    priorFingerprint: fingerprint,
+    newFingerprint: fingerprint,
+    priorFields,
+    newFields,
+    target: current.analysis.edges.find((edge) => edgeFingerprint(edge) === fingerprint)?.to,
+  });
+  assert(amendment, `retained frozen-edge record changed without a predecessor-authorized ${kind} amendment: ${fingerprint}`);
+}
+
+function enforceConservation(current, predecessor, currentBaseline, predecessorBaseline, { today }) {
+  const descriptors = obligationDescriptors(predecessor, predecessorBaseline);
+  const descriptorFingerprints = new Set(descriptors.map((descriptor) => descriptor.fingerprint));
+  const inheritedUnadmitted = new Set(forbiddenEdges(predecessor.manifest, predecessor.analysis)
+    .map(edgeFingerprint)
+    .filter((fingerprint) => !descriptorFingerprints.has(fingerprint)));
+  const currentByTarget = currentForbiddenByTarget(current);
+  const identities = new Map();
+  for (const target of new Set(descriptors.map((descriptor) => descriptor.edge.to))) {
+    const targetDescriptors = descriptors.filter((descriptor) => descriptor.edge.to === target);
+    const identity = computedTargetIdentity(
+      predecessor,
+      current,
+      target,
+      targetDescriptors,
+      currentByTarget.get(target) ?? [],
+    );
+    assert(
+      identity.verdict !== 'block',
+      `ambiguous ownership target removal for ${target}; candidates=[${identity.candidates.join(', ')}], leftovers=[${[...identity.leftovers].join(', ')}]`,
+    );
+    for (const descriptor of targetDescriptors) identities.set(descriptor.fingerprint, identity);
+  }
+
+  const groups = new Map();
+  for (const descriptor of descriptors) {
+    const identity = identities.get(descriptor.fingerprint);
+    const key = identity.target === null
+      ? `removed\0${descriptor.edge.to}`
+      : `target\0${identity.target}`;
+    const group = groups.get(key) ?? { descriptors: [], identity, target: identity.target };
+    group.descriptors.push(descriptor);
+    groups.set(key, group);
+  }
+
+  for (const group of groups.values()) {
+    const ordered = [...group.descriptors].sort(compareObligationDescriptors);
+    // The pre-0273 ticketed-red lane has no disposition to conserve. Preserve
+    // it unchanged while deriving every actual frozen/waived obligation.
+    const currentEdges = group.target === null
+      ? []
+      : (currentByTarget.get(group.target) ?? [])
+        .filter((edge) => !inheritedUnadmitted.has(edgeFingerprint(edge)));
+    const k = currentEdges.length;
+    const m = ordered.length;
+    const required = new Map(ordered.slice(0, Math.min(k, m))
+      .map((descriptor) => [descriptor.fingerprint, descriptor]));
+    const departing = ordered.slice(Math.min(k, m));
+    if (departing.length > 0) {
+      const disposition = dischargeState(predecessor, current, group.identity, departing);
+      for (const descriptor of departing) {
+        if (disposition.promoted.has(descriptor.fingerprint)) required.set(descriptor.fingerprint, descriptor);
+      }
+      if (disposition.refused && disposition.promoted.size === 0) {
+        throw new Error(`ownership obligation discharge refused for ${group.target ?? group.descriptors[0].edge.to}`);
+      }
+      assert(
+        k > 0 || disposition.promoted.size === 0,
+        `byte-identical carrier promoted an obligation with no forbidden edge available to carry it: ${group.target ?? group.descriptors[0].edge.to}`,
+      );
+    }
+
+    const records = currentEdges.map((edge) => ({
+      edge,
+      record: admissionRecord(current, currentBaseline, edgeFingerprint(edge)),
+      used: false,
+    }));
+    const remaining = new Map(required);
+    for (const entry of records) {
+      const predecessors = normalizedLineage(entry.record?.attribution)?.predecessors ?? [];
+      const selected = predecessors.map((fingerprint) => remaining.get(fingerprint)).filter(Boolean);
+      if (selected.length < 2) continue;
+      const expected = aggregateObligations(selected.map((descriptor) => descriptor.obligation));
+      if (!obligationsEqual(normalizedObligation(entry.record.attribution), expected)) continue;
+      for (const descriptor of selected) remaining.delete(descriptor.fingerprint);
+      entry.used = true;
+    }
+    for (const descriptor of remaining.values()) {
+      let entry = records.find((candidate) => (
+        !candidate.used
+          && candidate.record
+          && obligationsEqual(normalizedObligation(candidate.record.attribution), descriptor.obligation)
+      ));
+      if (!entry) {
+        entry = records.find((candidate) => {
+          if (candidate.used || !candidate.record) return false;
+          const newObligation = normalizedObligation(candidate.record.attribution);
+          return matchingAmendment(current, predecessor, {
+            kind: 'deadline-change',
+            priorFingerprint: descriptor.fingerprint,
+            newFingerprint: edgeFingerprint(candidate.edge),
+            priorFields: { obligation: descriptor.obligation },
+            newFields: { obligation: newObligation },
+            target: group.target,
+          }) !== null;
+        });
+      }
+      assert(entry, `strict predecessor obligation is not carried verbatim on a distinct current edge to ${group.target}: ${descriptor.fingerprint}`);
+      entry.used = true;
+      remaining.delete(descriptor.fingerprint);
+    }
+    assert(remaining.size === 0, `not every required obligation was conserved for ${group.target}`);
+
+    const fresh = records.filter((entry) => !entry.used);
+    assert(fresh.length === Math.max(0, k - m), `current edge attribution count is not conserved for ${group.target}`);
+    for (const entry of fresh) {
+      const obligation = normalizedObligation(entry.record?.attribution);
+      assert(obligation !== null, `genuinely new forbidden edge needs its own fresh time-bounded waiver: ${edgeFingerprint(entry.edge)}`);
+      assert(obligation.deadline >= today, `fresh waiver expired ${obligation.deadline}: ${edgeFingerprint(entry.edge)}`);
+      const worklist = parseFrozenEdgeRecords(current.issues).get(edgeFingerprint(entry.edge));
+      assert(worklist && attributedRecordMatches(entry.record, worklist), `fresh attribution must match its current reviewed worklist: ${edgeFingerprint(entry.edge)}`);
+      assert(
+        !ordered.some((descriptor) => obligationsEqual(descriptor.obligation, obligation)),
+        `fresh attribution must not replay a predecessor obligation clock: ${edgeFingerprint(entry.edge)}`,
+      );
+    }
+  }
+}
+
 export function enforceMonotonicBaseline(
   current,
   predecessor,
@@ -885,12 +1569,16 @@ export function enforceMonotonicBaseline(
     predecessor.manifest,
     predecessor.analysis.godFiles,
   );
+  parseAmendmentGrants(predecessor.llps ?? new Map());
   const worklistRecords = parseFrozenEdgeRecords(current.issues);
   const growth = [...currentBaseline.frozen.keys()]
     .filter((fingerprint) => !predecessorBaseline.frozen.has(fingerprint))
     .sort();
   const removed = [...predecessorBaseline.frozen.keys()]
     .filter((fingerprint) => !currentBaseline.frozen.has(fingerprint));
+  const intersection = [...currentBaseline.frozen.keys()]
+    .filter((fingerprint) => predecessorBaseline.frozen.has(fingerprint))
+    .sort();
   const predecessorForbidden = new Set(forbiddenEdges(
     predecessor.manifest,
     predecessor.analysis,
@@ -905,34 +1593,39 @@ export function enforceMonotonicBaseline(
       attributedRecordMatches(frozen, worklist),
       `baseline attribution does not match ${worklist.attribution.worklist}: ${fingerprint}`,
     );
-    if (frozen.attribution.disposition === 'time-bounded-waiver') {
+    const obligation = normalizedObligation(frozen.attribution);
+    if (obligation !== null) {
       assert(
-        frozen.attribution.deadline >= today,
-        `${worklist.attribution.worklist} waiver expired ${frozen.attribution.deadline}: ${fingerprint}`,
+        obligation.deadline >= today,
+        `${worklist.attribution.worklist} waiver expired ${obligation.deadline}: ${fingerprint}`,
       );
     }
-    if (frozen.attribution.disposition === 'analyzer-upgrade') {
+    const analyzerUpgrade = frozen.attribution.disposition === 'analyzer-upgrade'
+      || frozen.attribution.origin === 'analyzer-upgrade';
+    if (analyzerUpgrade) {
       assert(
         predecessorForbidden.has(fingerprint),
         `analyzer-upgrade record does not name an edge present at predecessor ${predecessor.revision}: ${fingerprint}`,
       );
     }
-    if (frozen.attribution.disposition === 'relocation') {
-      const priorFingerprint = frozen.attribution.predecessorFingerprint;
-      assert(
-        removed.includes(priorFingerprint) && predecessorBaseline.frozen.has(priorFingerprint),
-        `relocation record does not re-key its named predecessor frozen edge ${priorFingerprint}: ${fingerprint}`,
-      );
-      const currentEdge = current.analysis.edges.find((edge) => edgeFingerprint(edge) === fingerprint);
-      const priorEdge = predecessor.analysis.edges.find((edge) => edgeFingerprint(edge) === priorFingerprint);
-      assert(currentEdge && priorEdge, `relocation fingerprints must exist in both analyzed source graphs: ${fingerprint}`);
-      assert(
-        currentEdge.fromOwner === priorEdge.fromOwner && currentEdge.toOwner === priorEdge.toOwner,
-        `relocation must retain the predecessor owner pair ${priorEdge.fromOwner} → ${priorEdge.toOwner}: ${fingerprint}`,
-      );
+    const lineage = normalizedLineage(frozen.attribution);
+    if (lineage !== null) {
+      for (const priorFingerprint of lineage.predecessors) {
+        assert(predecessorBaseline.frozen.has(priorFingerprint), `lineage names a predecessor without a frozen obligation: ${priorFingerprint}`);
+      }
     }
   }
-  return { growth, removed };
+  for (const fingerprint of intersection) {
+    validateIntersectionRecord(
+      current,
+      predecessor,
+      fingerprint,
+      currentBaseline.frozen.get(fingerprint),
+      predecessorBaseline.frozen.get(fingerprint),
+    );
+  }
+  enforceConservation(current, predecessor, currentBaseline, predecessorBaseline, { today });
+  return { growth, intersection, removed };
 }
 
 function enforceUnassignedShrinkOnly(current, predecessor) {
@@ -1002,7 +1695,7 @@ export function enforceSnapshotProtocol(
   };
 }
 
-function baselineDocument(analysis, manifest, predecessor, issueSources) {
+export function buildBaselineDocument(analysis, manifest, predecessor, issueSources, llps = new Map()) {
   const previous = validateBaseline(
     predecessor.baseline,
     predecessor.manifest,
@@ -1014,13 +1707,52 @@ function baselineDocument(analysis, manifest, predecessor, issueSources) {
   for (const edge of currentForbidden) {
     const fingerprint = edgeFingerprint(edge);
     const attributed = worklistRecords.get(fingerprint);
-    if (attributed) {
-      frozenForbiddenEdges.push(attributed);
-      continue;
-    }
     const retained = previous.frozen.get(fingerprint);
     if (retained) {
-      frozenForbiddenEdges.push(retained);
+      let selected = retained;
+      if (attributed && !deepEqual(attributed, retained)) {
+        const priorObligation = normalizedObligation(retained.attribution);
+        const newObligation = normalizedObligation(attributed.attribution);
+        const strengthens = deepEqual(
+          recordWithoutObligation(attributed),
+          recordWithoutObligation(retained),
+        ) && obligationStrengthens(newObligation, priorObligation);
+        const current = {
+          analysis,
+          baseline: predecessor.baseline,
+          issues: issueSources,
+          llps,
+          manifest,
+          revision: 'working-tree',
+        };
+        const lineageChanged = !deepEqual(
+          normalizedLineage(attributed.attribution),
+          normalizedLineage(retained.attribution),
+        );
+        const kind = lineageChanged ? 'lineage-change' : 'deadline-change';
+        const priorFields = lineageChanged
+          ? { lineage: normalizedLineage(retained.attribution) }
+          : { obligation: priorObligation };
+        const newFields = lineageChanged
+          ? { lineage: normalizedLineage(attributed.attribution) }
+          : { obligation: newObligation };
+        const amendmentFiled = parseAmendmentRecords(issueSources).some((amendment) => (
+          amendment.kind === kind
+            && amendment.priorFingerprint === fingerprint
+            && amendment.newFingerprint === fingerprint
+            && deepEqual(amendment.priorFields, priorFields)
+            && deepEqual(amendment.newFields, newFields)
+        ));
+        if (strengthens || amendmentFiled) {
+          validateIntersectionRecord(current, predecessor, fingerprint, attributed, retained);
+          selected = attributed;
+        }
+      }
+      frozenForbiddenEdges.push(selected);
+      continue;
+    }
+    if (attributed) {
+      frozenForbiddenEdges.push(attributed);
       continue;
     }
   }
@@ -1075,6 +1807,7 @@ function main() {
     const manifest = parseJson(MANIFEST_PATH, 'module ownership manifest');
     const analysis = analyzeSources(manifest, loadRepositorySources());
     const issues = loadRepositoryIssues();
+    const llps = loadRepositoryLlps();
     const predecessorRevisions = options.predecessors.length > 0
       ? options.predecessors
       : defaultPredecessors();
@@ -1082,11 +1815,12 @@ function main() {
 
     if (options.updateBaseline) {
       assert(predecessors.length === 1, '--update-baseline requires exactly one predecessor');
-      const candidate = baselineDocument(analysis, manifest, predecessors[0], issues);
+      const candidate = buildBaselineDocument(analysis, manifest, predecessors[0], issues, llps);
       const current = {
         analysis,
         baseline: candidate,
         issues,
+        llps,
         manifest,
         revision: 'working-tree',
       };
@@ -1106,6 +1840,7 @@ function main() {
       analysis,
       baseline,
       issues,
+      llps,
       manifest,
       revision: 'working-tree',
     };

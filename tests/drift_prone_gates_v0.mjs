@@ -54,6 +54,9 @@ const IMPLEMENTATION_FILES = [
   'ownership.baseline.json',
   'ownership.manifest.json',
   'scripts/check-module-ownership.mjs',
+  'scripts/module-ownership-ast/Cargo.lock',
+  'scripts/module-ownership-ast/Cargo.toml',
+  'scripts/module-ownership-ast/src/main.rs',
   'scripts/drift-prone-gates.mjs',
   'scripts/check-contract-meta.mjs',
   'scripts/check-contract-meta.test.mjs',
@@ -230,7 +233,7 @@ function setupCommittedClone() {
   const baselineOwnership = run(
     repo,
     process.execPath,
-    ['scripts/check-module-ownership.mjs', '--update-baseline'],
+    ['scripts/check-module-ownership.mjs', '--update-baseline', '--predecessor', 'HEAD'],
   );
   assert.equal(baselineOwnership.status, 0, baselineOwnership.output);
   commitAll(repo, 'test: install drift enforcement under committed state');

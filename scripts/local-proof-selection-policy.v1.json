@@ -189,7 +189,10 @@
         "files": [
           "ownership.baseline.json",
           "ownership.manifest.json",
-          "scripts/check-module-ownership.mjs"
+          "scripts/check-module-ownership.mjs",
+          "scripts/module-ownership-ast/Cargo.lock",
+          "scripts/module-ownership-ast/Cargo.toml",
+          "scripts/module-ownership-ast/src/main.rs"
         ],
         "prefixes": [
           "src/"
@@ -686,7 +689,10 @@
         "ownership.baseline.json",
         "ownership.manifest.json",
         "scripts/check-module-ownership.mjs",
-        "scripts/check-module-ownership.test.mjs"
+        "scripts/check-module-ownership.test.mjs",
+        "scripts/module-ownership-ast/Cargo.lock",
+        "scripts/module-ownership-ast/Cargo.toml",
+        "scripts/module-ownership-ast/src/main.rs"
       ],
       "prefixes": [
         "tests/fixtures/module-ownership/"
