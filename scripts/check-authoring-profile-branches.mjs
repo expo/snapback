@@ -18,6 +18,10 @@ export const AUTHORING_PROFILE_READ_ALLOWLIST = Object.freeze([
     category: 'client-descriptor-custody-type',
   }),
   Object.freeze({
+    path: 'packages/snapback-client/rqs-preload.mjs',
+    category: 'client-generated-reference-hydration-custody',
+  }),
+  Object.freeze({
     path: 'packages/snapback-client/reference-kinds.mjs',
     category: 'client-profile-admission',
   }),

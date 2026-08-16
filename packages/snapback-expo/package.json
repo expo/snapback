@@ -28,8 +28,6 @@
     "app.plugin.js",
     "config-plugin.cjs",
     "config-plugin.d.mts",
-    "data.d.mts",
-    "data.mjs",
     "index.d.mts",
     "index.mjs",
     "lifecycle-source.mjs",
@@ -60,10 +58,6 @@
     "./asset-source": {
       "types": "./asset-source.d.mts",
       "import": "./asset-source.mjs"
-    },
-    "./data": {
-      "types": "./data.d.mts",
-      "import": "./data.mjs"
     },
     "./app.plugin": {
       "types": "./config-plugin.d.mts",

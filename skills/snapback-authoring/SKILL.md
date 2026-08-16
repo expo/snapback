@@ -132,8 +132,7 @@ Data, Functions, Realtime, Errors, and Logs before you reach for `curl`.
 
 <!-- llp0259:stop-fence -->
 **Stop signs.** Familiar `query()` / `useQuery` (the TypeScript
-`schema.ts` profile) and tiny-data `db.*` are experimental, non-default
-surfaces. Writing either without an explicit brief means you left the
+`schema.ts` profile) is an experimental, non-default surface. Writing either without an explicit brief means you left the
 golden path — return to the generated references and the template's
 `useSnapback*` consumer.
 <!-- /llp0259:stop-fence -->

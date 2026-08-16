@@ -3,7 +3,6 @@ import type { ActionContext, AnonymousAuthContext, AssetsContext, AuthContext, A
 export type * from '@expo/snapback-codegen/ctx';
 export type SchemaVersion = 'snapback.v0';
 export type Principal = string & { readonly __snapbackPrincipal: unique symbol };
-export type DataCursorV1 = `dc1.${string}`;
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
@@ -63,7 +62,6 @@ export interface FunctionReferenceBase<Name extends string, Kind extends Functio
   composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;
   readonly artifacts?: GeneratedArtifacts;
   argumentSchema: Readonly<Record<string, unknown>>;
-  argumentCapabilityRefusals?: readonly Readonly<{ argument: string; when: 'present'; code: string; guideAnchor: string; alternative: string }>[];
   readonly __args?: Args;
   readonly __result?: Result;
 }
@@ -226,7 +224,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `f28ed7772bab0b4cb5a558e0818e40e3bf38169d69ecfdf6d8b7e17cf4269033`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `3f7e6352ed398e4a621326b82d61d4c318eb74125b8b8f452c2d1cf5d052c3ce`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "clearReservations": FunctionReference<"clearReservations", 'Mutation', Record<string, never>, number, "snapback-explicit-v1">;
   /**
@@ -235,7 +233,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `f28ed7772bab0b4cb5a558e0818e40e3bf38169d69ecfdf6d8b7e17cf4269033`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `3f7e6352ed398e4a621326b82d61d4c318eb74125b8b8f452c2d1cf5d052c3ce`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "reservationsForSlot": FunctionReference<"reservationsForSlot", 'LiveQuery', { slotKey: string; ownerId: string }, ReadonlyArray<GeneratedDataModel["reservations"]>, "snapback-explicit-v1">;
   /**
@@ -244,7 +242,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `f28ed7772bab0b4cb5a558e0818e40e3bf38169d69ecfdf6d8b7e17cf4269033`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `3f7e6352ed398e4a621326b82d61d4c318eb74125b8b8f452c2d1cf5d052c3ce`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "reserve": FunctionReference<"reserve", 'Mutation', { idempotencyKey: string; resourceKey: string; slotKey: string; ownerId: string; title: string; now: number }, Id<"reservations">, "snapback-explicit-v1">;
   /**
@@ -253,7 +251,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `f28ed7772bab0b4cb5a558e0818e40e3bf38169d69ecfdf6d8b7e17cf4269033`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `3f7e6352ed398e4a621326b82d61d4c318eb74125b8b8f452c2d1cf5d052c3ce`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "resourceList": FunctionReference<"resourceList", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["resources"]>, "snapback-explicit-v1">;
   /**
@@ -262,7 +260,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `f28ed7772bab0b4cb5a558e0818e40e3bf38169d69ecfdf6d8b7e17cf4269033`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `3f7e6352ed398e4a621326b82d61d4c318eb74125b8b8f452c2d1cf5d052c3ce`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "schedule": FunctionReference<"schedule", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["reservations"]>, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

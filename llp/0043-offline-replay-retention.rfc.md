@@ -5,6 +5,8 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
+**Revised:** 2026-08-15 (removed the LLP 0255 amendment after the author
+selected LLP 0254 D10 Withdraw)
 **Revised:** 2026-08-15 (authorized-lease offer/query-admission separation:
 the session-level offer only makes the protocol available; a generated
 query's explicit retainable class admits lease custody, so ordinary live
@@ -1057,13 +1059,3 @@ this document; no normative claim changes.
 Wherever "cold process" appears in this document it claims the first
 class only. The lease, deletion, and rendering rules it states are
 unchanged.
-
-
-## Amendment — 2026-08-13 (ratified)
-
-LLP 0255 S3.2's proposed amendment to this document — the durable non-replayable intent observation joins the client custody records under the existing caps and purge rules, and this document's typed-refusal sentence ("no server settlement exists to collect") is superseded for possibly-crossed data intents only: their refused rows are ledgered terminal entries sharing the existing ledger/acknowledgement caps — was
-ratified by the author on 2026-08-13 after the LLP 0255 super-refine
-loop closed (run journal:
-`llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The normative
-amendment text lives in LLP 0255 S3.2 and applies to this document as law;
-implementation lands with the LLP 0254 phase that consumes it.

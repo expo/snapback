@@ -3533,7 +3533,6 @@ impl LocalDatabase {
                 Some(BACKFILL_BATCH_ROWS),
                 boundary.as_ref(),
                 true,
-                crate::manifest::OrderDirection::Asc,
                 None,
             )?;
             let page_rows: Vec<Value> = {
@@ -4389,22 +4388,14 @@ fn run_data_proof(
             publication_version,
             publication_timestamp: constants.publication_timestamp_ms,
         };
-        let mut expected_logical = crate::rqs_contract::ContentDigestStream::new(
-            crate::rqs_contract::CONTENT_DIGEST_DOMAIN,
-            &header,
-        );
-        let mut expected_system = crate::rqs_contract::ContentDigestStream::new(
-            crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN,
-            &header,
-        );
-        let mut actual_logical = crate::rqs_contract::ContentDigestStream::new(
-            crate::rqs_contract::CONTENT_DIGEST_DOMAIN,
-            &header,
-        );
-        let mut actual_system = crate::rqs_contract::ContentDigestStream::new(
-            crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN,
-            &header,
-        );
+        let mut expected_logical =
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_DOMAIN, &header);
+        let mut expected_system =
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN, &header);
+        let mut actual_logical =
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_DOMAIN, &header);
+        let mut actual_system =
+            crate::rqs_contract::ContentDigestStream::new(crate::rqs_contract::CONTENT_DIGEST_SYSTEM_DOMAIN, &header);
         let input = HandlerInput {
             args: Value::Object(constants.values.clone().into_iter().collect()),
             ..HandlerInput::default()
@@ -4746,7 +4737,6 @@ fn read_id_page(
         Some(BACKFILL_BATCH_ROWS),
         boundary.as_ref(),
         true,
-        crate::manifest::OrderDirection::Asc,
         None,
     )?;
     let mut statement = tx.prepare(&sql)?;

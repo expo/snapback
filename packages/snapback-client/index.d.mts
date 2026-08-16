@@ -205,13 +205,6 @@ export interface SnapbackFunctionReference<
     }>[];
   }>;
   readonly argumentSchema?: Readonly<Record<string, unknown>>;
-  readonly argumentCapabilityRefusals?: readonly Readonly<{
-    readonly argument: string;
-    readonly when: 'present';
-    readonly code: string;
-    readonly guideAnchor: string;
-    readonly alternative: string;
-  }>[];
   readonly resultContractHash: string;
   readonly authoredSourceHash?: `sha256:${string}`;
   readonly searchRequestContractHash?: string;
@@ -416,27 +409,23 @@ export type MutationDispatchOutcome<Result> =
   };
 
 export type MutationDisposition =
-  | { readonly status: 'pending'; readonly blockedReason: string | null;
-      readonly custody?: 'accepted' | 'not-offered' }
+  | { readonly status: 'pending'; readonly blockedReason: string | null }
   | {
     readonly status: 'settled';
     readonly settlement: MutationOutput<unknown>;
     readonly settledAt: number;
-    readonly custody?: 'accepted' | 'not-offered';
   }
   | {
     readonly status: 'failed';
     readonly failure: Readonly<{ readonly code: string; readonly message: string }>;
-    readonly custody?: 'accepted' | 'not-offered';
   }
-  | { readonly status: 'stranded'; readonly custody?: 'accepted' | 'not-offered' }
-  | { readonly status: 'quarantined'; readonly custody?: 'accepted' | 'not-offered' }
+  | { readonly status: 'stranded' }
+  | { readonly status: 'quarantined' }
   | {
     readonly status: 'resultGone';
     readonly disposition: 'result-expired';
     readonly outcome: 'committed' | 'refused';
     readonly receiptDigest: `sha256:${string}`;
-    readonly custody?: 'accepted' | 'not-offered';
   }
   | { readonly status: 'unknown' };
 
@@ -977,7 +966,6 @@ export interface PreparedReactBinding {
   readonly assetIntents: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly commands: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly surfaces: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
-  readonly data: object | null;
   prepareQueryGroup<Ref extends SnapbackQueryGroupReference>(
     reference: Ref,
     params: QueryGroupParams<Ref>,
@@ -2121,7 +2109,6 @@ export const DEFAULT_INGRESS_LIMIT_BYTES: Readonly<{
 }>;
 
 export function assertPreparedReactBinding(binding: unknown): PreparedReactBinding;
-export function preparedReactBindingData(binding: unknown): object;
 export function preparedReactBindingClient(binding: unknown): SnapbackClient;
 export function isPreparedReactQueryGroup(value: unknown): boolean;
 export function admittedReactQueryGroup(

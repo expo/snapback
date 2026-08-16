@@ -78,12 +78,11 @@ function stripStopFences(text) {
 }
 
 // @ref LLP 0259#4-firstreadprofilev1--budget-the-bytes-the-carrier-sends —
-// the negative-vocabulary fence: Familiar query()/useQuery and tiny-data
-// db.* may appear in first-read steering only inside an explicit stop fence.
+// the negative-vocabulary fence: Familiar query()/useQuery may appear in
+// first-read steering only inside an explicit stop fence.
 const NEGATIVE_VOCABULARY = [
-  { pattern: /\buseQuery\b/u, label: 'Familiar/tiny-data useQuery' },
+  { pattern: /\buseQuery\b/u, label: 'Familiar useQuery' },
   { pattern: /(?<![.\w])query\(/u, label: 'Familiar query()' },
-  { pattern: /\bdb\.(?=[a-zA-Z$_])/u, label: 'tiny-data db.*' },
   { pattern: /capability index first/iu, label: "retired 'capability index first' steering" },
   { pattern: /guide-flat/u, label: 'bulk flat projection steering' },
 ];

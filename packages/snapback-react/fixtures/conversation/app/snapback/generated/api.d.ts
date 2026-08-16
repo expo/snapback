@@ -3,7 +3,6 @@ import type { ActionContext, AnonymousAuthContext, AssetsContext, AuthContext, A
 export type * from '@expo/snapback-codegen/ctx';
 export type SchemaVersion = 'snapback.v0';
 export type Principal = string & { readonly __snapbackPrincipal: unique symbol };
-export type DataCursorV1 = `dc1.${string}`;
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
@@ -63,7 +62,6 @@ export interface FunctionReferenceBase<Name extends string, Kind extends Functio
   composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;
   readonly artifacts?: GeneratedArtifacts;
   argumentSchema: Readonly<Record<string, unknown>>;
-  argumentCapabilityRefusals?: readonly Readonly<{ argument: string; when: 'present'; code: string; guideAnchor: string; alternative: string }>[];
   readonly __args?: Args;
   readonly __result?: Result;
 }
@@ -248,7 +246,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "addReaction": FunctionReference<"addReaction", 'Mutation', { conversationId: Id<'conversations'>; messageId: Id<'messages'>; userId: Id<'users'>; emoji: string }, { "reactionId": Id<"reactions"> }, "snapback-explicit-v1">;
   /**
@@ -257,7 +255,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "annotateMessage": FunctionReference<"annotateMessage", 'Mutation', { conversationId: Id<'conversations'>; messageId: Id<'messages'>; note?: string; details: { kind: string; extra?: string } }, null, "snapback-explicit-v1">;
   /**
@@ -266,7 +264,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "conversationDetails": FunctionReference<"conversationDetails", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["conversations"]>, "snapback-explicit-v1">;
   /**
@@ -275,7 +273,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "membershipsForConversation": FunctionReference<"membershipsForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["memberships"]>, "snapback-explicit-v1">;
   /**
@@ -284,7 +282,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "messagesForConversation": FunctionReference<"messagesForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["messages"]>, "snapback-explicit-v1">;
   /**
@@ -293,7 +291,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "reactionsForConversation": FunctionReference<"reactionsForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["reactions"]>, "snapback-explicit-v1">;
   /**
@@ -302,7 +300,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "removeReaction": FunctionReference<"removeReaction", 'Mutation', { reactionId: Id<'reactions'> }, { "removed": boolean }, "snapback-explicit-v1">;
   /**
@@ -311,7 +309,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "sendMessage": FunctionReference<"sendMessage", 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; body?: string; image?: string }, { "messageId": Id<"messages"> }, "snapback-explicit-v1">;
   /**
@@ -320,7 +318,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "sendReply": FunctionReference<"sendReply", 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; text: string; replyToId: Id<'messages'> }, { "messageId": Id<"messages"> }, "snapback-explicit-v1">;
   /**
@@ -329,7 +327,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "sendText": FunctionReference<"sendText", 'Mutation', { conversationId: Id<'conversations'>; senderId: Id<'users'>; text: string }, { "messageId": Id<"messages"> }, "snapback-explicit-v1">;
   /**
@@ -338,7 +336,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:4702b00d20c688e4368c67e1265548081a9977cfa18c22d59942c3ce3a6f7be8`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:a2f9e891d1e27928c0fcb215989237ac930c77a5423bb941f1f9b8f09c1bd79b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "users": FunctionReference<"users", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["users"]>, "snapback-explicit-v1">;
   messageImageUpload: AssetUploadReference<"messageImageUpload", Record<string, never>>;

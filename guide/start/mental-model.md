@@ -58,7 +58,7 @@ missing — do not linear-read it.
 
 <!-- llp0259:stop-fence -->
 **Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
-profile) and tiny-data `db.*` are experimental, non-default surfaces. If
+profile) is an experimental, non-default surface. If
 you are writing either without an explicit brief, return to the generated
 references and the `useSnapback*` hooks.
 <!-- /llp0259:stop-fence -->

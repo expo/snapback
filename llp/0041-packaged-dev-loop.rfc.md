@@ -1383,6 +1383,12 @@ holding tag before any lease was requested. Promotion receipt and
 post-promotion ledger are retained in `tests/acceptance/publication/`.
 This publication starts the LLP 0256 D9 evaluation clock.
 
+**2026-08-15 disposition:** the author selected LLP 0254 D10 Withdraw. The
+0.1.21 through 0.1.23 records remain historical publication facts; beginning
+with 0.1.24, the Tiny doorways and their evaluation backstop are no longer part
+of the live package closure. LLPs 0254–0256 are tombstoned and the frozen
+benchmark retains the disposition receipt.
+
 Operational evidence, in the LLP 0233 tradition — every failure below
 was hit and fixed or dispositioned inside this one ceremony:
 

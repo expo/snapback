@@ -255,19 +255,7 @@ test('explicit-profile default omission preserves the todo semantic identity', (
     ...common,
     authoringProfile: EXPLICIT_AUTHORING_PROFILE,
   });
-  const explicitUndefinedData = buildSemanticGenerationInputs({
-    ...common,
-    authoringProfile: EXPLICIT_AUTHORING_PROFILE,
-    dataSurface: undefined,
-  });
   assert.deepEqual(explicit.semanticInput, omitted.semanticInput);
-  assert.equal(
-    Buffer.from(canonicalGenerationJson(explicitUndefinedData.semanticInput), 'utf8').equals(
-      Buffer.from(canonicalGenerationJson(omitted.semanticInput), 'utf8'),
-    ),
-    true,
-    'zero-resource data default omission must preserve the semantic preimage byte-for-byte',
-  );
   assert.equal('authoringProfile' in explicit.semanticInput, false);
   const omittedIds = computeGenerationContentIdentities(omitted);
   const explicitIds = computeGenerationContentIdentities(explicit);

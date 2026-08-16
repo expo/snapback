@@ -559,7 +559,6 @@ export function buildSemanticGenerationInputs({
   generationLog,
   authoringProfile = EXPLICIT_AUTHORING_PROFILE,
   applicationAuthBootstrap,
-  dataSurface,
 }) {
   const graphRecords = [...(handlerRuntimeProfile?.moduleGraph?.records ?? [])]
     .map(canonicalHandlerGraphRecord)
@@ -586,7 +585,6 @@ export function buildSemanticGenerationInputs({
     // @ref LLP 0258#d1-generate-one-non-secret-bootstrap-policy — the
     // generated bootstrap policy is an explicit LLP 0241 semantic input.
     ...(applicationAuthBootstrap === undefined ? {} : { applicationAuthBootstrap }),
-    ...(dataSurface === undefined ? {} : { dataSurface }),
     schema: {
       version: schemaManifest?.schemaVersion,
       auth: schemaManifest?.auth ?? null,

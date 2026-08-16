@@ -2410,13 +2410,9 @@ globalThis.__snapbackPackageProof = [createMemorySnapbackClientStore, SnapbackCl
 `);
   if (hasUmbrellaPackage) {
     writeFileSync(join(appRoot, 'umbrella-entrypoints.mjs'), `
-import * as data from '${generation.umbrella}/data';
-import * as reactData from '${generation.umbrella}/react/data';
 import * as react from '${generation.umbrella}/react';
 import * as server from '${generation.umbrella}/server';
 import * as values from '${generation.umbrella}/values';
-if (typeof data.createDataClient !== 'function') throw new Error('umbrella /data missing');
-if (!Object.hasOwn(reactData, 'db')) throw new Error('umbrella /react/data missing');
 if (typeof react.SnapbackProvider !== 'function') throw new Error('umbrella /react missing');
 if (typeof server.defineSchema !== 'function') throw new Error('umbrella /server missing');
 if (!Object.hasOwn(values, 'v')) throw new Error('umbrella /values missing');

@@ -37,7 +37,6 @@ import {
   loadSelectionContext,
   selectDriftProneGates,
 } from './select-local-proof.mjs';
-import { runTinyDataEvaluationBackstop } from './tiny-data-evaluation-backstop.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const ZERO_SHA = /^0{40}$/u;
@@ -1616,10 +1615,6 @@ export function runBackstop({
   context = loadSelectionContext(),
   env = process.env,
 }) {
-  // Independent D10 clock control shares the installed two-hour backstop
-  // path but owns only its Experimental freeze and intended issues ticket.
-  // @ref LLP 0256#clock-and-missed-disposition-backstop
-  const dataSurfaceResult = runTinyDataEvaluationBackstop({ root, issuesDir, env });
   const revision = resolveCommit(root, head);
   const registered = Object.keys(context.policy.driftProneGates);
   const gates = gate === null ? registered : gate.split(',').filter(Boolean);
@@ -1760,8 +1755,8 @@ export function runBackstop({
     console.error(`[snapback-drift-backstop] FILED ${relative(root, ticket)}`);
   }
   writeInfrastructureStreaks(root, infrastructureStreaks);
-  if (infrastructureFailures > 0 || dataSurfaceResult === 2) return 2;
-  return failures === 0 && dataSurfaceResult === 0 ? 0 : 1;
+  if (infrastructureFailures > 0) return 2;
+  return failures === 0 ? 0 : 1;
 }
 
 function runBackstopGateAtRevision(root, revision, gate, command, metadata, env) {

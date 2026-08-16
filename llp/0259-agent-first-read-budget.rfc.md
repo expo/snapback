@@ -5,6 +5,9 @@
 **Systems:** Docs, Developer experience, Tooling, Templates, Guide, Packaging
 **Author:** Charlie Cheever / Grok
 **Date:** 2026-08-15
+**Revised:** 2026-08-15 (Tiny-withdrawal reconciliation: the author selected
+LLP 0254 D10 Withdraw, so the retired doorway is no longer a live profile,
+packet fence, skill route, or first-read concern)
 **Revised:** 2026-08-16 (r3 — UNREVIEWED in-delta fix after the r2 delta
 round. Both families: NOT READY, PRE-EXISTING MATERIAL: no. Closes
 claude C1 and codex M1–M4: pinned steering-byte ceiling and accounting;
@@ -29,7 +32,7 @@ steering), LLP 0186 (W2 context-injection artifacts), LLP 0187
 LLP 0194, LLP 0195 (public / npm docs surface), LLP 0196, LLP 0198, LLP
 0203 (P1: generated or gated, never transcribed), LLP 0252 (Familiar
 default / Promote disposition), LLP 0253 (Familiar v1 API; Draft), LLP
-0254 / LLP 0255 / LLP 0256 (tiny-data)
+0254 / LLP 0255 / LLP 0256 (tombstoned withdrawn Tiny-data experiment)
 
 ## Summary
 
@@ -154,17 +157,17 @@ There is no carrier-level byte budget. `/llms.txt` already labels the
 whole-corpus flat as a bulk last resort; the remaining defect is the
 Read-first tier still pointing at the 58 KiB index.
 
-### Two official-looking backends, one of them at the front of the map
+### An experimental backend at the front of the map
 
-The skill's golden path is explicit `.mjs` plus a tiny-data mention in
-step 5. It does not name Familiar. The Familiar funnel is real and runs
-through the artifacts the skill *mandates* loading: `guide/index.md`'s
-Backend map **leads** with the Experimental Familiar profile, and the
-capability index carries familiar rows. Tiny-data sits inside the skill
-itself, so moving a heading does not remove those bytes.
+At r1, the skill's golden path was explicit `.mjs` but did not name Familiar.
+The Familiar funnel is real and runs through the artifacts the skill
+*mandates* loading: `guide/index.md`'s Backend map **led** with the
+Experimental Familiar profile, and the capability index carries familiar
+rows. The withdrawn Tiny doorway has since been removed from the skill and
+all live guide routes.
 
 An agent that follows the mandated first read therefore meets Familiar
-and tiny-data before it has copied `listTodos`. That is the largest
+before it has copied `listTodos`. That is the largest remaining
 documentation-caused token leak in the 2026-08-15 review.
 
 ### Getting-started pages are not getting-started
@@ -360,13 +363,12 @@ records Promote, the defaults are:
 | Axis | Default | Fence |
 | --- | --- | --- |
 | Backend authoring profile | `snapback-explicit-v1` (`.mjs`) | Familiar `schema.ts` / `query()` / `useQuery` stay out of explicit packets |
-| Client consumer | **whatever canonical consumer the selected template already emits** | tiny-data `db.*` stays out; `useSnapbackQuery`, `useSnapbackQueries`, `useSnapbackMutation`, and `useSurface` are all in-bounds when the template uses them |
+| Client consumer | **whatever canonical consumer the selected template already emits** | `useSnapbackQuery`, `useSnapbackQueries`, `useSnapbackMutation`, and `useSurface` are all in-bounds when the template uses them |
 
 `react` uses `useSnapbackQueries`. `expo-chat` uses `useSnapbackQuery` and
 `useSurface`. Telling agents to copy the template while declaring a
 narrower hook spelling is a contradiction. The fence is against Familiar
-aliases and the tiny-data doorway, not against valid canonical
-compositions.
+aliases, not against valid canonical compositions.
 
 **This RFC never makes Familiar the default.** Familiar remains fenced
 until the author records a Promote disposition under LLP 0252 §D7 /
@@ -388,8 +390,9 @@ historical; that file was not present in `issues/` or `issues/closed/`
 at review time. Recovering or replacing the ticket is hygiene (Design
 6); the gate depends on the guide page, not the ticket filename.
 
-Tiny-data stays an experiment under LLP 0254 / 0255 / 0256. It leaves the
-skill golden path *and* the start-packet bytes.
+The author selected LLP 0254 D10 Withdraw on 2026-08-15. Tiny-data is no
+longer a live experiment or doorway; tombstoned LLPs 0254–0256 and the frozen
+benchmark preserve its design and evaluation record.
 
 `guide/index.md`'s Backend map moves shipped default-surface pages
 (queries, mutations, first backend) above Experimental profiles.
@@ -452,8 +455,8 @@ we shipped" fails Acceptance.
 **Negative-vocabulary fence.** First-read artifacts refuse
 experimental/default-confusing spellings unless they occur inside an
 explicit stop fence. For an explicit template packet, Familiar
-`query(...)`, Familiar `useQuery`, and tiny-data `db.useQuery` must not
-appear as if they were the path.
+`query(...)` and Familiar `useQuery` must not appear as if they were the
+path.
 
 Getting-started and default-client encyclopedias are **physically
 split**, not merely folded: a small published-import quick-start page
@@ -485,7 +488,6 @@ Reconciled as of 2026-08-15 review (capsule + current tree):
 | Dotted Familiar exports / Metro quoted aliases | Fixed. Shared `@expo/snapback-contract/operation-name`; `issues/closed/20260815-generated-operation-name-seams-metro-and-client-grammar.md` | Defect present in newest published closure 0.1.21; source fix unreleased. Same `since:` transition | Version-bounded only |
 | Generated `take(4096)` accepted, runtime 1024 | Open. `issues/20260815-take-limit-shared-rule-and-generation-refusal.md` | Open | Yes, until generate-time refusal ships |
 | Skill trap 1: "No `v.array()` on table fields" / design-only | **Stale.** Capability index and `your-first-backend.md` admit typed opaque arrays/objects (experimental, interior not queryable) | Depends on closure | Reconcile the existing skill row; do not copy the stale form into a packet |
-| Mixing `useSnapbackQuery` with `db.useQuery` | Skill already warns; not a sourced Clique-paid loop | tiny-data Experimental | Not a Clique trap. Tiny-data stays out of the packet; no extra row |
 | Nested `v.principal()` is a snapshot, not membership | Current getting-started text | Same idea if the closure includes LLP 0211 | Yes, one line, if the template can author structured fields |
 | Inline `useSnapbackQuery` args / implicit sessions `auth` / seed identity / strict asset `<img>` | Still current | Still current | Yes, if the template hits that surface |
 
@@ -539,7 +541,7 @@ qualified closure carries the new skill, templates, and `/llms.txt`.
 
 - Rewriting the capability index, surface map, or generated API reference.
 - A corpus-wide freshness reconciliation as a landing gate.
-- Making Familiar or tiny-data the default in this RFC.
+- Making Familiar the default in this RFC.
 - Telling app-building agents to read the LLP corpus.
 - Pretending an already-injected repo `AGENTS.md` can be unread.
 - A new competitive benchmark. Measurement stays with LLP 0186 W1 / LLP
@@ -628,8 +630,8 @@ There is no "repoint now, packets later" slice.
   `snapback agent setup --print`.
 - The skill golden path and every explicit packet/stub name
   `snapback-explicit-v1` and that template's actual client consumer.
-  Familiar aliases and tiny-data `db.*` are fenced. This RFC does not
-  claim Familiar is or will become default.
+  Familiar aliases are fenced. This RFC does not claim Familiar is or will
+  become default.
 - `your-first-backend.md`'s first schema snippet (or its split
   quick-start page) uses a published npm specifier and is
   transclusion-checked against a template or published-path fixture.

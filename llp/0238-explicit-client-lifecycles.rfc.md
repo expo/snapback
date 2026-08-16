@@ -7,6 +7,9 @@ Live Queries, Offline sync, Ephemeral state, Diagnostics, Code generation,
 Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
+**Revised:** 2026-08-15 (re-homed the shared QueryState clarification after
+the author selected LLP 0254 D10 Withdraw; the Tiny-specific amendment was
+removed)
 **Revised:** 2026-08-12 (post-acceptance evidence amendment: records the later
 Clique auth-gate, optional-`undefined`, presence-stop, and refusal-carrier
 findings and routes new semantics through Draft LLP 0247 rather than silently
@@ -470,14 +473,13 @@ hook. It does not supersede LLP 0218 or LLP 0219; it makes their truthful
 semantics the default shape across every first-party client arm.
 
 
-## Amendment — 2026-08-13 (ratified)
+## Clarification — 2026-08-15
 
-LLP 0255 S3.3's proposed amendment to this document — the canonical React query state is the shipped `QueryState` union (shipped arm and field names govern over D4's illustrative `diagnostic`/`refresh` prose; refresh is a handle method; feature facades may add derived readonly fields such as the data facade's `pendingWrites` without amending the base union) — was
-ratified by the author on 2026-08-13 after the LLP 0255 super-refine
-loop closed (run journal:
-`llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The normative
-amendment text lives in LLP 0255 S3.3 and applies to this document as law;
-implementation lands with the LLP 0254 phase that consumes it.
+The canonical React query state is the shipped `QueryState` union. Its shipped
+arm and field names govern over D4's earlier illustrative
+`diagnostic`/`refresh` prose, and refresh remains a handle method. This
+clarification survives withdrawal of LLP 0255 because it describes the shared
+client lifecycle rather than the retired facade.
 
 ## Cross-reference — 2026-08-15 (LLP 0258 Phase 1)
 

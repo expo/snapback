@@ -11986,90 +11986,6 @@ mod guarded_commit_tests {
         );
     }
 
-    /// @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents — possibly-crossed refusals use
-    /// the ordinary bounded settlement ledger and its exact identity/ACK cut.
-    #[test]
-    fn data_refusal_settlement_is_idempotent_exact_and_ack_capable() {
-        let mut db = database();
-        let input = HandlerInput::default();
-        let identity = ClientMutationIdentity::new("data_refusal_1", "data.tx_deadbeef", &input);
-        let diagnostic = Diagnostic::error(
-            "SNAPBACK_DATA_TRANSACTION_INVALID",
-            "data-transaction",
-            "fixture refusal",
-        );
-
-        db.settlement()
-            .record_data_mutation_refusal(&identity, &input, &diagnostic)
-            .expect("record refusal");
-        db.settlement()
-            .record_data_mutation_refusal(&identity, &input, &diagnostic)
-            .expect("exact duplicate is a no-op");
-        assert_eq!(
-            db.settlement_read()
-                .client_mutation_retention_info()
-                .unwrap()
-                .records,
-            1
-        );
-        assert_eq!(
-            db.settlement_read()
-                .client_mutation_result(&identity)
-                .expect_err("ordinary replay observes the retained refusal")
-                .diagnostic,
-            diagnostic
-        );
-        assert!(matches!(
-            db.settlement_read()
-                .client_mutation_settlement(&identity)
-                .expect("status lookup"),
-            Some(ClientMutationSettlement::Refused(_))
-        ));
-
-        let mismatched = ClientMutationIdentity::new(identity.id.clone(), "data.tx_other", &input);
-        assert_eq!(
-            db.settlement_read()
-                .client_mutation_settlement(&mismatched)
-                .expect_err("five-member mismatch must fail closed")
-                .diagnostic
-                .code,
-            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
-        );
-        let issued = identity.clone().with_operation_issuance(
-            crate::commit_envelope::OperationIssuanceV1::ClientRange {
-                epoch_id: "forbidden-data-issuance".to_owned(),
-                counter: 1,
-                range_start: 1,
-                range_end_exclusive: 2,
-                authority_authenticator_digest: format!("sha256:{}", "a".repeat(64)),
-            },
-        );
-        assert_eq!(
-            db.settlement_read()
-                .client_mutation_settlement(&issued)
-                .expect_err("absent issuance must compare unequal to present issuance")
-                .diagnostic
-                .code,
-            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
-        );
-
-        assert_eq!(
-            db.settlement()
-                .acknowledge_client_mutations(
-                    &identity.auth_fingerprint,
-                    std::slice::from_ref(&identity.id),
-                )
-                .expect("ACK refusal"),
-            1
-        );
-        assert_eq!(
-            db.settlement_read()
-                .client_mutation_settlement(&identity)
-                .expect("post-ACK lookup"),
-            None
-        );
-    }
-
     #[test]
     fn retention_record_n_plus_one_refuses_without_losing_replay_or_writes() {
         let _limits = TestRetentionLimits::install(2, u64::MAX);
@@ -16858,7 +16774,6 @@ mod membership_write_tests {
             None,
             None,
             false,
-            OrderDirection::Asc,
             None,
         )
         .expect("lower internal semi-join");
@@ -17320,11 +17235,7 @@ mod media_ref_projection_acceptance_tests {
         db
     }
 
-    fn asset(
-        asset_id: &str,
-        owner: &str,
-        availability: crate::assets::AssetAvailability,
-    ) -> crate::assets::AssetRecordV1 {
+    fn asset(asset_id: &str, owner: &str, availability: crate::assets::AssetAvailability) -> crate::assets::AssetRecordV1 {
         let ready = availability == crate::assets::AssetAvailability::Ready;
         crate::assets::AssetRecordV1 {
             asset_id: asset_id.to_owned(),
@@ -17436,10 +17347,7 @@ mod media_ref_projection_acceptance_tests {
             .mutation_writes()
             .execute_mutation_idempotent(&plan, &input, &identity)
             .expect("same attempt replays");
-        assert_eq!(
-            replay.output, fresh.output,
-            "retry republishes the exact settlement"
-        );
+        assert_eq!(replay.output, fresh.output, "retry republishes the exact settlement");
         assert!(replay.changes.is_empty(), "retry performs no second write");
 
         let query = QueryPlan {
@@ -17463,21 +17371,14 @@ mod media_ref_projection_acceptance_tests {
         );
 
         let schema = db.schema().clone();
-        let tx = db
-            .conn
-            .unchecked_transaction()
-            .expect("authorization probe");
+        let tx = db.conn.unchecked_transaction().expect("authorization probe");
         let ready = crate::assets::load_asset(&tx, "asset-ready")
             .expect("load asset")
             .expect("ready asset exists");
         let decision = asset_read_authorized(&schema, &tx, Some("outsider"), &ready)
             .expect("asset authorization decision");
-        assert!(
-            !decision.authorized,
-            "delivery remains denied despite coarse projection"
-        );
-        tx.rollback()
-            .expect("rollback read-only authorization probe");
+        assert!(!decision.authorized, "delivery remains denied despite coarse projection");
+        tx.rollback().expect("rollback read-only authorization probe");
 
         let (format, sequence, seal): (String, i64, Option<String>) = db
             .conn
@@ -17511,10 +17412,7 @@ mod media_ref_projection_acceptance_tests {
         );
         let error = db
             .mutation_writes()
-            .execute_mutation(
-                &insert_profile(json!("asset-pending"), false),
-                &principal("asset-owner"),
-            )
+            .execute_mutation(&insert_profile(json!("asset-pending"), false), &principal("asset-owner"))
             .expect_err("pending media must not attach");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_ASSET_NOT_FINALIZED");
         let count: i64 = db
@@ -17531,7 +17429,10 @@ mod media_ref_projection_acceptance_tests {
         let error = db
             .mutation_writes()
             .execute_mutation(
-                &insert_profile(json!({ "assetId": "asset-ready", "kind": "video" }), false),
+                &insert_profile(
+                    json!({ "assetId": "asset-ready", "kind": "video" }),
+                    false,
+                ),
                 &principal("asset-owner"),
             )
             .expect_err("MediaRef objects are output-only");
@@ -17666,10 +17567,7 @@ mod media_ref_projection_acceptance_tests {
             .execute(
                 "DELETE FROM _snapback_meta
                   WHERE key IN (?1, ?2)",
-                params![
-                    META_SETTLEMENT_FORMAT_EPOCH_V1,
-                    META_SETTLEMENT_NEXT_SEQUENCE_V1
-                ],
+                params![META_SETTLEMENT_FORMAT_EPOCH_V1, META_SETTLEMENT_NEXT_SEQUENCE_V1],
             )
             .expect("model pre-epoch store");
         let tx = db.conn.transaction().expect("format migration");
@@ -17720,7 +17618,8 @@ mod media_ref_projection_acceptance_tests {
             authority_instance_binding: "authority-a".to_owned(),
             function_id: "profiles:setImage".to_owned(),
             function_artifact_generation:
-                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned(),
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                    .to_owned(),
             result_contract_hash: "sha256:result-a".to_owned(),
             pinned_snapshot: 7,
             request_identity: "request-a".to_owned(),
@@ -17784,7 +17683,8 @@ mod media_ref_projection_acceptance_tests {
         swaps.push(cross_function);
         let mut cross_generation = binding.clone();
         cross_generation.function_artifact_generation =
-            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_owned();
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                .to_owned();
         swaps.push(cross_generation);
         let mut cross_contract = binding.clone();
         cross_contract.result_contract_hash = "sha256:result-b".to_owned();
@@ -17802,10 +17702,7 @@ mod media_ref_projection_acceptance_tests {
         for swapped in swaps {
             let error = validate_staged_media_projection_binding(&proof, &swapped)
                 .expect_err("a proof cannot cross its prepared invocation binding");
-            assert_eq!(
-                error.diagnostic.code,
-                "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED"
-            );
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
         }
         validate_staged_media_projection_binding(&proof, &binding)
             .expect("the exact independently reconstructed binding is admitted");
@@ -17819,28 +17716,22 @@ mod media_ref_projection_acceptance_tests {
         let proof = empty_staged_proof(missing_generation.clone());
         let error = validate_staged_media_projection_binding(&proof, &missing_generation)
             .expect_err("equal absent generations cannot become a bindable proof fact");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
 
         let input = principal("asset-owner");
         let concrete = ClientMutationIdentity::new("concrete-proof-id", "setImage", &input);
         let no_identity = empty_staged_proof(proof_binding(13));
-        let error = validate_staged_media_projection_commit_identity(&no_identity, Some(&concrete))
-            .expect_err("NoClientIdentity cannot collapse with a concrete storage identity");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED"
-        );
+        let error = validate_staged_media_projection_commit_identity(
+            &no_identity,
+            Some(&concrete),
+        )
+        .expect_err("NoClientIdentity cannot collapse with a concrete storage identity");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
 
         let concrete_proof = empty_staged_proof(proof_binding_for_identity(14, Some(&concrete)));
         let error = validate_staged_media_projection_commit_identity(&concrete_proof, None)
             .expect_err("a concrete proof identity cannot collapse with an identity-free lane");
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
     }
 
     fn empty_media_payload(
@@ -18025,24 +17916,23 @@ mod media_ref_projection_acceptance_tests {
             .execute(
                 "DELETE FROM _snapback_meta
                   WHERE key IN (?1, ?2)",
-                params![
-                    META_SETTLEMENT_FORMAT_EPOCH_V1,
-                    META_SETTLEMENT_NEXT_SEQUENCE_V1
-                ],
+                params![META_SETTLEMENT_FORMAT_EPOCH_V1, META_SETTLEMENT_NEXT_SEQUENCE_V1],
             )
             .expect("model pre-epoch store");
         save_meta_u64(&db.conn, META_CLIENT_MUTATION_COUNTERS_VERSION, 3)
             .expect("force formula migration");
         drop(db);
 
-        let mut db = LocalDatabase::open(&path).expect("migrate legacy row and rebuild v5");
+        let mut db = LocalDatabase::open(&path).expect("migrate legacy row and rebuild v4");
         let predecessor = db
             .settlement_read()
             .client_mutation_retention_info()
             .expect("predecessor global counters");
-        let predecessor_auth =
-            client_mutation_auth_retention_counters(&db.conn, &legacy.auth_fingerprint)
-                .expect("predecessor authority counters");
+        let predecessor_auth = client_mutation_auth_retention_counters(
+            &db.conn,
+            &legacy.auth_fingerprint,
+        )
+        .expect("predecessor authority counters");
         assert_eq!(predecessor.records, 1);
 
         let plain = ClientMutationIdentity::new("mixed-plain", "plain", &input);

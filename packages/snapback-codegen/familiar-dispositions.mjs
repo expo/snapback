@@ -104,8 +104,6 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
   }),
   tableBuilderMethods: category({
     index: entry(1, 'shared index declaration and withIndex target'),
-    // @ref LLP 0255#s35-successor-disposition-offered-to-llp-0253--data-and-data-table-sync
-    data: entry(1, 'shared terminal DataResourceV1 declaration'),
     sync: entry(2, 'profile default on; an authored call is admitted verbatim'),
     searchIndex: entry(4, 'use the explicit profile search vocabulary'),
     vectorIndex: entry(4, 'use the explicit profile vector vocabulary'),

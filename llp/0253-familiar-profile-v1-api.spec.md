@@ -6,6 +6,8 @@
 Code generation, React, Client integration, Packaging, Documentation, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-13
+**Revised:** 2026-08-15 (removed the LLP 0255 amendment after the author
+selected LLP 0254 D10 Withdraw; Familiar remains an independent profile)
 **Revised:** 2026-08-15 (auth-hooks amendment, LLP 0258 Phase 0: S6.1's
 closed export list gains the ordinary auth hook re-exports — see S6.1)
 **Revised:** 2026-08-15 (r4: unified both authoring profiles on the canonical
@@ -933,17 +935,3 @@ MATERIALs (~6 distinct; grok-r2 artifact + codex delta); r3 — closes
 every r2-delta MATERIAL as summarized in the revision note.
 Implementation (S8 Phase A/B) proceeds against r3 under LLP 0252's law;
 MATERIAL findings against r3 text revise before the affected phase lands.
-
-
-## Amendment — 2026-08-13 (ratified)
-
-LLP 0255 S3.5's proposed amendment to this document — table builder
-`.data(...)` is admitted as shared schema vocabulary (disposition 1) in
-both profiles with LLP 0255 S1.1's closed key matrix; `.sync()` is
-unchanged for non-data tables, refuses as authored on `.data` tables,
-and the familiar profile's automatic call is tagged
-`source:"profile-default"` — was ratified by the author on 2026-08-13
-after the LLP 0255 super-refine loop closed (run journal:
-`llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The normative
-amendment text lives in LLP 0255 S3.5 and applies to this document as
-law; implementation lands with the LLP 0254 phase that consumes it.

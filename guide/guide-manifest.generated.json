@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:ea2946792ab49ee5111dcbe776cb103488c5a0642cef2cbf549a31b883a63661"
+    "sourceDigest": "sha256:c12793a1cbb63b88de10f401b15cb28ca3d760c8ceb498fddd5bb4d7788c17f6"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -242,38 +242,6 @@
         "title": "Framework bindings"
       }
     ],
-    "data": [
-      {
-        "id": "data.resources",
-        "order": 10,
-        "title": "Generate a tiny typed data resource"
-      },
-      {
-        "id": "data.queries",
-        "order": 20,
-        "title": "Build a bounded data query"
-      },
-      {
-        "id": "data.transactions",
-        "order": 30,
-        "title": "Compose generated data transactions"
-      },
-      {
-        "id": "data.doorways",
-        "order": 40,
-        "title": "Choose the tiny data doorway"
-      },
-      {
-        "id": "data.lifecycle",
-        "order": 50,
-        "title": "Read, watch, and settle tiny data"
-      },
-      {
-        "id": "data.promotion",
-        "order": 50,
-        "title": "Promote a generated data operation into your function profile"
-      }
-    ],
     "deploying": [
       {
         "id": "deploying.index",
@@ -498,223 +466,208 @@
         "title": "API reference — @expo/snapback-client/commands"
       },
       {
-        "id": "reference.api.expo.snapback.client.data",
-        "order": 819,
-        "title": "API reference — @expo/snapback-client/data"
-      },
-      {
         "id": "reference.api.expo.snapback.client.diagnostic.error",
-        "order": 820,
+        "order": 819,
         "title": "API reference — @expo/snapback-client/diagnostic-error"
       },
       {
         "id": "reference.api.expo.snapback.client.evaluation.floor",
-        "order": 821,
+        "order": 820,
         "title": "API reference — @expo/snapback-client/evaluation-floor"
       },
       {
         "id": "reference.api.expo.snapback.client.external.store",
-        "order": 822,
+        "order": 821,
         "title": "API reference — @expo/snapback-client/external-store"
       },
       {
         "id": "reference.api.expo.snapback.client.hosted.browser",
-        "order": 823,
+        "order": 822,
         "title": "API reference — @expo/snapback-client/hosted-browser"
       },
       {
         "id": "reference.api.expo.snapback.client.ir.evaluator",
-        "order": 824,
+        "order": 823,
         "title": "API reference — @expo/snapback-client/ir-evaluator"
       },
       {
         "id": "reference.api.expo.snapback.client.lease.convergence",
-        "order": 825,
+        "order": 824,
         "title": "API reference — @expo/snapback-client/lease-convergence"
       },
       {
         "id": "reference.api.expo.snapback.client.local.read.admission",
-        "order": 826,
+        "order": 825,
         "title": "API reference — @expo/snapback-client/local-read-admission"
       },
       {
         "id": "reference.api.expo.snapback.client.materialization.store",
-        "order": 827,
+        "order": 826,
         "title": "API reference — @expo/snapback-client/materialization-store"
       },
       {
         "id": "reference.api.expo.snapback.client.micro",
-        "order": 828,
+        "order": 827,
         "title": "API reference — @expo/snapback-client/micro"
       },
       {
         "id": "reference.api.expo.snapback.client.micro.core",
-        "order": 829,
+        "order": 828,
         "title": "API reference — @expo/snapback-client/micro/core"
       },
       {
         "id": "reference.api.expo.snapback.client.micro.live",
-        "order": 830,
+        "order": 829,
         "title": "API reference — @expo/snapback-client/micro/live"
       },
       {
         "id": "reference.api.expo.snapback.client.online",
-        "order": 831,
+        "order": 830,
         "title": "API reference — @expo/snapback-client/online"
       },
       {
         "id": "reference.api.expo.snapback.client.optimistic.rebase",
-        "order": 832,
+        "order": 831,
         "title": "API reference — @expo/snapback-client/optimistic-rebase"
       },
       {
         "id": "reference.api.expo.snapback.client.outbox.shared",
-        "order": 833,
+        "order": 832,
         "title": "API reference — @expo/snapback-client/outbox-shared"
       },
       {
         "id": "reference.api.expo.snapback.client.push.installation.expo",
-        "order": 834,
+        "order": 833,
         "title": "API reference — @expo/snapback-client/push-installation-expo"
       },
       {
         "id": "reference.api.expo.snapback.client.push.registry",
-        "order": 835,
+        "order": 834,
         "title": "API reference — @expo/snapback-client/push-registry"
       },
       {
         "id": "reference.api.expo.snapback.client.react.binding",
-        "order": 836,
+        "order": 835,
         "title": "API reference — @expo/snapback-client/react-binding"
       },
       {
         "id": "reference.api.expo.snapback.client.reference.kinds",
-        "order": 837,
+        "order": 836,
         "title": "API reference — @expo/snapback-client/reference-kinds"
       },
       {
         "id": "reference.api.expo.snapback.client.remediation",
-        "order": 838,
+        "order": 837,
         "title": "API reference — @expo/snapback-client/remediation"
       },
       {
         "id": "reference.api.expo.snapback.client.result.transform",
-        "order": 839,
+        "order": 838,
         "title": "API reference — @expo/snapback-client/result-transform"
       },
       {
         "id": "reference.api.expo.snapback.client.rqs",
-        "order": 840,
+        "order": 839,
         "title": "API reference — @expo/snapback-client/rqs"
       },
       {
         "id": "reference.api.expo.snapback.client.rqs.preload",
-        "order": 841,
+        "order": 840,
         "title": "API reference — @expo/snapback-client/rqs-preload"
       },
       {
         "id": "reference.api.expo.snapback.client.rqs.registered",
-        "order": 842,
+        "order": 841,
         "title": "API reference — @expo/snapback-client/rqs-registered"
       },
       {
         "id": "reference.api.expo.snapback.client.rqs.store",
-        "order": 843,
+        "order": 842,
         "title": "API reference — @expo/snapback-client/rqs-store"
       },
       {
         "id": "reference.api.expo.snapback.client.rqs.store.default",
-        "order": 844,
+        "order": 843,
         "title": "API reference — @expo/snapback-client/rqs-store-default"
       },
       {
         "id": "reference.api.expo.snapback.client.rqs.store.expo",
-        "order": 845,
+        "order": 844,
         "title": "API reference — @expo/snapback-client/rqs-store-expo"
       },
       {
         "id": "reference.api.expo.snapback.client.rqs.store.file",
-        "order": 846,
+        "order": 845,
         "title": "API reference — @expo/snapback-client/rqs-store-file"
       },
       {
         "id": "reference.api.expo.snapback.client.search",
-        "order": 847,
+        "order": 846,
         "title": "API reference — @expo/snapback-client/search"
       },
       {
         "id": "reference.api.expo.snapback.client.vector.search",
-        "order": 848,
+        "order": 847,
         "title": "API reference — @expo/snapback-client/vector-search"
       },
       {
         "id": "reference.api.expo.snapback.react",
-        "order": 849,
+        "order": 848,
         "title": "API reference — @expo/snapback-react"
       },
       {
         "id": "reference.api.expo.snapback.react.core",
-        "order": 850,
+        "order": 849,
         "title": "API reference — @expo/snapback-react/core"
       },
       {
-        "id": "reference.api.expo.snapback.react.data",
-        "order": 851,
-        "title": "API reference — @expo/snapback-react/data"
-      },
-      {
         "id": "reference.api.expo.snapback.react.familiar",
-        "order": 852,
+        "order": 850,
         "title": "API reference — @expo/snapback-react/familiar"
       },
       {
         "id": "reference.api.expo.snapback.react.thumbhash",
-        "order": 853,
+        "order": 851,
         "title": "API reference — @expo/snapback-react/thumbhash"
       },
       {
         "id": "reference.api.expo.snapback.expo",
-        "order": 854,
+        "order": 852,
         "title": "API reference — @expo/snapback-expo"
       },
       {
         "id": "reference.api.expo.snapback.expo.app.binding",
-        "order": 855,
+        "order": 853,
         "title": "API reference — @expo/snapback-expo/app-binding"
       },
       {
         "id": "reference.api.expo.snapback.expo.app.plugin",
-        "order": 856,
+        "order": 854,
         "title": "API reference — @expo/snapback-expo/app.plugin"
       },
       {
         "id": "reference.api.expo.snapback.expo.asset.source",
-        "order": 857,
+        "order": 855,
         "title": "API reference — @expo/snapback-expo/asset-source"
       },
       {
         "id": "reference.api.expo.snapback.expo.config.plugin",
-        "order": 858,
+        "order": 856,
         "title": "API reference — @expo/snapback-expo/config-plugin"
       },
       {
-        "id": "reference.api.expo.snapback.expo.data",
-        "order": 859,
-        "title": "API reference — @expo/snapback-expo/data"
-      },
-      {
         "id": "reference.api.expo.snapback.expo.supervised.environment",
-        "order": 860,
+        "order": 857,
         "title": "API reference — @expo/snapback-expo/supervised-environment"
       },
       {
         "id": "reference.api.expo.snapback.cli.verify",
-        "order": 861,
+        "order": 858,
         "title": "API reference — @expo/snapback-cli/verify"
       },
       {
         "id": "reference.api.expo.snapback.codegen.ctx",
-        "order": 862,
+        "order": 859,
         "title": "API reference — @expo/snapback-codegen/ctx"
       }
     ],
@@ -2744,7 +2697,6 @@
         "llp/0222-connected-client-predicate.rfc.md",
         "llp/0245-infer-show-freeze-declarations.rfc.md",
         "llp/0248-bounded-batch-reads.rfc.md",
-        "llp/0255-tiny-data-surface-v1-api.spec.md",
         "llp/0258-first-party-application-auth-bootstrap.rfc.md",
         "src/server.rs",
         "src/admin.rs",
@@ -2753,7 +2705,6 @@
         "src/telemetry_query.rs",
         "src/errors_query.rs",
         "packages/snapback-codegen/index.mjs",
-        "packages/snapback-codegen/data-resource.mjs",
         "packages/snapback-cli/index.mjs",
         "packages/snapback-client/external-store.mjs",
         "packages/snapback-react/index.mjs",
@@ -2764,7 +2715,7 @@
       "examples": [],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:e8f67c228e2bdc3611eeedeb013eb2c570bf75f4c4c1ffc6e2f93ad3fe7f8730",
-      "sha256": "f0a24cced9445b9cf0fd4c1fa8cf65abe6e1f165439e5c8dd36a1023e64a9a60",
+      "sha256": "2287978d3da8ed0994bb44e8a7943b19dd878c1d20e836519d85b75c9eef3647",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3407,231 +3358,6 @@
       "sha256": "b026040d371f6bbe8b7fe73f659f7f6a1b87dd71fb73323604499720f5419567",
       "snippets": []
     },
-    "data.doorways": {
-      "path": "guide/data/doorways.md",
-      "title": "Choose the tiny data doorway",
-      "order": 40,
-      "status": "current",
-      "targets": [
-        "local"
-      ],
-      "maturity": "partial",
-      "since": "0.1.21",
-      "capabilities": [
-        "data.doorways-v1"
-      ],
-      "authorities": [
-        "llp/0255-tiny-data-surface-v1-api.spec.md",
-        "llp/0012-headless-integration-contract.spec.md",
-        "llp/0064-native-client-surfaces.rfc.md",
-        "packages/snapback-client/data-client.mjs",
-        "packages/snapback-react/data.mjs",
-        "packages/snapback-umbrella/package.json",
-        "packages/snapback-expo/package.json"
-      ],
-      "examples": [
-        "tests/fixtures/data-surface-a1",
-        "tests/acceptance/data-surface-a1-v1.mjs",
-        "packages/snapback-react/data.test.mjs"
-      ],
-      "reviewed": "2026-08-14",
-      "reviewedAuthoritiesDigest": "sha256:7a5261926cfacd1fa74bb9395e98f758d3134fb706fced1e342789fd25566c25",
-      "sha256": "24e2c8d1d8b85fd6c9e4f87ba1da868795243215044934f3f3bb5b36688a0fc5",
-      "snippets": [
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "tests/fixtures/data-surface-a1/snapback/app.mjs"
-        }
-      ]
-    },
-    "data.lifecycle": {
-      "path": "guide/data/lifecycle.md",
-      "title": "Read, watch, and settle tiny data",
-      "order": 50,
-      "status": "current",
-      "targets": [
-        "local"
-      ],
-      "maturity": "partial",
-      "since": "0.1.21",
-      "capabilities": [
-        "data.lifecycle-v1"
-      ],
-      "authorities": [
-        "llp/0255-tiny-data-surface-v1-api.spec.md",
-        "llp/0043-offline-replay-retention.rfc.md",
-        "llp/0133-local-settlement.spec.md",
-        "llp/0218-outbox-settlement-contract.rfc.md",
-        "packages/snapback-client/data-client.mjs",
-        "packages/snapback-react/data.mjs"
-      ],
-      "examples": [
-        "tests/fixtures/data-surface-a1",
-        "tests/acceptance/data-surface-a1-v1.mjs",
-        "packages/snapback-client/data-client.test.mjs",
-        "packages/snapback-react/data.test.mjs"
-      ],
-      "reviewed": "2026-08-14",
-      "reviewedAuthoritiesDigest": "sha256:7b6ec20435fc4b96477248b9cf126b9c6654dee7dea84b2907c54e45dc00659f",
-      "sha256": "947da7362e10356100c38e3ce084599c2e31f4d1cf6f90251c7df640c6ccb7fc",
-      "snippets": [
-        {
-          "lang": "json",
-          "class": "fragment"
-        }
-      ]
-    },
-    "data.promotion": {
-      "path": "guide/data/promotion.md",
-      "title": "Promote a generated data operation into your function profile",
-      "order": 50,
-      "status": "current",
-      "targets": [
-        "local"
-      ],
-      "maturity": "partial",
-      "since": "0.1.21",
-      "capabilities": [
-        "data.resources-v1"
-      ],
-      "authorities": [
-        "llp/0255-tiny-data-surface-v1-api.spec.md",
-        "llp/0254-tiny-ordinary-data-surface.rfc.md",
-        "packages/snapback-cli/index.mjs",
-        "packages/snapback-cli/data-promotion.test.mjs"
-      ],
-      "examples": [
-        "packages/snapback-cli/data-promotion.test.mjs"
-      ],
-      "reviewed": "2026-08-14",
-      "reviewedAuthoritiesDigest": "sha256:15ba50eca5f4578282b1701a7b62ff9932205975ff24f70f0e7fda7edbc701d2",
-      "sha256": "b7d989880c1cfcfdcedfeade9d0065b8d7977f56c9c75d53faceb17efc6d0be8",
-      "snippets": []
-    },
-    "data.queries": {
-      "path": "guide/data/queries.md",
-      "title": "Build a bounded data query",
-      "order": 20,
-      "status": "current",
-      "targets": [
-        "local"
-      ],
-      "maturity": "partial",
-      "since": "0.1.21",
-      "capabilities": [
-        "data.queries-v1"
-      ],
-      "authorities": [
-        "llp/0255-tiny-data-surface-v1-api.spec.md",
-        "llp/0004-application-data-api.rfc.md",
-        "llp/0065-generated-data-pattern-soundness.rfc.md",
-        "llp/0157-composition-algebra-and-completeness.spec.md",
-        "packages/snapback-codegen/data-query.mjs",
-        "src/local.rs",
-        "src/storage.rs"
-      ],
-      "examples": [
-        "tests/fixtures/data-query-a1",
-        "packages/snapback-codegen/data-query.test.mjs"
-      ],
-      "reviewed": "2026-08-13",
-      "reviewedAuthoritiesDigest": "sha256:481583af53961baed0576ac1543d4e7ca5f8915cc9a28e9e84618d61c4e23b10",
-      "sha256": "f9075de37a969b5f8bd196fa77bd10772c8f77aab04f8913aed485858cf4df5f",
-      "snippets": [
-        {
-          "lang": "ts",
-          "class": "transcluded",
-          "source": "tests/fixtures/data-query-a1/query.ts"
-        },
-        {
-          "lang": "ts",
-          "class": "transcluded",
-          "source": "tests/fixtures/data-query-a1/query.ts"
-        },
-        {
-          "lang": "js",
-          "class": "fragment"
-        }
-      ]
-    },
-    "data.resources": {
-      "path": "guide/data/resources.md",
-      "title": "Generate a tiny typed data resource",
-      "order": 10,
-      "status": "current",
-      "targets": [
-        "local"
-      ],
-      "maturity": "partial",
-      "since": "0.1.21",
-      "capabilities": [
-        "data.resources-v1"
-      ],
-      "authorities": [
-        "llp/0255-tiny-data-surface-v1-api.spec.md",
-        "llp/0065-generated-data-pattern-soundness.rfc.md",
-        "llp/0231-entity-and-permissioning-recommendation.rfc.md",
-        "packages/snapback-codegen/define.mjs",
-        "packages/snapback-codegen/data-resource.mjs",
-        "packages/snapback-codegen/standard-patterns.mjs",
-        "packages/snapback-cli/index.mjs"
-      ],
-      "examples": [
-        "tests/fixtures/data-resource-a1-explicit",
-        "tests/fixtures/data-resource-a1-familiar",
-        "tests/fixtures/data-resource-a2-explicit",
-        "packages/snapback-codegen/data-resource.test.mjs",
-        "packages/snapback-cli/data-promotion.test.mjs"
-      ],
-      "reviewed": "2026-08-13",
-      "reviewedAuthoritiesDigest": "sha256:4b71b09aeb5c088f81d70edff3108162fbc87583fd6104d44c6636e5743ce6da",
-      "sha256": "ff782fd3c29286d07088fdadd4be110098ca408d95f2bad2e949915b41e41a95",
-      "snippets": [
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "tests/fixtures/data-resource-a1-explicit/schema.mjs"
-        },
-        {
-          "lang": "json",
-          "class": "fragment"
-        }
-      ]
-    },
-    "data.transactions": {
-      "path": "guide/data/transactions.md",
-      "title": "Compose generated data transactions",
-      "order": 30,
-      "status": "current",
-      "targets": [
-        "local"
-      ],
-      "maturity": "partial",
-      "since": "0.1.21",
-      "capabilities": [
-        "data.transactions-v1"
-      ],
-      "authorities": [
-        "llp/0255-tiny-data-surface-v1-api.spec.md",
-        "llp/0043-offline-replay-retention.rfc.md",
-        "llp/0133-local-settlement.spec.md",
-        "llp/0218-outbox-settlement-contract.rfc.md",
-        "packages/snapback-codegen/data-transaction.mjs",
-        "packages/snapback-client/data-client.mjs",
-        "packages/snapback-client/index.mjs",
-        "src/storage/settlement.rs",
-        "src/local.rs"
-      ],
-      "examples": [
-        "packages/snapback-codegen/data-transaction.test.mjs",
-        "packages/snapback-client/data-client.test.mjs"
-      ],
-      "reviewed": "2026-08-14",
-      "reviewedAuthoritiesDigest": "sha256:2e583728fdd3a9c9afb182e6794fefd3a9b8bcabcc2919f05e0bd4037084ba7e",
-      "sha256": "d605c391fbd864278ab5f18118952553d59818b489222125ca823178c2016361",
-      "snippets": []
-    },
     "deploying.cloudflare": {
       "path": "guide/deploying/cloudflare.md",
       "title": "Deploying the Cloudflare proof",
@@ -4026,7 +3752,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:9bc993498cacf9c06be9392fb007475a1329f498346ece1f2edc4832683f66b3",
-      "sha256": "eddd34dd0c42725e613b35ea0f5b8c23de56468f7846e93ed60d86acba206475",
+      "sha256": "dd92f7e9e24c8c9fb833212f9dc03cd6dd4f5f2400074b4077285e3703ca538b",
       "snippets": [
         {
           "lang": "json",
@@ -4103,7 +3829,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedAuthoritiesDigest": "sha256:75f5b707ea9db54c16456455dbb49bbe5b8e4d5217ecb69f6cc061b87d64e04e",
-      "sha256": "13bb24147e63ff9bdbe44c745392a7c7a3df8f6d71b5d064a115903de26bb45b",
+      "sha256": "12e420d4c28ef806b199ebe0a1608bc3f6911842ee150a5ce9187e58352484cd",
       "snippets": []
     },
     "operating.backup-and-copy": {
@@ -4221,7 +3947,7 @@
       ],
       "reviewed": "2026-08-10",
       "reviewedAuthoritiesDigest": "sha256:1c25648b54546e0cba48be11aa9c86c92fe3548afc6b94f50767aa6b4761deab",
-      "sha256": "ccb29dd269e14fcdd4b3eeb15cf7edf39590d235e072f6f7517d6f940f15ef4f",
+      "sha256": "eb343000c6f506676289db172e6fd182155e0aab7adb623ab51c950bf650ac67",
       "snippets": [
         {
           "lang": "json",
@@ -5288,14 +5014,14 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:7fcb2fac75569620b2b36c3e4f48228b22fa9f2e2be523d4f559d381a2a486f3",
-      "sha256": "430b03a0e89e1fb7029aa10d98ff2649b67097c725a442d040055649d6403877",
+      "reviewedAuthoritiesDigest": "sha256:4c3501aa6d595765b70f78be37ab20fcae8ef00d9ce59c9e60782e7f3b327ae7",
+      "sha256": "3557f8777364d7020278847cb6a051f2eacbdeb638bb3fbccd82d78c94e663ac",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
       "path": "guide/reference/expo-snapback-cli--verify.md",
       "title": "API reference — @expo/snapback-cli/verify",
-      "order": 861,
+      "order": 858,
       "status": "current",
       "targets": [
         "all"
@@ -5310,8 +5036,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:d938bdb37edefc2d6cddec44f3f0442d0ba6b6425cd070c9830501edf5266f6f",
-      "sha256": "d59cbfd7e5de5ccf74d200620e7b5f58e04799dade78e0ff8bd67b6fb432119f",
+      "reviewedAuthoritiesDigest": "sha256:6458ef1968a20a4730639c63207e722450e2a455cae300edd730ae2b76941138",
+      "sha256": "f06b1d67ac461aa711ba1c955709436c47ab0f320b913a00ec3d2ecab698f901",
       "snippets": [
         {
           "lang": "ts",
@@ -5433,8 +5159,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:a084609f1947bc653f66bc48189e1b8cf66b41a4ddcf09fbabdd381e0fffad69",
-      "sha256": "f39cc1a278749ac5235eb62cb4d44ac62a302bfccc8bbf41e08bed61979f5b96",
+      "reviewedAuthoritiesDigest": "sha256:deb11ec83f08bc08afea83b2fe2098d91606d4fe36813f22af9085cde67c26d5",
+      "sha256": "0fc82c50f776f7701a82a2495d15b8623f83c0caa30125049ec65350b6ea4aa9",
       "snippets": [
         {
           "lang": "ts",
@@ -5524,8 +5250,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:aa1ea335f6b02648e2553aa4174b5659f4c1b95b7ed0c6d4a57b1e891263e6fa",
-      "sha256": "bd1b8a111d42f0840bb43f4995f6a1b9b80a42340679714e32a9e0f543a01e3d",
+      "reviewedAuthoritiesDigest": "sha256:2ddb8edd996dc79d3ccbc358bcb00b81a30b8de6189a806873c8d3d4207586da",
+      "sha256": "7e92a350c6d1553332788a92bf7e6e94a5ed2cd2420532ed35349e2aa5e13b80",
       "snippets": [
         {
           "lang": "ts",
@@ -5559,8 +5285,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:869b584c363e3c0469c73b7ecc925b8a4e86b43feec54472f0ec58863fceee08",
-      "sha256": "da022183a80191c37513f31858331c2d76ed63a19a1eeb12c41dd481d8872e22",
+      "reviewedAuthoritiesDigest": "sha256:37550b50c5ee35b2377e97712b07e964b8b4d244cf5775c4d29e5b953047901b",
+      "sha256": "c2f84eace51b4b8b8f342306f839894ea5c0b2ada6f19acd3f1395dc4688b2ff",
       "snippets": [
         {
           "lang": "ts",
@@ -5618,8 +5344,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:14c8f4ac198e801787f0ada24b1d00ca6be702846b862304161957ecaa389fff",
-      "sha256": "33193ec857b505719adc3254746d325f5a7a047d22c4ce835d7f1aaa6a35998e",
+      "reviewedAuthoritiesDigest": "sha256:3d845f75691438a5de75b46a5548a751112d2b130f6566b76a2ff1b47e9f39e8",
+      "sha256": "e1d3f26b4ca13cdf9415669601eb00b5bed139ba91ce834e81c2301d3ed094bb",
       "snippets": [
         {
           "lang": "ts",
@@ -5665,8 +5391,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:1e193db2c953711b4afb47ded9f7e69bf2056fd9fc61a0fb1ae83dcb4fdfdf5b",
-      "sha256": "8f0eb007de13d0f83ffeac0ccede6869831bc1a758d17e1546f75abaa87e7366",
+      "reviewedAuthoritiesDigest": "sha256:fc9cb097c04b3a60ea337304a6ee9b10fe99453f28b47595ccab4ecde4f079b6",
+      "sha256": "62b3ef16c892d371d8b03e364e492f2fd7b35cf0a64685982659b6c892d5801c",
       "snippets": [
         {
           "lang": "ts",
@@ -5808,8 +5534,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:8aa819d52dcc6b519b2811bd945ba30d7f4c94a1d2fba61f0cb5d60a629b2ad5",
-      "sha256": "3f4de9e93b9be23d7a3068e5193dfde6b98a84a73922f89c446a57d6741c1761",
+      "reviewedAuthoritiesDigest": "sha256:80f94983c82e0d7b65effa277ce0dd279d1f8c5493c606a0ebc837e711759ee5",
+      "sha256": "155f14649a1a0feb5fb637c7df9be13fe63e26be6342a7bd3a95aeadd5108c51",
       "snippets": [
         {
           "lang": "ts",
@@ -5847,8 +5573,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:5ac8b308af28b942463d6b81e300c6309849294c29624c70b930b271d8ff3318",
-      "sha256": "aee2d0dcf2dd9e5cf40777faee0907a2aa272aaffc539230c7603c96e04d9319",
+      "reviewedAuthoritiesDigest": "sha256:e56cb15abc7fca256b9a6a91224b83022b86b0fb81122df4f249fc9f35bfc529",
+      "sha256": "d2ed20c1991290b16052893c8c0d7d4fbdc1ee4bb03f468e608a7ff29dc8af36",
       "snippets": [
         {
           "lang": "ts",
@@ -5934,8 +5660,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:aa6c6715f488222d12e44dd54f941ed9af2b22f2ac8011f501f166ae7859340e",
-      "sha256": "977c0cb3fa073d1ffdbf60582621bbacacdba9d1f790bd7a28651458a9bccc41",
+      "reviewedAuthoritiesDigest": "sha256:46b53e4e0e1ccc1c58417599b95a850523ce03dbbaa80ddfc2bfb6db655e80d8",
+      "sha256": "b261031c27b7b7e40a2b815d2aec1145249e34dd37f412088ea0c72df24e6a56",
       "snippets": [
         {
           "lang": "ts",
@@ -5957,89 +5683,6 @@
           "lang": "ts",
           "class": "fragment"
         },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        }
-      ]
-    },
-    "reference.api.expo.snapback.client.data": {
-      "path": "guide/reference/expo-snapback-client--data.md",
-      "title": "API reference — @expo/snapback-client/data",
-      "order": 819,
-      "status": "current",
-      "targets": [
-        "all"
-      ],
-      "maturity": "shipped",
-      "capabilities": [],
-      "authorities": [
-        "llp/0194-generated-api-reference.rfc.md",
-        "guide/reference/lifecycle.json",
-        "packages/snapback-client/package.json",
-        "packages/snapback-client/data-client.d.mts"
-      ],
-      "examples": [],
-      "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:f83a1a1a2afd7346c619ec32f1728c266ab956a3c49f4e5c6760440211795a0f",
-      "sha256": "2a3eb7c7f9d9370735609d35253469bb7a1f87cee078c8ef13dc8ce253c47678",
-      "snippets": [
         {
           "lang": "ts",
           "class": "fragment"
@@ -6105,7 +5748,7 @@
     "reference.api.expo.snapback.client.diagnostic.error": {
       "path": "guide/reference/expo-snapback-client--diagnostic-error.md",
       "title": "API reference — @expo/snapback-client/diagnostic-error",
-      "order": 820,
+      "order": 819,
       "status": "current",
       "targets": [
         "all"
@@ -6120,8 +5763,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:20c5ab9d03bc9884ff73343593d08d2794a07f2c628677d525a2a0f30c04298b",
-      "sha256": "f2d9ef6e660c83a23dac215ed963ca154b0b5618f956110e1104c4326a11197f",
+      "reviewedAuthoritiesDigest": "sha256:f9bf85a151e2616359ed5e8d2b32b42b517a719fdca0e76f97c76264806a13c8",
+      "sha256": "fa04e707f400f6e3cbdf9c5cb162535c14a8324620da5d688df4645d7d7c96db",
       "snippets": [
         {
           "lang": "ts",
@@ -6156,7 +5799,7 @@
     "reference.api.expo.snapback.client.evaluation.floor": {
       "path": "guide/reference/expo-snapback-client--evaluation-floor.md",
       "title": "API reference — @expo/snapback-client/evaluation-floor",
-      "order": 821,
+      "order": 820,
       "status": "current",
       "targets": [
         "all"
@@ -6171,8 +5814,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:d2beb40482a198636efc833615066de0975b39cd64da0e2c9654d4274830be2e",
-      "sha256": "63ca171f30bcd3f11989083310a051398e35fafa235ae43ba0e5ccc96dd4198e",
+      "reviewedAuthoritiesDigest": "sha256:e8ff18004a82b59eb5218952b43969197a459f02bafa8d6e1e1cde20807ca3ce",
+      "sha256": "4cb73c1b4c1b5500b380d23d34eb8d73fc764e85773c63b342c97e0a72660518",
       "snippets": [
         {
           "lang": "ts",
@@ -6203,7 +5846,7 @@
     "reference.api.expo.snapback.client.external.store": {
       "path": "guide/reference/expo-snapback-client--external-store.md",
       "title": "API reference — @expo/snapback-client/external-store",
-      "order": 822,
+      "order": 821,
       "status": "current",
       "targets": [
         "all"
@@ -6218,8 +5861,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:b1c7ac8c9fc184170d40e24f5db828b47e3e880ba3ab4096212c6ce1462ab427",
-      "sha256": "3dfdc80327f8e3a8e83e55f711708352075d57b20999db41fa35c6d7e68be639",
+      "reviewedAuthoritiesDigest": "sha256:b5a9f0f36096d4e225f31a2881be8a11cc9b76249473499de952b9b2a8613b6d",
+      "sha256": "90b1b15229b5fdfabe7e1a19019d62eb789539ae44dbf71e3cb9db97cc377108",
       "snippets": [
         {
           "lang": "ts",
@@ -6286,7 +5929,7 @@
     "reference.api.expo.snapback.client.hosted.browser": {
       "path": "guide/reference/expo-snapback-client--hosted-browser.md",
       "title": "API reference — @expo/snapback-client/hosted-browser",
-      "order": 823,
+      "order": 822,
       "status": "current",
       "targets": [
         "all"
@@ -6301,8 +5944,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:3813bd50e4ef41d41359570134280914aa361f0b973318804d68d9a1042fa1f9",
-      "sha256": "b354a07a857598ebb8a3ee38c12e99f15b4cded4933f08871879ba2f7a7da566",
+      "reviewedAuthoritiesDigest": "sha256:82141a16f1058cded9cfb1b32bf2148881a6ce13dd9d01376dedc43690695921",
+      "sha256": "323153579aa2cda9db365a7ac3b7574b8bc3a0c29e413ece47230dccf917fe5d",
       "snippets": [
         {
           "lang": "ts",
@@ -6317,7 +5960,7 @@
     "reference.api.expo.snapback.client.ir.evaluator": {
       "path": "guide/reference/expo-snapback-client--ir-evaluator.md",
       "title": "API reference — @expo/snapback-client/ir-evaluator",
-      "order": 824,
+      "order": 823,
       "status": "current",
       "targets": [
         "all"
@@ -6332,8 +5975,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:e3bf62ef522f37838af0d4e0f85cbb3b15beac9a1c88a334f6624adb1102d943",
-      "sha256": "c2a44a54b4562a3cbcd2245f9519f92a252c504b3e643ca12e0bde1cb2e21501",
+      "reviewedAuthoritiesDigest": "sha256:2c1401e4006d4a142185204908bcf4344fb3cd46429db436f80f61b59b980afd",
+      "sha256": "657d9c6aebb087a27e2aa71a21307407ad0b9cc538317e219d6551e3585596b2",
       "snippets": [
         {
           "lang": "ts",
@@ -6408,7 +6051,7 @@
     "reference.api.expo.snapback.client.lease.convergence": {
       "path": "guide/reference/expo-snapback-client--lease-convergence.md",
       "title": "API reference — @expo/snapback-client/lease-convergence",
-      "order": 825,
+      "order": 824,
       "status": "current",
       "targets": [
         "all"
@@ -6423,8 +6066,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:d5a874a7b46c94bbed223e9ca8eae4be43d0172e13401090073b79f67c3dc0a7",
-      "sha256": "f37c790a2700b4c8a790d17d5773883aeb519d42b275f63bbb09d0060414bedf",
+      "reviewedAuthoritiesDigest": "sha256:831322ed23d0c28f7fa30e8ef0983d06b20b2648dbfc50cf281f0e1962c8466c",
+      "sha256": "924b07ee8cd2997a5ef69e7c1ac37ac1f3220d5abab9b0dab9d6bbc9115961f4",
       "snippets": [
         {
           "lang": "ts",
@@ -6455,7 +6098,7 @@
     "reference.api.expo.snapback.client.local.read.admission": {
       "path": "guide/reference/expo-snapback-client--local-read-admission.md",
       "title": "API reference — @expo/snapback-client/local-read-admission",
-      "order": 826,
+      "order": 825,
       "status": "current",
       "targets": [
         "all"
@@ -6470,8 +6113,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:a1973803feb7e4b27fa045b29b20f650878c47d76fdf47140ff9d2ed002f700a",
-      "sha256": "d9cabfcde285a1c4fcbb5480d0bb7abb07172106c702c867b702ed1bc8d3a30a",
+      "reviewedAuthoritiesDigest": "sha256:4772a5039ead3668e2035662b9cbcbce6c41492ec3975c4861ddb41dc0f5dfca",
+      "sha256": "92ed508bb2146e9b31d75978c7ca8da0dc4150d565b872e3810bd61acfe2fc77",
       "snippets": [
         {
           "lang": "ts",
@@ -6558,7 +6201,7 @@
     "reference.api.expo.snapback.client.materialization.store": {
       "path": "guide/reference/expo-snapback-client--materialization-store.md",
       "title": "API reference — @expo/snapback-client/materialization-store",
-      "order": 827,
+      "order": 826,
       "status": "current",
       "targets": [
         "all"
@@ -6573,8 +6216,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:8879933669ad3f2bebc5b4c562afbd7968557bff66ef7750917cb9ce7192c947",
-      "sha256": "58879a0ec7e0e832ca48bd4b07abae774497d4578ca23dce83d9beaf88e47717",
+      "reviewedAuthoritiesDigest": "sha256:355f834a5489b7f175746136bc181c77976845d2c1995d1344c478f71e95cee1",
+      "sha256": "2b5585afcf277910295f9a4fa4440397e254295a7ac9d18245b0be670382ecb4",
       "snippets": [
         {
           "lang": "ts",
@@ -6677,7 +6320,7 @@
     "reference.api.expo.snapback.client.micro.core": {
       "path": "guide/reference/expo-snapback-client--micro-core.md",
       "title": "API reference — @expo/snapback-client/micro/core",
-      "order": 829,
+      "order": 828,
       "status": "current",
       "targets": [
         "all"
@@ -6692,8 +6335,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:a099e365e9b5509085431f59a71787e174e74677aa61c5b7ad4968ef2e82c327",
-      "sha256": "58b93625ab53372bfb870f288868d3c49052c5ef33f7465e28c544cae67db114",
+      "reviewedAuthoritiesDigest": "sha256:34ced6cee9a0f9505bb352a96d4d62121f50efe061ccdf1e8382a05acd70dfcc",
+      "sha256": "3be36423b55067308e42d5a57f0da1cee90084eceb18be19d4c7f535b341c6b5",
       "snippets": [
         {
           "lang": "ts",
@@ -6764,7 +6407,7 @@
     "reference.api.expo.snapback.client.micro.live": {
       "path": "guide/reference/expo-snapback-client--micro-live.md",
       "title": "API reference — @expo/snapback-client/micro/live",
-      "order": 830,
+      "order": 829,
       "status": "current",
       "targets": [
         "all"
@@ -6779,8 +6422,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:55de256c792e4ca1e0ef4c5db3b7b9ff9246858525744d00596ff14ea6191e04",
-      "sha256": "a0eb82a83e74e3a6a36bc8b63a8cbe1f77d8a8c01a0c32085d774e15c979c058",
+      "reviewedAuthoritiesDigest": "sha256:ee33da67c6286a893f0796dc1e478f31832a8cad601263e44262450c55768d43",
+      "sha256": "300dbb68f4231df5f6bada1ddb5b56d5112254938b02699b46c01632679506ad",
       "snippets": [
         {
           "lang": "ts",
@@ -6803,7 +6446,7 @@
     "reference.api.expo.snapback.client.micro": {
       "path": "guide/reference/expo-snapback-client--micro.md",
       "title": "API reference — @expo/snapback-client/micro",
-      "order": 828,
+      "order": 827,
       "status": "current",
       "targets": [
         "all"
@@ -6818,8 +6461,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:1b4c0b84d43740d33bd3b346fe8bffc47b4576fce97fb80fac4636fc402024d8",
-      "sha256": "a9379da5f5e44b453f39b322fa1d34e3c102860717607b48727212437b0a94a5",
+      "reviewedAuthoritiesDigest": "sha256:7acdc6c1b95b5634a1cf8909e9fc25aa32fb4dd27716ae95c0f056de97beeb2d",
+      "sha256": "b54c27916d56adfbbacdb0e3cf3a7eb5745190ef8ebee7f4365fadde05085cc6",
       "snippets": [
         {
           "lang": "ts",
@@ -6862,7 +6505,7 @@
     "reference.api.expo.snapback.client.online": {
       "path": "guide/reference/expo-snapback-client--online.md",
       "title": "API reference — @expo/snapback-client/online",
-      "order": 831,
+      "order": 830,
       "status": "current",
       "targets": [
         "all"
@@ -6877,8 +6520,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:1d5cf7d4de3903d256e1aea7f678a84007d28aa308c7b401faf26b4aae0770ed",
-      "sha256": "189fa6350cf8cc4d79788a007c256eedca35da1c740041e80ae153521ace4292",
+      "reviewedAuthoritiesDigest": "sha256:f3f2147109f6892d1b7c53268f390f74a3538f9bfd35368dd917b7bc05338d80",
+      "sha256": "4038330d2821c5a9ebdf90377b71266c3076611b250b3818087425f90e5b4ddf",
       "snippets": [
         {
           "lang": "ts",
@@ -6901,7 +6544,7 @@
     "reference.api.expo.snapback.client.optimistic.rebase": {
       "path": "guide/reference/expo-snapback-client--optimistic-rebase.md",
       "title": "API reference — @expo/snapback-client/optimistic-rebase",
-      "order": 832,
+      "order": 831,
       "status": "current",
       "targets": [
         "all"
@@ -6916,8 +6559,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:a97c607aa5b09762179554ea6d26cd94fab5f8b0df745b3d77683c378b8c71b5",
-      "sha256": "3e19580d8106c3b4eb923aebbf309e2cd48dd408062e783ffdaa443311505e10",
+      "reviewedAuthoritiesDigest": "sha256:aa4ac4c407428636c7ee6f0b1a4e6943cd368446ccc95a5f74ac6abe5064586c",
+      "sha256": "e9ac3ec4970bf8ba1aa58bd9d685faee3b7fc86530f0c7c86f1048fdee51ab76",
       "snippets": [
         {
           "lang": "ts",
@@ -6972,7 +6615,7 @@
     "reference.api.expo.snapback.client.outbox.shared": {
       "path": "guide/reference/expo-snapback-client--outbox-shared.md",
       "title": "API reference — @expo/snapback-client/outbox-shared",
-      "order": 833,
+      "order": 832,
       "status": "current",
       "targets": [
         "all"
@@ -6987,8 +6630,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:1c7931b15b0324eebf9de2c1bffa69a23dbab375a736dab66cbdf23b7af81ee4",
-      "sha256": "0d8d704b06ef04c65ea643c6ed351f8029f4b9287174dfb5e48febb75d05c263",
+      "reviewedAuthoritiesDigest": "sha256:fac9b1b010bedba4993baf54c1e31c57b8d25b1df6ac6a8027bcf2fec970f820",
+      "sha256": "e692fbeba32b49a04f940c51b316c5f2bf21f79bf439f4fdef12a085d1dfdd69",
       "snippets": [
         {
           "lang": "ts",
@@ -7091,7 +6734,7 @@
     "reference.api.expo.snapback.client.push.installation.expo": {
       "path": "guide/reference/expo-snapback-client--push-installation-expo.md",
       "title": "API reference — @expo/snapback-client/push-installation-expo",
-      "order": 834,
+      "order": 833,
       "status": "current",
       "targets": [
         "all"
@@ -7106,8 +6749,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:6614e3665f53bf2a1273ad76c17a181cac2bd1a4dba91daf8cb0f17e4780830e",
-      "sha256": "fd5bb5ca8a291a27b5e7d571777035a662cc1aa3c325f039ea776aa93369b48a",
+      "reviewedAuthoritiesDigest": "sha256:d906f244a8b06fb5894a87da83ceee269604cc712e30561fc89686e15ccaa099",
+      "sha256": "d0124a6b11a334f63191ed17ec275841f4941c91ef4790ae5b3f9a5e379a9910",
       "snippets": [
         {
           "lang": "ts",
@@ -7130,7 +6773,7 @@
     "reference.api.expo.snapback.client.push.registry": {
       "path": "guide/reference/expo-snapback-client--push-registry.md",
       "title": "API reference — @expo/snapback-client/push-registry",
-      "order": 835,
+      "order": 834,
       "status": "current",
       "targets": [
         "all"
@@ -7145,8 +6788,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:b58e1fd7bfe1aab7daa33085a605276d6561771282c0d35ee310c88357e89706",
-      "sha256": "e2f62ec12d11fc49655fd8a705ced2d14e27de29369aef6b708eae1efd12afef",
+      "reviewedAuthoritiesDigest": "sha256:1ef65d717d31f57f019135d9d04c204d51602bd7e53c63e54e8c5c235e9396f6",
+      "sha256": "d9ff251f6f3858b83947141d1f32cdd605a8a77cadb88a084c85acbbd10ba0c3",
       "snippets": [
         {
           "lang": "ts",
@@ -7181,7 +6824,7 @@
     "reference.api.expo.snapback.client.react.binding": {
       "path": "guide/reference/expo-snapback-client--react-binding.md",
       "title": "API reference — @expo/snapback-client/react-binding",
-      "order": 836,
+      "order": 835,
       "status": "current",
       "targets": [
         "all"
@@ -7196,13 +6839,9 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:745841cc3519d256d6fafa26e26276691a4e1419644f6e8248fbb118d60c7428",
-      "sha256": "9e0bf90a2392e8b6716f0d94248ba209f416be59613d26377576b2fc9c17720e",
+      "reviewedAuthoritiesDigest": "sha256:f0b512d610e036c019d74145f1c2e29326103b86a41ba95da20d9e19674ae3d6",
+      "sha256": "c0dcffbd4c61c88758fa72f9e6c0326265ee723becc2192a154e4c4c936e8f06",
       "snippets": [
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -7292,7 +6931,7 @@
     "reference.api.expo.snapback.client.reference.kinds": {
       "path": "guide/reference/expo-snapback-client--reference-kinds.md",
       "title": "API reference — @expo/snapback-client/reference-kinds",
-      "order": 837,
+      "order": 836,
       "status": "current",
       "targets": [
         "all"
@@ -7307,8 +6946,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:1f45713ea9cb6bed182350dae2990f8bdbeabbfd04e94bad4799cc67f95b24a9",
-      "sha256": "8c0dcf55d8e43441183dc3856550e74f9d27334ff277396a5dae660a478e029f",
+      "reviewedAuthoritiesDigest": "sha256:bb18a8a107f6ec38e1fa7bed48003201606f2a392c6d2bf334598b7a36c8f440",
+      "sha256": "341af19771bbdb61bdf8cc10cf8c2581cb92d8d800ff7b95cc8612304fc9e302",
       "snippets": [
         {
           "lang": "ts",
@@ -7331,7 +6970,7 @@
     "reference.api.expo.snapback.client.remediation": {
       "path": "guide/reference/expo-snapback-client--remediation.md",
       "title": "API reference — @expo/snapback-client/remediation",
-      "order": 838,
+      "order": 837,
       "status": "current",
       "targets": [
         "all"
@@ -7346,8 +6985,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:4331109a33442dcd8bda48c166069564eedce5b07586de53aca113c47ed1abcb",
-      "sha256": "758372c71e78f5b497153c5876691333ef74fe7c6b81b53908daa35d41db51a3",
+      "reviewedAuthoritiesDigest": "sha256:66c5b2caf973345d402e5e93b0aa80b7dfaf140d08e68b449669237196b64f95",
+      "sha256": "62bd7ebc07ccc5fa48d345ceb112b37f68ee70a7ed5cc125c7031db7e5f2f358",
       "snippets": [
         {
           "lang": "ts",
@@ -7390,7 +7029,7 @@
     "reference.api.expo.snapback.client.result.transform": {
       "path": "guide/reference/expo-snapback-client--result-transform.md",
       "title": "API reference — @expo/snapback-client/result-transform",
-      "order": 839,
+      "order": 838,
       "status": "current",
       "targets": [
         "all"
@@ -7405,8 +7044,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:46b46125e9ce8c04ed15c30f84808ed02d4214a857a19c756695e0f87eff0da9",
-      "sha256": "fdfd87419ba64f5a93d37874791fb147ea252927dc78e2a0f668882f592bcfc8",
+      "reviewedAuthoritiesDigest": "sha256:47174f0e16e6fd620e39d6ec3d2990f1069e0bbe04f00435f812d49de400bc8b",
+      "sha256": "de64c2146be8dae24fd68d8c8a9da77eceda311323feb4fb4eb79648f2d89cbd",
       "snippets": [
         {
           "lang": "ts",
@@ -7501,7 +7140,7 @@
     "reference.api.expo.snapback.client.rqs.preload": {
       "path": "guide/reference/expo-snapback-client--rqs-preload.md",
       "title": "API reference — @expo/snapback-client/rqs-preload",
-      "order": 841,
+      "order": 840,
       "status": "current",
       "targets": [
         "all"
@@ -7516,8 +7155,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:eaf5c4298dfc3ef0597b90fc76b6f5379b7f6df3208faac20d2f6a01d6b8ca55",
-      "sha256": "94f018445f442da0b997ba0dd8784e7d252e704bcc43b8b5484d505d7a3865ea",
+      "reviewedAuthoritiesDigest": "sha256:26adb6ec3103041d15269fcac40badd0db614266b5da64b1d6ae4da5adb67b74",
+      "sha256": "c9b01bb69dd55e86c26088793eb689a4668ccc9d113952dcd80d493c9dc99e00",
       "snippets": [
         {
           "lang": "ts",
@@ -7568,7 +7207,7 @@
     "reference.api.expo.snapback.client.rqs.registered": {
       "path": "guide/reference/expo-snapback-client--rqs-registered.md",
       "title": "API reference — @expo/snapback-client/rqs-registered",
-      "order": 842,
+      "order": 841,
       "status": "current",
       "targets": [
         "all"
@@ -7583,8 +7222,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:89f3aaaf03d797cd778d626c289d13c20bb339b6c11d4493036a5445b152a5fa",
-      "sha256": "d1d8a8f6db2cc44bd9db5a2668abce20385deb2651aabc2994a65beef319d4aa",
+      "reviewedAuthoritiesDigest": "sha256:629c430c9e0eed39584952a7b126a08dfaca3b68c61438606c91a447309c457f",
+      "sha256": "b6b3e4c664feec0ac4a1bedb4b280f7e7b912a29b122627389b16763552913c9",
       "snippets": [
         {
           "lang": "ts",
@@ -7651,7 +7290,7 @@
     "reference.api.expo.snapback.client.rqs.store.default": {
       "path": "guide/reference/expo-snapback-client--rqs-store-default.md",
       "title": "API reference — @expo/snapback-client/rqs-store-default",
-      "order": 844,
+      "order": 843,
       "status": "current",
       "targets": [
         "all"
@@ -7666,8 +7305,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:e1222371f9d28e765a0e6f206ae75c817702dbc6e2ecca9644fcb57a9d3cb546",
-      "sha256": "187893012ffef5d6a12c929ebd1851efbbdda9d86d79ced8f477674bbff69ece",
+      "reviewedAuthoritiesDigest": "sha256:1ac85ef265f0869061fff594af460511cc9f8c2f49352b0d57238a5331e95d1a",
+      "sha256": "550101499f84ee01fd678b0b03259c4145adbbaa0cecb76b43e2f6dba8e76ffb",
       "snippets": [
         {
           "lang": "ts",
@@ -7698,7 +7337,7 @@
     "reference.api.expo.snapback.client.rqs.store.expo": {
       "path": "guide/reference/expo-snapback-client--rqs-store-expo.md",
       "title": "API reference — @expo/snapback-client/rqs-store-expo",
-      "order": 845,
+      "order": 844,
       "status": "current",
       "targets": [
         "all"
@@ -7713,8 +7352,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:464fcc882d774fa431947a2d64a53f8a1d5eb6ea26bbe7bb5797fe5c02c015eb",
-      "sha256": "cc7397d8d71c736c3b20e1106f2aa654f5db117b815e36da8af54eca8b28e0eb",
+      "reviewedAuthoritiesDigest": "sha256:05810e722be7ff7a19eb662784e619e827e6d658e25b6fac03ea43d1ca9321a9",
+      "sha256": "a293687f2c528a9fb92f65f8d96bc424c87f5a16824da690c305e4fa325ee2d7",
       "snippets": [
         {
           "lang": "ts",
@@ -7749,7 +7388,7 @@
     "reference.api.expo.snapback.client.rqs.store.file": {
       "path": "guide/reference/expo-snapback-client--rqs-store-file.md",
       "title": "API reference — @expo/snapback-client/rqs-store-file",
-      "order": 846,
+      "order": 845,
       "status": "current",
       "targets": [
         "all"
@@ -7764,8 +7403,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:f5b8381be5a28c07fa5779754a891d2ccab91a3eea4665be617dfed5c72d3774",
-      "sha256": "7bdd6a897318d24d27ad29004da3d676bc2160e47be453446174edeadf1db202",
+      "reviewedAuthoritiesDigest": "sha256:014438216656f90070e84a2900fbe7b62f4112088c5d412c726a448fc5368a2e",
+      "sha256": "455ef0b7f979b83a3ba882ec8851909733135e4e7fe544ad952478ac43581e3d",
       "snippets": [
         {
           "lang": "ts",
@@ -7804,7 +7443,7 @@
     "reference.api.expo.snapback.client.rqs.store": {
       "path": "guide/reference/expo-snapback-client--rqs-store.md",
       "title": "API reference — @expo/snapback-client/rqs-store",
-      "order": 843,
+      "order": 842,
       "status": "current",
       "targets": [
         "all"
@@ -7819,8 +7458,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:4b72e3d43ee0df06abb20c0586a61ba77b0276d5d923349e864795ce018d2cdf",
-      "sha256": "314a6640277958412bb645dd97de1cc63e7059cb8520980aa6ec57bb584567be",
+      "reviewedAuthoritiesDigest": "sha256:68ec54b047eb2780fa53eea96d76a66a63e3fb6a620f36e07d6dcd703a19ef23",
+      "sha256": "2c5fa7634ab6ea50930c4a51e898df668bdfa72e3e5d0b737997b8ead72ee806",
       "snippets": [
         {
           "lang": "ts",
@@ -7919,7 +7558,7 @@
     "reference.api.expo.snapback.client.rqs": {
       "path": "guide/reference/expo-snapback-client--rqs.md",
       "title": "API reference — @expo/snapback-client/rqs",
-      "order": 840,
+      "order": 839,
       "status": "current",
       "targets": [
         "all"
@@ -7934,8 +7573,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:9f9ae659b2cb14f7fea99865c7972ca83a74c5c64ea95a05e65e25ee343f8c22",
-      "sha256": "24757f7781208a2f80f9660ec559a7d0f9587dac16bee386c60ddea455dc8f01",
+      "reviewedAuthoritiesDigest": "sha256:33ef72d76e11a61337fd8fff71d5c131036d1f1f4da81aa479097104cc54699c",
+      "sha256": "71aae4e1e0e9c296f3217dc06e4f40fdef0e535af752653a6424c6aad629ca52",
       "snippets": [
         {
           "lang": "ts",
@@ -8058,7 +7697,7 @@
     "reference.api.expo.snapback.client.search": {
       "path": "guide/reference/expo-snapback-client--search.md",
       "title": "API reference — @expo/snapback-client/search",
-      "order": 847,
+      "order": 846,
       "status": "current",
       "targets": [
         "all"
@@ -8073,8 +7712,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:665052df17a38e93290fd012e59372c7aed6b35b91597780ec67643d2b268ba8",
-      "sha256": "c985825077006866720d11fa5137b83eea685ba9b258f74d877853e3784b56f4",
+      "reviewedAuthoritiesDigest": "sha256:1707d7d3285bc9cad70a16a2a5e134e9375a22984fc1e1bafecd9d03ad27dc2c",
+      "sha256": "c334069171a1568497fef336e833aa2e061fe6d1e2c7f00fca5c48d6958c2df7",
       "snippets": [
         {
           "lang": "ts",
@@ -8125,7 +7764,7 @@
     "reference.api.expo.snapback.client.vector.search": {
       "path": "guide/reference/expo-snapback-client--vector-search.md",
       "title": "API reference — @expo/snapback-client/vector-search",
-      "order": 848,
+      "order": 847,
       "status": "current",
       "targets": [
         "all"
@@ -8140,8 +7779,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:a085589ba7b2f3e8388ffac3756f0db22895595d974e06f3093be31939282bc4",
-      "sha256": "361eb37ff37e3b57cd08fa14fa656e445b453453db197efb2318772b06daf3b3",
+      "reviewedAuthoritiesDigest": "sha256:a1d9b694f99a9897fe1640453c1dbaab4b6481e6f69ab09623a25cde690fdc2f",
+      "sha256": "2dd98f85eb4d67fa8ff22d551d02338db63b1c3e1cc850ca6fb51048f5ac28f5",
       "snippets": [
         {
           "lang": "ts",
@@ -8183,13 +7822,9 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:d63b3b96a7877fac1d7710e3550d70564515e9ba172edbacd68ed17130a2cb85",
-      "sha256": "3de98144a873bcc9bca654e9e05515034b132966a525f03039635a7a87674f0a",
+      "reviewedAuthoritiesDigest": "sha256:155e5ac0323108f126c4d76a421bbf1ce7bd85c59e7dbc8b515b60f82dc4d6c9",
+      "sha256": "6d6f79892034bbe4e520790b251e26f804799462953a113a96576f8028fa640f",
       "snippets": [
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
         {
           "lang": "ts",
           "class": "fragment"
@@ -9371,7 +9006,7 @@
     "reference.api.expo.snapback.codegen.ctx": {
       "path": "guide/reference/expo-snapback-codegen--ctx.md",
       "title": "API reference — @expo/snapback-codegen/ctx",
-      "order": 862,
+      "order": 859,
       "status": "current",
       "targets": [
         "all"
@@ -9386,8 +9021,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:aa345643c71a03295bb9812f7da504b191901a480cacf67cf06e294178af9458",
-      "sha256": "1d45f8b987260a7385e1951b3aa99ab056cfdb97b91fc791d1599edf88d57e39",
+      "reviewedAuthoritiesDigest": "sha256:583f667c09929c16be1324e7591e028e77ec094ff10533ed6fd0314af3c137ac",
+      "sha256": "253e571591964a29ef45006d5c5eea9465f9fb7130cc02f6fb8c5e5412a5a6b4",
       "snippets": [
         {
           "lang": "ts",
@@ -9562,7 +9197,7 @@
     "reference.api.expo.snapback.expo.app.binding": {
       "path": "guide/reference/expo-snapback-expo--app-binding.md",
       "title": "API reference — @expo/snapback-expo/app-binding",
-      "order": 855,
+      "order": 853,
       "status": "current",
       "targets": [
         "all"
@@ -9577,8 +9212,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:664a8f409b5d30578ca9f3558ce50920bc4e43a7d5c33ffa7abc83f8c8fc2f10",
-      "sha256": "2da4f02b47f5fd2836492fffc95cb3b6f9431fbcdc4116754690c5da52ba7c76",
+      "reviewedAuthoritiesDigest": "sha256:b6321cd5add34face1dab19b7662c95e18e42fea46c625d449d2ad59c4351336",
+      "sha256": "9531e5f0afd290b95240951a9e6c254c81c6ed350a383994efd624e38c86c8b3",
       "snippets": [
         {
           "lang": "ts",
@@ -9633,7 +9268,7 @@
     "reference.api.expo.snapback.expo.app.plugin": {
       "path": "guide/reference/expo-snapback-expo--app.plugin.md",
       "title": "API reference — @expo/snapback-expo/app.plugin",
-      "order": 856,
+      "order": 854,
       "status": "current",
       "targets": [
         "all"
@@ -9648,8 +9283,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:5e9a80bd9e4c73dd9edd853e0d5efbdc9fa98130a09cbc56a7cff526d12c0e39",
-      "sha256": "ef6072c368f1f3a7a9e220686c00b672a7c237b6846141d504a9f5ad07c1dd51",
+      "reviewedAuthoritiesDigest": "sha256:fc9c1803d78507944c7e23c0d953bc9a2576f33349d9e08f5eba07092d903db6",
+      "sha256": "83f0d1c68a89763833b3c8bebd62d88ab3805e2b6a7ec1257b97d4070c6fbdc4",
       "snippets": [
         {
           "lang": "ts",
@@ -9680,7 +9315,7 @@
     "reference.api.expo.snapback.expo.asset.source": {
       "path": "guide/reference/expo-snapback-expo--asset-source.md",
       "title": "API reference — @expo/snapback-expo/asset-source",
-      "order": 857,
+      "order": 855,
       "status": "current",
       "targets": [
         "all"
@@ -9695,8 +9330,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:629ff37713edf9ff72e781d85d341906186cefb116e83fa93568aedcb9edc18f",
-      "sha256": "5ca50ee1e19bff16c832d0a7a207c9f7ade0dd84014c68d55da0a3b38ef35f4c",
+      "reviewedAuthoritiesDigest": "sha256:061424e255a7ab88fb8512b93db7975c80bbe1458e38cc6b657910a16d13fdb9",
+      "sha256": "56a2d4cc93de5cad4b3aba3c8a93c35cd727dfd45fd5c89aef9d134dc3289721",
       "snippets": [
         {
           "lang": "ts",
@@ -9731,7 +9366,7 @@
     "reference.api.expo.snapback.expo.config.plugin": {
       "path": "guide/reference/expo-snapback-expo--config-plugin.md",
       "title": "API reference — @expo/snapback-expo/config-plugin",
-      "order": 858,
+      "order": 856,
       "status": "current",
       "targets": [
         "all"
@@ -9746,55 +9381,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:5e9a80bd9e4c73dd9edd853e0d5efbdc9fa98130a09cbc56a7cff526d12c0e39",
-      "sha256": "7ea16898e23cad9351146ec9bd1a80aedf1bb5df724d5dfbb72028beff89c3bc",
-      "snippets": [
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        }
-      ]
-    },
-    "reference.api.expo.snapback.expo.data": {
-      "path": "guide/reference/expo-snapback-expo--data.md",
-      "title": "API reference — @expo/snapback-expo/data",
-      "order": 859,
-      "status": "current",
-      "targets": [
-        "all"
-      ],
-      "maturity": "shipped",
-      "capabilities": [],
-      "authorities": [
-        "llp/0194-generated-api-reference.rfc.md",
-        "guide/reference/lifecycle.json",
-        "packages/snapback-expo/package.json",
-        "packages/snapback-expo/data.d.mts"
-      ],
-      "examples": [],
-      "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:60a357daa6913375876451ee6dec14a74713be49a9e45dc26f68aa32401129a1",
-      "sha256": "a94a8bf7eba6a17a95fdaedf873e0918d2f5b62ebb1be5f6e1176701518b64db",
+      "reviewedAuthoritiesDigest": "sha256:fc9c1803d78507944c7e23c0d953bc9a2576f33349d9e08f5eba07092d903db6",
+      "sha256": "8e118624a3ac8a9a866489bb2238b6d96305e22ac95d68135635dbdea17e9c08",
       "snippets": [
         {
           "lang": "ts",
@@ -9825,7 +9413,7 @@
     "reference.api.expo.snapback.expo.supervised.environment": {
       "path": "guide/reference/expo-snapback-expo--supervised-environment.md",
       "title": "API reference — @expo/snapback-expo/supervised-environment",
-      "order": 860,
+      "order": 857,
       "status": "current",
       "targets": [
         "all"
@@ -9840,8 +9428,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:f78420027faa19e38f17b6fa1670397ee5e771d6643af1d299a4bfe87b1628b5",
-      "sha256": "03b8362c99ba6500d108acddfcad5bb12bca8540d95e92bbeb6bdbc6be9214d5",
+      "reviewedAuthoritiesDigest": "sha256:2c236779044a0e4f4d8f72ccd8cb8d9a6b95a96e1291bbd4e08bf2fe4d5a0965",
+      "sha256": "69476a11d071ed701ae0448769135f6015be152e232fc9d995f69e9601300977",
       "snippets": [
         {
           "lang": "ts",
@@ -9880,7 +9468,7 @@
     "reference.api.expo.snapback.expo": {
       "path": "guide/reference/expo-snapback-expo.md",
       "title": "API reference — @expo/snapback-expo",
-      "order": 854,
+      "order": 852,
       "status": "current",
       "targets": [
         "all"
@@ -9895,8 +9483,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:875ecbd53898a684c5c8b889a89028150192f61393363487f27b6cb0c7e4205c",
-      "sha256": "4a2cced0b9c780609172978dc175d949c0361b2a13760b84a2bb1aa4fbbf978c",
+      "reviewedAuthoritiesDigest": "sha256:d740a2d857b5d3592633f0b5e3d305c4e36dc756849754b5320ddcf09fc4a8f5",
+      "sha256": "e8f9d87790f73498984158a85bbba0a50a0f4edf13459f341fbff4328b404ef9",
       "snippets": [
         {
           "lang": "ts",
@@ -10523,7 +10111,7 @@
     "reference.api.expo.snapback.react.core": {
       "path": "guide/reference/expo-snapback-react--core.md",
       "title": "API reference — @expo/snapback-react/core",
-      "order": 850,
+      "order": 849,
       "status": "current",
       "targets": [
         "all"
@@ -10538,8 +10126,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:e514b264aff0989ef62be3ec4bb7c7cc1da9f44843a023ed1c07873a6c51e165",
-      "sha256": "6131440c1a2faba5fef5cca776a3fba060df88e806f9d999c1577150a4baa609",
+      "reviewedAuthoritiesDigest": "sha256:8eebcb7756d19ce11cb047164b892e2bae3f314dacbf5fe8f2f5f81a86176af9",
+      "sha256": "0932972c84e2c376afd9b7ed586d59068c1eeea1ecdc4ca43918120618f2fb45",
       "snippets": [
         {
           "lang": "ts",
@@ -10733,53 +10321,6 @@
           "lang": "ts",
           "class": "fragment"
         },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        },
-        {
-          "lang": "ts",
-          "class": "fragment"
-        }
-      ]
-    },
-    "reference.api.expo.snapback.react.data": {
-      "path": "guide/reference/expo-snapback-react--data.md",
-      "title": "API reference — @expo/snapback-react/data",
-      "order": 851,
-      "status": "current",
-      "targets": [
-        "all"
-      ],
-      "maturity": "shipped",
-      "capabilities": [],
-      "authorities": [
-        "llp/0194-generated-api-reference.rfc.md",
-        "guide/reference/lifecycle.json",
-        "packages/snapback-react/package.json",
-        "packages/snapback-react/data.d.mts"
-      ],
-      "examples": [],
-      "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:48e08babf29246c7a53c249ba1c7d0f6ab42f0b3473081a00a925db3a94188c9",
-      "sha256": "aa80b77e879a854f16ccaab503f845841a39edc586c07b4c9fd9329aa8663998",
-      "snippets": [
         {
           "lang": "ts",
           "class": "fragment"
@@ -10809,7 +10350,7 @@
     "reference.api.expo.snapback.react.familiar": {
       "path": "guide/reference/expo-snapback-react--familiar.md",
       "title": "API reference — @expo/snapback-react/familiar",
-      "order": 852,
+      "order": 850,
       "status": "current",
       "targets": [
         "all"
@@ -10824,8 +10365,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:d801c08dd1db9afeaf9e886a66c1fa46699863cdd94b8aa5e4e8e0545a6174d8",
-      "sha256": "95c7bc61a5893eae4c29ab6298774229b37611a7b51dd7475ceaee4348e8194f",
+      "reviewedAuthoritiesDigest": "sha256:d32a53a3d0509c1b81176ed748412507e7bc83227e7fdaba000d8f7963b37ae0",
+      "sha256": "407e5cfdbc0211e94fd8ceed714fb93f842fbd462a0e598c599bf0504170cfc9",
       "snippets": [
         {
           "lang": "ts",
@@ -10892,7 +10433,7 @@
     "reference.api.expo.snapback.react.thumbhash": {
       "path": "guide/reference/expo-snapback-react--thumbhash.md",
       "title": "API reference — @expo/snapback-react/thumbhash",
-      "order": 853,
+      "order": 851,
       "status": "current",
       "targets": [
         "all"
@@ -10907,8 +10448,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:2187c31ed595c64affead18925027a721b5336177a6c157a4f496409bd0df7ec",
-      "sha256": "0803f82064527f245642982c1f9127a7a7eb5b2e235b5a683d63a5e182354ad4",
+      "reviewedAuthoritiesDigest": "sha256:e339e3c700c6357350d0ab11dad32d870de99742bb8ccea5dea2e5035167efe7",
+      "sha256": "dd1335fb0b0d928cf7e6f2136e17a79873815b5e9b2542be2a9954332550b8bf",
       "snippets": [
         {
           "lang": "ts",
@@ -10935,7 +10476,7 @@
     "reference.api.expo.snapback.react": {
       "path": "guide/reference/expo-snapback-react.md",
       "title": "API reference — @expo/snapback-react",
-      "order": 849,
+      "order": 848,
       "status": "current",
       "targets": [
         "all"
@@ -10950,8 +10491,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:7b7ee95eeeb6ad610a5cc0c23363c3e1739b1de4c9c851fdbdfb7374a9e48b84",
-      "sha256": "d7b5c948d8b0085ec1c705aa5d959a7d635f15f6bb04b48516c1167ce80f7fac",
+      "reviewedAuthoritiesDigest": "sha256:6f939d82e7939b1353ef3605a0b28fb14d328ce3f500c919892dbd9b6818a7b3",
+      "sha256": "aac39098c4119e72dc747f3e37fb63ec105ad83573b08cda79bbdbd44d0decdb",
       "snippets": [
         {
           "lang": "ts",
@@ -11422,8 +10963,8 @@
         "tests/generated-api-reference-v1.mjs"
       ],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:9738bdc7cb7b31a6c7b281736354737448dc554d3ffaa4147ccad185ef9574fa",
-      "sha256": "6474069be8b9d21b182860b79996c57c2270a9902f776117c9f0b583f190935a",
+      "reviewedAuthoritiesDigest": "sha256:c626ffca5cdf748da0fd61d9154d993bb3f9a766ac6f6444b5f9d5574d7ffcdf",
+      "sha256": "8ab29f673f6cc9888e90551cc2d66159da8b4da8b40bcc846ed3b70af7b89a58",
       "snippets": []
     },
     "meta.retrieval-eval": {
@@ -11443,7 +10984,7 @@
       "examples": [],
       "reviewed": "2026-08-12",
       "reviewedAuthoritiesDigest": "sha256:622ed35a0850ae6e4bec99ff59db20df0c12e2820962f76c97cfcc2d05d9a58a",
-      "sha256": "57b53394389df4425004b6281036c29a0fe23641b68b5a1a0c38b3e1b3aa54fb",
+      "sha256": "99f96e231e1c28b5d727a42feb1daeb9817a987bbdf197c07b17259bef164e85",
       "snippets": []
     },
     "start.crud-dashboard": {
@@ -11488,7 +11029,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:5e73cea0980cf3d5103f4deb1ce5c34a7b4be9e5143faeec7987309701d1a4ed",
-      "sha256": "ede346984bc64177a8f27544e323ac59a6dbed213f3f8fe2a36da318e22b37dc",
+      "sha256": "4e6e22ff3ee7e87e668ffab76273cb39f3fa225289ddc77236ce4aa33196d53d",
       "snippets": []
     },
     "start.index": {
@@ -11548,7 +11089,7 @@
       "examples": [],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:bd97fffef93eb1f0ec657dc31bc3f48b358897c55b65120859abd274d06ddbaa",
-      "sha256": "5d4c5c29bc4f2e07903a8987aa9962c6b03cfc096a56708d57e5a4dbfbedafcf",
+      "sha256": "9ef1e1955b894ab87ba2ca1a5cd51be0347be559a9048e23bc4d05d9b895f5c9",
       "snippets": []
     },
     "start.react": {
@@ -11571,7 +11112,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:8eec1a04daa7a5512264a00d40cf195b4eeb4653d3319607cf4d0abef7a1d85d",
-      "sha256": "1d032d4dc51ee2aa182af493610e461449a63a163c99d3ddf2c13cf2ea0b9259",
+      "sha256": "58f6aa13e6578b541e0cd6335dff1977a25c073718e38420b04c490c768c288a",
       "snippets": []
     },
     "start.todo-contract": {
@@ -11617,7 +11158,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:af05f0c3c7e4c8f66fdee42ffbe920e6827de7a44e73015b65a2078c086d1c9c",
-      "sha256": "70addcf79ed491571952f6164a8ddef73b411ca61f21233d47db820b8a71755c",
+      "sha256": "550a7ae0a4c93d1e7431335d644bae2e9ad0c519cab443734937f9a66d00c06a",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -11939,8 +11480,8 @@
       "path": "guide/reference/registry.json",
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
-      "bytes": 4380256,
-      "sha256": "c2789f5c579097705bee4a5f6b5305535c3b25500575c56553bb3697ef7a821d",
+      "bytes": 4305549,
+      "sha256": "8c97f87fc64ce3bb2752634384284dfecc126332383b2a31d780bd3ec0fc6d5b",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -11949,16 +11490,16 @@
         "llms": true
       },
       "schemaVersion": "snapback-symbol-registry.v1",
-      "sourceDigest": "sha256:45a5039b129e39105097bea305f2ab389baea3e0de53d7db79f64af118e01a20",
-      "modules": 53,
-      "symbols": 1223
+      "sourceDigest": "sha256:e58bdc36ee299729c209276a8e200f7ea3c87c59feca5c6d7d1a5ab46b2cdb62",
+      "modules": 50,
+      "symbols": 1194
     },
     "reference.diagnostics-registry": {
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2298514,
-      "sha256": "adf5fb19de7630b170c3316103548b299916f9d97b67d9ad14aa0b2393a745f1",
+      "bytes": 2263169,
+      "sha256": "12f4d1bedd92820915a2634cf1f30f897bc7f7f7be7ccb7e2a50d7171552212a",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -11967,9 +11508,9 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:8ac26349ad13bf39813f0875d05ee57de2fdb57e4c9758ed417605aa2f40def9",
-      "codes": 3291,
-      "emittingSites": 11240
+      "sourceDigest": "sha256:763ed63172fd989f52e2d5106248204efa0f3e5fd3a450995d60c477a74ff890",
+      "codes": 3267,
+      "emittingSites": 11041
     }
   },
   "capabilities": {
@@ -12043,11 +11584,6 @@
       "clients.react-paged-list",
       "clients.surfaces",
       "clients.swift",
-      "data.doorways-v1",
-      "data.lifecycle-v1",
-      "data.queries-v1",
-      "data.resources-v1",
-      "data.transactions-v1",
       "deploy.cloudflare",
       "deploy.release-build",
       "deploy.target-control",
@@ -12100,7 +11636,7 @@
     ]
   },
   "surfaces": {
-    "routes": 171,
+    "routes": 170,
     "hostOps": 51
   },
   "flatProjections": {
@@ -12108,16 +11644,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3326368,
-      "sha256": "fa59138acb33868ccd37ae240f09c7e9b38c8e4f50874a19c770959ff4ba11ba"
+      "bytes": 3256983,
+      "sha256": "68c461b5ca6b6190465c26f3c482c14efb8cc60a201ddccdd6c3aeee27eb55a1"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 148325,
-        "sha256": "45f5c8c1c5b7f0f9618cfbdb34dafe465a53ebd8b0282ec5af73967ca25fd1b6"
+        "bytes": 144965,
+        "sha256": "6e42cc3d1a90bb7d4edf82de6f30d2ff78cfc7f981d0bf9c082e9faedfcee746"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -12140,13 +11676,6 @@
         "bytes": 228928,
         "sha256": "c8d6687efd48f9bdfa9752a0d0ea4e99929e07007d87c788a07d3214785af8d8"
       },
-      "data": {
-        "path": "guide/guide-flat.data.generated.md",
-        "servedPath": "/_snapback/guide/guide-flat.data.generated.md",
-        "uri": "snapback-guide://flat/data",
-        "bytes": 33088,
-        "sha256": "a086edee92e4fd2f980534990ba0c48bf8157fc1e09bb1cd1f726ddfa3b23a71"
-      },
       "deploying": {
         "path": "guide/guide-flat.deploying.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.deploying.generated.md",
@@ -12165,8 +11694,8 @@
         "path": "guide/guide-flat.operating.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.operating.generated.md",
         "uri": "snapback-guide://flat/operating",
-        "bytes": 178236,
-        "sha256": "792ff023093f28b587a7673bf08f8d71df5dd01e75af545468d34627138a64d6"
+        "bytes": 177650,
+        "sha256": "7d92b5ae13361f10014380002026e02c58c97d172338f794cf748cfe004e3e9e"
       },
       "protocol": {
         "path": "guide/guide-flat.protocol.generated.md",
@@ -12193,15 +11722,15 @@
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 1870655,
-        "sha256": "4269b6eb6dd43a3b26e03c51750a41b9b13fc9f245132a27d3a6c136799faf1c"
+        "bytes": 1838259,
+        "sha256": "d512bc378a5f91634948ee7d1114d11ebabfef5889532e66bfa7098582733a02"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.start.generated.md",
         "uri": "snapback-guide://flat/start",
-        "bytes": 18805,
-        "sha256": "bd43742a5ea7514a85f1bc03d9eb88ffd3a59d17c7823ccbef8b9a3431fd3aec"
+        "bytes": 18745,
+        "sha256": "db35fde24cc235305719204b238f1d2d0c53bf07bc845350157732e03565f475"
       },
       "sync": {
         "path": "guide/guide-flat.sync.generated.md",
@@ -12219,5 +11748,5 @@
       }
     }
   },
-  "contentHash": "ea2946792ab49ee5111dcbe776cb103488c5a0642cef2cbf549a31b883a63661"
+  "contentHash": "c12793a1cbb63b88de10f401b15cb28ca3d760c8ceb498fddd5bb4d7788c17f6"
 }

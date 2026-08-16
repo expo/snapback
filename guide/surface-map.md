@@ -172,7 +172,6 @@ here (or listed here but gone from the code).
 | /watches/{id}/suspend | api.external-exposure |
 | /client-mutations/acknowledge | sync.offline |
 | /client-mutations/identity-range | sync.offline |
-| /client-mutations/status/{name} | data.transactions-v1 |
 | /connection/open | realtime.durable-push |
 | /ephemeral/collections/ensure | realtime.ephemeral |
 | /ephemeral/delete | realtime.ephemeral |

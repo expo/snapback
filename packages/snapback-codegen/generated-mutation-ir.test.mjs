@@ -101,7 +101,7 @@ export const authoritativeValue = defineMutation({
     api.api.dynamicMint.mutationIr.capabilityCode,
     'SNAPBACK_GENERATED_IR_POINT_ID_SERVER_ONLY',
   );
-  // @ref LLP 0255#s72-capability-lattice-and-composition — an owner create's
+  // @ref LLP 0155#move-3--shared-mutation-ir-for-local-prediction-and-server-authority — an owner create's
   // authenticated principal is a captured prediction input; generation keeps
   // the exact capability even when an individual call cannot capture it.
   assert.equal(api.api.capturedPrincipalValue.mutationIr.capabilityClass, 'local-executable');

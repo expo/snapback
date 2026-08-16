@@ -3,6 +3,366 @@
   "schemaVersion": "snapback-symbol-lifecycle.v1",
   "symbols": [
     {
+      "identity": "npm:@expo/snapback-client#PreparedReactBinding.data",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client#SnapbackFunctionReference.argumentCapabilityRefusals",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client#preparedReactBindingData",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataClientV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataClientV1.explain",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataClientV1.pendingWrites",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataClientV1.read",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataClientV1.transact",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataClientV1.transaction",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataClientV1.tx",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataClientV1.watch",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataCursorV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataDiagnosticV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataDispatchV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataPageV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataPageV1.complete",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataPageV1.cursor",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataPageV1.rows",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataPendingWriteV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataPendingWriteV1.intentId",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataPendingWriteV1.presentation",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataPendingWriteV1.state",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataQueryStateV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataSettlementV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionChunkV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionChunkV1.__result",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionChunkV1.args",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionChunkV1.artifactKind",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionChunkV1.operation",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionChunkV1.resource",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionHandleV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionHandleV1.dispatched",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionHandleV1.dispose",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionHandleV1.intentId",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionHandleV1.refreshSettlement",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionHandleV1.settled",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionHandleV1.snapshot",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionHandleV1.subscribe",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionResultTupleV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionResultV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionStateV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionStateV1.custody",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionStateV1.dispatch",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionStateV1.intentId",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionStateV1.observation",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionStateV1.presentation",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionStateV1.results",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataTransactionStateV1.settlement",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataWatchHandleV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataWatchHandleV1.dispose",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataWatchHandleV1.refresh",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataWatchHandleV1.snapshot",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#DataWatchHandleV1.subscribe",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/data#createDataClient",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/react-binding#PreparedReactBinding.data",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-client/react-binding#preparedReactBindingData",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataDiagnosticV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataQueryStateV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataTransactionHandleV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataTransactionHandleV1.dispatched",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataTransactionHandleV1.dispose",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataTransactionHandleV1.intentId",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataTransactionHandleV1.refreshSettlement",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataTransactionHandleV1.settled",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataTransactionHandleV1.snapshot",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataTransactionHandleV1.subscribe",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataWatchHandleV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataWatchHandleV1.dispose",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataWatchHandleV1.refresh",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataWatchHandleV1.snapshot",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#DataWatchHandleV1.subscribe",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#SnapbackDataBinding",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-expo/data#db",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataDiagnosticV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataQueryStateV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataTransactionHandleV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataTransactionHandleV1.dispatched",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataTransactionHandleV1.dispose",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataTransactionHandleV1.intentId",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataTransactionHandleV1.refreshSettlement",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataTransactionHandleV1.settled",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataTransactionHandleV1.snapshot",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataTransactionHandleV1.subscribe",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataWatchHandleV1",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataWatchHandleV1.dispose",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataWatchHandleV1.refresh",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataWatchHandleV1.snapshot",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#DataWatchHandleV1.subscribe",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#SnapbackDataBinding",
+      "removedIn": "0.1.24"
+    },
+    {
+      "identity": "npm:@expo/snapback-react/data#db",
+      "removedIn": "0.1.24"
+    },
+    {
       "identity": "npm:@expo/snapback-expo#SnapbackQueuedMutationError",
       "removedIn": "0.1.23"
     },

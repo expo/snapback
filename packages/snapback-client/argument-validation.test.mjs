@@ -88,35 +88,6 @@ try {
   await expectRefusal({ title: 'x', count: 1, options: { enabled: true, extra: 1 } }, 'args.options');
   assert.equal(requests, 0, 'invalid generated calls must fail before network I/O');
 
-  assert.throws(
-    () => client.query({
-      ...ref,
-      kind: 'Query',
-      name: 'todos.list',
-      id: 'argument-test:todos.list',
-      argumentSchema: {
-        type: 'object',
-        additionalProperties: false,
-        properties: { after: { type: 'string' } },
-      },
-      argumentCapabilityRefusals: [{
-        argument: 'after',
-        when: 'present',
-        code: 'SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE',
-        guideAnchor: 'guide/data/resources#continue-a-list',
-        alternative: 'Omit after and request the first page.',
-      }],
-    }, { args: { after: 'dc1.not-yet-admitted' } }),
-    (error) => {
-      assert.equal(error.code, 'SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE');
-      assert.equal(error.diagnostic.schemaVersion, 'snapback.client-diagnostic.v2');
-      assert.equal(error.diagnostic.details.guideAnchor, 'guide/data/resources#continue-a-list');
-      assert.equal(error.effectMayHaveCommitted, false);
-      return true;
-    },
-  );
-  assert.equal(requests, 0, 'a present Phase 1 data cursor must refuse before network I/O');
-
   await client.query({
     ...ref,
     kind: 'Query',

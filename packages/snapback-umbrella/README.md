@@ -3,7 +3,7 @@
 Experimental, thin familiar-authoring entrypoints for Snapback. This package
 only re-exports implementation owned by `@expo/snapback-codegen`,
 `@expo/snapback-client`, and `@expo/snapback-react`, including the
-`/server`, `/values`, `/data`, `/react`, and `/react/data` doorways.
+`/server`, `/values`, and `/react` doorways.
 
 ## Documentation outside a checkout
 

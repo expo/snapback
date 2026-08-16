@@ -124,7 +124,8 @@ portability ([LLP 0007](./0007-storage-portability.spec.md)), assets and
 after-commit effects, agent DX
 ([LLP 0010](./0010-agent-dx-and-acceptance.spec.md),
 [LLP 0024](./0024-agent-operating-surface.spec.md)), the tiny ordinary data
-surface ([LLP 0254](./0254-tiny-ordinary-data-surface.rfc.md)), and the
+surface ([LLP 0254](./tombstones/0254-tiny-ordinary-data-surface.rfc.md),
+withdrawn), and the
 competitive strategy frame
 ([LLP 0074](./0074-convex-competitive-strategy.rfc.md)).
 
@@ -918,9 +919,9 @@ The agent-facing benefits follow:
 6. hard offline/realtime behavior appears on the ordinary path; and
 7. acceptance can exercise native identities and transports directly.
 
-This finding is the direct research antecedent for LLP 0254's “tiny ordinary
-data surface” hypothesis. Familiar naming helps an agent guess; consequence
-ownership removes much of what it would otherwise have to guess.
+This finding was the direct research antecedent for LLP 0254's now-withdrawn
+“tiny ordinary data surface” hypothesis. Familiar naming helps an agent guess;
+consequence ownership removes much of what it would otherwise have to guess.
 
 ### What agents did not like — necessary counterevidence
 
@@ -998,8 +999,9 @@ The field study strengthens these actions:
 
 1. **Match the semantic compression, not the syntax.** One table/access/query/
    transact model should own types, live materialization, optimism, custody,
-   replay, and settlement for ordinary analyzable data. LLP 0254 is the current
-   owner of that experiment.
+   replay, and settlement for ordinary analyzable data. Tombstoned LLP 0254
+   preserves the withdrawn experiment; Explicit and Familiar remain the live
+   authoring profiles.
 2. **Keep desired state primary.** A query should yield an initial bounded
    materialization and authoritative transitions without separate fetch,
    subscribe, cache, and invalidation APIs.
@@ -1110,7 +1112,7 @@ settlement, boundedness, portability, and complete-backend model.
 - **Infinite queries that stay inside the live-query model** (`loadNextPage`
   without a second subscription API). →
   [LLP 0008](./0008-local-first-sync-and-realtime.rfc.md),
-  [LLP 0254](./0254-tiny-ordinary-data-surface.rfc.md).
+  [LLP 0254](./tombstones/0254-tiny-ordinary-data-surface.rfc.md) (withdrawn).
 - **`request.modifiedFields`-style write-shape authorization** so "anyone
   may increment likes / only the owner edits title" and link-only reverse
   writes are expressible without a function. →

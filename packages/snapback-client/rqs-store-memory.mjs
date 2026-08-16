@@ -317,13 +317,6 @@ export function createMemoryRqsResumeStore({
       return structuredClone(applied.result);
     },
 
-    async outboxMarkDispatchPossiblyCrossed(id) {
-      if (!requireWriter()) return false;
-      const applied = outboxOps.markDispatchPossiblyCrossed(state.outbox, id);
-      state.outbox = applied.state;
-      return structuredClone(applied.result);
-    },
-
     async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
       if (!requireWriter()) throw outboxNotWriterError();
       const applied = outboxOps.enqueueWithOperationIdentity(

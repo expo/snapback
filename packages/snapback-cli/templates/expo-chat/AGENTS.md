@@ -1,7 +1,7 @@
 # Building this Snapback app
 
 <!-- @ref LLP 0259#1-first-read-contract — the transcluded start packet is the whole required first read; escalate one page at a time, never a linear capability-index read. -->
-<!-- start-packet:begin expo-chat digest=sha256:d0993a54174d8546a473ceed0a4b766f1455fb4835618814b90dc49d810afd6a -->
+<!-- start-packet:begin expo-chat digest=sha256:15f6d60f5b086ed584981d4f4e5e150aa90d8ad5957e821d64ff75045f867a03 -->
 This packet is the whole required first read for this app (LLP 0259
 Rung A). Open the edit targets below and work; open one further Guide page
 only via `snapback guide <query>` or on a trigger — the brief is outside
@@ -83,7 +83,7 @@ up, do not linear-read. Deeper pages, only when triggered:
 
 <!-- llp0259:stop-fence -->
 **Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
-profile) and tiny-data `db.*` are experimental, non-default surfaces — not
+profile) is an experimental, non-default surface — not
 this template's path. Writing either without an explicit brief means you
 left the golden path.
 <!-- /llp0259:stop-fence -->

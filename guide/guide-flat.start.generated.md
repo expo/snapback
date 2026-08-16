@@ -105,7 +105,7 @@ missing — do not linear-read it.
 
 <!-- llp0259:stop-fence -->
 **Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
-profile) and tiny-data `db.*` are experimental, non-default surfaces. If
+profile) is an experimental, non-default surface. If
 you are writing either without an explicit brief, return to the generated
 references and the `useSnapback*` hooks.
 <!-- /llp0259:stop-fence -->
@@ -204,7 +204,7 @@ up, do not linear-read. Deeper pages, only when triggered:
 
 <!-- llp0259:stop-fence -->
 **Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
-profile) and tiny-data `db.*` are experimental, non-default surfaces — not
+profile) is an experimental, non-default surface — not
 this template's path. Writing either without an explicit brief means you
 left the golden path.
 <!-- /llp0259:stop-fence -->
@@ -312,7 +312,7 @@ up, do not linear-read. Deeper pages, only when triggered:
 
 <!-- llp0259:stop-fence -->
 **Stop signs.** Familiar `query()` / `useQuery` (the TypeScript `schema.ts`
-profile) and tiny-data `db.*` are experimental, non-default surfaces — not
+profile) is an experimental, non-default surface — not
 this template's path. Writing either without an explicit brief means you
 left the golden path.
 <!-- /llp0259:stop-fence -->

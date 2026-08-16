@@ -29,7 +29,6 @@ import {
   membershipResource,
   patch,
   returnDocument,
-  results,
   runtimeId,
   runtimeNow,
   v,
@@ -59,9 +58,7 @@ const MEMBERSHIP_KEYSET_MEMBERSHIP_FIELDS = new Set([
 const SYSTEM_ORDER_FIELDS = new Set(['_id', '_version', '_createdAt', '_updatedAt']);
 
 function fail(code, message) {
-  const error = new TypeError(`${code}: ${message}`);
-  error.code = code;
-  throw error;
+  throw new TypeError(`${code}: ${message}`);
 }
 
 function exactObject(value, where, fields) {
@@ -363,162 +360,6 @@ export function defineOwnedCrud(options) {
     }),
   };
   return Object.freeze(definitions);
-}
-
-/**
- * Internal DataResourceV1 lowering seam. The public defineOwnedCrud boundary
- * above intentionally remains unchanged: this wrapper supplies the one
- * profile-owned list-index fill and pins the generated contracts/delivery
- * facts without making those affordances author knobs.
- *
- * @ref LLP 0255#s31-proposed-pending-llp-0065-amendment--sole-candidate-list-index-fill
- * @ref LLP 0255#s2-lowering-to-standard-operations
- */
-export function lowerDataResourceV1(options) {
-  exactObject(options, 'lowerDataResourceV1 options', new Set([
-    'table', 'resource', 'visibility', 'createDefaults', 'updateDefaults',
-    'immutable', 'listIndex', 'delivery',
-  ]));
-  const {
-    table,
-    resource,
-    visibility,
-    createDefaults,
-    updateDefaults,
-    immutable,
-    listIndex: authoredListIndex,
-    delivery = 'live',
-  } = options;
-  const facts = tableFacts(table);
-  requireName(resource, 'resource');
-  const names = Object.fromEntries(CRUD_NAME_FIELDS.map((operation) => [
-    operation,
-    `${resource}.${operation}`,
-  ]));
-  const afterArgs = {
-    // DataCursorV1 is a nominal wire spelling over the existing bounded
-    // string validator. Phase 1 admits the argument into the stable contract
-    // but refuses every present value at the generated-reference boundary;
-    // Phase 2 replaces that refusal with cursor decoding/execution without
-    // rotating this contract.
-    after: {
-      ...v.optional(v.string({ maxBytes: 2_048 })),
-      dataCursorV1: true,
-    },
-  };
-  const decorateRead = (definition, { one = false } = {}) => {
-    definition.args = one ? definition.args : { ...definition.args, ...afterArgs };
-    // An owner-only index has no post-policy field from which the executor
-    // could recover the authored direction. Carry `_id` as the direction
-    // marker in that one zero-field case; the data cursor still contains the
-    // totalizer exactly once and the data executor strips this marker before
-    // lowering the storage order.
-    if (!one && definition.plan.order.length === 0) {
-      definition.plan.order = [asc('_id')];
-    }
-    definition.resultContract = one
-      ? results.records(v.doc(facts.name), { minItems: 0, maxItems: 1 })
-      : results.documents(facts.name);
-    definition.standardPattern = { helper: 'data-resource.v1', profile: visibility.kind === 'owner' ? 'owner.v1' : 'public-read.v1' };
-    // DataResourceV1 delivery is callable sync-off Query in Phase 1. The
-    // optional `after` argument is contracted now but its present-value path
-    // remains the declared capability refusal until Phase 2.
-    definition.__kind = delivery === 'read' ? 'Query' : 'LiveQuery';
-    if (delivery === 'read') delete definition.defaultLive;
-    return definition;
-  };
-  if (delivery !== 'live' && delivery !== 'read') {
-    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'DataResourceV1 delivery must be live or read');
-  }
-
-  if (visibility.kind === 'owner') {
-    const ownerField = ownerVisibility(facts, visibility);
-    let listIndex = authoredListIndex;
-    if (listIndex === undefined) {
-      const candidates = facts.indexes.filter((candidate) => candidate.fields[0] === ownerField);
-      if (candidates.length !== 1) {
-        fail(
-          'SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED',
-          `${facts.name} .data() omitted listIndex but has ${candidates.length} owner-leading ordinary indexes; exactly one is required for profile-owned fill`,
-        );
-      }
-      [listIndex] = candidates.map((candidate) => candidate.name);
-    }
-    const lowered = defineOwnedCrud({
-      table,
-      names: {
-        list: '__dataList',
-        get: '__dataGet',
-        create: '__dataCreate',
-        update: '__dataUpdate',
-        delete: '__dataDelete',
-      },
-      visibility,
-      createDefaults,
-      updateDefaults,
-      immutable,
-      listIndex,
-    });
-    const values = {
-      list: decorateRead(lowered.__dataList),
-      get: decorateRead(lowered.__dataGet, { one: true }),
-      create: lowered.__dataCreate,
-      update: lowered.__dataUpdate,
-      delete: lowered.__dataDelete,
-    };
-    for (const operation of ['create', 'update', 'delete']) {
-      values[operation].standardPattern = { helper: 'data-resource.v1', profile: 'owner.v1' };
-    }
-    values.delete.resultContract = results.value(v.null());
-    return Object.freeze({
-      definitions: Object.freeze(Object.fromEntries(CRUD_NAME_FIELDS.map((operation) => [
-        names[operation],
-        values[operation],
-      ]))),
-      listIndex,
-    });
-  }
-
-  if (visibility.kind !== 'public-read') {
-    fail('SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED', 'DataResourceV1 supports only owner or public-read visibility');
-  }
-  if (authoredListIndex === undefined) {
-    fail(
-      'SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED',
-      `${facts.name} public-read .data() requires an explicit listIndex`,
-    );
-  }
-  requireName(authoredListIndex, 'listIndex');
-  const listIndexFacts = facts.indexes.find((candidate) => candidate.name === authoredListIndex);
-  if (!listIndexFacts) {
-    fail('SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED', `listIndex ${authoredListIndex} must name a declared ordinary index`);
-  }
-  const list = decorateRead(defineQuery({
-    table: facts.name,
-    args: {},
-    order: listIndexFacts.fields.map((fieldName) => asc(fieldName)),
-    limit: 100,
-    index: authoredListIndex,
-    auth: 'public',
-    authorityIndependent: true,
-    standardPattern: { helper: 'data-resource.v1', profile: 'public-read.v1' },
-  }));
-  const getDefinition = decorateRead(defineQuery({
-    table: facts.name,
-    args: { id: v.id(facts.name) },
-    filter: [eq('_id', arg('id'))],
-    limit: 1,
-    auth: 'public',
-    authorityIndependent: true,
-    standardPattern: { helper: 'data-resource.v1', profile: 'public-read.v1' },
-  }), { one: true });
-  return Object.freeze({
-    definitions: Object.freeze({
-      [names.list]: list,
-      [names.get]: getDefinition,
-    }),
-    listIndex: authoredListIndex,
-  });
 }
 
 /** Generate an owner-scoped lookup backed by a declared unique index. */

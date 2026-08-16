@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **155 operations** at digest `sha256:d343ca728048710e3cf9a383d02e1aab800b5ac2d61fd5f41f64157683124f0a`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **154 operations** at digest `sha256:3c9a270714142b94f80c6770375472916f35991d3029e38303c5f63c80666584`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 54 |
-| surfaceAccess | `cliOnly` | 53 |
+| surfaceAccess | `cliOnly` | 52 |
 | surfaceAccess | `mcpOnly` | 2 |
 | surfaceAccess | `native` | 42 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 116 |
+| operability | `direct` | 115 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 21 |
@@ -171,7 +171,6 @@ The embedded build catalog contains **155 operations** at digest `sha256:d343ca7
 | `cli.packaged.audit` | `cliOnly` | `direct` | `shipped` | snapback audit | — | deploying/releases.md#verify-the-control-audit-chain |
 | `cli.packaged.author` | `cliOnly` | `direct` | `shipped` | snapback author | — | getting-started/the-authoring-loop.md#suggest-review-and-apply-a-result-contract |
 | `cli.packaged.backup` | `cliOnly` | `direct` | `shipped` | snapback backup | — | deploying/releases.md#inspect-retained-backups |
-| `cli.packaged.data` | `cliOnly` | `direct` | `shipped` | snapback data | — | data/resources.md#promote-one-write |
 | `cli.packaged.deploy` | `cliOnly` | `direct` | `shipped` | snapback deploy | — | deploying/releases.md#build-and-verify-the-release-closure |
 | `cli.packaged.dev` | `cliOnly` | `direct` | `shipped` | snapback dev | — | getting-started/the-authoring-loop.md |
 | `cli.packaged.doctor` | `cliOnly` | `direct` | `shipped` | snapback doctor | — | operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first |

@@ -890,10 +890,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BOUNDED_CHILDREN_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_SNAPSHOT_BATCH_CURSOR_MINT_UNAVAILABLE"
         | "SNAPBACK_STANDARD_PATTERN_CURSOR_MINT_UNAVAILABLE"
-        // LLP 0255 S5.3: a full data page may not pretend exhaustion when
-        // its bounded continuation cannot be minted.
-        | "SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE"
-        | "SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE"
         // LLP 0081 §4: the persisted fence and barrier failures are
         // transient serving refusals — the barrier clears at a terminal
         // journal state.
@@ -1356,15 +1352,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED"
         | "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
         | "SNAPBACK_QUERY_LIMIT_INVALID"
-        // @ref LLP 0255#s53-projection-result-cursor-and-bounds — malformed
-        // data cursors and exceeded executor-owned bounds are caller-fixable
-        // request failures, not target-readiness failures.
-        | "SNAPBACK_DATA_CURSOR_INVALID"
-        | "SNAPBACK_DATA_QUERY_NAME_COLLISION"
-        | "SNAPBACK_DATA_QUERY_NOT_CATALOGUED"
-        | "SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS"
-        | "SNAPBACK_DATA_QUERY_SHAPE_INVALID"
-        | "SNAPBACK_DATA_QUERY_BOUND_EXCEEDED"
         | "SNAPBACK_BATCH_READ_INPUT_INVALID"
         | "SNAPBACK_BATCH_READ_INDEX_INVALID"
         | "SNAPBACK_BATCH_READ_KEY_INVALID"

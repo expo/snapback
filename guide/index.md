@@ -234,21 +234,6 @@ proof command, and honest nonclaims without opening every demo.
   injected-clock drain, and secret-read-leased admin inspection
   (experimental).
 
-### Data resources
-
-- [Generate a tiny typed data resource](./data/resources.md) — terminal
-  `.data(...)`, owner/public eligibility, generated operations and witnesses,
-  application sync opt-out, bounded continuation, and stale-safe promotion.
-- [Build a bounded data query](./data/queries.md) — the static fluent
-  catalogue, indexed predicates/projections, exact or synthesized routes,
-  opaque keyset continuation, ceilings, and db-less explain output.
-- [Compose generated data transactions](./data/transactions.md) — inert typed
-  chunks, atomic batch lowering, custody classes, optimistic prediction,
-  recovery handles, and payload-free pending writes.
-- [Promote a generated data operation](./data/promotion.md) — one-way
-  conversion into your selected function profile with frozen contracts,
-  preserved identity, and the refusals that keep it safe.
-
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
   replace/delta, durable push, the connection axis.

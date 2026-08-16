@@ -191,7 +191,6 @@ test('profile admission is opt-in and refuses before a familiar alias can dispat
       && error.diagnostic.details.receivedProfile === 'missing',
   );
 });
-
 test('shared operation-name grammar makes every generated spelling callable', async () => {
   const client = new SnapbackClient('http://127.0.0.1:9', {
     offlineQueue: false,

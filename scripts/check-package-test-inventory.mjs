@@ -62,7 +62,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'application-ready.test.mjs',
       'cli-help.test.mjs',
       'comparator-profile.test.mjs',
-      'data-promotion.test.mjs',
       'declaration-suggestion-cli.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
@@ -116,7 +115,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'bundle.test.mjs',
       'carrier-capability-honesty.test.mjs',
       'client-diagnostics.test.mjs',
-      'data-client.test.mjs',
       'commands.test.mjs',
       'connection-open-stream-reset-retry.test.mjs',
       'demand-broker.test.mjs',
@@ -219,8 +217,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'cold-boot-binding-indexeddb.test.mjs',
       'cold-boot-binding.test.mjs',
       'commands.test.mjs',
-      'data-ownership.test.mjs',
-      'data.test.mjs',
       'dev-diagnostics-acceptance.test.mjs',
       'dev-diagnostics.test.mjs',
       'familiar.test.mjs',
@@ -305,9 +301,6 @@ export const PACKAGE_TEST_INVENTORIES = [
       'client-lifecycle.test.mjs',
       'contract-binding-reads.test.mjs',
       'contract-output-mode.test.mjs',
-      'data-query.test.mjs',
-      'data-resource.test.mjs',
-      'data-transaction.test.mjs',
       'data-tier-corpus.test.mjs',
       'declaration-suggestion.test.mjs',
       'dependency-graph.test.mjs',
@@ -514,7 +507,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 296,
+  expectedTotal = 289,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -926,6 +919,9 @@ export function checkPackageTestInventories(options = {}) {
 // precedence/bootstrap-state projection coverage.
 // 295 -> 296 (2026-08-16, LLP 0261): @expo/snapback-cli gains the offline
 // existing-app init detection, adoption, collision, and idempotence suite.
+// 296 -> 289 (2026-08-16, LLP 0254 D10): the Tiny data doorway and its seven
+// package-level suites are withdrawn before 0.1.24; historical evidence stays
+// in the tombstoned LLPs and frozen benchmark.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

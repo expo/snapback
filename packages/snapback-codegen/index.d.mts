@@ -427,7 +427,6 @@ export interface GenerateSuccess {
     bundleId: `sha256:${string}`;
     generationId: `sha256:${string}`;
   }>;
-  readonly semanticInput: Readonly<Record<string, unknown>>;
   readonly outDir: string;
   readonly schemaManifest: Readonly<Record<string, unknown>>;
   readonly functionManifest: Readonly<{
@@ -455,15 +454,6 @@ export interface GenerateSuccess {
   readonly cacheGraphRoot: string | null;
   /** Gitignored immutable Rollout-1 envelope; null for `--check`. */
   readonly generationEnvelopeRoot: string | null;
-  readonly dataResources: ReadonlyArray<Readonly<{
-    artifactKind: 'dataResource';
-    schemaVersion: 'snapback.data-resource.v1';
-    normalizedDataResourceId: `sha256:${string}`;
-    core: Readonly<Record<string, unknown>>;
-    generation: Readonly<Record<string, unknown>>;
-    functionReferences: readonly Readonly<Record<string, unknown>>[];
-    sourceSpan: Readonly<Record<string, unknown>> | null;
-  }>>;
   /** Present only when a source-controlled `micro.profile.json` was selected. */
   readonly microProfile?: Readonly<Record<string, unknown>>;
 }

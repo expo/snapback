@@ -239,21 +239,6 @@ proof command, and honest nonclaims without opening every demo.
   injected-clock drain, and secret-read-leased admin inspection
   (experimental).
 
-### Data resources
-
-- [Generate a tiny typed data resource](./data/resources.md) — terminal
-  `.data(...)`, owner/public eligibility, generated operations and witnesses,
-  application sync opt-out, bounded continuation, and stale-safe promotion.
-- [Build a bounded data query](./data/queries.md) — the static fluent
-  catalogue, indexed predicates/projections, exact or synthesized routes,
-  opaque keyset continuation, ceilings, and db-less explain output.
-- [Compose generated data transactions](./data/transactions.md) — inert typed
-  chunks, atomic batch lowering, custody classes, optimistic prediction,
-  recovery handles, and payload-free pending writes.
-- [Promote a generated data operation](./data/promotion.md) — one-way
-  conversion into your selected function profile with frozen contracts,
-  preserved identity, and the refusals that keep it safe.
-
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
   replace/delta, durable push, the connection axis.
@@ -436,7 +421,7 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0045-notifications-outbox.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0188-ltx-sqlite-replication.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, llp/0255-tiny-data-surface-v1-api.spec.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, src/server.rs, src/admin.rs, src/replication.rs, src/cli.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/data-resource.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-react/implementation.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0045-notifications-outbox.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0133-local-settlement.spec.md, llp/0154-minimal-observability.rfc.md, llp/0155-local-sync-product-direction.rfc.md, llp/0156-minimal-error-tracking.rfc.md, llp/0188-ltx-sqlite-replication.rfc.md, llp/0211-typed-opaque-structured-stored-values.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, src/server.rs, src/admin.rs, src/replication.rs, src/cli.rs, src/telemetry_query.rs, src/errors_query.rs, packages/snapback-codegen/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, llp/0219-client-dev-diagnostics-channel.rfc.md, packages/snapback-client/client-diagnostics.mjs, packages/snapback-react/implementation.mjs]
 examples: []
 status: current
 targets: [all]
@@ -468,11 +453,6 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
 | backend.mutation-settlement-identity | Mutation-only client identity and server-namespaced digest for replay-stable effects; genuine re-entry preserves it, while hosted returns null. | ctx.mutation.settlement, settlementId, replay-stable effect, provider idempotency key, effect dedupe | local | shipped | `recordEffectIntent` in tests/mutation_settlement_identity_v0.rs | llp/0043 | backend/mutations.md |
 | backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
-| data.resources-v1 | Generated owner/public data resources with CRUD, sync policy, cursors, and promotion | .data, DataResourceV1, dataSync, DataCursorV1 | local | partial | packages/snapback-codegen/data-resource.test.mjs | llp/0255, llp/0065 | data/resources.md |
-| data.queries-v1 | Static bounded indexed queries with backend-root catalogue, exact/synthesized routes, `_id` totalizer, cursors, ceilings, and explain | DataQueryV1, data-queries.mjs, SNAPBACK_DATA_QUERY_NOT_CATALOGUED, unique index _id order, using, where, select, take, after | local | partial | packages/snapback-codegen/data-query.test.mjs | llp/0255, llp/0157 | data/queries.md |
-| data.transactions-v1 | Generated atomic data transactions with prediction, declared custody, recovery, and pendingWrites | db.tx, db.transact, outcome-unknown | local | partial | packages/snapback-client/data-client.test.mjs | llp/0255, llp/0043 | data/transactions.md |
-| data.doorways-v1 | Experimental generated tiny-data facade over the one canonical client: headless createDataClient plus provider-bound React db and identity-preserving Expo reexport | @expo/snapback/data, @expo/snapback/react/data, @expo/snapback-expo/data, db.useQuery, useQuery | local | partial | packages/snapback-umbrella/package.json (`./data`, `./react/data`) + packages/snapback-expo/package.json (`./data`) | llp/0255, llp/0012, llp/0064 | data/doorways.md |
-| data.lifecycle-v1 | One-shot pages, canonical live handle with refresh, full query-state union plus pendingWrites, skip, explain, transaction settlement and recovery | db.read, db.watch, db.useQuery, skip, pendingWrites, refresh, db.explain, db.transaction | local | partial | packages/snapback-client/data-client.test.mjs + packages/snapback-react/data.test.mjs | llp/0255, llp/0043, llp/0218 | data/lifecycle.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views, conversation membership, message sender, chat joins, defineRelationalQuery, defineMaintainedProjection, Convex joins, Supabase joins | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental bounded child pages with protected relation incarnations; contributor-source local only, with public/hosted publication GAPs | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public/hosted publication; owner: Charlie, review: 2026-08-20; issue: issues/20260727-backend-bakeoff-improvement-program.md) |
 | backend.snapshot-batch-v1 | Experimental local 2–8-node composition: complete `bounded-children.v1` plus, in v2 (2026-08-06), `relational-query.v1` joins; one pinned authoritative snapshot/invocation; structural parent-authorization dedup; all-or-nothing tuple sealed only via bounded-child parents; one LLP 0157 `sbsb1`/`sbsb2` continuation; cursor-free-first-page `live_replace`; `retention:"none"`. Hosted/public-package publication: nonclaims. | snapshot batch, mixed snapshot batch, board view, join plus child lists, multiple child lists, one snapshot, composite query, defineSnapshotBatchQuery | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local/tests.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`, `snapshot_batch_v2`) | llp/0135, llp/0157, llp/0080, llp/0113 | backend/snapshot-batches.md |
@@ -761,7 +741,6 @@ here (or listed here but gone from the code).
 | /watches/{id}/suspend | api.external-exposure |
 | /client-mutations/acknowledge | sync.offline |
 | /client-mutations/identity-range | sync.offline |
-| /client-mutations/status/{name} | data.transactions-v1 |
 | /connection/open | realtime.durable-push |
 | /ephemeral/collections/ensure | realtime.ephemeral |
 | /ephemeral/delete | realtime.ephemeral |
@@ -1694,19 +1673,10 @@ restriction profile.
     Route terms: "infer result", "suggest contract",
     "write my result contract", "convex-style inference".
 
-Cases 54–57 absorb the 2026-08-15 multi-profile sweep's catalogue-root,
-asset-authoring, sessions-evolution, and familiar-profile discovery misses.
+Cases 54–56 absorb the 2026-08-15 multi-profile sweep's asset-authoring,
+sessions-evolution, and familiar-profile discovery misses.
 
-54. **Tiny-data catalogue root:** "My literal `data.*` query works in an Expo
-    route but render throws `SNAPBACK_DATA_QUERY_NOT_CATALOGUED`." The run
-    fails if it merely makes the values static in the UI file or defers the
-    refusal; it must move the complete chain under the backend scan root,
-    conventionally `snapback/data-queries.mjs`, and regenerate.
-    Expected pages: `data/queries.md`.
-    Route terms: "SNAPBACK_DATA_QUERY_NOT_CATALOGUED", "data-queries.mjs",
-    "backend source root".
-
-55. **Store media from explicit authoring:** "Add a photo field while writing
+54. **Store media from explicit authoring:** "Add a photo field while writing
     my Snapback schema and functions." The run fails if the plan stores a
     base64/data URL in `v.string()` or `v.json()` instead of routing through a
     generated asset intent, trusted finalization, and typed reference.
@@ -1714,7 +1684,7 @@ asset-authoring, sessions-evolution, and familiar-profile discovery misses.
     `getting-started/your-first-backend.md` or `backend/handler-runtime.md`.
     Route terms: "storing media", "data URL media", "base64 image".
 
-56. **Sessions schema evolution:** "A schema edit rotated deployment identity;
+55. **Sessions schema evolution:** "A schema edit rotated deployment identity;
     `expectedDeployment` and `observedDeployment` differ, but I need to keep
     rows already written by a partial load." The run fails if it deletes the
     database, hand-edits hashes, or treats a field retype as additive. It must
@@ -1724,7 +1694,7 @@ asset-authoring, sessions-evolution, and familiar-profile discovery misses.
     Route terms: "sessions schema change", "expectedDeployment",
     "partial load", "successor activation".
 
-57. **Familiar profile end-to-end:** "Build an Expo Router app with Snapback's
+56. **Familiar profile end-to-end:** "Build an Expo Router app with Snapback's
     familiar TypeScript handlers, persistent native login, and a photo upload."
     The run fails if it presents familiar as the default/stable profile, keeps
     native custody in memory, omits per-handler membership checks, uses inline

@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:d343ca728048710e3cf9a383d02e1aab800b5ac2d61fd5f41f64157683124f0a",
+  "catalogDigest": "sha256:3c9a270714142b94f80c6770375472916f35991d3029e38303c5f63c80666584",
   "buildIdentity": {
-    "sourceCommit": "e7a2df19d51360963459dc5b76ba4159e9d1a1d2",
+    "sourceCommit": "071ef3127af87a29e012b79c94a3b3913afa86d3",
     "dirty": true
   },
-  "generatedAtCommit": "e7a2df19d51360963459dc5b76ba4159e9d1a1d2",
+  "generatedAtCommit": "071ef3127af87a29e012b79c94a3b3913afa86d3",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -4010,60 +4010,6 @@
       ],
       "sources": [
         "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.backup"
-      ],
-      "remediation": {
-        "carrier": "diagnostic.details.remediationSet",
-        "schemaVersion": "snapback.remediation-set.v1",
-        "registryVersion": "snapback.remediation-kinds.v1",
-        "decoder": "@expo/snapback-client/remediation"
-      }
-    },
-    {
-      "operation": "cli.packaged.data",
-      "title": "Promote one generated data write",
-      "intents": [
-        "promote a data write",
-        "customize generated CRUD",
-        "freeze a data operation"
-      ],
-      "status": "shipped",
-      "domain": "cliOnlyDeclared",
-      "surfaceAccess": "cliOnly",
-      "operability": "direct",
-      "mcpDeferralReason": "Promotion is an identity-checked, approval-gated local source patch with no MCP filesystem-custody contract.",
-      "availability": {
-        "targets": [
-          "local"
-        ]
-      },
-      "policy": {
-        "authority": "none",
-        "effect": "none",
-        "responseSensitivity": "OperatorMetadata"
-      },
-      "behavior": {
-        "readOnly": false,
-        "destructive": false,
-        "approvalPosture": "confirmFirst",
-        "idempotent": false,
-        "openWorld": false,
-        "persistsAcrossRestart": true
-      },
-      "projections": {
-        "cli": "snapback data",
-        "mcp": null,
-        "hostOps": null,
-        "http": null,
-        "adminClient": null,
-        "console": null
-      },
-      "guide": "data/resources.md#promote-one-write",
-      "authorities": [
-        "llp/0184-agent-accessible-control-plane"
-      ],
-      "sources": [
-        "packages/snapback-cli/index.mjs PACKAGED_CLI_COMMANDS.data",
-        "packages/snapback-cli/index.mjs previewDataPromotion"
       ],
       "remediation": {
         "carrier": "diagnostic.details.remediationSet",

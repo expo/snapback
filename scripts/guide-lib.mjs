@@ -57,10 +57,6 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // visible in the index rather than only on the page.
 // Round 3 preserves both the LLP 0244 and LLP 0245-0249 rows while tightening
 // the prose to the charter's pre-wave hard ceiling.
-// Bumped 55808 -> 56832 on 2026-08-13 for LLP 0254 Phase 1's one bounded
-// data.resources-v1 capability row.
-// Bumped 56832 -> 57856 on 2026-08-14 for LLP 0254 Phase 4's two bounded
-// public-doorway/lifecycle rows; future growth remains tied to named work.
 // Bumped 57856 -> 58368 on 2026-08-15 for the backend.familiar-profile-v1
 // GAP row (issues/20260815-guide-gap-familiar-authoring-profile-page.md).
 // Bumped 58368 -> 58880 on 2026-08-15 for the assets.media-collection.v1

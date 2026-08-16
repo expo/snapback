@@ -1,3 +1,4 @@
+use crate::contract_types::ServerProfile;
 use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{
     AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
@@ -26,7 +27,6 @@ use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDisposition,
 };
 use crate::config::{ConfigStore, VerificationRecord};
-use crate::contract_types::ServerProfile;
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
     LocalCronRuntime, validate_cron_manifest,
@@ -54,13 +54,12 @@ use crate::live_wire::{
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
     AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
-    FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest,
-    FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
-    MutationSettlement, MutationStep, OrderDirection, PermissionScopeExpr, PublicFunctionManifest,
-    PublicSchemaManifest, QueryOutput, QueryPlan, ResultValueContract, SNAPBACK_SCHEMA_VERSION,
-    SchemaManifest, SeedData, SettlementLane, SettlementMintObservation, SettlementTimeObservation,
-    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
-    legacy_auth_fingerprint,
+    FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionRuntime,
+    HandlerInput, HandlerPlan, MutationOutput, MutationSettlement, MutationStep,
+    PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane,
+    SettlementMintObservation, SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    ValueExpr, auth_fingerprint, ctx_ledger_version, legacy_auth_fingerprint,
 };
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
@@ -75,13 +74,11 @@ use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit, Netw
 use crate::storage::{
     AssetDeliveryOutcome, AssetPreparedVariant, AssetPublishOutcome, BufferedCommitPayload,
     CapturedReadDependency, CapturedReadKind, CapturedWriteDependency, ChangedRow,
-    ClientMutationIdentity, ClientMutationSettlement, DbRead, LocalDatabase, MutationCommit,
-    ReaderPool, SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
+    ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
+    SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
 };
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
-use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -1287,12 +1284,6 @@ pub(crate) enum StagedRecordedMutation {
     Ready(Box<StagedRecordedMutationCommit>),
 }
 
-pub(crate) enum DataMutationSettlementStatus {
-    Committed(MutationOutput),
-    Refused(Diagnostic),
-    Unknown,
-}
-
 pub(crate) struct StagedRecordedMutationCommit {
     name: String,
     transport: String,
@@ -1302,7 +1293,6 @@ pub(crate) struct StagedRecordedMutationCommit {
     settlement: MutationSettlement,
     prepared: PreparedInvocation,
     identity: Option<ClientMutationIdentity>,
-    ledger_data_refusal: bool,
     settlement_time: Option<SettlementTimePolicy>,
     epoch_scopes: BTreeSet<String>,
     execution: StagedMutationExecution,
@@ -1733,8 +1723,9 @@ fn expected_media_projection_binding(
         executed.media_projection_scope.as_ref(),
     ) {
         (Some(_), Some(scope)) => {
-            let mut binding =
-                crate::runtime::expected_media_projection_proof_binding(prepared, input, scope)?;
+            let mut binding = crate::runtime::expected_media_projection_proof_binding(
+                prepared, input, scope,
+            )?;
             // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
             // — expected proof authority comes from the exact identity passed
             // separately to storage, not a possibly absent request projection.
@@ -6703,8 +6694,8 @@ impl LocalSnapback {
         else {
             return Ok(None);
         };
-        let (_, observed) =
-            crate::api_envelope::parse_and_validate(canonical.as_bytes()).map_err(|refusal| {
+        let (_, observed) = crate::api_envelope::parse_and_validate(canonical.as_bytes())
+            .map_err(|refusal| {
                 SnapbackError::error(
                     "SNAPBACK_APP_API_STATE_PARSE_FAILED",
                     "app-api",
@@ -7579,52 +7570,6 @@ impl LocalSnapback {
         self.acknowledge_client_mutations_with_authority(authority, ids)
     }
 
-    /// Observe a generated data write by its stable five-member settlement
-    /// identity. This path only reads the ledger and never selects or runs the
-    /// named function, so an ambiguous online-only intent is not replayed.
-    ///
-    /// @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents — possibly-crossed observations
-    /// resolve through ledger polling, including terminal refusals.
-    pub(crate) fn data_mutation_settlement_status(
-        &mut self,
-        authority: &PreparedAuthority,
-        authority_descriptor: Option<&AuthorityDescriptor>,
-        name: &str,
-        input: &HandlerInput,
-        settlement: &MutationSettlement,
-        client_mutation_id: &str,
-    ) -> SnapbackResult<DataMutationSettlementStatus> {
-        authority.validate_admission("data mutation settlement observation")?;
-        self.persist_and_validate_prepared_service_authority(authority)?;
-        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-        let expected = descriptor_for_authority(authority, incarnation.as_str())?;
-        if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
-            require_current_descriptor(authority_descriptor, &expected)?;
-        }
-        let mut canonical_input = input.clone();
-        canonical_input.auth = authority.canonical_auth_input();
-        let identity = ClientMutationIdentity::for_authority_with_settlement(
-            client_mutation_id,
-            name,
-            &canonical_input,
-            expected.authority_instance_id,
-            settlement,
-        );
-        match self
-            .db
-            .settlement_read()
-            .client_mutation_settlement(&identity)?
-        {
-            Some(ClientMutationSettlement::Committed(output)) => {
-                Ok(DataMutationSettlementStatus::Committed(output))
-            }
-            Some(ClientMutationSettlement::Refused(diagnostic)) => {
-                Ok(DataMutationSettlementStatus::Refused(diagnostic))
-            }
-            None => Ok(DataMutationSettlementStatus::Unknown),
-        }
-    }
-
     /// Administrative recovery for settlements whose original client can no
     /// longer deliver an acknowledgement. The HTTP boundary supplies an
     /// `AuthInput`, never a caller-chosen raw fingerprint, so targeted purge
@@ -8076,7 +8021,6 @@ impl LocalSnapback {
                         keyring: &self.resume_keyring,
                         schema_hash: self.db.schema().schema_hash.as_deref(),
                         function_bundle_hash: self.functions.bundle_hash.as_deref(),
-                        function_inputs_hash: self.functions.inputs_hash.as_deref(),
                         function_publication_generation: self.app_generation,
                         target_profile: self.db.schema().target_profile.as_deref(),
                     }),
@@ -11937,7 +11881,6 @@ impl LocalSnapback {
             settlement,
             None,
             false,
-            false,
         )
     }
 
@@ -11959,7 +11902,6 @@ impl LocalSnapback {
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
         wire_version: Option<&str>,
-        ledger_data_refusal: bool,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
@@ -11976,7 +11918,6 @@ impl LocalSnapback {
             operation_issuance,
             settlement,
             wire_version,
-            ledger_data_refusal,
             false,
         )
     }
@@ -11995,7 +11936,6 @@ impl LocalSnapback {
         operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
         wire_version: Option<&str>,
-        ledger_data_refusal: bool,
         allow_host_issuance: bool,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
@@ -12174,37 +12114,6 @@ impl LocalSnapback {
             .unwrap_or_else(|| crate::ids::mint_time_ordered(crate::ids::Kind::Mutation));
         let error_correlation = correlation.clone();
         let error_receipt_mutation_id = receipt_mutation_id.clone();
-        let data_refusal_identity = if ledger_data_refusal {
-            if operation_issuance.is_some() {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_DATA_TRANSACTION_INVALID",
-                    "data-transaction",
-                    "data transaction dispatch must not carry operation issuance",
-                ));
-            }
-            let id = client_mutation_id.as_ref().ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_DATA_TRANSACTION_INVALID",
-                    "data-transaction",
-                    "data transaction dispatch requires an intent identity",
-                )
-            })?;
-            let canonical_input = prepared.canonicalize_input(input.clone());
-            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
-            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
-            Some((
-                ClientMutationIdentity::for_authority_with_settlement(
-                    id.clone(),
-                    name.to_owned(),
-                    &canonical_input,
-                    expected.authority_instance_id,
-                    &settlement,
-                ),
-                canonical_input,
-            ))
-        } else {
-            None
-        };
         let staged = (|| -> SnapbackResult<_> {
             let mut input = prepared.canonicalize_input(input);
             let identity = if let Some(id) = client_mutation_id {
@@ -12412,7 +12321,6 @@ impl LocalSnapback {
                                 settlement: settlement.clone(),
                                 prepared,
                                 identity,
-                                ledger_data_refusal,
                                 settlement_time,
                                 epoch_scopes,
                                 execution,
@@ -12435,16 +12343,7 @@ impl LocalSnapback {
 
         match staged {
             Ok(staged) => Ok(staged),
-            Err(mut error) => {
-                if let Some((identity, input)) = data_refusal_identity.as_ref()
-                    && let Err(ledger_error) = self.db.settlement().record_data_mutation_refusal(
-                        identity,
-                        input,
-                        &error.diagnostic,
-                    )
-                {
-                    error = ledger_error;
-                }
+            Err(error) => {
                 let recorded = self.record_mutation_commit_after_publication_guard(
                     MutationReceiptPublication::new(
                         name,
@@ -12511,7 +12410,6 @@ impl LocalSnapback {
             settlement,
             prepared,
             identity,
-            ledger_data_refusal,
             settlement_time,
             epoch_scopes,
             execution,
@@ -12527,7 +12425,7 @@ impl LocalSnapback {
             observation.finish_error(Some(500), &mut error, None);
             return Err(error);
         }
-        let mut result = match execution {
+        let result = match execution {
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
                 Some(identity)
                     if matches!(
@@ -12600,34 +12498,6 @@ impl LocalSnapback {
         .and_then(|commit| {
             self.finish_mutation_commit(&name, &trace_identity, epoch_scopes, commit, &admission)
         });
-        if ledger_data_refusal
-            && let Err(error) = result.as_mut()
-            && error.diagnostic.code == "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
-        {
-            let observed = error.diagnostic.details.get("bytes").cloned();
-            let limit = error.diagnostic.details.get("maxBytes").cloned();
-            *error = SnapbackError::error(
-                "SNAPBACK_DATA_TRANSACTION_BOUND_EXCEEDED",
-                "data",
-                "tiny data transaction result exceeds maxResultBytes",
-            )
-            .with_details(json!({
-                "ceiling": "maxResultBytes",
-                "observed": observed,
-                "limit": limit,
-            }));
-        }
-        if ledger_data_refusal
-            && let Some(identity) = identity.as_ref()
-            && let Err(error) = result.as_ref()
-            && let Err(ledger_error) = self.db.settlement().record_data_mutation_refusal(
-                identity,
-                &input,
-                &error.diagnostic,
-            )
-        {
-            result = Err(ledger_error);
-        }
         let network_egress = result
             .as_ref()
             .map(|commit| commit.network_egress.clone())
@@ -14050,8 +13920,7 @@ impl LocalSnapback {
         if body.query_artifact != query_artifact {
             return Err(refusal::QUERY_MISMATCH);
         }
-        let args_hash =
-            crate::rqs_contract::args_hash(args).map_err(|_| refusal::QUERY_MISMATCH)?;
+        let args_hash = crate::rqs_contract::args_hash(args).map_err(|_| refusal::QUERY_MISMATCH)?;
         if body.args_hash != args_hash {
             return Err(refusal::QUERY_MISMATCH);
         }
@@ -14432,10 +14301,9 @@ impl LocalSnapback {
                         // predicate and nothing else (LLP 0092 §0D.1).
                         let resume = rqs_eligibility(&function).and_then(|kind| {
                             let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
-                            let query_artifact =
-                                serde_json::to_value(&function).ok().and_then(|value| {
-                                    crate::rqs_contract::query_artifact_hash(&value).ok()
-                                })?;
+                            let query_artifact = serde_json::to_value(&function)
+                                .ok()
+                                .and_then(|value| crate::rqs_contract::query_artifact_hash(&value).ok())?;
                             let args_hash = crate::rqs_contract::args_hash(&args).ok()?;
                             snapback.mint_resume_wire(
                                 &query_artifact,
@@ -14714,7 +14582,6 @@ impl LocalSnapback {
         let keyring = &self.resume_keyring;
         let schema_hash = self.db.schema().schema_hash.clone();
         let bundle_hash = self.functions.bundle_hash.clone();
-        let inputs_hash = self.functions.inputs_hash.clone();
         let app_generation = self.app_generation;
         let target_profile = self.db.schema().target_profile.clone();
         let mut invocations = self
@@ -14737,7 +14604,6 @@ impl LocalSnapback {
                                 keyring,
                                 schema_hash: schema_hash.as_deref(),
                                 function_bundle_hash: bundle_hash.as_deref(),
-                                function_inputs_hash: inputs_hash.as_deref(),
                                 function_publication_generation: app_generation,
                                 target_profile: target_profile.as_deref(),
                             }),
@@ -14834,10 +14700,9 @@ impl LocalSnapback {
                     let rows = invocation.output.rows;
                     let resume = rqs_eligibility(&function).and_then(|kind| {
                         let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
-                        let query_artifact =
-                            serde_json::to_value(&function).ok().and_then(|value| {
-                                crate::rqs_contract::query_artifact_hash(&value).ok()
-                            })?;
+                        let query_artifact = serde_json::to_value(&function)
+                            .ok()
+                            .and_then(|value| crate::rqs_contract::query_artifact_hash(&value).ok())?;
                         let args_hash = crate::rqs_contract::args_hash(&args).ok()?;
                         self.mint_resume_wire(
                             &query_artifact,
@@ -15568,7 +15433,6 @@ impl LocalSnapback {
                             keyring: &self.resume_keyring,
                             schema_hash: self.db.schema().schema_hash.as_deref(),
                             function_bundle_hash: self.functions.bundle_hash.as_deref(),
-                            function_inputs_hash: self.functions.inputs_hash.as_deref(),
                             function_publication_generation: self.app_generation,
                             target_profile: self.db.schema().target_profile.as_deref(),
                         }),
@@ -18045,24 +17909,21 @@ impl LocalSnapback {
             .db
             .membership_plans()
             .authorize_membership_commands(executed.membership_commands.clone())?;
-        let preview = self
-            .db
-            .mutation_writes()
-            .dry_run_buffered_writes_with_jobs(
-                &canonical_input,
-                executed.writes.clone(),
-                executed.sequence_allocations.clone(),
-                membership_plans,
-                executed.reads.clone(),
-                executed.result.clone(),
-                executed.ctx_ledger.clone(),
-                Vec::new(),
-                None,
-                executed.asset_admissions.clone(),
-                executed.asset_grant_ops.clone(),
-                executed.media_projection_proof.as_ref(),
-                expected_media_projection_binding.as_ref(),
-            )?;
+        let preview = self.db.mutation_writes().dry_run_buffered_writes_with_jobs(
+            &canonical_input,
+            executed.writes.clone(),
+            executed.sequence_allocations.clone(),
+            membership_plans,
+            executed.reads.clone(),
+            executed.result.clone(),
+            executed.ctx_ledger.clone(),
+            Vec::new(),
+            None,
+            executed.asset_admissions.clone(),
+            executed.asset_grant_ops.clone(),
+            executed.media_projection_proof.as_ref(),
+            expected_media_projection_binding.as_ref(),
+        )?;
         Ok(self.authorization_commit_preflight_for_changes(preview.changes))
     }
     /// Validate declared config entries fail-closed, validate per-function
@@ -22802,7 +22663,6 @@ impl LocalSnapback {
             host_identity.and_then(|identity| identity.operation_issuance),
             MutationSettlement::default(),
             None,
-            false,
             true,
         )
     }
@@ -26972,7 +26832,6 @@ impl ReadLane {
                             keyring: &self.resume_keyring,
                             schema_hash: manifests.schema.schema_hash.as_deref(),
                             function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
-                            function_inputs_hash: manifests.functions.inputs_hash.as_deref(),
                             function_publication_generation: manifests.app_generation,
                             target_profile: manifests.schema.target_profile.as_deref(),
                         }),
@@ -27244,993 +27103,6 @@ fn validate_membership_keyset_pattern(
             "index {index_name:?} must be unique with exact fields [{}, {}] in that order",
             membership_facts.resource_field, cursor_field_name
         )));
-    }
-    Ok(())
-}
-
-fn data_query_shape_invalid(
-    function: &FunctionDefinition,
-    message: impl Into<String>,
-) -> SnapbackError {
-    SnapbackError::error(
-        "SNAPBACK_DATA_QUERY_SHAPE_INVALID",
-        "data-query",
-        format!("function {} {}", function.name, message.into()),
-    )
-}
-
-/// Pair-level admission for the two data continuation profiles. The route is
-/// the catalogue carrier on the wire, so activation reconstructs the closed
-/// profile from the ordinary function plus schema instead of trusting a
-/// client witness or the `standardPattern` tag alone.
-///
-/// @ref LLP 0255#s51-source-grammar-and-construction-decision — the active
-///   generated route is admitted only when its frozen plan, policy, contracts,
-///   argument grammar, and bounds reconstruct the data-query profile.
-/// @ref LLP 0255#s53-projection-result-cursor-and-bounds — all effective index
-///   order fields participate in the cursor, and every server-owned ceiling is
-///   rechecked before the profile can activate.
-fn validate_data_query_keyset_pattern(
-    function: &FunctionDefinition,
-    plan: &QueryPlan,
-    schema: &SchemaManifest,
-) -> SnapbackResult<()> {
-    use crate::manifest::{
-        AuthRequirement, AuthorizationInputDimension, EffectCeiling, EffectCeilingRead, FilterOp,
-        TableVisibilityV1,
-    };
-
-    if !data_keyset_profile(function) {
-        return Ok(());
-    }
-    let invalid = |message: &str| data_query_shape_invalid(function, message.to_owned());
-    if !matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery) {
-        return Err(invalid("must be an ordinary Query or LiveQuery"));
-    }
-    if function.retainable
-        || function.retention_class.is_some()
-        || !function.refusals.is_empty()
-        || !function.tracked_refusals.is_empty()
-        || !function.sequences.is_empty()
-        || !function.permission_epoch_bumps.is_empty()
-        || !function.uses.is_empty()
-    {
-        return Err(invalid(
-            "must be non-retained and carry no app refusals, sequences, permission writes, or configuration inputs",
-        ));
-    }
-    let expected_syncability = match function.kind {
-        FunctionKind::LiveQuery => "syncable-live",
-        FunctionKind::Query => "online-only",
-        FunctionKind::Mutation | FunctionKind::Action => unreachable!(),
-    };
-    if function.syncability_class.as_deref() != Some(expected_syncability) {
-        return Err(invalid(
-            "has a liveness class inconsistent with its function kind",
-        ));
-    }
-
-    let table = schema
-        .table(&plan.table)
-        .ok_or_else(|| invalid(&format!("references unknown table {:?}", plan.table)))?;
-    if table.fields.len() > 64 {
-        return Err(invalid(&format!(
-            "table {} has {} authored fields; maxFieldsPerResource is 64",
-            table.name,
-            table.fields.len()
-        )));
-    }
-    if table.indexes.len() > 16 {
-        return Err(invalid(&format!(
-            "table {} has {} indexes; maxIndexesPerResource is 16",
-            table.name,
-            table.indexes.len()
-        )));
-    }
-    if !plan.membership_filters.is_empty() {
-        return Err(invalid(
-            "does not admit relationship or membership predicates",
-        ));
-    }
-    let index_name = plan
-        .indexed_by
-        .as_deref()
-        .ok_or_else(|| invalid("requires one explicit ordinary index"))?;
-    let index = table
-        .indexes
-        .iter()
-        .find(|candidate| candidate.name == index_name)
-        .ok_or_else(|| invalid(&format!("names unknown index {}.{index_name}", table.name)))?;
-    let take = plan
-        .limit
-        .ok_or_else(|| invalid("requires an explicit take bound"))?;
-    if !(1..=DATA_QUERY_MAX_TAKE).contains(&take) {
-        return Err(data_query_bound_exceeded(format!(
-            "data query take {take} is outside 1..={DATA_QUERY_MAX_TAKE}"
-        )));
-    }
-
-    let pattern = function
-        .standard_pattern
-        .as_ref()
-        .expect("data_keyset_profile requires standardPattern");
-    let (policy_prefix, owner_field) = match table.visibility.as_ref() {
-        Some(TableVisibilityV1::Owner { field }) => {
-            if pattern.helper == "data-resource.v1" && pattern.profile != "owner.v1" {
-                return Err(invalid(
-                    "data-resource profile does not match owner visibility",
-                ));
-            }
-            if index.fields.first() != Some(field) {
-                return Err(invalid(&format!(
-                    "owner index {index_name} must begin with policy field {field}"
-                )));
-            }
-            if plan.table_visibility.as_ref()
-                != Some(&TableVisibilityV1::Owner {
-                    field: field.clone(),
-                })
-                || function.effective_auth_requirement() != AuthRequirement::Authenticated
-                || function.authority_independent
-                || function.authorization_dependence != vec![AuthorizationInputDimension::UserId]
-                || function.read_set_summary.auth_scope_field.as_deref() != Some(field.as_str())
-            {
-                return Err(invalid(
-                    "does not carry the exact owner policy and authority facts",
-                ));
-            }
-            (1, Some(field.as_str()))
-        }
-        Some(TableVisibilityV1::PublicRead) => {
-            if pattern.helper == "data-resource.v1" && pattern.profile != "public-read.v1" {
-                return Err(invalid(
-                    "data-resource profile does not match public-read visibility",
-                ));
-            }
-            if plan.table_visibility.is_some()
-                || function.effective_auth_requirement() != AuthRequirement::Public
-                || !function.authority_independent
-                || !function.authorization_dependence.is_empty()
-                || function.read_set_summary.auth_scope_field.is_some()
-            {
-                return Err(invalid(
-                    "does not carry the exact public-read policy and authority facts",
-                ));
-            }
-            (0, None)
-        }
-        Some(TableVisibilityV1::Membership { .. } | TableVisibilityV1::AnyOf { .. }) | None => {
-            return Err(invalid(
-                "requires one explicit owner or public-read table visibility policy",
-            ));
-        }
-    };
-    if pattern.helper == "data-resource.v1" {
-        let expected_name = format!("{}.list", table.name);
-        if function.name != expected_name {
-            return Err(invalid(&format!(
-                "data-resource continuation is reserved for {expected_name}"
-            )));
-        }
-    } else {
-        let prefix = format!("{}.query_", table.name);
-        let suffix = function.name.strip_prefix(&prefix).unwrap_or_default();
-        if suffix.len() != 16
-            || !suffix
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-        {
-            return Err(invalid(
-                "synthesized member name must end in exactly 16 lowercase witness hex digits",
-            ));
-        }
-    }
-
-    let order_fields = &index.fields[policy_prefix..];
-    let zero_order_marker =
-        order_fields.is_empty() && plan.order.len() == 1 && plan.order[0].field == "_id";
-    if (!zero_order_marker && plan.order.len() != order_fields.len())
-        || plan
-            .order
-            .iter()
-            .filter(|_| !zero_order_marker)
-            .zip(order_fields)
-            .any(|(order, field)| &order.field != field)
-    {
-        return Err(invalid(
-            "order must be the complete post-policy-prefix index field sequence",
-        ));
-    }
-    if let Some(direction) = plan.order.first().map(|order| &order.direction)
-        && plan.order.iter().any(|order| &order.direction != direction)
-    {
-        return Err(invalid("all effective order fields must use one direction"));
-    }
-
-    let policy_filter = |filter: &&crate::manifest::FilterExpr| {
-        owner_field.is_some_and(|owner| {
-            filter.field == owner
-                && filter.op == FilterOp::Eq
-                && matches!(&filter.value, ValueExpr::AuthUserId)
-        })
-    };
-    if owner_field.is_some() && plan.filters.iter().filter(policy_filter).count() != 1 {
-        return Err(invalid(
-            "requires exactly one injected owner equality filter",
-        ));
-    }
-    let filters = plan
-        .filters
-        .iter()
-        .filter(|filter| !policy_filter(filter))
-        .collect::<Vec<_>>();
-    let mut expected_args = Vec::<(String, bool)>::new();
-    let mut filter_index = 0;
-    let mut index_position = 0;
-    let mut distinct_filter_fields = 0;
-    let mut terminal = false;
-    while filter_index < filters.len() {
-        if terminal || index_position >= order_fields.len() {
-            return Err(invalid(
-                "filters must consume one contiguous index prefix with at most one terminal in/range predicate",
-            ));
-        }
-        let field = order_fields[index_position].as_str();
-        if filters[filter_index].field != field {
-            return Err(invalid(&format!(
-                "filter {} skips the next index field {field}",
-                filters[filter_index].field
-            )));
-        }
-        let start = filter_index;
-        while filter_index < filters.len() && filters[filter_index].field == field {
-            filter_index += 1;
-        }
-        let group = &filters[start..filter_index];
-        distinct_filter_fields += 1;
-        if distinct_filter_fields > 8 {
-            return Err(data_query_bound_exceeded(
-                "data query exceeds maxFilterFields 8",
-            ));
-        }
-        match group {
-            [filter] if filter.op == FilterOp::Eq => {
-                if !matches!(&filter.value, ValueExpr::Arg(name) if name == field) {
-                    return Err(invalid(&format!(
-                        "equality filter {field} must bind argument {field}"
-                    )));
-                }
-                expected_args.push((field.to_owned(), false));
-            }
-            [filter] if filter.op == FilterOp::In => {
-                if !matches!(&filter.value, ValueExpr::Arg(name) if name == field) {
-                    return Err(invalid(&format!(
-                        "in filter {field} must bind array argument {field}"
-                    )));
-                }
-                expected_args.push((field.to_owned(), true));
-                terminal = true;
-            }
-            [lower, upper]
-                if matches!(lower.op, FilterOp::Gt | FilterOp::Gte)
-                    && matches!(upper.op, FilterOp::Lt | FilterOp::Lte) =>
-            {
-                for filter in [lower, upper] {
-                    let operator = match filter.op {
-                        FilterOp::Gt => "gt",
-                        FilterOp::Gte => "gte",
-                        FilterOp::Lt => "lt",
-                        FilterOp::Lte => "lte",
-                        FilterOp::Eq | FilterOp::In => unreachable!(),
-                    };
-                    let expected = format!("{field}_{operator}");
-                    if !matches!(&filter.value, ValueExpr::Arg(name) if name == &expected) {
-                        return Err(invalid(&format!(
-                            "range filter {field} {operator} must bind argument {expected}"
-                        )));
-                    }
-                    expected_args.push((expected, false));
-                }
-                terminal = true;
-            }
-            [filter]
-                if matches!(
-                    filter.op,
-                    FilterOp::Gt | FilterOp::Gte | FilterOp::Lt | FilterOp::Lte
-                ) =>
-            {
-                let operator = match filter.op {
-                    FilterOp::Gt => "gt",
-                    FilterOp::Gte => "gte",
-                    FilterOp::Lt => "lt",
-                    FilterOp::Lte => "lte",
-                    FilterOp::Eq | FilterOp::In => unreachable!(),
-                };
-                let expected = format!("{field}_{operator}");
-                if !matches!(&filter.value, ValueExpr::Arg(name) if name == &expected) {
-                    return Err(invalid(&format!(
-                        "range filter {field} {operator} must bind argument {expected}"
-                    )));
-                }
-                expected_args.push((expected, false));
-                terminal = true;
-            }
-            _ => {
-                return Err(invalid(&format!(
-                    "field {field} has an unsupported or repeated predicate group"
-                )));
-            }
-        }
-        index_position += 1;
-    }
-
-    let args = function
-        .args_contract
-        .as_ref()
-        .ok_or_else(|| invalid("requires a frozen argument contract"))?;
-    if args.fields.len() != expected_args.len() + 1 {
-        return Err(invalid(
-            "argument contract must contain the dense slot arguments followed by after",
-        ));
-    }
-    for (contract, (expected_name, is_in)) in args.fields.iter().zip(&expected_args) {
-        if !contract.required || &contract.name != expected_name {
-            return Err(invalid(&format!(
-                "argument contract must declare required slot {expected_name} in canonical order"
-            )));
-        }
-        if *is_in
-            && !matches!(
-                &contract.value,
-                ResultValueContract::Array { max_items: 32, .. }
-            )
-        {
-            return Err(invalid(&format!(
-                "in argument {expected_name} must enforce maxInValues 32"
-            )));
-        }
-    }
-    let after = args.fields.last().expect("data args always contain after");
-    if after.name != "after"
-        || after.required
-        || after.value
-            != (ResultValueContract::String {
-                max_bytes: DATA_CURSOR_MAX_BYTES,
-            })
-    {
-        return Err(invalid(
-            "final argument must be optional after: DataCursorV1 with max 2048 bytes",
-        ));
-    }
-
-    let projection_fields = match &function.result_contract {
-        FunctionResultContract::Documents {
-            table: result_table,
-            document,
-        } if result_table == &table.name => {
-            let ResultValueContract::Object {
-                fields,
-                allow_extra: false,
-            } = document
-            else {
-                return Err(invalid(
-                    "documents result must carry one closed row contract",
-                ));
-            };
-            fields
-        }
-        FunctionResultContract::Records {
-            record:
-                ResultValueContract::Object {
-                    fields,
-                    allow_extra: false,
-                },
-            rows: None,
-        } => fields,
-        _ => {
-            return Err(invalid(
-                "result must be schema documents or one selected closed record projection",
-            ));
-        }
-    };
-    if projection_fields.is_empty() || projection_fields.len() > 64 {
-        return Err(data_query_bound_exceeded(format!(
-            "data query projects {} fields; maxProjectionFields is 64",
-            projection_fields.len()
-        )));
-    }
-    let mut projected = BTreeSet::new();
-    for field in projection_fields {
-        if !projected.insert(field.name.as_str())
-            || (!matches!(
-                field.name.as_str(),
-                "_id" | "_version" | "_createdAt" | "_updatedAt"
-            ) && table.field(&field.name).is_none())
-        {
-            return Err(invalid(
-                "projection fields must be unique fields of the queried table",
-            ));
-        }
-    }
-    if function.read_set_summary.mode.as_deref() != Some("singleTable")
-        || function.read_set_summary.primary_table.as_deref() != Some(table.name.as_str())
-        || function.read_set_summary.tables != vec![table.name.clone()]
-        || function.write_set_summary.mode.as_deref() != Some("none")
-        || function.write_set_summary.primary_table.is_some()
-        || !function.write_set_summary.tables.is_empty()
-    {
-        return Err(invalid(
-            "must carry exact single-table read and empty write reach",
-        ));
-    }
-    let expected_effect = EffectCeiling {
-        version: "EffectCeilingV1".to_owned(),
-        basis: "static".to_owned(),
-        reads: vec![EffectCeilingRead {
-            table: table.name.clone(),
-            access: "query".to_owned(),
-            index: Some(index.name.clone()),
-        }],
-        writes: Vec::new(),
-        host_operations: Vec::new(),
-        authorization_inputs: if owner_field.is_some() {
-            vec!["authUserId".to_owned()]
-        } else {
-            Vec::new()
-        },
-    };
-    if function.effect_ceiling.as_ref() != Some(&expected_effect) {
-        return Err(invalid(
-            "must carry the exact static indexed-read effect ceiling",
-        ));
-    }
-    for required in [
-        "host_plan_runtime",
-        "result_contract_v1",
-        "args_contract_v1",
-    ] {
-        if !function
-            .required_capabilities
-            .iter()
-            .any(|capability| capability == required)
-        {
-            return Err(invalid(&format!(
-                "is missing required capability {required}"
-            )));
-        }
-    }
-    if function.kind == FunctionKind::LiveQuery
-        && !function
-            .required_capabilities
-            .iter()
-            .any(|capability| capability == "live_subscriptions")
-    {
-        return Err(invalid(
-            "LiveQuery is missing required capability live_subscriptions",
-        ));
-    }
-    Ok(())
-}
-
-fn data_query_catalog_invalid(message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_DATA_QUERY_SHAPE_INVALID", "data-query", message)
-}
-
-fn data_query_plan_value(plan: &QueryPlan) -> Result<Value, ()> {
-    let mut value = serde_json::to_value(HandlerPlan::Query(plan.clone())).map_err(|_| ())?;
-    let query = value
-        .get_mut("Query")
-        .and_then(Value::as_object_mut)
-        .ok_or(())?;
-    // Codegen's canonical host plan carries the empty membership array
-    // explicitly. QueryPlan omits it in ordinary Rust serialization for
-    // historical plan stability, so data identity reconstruction restores
-    // the one generated spelling before hashing.
-    query
-        .entry("membershipFilters")
-        .or_insert_with(|| Value::Array(Vec::new()));
-    Ok(value)
-}
-
-fn data_query_exact_object<'a>(
-    value: &'a Value,
-    expected: &[&str],
-    label: &str,
-) -> SnapbackResult<&'a Map<String, Value>> {
-    let object = value
-        .as_object()
-        .ok_or_else(|| data_query_catalog_invalid(format!("{label} must be an object")))?;
-    let actual = object.keys().map(String::as_str).collect::<BTreeSet<_>>();
-    let expected = expected.iter().copied().collect::<BTreeSet<_>>();
-    if actual != expected {
-        return Err(data_query_catalog_invalid(format!(
-            "{label} has fields outside its closed v1 schema"
-        )));
-    }
-    Ok(object)
-}
-
-fn data_query_required_string<'a>(
-    object: &'a Map<String, Value>,
-    key: &str,
-    label: &str,
-) -> SnapbackResult<&'a str> {
-    object
-        .get(key)
-        .and_then(Value::as_str)
-        .ok_or_else(|| data_query_catalog_invalid(format!("{label}.{key} must be a string")))
-}
-
-/// Bind the static DataQueryV1 witnesses to the exact schema resource and
-/// ordinary active function routes. No witness rides on invocation; this
-/// activation check is therefore the route-to-catalog authority boundary.
-///
-/// @ref LLP 0255#s43-dataqueryv1 — normalized resource/query identities are
-///   recomputed from their closed pre-resolution cores.
-/// @ref LLP 0255#s51-source-grammar-and-construction-decision — each catalog
-///   resolution must name the exact active ordinary function member.
-fn validate_data_query_catalog(
-    manifest: &FunctionManifest,
-    schema: &SchemaManifest,
-) -> SnapbackResult<()> {
-    let mut resources = BTreeMap::<String, (String, String)>::new();
-    for (position, envelope) in schema.data_resources.iter().enumerate() {
-        let label = format!("dataResources[{position}]");
-        let entry = data_query_exact_object(envelope, &["core", "id"], &label)?;
-        let id = data_query_required_string(entry, "id", &label)?;
-        let core = entry
-            .get("core")
-            .ok_or_else(|| data_query_catalog_invalid(format!("{label}.core is required")))?;
-        data_query_exact_object(
-            core,
-            &[
-                "access",
-                "capabilities",
-                "ceilings",
-                "fields",
-                "format",
-                "guideAnchor",
-                "indexes",
-                "operations",
-                "refusalVocabulary",
-                "resource",
-                "surfaceProfile",
-                "sync",
-                "table",
-                "tableSchemaHash",
-            ],
-            &format!("{label}.core"),
-        )?;
-        let recomputed =
-            data_domain_hash("snapback:normalized-data-resource:v1", core).map_err(|_| {
-                data_query_catalog_invalid(format!("{label}.core is not canonical JSON"))
-            })?;
-        if id != recomputed {
-            return Err(data_query_catalog_invalid(format!(
-                "{label}.id does not authenticate its normalized resource core"
-            )));
-        }
-        let resource = core
-            .get("resource")
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                data_query_catalog_invalid(format!("{label}.core.resource is required"))
-            })?;
-        if core.get("table").and_then(Value::as_str) != Some(resource)
-            || schema.table(resource).is_none()
-        {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} does not bind one active same-name schema table"
-            )));
-        }
-        let policy_id = core
-            .get("access")
-            .and_then(Value::as_object)
-            .and_then(|access| access.get("policyId"))
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                data_query_catalog_invalid(format!("{label}.core.access.policyId is required"))
-            })?;
-        let table = schema
-            .table(resource)
-            .expect("same-name table was checked above");
-        let expected_access = match table.visibility.as_ref() {
-            Some(crate::manifest::TableVisibilityV1::Owner { field }) => {
-                if core
-                    .get("access")
-                    .and_then(Value::as_object)
-                    .is_none_or(|access| {
-                        access.get("kind").and_then(Value::as_str) != Some("owner")
-                            || access.get("ownerField").and_then(Value::as_str) != Some(field)
-                    })
-                {
-                    return Err(data_query_catalog_invalid(format!(
-                        "{label}.core.access does not match owner visibility"
-                    )));
-                }
-                json!({ "kind": "owner", "field": field })
-            }
-            Some(crate::manifest::TableVisibilityV1::PublicRead) => {
-                if core
-                    .get("access")
-                    .and_then(Value::as_object)
-                    .is_none_or(|access| {
-                        access.get("kind").and_then(Value::as_str) != Some("public-read")
-                            || access.contains_key("ownerField")
-                    })
-                {
-                    return Err(data_query_catalog_invalid(format!(
-                        "{label}.core.access does not match public-read visibility"
-                    )));
-                }
-                json!({ "kind": "public-read" })
-            }
-            _ => {
-                return Err(data_query_catalog_invalid(format!(
-                    "{label} names a table outside the data-resource visibility floor"
-                )));
-            }
-        };
-        let expected_policy = data_domain_hash(
-            "snapback:data-policy:v1",
-            &json!({ "table": resource, "access": expected_access }),
-        )
-        .map_err(|_| data_query_catalog_invalid(format!("{label} policy does not serialize")))?;
-        if policy_id != expected_policy {
-            return Err(data_query_catalog_invalid(format!(
-                "{label}.core.access.policyId does not authenticate schema policy"
-            )));
-        }
-        if resources
-            .insert(resource.to_owned(), (id.to_owned(), policy_id.to_owned()))
-            .is_some()
-        {
-            return Err(data_query_catalog_invalid(format!(
-                "data resource {resource} is declared more than once"
-            )));
-        }
-    }
-
-    let mut ids = BTreeSet::new();
-    let mut routes = BTreeSet::new();
-    let mut synthesized_routes = BTreeSet::new();
-    for (position, envelope) in manifest.data_query_catalog.iter().enumerate() {
-        let label = format!("dataQueryCatalog[{position}]");
-        let entry = data_query_exact_object(envelope, &["core", "id", "resolution"], &label)?;
-        let id = data_query_required_string(entry, "id", &label)?;
-        if !ids.insert(id.to_owned()) {
-            return Err(data_query_catalog_invalid(format!(
-                "query witness {id} is catalogued more than once"
-            )));
-        }
-        let core = entry
-            .get("core")
-            .ok_or_else(|| data_query_catalog_invalid(format!("{label}.core is required")))?;
-        let core_object = data_query_exact_object(
-            core,
-            &[
-                "ceilings",
-                "filters",
-                "format",
-                "guideAnchor",
-                "index",
-                "order",
-                "planHash",
-                "policyId",
-                "projection",
-                "refusalVocabulary",
-                "requiredCapabilities",
-                "resource",
-                "resourceId",
-                "resultContractHash",
-                "surfaceProfile",
-                "take",
-            ],
-            &format!("{label}.core"),
-        )?;
-        let recomputed =
-            data_domain_hash("snapback:normalized-data-query:v1", core).map_err(|_| {
-                data_query_catalog_invalid(format!("{label}.core is not canonical JSON"))
-            })?;
-        if id != recomputed {
-            return Err(data_query_catalog_invalid(format!(
-                "{label}.id does not authenticate its normalized query core"
-            )));
-        }
-        if core_object.get("format").and_then(Value::as_str)
-            != Some("snapback.normalized-data-query.v1")
-            || core_object.get("surfaceProfile").and_then(Value::as_str)
-                != Some("snapback.data-surface.v1")
-            || core_object.get("guideAnchor").and_then(Value::as_str) != Some("guide/data/queries")
-        {
-            return Err(data_query_catalog_invalid(format!(
-                "{label}.core does not carry the exact v1 format/profile/guide facts"
-            )));
-        }
-        let resource =
-            data_query_required_string(core_object, "resource", &format!("{label}.core"))?;
-        let Some((resource_id, policy_id)) = resources.get(resource) else {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} names no active generated data resource {resource}"
-            )));
-        };
-        if core_object.get("resourceId").and_then(Value::as_str) != Some(resource_id)
-            || core_object.get("policyId").and_then(Value::as_str) != Some(policy_id)
-        {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} resource or policy identity does not match the active schema witness"
-            )));
-        }
-
-        let resolution = entry
-            .get("resolution")
-            .ok_or_else(|| data_query_catalog_invalid(format!("{label}.resolution is required")))?;
-        let resolution = data_query_exact_object(
-            resolution,
-            &["exportedName", "kind"],
-            &format!("{label}.resolution"),
-        )?;
-        let kind = data_query_required_string(resolution, "kind", &format!("{label}.resolution"))?;
-        let route =
-            data_query_required_string(resolution, "exportedName", &format!("{label}.resolution"))?;
-        if !routes.insert(route.to_owned()) {
-            return Err(data_query_catalog_invalid(format!(
-                "active data-query route {route} is bound more than once"
-            )));
-        }
-        let function = manifest.function(route).ok_or_else(|| {
-            data_query_catalog_invalid(format!(
-                "{label} resolves to absent active function {route}"
-            ))
-        })?;
-        let expected_pattern = match kind {
-            "existing-generated" => ("data-resource.v1", false),
-            "synthesized-generated" => ("data-query.v1", true),
-            _ => {
-                return Err(data_query_catalog_invalid(format!(
-                    "{label}.resolution.kind is outside the closed v1 grammar"
-                )));
-            }
-        };
-        if !function.standard_pattern.as_ref().is_some_and(|pattern| {
-            pattern.helper == expected_pattern.0
-                && (pattern.profile == "owner.v1"
-                    || pattern.profile == "public-read.v1"
-                    || pattern.profile == "bounded-index.v1")
-        }) {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} route {route} has the wrong generated profile"
-            )));
-        }
-        if expected_pattern.1 {
-            let expected_route = format!("{resource}.query_{}", &id["sha256:".len()..][..16]);
-            if route != expected_route {
-                return Err(data_query_catalog_invalid(format!(
-                    "{label} synthesized name does not embed its witness prefix"
-                )));
-            }
-            synthesized_routes.insert(route.to_owned());
-        } else if route != format!("{resource}.list") {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} exact-match route must be the resource list member"
-            )));
-        }
-        let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} route is not an ordinary single-table query plan"
-            )));
-        };
-        let plan_value = data_query_plan_value(plan).map_err(|_| {
-            data_query_catalog_invalid(format!("{label} route plan does not serialize"))
-        })?;
-        let plan_hash = data_domain_hash("snapback:data-plan:v1", &plan_value).map_err(|_| {
-            data_query_catalog_invalid(format!("{label} route plan is not canonical"))
-        })?;
-        if core_object.get("planHash").and_then(Value::as_str) != Some(plan_hash.as_str())
-            || core_object
-                .get("resultContractHash")
-                .and_then(Value::as_str)
-                != function.result_contract_hash.as_deref()
-            || core_object.get("requiredCapabilities")
-                != Some(&json!(function.required_capabilities))
-            || core_object.get("index").and_then(Value::as_str) != plan.indexed_by.as_deref()
-            || core_object.get("take").and_then(Value::as_u64)
-                != plan.limit.and_then(|limit| u64::try_from(limit).ok())
-            || plan.table != resource
-        {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} does not byte-bind its active route plan, contracts, capabilities, index, and bound"
-            ))
-            .with_details(json!({
-                "route": route,
-                "planHashExpected": plan_hash,
-                "planHashActual": core_object.get("planHash"),
-                "planValueExpected": plan_value,
-                "resultContractHashExpected": function.result_contract_hash,
-                "resultContractHashActual": core_object.get("resultContractHash"),
-                "requiredCapabilitiesExpected": function.required_capabilities,
-                "requiredCapabilitiesActual": core_object.get("requiredCapabilities"),
-                "indexExpected": plan.indexed_by,
-                "indexActual": core_object.get("index"),
-                "takeExpected": plan.limit,
-                "takeActual": core_object.get("take"),
-                "tableExpected": plan.table,
-                "resourceActual": resource,
-            })));
-        }
-        let table = schema
-            .table(resource)
-            .expect("catalogue resource already matched the schema");
-        let owner_field = match table.visibility.as_ref() {
-            Some(crate::manifest::TableVisibilityV1::Owner { field }) => Some(field.as_str()),
-            _ => None,
-        };
-        let caller_filters = plan
-            .filters
-            .iter()
-            .filter(|filter| {
-                !owner_field.is_some_and(|owner| {
-                    filter.field == owner
-                        && filter.op == crate::manifest::FilterOp::Eq
-                        && matches!(filter.value, ValueExpr::AuthUserId)
-                })
-            })
-            .collect::<Vec<_>>();
-        let mut normalized_filters = Vec::new();
-        let mut filter_position = 0;
-        let mut slot = 0_u64;
-        while filter_position < caller_filters.len() {
-            let field = caller_filters[filter_position].field.as_str();
-            let start = filter_position;
-            while filter_position < caller_filters.len()
-                && caller_filters[filter_position].field == field
-            {
-                filter_position += 1;
-            }
-            let group = &caller_filters[start..filter_position];
-            let operator = group
-                .iter()
-                .map(|filter| match filter.op {
-                    crate::manifest::FilterOp::Eq => "eq",
-                    crate::manifest::FilterOp::In => "in",
-                    crate::manifest::FilterOp::Lt => "lt",
-                    crate::manifest::FilterOp::Lte => "lte",
-                    crate::manifest::FilterOp::Gt => "gt",
-                    crate::manifest::FilterOp::Gte => "gte",
-                })
-                .collect::<Vec<_>>()
-                .join("-");
-            let slots = (slot..slot + u64::try_from(group.len()).unwrap_or(u64::MAX))
-                .map(Value::from)
-                .collect::<Vec<_>>();
-            slot = slot.saturating_add(u64::try_from(group.len()).unwrap_or(u64::MAX));
-            normalized_filters.push(json!({
-                "field": field,
-                "operator": operator,
-                "slots": slots,
-            }));
-        }
-        if core_object.get("filters") != Some(&Value::Array(normalized_filters.clone())) {
-            return Err(data_query_catalog_invalid(format!(
-                "{label}.core.filters do not reconstruct from the active route"
-            )));
-        }
-        let index = table
-            .indexes
-            .iter()
-            .find(|index| Some(index.name.as_str()) == plan.indexed_by.as_deref())
-            .ok_or_else(|| data_query_catalog_invalid(format!("{label} names no active index")))?;
-        let policy_prefix = usize::from(owner_field.is_some());
-        let post_policy_fields = &index.fields[policy_prefix..];
-        let terminal = normalized_filters
-            .last()
-            .and_then(Value::as_object)
-            .is_some_and(|filter| filter.get("operator").and_then(Value::as_str) != Some("eq"));
-        let order_field = if terminal {
-            normalized_filters
-                .last()
-                .and_then(Value::as_object)
-                .and_then(|filter| filter.get("field"))
-                .and_then(Value::as_str)
-                .unwrap_or("_id")
-        } else {
-            post_policy_fields
-                .get(normalized_filters.len())
-                .map(String::as_str)
-                .unwrap_or("_id")
-        };
-        let direction = match plan.order.first().map(|order| &order.direction) {
-            Some(OrderDirection::Desc) => "desc",
-            _ => "asc",
-        };
-        if core_object.get("order")
-            != Some(&json!({
-                "field": order_field,
-                "direction": direction,
-                "totalizer": "_id",
-            }))
-        {
-            return Err(data_query_catalog_invalid(format!(
-                "{label}.core.order does not reconstruct from the active route"
-            )));
-        }
-        let (projection_kind, projection_fields) = match &function.result_contract {
-            FunctionResultContract::Documents {
-                document: ResultValueContract::Object { fields, .. },
-                ..
-            } => ("all-readable-fields", fields),
-            FunctionResultContract::Records {
-                record: ResultValueContract::Object { fields, .. },
-                ..
-            } => ("selected-fields", fields),
-            _ => {
-                return Err(data_query_catalog_invalid(format!(
-                    "{label} route has no data-page result projection"
-                )));
-            }
-        };
-        if core_object.get("projection")
-            != Some(&json!({
-                "kind": projection_kind,
-                "fields": projection_fields.iter().map(|field| field.name.as_str()).collect::<Vec<_>>(),
-            }))
-        {
-            return Err(data_query_catalog_invalid(format!(
-                "{label}.core.projection does not reconstruct from the active result contract"
-            )));
-        }
-        if serde_json::to_vec(core)
-            .map_err(|_| data_query_catalog_invalid(format!("{label}.core does not serialize")))?
-            .len()
-            > 32_768
-        {
-            return Err(data_query_bound_exceeded(
-                "data query descriptor exceeds maxDescriptorBytes 32768",
-            ));
-        }
-        let ceilings = json!({
-            "maxDescriptorBytes": 32_768,
-            "maxFilterFields": 8,
-            "maxInValues": 32,
-            "maxProjectionFields": 64,
-            "maxTake": 200,
-            "maxCandidateRows": 1_024,
-            "maxResultBytes": 65_536,
-            "maxIndexesPerResource": 16,
-            "maxFieldsPerResource": 64,
-        });
-        if core_object.get("ceilings") != Some(&ceilings) {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} does not carry the exact DataCeilingsV1 profile"
-            )));
-        }
-        let refusal_vocabulary = json!([
-            { "code": "SNAPBACK_DATA_QUERY_SHAPE_INVALID", "phase": "generation", "guideAnchor": "guide/data/queries" },
-            { "code": "SNAPBACK_DATA_QUERY_NOT_CATALOGUED", "phase": "admission", "guideAnchor": "guide/data/queries" },
-            { "code": "SNAPBACK_DATA_QUERY_BOUND_EXCEEDED", "phase": "admission", "guideAnchor": "guide/data/queries" },
-            { "code": "SNAPBACK_DATA_QUERY_CAPABILITY_UNAVAILABLE", "phase": "admission", "guideAnchor": "guide/data/queries" },
-            { "code": "SNAPBACK_DATA_QUERY_RESOLUTION_AMBIGUOUS", "phase": "generation", "guideAnchor": "guide/data/queries" },
-            { "code": "SNAPBACK_DATA_QUERY_NAME_COLLISION", "phase": "generation", "guideAnchor": "guide/data/queries" },
-            { "code": "SNAPBACK_DATA_CURSOR_INVALID", "phase": "admission", "guideAnchor": "guide/data/queries" },
-            { "code": "SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE", "phase": "admission", "guideAnchor": "guide/data/queries" },
-        ]);
-        if core_object.get("refusalVocabulary") != Some(&refusal_vocabulary) {
-            return Err(data_query_catalog_invalid(format!(
-                "{label} does not carry the exact DataQueryV1 refusal vocabulary"
-            )));
-        }
-    }
-
-    for function in &manifest.functions {
-        if function.standard_pattern.as_ref().is_some_and(|pattern| {
-            pattern.helper == "data-query.v1" && pattern.profile == "bounded-index.v1"
-        }) && !synthesized_routes.contains(&function.name)
-        {
-            return Err(data_query_catalog_invalid(format!(
-                "synthesized data-query function {} has no active catalog witness",
-                function.name
-            )));
-        }
     }
     Ok(())
 }
@@ -29358,7 +28230,6 @@ fn validate_function_schema_references(
     schema: &SchemaManifest,
 ) -> SnapbackResult<()> {
     validate_table_visibility_schema_references(schema)?;
-    validate_data_query_catalog(manifest, schema)?;
     order_field_bounds_from_functions(manifest, schema)?;
     let table = |name: &str| {
         schema.table(name).ok_or_else(|| {
@@ -29604,7 +28475,6 @@ fn validate_function_schema_references(
                     }
                 }
                 validate_membership_keyset_pattern(function, plan, schema)?;
-                validate_data_query_keyset_pattern(function, plan, schema)?;
             }
             // The job-status plan reads no application schema table: nothing
             // to validate against the schema here (its shape is Rust-owned).
@@ -30178,7 +29048,9 @@ fn validate_function_schema_references(
                                             field,
                                             media,
                                         ),
-                                        FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+                                        FieldType::AssetRef { .. } => {
+                                            ResultValueContract::AssetRef
+                                        }
                                         FieldType::Json
                                         | FieldType::Structured { .. }
                                         | FieldType::RelationIncarnation { .. } => {
@@ -31272,7 +30144,6 @@ pub(crate) struct RelationalCursorAuthority<'a> {
     pub(crate) keyring: &'a RwLock<crate::rqs::ResumeKeyring>,
     pub(crate) schema_hash: Option<&'a str>,
     pub(crate) function_bundle_hash: Option<&'a str>,
-    pub(crate) function_inputs_hash: Option<&'a str>,
     pub(crate) function_publication_generation: u64,
     pub(crate) target_profile: Option<&'a str>,
 }
@@ -31426,8 +30297,7 @@ fn snapshot_batch_authority_partition_digest(
         "providerId": provider_id,
         "delegation": delegation,
     });
-    let canonical =
-        crate::rqs_contract::jcs(&record).map_err(|_| snapshot_batch_cursor_invalid())?;
+    let canonical = crate::rqs_contract::jcs(&record).map_err(|_| snapshot_batch_cursor_invalid())?;
     let mut digest = Sha256::new();
     digest.update(b"snapback:authority-partition:v1:");
     digest.update(canonical.as_bytes());
@@ -32250,328 +31120,6 @@ fn read_composed_bounded_parent(
     Ok(output.rows.into_iter().next())
 }
 
-const DATA_QUERY_MAX_TAKE: usize = 200;
-const DATA_QUERY_MAX_CANDIDATE_ROWS: usize = 1_024;
-const DATA_QUERY_MAX_RESULT_BYTES: usize = 65_536;
-const DATA_CURSOR_MAX_BYTES: usize = 2_048;
-
-/// The closed, server-minted continuation body from LLP 0255 S5.3. It is
-/// intentionally not authenticated: authorization is recomposed before the
-/// seek, while every invocation-bound field is recomputed and byte-matched.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct DataCursorBodyV1 {
-    v: u8,
-    app: String,
-    generation_id: String,
-    plan_hash: String,
-    args_digest: String,
-    authority_partition_digest: String,
-    last_key: Vec<Value>,
-}
-
-fn data_keyset_profile(function: &FunctionDefinition) -> bool {
-    function.standard_pattern.as_ref().is_some_and(|pattern| {
-        (pattern.helper == "data-query.v1" && pattern.profile == "bounded-index.v1")
-            || (pattern.helper == "data-resource.v1"
-                && matches!(pattern.profile.as_str(), "owner.v1" | "public-read.v1")
-                && function.name.ends_with(".list"))
-    })
-}
-
-fn data_effective_order(plan: &QueryPlan) -> &[crate::manifest::OrderExpr] {
-    if plan.order.len() == 1 && plan.order[0].field == "_id" {
-        &[]
-    } else {
-        &plan.order
-    }
-}
-
-fn data_cursor_invalid() -> SnapbackError {
-    SnapbackError::error(
-        "SNAPBACK_DATA_CURSOR_INVALID",
-        "data-query",
-        "pagination cursor is not valid for this query and authority; request the first page again",
-    )
-}
-
-fn data_cursor_mint_unavailable() -> SnapbackError {
-    SnapbackError::error(
-        "SNAPBACK_DATA_CURSOR_MINT_UNAVAILABLE",
-        "data-query",
-        "a bounded page could not mint its continuation cursor; retry the request",
-    )
-}
-
-fn data_query_bound_exceeded(message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_DATA_QUERY_BOUND_EXCEEDED", "data-query", message)
-}
-
-fn data_domain_hash(domain: &str, value: &Value) -> Result<String, ()> {
-    let canonical = crate::rqs_contract::jcs(value).map_err(|_| ())?;
-    let mut hash = Sha256::new();
-    hash.update(domain.as_bytes());
-    hash.update(b"\n");
-    hash.update(canonical.as_bytes());
-    Ok(format!("sha256:{:x}", hash.finalize()))
-}
-
-fn data_cursor_binding(
-    function: &FunctionDefinition,
-    plan: &QueryPlan,
-    input: &HandlerInput,
-    cursor_authority: Option<RelationalCursorAuthority<'_>>,
-) -> Result<(String, String, String, String, String), ()> {
-    let app = function.id.split_once(':').map(|(app, _)| app).ok_or(())?;
-    if app.is_empty() {
-        return Err(());
-    }
-    let generation_id = if let Some(authority) = cursor_authority
-        && authority.app_id == app
-        && let (Some(schema_hash), Some(bundle_hash), Some(inputs_hash)) = (
-            authority.schema_hash,
-            authority.function_bundle_hash,
-            authority.function_inputs_hash,
-        ) {
-        crate::storage::operation_artifact_generation_digest(&ArtifactGeneration {
-            schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
-            app_id: app.to_owned(),
-            schema_hash: schema_hash.to_owned(),
-            bundle_hash: bundle_hash.to_owned(),
-            inputs_hash: inputs_hash.to_owned(),
-        })
-    } else {
-        // Compatibility for directly constructed embedded manifests that do
-        // not carry a complete artifact pair. Generated/served pairs always
-        // take the content-derived ArtifactGeneration branch above.
-        function.implementation_hash.clone().ok_or(())?
-    };
-    let plan_value = data_query_plan_value(plan)?;
-    let plan_hash = data_domain_hash("snapback:data-plan:v1", &plan_value)?;
-    let Value::Object(args) = &input.args else {
-        return Err(());
-    };
-    let non_cursor_args = Value::Object(
-        args.iter()
-            .filter(|(name, _)| name.as_str() != "after")
-            .map(|(name, value)| (name.clone(), value.clone()))
-            .collect(),
-    );
-    let args_digest = data_domain_hash("snapback:data-canonical-args:v1", &non_cursor_args)?;
-    let authority = if function.authority_independent {
-        "public".to_owned()
-    } else {
-        auth_fingerprint(&input.auth)
-    };
-    let authority_partition_digest = data_domain_hash(
-        "snapback:data-authority-partition:v1",
-        &json!({ "authority": authority }),
-    )?;
-    Ok((
-        app.to_owned(),
-        generation_id,
-        plan_hash,
-        args_digest,
-        authority_partition_digest,
-    ))
-}
-
-fn decode_data_cursor(
-    token: &str,
-    expected: &(String, String, String, String, String),
-    schema: &SchemaManifest,
-    plan: &QueryPlan,
-) -> SnapbackResult<crate::storage::KeysetAfter> {
-    if token.len() > DATA_CURSOR_MAX_BYTES {
-        return Err(data_cursor_invalid());
-    }
-    let encoded = token.strip_prefix("dc1.").ok_or_else(data_cursor_invalid)?;
-    if encoded.is_empty() || encoded.contains('.') {
-        return Err(data_cursor_invalid());
-    }
-    let bytes = URL_SAFE_NO_PAD
-        .decode(encoded.as_bytes())
-        .map_err(|_| data_cursor_invalid())?;
-    let value: Value = serde_json::from_slice(&bytes).map_err(|_| data_cursor_invalid())?;
-    let canonical = crate::rqs_contract::jcs(&value).map_err(|_| data_cursor_invalid())?;
-    if canonical.as_bytes() != bytes.as_slice() {
-        return Err(data_cursor_invalid());
-    }
-    let body: DataCursorBodyV1 =
-        serde_json::from_value(value).map_err(|_| data_cursor_invalid())?;
-    if body.v != 1
-        || body.app != expected.0
-        || body.generation_id != expected.1
-        || body.plan_hash != expected.2
-        || body.args_digest != expected.3
-        || body.authority_partition_digest != expected.4
-        || body.last_key.len() != data_effective_order(plan).len() + 1
-    {
-        return Err(data_cursor_invalid());
-    }
-    let (id_value, boundary) = body.last_key.split_last().ok_or_else(data_cursor_invalid)?;
-    let id = id_value.as_str().ok_or_else(data_cursor_invalid)?;
-    crate::storage::validate_query_keyset_boundary(
-        schema,
-        &plan.table,
-        data_effective_order(plan),
-        boundary,
-        id,
-    )
-    .map_err(|_| data_cursor_invalid())
-}
-
-fn mint_data_cursor(
-    expected: &(String, String, String, String, String),
-    plan: &QueryPlan,
-    row: &Value,
-) -> SnapbackResult<String> {
-    let mut last_key = data_effective_order(plan)
-        .iter()
-        .map(|order| row.get(&order.field).cloned().unwrap_or(Value::Null))
-        .collect::<Vec<_>>();
-    let id = row
-        .get("_id")
-        .and_then(Value::as_str)
-        .filter(|id| !id.is_empty())
-        .ok_or_else(data_cursor_mint_unavailable)?;
-    last_key.push(Value::String(id.to_owned()));
-    let body = DataCursorBodyV1 {
-        v: 1,
-        app: expected.0.clone(),
-        generation_id: expected.1.clone(),
-        plan_hash: expected.2.clone(),
-        args_digest: expected.3.clone(),
-        authority_partition_digest: expected.4.clone(),
-        last_key,
-    };
-    let value = serde_json::to_value(body).map_err(|_| data_cursor_mint_unavailable())?;
-    let canonical = crate::rqs_contract::jcs(&value).map_err(|_| data_cursor_mint_unavailable())?;
-    let token = format!("dc1.{}", URL_SAFE_NO_PAD.encode(canonical.as_bytes()));
-    if token.len() > DATA_CURSOR_MAX_BYTES {
-        return Err(data_cursor_mint_unavailable());
-    }
-    Ok(token)
-}
-
-fn project_data_query_rows(function: &FunctionDefinition, rows: &mut [Value]) {
-    let FunctionResultContract::Records {
-        record: ResultValueContract::Object { fields, .. },
-        ..
-    } = &function.result_contract
-    else {
-        return;
-    };
-    for row in rows {
-        let mut projected = Map::new();
-        for field in fields {
-            if let Some(value) = row.get(&field.name) {
-                projected.insert(field.name.clone(), value.clone());
-            }
-        }
-        *row = Value::Object(projected);
-    }
-}
-
-fn execute_data_query_invocation(
-    function: &FunctionDefinition,
-    plan: &QueryPlan,
-    db: DbRead<'_>,
-    permission_epochs: &BTreeMap<String, u64>,
-    input: HandlerInput,
-    _prepared: &PreparedInvocation,
-    examined_entry_ceiling: usize,
-    cursor_authority: Option<RelationalCursorAuthority<'_>>,
-) -> SnapbackResult<QueryInvocation> {
-    // @ref LLP 0255#s34-proposed-pending-llp-0004-and-llp-0065-oq1-amendment--single-table-keyset-continuation
-    // The executor owns every bound and binds a cursor before issuing the
-    // strict-after seek; `after` is never lowered as an ordinary filter.
-    let take = plan.limit.ok_or_else(|| {
-        data_query_bound_exceeded("data query plans require an explicit take bound")
-    })?;
-    if !(1..=DATA_QUERY_MAX_TAKE).contains(&take) {
-        return Err(data_query_bound_exceeded(format!(
-            "data query take {take} is outside 1..={DATA_QUERY_MAX_TAKE}"
-        )));
-    }
-    if plan.indexed_by.is_none() || !plan.membership_filters.is_empty() {
-        return Err(data_query_bound_exceeded(
-            "data query plans require one ordinary index and no relationship predicates",
-        ));
-    }
-    let direction = plan
-        .order
-        .first()
-        .map(|order| order.direction.clone())
-        .unwrap_or(OrderDirection::Asc);
-    if plan.order.iter().any(|order| order.direction != direction) {
-        return Err(data_query_bound_exceeded(
-            "data query order fields must use one common direction",
-        ));
-    }
-    let binding = data_cursor_binding(function, plan, &input, cursor_authority)
-        .map_err(|_| data_cursor_invalid())?;
-    let keyset = match input.args.get("after") {
-        None => None,
-        Some(Value::String(token)) => Some(decode_data_cursor(token, &binding, db.schema(), plan)?),
-        Some(_) => return Err(data_cursor_invalid()),
-    };
-    let candidate_ceiling = examined_entry_ceiling.min(DATA_QUERY_MAX_CANDIDATE_ROWS);
-    let mut storage_plan = plan.clone();
-    if data_effective_order(plan).is_empty() {
-        storage_plan.order.clear();
-    }
-    let mut output = db
-        .query_data_keyset(
-            &storage_plan,
-            &input,
-            keyset.as_ref(),
-            take + 1,
-            candidate_ceiling,
-            direction,
-        )
-        .map_err(|error| {
-            if error.diagnostic.code == "SNAPBACK_SINGLE_TABLE_EXAMINED_ENTRY_CEILING_EXCEEDED" {
-                data_query_bound_exceeded(format!(
-                    "data query examined more than {candidate_ceiling} candidate rows"
-                ))
-            } else {
-                error
-            }
-        })?;
-    let has_more = output.rows.len() > take;
-    if has_more {
-        output.rows.truncate(take);
-    }
-    output.cursor = if has_more {
-        Some(mint_data_cursor(
-            &binding,
-            plan,
-            output
-                .rows
-                .last()
-                .ok_or_else(data_cursor_mint_unavailable)?,
-        )?)
-    } else {
-        None
-    };
-    let mut read_dependencies = query_dependencies_from_plan(plan, &input, &output, &db)?;
-    add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
-    project_data_query_rows(function, &mut output.rows);
-    let result_bytes = serde_json::to_vec(&output.rows)
-        .map_err(|_| data_query_bound_exceeded("data query result is not portable JSON"))?
-        .len();
-    if result_bytes > DATA_QUERY_MAX_RESULT_BYTES {
-        return Err(data_query_bound_exceeded(format!(
-            "data query result is {result_bytes} bytes; maxResultBytes is {DATA_QUERY_MAX_RESULT_BYTES}"
-        )));
-    }
-    Ok(QueryInvocation {
-        output,
-        read_dependencies,
-    })
-}
-
 /// The one uniform standard-pattern cursor refusal (LLP 0065): malformed,
 /// cross-plan, and cross-owner presentations must stay
 /// byte-indistinguishable, so every class produces this exact error.
@@ -32857,18 +31405,6 @@ fn execute_query_invocation(
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
         ) => {
-            if data_keyset_profile(function) {
-                return execute_data_query_invocation(
-                    function,
-                    plan,
-                    db,
-                    permission_epochs,
-                    input,
-                    prepared,
-                    examined_entry_ceiling.unwrap_or(DATA_QUERY_MAX_CANDIDATE_ROWS),
-                    cursor_authority,
-                );
-            }
             // @ref LLP 0065#3-common-pattern-contracts — defineOwnedKeysetPages
             //   continuation is an opaque versioned cursor: the runtime
             //   verifies the presented token (MAC + binding over app, plan
@@ -33122,22 +31658,21 @@ fn execute_query_invocation(
                 } => Some(user_id.as_str()),
                 _ => None,
             };
-            let release_policy_digest = crate::rqs_contract::sha256_identity(
-                &serde_json::to_value(function).map_err(|_| {
+            let release_policy_digest =
+                crate::rqs_contract::sha256_identity(&serde_json::to_value(function).map_err(|_| {
                     SnapbackError::error(
                         "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
                         "search",
                         "search release policy does not serialize",
                     )
-                })?,
-            )
-            .map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
-                    "search",
-                    "search release policy is not canonicalizable",
-                )
-            })?;
+                })?)
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+                        "search",
+                        "search release policy is not canonicalizable",
+                    )
+                })?;
             let stream_epoch = prepared
                 .authority()
                 .authorization_stream_incarnation()

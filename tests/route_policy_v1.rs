@@ -264,7 +264,6 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
         ("POST", "/client-mutations/identity-range"),
-        ("POST", "/client-mutations/status/{name}"),
         ("POST", "/operations/explain"),
         ("POST", "/assets/attempts"),
         ("GET", "/assets/attempts/{id}"),
@@ -2592,21 +2591,6 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
                 base: json!({
                     "schemaVersion": 1,
                     "clientAudienceId": "policy_probe"
-                }),
-                forbidden_fields: handler_fields(),
-            },
-        ),
-        (
-            ("POST", "/client-mutations/status/{name}"),
-            SessionBodyProbe {
-                uri: "/client-mutations/status/policy_probe",
-                base: json!({
-                    "args": {},
-                    "clientMutationId": "cm_policy_probe",
-                    "dataTransaction": {
-                        "artifactKind": "dataTransaction",
-                        "intentId": "cm_policy_probe"
-                    }
                 }),
                 forbidden_fields: handler_fields(),
             },

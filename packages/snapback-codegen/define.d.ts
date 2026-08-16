@@ -592,21 +592,6 @@ export interface HistoryRetentionSpec {
   readonly maxVersionsPerRecord: number;
 }
 
-export type DataDefaultKind = 'now' | 'id';
-export interface DataResourceSpec<Fields extends Record<string, Validator>> {
-  readonly listIndex?: string;
-  readonly createDefaults?: Partial<Record<keyof Fields & string, DataDefaultKind>>;
-  readonly updateDefaults?: Partial<Record<keyof Fields & string, DataDefaultKind>>;
-  readonly immutable?: readonly (keyof Fields & string)[];
-}
-
-/** Terminal DataResourceV1 declaration. It deliberately exposes no table
- * builder methods, so indexes, visibility, sync, and other schema facts must
- * be fixed before `.data(...)` (LLP 0255 S1). */
-export interface DataTableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
-  readonly __dataTableBuilderBrand?: Fields;
-}
-
 export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
   index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): TableBuilder<Fields>;
   searchIndex(name: string, spec: SearchIndexSpec<Fields>): TableBuilder<Fields>;
@@ -624,7 +609,6 @@ export interface TableBuilder<Fields extends Record<string, Validator> = Record<
   assetSharing(spec: AssetSharingSpec<Fields>): TableBuilder<Fields>;
   /** Opt into bounded per-record history for this table. */
   history(spec: HistoryRetentionSpec): TableBuilder<Fields>;
-  data(spec?: DataResourceSpec<Fields>): DataTableBuilder<Fields>;
 }
 
 export type SearchFieldClassification = 'public' | 'private' | 'sensitive' | 'forbidden';

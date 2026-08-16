@@ -1,8 +1,0 @@
-{
-  "$id": "https://schemas.snapback.dev/apps/fixtures/listTodos.args.schema.json",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
-  "properties": {},
-  "title": "fixtures:listTodos arguments",
-  "type": "object"
-}

@@ -16,11 +16,7 @@
   "keywords": ["snapback", "backend", "experimental", "react"],
   "files": [
     "README.md",
-    "data.d.mts",
-    "data.mjs",
     "react.d.mts",
-    "react-data.d.mts",
-    "react-data.mjs",
     "react.mjs",
     "server.d.mts",
     "server.mjs",
@@ -36,22 +32,13 @@
       "types": "./values.d.mts",
       "import": "./values.mjs"
     },
-    "./data": {
-      "types": "./data.d.mts",
-      "import": "./data.mjs"
-    },
     "./react": {
       "types": "./react.d.mts",
       "import": "./react.mjs"
     },
-    "./react/data": {
-      "types": "./react-data.d.mts",
-      "import": "./react-data.mjs"
-    },
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@expo/snapback-client": "workspace:*",
     "@expo/snapback-codegen": "workspace:*",
     "@expo/snapback-react": "workspace:*"
   },

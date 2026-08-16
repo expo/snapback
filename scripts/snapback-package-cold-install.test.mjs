@@ -1673,7 +1673,7 @@ test('umbrella publication metadata closes and stamps every internal dependency'
   assert.equal(validateInternalDependencyClosure(stamped, stamped.version), undefined);
   assert.deepEqual(
     new Set(Object.keys(manifest.exports)),
-    new Set(['./server', './values', './data', './react', './react/data', './package.json']),
+    new Set(['./server', './values', './react', './package.json']),
   );
   const files = new Set(manifest.files);
   for (const target of Object.values(manifest.exports).flatMap((entry) => (

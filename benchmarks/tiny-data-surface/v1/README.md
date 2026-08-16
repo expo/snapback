@@ -1,17 +1,20 @@
 # Tiny data surface evaluation harness
 
-This is the frozen, pre-run LLP 0256 harness area. Phase 4 installs the
-configuration, capsule schema, aid scaffold, InstantDB corpus pin, and D10
-backstop. It contains no timed attempts and no promotion evidence.
+**Closed 2026-08-15:** after the 0.1.21 publication armed the D9 clock, the
+author selected LLP 0254 D10 Withdraw before any timed run. The immutable
+decision receipt is
+`rulings/d10-disposition.v1.json`; LLPs 0254–0256 are tombstoned. This area is
+retained as historical evidence and is not an active harness.
 
-The D9 clock is deliberately unarmed until the qualified publisher writes
-`clock/publication-receipt.v1.json`. From then on the scheduled
-`node scripts/drift-prone-gates.mjs backstop` path invokes
-`scripts/tiny-data-evaluation-backstop.mjs`. At the earlier of three complete
-qualified rounds or the active 90-day stop, no timely author ruling produces
-the stable `SNAPBACK_DATA_SURFACE_D10_MISSED_DISPOSITION` verdict and exactly
-one signature-bound open repository ticket. The check verifies, but never
-rewrites, the Experimental and non-default doorway freeze.
+This was the frozen, pre-run LLP 0256 harness area. Phase 4 installed the
+configuration, capsule schema, aid scaffold, InstantDB corpus pin, and D10
+backstop. It contains no timed attempts; the qualified publication evidence is
+retained under `clock/`.
+
+The qualified 0.1.21 publication wrote `clock/publication-receipt.v1.json` and
+armed D9 on 2026-08-14. The author closed the evaluation early through D10 on
+2026-08-15, before any timed run. The scheduled backstop and missed-disposition
+diagnostic were removed with the doorway.
 
 No timed lane may begin until the runtime pin, aid digests, prompts, target,
 model, proof, capsule validator, closure receipt, and clock receipt meet every
@@ -30,11 +33,8 @@ LLP 0256 gate.
 - `inventories/instantdb-2026-08-14.v1.json` is the offline Phase 0 pin from
   LLP 0082. It is not run-eligible until its required dated network refresh.
 - `clock/backstop-installation.v1.json` records the installed D10 schedule;
-  `clock/publication-receipt.v1.json` remains absent until qualified
-  publication arms the clock.
+  `clock/publication-receipt.v1.json` records the 0.1.21 publication that armed
+  the clock before D10 withdrawal closed the evaluation.
 
-Before any run, execute
-`node --test scripts/tiny-data-evaluation-readiness.test.mjs`, satisfy every
-run-time gate named above, then persist each attempt as one schema-valid
-capsule. Phase 4 intentionally created no `runs/` directory and produced no
-timed evidence.
+No run may now begin from this retired harness. Phase 4 intentionally created
+no `runs/` directory and produced no timed evidence.

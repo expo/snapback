@@ -22,8 +22,8 @@ product-surface ruling from the 2026-08-15 sitting)
 **Related:** LLP 0181 (zero-configuration Expo integration — the supervised
 development mechanics an initialized app must reach), LLP 0196 (template and
 recipe portfolio — the `snapback new` surface this deliberately does not
-overload), LLP 0223 (zero-config connect DX), LLP 0255 (the twelve-package
-publication closure `init` installs), LLP 0041 (publication posture),
+overload), LLP 0223 (zero-config connect DX), LLP 0041 (the twelve-package
+publication closure and publication posture),
 `issues/20260808-guide-gap-compose-snapback-into-existing-app.md`, Diary 0063
 G4
 
@@ -74,7 +74,7 @@ able to run it with no TTY.
    `SNAPBACK_INIT_*` diagnostic naming what was looked for, rather than
    guessing. The detection matrix widens by evidence, not speculation.
 2. **Install one coherent closure.** Add the published twelve-package
-   closure (LLP 0255) at a single qualified version to the app's existing
+   closure (LLP 0041) at a single qualified version to the app's existing
    package manifest — using the app's own package manager, without rewriting
    unrelated dependencies, scripts, or configuration.
 3. **Adopt, never clobber.** Create only the conventional backend child and

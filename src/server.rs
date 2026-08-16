@@ -68,13 +68,12 @@ use crate::live_wire::{
 };
 use crate::local::{
     AdmittedCronClaim, AppActionStage, AuthProvisionCommit, AuthorizationInvalidationAckInput,
-    AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DataMutationSettlementStatus,
-    DetachedMutationRead, EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest,
-    EnsureAppResponse, EphemeralApi, FunctionRunResult, HostOperationParentV1, InspectState,
-    LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeRequest, LiveUnsubscribeInput,
-    LocalSnapback, MaintenanceOperation, PreparedAuthProvision, StagedAction, StagedAppAction,
-    StagedConfigVerify, StagedNestedMutation, live_stream_text,
-    live_stream_text_with_server_observed,
+    AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
+    EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
+    FunctionRunResult, HostOperationParentV1, InspectState, LiveInvalidationAdmission,
+    LiveResumeInput, LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback,
+    MaintenanceOperation, PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify,
+    StagedNestedMutation, live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, AgentsManifest, AgentsMode, ArtifactGeneration, AuthInput,
@@ -9245,10 +9244,6 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             post(issue_operation_identity_range),
         ),
         RegisteredRoute::new(
-            app_auth_route("POST", "/client-mutations/status/{name}"),
-            post(data_mutation_status),
-        ),
-        RegisteredRoute::new(
             app_auth_route("POST", "/operations/explain"),
             post(explain_operation_public),
         ),
@@ -10808,9 +10803,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/api/v1/ask" => Some(InvocationSource::HttpAsk),
         "/streams/{attempt_token}" => Some(InvocationSource::HttpQuery),
         "/streams/{attempt_token}/cancel" => Some(InvocationSource::HttpAction),
-        "/client-mutations/acknowledge"
-        | "/client-mutations/identity-range"
-        | "/client-mutations/status/{name}" => {
+        "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
             Some(InvocationSource::MutationSettlementAcknowledgement)
         }
         "/operations/explain" => Some(InvocationSource::HttpQuery),
@@ -26487,79 +26480,6 @@ async fn acknowledge_mutations(
     Ok(Json(MutationAcknowledgementResponse { acknowledged }))
 }
 
-fn validate_data_transaction_marker(request: &MutationRequest) -> SnapbackResult<bool> {
-    let Some(marker) = request.data_transaction.as_ref() else {
-        return Ok(false);
-    };
-    let valid = marker.as_object().is_some_and(|fields| {
-        fields.get("artifactKind").and_then(Value::as_str) == Some("dataTransaction")
-            && fields.get("intentId").and_then(Value::as_str)
-                == request.client_mutation_id.as_deref()
-    });
-    if !valid || request.operation_issuance.is_some() {
-        return Err(SnapbackError::error(
-            "SNAPBACK_DATA_TRANSACTION_INVALID",
-            "data-transaction",
-            "data transaction settlement marker is invalid or carries forbidden issuance",
-        ));
-    }
-    Ok(true)
-}
-
-/// Read-only settlement observation for non-replayable data intents. The
-/// request repeats the exact mutation identity facts, but this route never
-/// invokes the function named by the path.
-async fn data_mutation_status(
-    State(state): State<SharedSnapback>,
-    Extension(authority): Extension<PreparedAuthority>,
-    Path(name): Path<String>,
-    input: Result<Json<MutationRequest>, JsonRejection>,
-) -> Result<Json<Value>, ApiError> {
-    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
-    if !validate_data_transaction_marker(&request)? {
-        return Err(SnapbackError::error(
-            "SNAPBACK_DATA_TRANSACTION_INVALID",
-            "data-transaction",
-            "data mutation settlement status requires a generated transaction marker",
-        )
-        .into());
-    }
-    let client_mutation_id = request.client_mutation_id.clone().ok_or_else(|| {
-        SnapbackError::error(
-            "SNAPBACK_DATA_TRANSACTION_INVALID",
-            "data-transaction",
-            "data mutation settlement status requires an intent identity",
-        )
-    })?;
-    let status = with_snapback(&state, move |snapback| {
-        snapback.data_mutation_settlement_status(
-            &authority,
-            request.authority_descriptor.as_ref(),
-            &name,
-            &request.input,
-            &request.settlement,
-            &client_mutation_id,
-        )
-    })
-    .await?;
-    Ok(Json(match status {
-        DataMutationSettlementStatus::Committed(output) => json!({
-            "status": "committed",
-            "settlement": {
-                "version": output.version,
-                "changed_count": output.changed_count,
-                "result": output.result,
-                "ctx_ledger": output.ctx_ledger,
-            },
-        }),
-        DataMutationSettlementStatus::Refused(diagnostic) => json!({
-            "status": "refused",
-            "diagnostic": diagnostic,
-        }),
-        DataMutationSettlementStatus::Unknown => json!({ "status": "unknown" }),
-    }))
-}
-
 async fn issue_operation_identity_range(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -26684,9 +26604,6 @@ async fn invoke_mutation(
         let Json(request) = input
             .map_err(ApiError::from_json_rejection)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
-        let stage_ledger_data_refusal = validate_data_transaction_marker(&request)
-            .map_err(ApiError::from)
-            .map_err(|error| error.with_attribution(attribution.clone()))?;
         if crate::spike_trace::enabled() {
             trace_client_mutation_id = request.client_mutation_id.clone();
         }
@@ -26759,7 +26676,6 @@ async fn invoke_mutation(
                         stage_operation_issuance.clone(),
                         stage_settlement.clone(),
                         stage_wire_version.as_deref(),
-                        stage_ledger_data_refusal,
                     )?;
                 Ok((preflight, (response_authority_descriptor, staged)))
             },

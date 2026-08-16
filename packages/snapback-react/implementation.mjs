@@ -30,7 +30,6 @@ import {
   assertPreparedReactBinding,
   classifyRegeneratedReactReference,
   handoffPreparedReactBindingGeneration,
-  preparedReactBindingData,
   preparedReactResultContract,
   preparedReactBindingClient,
   isPreparedReactQueryGroup,
@@ -4224,15 +4223,6 @@ export function useSnapbackCurrentPrincipal() {
 export function useSnapbackAuth() {
   return useSnapbackAppClient().auth;
 }
-
-// Narrow provider projection for the experimental data doorway. Generated
-// witnesses remain owned by the prepared app binding; this creates no global
-// schema registry and no second provider.
-// @ref LLP 0255#s9-package-doorway-and-generated-typing
-export function useSnapbackProviderData() {
-  return preparedReactBindingData(useProvider().binding);
-}
-
 // @ref LLP 0114#exact-identity-bytes-and-limits — hook dependency identity
 // follows the same canonical content grammar as registry store identity, so
 // fresh but equal inline values cannot rotate committed subscriptions.

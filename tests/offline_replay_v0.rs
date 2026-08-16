@@ -180,7 +180,6 @@ async fn synthetic_lane_l_wire_submission_rederives_before_commit() {
             }),
             ..create_input(USER)
         },
-        data_transaction: None,
         settlement: MutationSettlement {
             lane: SettlementLane::ReDerive,
             identity_claims: Some(SettlementIdentityClaims {
@@ -266,83 +265,6 @@ async fn finite_mutation_wire_version_offer_is_must_understand() {
         response_json(response).await["diagnostic"]["code"],
         "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
     );
-}
-
-/// @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents — a possibly-crossed data refusal
-/// is terminal ledger state, observable without mutation redelivery and
-/// reclaimable through the ordinary authenticated ACK route.
-#[tokio::test]
-async fn data_refusal_is_pollable_duplicate_free_and_ack_capable() {
-    let app = snapback::server::router(memory());
-    let intent_id = "cm_data_refusal_wire_1";
-    let request = MutationRequest {
-        input: input_for(USER, json!({})),
-        data_transaction: Some(json!({
-            "artifactKind": "dataTransaction",
-            "intentId": intent_id,
-        })),
-        client_mutation_id: Some(intent_id.to_owned()),
-        wire_version: Some("snapback.v1".to_owned()),
-        ..MutationRequest::default()
-    };
-
-    let refused = app
-        .clone()
-        .oneshot(post_json(
-            "/mutation/createTodo",
-            serde_json::to_value(&request).unwrap(),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(refused.status(), StatusCode::BAD_REQUEST);
-    let diagnostic = response_json(refused).await["diagnostic"].clone();
-
-    let observed = app
-        .clone()
-        .oneshot(post_json(
-            "/client-mutations/status/createTodo",
-            serde_json::to_value(&request).unwrap(),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(observed.status(), StatusCode::OK);
-    let observed = response_json(observed).await;
-    assert_eq!(observed["status"], "refused");
-    assert_eq!(observed["diagnostic"], diagnostic);
-
-    let duplicate = app
-        .clone()
-        .oneshot(post_json(
-            "/mutation/createTodo",
-            serde_json::to_value(&request).unwrap(),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(duplicate.status(), StatusCode::BAD_REQUEST);
-    assert_eq!(response_json(duplicate).await["diagnostic"], diagnostic);
-
-    let acknowledged = app
-        .clone()
-        .oneshot(post_json(
-            "/client-mutations/acknowledge",
-            json!({
-                "auth": create_input(USER).auth,
-                "clientMutationIds": [intent_id],
-            }),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(acknowledged.status(), StatusCode::OK);
-    assert_eq!(response_json(acknowledged).await["acknowledged"], 1);
-
-    let absent = app
-        .oneshot(post_json(
-            "/client-mutations/status/createTodo",
-            serde_json::to_value(request).unwrap(),
-        ))
-        .await
-        .unwrap();
-    assert_eq!(response_json(absent).await["status"], "unknown");
 }
 
 #[test]
@@ -528,7 +450,6 @@ async fn current_mutation_id_cannot_be_acknowledged_by_its_own_request() {
     let mutation_id = "cm_overlap_1".to_owned();
     let request = |acknowledged_client_mutation_ids| MutationRequest {
         input: create_input(USER),
-        data_transaction: None,
         settlement: Default::default(),
         expected_generation: None,
         wire_version: None,
@@ -585,7 +506,6 @@ async fn standalone_ack_reclaims_a_final_result_and_is_auth_bound() {
     let mutation_id = "cm_standalone_ack_1".to_owned();
     let request = MutationRequest {
         input: create_input(USER),
-        data_transaction: None,
         settlement: Default::default(),
         expected_generation: None,
         wire_version: None,
@@ -671,7 +591,6 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
     let other_id = "cm_admin_purge_other".to_owned();
     let user_request = MutationRequest {
         input: create_input(USER),
-        data_transaction: None,
         settlement: Default::default(),
         expected_generation: None,
         wire_version: None,
@@ -682,7 +601,6 @@ async fn admin_purge_is_gated_explicit_and_auth_selective() {
     };
     let other_request = MutationRequest {
         input: create_input("another_user"),
-        data_transaction: None,
         settlement: Default::default(),
         expected_generation: None,
         wire_version: None,

@@ -5,6 +5,8 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
+**Revised:** 2026-08-15 (removed the LLP 0255 amendment after the author
+selected LLP 0254 D10 Withdraw)
 **Revised:** 2026-08-08 (stored literal-union domains admitted at table fields:
 `v.union([v.literal('a'), v.literal('b')])` lowers to `FieldType::Enum`, a
 `TEXT` column with a central fail-closed write-path domain check, generated
@@ -868,13 +870,3 @@ schema surface deliberately did not grow a counter of its own.
 Draft. This should guide the first implementation of Snapback's app-facing data
 API. It should be revised alongside the local core prototype and split into a
 more formal Spec once the minimal API survives a reference app.
-
-
-## Amendment — 2026-08-13 (ratified)
-
-LLP 0255 S3.4's proposed amendment to this document — data-lowered single-table `Query`/`LiveQuery` members may declare the keyset-continuation profile: a reserved optional `after` argument and server-minted continuation in the structurally existing `QueryOutput.cursor`, positioning strictly after `lastKey` on the complete effective order; scoped to the data profiles, no new result kind, no other query family gains a cursor — was
-ratified by the author on 2026-08-13 after the LLP 0255 super-refine
-loop closed (run journal:
-`llp/reviews/0255-tiny-data-surface-v1-api.run.md`). The normative
-amendment text lives in LLP 0255 S3.4 and applies to this document as law;
-implementation lands with the LLP 0254 phase that consumes it.

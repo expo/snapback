@@ -7,11 +7,11 @@ use crate::manifest::{
     MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
     MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
-    QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ResultValueContract, ReturnValue,
-    SchemaManifest, SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest,
-    ValueExpr, auth_fingerprint, effective_query_limit, is_user_identifier,
-    replay_opaque_id_is_valid, validate_ctx_answer_ledger, validate_portable_timestamp_millis,
-    validate_query_plan_shape,
+    QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
+    ResultValueContract, SeedData, SettlementMintObservation, SettlementTimeObservation,
+    TableManifest, ValueExpr,
+    auth_fingerprint, effective_query_limit, is_user_identifier, replay_opaque_id_is_valid,
+    validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
@@ -354,12 +354,11 @@ const META_CLIENT_MUTATION_BYTES: &str = "client_mutation_bytes";
 const META_CLIENT_MUTATION_COUNTERS_VERSION: &str = "client_mutation_counters_version";
 const META_SETTLEMENT_FORMAT_EPOCH_V1: &str = "client_mutation_settlement_format_epoch_v1";
 const META_SETTLEMENT_NEXT_SEQUENCE_V1: &str = "client_mutation_settlement_next_sequence_v1";
-/// V5 charges the complete settlement carrier: the original seven logical
-/// fields plus format, one exact eight-byte sequence, optional seal JSON, and
-/// the committed/refused terminal-outcome discriminator.
+/// V4 charges the complete settlement carrier: the original seven logical
+/// fields plus format, one exact eight-byte sequence, and optional seal JSON.
 /// Opening a store with any predecessor version rebuilds global/per-authority
 /// counters from rows before admitting another settlement.
-const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 5;
+const CLIENT_MUTATION_COUNTERS_VERSION: u64 = 4;
 const LEGACY_SETTLEMENT_FORMAT_V1: &str = "legacy-settlement.v1";
 const PLAIN_SETTLEMENT_FORMAT_V1: &str = "plain-settlement.v1";
 const MEDIA_SETTLEMENT_FORMAT_V1: &str = "media-projected-settlement.v1";
@@ -867,19 +866,6 @@ struct RetainedClientMutationRow {
     settlement_format: Option<String>,
     settlement_record_sequence: SqlValue,
     settlement_projection_seal_json: Option<String>,
-    terminal_outcome: String,
-}
-
-/// Exact durable answer for one client-mutation identity. Data transactions
-/// use the refusal arm to resolve a non-replayable, possibly-crossed intent
-/// without dispatching the mutation a second time.
-///
-/// @ref LLP 0255#s32-proposed-pending-llp-0218-and-llp-0043-amendment--declared-custody-and-ambiguous-online-intents — committed results and terminal
-/// refusals share the same bounded, ACK-capable settlement ledger.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum ClientMutationSettlement {
-    Committed(MutationOutput),
-    Refused(Diagnostic),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -929,7 +915,8 @@ pub(crate) struct BufferedCommitPayload {
     pub media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
     /// Independently reconstructed from the prepared invocation/request
     /// carrier; the storage boundary compares it with the proof before OCC.
-    pub expected_media_projection_binding: Option<crate::runtime::MediaProjectionProofBindingV1>,
+    pub expected_media_projection_binding:
+        Option<crate::runtime::MediaProjectionProofBindingV1>,
 }
 
 enum MediaProjectionProofAccess<'a> {
@@ -3550,7 +3537,6 @@ impl LocalDatabase {
                         None,
                         None,
                         false,
-                        OrderDirection::Asc,
                         None,
                     )?;
                     let rows = {
@@ -3888,7 +3874,6 @@ impl LocalDatabase {
                     &changes,
                     &output,
                     settlement_media.as_ref(),
-                    "committed",
                 )?;
             }
             if let Some(branch_operation) = branch_operation {
@@ -3975,7 +3960,10 @@ impl LocalDatabase {
             media_projection_proof,
             expected_media_projection_binding,
         } = payload;
-        let media_projection = match (media_projection_proof, expected_media_projection_binding) {
+        let media_projection = match (
+            media_projection_proof,
+            expected_media_projection_binding,
+        ) {
             (Some(proof), Some(expected)) => {
                 Some(MediaProjectionProofAccess::Owned { proof, expected })
             }
@@ -4600,7 +4588,6 @@ impl LocalDatabase {
                     &changes,
                     &output,
                     settlement_media.as_ref(),
-                    "committed",
                 )?;
             }
             if let Some(branch_operation) = options.branch_operation {
@@ -4734,8 +4721,7 @@ impl LocalDatabase {
               settled_version_exact INTEGER,
               settlement_format TEXT,
               settlement_record_sequence INTEGER,
-              settlement_projection_seal_json TEXT,
-              terminal_outcome TEXT NOT NULL DEFAULT 'committed'
+              settlement_projection_seal_json TEXT
             );
             CREATE TABLE IF NOT EXISTS _snapback_client_mutation_auth_retention (
               auth_fingerprint TEXT PRIMARY KEY,
@@ -4946,13 +4932,6 @@ impl LocalDatabase {
                 [],
             )?;
         }
-        if !names.contains("terminal_outcome") {
-            tx.execute(
-                "ALTER TABLE _snapback_client_mutations
-                 ADD COLUMN terminal_outcome TEXT NOT NULL DEFAULT 'committed'",
-                [],
-            )?;
-        }
         // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
         // — one exclusive migration classifies the complete predecessor set;
         // legacy status is never inferred later from result bytes or null seal
@@ -5016,8 +4995,10 @@ impl LocalDatabase {
                     .collect::<rusqlite::Result<Vec<_>>>()?
             };
             for auth_fingerprint in auth_fingerprints {
-                let (records, bytes) =
-                    scan_client_mutation_retention_totals_for_auth(&tx, Some(&auth_fingerprint))?;
+                let (records, bytes) = scan_client_mutation_retention_totals_for_auth(
+                    &tx,
+                    Some(&auth_fingerprint),
+                )?;
                 save_client_mutation_auth_retention_counters(
                     &tx,
                     &auth_fingerprint,
@@ -5342,7 +5323,7 @@ pub struct KeysetAfter {
 }
 
 /// Lower a keyset boundary to one WHERE clause selecting rows strictly after
-/// the boundary row under the plan's `(order…, _id direction)` total order with
+/// the boundary row under the plan's `(order…, _id ASC)` total order with
 /// Snapback's `NULLS LAST` rule. Emitted as a disjunction of prefix-equality
 /// clauses so it composes with mixed directions and null boundary
 /// components; a plain SQL row-value comparison would inherit SQL null
@@ -5351,7 +5332,6 @@ fn build_keyset_after_sql(
     table: &TableManifest,
     order: &[OrderExpr],
     keyset: &KeysetAfter,
-    id_direction: OrderDirection,
     filter_bindings: &mut usize,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     if keyset.entries.len() != order.len()
@@ -5405,11 +5385,7 @@ fn build_keyset_after_sql(
     }
 
     let mut final_clause = prefix_clauses;
-    let id_comparator = match id_direction {
-        OrderDirection::Asc => ">",
-        OrderDirection::Desc => "<",
-    };
-    final_clause.push(format!("\"_id\" {id_comparator} ?"));
+    final_clause.push("\"_id\" > ?".to_owned());
     disjuncts.push(format!("({})", final_clause.join(" AND ")));
     add_query_filter_bindings(filter_bindings, prefix_values.len() + 1, "_id")?;
     values.extend(prefix_values);
@@ -5823,35 +5799,7 @@ pub(crate) fn query_on_keyset(
         false,
         keyset,
         true,
-        OrderDirection::Asc,
         None,
-    )
-}
-
-/// Keyset-bounded query for the data continuation profile. Unlike the
-/// relational root window, `_id` follows the authored direction so it is the
-/// same-direction totalizer required by DataCursorV1.
-pub(crate) fn query_on_data_keyset(
-    conn: &Connection,
-    schema: &SchemaManifest,
-    plan: &QueryPlan,
-    input: &HandlerInput,
-    keyset: Option<&KeysetAfter>,
-    storage_limit: usize,
-    examined_entry_ceiling: usize,
-    id_direction: OrderDirection,
-) -> SnapbackResult<QueryOutput> {
-    query_on_with_storage_limit_visibility_keyset(
-        conn,
-        schema,
-        plan,
-        input,
-        storage_limit,
-        false,
-        keyset,
-        true,
-        id_direction,
-        Some(examined_entry_ceiling),
     )
 }
 
@@ -5872,7 +5820,6 @@ fn query_on_with_storage_limit_visibility(
         allow_private_membership,
         None,
         false,
-        OrderDirection::Asc,
         None,
     )
 }
@@ -5893,7 +5840,6 @@ fn query_on_with_examined_entry_ceiling(
         false,
         None,
         false,
-        OrderDirection::Asc,
         Some(examined_entry_ceiling),
     )
 }
@@ -5908,7 +5854,6 @@ fn query_on_with_storage_limit_visibility_keyset(
     allow_private_membership: bool,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
-    id_direction: OrderDirection,
     examined_entry_ceiling: Option<usize>,
 ) -> SnapbackResult<QueryOutput> {
     with_pinned_read_snapshot(conn, |conn| {
@@ -5983,7 +5928,6 @@ fn query_on_with_storage_limit_visibility_keyset(
             Some(storage_limit),
             keyset,
             force_id_order,
-            id_direction,
             examined_entry_ceiling.map(|_| "__snapback_single_table_examined_entry_guard"),
         )?;
         let examined_entry_guard_exceeded =
@@ -6850,41 +6794,6 @@ impl DbRead<'_> {
         match self {
             DbRead::Pinned { conn, schema } => query_on_keyset(conn, schema, plan, input, keyset),
             DbRead::Live(db) => query_on_keyset(&db.conn, &db.schema, plan, input, keyset),
-        }
-    }
-
-    /// Execute one page for the data-query/data-resource continuation
-    /// profile with the executor-owned overfetch and candidate ceilings.
-    pub(crate) fn query_data_keyset(
-        &self,
-        plan: &QueryPlan,
-        input: &HandlerInput,
-        keyset: Option<&KeysetAfter>,
-        storage_limit: usize,
-        examined_entry_ceiling: usize,
-        id_direction: OrderDirection,
-    ) -> SnapbackResult<QueryOutput> {
-        match self {
-            DbRead::Pinned { conn, schema } => query_on_data_keyset(
-                conn,
-                schema,
-                plan,
-                input,
-                keyset,
-                storage_limit,
-                examined_entry_ceiling,
-                id_direction,
-            ),
-            DbRead::Live(db) => query_on_data_keyset(
-                &db.conn,
-                &db.schema,
-                plan,
-                input,
-                keyset,
-                storage_limit,
-                examined_entry_ceiling,
-                id_direction,
-            ),
         }
     }
 
@@ -10095,7 +10004,6 @@ fn build_query_sql(
     sql_limit: Option<usize>,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
-    id_direction: OrderDirection,
     examined_entry_guard_function: Option<&str>,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     // Always give the primary table an explicit alias. A membership table may
@@ -10297,13 +10205,8 @@ fn build_query_sql(
     }
 
     if let Some(keyset) = keyset {
-        let (clause, keyset_values) = build_keyset_after_sql(
-            table,
-            &plan.order,
-            keyset,
-            id_direction.clone(),
-            &mut filter_bindings,
-        )?;
+        let (clause, keyset_values) =
+            build_keyset_after_sql(table, &plan.order, keyset, &mut filter_bindings)?;
         where_parts.push(clause);
         values.extend(keyset_values);
     }
@@ -10332,11 +10235,7 @@ fn build_query_sql(
                 quote_ident(&order.field)?
             ));
         }
-        let id_direction = match id_direction {
-            OrderDirection::Asc => "ASC",
-            OrderDirection::Desc => "DESC",
-        };
-        order_parts.push(format!("\"_id\" {id_direction}"));
+        order_parts.push("\"_id\" ASC".to_owned());
         sql.push_str(" ORDER BY ");
         sql.push_str(&order_parts.join(", "));
     }
@@ -13448,9 +13347,7 @@ pub(crate) fn enforce_asset_reference_changes(
                     .and_then(Value::as_str)
                     .ok_or_else(assets::media_projection_integrity)?;
                 let expected = assets::media_kind_for_detected_content_type(detected);
-                let stored = asset
-                    .media_kind
-                    .ok_or_else(assets::media_projection_integrity)?;
+                let stored = asset.media_kind.ok_or_else(assets::media_projection_integrity)?;
                 if stored != expected {
                     return Err(assets::media_projection_integrity());
                 }
@@ -13722,7 +13619,11 @@ pub(crate) fn asset_read_authorized(
     })
 }
 
-fn via_reference_edge_disclosed_v1(_table: &TableManifest, _field: &str, _principal: &str) -> bool {
+fn via_reference_edge_disclosed_v1(
+    _table: &TableManifest,
+    _field: &str,
+    _principal: &str,
+) -> bool {
     true
 }
 
@@ -16210,9 +16111,13 @@ fn materialize_provenanced_media_result_in_tx(
         {
             return Err(media_projection_unprovenanced());
         }
-        let mut source =
-            get_document_from_tx(tx, table, &occurrence.source_row_id, maximum_version)?
-                .ok_or_else(media_projection_unprovenanced)?;
+        let mut source = get_document_from_tx(
+            tx,
+            table,
+            &occurrence.source_row_id,
+            maximum_version,
+        )?
+        .ok_or_else(media_projection_unprovenanced)?;
         let physical_asset_id = source
             .get(source_field)
             .and_then(Value::as_str)
@@ -16251,7 +16156,8 @@ fn validate_staged_media_projection_dependencies(
                 && dependency.table.as_deref() == Some(crate::assets::ASSET_RECORDS_TABLE)
                 && dependency.id.as_deref() == Some(occurrence.asset_id.as_str())
                 && dependency.version == Some(occurrence.snapshot_version)
-                && dependency.field.as_deref() == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1)
+                && dependency.field.as_deref()
+                    == Some(MEDIA_PROJECTION_DEPENDENCY_FIELD_V1)
                 && dependency.value.as_ref().and_then(Value::as_str)
                     == Some(occurrence.related_fact_digest.as_str())
         });
@@ -16272,7 +16178,8 @@ fn validate_staged_media_projection_binding(
 ) -> SnapbackResult<()> {
     if !crate::runtime::is_concrete_function_artifact_generation(
         &proof.binding.function_artifact_generation,
-    ) || &proof.binding != expected
+    )
+        || &proof.binding != expected
         || proof.result_contract_hash != expected.result_contract_hash
     {
         return Err(media_projection_unprovenanced());
@@ -16289,9 +16196,11 @@ fn validate_staged_media_projection_commit_identity(
     identity: Option<&ClientMutationIdentity>,
 ) -> SnapbackResult<()> {
     let expected = match identity {
-        Some(identity) => crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
-            identity.activity_digest(),
-        ),
+        Some(identity) => {
+            crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
+                identity.activity_digest(),
+            )
+        }
         None => crate::runtime::MediaProjectionClientMutationIdentityV1::NoClientIdentity,
     };
     if proof.binding.client_mutation_identity != expected {
@@ -16374,8 +16283,8 @@ fn media_projection_related_facts_on(
         )
         .optional()?
         .ok_or_else(crate::assets::media_projection_integrity)?;
-    let record: crate::assets::AssetRecordV1 =
-        serde_json::from_str(&asset.2).map_err(|_| crate::assets::media_projection_integrity())?;
+    let record: crate::assets::AssetRecordV1 = serde_json::from_str(&asset.2)
+        .map_err(|_| crate::assets::media_projection_integrity())?;
     let record_kind = record
         .media_kind
         .ok_or_else(crate::assets::media_projection_integrity)?;
@@ -16398,7 +16307,8 @@ fn media_projection_related_facts_on(
         .and_then(|facts| facts.get("contentType"))
         .and_then(Value::as_str)
         .ok_or_else(crate::assets::media_projection_integrity)?;
-    let detected_kind = crate::assets::media_kind_for_detected_content_type(detected_content_type);
+    let detected_kind =
+        crate::assets::media_kind_for_detected_content_type(detected_content_type);
     if asset.0 != "ready"
         || record.availability != crate::assets::AssetAvailability::Ready
         || record_kind != column_kind
@@ -17574,14 +17484,14 @@ fn canonical_json(value: Value) -> Value {
     }
 }
 
-/// V5's logical retained-row measure deliberately excludes SQLite row/index
+/// V4's logical retained-row measure deliberately excludes SQLite row/index
 /// overhead. The sequence is always exactly one big-endian/logical u64 (eight
 /// bytes), independent of SQLite's variable physical integer encoding.
 ///
 /// @ref LLP 0043#milestone-2-queued-mutation-replay — insertion admission,
 /// reconstruction, acknowledgement, and collection share one byte contract.
 #[allow(clippy::too_many_arguments)]
-fn logical_client_mutation_retained_row_bytes_v5(
+fn logical_client_mutation_retained_row_bytes_v4(
     client_mutation_id: &str,
     function: &str,
     auth_fingerprint: &str,
@@ -17592,13 +17502,7 @@ fn logical_client_mutation_retained_row_bytes_v5(
     settlement_format: Option<&str>,
     settlement_record_sequence: SqlValue,
     settlement_projection_seal_json: Option<&str>,
-    terminal_outcome: &str,
 ) -> SnapbackResult<u64> {
-    if terminal_outcome != "committed" && terminal_outcome != "refused" {
-        return Err(invalid_client_mutation_retention_state(
-            "retained settlement terminal outcome is invalid for byte accounting",
-        ));
-    }
     let settlement_format = settlement_format.ok_or_else(|| {
         invalid_client_mutation_retention_state(
             "retained settlement format is missing from byte accounting",
@@ -17607,7 +17511,8 @@ fn logical_client_mutation_retained_row_bytes_v5(
     match settlement_record_sequence {
         SqlValue::Integer(value)
             if value > 0
-                && u64::try_from(value).is_ok_and(|value| value <= SEQUENCE_MAX_SAFE_INTEGER) => {}
+                && u64::try_from(value)
+                    .is_ok_and(|value| value <= SEQUENCE_MAX_SAFE_INTEGER) => {}
         _ => {
             return Err(invalid_client_mutation_retention_state(
                 "retained settlement sequence is invalid for byte accounting",
@@ -17625,7 +17530,6 @@ fn logical_client_mutation_retained_row_bytes_v5(
         settlement_format.len() as u64,
         std::mem::size_of::<u64>() as u64,
         settlement_projection_seal_json.map_or(0, |value| value.len() as u64),
-        terminal_outcome.len() as u64,
     ];
     members.into_iter().try_fold(0_u64, |total, member| {
         total.checked_add(member).ok_or_else(|| {
@@ -17648,8 +17552,7 @@ fn scan_client_mutation_retention_totals_for_auth(
         "SELECT client_mutation_id, function, auth_fingerprint,
                 authority_instance_id, input_fingerprint,
                 operation_issuance_json, output_json, settlement_format,
-                settlement_record_sequence, settlement_projection_seal_json,
-                terminal_outcome
+                settlement_record_sequence, settlement_projection_seal_json
            FROM _snapback_client_mutations
           WHERE (?1 IS NULL OR auth_fingerprint = ?1)
           ORDER BY client_mutation_id",
@@ -17668,8 +17571,7 @@ fn scan_client_mutation_retention_totals_for_auth(
         let settlement_format: Option<String> = row.get(7)?;
         let settlement_record_sequence: SqlValue = row.get(8)?;
         let settlement_projection_seal_json: Option<String> = row.get(9)?;
-        let terminal_outcome: String = row.get(10)?;
-        let row_bytes = logical_client_mutation_retained_row_bytes_v5(
+        let row_bytes = logical_client_mutation_retained_row_bytes_v4(
             &client_mutation_id,
             &function,
             &row_auth_fingerprint,
@@ -17680,7 +17582,6 @@ fn scan_client_mutation_retention_totals_for_auth(
             settlement_format.as_deref(),
             settlement_record_sequence,
             settlement_projection_seal_json.as_deref(),
-            &terminal_outcome,
         )?;
         records = records.checked_add(1).ok_or_else(|| {
             invalid_client_mutation_retention_state("retained settlement row count overflowed")
@@ -17728,8 +17629,8 @@ fn settlement_integrity_error() -> SnapbackError {
 fn load_settlement_format_epoch_v1(
     conn: &Connection,
 ) -> SnapbackResult<(SettlementFormatEpochV1, u64)> {
-    let epoch_json =
-        meta_text(conn, META_SETTLEMENT_FORMAT_EPOCH_V1)?.ok_or_else(settlement_integrity_error)?;
+    let epoch_json = meta_text(conn, META_SETTLEMENT_FORMAT_EPOCH_V1)?
+        .ok_or_else(settlement_integrity_error)?;
     let epoch: SettlementFormatEpochV1 =
         serde_json::from_str(&epoch_json).map_err(|_| settlement_integrity_error())?;
     if epoch.store_scope_id.is_empty()
@@ -17739,7 +17640,10 @@ fn load_settlement_format_epoch_v1(
     }
     let next = optional_meta_u64(conn, META_SETTLEMENT_NEXT_SEQUENCE_V1)?
         .ok_or_else(settlement_integrity_error)?;
-    if next == 0 || next > SEQUENCE_MAX_SAFE_INTEGER || next <= epoch.legacy_sequence_watermark {
+    if next == 0
+        || next > SEQUENCE_MAX_SAFE_INTEGER
+        || next <= epoch.legacy_sequence_watermark
+    {
         return Err(settlement_integrity_error());
     }
     Ok((epoch, next))
@@ -17765,8 +17669,8 @@ fn initialize_settlement_format_epoch_v1(tx: &Transaction<'_>) -> SnapbackResult
                 return Err(settlement_integrity_error());
             }
             for (index, id) in ids.iter().enumerate() {
-                let sequence =
-                    u64::try_from(index + 1).map_err(|_| settlement_integrity_error())?;
+                let sequence = u64::try_from(index + 1)
+                    .map_err(|_| settlement_integrity_error())?;
                 tx.execute(
                     "UPDATE _snapback_client_mutations
                      SET settlement_format = ?1,
@@ -17784,8 +17688,8 @@ fn initialize_settlement_format_epoch_v1(tx: &Transaction<'_>) -> SnapbackResult
                 store_scope_id: Uuid::now_v7().to_string(),
                 legacy_sequence_watermark: watermark,
             };
-            let epoch_json =
-                serde_json::to_string(&epoch).map_err(|_| settlement_integrity_error())?;
+            let epoch_json = serde_json::to_string(&epoch)
+                .map_err(|_| settlement_integrity_error())?;
             tx.execute(
                 "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
                 params![META_SETTLEMENT_FORMAT_EPOCH_V1, epoch_json],
@@ -17890,8 +17794,8 @@ fn verify_retained_settlement_carrier_v1(
             serde_json::from_str(output_json).map_err(|_| settlement_integrity_error())
         }
         MEDIA_SETTLEMENT_FORMAT_V1 if !is_legacy => {
-            let seal_json =
-                settlement_projection_seal_json.ok_or_else(settlement_integrity_error)?;
+            let seal_json = settlement_projection_seal_json
+                .ok_or_else(settlement_integrity_error)?;
             let seal: SettlementProjectionSealV1 =
                 serde_json::from_str(seal_json).map_err(|_| settlement_integrity_error())?;
             if seal.settlement_store_scope_id != epoch.store_scope_id
@@ -18013,19 +17917,14 @@ fn record_client_mutation_result(
     changes: &[ChangedRow],
     output: &MutationOutput,
     settlement_media: Option<&SettlementMediaContextV1>,
-    terminal_outcome: &str,
 ) -> SnapbackResult<()> {
     validate_client_mutation_identity(identity)?;
-    if terminal_outcome != "committed" && terminal_outcome != "refused" {
-        return Err(invalid_client_mutation_retention_state(
-            "client mutation terminal outcome is invalid",
-        ));
-    }
     // The retained row and its first caller-visible result must obey the same
     // replay grammar. Refuse inside the surrounding transaction before an
     // invalid private sequence fact can commit application writes or a counter.
     validate_retained_sequence_allocations(&output.settlement_sequence_allocations)?;
-    let (settlement_epoch, settlement_record_sequence) = load_settlement_format_epoch_v1(tx)?;
+    let (settlement_epoch, settlement_record_sequence) =
+        load_settlement_format_epoch_v1(tx)?;
     let output_value = serde_json::to_value(output).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
@@ -18053,10 +17952,12 @@ fn record_client_mutation_result(
     };
     let settlement_projection_seal_json = settlement_media
         .map(|media| {
-            let plan_value =
-                serde_json::to_value(&media.plan).map_err(|_| settlement_integrity_error())?;
-            let media_projection_profile_hash =
-                sha256_domain_jcs(b"snapback:media-projection-profile:v1\n", &plan_value)?;
+            let plan_value = serde_json::to_value(&media.plan)
+                .map_err(|_| settlement_integrity_error())?;
+            let media_projection_profile_hash = sha256_domain_jcs(
+                b"snapback:media-projection-profile:v1\n",
+                &plan_value,
+            )?;
             let settlement_id = identity.activity_digest();
             let settlement_digest = sha256_domain_jcs(
                 b"",
@@ -18079,7 +17980,9 @@ fn record_client_mutation_result(
                 settlement_record_sequence,
                 settlement_digest,
             };
-            settlement_jcs(&serde_json::to_value(seal).map_err(|_| settlement_integrity_error())?)
+            settlement_jcs(
+                &serde_json::to_value(seal).map_err(|_| settlement_integrity_error())?,
+            )
         })
         .transpose()?;
     let output_bytes = output_json.len() as u64;
@@ -18109,7 +18012,7 @@ fn record_client_mutation_result(
                 "operation issuance could not be encoded: {error}"
             ))
         })?;
-    let new_bytes = logical_client_mutation_retained_row_bytes_v5(
+    let new_bytes = logical_client_mutation_retained_row_bytes_v4(
         &identity.id,
         &identity.function,
         &identity.auth_fingerprint,
@@ -18119,10 +18022,10 @@ fn record_client_mutation_result(
         &output_json,
         Some(settlement_format),
         SqlValue::Integer(
-            i64::try_from(settlement_record_sequence).map_err(|_| settlement_integrity_error())?,
+            i64::try_from(settlement_record_sequence)
+                .map_err(|_| settlement_integrity_error())?,
         ),
         settlement_projection_seal_json.as_deref(),
-        terminal_outcome,
     )?;
     let limits = client_mutation_retention_limits();
     let admitted_bytes = retained_bytes.checked_add(new_bytes);
@@ -18173,9 +18076,8 @@ fn record_client_mutation_result(
            client_mutation_id, function, auth_fingerprint, authority_instance_id,
            input_fingerprint, operation_issuance_json, output_json, settled_at_ms,
            settled_version, settled_version_exact, settlement_format,
-           settlement_record_sequence, settlement_projection_seal_json,
-           terminal_outcome
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+           settlement_record_sequence, settlement_projection_seal_json
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             identity.id,
             identity.function,
@@ -18188,9 +18090,9 @@ fn record_client_mutation_result(
             version_to_sql_integer(output.version)?,
             version_to_sql_integer(output.version)?,
             settlement_format,
-            i64::try_from(settlement_record_sequence).map_err(|_| settlement_integrity_error())?,
+            i64::try_from(settlement_record_sequence)
+                .map_err(|_| settlement_integrity_error())?,
             settlement_projection_seal_json,
-            terminal_outcome,
         ],
     )?;
     save_meta_u64(tx, META_CLIENT_MUTATION_RECORDS, retained + 1)?;

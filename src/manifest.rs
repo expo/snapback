@@ -604,16 +604,6 @@ pub struct SchemaManifest {
     // controls credentialed callability and exposed-only disclosure.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api: Option<ApiManifest>,
-    /// Generated DataResourceV1 witnesses. The generic manifest layer keeps
-    /// the versioned records opaque; pair activation validates their closed
-    /// shape and hashes together with the function-side query catalogue.
-    #[serde(
-        default,
-        rename = "dataResources",
-        alias = "data_resources",
-        skip_serializing_if = "Vec::is_empty"
-    )]
-    pub data_resources: Vec<Value>,
     /// App-level asset policy (LLP 0044 §Deletion: the reference-GC opt-in
     /// is a schema declaration — "an app may enable" — not an intent knob).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -696,7 +686,6 @@ impl Default for SchemaManifest {
             app: None,
             auth: None,
             api: None,
-            data_resources: Vec::new(),
             assets: None,
             push_seam: None,
             required_capabilities: Vec::new(),
@@ -1547,8 +1536,6 @@ pub struct PublicSchemaManifest {
     pub auth: Option<AuthManifest>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api: Option<ApiManifest>,
-    #[serde(rename = "dataResources", skip_serializing_if = "Vec::is_empty")]
-    pub data_resources: Vec<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assets: Option<SchemaAssetsPolicyV1>,
     #[serde(rename = "pushSeam", default, skip_serializing_if = "Option::is_none")]
@@ -1587,7 +1574,6 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app,
             auth,
             api,
-            data_resources,
             assets,
             push_seam,
             required_capabilities,
@@ -1613,7 +1599,6 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             app,
             auth,
             api,
-            data_resources,
             assets,
             push_seam,
             required_capabilities,
@@ -2539,16 +2524,6 @@ pub struct FunctionManifest {
     pub acknowledged_experimental_capabilities: Vec<String>,
     #[serde(default)]
     pub functions: Vec<FunctionDefinition>,
-    /// Static DataQueryV1 route catalogue. Pair activation reconstructs its
-    /// exact-key, hash, plan, policy, contract, and route bindings before a
-    /// generation can become active.
-    #[serde(
-        default,
-        rename = "dataQueryCatalog",
-        alias = "data_query_catalog",
-        skip_serializing_if = "Vec::is_empty"
-    )]
-    pub data_query_catalog: Vec<Value>,
     #[serde(default, rename = "cronJobs", alias = "cron_jobs")]
     pub cron_jobs: Vec<CronJobDefinition>,
     /// @ref LLP 0036#declared-configuration-in-the-manifest — declared config
@@ -2727,7 +2702,6 @@ impl Default for FunctionManifest {
             unsupported_dependency_diagnostics: Vec::new(),
             acknowledged_experimental_capabilities: Vec::new(),
             functions: Vec::new(),
-            data_query_catalog: Vec::new(),
             cron_jobs: Vec::new(),
             config: Vec::new(),
             projections: Vec::new(),
@@ -3425,8 +3399,6 @@ fn validate_standard_pattern_identity(function: &FunctionDefinition) -> Snapback
     };
     let membership_helper = pattern.helper == "membership-keyset-pages.v1";
     let membership_profile = pattern.profile == "membership.v1";
-    let data_query_helper = pattern.helper == "data-query.v1";
-    let data_query_profile = pattern.profile == "bounded-index.v1";
     let invalid = |message: &str| {
         SnapbackError::error(
             "SNAPBACK_STANDARD_PATTERN_MEMBERSHIP_INVALID",
@@ -3438,32 +3410,6 @@ fn validate_standard_pattern_identity(function: &FunctionDefinition) -> Snapback
     if membership_helper != membership_profile {
         return Err(invalid(
             "must pair helper membership-keyset-pages.v1 with profile membership.v1",
-        ));
-    }
-    if data_query_helper != data_query_profile {
-        return Err(SnapbackError::error(
-            "SNAPBACK_DATA_QUERY_SHAPE_INVALID",
-            "data-query",
-            format!(
-                "function {} must pair helper data-query.v1 with profile bounded-index.v1",
-                function.name
-            ),
-        ));
-    }
-    if data_query_helper
-        && (!matches!(function.kind, FunctionKind::Query | FunctionKind::LiveQuery)
-            || !matches!(
-                function.runtime,
-                FunctionRuntime::HostPlan(HandlerPlan::Query(_))
-            ))
-    {
-        return Err(SnapbackError::error(
-            "SNAPBACK_DATA_QUERY_SHAPE_INVALID",
-            "data-query",
-            format!(
-                "function {} data-query.v1 requires an ordinary single-table Query or LiveQuery",
-                function.name
-            ),
         ));
     }
     if membership_helper {
@@ -4321,8 +4267,7 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
     if let Some(contract) = value_contract {
         let mut object_fields = 0;
         validate_result_value_contract(function, contract, 0, &mut object_fields)?;
-        if matches!(function.kind, FunctionKind::Action) && value_contract_contains_media(contract)
-        {
+        if matches!(function.kind, FunctionKind::Action) && value_contract_contains_media(contract) {
             return Err(SnapbackError::error(
                 "SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE",
                 "assets",
@@ -4443,8 +4388,7 @@ pub(crate) fn value_contract_contains_media(contract: &ResultValueContract) -> b
     match contract {
         ResultValueContract::MediaRefV1 { .. } => true,
         ResultValueContract::Array { element, .. } => value_contract_contains_media(element),
-        ResultValueContract::Tuple { elements }
-        | ResultValueContract::Union { variants: elements } => {
+        ResultValueContract::Tuple { elements } | ResultValueContract::Union { variants: elements } => {
             elements.iter().any(value_contract_contains_media)
         }
         ResultValueContract::Object { fields, .. } => fields
@@ -9074,8 +9018,6 @@ pub struct PublicFunctionManifest {
     )]
     #[schemars(default)]
     pub acknowledged_experimental_capabilities: Vec<String>,
-    #[serde(rename = "dataQueryCatalog", skip_serializing_if = "Vec::is_empty")]
-    pub data_query_catalog: Vec<Value>,
     pub functions: Vec<PublicFunctionDefinition>,
     #[serde(rename = "cronJobs")]
     pub cron_jobs: Vec<PublicCronJobDefinition>,
@@ -9250,7 +9192,6 @@ impl From<FunctionManifest> for PublicFunctionManifest {
             generated_at,
             unsupported_dependency_diagnostics,
             acknowledged_experimental_capabilities,
-            data_query_catalog,
             functions,
             cron_jobs,
             config,
@@ -9279,7 +9220,6 @@ impl From<FunctionManifest> for PublicFunctionManifest {
                 .map(Into::into)
                 .collect(),
             acknowledged_experimental_capabilities,
-            data_query_catalog,
             functions: functions.into_iter().map(Into::into).collect(),
             cron_jobs: cron_jobs.into_iter().map(Into::into).collect(),
             config: config.into_iter().map(Into::into).collect(),
@@ -10830,20 +10770,6 @@ pub struct MutationSettlement {
 pub struct MutationRequest {
     #[serde(flatten)]
     pub input: HandlerInput,
-    /// Generated data-transaction envelope. It is not execution authority;
-    /// the selected function and canonical arguments remain authoritative.
-    /// Presence opts an issuance-free data write into the non-replayable
-    /// observation/refusal-settlement protocol.
-    ///
-    /// @ref LLP 0255#s44-datatransactionv1 — the exact
-    /// resolved envelope accompanies the ordinary mutation carrier.
-    #[serde(
-        default,
-        rename = "dataTransaction",
-        alias = "data_transaction",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub data_transaction: Option<Value>,
     /// Additive settle-time trust facts. Every member joins the durable
     /// exactly-once identity before any fresh lane or activation gate.
     ///
@@ -11188,10 +11114,11 @@ pub struct QueryOutput {
     #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub rows: Vec<Value>,
-    /// Opaque continuation cursor. Relational `root-window-v1` uses its
-    /// established cursor family; data-lowered list members use DataCursorV1
-    /// (LLP 0255 S3.4/S5.3). It is absent for terminal pages and for every
-    /// query profile that does not explicitly admit continuation.
+    /// Relational continuation cursor (LLP 0080 §2): present exactly when a
+    /// `root-window-v1` page consumed its full `take` of authorized roots.
+    /// Opaque and versioned; presenting it back as the `cursor` argument
+    /// resumes from the last consumed root. Absent for every non-relational
+    /// query and for terminal pages.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
 }
@@ -11767,7 +11694,9 @@ impl TargetCapabilityId {
             // only targets registering the atomic settlement ledger may
             // advertise the outbox replay prerequisite. Cloudflare/default
             // facts remain false even though that target accepts mutations.
-            Self::OfflineMutationReplay => facts.client_mutation_settlement_ledger_registered,
+            Self::OfflineMutationReplay => {
+                facts.client_mutation_settlement_ledger_registered
+            }
             Self::MutationReadSetValidation => {
                 manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
                     && facts.mutation_read_set_validator_registered
@@ -19348,11 +19277,9 @@ mod media_ref_manifest_tests {
             function.result_contract_hash.as_deref(),
             Some(contract_hash.as_str())
         );
-        assert!(
-            function.required_capabilities.iter().any(|capability| {
-                capability == TargetCapabilityId::MediaRefProjectionV1.as_str()
-            })
-        );
+        assert!(function.required_capabilities.iter().any(|capability| {
+            capability == TargetCapabilityId::MediaRefProjectionV1.as_str()
+        }));
         assert_eq!(rqs_eligible_digest_kind(function), None);
 
         let mut missing_generation = function.clone();
@@ -19389,8 +19316,7 @@ mod media_ref_manifest_tests {
             "policy generation rotates source identity"
         );
 
-        let FunctionResultContract::Documents { table, document } = &function.result_contract
-        else {
+        let FunctionResultContract::Documents { table, document } = &function.result_contract else {
             panic!("fixture LiveQuery must return documents")
         };
         let mut action = function.clone();

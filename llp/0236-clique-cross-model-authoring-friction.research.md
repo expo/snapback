@@ -8,6 +8,10 @@ Offline sync, Assets, Memberships, Code generation, Runtime, Packaging,
 Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
+**Revised:** 2026-08-15 (records the author's LLP 0254 D10 Withdraw ruling:
+Simplified/Tiny is retired before the next publication; its shared-semantic
+evidence remains historical, while future investment focuses on Explicit and
+Familiar)
 **Revised:** 2026-08-15 (updates R7 after the LLP 0240 local implementation:
 Explicit and Familiar now compile one declared profile predicate ahead of
 group handlers and generate bounded roster/caller-role reads; the repository
@@ -671,12 +675,12 @@ credentials failed before application work. These findings are therefore
 directional product evidence, not a promotion, default, or competitive claim.
 LLP 0252 D7 and LLP 0201 continue to govern those decisions.
 
-Per the author direction for this revision, Simplified is a likely withdrawal
-and is outside the improvement agenda below. This Research revision neither
-invests in repairing it nor changes the status of any governing profile LLP.
-The product question here is narrower: how should Snapback improve its Explicit
-power lane and its Familiar ordinary lane without weakening the semantics both
-share?
+Per the author direction for this revision and the subsequent LLP 0254 D10
+ruling, Simplified is withdrawn and outside the improvement agenda below. Its
+governing LLPs are tombstoned and its public doorway is removed before the next
+release. The product question here is narrower: how should Snapback improve
+its Explicit power lane and its Familiar ordinary lane without weakening the
+semantics both share?
 
 ### What the new diaries change
 
@@ -930,8 +934,8 @@ offers the declared authority path. It should additionally prove:
 
 This evidence would justify a Familiar promotion decision; the present diaries
 do not. They do justify focusing future investment on Familiar plus the shared
-Snapback journey, while retaining Explicit as the power lane and spending no
-additional improvement effort on Simplified.
+Snapback journey, while retaining Explicit as the power lane. Simplified is
+withdrawn; its evidence remains part of this historical synthesis.
 
 ## Open questions
 

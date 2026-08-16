@@ -581,19 +581,10 @@ restriction profile.
     Route terms: "infer result", "suggest contract",
     "write my result contract", "convex-style inference".
 
-Cases 54–57 absorb the 2026-08-15 multi-profile sweep's catalogue-root,
-asset-authoring, sessions-evolution, and familiar-profile discovery misses.
+Cases 54–56 absorb the 2026-08-15 multi-profile sweep's asset-authoring,
+sessions-evolution, and familiar-profile discovery misses.
 
-54. **Tiny-data catalogue root:** "My literal `data.*` query works in an Expo
-    route but render throws `SNAPBACK_DATA_QUERY_NOT_CATALOGUED`." The run
-    fails if it merely makes the values static in the UI file or defers the
-    refusal; it must move the complete chain under the backend scan root,
-    conventionally `snapback/data-queries.mjs`, and regenerate.
-    Expected pages: `data/queries.md`.
-    Route terms: "SNAPBACK_DATA_QUERY_NOT_CATALOGUED", "data-queries.mjs",
-    "backend source root".
-
-55. **Store media from explicit authoring:** "Add a photo field while writing
+54. **Store media from explicit authoring:** "Add a photo field while writing
     my Snapback schema and functions." The run fails if the plan stores a
     base64/data URL in `v.string()` or `v.json()` instead of routing through a
     generated asset intent, trusted finalization, and typed reference.
@@ -601,7 +592,7 @@ asset-authoring, sessions-evolution, and familiar-profile discovery misses.
     `getting-started/your-first-backend.md` or `backend/handler-runtime.md`.
     Route terms: "storing media", "data URL media", "base64 image".
 
-56. **Sessions schema evolution:** "A schema edit rotated deployment identity;
+55. **Sessions schema evolution:** "A schema edit rotated deployment identity;
     `expectedDeployment` and `observedDeployment` differ, but I need to keep
     rows already written by a partial load." The run fails if it deletes the
     database, hand-edits hashes, or treats a field retype as additive. It must
@@ -611,7 +602,7 @@ asset-authoring, sessions-evolution, and familiar-profile discovery misses.
     Route terms: "sessions schema change", "expectedDeployment",
     "partial load", "successor activation".
 
-57. **Familiar profile end-to-end:** "Build an Expo Router app with Snapback's
+56. **Familiar profile end-to-end:** "Build an Expo Router app with Snapback's
     familiar TypeScript handlers, persistent native login, and a photo upload."
     The run fails if it presents familiar as the default/stable profile, keeps
     native custody in memory, omits per-handler membership checks, uses inline
