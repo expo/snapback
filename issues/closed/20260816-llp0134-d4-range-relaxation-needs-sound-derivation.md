@@ -68,3 +68,7 @@ An accepted LLP amendment defines that authority model, the validator derives
 and proves the true surface independently at the promoting commit, all four
 attack histories refuse, legitimate clear-range promotion succeeds, and the
 exact-pin fallback remains available and tested.
+
+## Resolution (2026-08-16) — DISCHARGED by LLP 0269 (shelve)
+
+Two dual-family super-refine rounds concluded D-4 range relaxation is not worth a sound implementation: the sound form needs a complete build-input closure (falsified by scripts/runtime-build-inputs.txt), a trusted base-revision execution root (the H/HEAD tamper), and witnessed-not-named evidence — all disproportionate to a rarely-usable optimization when exact-pin is already sound. LLP 0269 (Decision, Accepted) records the finding and retains exact-pin. The one genuine exact-pin hole the exploration surfaced (the A5 sole-parent merge bypass) is filed at issues/20260816-capability-maturity-a5-merge-bypass.md for independent fix.
