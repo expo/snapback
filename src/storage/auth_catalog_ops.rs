@@ -2611,18 +2611,17 @@ impl LocalDatabase {
             // family binding (not the presented spelling) selects the
             // successor spelling, so every successor of a sender-bound
             // family stays `sbs2_`.
-            let sender_bound =
-                crate::auth::sender_proof::presented_token_has_sender_family_binding(
-                    connection,
-                    token_hash.as_bytes(),
+            let sender_bound = super::auth_sender::presented_token_has_sender_family_binding_on(
+                connection,
+                token_hash.as_bytes(),
+            )
+            .map_err(|_| {
+                crate::diagnostic::SnapbackError::error(
+                    "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
+                    "auth",
+                    "sender family binding state is unavailable",
                 )
-                .map_err(|_| {
-                    crate::diagnostic::SnapbackError::error(
-                        "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
-                        "auth",
-                        "sender family binding state is unavailable",
-                    )
-                })?;
+            })?;
             Ok((lookup, sender_bound))
         })
     }
@@ -2972,7 +2971,7 @@ impl LocalDatabase {
         token_hash: &TokenHash,
     ) -> SnapbackResult<bool> {
         self.with_auth_read(|connection| {
-            crate::auth::sender_proof::presented_token_has_sender_family_binding(
+            super::auth_sender::presented_token_has_sender_family_binding_on(
                 connection,
                 token_hash.as_bytes(),
             )

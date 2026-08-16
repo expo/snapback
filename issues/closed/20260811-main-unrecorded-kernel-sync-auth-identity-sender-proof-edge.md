@@ -1,6 +1,6 @@
 # main carries an unrecorded kernel→sync edge: `storage/auth_identity` → `auth/sender_proof`
 
-**Opened:** 2026-08-11 · **Status:** open · **Area:** core modularization /
+**Opened:** 2026-08-11 · **Status:** closed 2026-08-15 · **Area:** core modularization /
 ownership ratchet (LLP 0225 §2, §5) · **Routed to:** the landing author of
 `ef936353f`
 
@@ -86,3 +86,16 @@ Disposition option 2 was taken: the kernel→sync
 worklist `issues/20260811-llp0225-item-3-provider-split-implementation.md`).
 The “unrecorded” failure is gone. Remaining inversion work lives on the
 item-3 worklist, not this bookkeeping ticket.
+## Resolution addendum — 2026-08-15 (inversion implemented, supersedes the waiver note above)
+
+The connection-taking durable read moved from sync-owned
+`src/auth/sender_proof.rs` to kernel-owned `src/storage/auth_sender.rs`.
+`src/storage/auth_identity.rs` now invokes that same-owner typed kernel
+operation on the connection already held inside `with_auth_read`; sender-proof
+policy remains in the sync owner and no raw connection crosses upward.
+
+The open machine waiver was removed from the item-3 worklist and
+`ownership.baseline.json` was regenerated through
+`node scripts/check-module-ownership.mjs --update-baseline --predecessor HEAD`.
+The edge is absent rather than re-frozen. Verified against base lineage
+`245f23518a49e54c10a8c3bf3ef5906b38acf4f8`.

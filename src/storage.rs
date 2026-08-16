@@ -76,6 +76,7 @@ mod schema_transition;
 mod settlement;
 mod versions;
 
+pub use self::jobs::{JobsKernel, JobsReadKernel};
 pub use api_envelope_state::{
     ApiEnvelopeCurrentRecord, ApiEnvelopeKernel, ApiEnvelopeReadKernel, ApiEnvelopeStateRecord,
 };
@@ -96,7 +97,6 @@ pub(crate) use connections::{
     RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
 };
 pub(crate) use generation_commit::{CommitFunctionGeneration, FunctionGenerationRecord};
-pub use jobs::{JobsKernel, JobsReadKernel};
 pub use membership_plans::{MembershipPlansKernel, MembershipPlansReadKernel};
 pub use membership_reads::MembershipReadsKernel;
 pub(crate) use migration_scan::migration_keyset_scan_batch_on;

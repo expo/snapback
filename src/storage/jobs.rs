@@ -2,6 +2,7 @@ use super::{
     ChangeOp, ChangedRow, LocalDatabase, META_CRON_STATE, SnapbackError, SnapbackResult,
     WithDetail, job_status_changed_row, new_id_source,
 };
+pub use crate::contract_types::JOBS_STATUS_TABLE;
 use crate::diagnostic::Diagnostic;
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
@@ -13,13 +14,6 @@ use std::collections::BTreeMap;
 /// app-side queue declaration in v1; every job lands on this queue with the
 /// paved limits below published as target facts.
 pub const JOBS_DEFAULT_QUEUE: &str = "default";
-
-/// The pseudo-table name job state changes are published under for live
-/// matching and captured read dependencies. It is not an application schema
-/// table: only the generated declared job-status query reads it, and only job
-/// lifecycle transitions write it (LLP 0121 option 3 — a declared operation,
-/// not an ambient system table).
-pub const JOBS_STATUS_TABLE: &str = "_snapback_jobs";
 
 /// Paved v1 limits — published, not configurable per-app in this slice.
 pub const JOBS_MAX_ENQUEUES_PER_MUTATION: usize = 16;

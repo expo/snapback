@@ -771,6 +771,41 @@ pub(crate) fn sender_constraint_for_presented_token_on(
         .map_err(|_| ReplayConsumeError::Unavailable)
 }
 
+/// Whether the presented token's live session carries a durable sender-family
+/// binding. Databases that never ran hosted sender preflight report unbound.
+///
+/// @ref LLP 0225#1-ownership-map — this is a mechanical canonical-store read
+///   on the connection the kernel holds; sender-proof policy remains above it.
+/// @ref LLP 0077#author-decisions--2026-07-23 — decision 4: the durable binding
+///   selects the `sbs2_` spelling for successors of a sender-bound family.
+pub(super) fn presented_token_has_sender_family_binding_on(
+    connection: &Connection,
+    token_hash: &[u8],
+) -> Result<bool, ReplayConsumeError> {
+    if token_hash.len() != 32 {
+        return Err(ReplayConsumeError::Invalid);
+    }
+    match connection.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM _auth_sessions AS session
+           JOIN _snapback_sender_family_binding AS binding
+             ON binding.session_id = session.id
+           WHERE session.token_hash = ?1
+             AND session.revoked_at_ms IS NULL
+         )",
+        params![token_hash],
+        |row| row.get(0),
+    ) {
+        Ok(exists) => Ok(exists),
+        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
+            if message.contains("no such table") =>
+        {
+            Ok(false)
+        }
+        Err(_) => Err(ReplayConsumeError::Unavailable),
+    }
+}
+
 /// Read the bounded revoked-family row and its exact persisted terminal-cause
 /// witness. The caller decides whether those facts authorize a terminal
 /// outcome or stay behind the ordinary cover challenge.

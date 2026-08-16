@@ -52,6 +52,9 @@ Revision history)
 **Revised:** 2026-08-13 (t — LLP 0232 optimistic-landing alignment: the
 ownership gate remains unconditionally selected and runs in strict mode and
 the scheduled backstop; ordinary pre-push execution is deferred)
+**Revised:** 2026-08-15 (u — raw-dev stream-transcript activation joins the
+function-generation transaction; the recorded split-cut exception is
+discharged; see Revision history)
 **Related:** LLP 0199 (accepted incremental core-modularization Decision this
 consolidates), LLP 0000 (root explainer — load-bearing invariants), LLP 0038
 (July whole-system review; first `local.rs` god-object finding), LLP 0059
@@ -320,45 +323,38 @@ drainage slices. Both are pre-existing-pattern edges frozen in the baseline;
 neither is a
 license for new sideways coupling.
 
-**Known raw-dev cut exceptions (recorded, with obligations).** Two
-code-verified gaps against this section's contract are tracked in
-`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`:
-(1) raw-dev's stream-transcript catalog activation currently commits in a
-*separate* transaction after `commit_function_generation` — the required fix
-is folding it into the kernel commit as the complete-pair lane already does,
-and until then it is a recorded §3 exception carrying recovery and
-injected-failure test obligations, not part of the atomic-set claim; (2) the
-persisted generation record is the recovery *authority*, but production
-reopen today constructs inert function state and does not consume the
-record. The two candidate contracts — automatic verified artifact reload on
-open, or an explicit inert-until-reload contract in which the record
-validates and fences the next explicit reload — produce different
-externally observable recovery behavior, and the record stores digests and
-a high-water, not artifact bytes, so automatic reload also needs an
-authoritative artifact source. This is a product choice, raised as
-**OQ-C** below rather than delegated silently. The characterization-envelope claims below are scoped to
-what the landed tests prove (kernel-level reopen against `LocalDatabase`),
-not to a full-process recovery claim.
+**Raw-dev cut exceptions — discharged 2026-08-15.** The two code-verified
+gaps formerly tracked in
+`issues/closed/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`
+are both closed. Revision (p) discharged reopen inertness through the ruled
+inert-until-reload state machine. Revision (u) folds stream-transcript catalog
+activation into `commit_function_generation`'s immediate transaction, using
+the schema-plus-function union when D5 ask is active. An injected malformed
+catalog now rolls back transcript DDL, projection pins, sequence enrollment,
+and the generation record together; after repair, retry commits generation
+high-water 1. Exact reopen rehydration first checks that the catalog matches
+the durable manifest. A legacy split state therefore takes the composite
+successor path rather than silently resolving the fence, while a failure
+leaves the persisted predecessor as the recovery authority. There is no
+remaining raw-dev §3 exception.
 
 **Characterization-test envelope** (the slice's acceptance, held in the local
 proof's activation/storage tests and binding on any future change to this
 boundary):
 
 - *Failed-activation-then-retry:* after an injected commit failure, the
-  kernel-level rollback tests hold that pins, enrollments, and the
+  rollback tests hold that transcript activation, pins, enrollments, and the
   generation record agree exactly with what physically committed; the
-  full-`LocalSnapback` retry-convergence witness is part of the
-  reopen-contract obligation recorded in
-  `issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`,
-  not yet a landed claim.
+  repaired retry converges at the first generation high-water.
 - *Crash/reopen:* the persisted generation record is the sole recovery
   authority — never the process fence or an in-memory schema; the landed
   tests prove kernel-level reopen against it (complete-pair and raw-dev
-  record paths), with the full-process reopen contract owed per the recorded
-  exception above; raw-dev content digests and the monotonic durable
-  high-water stay boot-safe across a process-counter reset.
-- *Atomicity:* no path commits a projection digest pin, sequence install, or
-  auth publication outside the owning generation transaction.
+  record paths) and revision (p)'s full-process inert-until-reload contract;
+  raw-dev content digests and the monotonic durable high-water stay boot-safe
+  across a process-counter reset.
+- *Atomicity:* no path commits a projection digest pin, sequence install,
+  stream-transcript catalog activation, or auth publication outside the
+  owning generation transaction.
 - *Surface freeze:* no public wire or embedding API change; the legacy
   observable diagnostic ordering is preserved exactly.
 
@@ -653,7 +649,7 @@ the same class and takes the same ruling.
 bodies, A3 the sender-proof bodies. A2 is the substantial one: ~24 functions
 across a 7,466-line module, and it carries the classification split above.
 The implementation worklist is
-`issues/20260811-llp0225-item-3-provider-split-implementation.md`; the
+`issues/closed/20260811-llp0225-item-3-provider-split-implementation.md`; the
 question that produced this ruling is closed at
 `issues/closed/20260810-item-3-remainder-auth-catalog-ops-owner-question.md`.
 
@@ -719,7 +715,10 @@ transaction authority.
 
 The first artifact load after reopen is classified in the generation-activation
 coordinator using canonical function-manifest and sequence-declaration digests.
-An exact two-digest match with no pending projection publication is rehydration:
+An exact two-digest match with no pending projection publication and a
+matching persisted transcript catalog (revision (u): the catalog commits
+atomically with the generation, so its absence marks a pre-fold legacy split)
+is rehydration:
 the process successor installs without calling `commit_function_generation`,
 so the durable generation high-water is unchanged. An automatic mismatch is an
 intentional successor deployment through the existing kernel commit. The
@@ -733,11 +732,11 @@ The acceptance is seven file-backed, full-`LocalSnapback` witnesses in
 fence; matching reload with the high-water asserted unchanged; different
 automatic reload advancing exactly once; explicit mismatch refusal with an
 unchanged high-water and retained fence; correct retry after refusal; and
-rehydration followed by one successor advancing exactly once. This ends only
-OQ-C/finding 2 in
-`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`; the
-separate stream-transcript split cut (finding 1) remains a recorded §3
-exception.
+rehydration followed by one successor advancing exactly once. Revision (p)
+ended OQ-C/finding 2 in
+`issues/closed/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`;
+revision (u) subsequently ended the separate stream-transcript split cut
+(finding 1).
 
 ### Item-3 stage A1 — the provider shapes down (executed)
 
@@ -903,7 +902,7 @@ recorded a *previously unrecorded* pre-existing edge,
 introduced by `ef936353f`, which added the call without regenerating the
 baseline; A2 does not touch that call site. It is recorded and routed to its
 landing author in
-`issues/20260811-main-unrecorded-kernel-sync-auth-identity-sender-proof-edge.md`
+`issues/closed/20260811-main-unrecorded-kernel-sync-auth-identity-sender-proof-edge.md`
 per §2's requirement that every baseline growth event carry stated provenance.
 
 ### Continuing sequence (order of intent, not a schedule)
@@ -1082,9 +1081,8 @@ These are different activities and this Decision keeps them distinct:
   revision (o):** the seven landed file-backed `LocalSnapback` tests assert
   every clause, including the unchanged high-water on rehydration, exact
   single advance for successors, retained fence after explicit mismatch, and
-  successful retry. The OQ-C reopen exception is therefore ended; the sibling
-  stream-transcript split-cut exception remains open
-  (`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`).
+  successful retry. The OQ-C reopen exception is therefore ended; revision
+  (u) subsequently discharged the sibling stream-transcript split cut.
 
 With OQ-A/OQ-B ruled, acceptance carries this same-landing
 handoff: `ownership.manifest.json`'s `governedBy` gains this document, the
@@ -1128,7 +1126,7 @@ so slices can follow product priorities.
   frozen forbidden edges are named with their inversion dispositions; the
   raw-dev transcript split-cut and reopen-inertness code findings are
   recorded as tracked exceptions
-  (`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`)
+  (`issues/closed/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`)
   and the crash/reopen envelope claim is narrowed to what the landed tests
   prove; the analyzer-gap disclosure is corrected to `super::`/`self::`
   roots and chained re-exports (grouped/alias/`pub use crate::` forms are
@@ -1218,7 +1216,7 @@ so slices can follow product priorities.
   shapes down to the leaf, plan composition and refusal classification staying
   in sync — with the read-and-classify functions cut so the kernel returns
   durable facts and sync classifies them. Sequenced A1/A2/A3 in
-  `issues/20260811-llp0225-item-3-provider-split-implementation.md`; no owner,
+  `issues/closed/20260811-llp0225-item-3-provider-split-implementation.md`; no owner,
   rank, or `allowedDependencies` entry changes, so §5's amendment-only rule for
   dependency direction is not engaged.
 - **2026-08-11 (o).** §4 records the contract-leaf repoint of the rqs
@@ -1284,3 +1282,13 @@ so slices can follow product priorities.
   (`storage/auth_identity → auth/sender_proof`, introduced by `ef936353f`
   without a baseline regeneration and not touched by A2), ticketed with
   provenance and routed to its landing author per §2.
+- **2026-08-15 (u).** The last raw-dev §3 exception is discharged:
+  stream-transcript catalog activation moved from its post-commit transaction
+  into `commit_function_generation`'s immediate transaction, including the
+  schema `ask_manifest()` union. The obsolete post-commit
+  `AwaitingReload` compensation and read-manifest refresh seam are removed;
+  failure cannot leave a newly committed generation to fence. Exact reopen
+  rehydration validates the catalog before resolving its existing fence, so a
+  legacy split state is repaired only through the composite commit. An
+  injected malformed-catalog witness proves whole-cut rollback and repaired
+  retry convergence.

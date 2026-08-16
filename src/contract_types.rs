@@ -17,6 +17,13 @@ fn is_false(value: &bool) -> bool {
 
 pub(crate) const AUTH_MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 
+/// Reserved pseudo-table used by the declared job-status read contract and
+/// durable job lifecycle publications.
+///
+/// @ref LLP 0225#1-ownership-map — the shared name is a leaf-owned contract
+///   value; manifest planning and the jobs kernel both depend downward on it.
+pub const JOBS_STATUS_TABLE: &str = "_snapback_jobs";
+
 // @ref LLP 0225#1-ownership-map — the kernel consumes these session and
 // terminal value shapes from the leaf; the sync engine keeps
 // `SessionProjection` and behavioral impls.

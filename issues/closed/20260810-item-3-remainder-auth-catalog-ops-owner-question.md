@@ -36,7 +36,7 @@ classification staying in sync — with the read-and-classify functions
 (`plan_exchange_read`, `plan_session_issuance_read`) cut so the kernel returns
 the durable facts it read and `provider.rs` classifies them. Implementation is
 sequenced A1/A2/A3 in
-`issues/20260811-llp0225-item-3-provider-split-implementation.md`.
+`issues/closed/20260811-llp0225-item-3-provider-split-implementation.md`.
 
 **Lesson worth carrying:** on this program, histogram the edges by target file
 and crossing symbol *and then read the bodies*. An import list tells you which

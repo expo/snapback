@@ -1,4 +1,4 @@
-# main red: module-ownership gate — five inherited forbidden edges
+# main red: module-ownership gate — three inherited forbidden edges
 
 **Status:** Open
 **Date:** 2026-08-10
@@ -6,35 +6,43 @@
 **Filed per:** LLP 0225 §5(ii) — a red on main is always a tracked object
 naming the exact outstanding fingerprints and observation revision.
 
-Outstanding forbidden-edge fingerprints (re-observed at `6e4696d80`, with the
-original jobs-wave pair first observed at `eefe4e446`):
+Outstanding forbidden-edge fingerprints (re-observed at `245f23518`, after
+the original jobs-wave pair first observed at `eefe4e446` was cleared):
 
-1. `src/manifest.rs (shared-contract-types-leaf) → src/storage/jobs.rs
-   (storage-migration-kernel)` — a leaf may depend on nothing; this edge
-   points up into the kernel.
-2. `src/storage.rs (storage-migration-kernel) → src/jobs.rs
-   (background-services)` — the kernel may depend only on the leaf; this is
-   a sideways/upward god-file edge into a domain service.
-3. `src/storage.rs (storage-migration-kernel) → src/runtime.rs
+1. `src/storage.rs (storage-migration-kernel) → src/runtime.rs
    (transport-adapters)` — the kernel points up into a transport adapter.
-4. `src/storage/mutation_writes.rs (storage-migration-kernel) → src/runtime.rs
+2. `src/storage/mutation_writes.rs (storage-migration-kernel) → src/runtime.rs
    (transport-adapters)` — a kernel mutation module points up into a transport
    adapter.
-5. `src/storage/tests.rs (storage-migration-kernel) → src/runtime.rs
+3. `src/storage/tests.rs (storage-migration-kernel) → src/runtime.rs
    (transport-adapters)` — the kernel test module points up into a transport
    adapter.
 
-The first two arrived with the 2026-08-10 landings (LLP 0218 P2 outbox drain
-controller / LLP 0214 catalog-v3 wave) and are NEW versus the predecessor
-baselines — not baseline-frozen, not waivered. The three runtime edges are
-also inherited and unfrozen at the current observation; this ticket records
-them so LLP 0225's set-based gate can admit the inherited state without
-laundering it into the baseline. Owner: the landing authors per the 24-hour
-fix-forward convention (unclaimed author-routed reds convert to
+The three runtime edges are inherited and unfrozen at the current observation;
+this ticket records them so LLP 0225's set-based gate can admit the inherited
+state without laundering it into the baseline. Owner: the landing authors per
+the 24-hour fix-forward convention (unclaimed author-routed reds convert to
 fix-forward-by-anyone after 24h). Fix the edges (move shared shapes down or
 invert with a port) or record explicit reviewed waivers per LLP 0225 §2. Do
 not absorb them via `--update-baseline` without that record — that is the
 laundering path LLP 0225 §2 forbids.
+
+## Jobs-wave pair cleared — 2026-08-15
+
+The two edges that gave this ticket its name are gone without a waiver or
+direction change:
+
+1. `JOBS_STATUS_TABLE` moved from kernel-owned `src/storage/jobs.rs` to the
+   dependency-free `src/contract_types.rs`; `src/manifest.rs` now names the
+   leaf directly while `src/storage/jobs.rs` re-exports the constant to
+   preserve its public façade.
+2. `src/storage.rs` now spells its kernel child re-export as
+   `pub use self::jobs::{JobsKernel, JobsReadKernel};`, preventing the analyzer
+   from resolving the bare `jobs` segment through the crate-level background
+   service façade.
+
+The predecessor-aware ownership check reports three inherited outstanding
+fingerprints, exactly the runtime trio above.
 
 ## Attribution analysis — LLP 0218 program (2026-08-10)
 
@@ -59,3 +67,10 @@ cross-owner; 18 new allowed; 0 stale baseline; 5 inherited outstanding
 fingerprints are unchanged and still the complete outstanding set; the gate
 admits them as recorded inherited state without laundering. The fix remains
 the kernel→transport edge inversions (or reviewed LLP 0225 §2 waivers).
+
+After the jobs-wave pair was cleared and the baseline regenerated through the
+sanctioned predecessor-aware path, the same gate reports:
+`PASS: 239 modules (235 assigned, 4 unassigned); 1764 module edges; 1224
+cross-owner; 0 new allowed; 0 stale baseline; 3 inherited outstanding (this
+ticket); 0 unresolved module references`. The remaining set is exactly the
+three runtime fingerprints listed above; no waiver was added.

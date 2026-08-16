@@ -1,6 +1,6 @@
 # Raw-dev activation: transcript catalog commits outside the atomic cut; reopen does not consume the generation record
 
-**Status:** Open
+**Status:** Closed
 **Date:** 2026-08-10
 **Systems:** Storage kernel, Generation activation
 **Source:** LLP 0225 super-refine round 2, gpt-5 family review
@@ -32,3 +32,23 @@ recovery contracts:
 
 Owner: storage-migration-kernel / generation-activation-coordinator slices
 (LLP 0225 §4 worklist).
+
+## Resolution — 2026-08-15
+
+Both findings are discharged.
+
+1. `commit_function_generation` now activates the stream-transcript catalog
+   inside its immediate transaction, with the schema `ask_manifest()` and
+   function-manifest union preserved. The coordinator no longer performs a
+   post-commit activation or synthesizes an `AwaitingReload` fence for that
+   now-unreachable split outcome. A malformed-catalog injection proves that
+   transcript DDL, projection pins, sequence enrollment, and the generation
+   record roll back together; repair plus retry commits exactly generation
+   high-water 1. Exact reopen rehydration validates the catalog before
+   resolving its pre-existing fence, so legacy split state cannot be silently
+   admitted.
+2. Revision (p) of LLP 0225 already discharged reopen inertness with the
+   file-backed `LocalSnapback` inert-until-verified-reload acceptance suite.
+
+Closed at base lineage `245f23518a49e54c10a8c3bf3ef5906b38acf4f8` by
+LLP 0225 revision (u).

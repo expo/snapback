@@ -369,7 +369,7 @@ bodies down to the kernel, plan/outcome shapes down to the leaf, plan
 composition and refusal classification staying in sync, with the
 read-and-classify functions cut so the kernel returns durable facts and sync
 classifies them. Sequenced A1/A2/A3 in
-`issues/20260811-llp0225-item-3-provider-split-implementation.md`; the question
+`issues/closed/20260811-llp0225-item-3-provider-split-implementation.md`; the question
 is closed at
 `issues/closed/20260810-item-3-remainder-auth-catalog-ops-owner-question.md`.
 Item 3 is unblocked.

@@ -84,11 +84,15 @@ impl GenerationCommitOps<'_> {
             .install_committed_sequence_declarations(declarations);
     }
 
-    pub(crate) fn activate_stream_transcript_manifest(
-        &mut self,
+    pub(crate) fn stream_transcript_manifest_matches(
+        &self,
         manifest: &FunctionManifest,
-    ) -> SnapbackResult<()> {
-        self.db.activate_stream_transcript_manifest(manifest)
+    ) -> SnapbackResult<bool> {
+        super::stream_transcripts::manifests_match_catalog(
+            &self.db.conn,
+            &self.db.schema,
+            Some(manifest),
+        )
     }
 
     pub(crate) fn rebuild_projection_if_stale(
@@ -173,6 +177,14 @@ impl LocalDatabase {
             &sequence_declarations,
         )?;
         projection_rebuild::apply_projection_publication_in(&tx, &projection_publications)?;
+        // @ref LLP 0225#1-ownership-map — transcript-catalog publication is
+        //   generation-coupled durable state, so owner 1 composes it through
+        //   owner 2's exact raw-dev transaction instead of a post-commit cut.
+        if self.schema.ask_manifest().is_some() {
+            super::stream_transcripts::activate_manifests_in(&tx, &self.schema, Some(&manifest))?;
+        } else {
+            super::stream_transcripts::activate_manifest_in(&tx, &manifest)?;
+        }
         let previous: Option<String> = tx
             .query_row(
                 "SELECT value FROM _snapback_meta WHERE key = ?1",

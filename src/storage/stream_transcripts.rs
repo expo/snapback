@@ -97,10 +97,28 @@ pub(crate) fn activate_manifest_in(
     validate_exact_schema(tx)
 }
 
-pub(super) fn validate_exact_schema(conn: &Connection) -> SnapbackResult<()> {
+pub(crate) fn manifests_match_catalog(
+    conn: &Connection,
+    schema: &crate::manifest::SchemaManifest,
+    functions: Option<&FunctionManifest>,
+) -> SnapbackResult<bool> {
+    if !manifests_enabled(schema, functions) {
+        return Ok(!table_exists(conn)?);
+    }
+    if !table_exists(conn)? {
+        return Ok(false);
+    }
+    catalog_matches_exact_schema(conn)
+}
+
+fn catalog_matches_exact_schema(conn: &Connection) -> SnapbackResult<bool> {
     let reference = Connection::open_in_memory()?;
     reference.execute_batch(TABLE_SQL)?;
-    if catalog_objects(conn)? != catalog_objects(&reference)? {
+    Ok(catalog_objects(conn)? == catalog_objects(&reference)?)
+}
+
+pub(super) fn validate_exact_schema(conn: &Connection) -> SnapbackResult<()> {
+    if !catalog_matches_exact_schema(conn)? {
         return Err(catalog_corrupt());
     }
     Ok(())
@@ -149,6 +167,7 @@ fn parse_initiator(kind: &str, key: String) -> SnapbackResult<StreamInitiator> {
 }
 
 impl LocalDatabase {
+    #[cfg(test)]
     pub(crate) fn activate_stream_transcript_manifest(
         &mut self,
         manifest: &FunctionManifest,

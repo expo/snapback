@@ -1,7 +1,7 @@
 # LLP 0225 item-3 remainder: implement the ruled `provider.rs` split (A1/A2/A3)
 
-**Opened:** 2026-08-11 · **Status:** open, ruled, **A1/A2/A3 claimed
-2026-08-11** · **Area:** core
+**Opened:** 2026-08-11 · **Status:** closed, **A1/A2/A3 completed; final
+password sender-binding waiver withdrawn 2026-08-15** · **Area:** core
 modularization / ownership ratchet (LLP 0225 §4 "Item-3 remainder — the
 provider split, ruled", revision (n))
 
@@ -151,7 +151,7 @@ liveness, coalescing and sliding expiry. Every decision stayed sync-owned.
    `storage/auth_identity → auth/sender_proof`, introduced by `ef936353f`
    without a baseline regeneration. A2 does not touch that call site. It is
    ticketed and routed at
-   `issues/20260811-main-unrecorded-kernel-sync-auth-identity-sender-proof-edge.md`.
+   `issues/closed/20260811-main-unrecorded-kernel-sync-auth-identity-sender-proof-edge.md`.
 
 Envelope: storage/auth/server failure name sets byte-identical to the
 merge-base with identical pass counts (451/0, 709/2, 287/2).
@@ -274,8 +274,6 @@ What remains, and why it is waived rather than fixed here:
   Inverting them ad hoc, outside that sequence, is how the split gets done
   twice and inconsistently.
 
-<!-- module-ownership-frozen-edge: {"fingerprint":"src/storage/auth_identity.rs (storage-migration-kernel) → src/auth/sender_proof.rs (sync-realtime-engine)","disposition":"time-bounded-waiver","observationRevision":"13602b33636b1afc366da13a34deb6a1f2be5189","provenance":"presented_token_has_sender_family_binding is consulted so password issuance refuses with a typed code under sender-constrained custody rather than silently downgrading to bearer-only custody (LLP 0227 sender-constrained custody rule). Same call-up class as the provider edge; inverts with the A1/A2/A3 split.","inversionOwner":"sync-realtime-engine","deadline":"2026-09-15"} -->
-
 ### Two of the three password-auth waivers withdrawn (2026-08-12)
 
 The routes work was re-applied on top of `ad9125a54` (item-3 stage A2). Adopting
@@ -299,3 +297,17 @@ Cross-owner references in `src/storage/auth_identity.rs` went from 11 to 1.
 refuses with a typed code under sender-constrained custody instead of silently
 downgrading to bearer-only custody. Its inversion still belongs to this
 worklist's A1/A2/A3 sequence.
+
+### Final password-auth waiver withdrawn (2026-08-15)
+
+The durable `presented_token_has_sender_family_binding` read moved to
+kernel-owned `src/storage/auth_sender.rs`; all kernel callers now invoke that
+same-owner operation on the connection the kernel already holds. The policy
+module no longer owns or exports the SQL body. This removes the
+`storage/auth_identity → auth/sender_proof` time-bounded waiver through the
+predecessor-aware ownership-baseline regeneration. The helper call from
+`storage/auth_catalog_ops` is likewise repointed, but that module's older
+frozen edge remains because its typed `SenderIssuanceCommitment` inputs still
+live in `auth/sender_proof`; this slice does not claim to clear that separate
+type-shape edge. No raw connection crosses upward and no policy moved into the
+kernel.

@@ -1124,40 +1124,6 @@ pub fn sender_constraint_for_presented_token(
     .map(|fact| fact.map(|fact| fact.jwk_thumbprint))
 }
 
-/// Whether the presented token's live session carries a durable sender family
-/// binding. Callable on any profile: a database that never ran the hosted
-/// sender preflight has no binding table and reports unbound.
-///
-/// @ref LLP 0077#author-decisions--2026-07-23 — decision 4: the durable binding
-/// selects the `sbs2_` spelling for successors of a sender-bound family.
-pub(crate) fn presented_token_has_sender_family_binding(
-    connection: &Connection,
-    token_hash: &[u8],
-) -> Result<bool, ReplayConsumeError> {
-    if token_hash.len() != 32 {
-        return Err(ReplayConsumeError::Invalid);
-    }
-    match connection.query_row(
-        "SELECT EXISTS(
-           SELECT 1 FROM _auth_sessions AS session
-           JOIN _snapback_sender_family_binding AS binding
-             ON binding.session_id = session.id
-           WHERE session.token_hash = ?1
-             AND session.revoked_at_ms IS NULL
-         )",
-        params![token_hash],
-        |row| row.get(0),
-    ) {
-        Ok(exists) => Ok(exists),
-        Err(rusqlite::Error::SqliteFailure(_, Some(message)))
-            if message.contains("no such table") =>
-        {
-            Ok(false)
-        }
-        Err(_) => Err(ReplayConsumeError::Unavailable),
-    }
-}
-
 fn decode_canonical(input: &str) -> Result<Vec<u8>, SenderProofError> {
     let bytes = URL_SAFE_NO_PAD
         .decode(input)

@@ -2624,7 +2624,7 @@ impl LocalDatabase {
                 |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )?;
             let sender_constrained =
-                crate::auth::sender_proof::presented_token_has_sender_family_binding(
+                super::auth_sender::presented_token_has_sender_family_binding_on(
                     connection,
                     acting.token_hash().as_bytes(),
                 )

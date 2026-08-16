@@ -20919,10 +20919,6 @@ impl LocalSnapback {
         self.function_generation_recovery_state = state;
     }
 
-    pub(crate) fn refresh_read_manifests_after_generation_commit(&self) {
-        self.refresh_read_manifests();
-    }
-
     /// Install the exact read-only activation delivered with the generated
     /// application graph. Every locally derivable binding is rechecked:
     /// database stream, target/auth profile, artifact generation, and the

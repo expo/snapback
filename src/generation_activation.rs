@@ -168,6 +168,7 @@ impl<'a> GenerationActivation<'a> {
                     .awaiting_record(),
                 candidate_digests.as_ref(),
                 &[],
+                false,
             ));
             self.snapback
                 .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
@@ -193,7 +194,27 @@ impl<'a> GenerationActivation<'a> {
             }
         };
 
-        let rehydrating = digests_match && projection_publications.is_empty();
+        let transcript_catalog_matches = if digests_match {
+            match self
+                .snapback
+                .generation_commit_ops()
+                .stream_transcript_manifest_matches(&manifest)
+            {
+                Ok(matches) => matches,
+                Err(error) => {
+                    diagnostics.push(error.diagnostic);
+                    self.snapback.record_generation_activation_diagnostics(
+                        diagnostics.clone(),
+                        diagnostic_boundary,
+                    );
+                    return diagnostics;
+                }
+            }
+        } else {
+            true
+        };
+        let rehydrating =
+            digests_match && projection_publications.is_empty() && transcript_catalog_matches;
         if intent == FunctionGenerationActivationIntent::RehydrateCommittedGeneration
             && !rehydrating
         {
@@ -203,14 +224,15 @@ impl<'a> GenerationActivation<'a> {
                     .awaiting_record(),
                 candidate_digests.as_ref(),
                 &projection_publications,
+                !transcript_catalog_matches,
             ));
             self.snapback
                 .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
             return diagnostics;
         }
 
-        let committed_record = if !rehydrating {
-            let record = match self
+        if !rehydrating {
+            match self
                 .snapback
                 .generation_commit_ops()
                 .commit_function_generation(CommitFunctionGeneration {
@@ -218,8 +240,13 @@ impl<'a> GenerationActivation<'a> {
                     trusted_active_generation,
                     projection_publications,
                 }) {
-                Ok(record) => record,
+                Ok(_) => {}
                 Err(error) => {
+                    // Transcript activation now fails before COMMIT. Do not
+                    // synthesize the former post-commit AwaitingReload fence:
+                    // an existing fence still names its durable predecessor,
+                    // while a fresh failed activation made no generation fact
+                    // durable at all.
                     diagnostics.push(error.diagnostic);
                     self.snapback.record_generation_activation_diagnostics(
                         diagnostics.clone(),
@@ -227,11 +254,8 @@ impl<'a> GenerationActivation<'a> {
                     );
                     return diagnostics;
                 }
-            };
-            Some(record)
-        } else {
-            None
-        };
+            }
+        }
 
         if publish_ephemeral_collections {
             self.snapback.publish_generation_ephemeral_collections();
@@ -239,31 +263,6 @@ impl<'a> GenerationActivation<'a> {
         self.snapback
             .generation_commit_ops()
             .install_committed_sequence_declarations(sequence_declarations);
-        // @ref LLP 0204#d91--streaming-conversations — the protected
-        // transcript table exists iff this exact generation carries at least
-        // one streaming action or the active schema enables D5 ask.
-        if let Err(error) = self
-            .snapback
-            .generation_commit_ops()
-            .activate_stream_transcript_manifest(&manifest)
-        {
-            if let Some(record) = committed_record {
-                // The generation cut is durable even though its recorded
-                // post-commit exception failed. Fence every process lane
-                // against that exact record so a later verified retry can
-                // repair the split cut without inventing rollback.
-                self.snapback.set_function_generation_recovery_state(
-                    FunctionGenerationRecoveryState::AwaitingReload(record),
-                );
-                self.snapback
-                    .refresh_read_manifests_after_generation_commit();
-            }
-            diagnostics.push(error.diagnostic);
-            self.snapback
-                .record_generation_activation_diagnostics(diagnostics.clone(), diagnostic_boundary);
-            return diagnostics;
-        }
-
         self.snapback
             .compose_function_generation_successor(manifest, order_field_bounds);
         self.snapback.publish_generation_ephemeral_collections();
@@ -297,6 +296,7 @@ impl<'a> GenerationActivation<'a> {
         persisted: Option<&FunctionGenerationRecord>,
         candidate: Option<&CandidateGenerationDigests>,
         pending_publications: &[PendingProjectionPublication],
+        transcript_catalog_mismatch: bool,
     ) -> Diagnostic {
         let persisted_function = persisted.map(|record| record.function_manifest_digest.as_str());
         let persisted_sequences =
@@ -330,6 +330,7 @@ impl<'a> GenerationActivation<'a> {
                 .iter()
                 .map(|publication| publication.plan_id.as_str())
                 .collect::<Vec<_>>(),
+            "streamTranscriptCatalogMismatch": transcript_catalog_mismatch,
         }))
     }
 

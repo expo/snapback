@@ -5349,7 +5349,7 @@ impl ObservedEffects {
             HandlerPlan::JobStatusQuery(_) => {
                 // A point read of the reserved job-status projection — not an
                 // application schema table.
-                self.read(crate::jobs::JOBS_STATUS_TABLE, "point", None);
+                self.read(crate::contract_types::JOBS_STATUS_TABLE, "point", None);
             }
             HandlerPlan::PushLedgerQuery(_) => {
                 // A point read of the protected platform ledger. Its

@@ -1547,7 +1547,8 @@ mod guarded_commit_tests {
     #[test]
     fn migration_preview_populates_bounded_precondition_rows() {
         let mut db = migration_scan_database();
-        let mut successor = db.schema().clone();
+        let predecessor = db.schema().clone();
+        let mut successor = predecessor.clone();
         successor.tables[0].fields.push(FieldManifest {
             name: "required_later".to_owned(),
             field_type: FieldType::String,
@@ -3380,6 +3381,21 @@ mod guarded_commit_tests {
         }
     }
 
+    fn raw_streaming_function_generation_manifest() -> crate::manifest::FunctionManifest {
+        let mut manifest = raw_function_generation_manifest();
+        let mut stream = crate::manifest::FunctionDefinition::new(
+            "conversation",
+            crate::manifest::FunctionKind::Action,
+            crate::manifest::FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "conversation".to_owned(),
+            }),
+        );
+        stream.stream = true;
+        manifest.functions.push(stream);
+        manifest
+    }
+
     fn pending_projection_publication(plan_id: &str) -> PendingProjectionPublication {
         let plan_digest = format!("sha256:{plan_id}");
         PendingProjectionPublication {
@@ -3529,6 +3545,89 @@ mod guarded_commit_tests {
             0,
             "the enrollment written before validation rolled back"
         );
+    }
+
+    // @ref LLP 0225#1-ownership-map — transcript-catalog activation is a
+    //   member of the raw-dev generation cut, so its refusal rolls back every
+    //   staged durable member and a repaired retry commits exactly once.
+    #[test]
+    fn raw_dev_transcript_activation_failure_rolls_back_and_retry_converges() {
+        let mut db = database();
+        db.conn
+            .execute_batch(
+                "CREATE TABLE _snapback_stream_transcripts (
+                   initiator_kind TEXT,
+                   initiator_key TEXT,
+                   settled_at_ms INTEGER
+                 );
+                 CREATE INDEX _snapback_stream_transcripts_initiator
+                   ON _snapback_stream_transcripts(
+                     initiator_kind, initiator_key, settled_at_ms DESC
+                   );",
+            )
+            .expect("inject a malformed transcript catalog");
+        let manifest = raw_streaming_function_generation_manifest();
+
+        let error = db
+            .commit_function_generation(CommitFunctionGeneration {
+                manifest: manifest.clone(),
+                trusted_active_generation: false,
+                projection_publications: vec![pending_projection_publication(
+                    "transcript-rolled-back",
+                )],
+            })
+            .expect_err("transcript catalog refusal rolls back the composite");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_STREAM_TRANSCRIPT_CATALOG_CORRUPT"
+        );
+        assert!(db.function_generation_record().unwrap().is_none());
+        assert!(meta_value(&db, "projection_plan_digest:transcript-rolled-back").is_none());
+        assert!(meta_value(&db, "projection_rebuild_receipt:transcript-rolled-back").is_none());
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_sequence_scope_enrollments_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            0,
+            "transcript refusal rolls back sequence enrollment"
+        );
+
+        db.conn
+            .execute_batch(
+                "DROP INDEX _snapback_stream_transcripts_initiator;
+                 DROP TABLE _snapback_stream_transcripts;",
+            )
+            .expect("repair injected catalog corruption");
+        let committed = db
+            .commit_function_generation(CommitFunctionGeneration {
+                manifest,
+                trusted_active_generation: false,
+                projection_publications: vec![pending_projection_publication(
+                    "transcript-rolled-back",
+                )],
+            })
+            .expect("retry commits one complete generation");
+        assert_eq!(committed.generation_high_water, 1);
+        assert_eq!(
+            meta_value(&db, "projection_plan_digest:transcript-rolled-back").as_deref(),
+            Some("sha256:transcript-rolled-back")
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_sequence_scope_enrollments_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            1
+        );
+        super::stream_transcripts::validate_exact_schema(&db.conn)
+            .expect("retry installs the exact transcript catalog");
     }
 
     // Function/schema activation ordering is source-owned: an empty scope can

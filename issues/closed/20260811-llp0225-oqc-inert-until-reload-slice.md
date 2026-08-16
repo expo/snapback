@@ -1,6 +1,6 @@
 # LLP 0225 slice: implement the pinned OQ-C inert-until-reload state machine
 
-**Opened:** 2026-08-11 · **Status:** claimed, in progress · **Area:**
+**Opened:** 2026-08-11 · **Status:** Closed (2026-08-15) · **Area:**
 generation activation coordinator / storage kernel (LLP 0225 §3.3, OQ-C)
 
 ## Claim
@@ -8,7 +8,7 @@ generation activation coordinator / storage kernel (LLP 0225 §3.3, OQ-C)
 This ticket claims the OQ-C boundary. First-claim-wins; other agents push to
 `main` around the clock. It closes in the same commit that lands the work, and
 discharges finding **2** of
-`issues/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`.
+`issues/closed/20260810-raw-dev-activation-split-cut-and-reopen-inertness.md`.
 Finding **1** (the transcript-catalog split cut) is **not** in this slice and
 stays open on that ticket.
 
@@ -88,11 +88,15 @@ rehydration.
 
 ## A property worth noting
 
-Because rehydration re-runs `activate_stream_transcript_manifest`, a process
-that crashed inside the split-cut window of finding 1 (generation record
-durable, transcript activation not) repairs that window on its next verified
-reload. This slice does not *fix* the split cut — it makes recovery from it
-observable and testable.
+*(Superseded 2026-08-15 by the split-cut fold, LLP 0225 revision (u).)* The
+split-cut window of finding 1 no longer exists: transcript-catalog activation
+now commits inside `commit_function_generation`'s transaction, so no
+generation can be durable without its catalog. For a *legacy* database that
+still carries a pre-fold split (record durable, catalog missing), explicit
+`rehydrate_committed_generation` refuses with
+`SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH` — rehydration requires a
+matching transcript catalog as a third condition — and repair flows through
+the automatic load path's composite successor commit.
 
 ## Acceptance (this is what ends the recorded §3 exception)
 
@@ -131,3 +135,14 @@ matching rehydration does not advance `generation_high_water`; mismatched
 explicit rehydration refuses `SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH`
 and stays fenced. LLP 0225 revision (p) retired the OQ-C exception and records
 the slice as executed.
+## Resolution addendum — 2026-08-15 (split-cut fold, supersedes the note above)
+
+The recovery slice landed earlier (`884894a58`, LLP 0225 revisions p/o: the
+seven full-`LocalSnapback` acceptance tests and the fenced `AwaitingReload`
+recovery contract). The residual link to finding 1 is discharged by the
+split-cut fold (LLP 0225 revision (u)): transcript-catalog activation now
+commits inside `commit_function_generation`'s transaction, so the split
+window this slice made observable no longer exists on new writes; legacy
+pre-fold splits refuse explicit rehydration
+(`SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH`) and converge through
+the automatic composite successor path.
