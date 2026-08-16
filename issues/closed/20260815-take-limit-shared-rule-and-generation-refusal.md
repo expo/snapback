@@ -51,39 +51,29 @@ Two seams underlie this:
 Also confirm the published 0.1.21 closure's generation-time behavior for the
 repro so the next qualified release note can claim the seam closed.
 
-## Resolution
+## Resolution (2026-08-15)
 
-Resolved 2026-08-15.
+Closed by the concurrent-fleet landing `34d98f489`
+(`fix(codegen): refuse literal take beyond the shared relational ceiling`)
+plus the `@expo/snapback-contract/limits` module it rides on:
 
-- `@expo/snapback-contract/limits` (mjs + d.mts, `./limits` subpath) is the
-  canonical source: `RELATIONAL_TAKE_CEILING` and
-  `SNAPSHOT_BATCH_SUMMED_TAKE_CEILING`, both 1024, with the governing LLP
-  references.
-- The silent decline is fixed: `inline-handlers.mjs` imports the ceiling, and
-  a literal `take()` beyond it is now a source-attributed
-  `SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN` refusal carrying
-  `ceiling`/`limit`/`observed` facts, before any artifact is emitted. The
-  plain-join classifier no longer swallows the case. Regressions: an explicit
-  and a Familiar graph with `take(4096)` must refuse atomically
-  (`authoring-validation.test.mjs`, `familiar-phase-b.test.mjs`).
-- **Deliberate deviation from the suggested fix:** `define.mjs` keeps its
-  three 1024 literals instead of importing the contract module. `define.mjs`
-  participates in every explicit-profile app's authored module graph, so the
-  import adds a graph label and rotates `authoredSourceHash` (activation
-  identity) for every explicit demo — a full generated-artifact +
-  publication-receipt re-mint cascade for zero behavior change. Its literals
-  are instead parity-locked by `packages/snapback-contract/limits.test.mjs`,
-  the same guard that locks the Rust enforcement literals
-  (`src/manifest.rs`, `src/storage.rs`) without changing runtime behavior.
-  Verified: regeneration of `demos/todo/snapback` is byte-identical under
-  this change (no artifact rotation beyond the pre-existing main drift
-  tracked in `issues/20260815-artifact-schemas-v0-committed-output-drift.md`).
-- Client survey: no client-side relational `take` admission exists
-  (`local-read-admission.mjs` and the IR evaluator have no take check), so
-  there was nothing to converge there; the server refusal remains the runtime
-  authority.
-- Published-closure confirmation: `@expo/snapback-codegen@0.1.21`'s
-  `inline-handlers.mjs` line 778 has the silent `> 1_024` decline, so the
-  Diary 0078 M3 repro is real on the published closure; its explicit-profile
-  `define.mjs` already asserted 0..1024. The seam closes at the next
-  qualified release.
+- `packages/snapback-contract/limits.mjs` / `limits.d.mts` export
+  `RELATIONAL_TAKE_CEILING` and `SNAPSHOT_BATCH_SUMMED_TAKE_CEILING` (1024)
+  with @refs to LLP 0080 §1, LLP 0110 §11, and LLP 0135 §2.1; codegen
+  validation sites import them instead of repeating the literal.
+- `packages/snapback-contract/limits.test.mjs` pins the JS constants against
+  the Rust enforcement sites so the literals cannot drift silently.
+- The inline-handler path refuses an over-ceiling literal take at generation
+  time via `queryChainProblem` with an authored source span and structured
+  bound facts (no silent decline), and the plain-join classifier is
+  documented as not being a second validation lane.
+- `scripts/check-package-test-inventory.mjs` 287→288 records the parity
+  guard and refusal coverage.
+
+A duplicate implementation from this supervised run (same shape: limits
+module, longest-site imports, structured Familiar refusal
+`SNAPBACK_AUTHORING_RELATIONAL_TAKE_CEILING_EXCEEDED`, explicit+Familiar
+`take(4096)` refusal tests) was verified green in its worktree and then
+discarded in favor of the first-to-main landing per the concurrent-fleet
+convention. This file records the closure since the code landing did not
+carry the ticket.
