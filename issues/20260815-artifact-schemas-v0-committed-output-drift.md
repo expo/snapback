@@ -1,11 +1,9 @@
-# Committed schema and generated-demo output drift is red in CI
+# `artifact_schemas_v0` reports 8 failures from committed-schema/demo-output drift
 
 **Filed:** 2026-08-15 · **Source:** supervised multi-lane ticket-fix run
 (Lane B, auth lifecycle) · **Systems:** Generated artifacts, Proof/CI
 
-**Status:** Open. Generated-artifact drift is independently confirmed on
-current `main`; the original `artifact_schemas_v0` failing set still needs its
-clean-main rerun described below.
+**Status:** reported, not independently confirmed by the filer — see below.
 
 ## Problem
 
@@ -31,42 +29,11 @@ So the surrounding evidence is consistent with genuine committed-output drift on
 `main` rather than a lane regression, but this ticket should not be treated as
 established until someone confirms it.
 
-## CI confirmation — 2026-08-15
-
-GitHub Actions independently reproduced the generated-output half of this
-ticket at `main` revision `a93a11235f94ac40077c8f8f3c6d420f40a9bde7`:
-
-- Push and scheduled `local-proof` runs
-  ([push](https://github.com/expo/snapback/actions/runs/31918029861),
-  [scheduled](https://github.com/expo/snapback/actions/runs/31918612068))
-  ended with `[check-generated-artifacts] FAIL: committed review manifests or
-  policy projections are stale` and showed drift across demo and React fixture
-  outputs.
-- `required-surface-builds`
-  ([run](https://github.com/expo/snapback/actions/runs/31918029823)) refused the
-  All Aboard surface because its committed review manifest is stale.
-- `all-aboard-cold-clone`
-  ([run](https://github.com/expo/snapback/actions/runs/31918029835)) regenerated
-  a different All Aboard codegen graph and review manifest.
-- `deployment-identity`
-  ([run](https://github.com/expo/snapback/actions/runs/31918029870)) stopped
-  while materializing the same stale All Aboard inputs, before deployment
-  identity recomputation.
-- The latest telemetry candidate on the preceding `main` revision
-  ([run](https://github.com/expo/snapback/actions/runs/31917697439)) failed with
-  `SNAPBACK_TELEMETRY_PHASE1_GENERATED_FIXTURE_DRIFT`.
-
-This confirms a real current-main generated-artifact failure; it does not by
-itself confirm that all eight originally reported `artifact_schemas_v0`
-failures have the same root. LLP 0189 D-1 requires distinct signatures to stay
-separate if the clean-main schema test reveals structural failures beyond this
-regeneration drift.
-
 ## Suggested fix
 
 1. Run `artifact_schemas_v0` on a clean `main` checkout and record the actual
-   failing set. The generated-artifact drift is already confirmed; split out
-   any structurally distinct schema failures rather than coalescing them.
+   failing set. If it reproduces, the failures are inherited and this becomes an
+   ordinary regeneration task.
 2. Regenerate the committed schema/demo outputs that drifted, in one focused
    landing rather than piecemeal inside feature lanes — several lanes correctly
    declined to do it precisely because it would have created cross-lane
@@ -74,30 +41,24 @@ regeneration drift.
 3. If the drift is structural rather than stale output, say so and open the
    governing design question instead of regenerating.
 
-## Acceptance
-
-- `scripts/check-generated-artifacts` passes from a clean checkout.
-- All Aboard regeneration leaves its committed review manifest unchanged.
-- The affected `local-proof`, `required-surface-builds`,
-  `all-aboard-cold-clone`, and `deployment-identity` checks pass for the repaired
-  semantic inputs.
-- `artifact_schemas_v0` is rerun independently; any different root signature
-  gets its own LLP 0189 D-1 ticket.
-
-## Corroboration (2026-08-15, take-limit lane)
-
-Independently reproduced on a pristine worktree at `e1835e3b3`:
-`./scripts/check-generated-artifacts` fails with ~70 modified demo files
-across the registry (sessions-profile `schemaHash` rotations in access-desk /
-all-aboard / browser-local-first, plus `inputsHash`/`bundleHash` rotation for
-`demos/todo` — its committed `functions.manifest.json` carries
-`inputsHash b947ed69…` while regeneration at the same commit produces
-`5a326f96f454…`; `authoredSourceHash` is unaffected). The take-limit landing
-deliberately excluded any regeneration, matching Lane G's call.
-
 ## Related
 
 - `issues/20260815-check-guide-masks-later-checks-without-node-modules.md` —
   same underlying problem of shared generated state being hard to attribute from
   inside a single lane.
 - `issues/20260810-main-rustfmt-drift-under-1-9-0.md`
+
+## Corroboration (2026-08-15, LLP 0257 implementation lane)
+
+An independent lane (LLP 0257 activity-presence implementation, landed
+`ee34395b5`) hit the same family from the JS side: the repository-wide
+`scripts/check-generated-artifacts` refused with
+`[check-generated-artifacts] FAIL: committed review manifests or policy
+projections are stale` on a tree whose diff was confined to
+`packages/snapback-react`, `packages/snapback-expo`, the guide, and the
+messaging demo. The lane restored the check's unrelated tracked rewrites
+and landed only its own regenerated diagnostic/reference/guide outputs;
+its own scoped checks (guide-check 18/0, check-inventories PASS 290,
+ref-check 0) were green. This upgrades the original report from
+"attributed, unverified" to corroborated-by-a-second-independent-lane on
+the same day; the stale committed projections predate both lanes.
