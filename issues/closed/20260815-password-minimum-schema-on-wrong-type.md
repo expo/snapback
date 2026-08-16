@@ -1,6 +1,6 @@
 # Committed schema puts `passwordMinimumLength` on Ask, not Auth
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 2
 **Urgency:** 2
 **Ease:** 4
@@ -41,3 +41,24 @@ the field.
 - The same key on `api.ask` is rejected.
 - Range matches `AUTH_PASSWORD_MINIMUM_LENGTH_FLOOR` /
   `AUTH_PASSWORD_MINIMUM_LENGTH_CEILING` (8–128), not 0–65535.
+
+## Resolution (2026-08-15)
+
+`src/contract_types.rs`, the schemars generator authority, now binds
+`AuthManifest.password_minimum_length` to the Rust floor and ceiling constants.
+Regenerating `schemas/schema.manifest.schema.json` places
+`passwordMinimumLength` only on `AuthManifest` with range 8–128.
+
+`tests/artifact_schemas_v0.rs` strengthens DK-7 with a targeted structural
+ownership/range assertion and validation cases for `auth` success, both range
+edges, and rejection under `api.ask`. This is targeted rather than a new generic
+Rust-field-to-schema-object correspondence checker. Evidence:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.08s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 2706 filtered out; finished in 0.26s
+```
+
+The broader pre-existing DK-7 drift gate still reports
+`functions.manifest.schema.json` drift; that generated output is unrelated to
+this AuthManifest correction and was not folded into this ticket.

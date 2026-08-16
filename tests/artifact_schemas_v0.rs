@@ -652,6 +652,51 @@ fn dk7_committed_schemas_match_rust_types() {
 }
 
 #[test]
+fn dk7_password_minimum_is_owned_by_auth_with_runtime_bounds() {
+    let schema = committed("schema.manifest.schema.json");
+    let auth_property = &schema["$defs"]["AuthManifest"]["properties"]["passwordMinimumLength"];
+    assert_eq!(
+        auth_property["minimum"],
+        json!(snapback::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_FLOOR)
+    );
+    assert_eq!(
+        auth_property["maximum"],
+        json!(snapback::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_CEILING)
+    );
+    assert!(
+        schema["$defs"]["ApiAskManifest"]["properties"]
+            .get("passwordMinimumLength")
+            .is_none(),
+        "passwordMinimumLength belongs to AuthManifest, never ApiAskManifest",
+    );
+
+    let mut manifest = serde_json::to_value(SchemaManifest::default()).unwrap();
+    manifest["auth"] = json!({
+        "mode": "sessions",
+        "passwordMinimumLength": 12,
+    });
+    assert_validates("schema.manifest.schema.json", &manifest);
+
+    for outside in [
+        snapback::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_FLOOR - 1,
+        snapback::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_CEILING + 1,
+    ] {
+        manifest["auth"]["passwordMinimumLength"] = json!(outside);
+        assert_rejects("schema.manifest.schema.json", &manifest);
+    }
+
+    manifest["auth"] = json!({ "mode": "sessions" });
+    manifest["api"] = json!({
+        "ask": {
+            "enabled": true,
+            "billing": "app",
+            "passwordMinimumLength": 12,
+        }
+    });
+    assert_rejects("schema.manifest.schema.json", &manifest);
+}
+
+#[test]
 fn dk7_committed_public_instances_match_rust_types() {
     for SchemaArtifact { file, schema } in artifact_instances() {
         let on_disk = committed(file);

@@ -726,6 +726,10 @@ pub struct AuthManifest {
         rename = "passwordMinimumLength",
         skip_serializing_if = "Option::is_none"
     )]
+    #[schemars(range(
+        min = AUTH_PASSWORD_MINIMUM_LENGTH_FLOOR,
+        max = AUTH_PASSWORD_MINIMUM_LENGTH_CEILING
+    ))]
     pub password_minimum_length: Option<u16>,
 }
 
