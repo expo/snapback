@@ -188,8 +188,8 @@ await runAcceptance(suite, async () => {
     queuedUpdate = await clientB.mutate('setMetricValue', {
       args: { id: 'metric_ops_uptime', value: 98 },
     });
-    assertEqual(queuedCreate.queued, true, 'create queued');
-    assertEqual(queuedUpdate.queued, true, 'update queued');
+    assertEqual(queuedCreate.status, 'queued', 'create queued');
+    assertEqual(queuedUpdate.status, 'queued', 'update queued');
     assert(
       typeof queuedCreate.clientMutationId === 'string' && queuedCreate.clientMutationId.length > 0,
       'client-minted durable identity',
@@ -199,12 +199,12 @@ await runAcceptance(suite, async () => {
     assertEqual(pending.map((r) => r.function), ['recordMetric', 'setMetricValue'], 'durable pending queue');
     return {
       queuedCreate: {
-        queued: queuedCreate.queued,
+        status: queuedCreate.status,
         clientMutationIdPresent: true,
         sequence: queuedCreate.sequence,
       },
       queuedUpdate: {
-        queued: queuedUpdate.queued,
+        status: queuedUpdate.status,
         clientMutationIdPresent: true,
         sequence: queuedUpdate.sequence,
       },

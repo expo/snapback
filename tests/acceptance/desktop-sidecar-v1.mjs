@@ -395,7 +395,7 @@ test('LLP 0129 Phase 2b desktop sidecar first rung', { timeout: 180_000 }, async
       userId,
       args: { title: 'durable pending intent during updater swap' },
     });
-    assert.equal(queued.queued, true);
+    assert.equal(queued.status, 'queued');
     assert.equal((await outbox.status()).pending, 1);
     const pendingRecord = (await store.outboxRecords()).find(
       (record) => record.id === queued.clientMutationId,

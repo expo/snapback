@@ -1600,7 +1600,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     ));
   };
 
-  const queuedMutationOutcome = (
+  const dispatchQueuedOutcome = (
     mutationReference,
     outcome,
     presentation,
@@ -1781,7 +1781,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             'headless client returned queued after queue:false',
           );
         }
-        return queuedMutationOutcome(admittedMutation, output, 'withheld');
+        return dispatchQueuedOutcome(admittedMutation, output, 'withheld');
       }
       const result = validateResultContract(
         mutationContract,
@@ -1945,7 +1945,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
             'headless client returned queued after queue:false',
           );
         }
-        return queuedMutationOutcome(admittedMutation, output, presentation, diagnosticCode);
+        return dispatchQueuedOutcome(admittedMutation, output, presentation, diagnosticCode);
       }
       const result = validateResultContract(
         mutationContract,
@@ -3377,7 +3377,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         diagnosticCode = 'SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE';
         emitQueuedPresentationDiagnostic(admittedMutation, output, diagnosticCode, error);
       }
-      return queuedMutationOutcome(admittedMutation, output, presentation, diagnosticCode);
+      return dispatchQueuedOutcome(admittedMutation, output, presentation, diagnosticCode);
     }
     const result = validateResultContract(
       mutationContract,

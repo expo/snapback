@@ -369,6 +369,7 @@ registrations.
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.status, 'queued');
+  assert.equal('queued' in queued, false, 'the elapsed compatibility alias is absent');
   assert.equal(queued.presentation, 'withheld');
 ```
 

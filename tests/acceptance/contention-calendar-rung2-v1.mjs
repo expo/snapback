@@ -613,7 +613,7 @@ async function runRealExit() {
       idempotencyKey: 'ambiguous-retry', resourceKey: 'room-02', slotKey: 'slot-r',
       ownerId: 'retry', title: 'Retry safe', now: 1_787_000_000_005,
     } });
-    assert.equal(queued.queued, true);
+    assert.equal(queued.status, 'queued');
     assert.equal(retryView.getSnapshot().layers.length, 1);
     const committedBeforeReplay = (await alice.client.query(api.schedule)).rows
       .filter((row) => row.idempotencyKey === 'ambiguous-retry');

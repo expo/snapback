@@ -12328,7 +12328,8 @@ The queued branch appears only when the foreground attempt is relinquished and
 the durable record remains replayable; it carries `status: 'queued'`, the
 durable id and sequence, and `presentation: 'withheld'` because the headless
 arm attempted no optimistic install. It is pending settlement, not success and
-not an error.
+not an error. Narrow on `status`; the former `queued: true` compatibility alias
+was removed after its deprecation window.
 
 Observe the durable identity separately with
 `mutationStatus(clientMutationId)` or
@@ -61333,6 +61334,7 @@ registrations.
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.status, 'queued');
+  assert.equal('queued' in queued, false, 'the elapsed compatibility alias is absent');
   assert.equal(queued.presentation, 'withheld');
 ```
 

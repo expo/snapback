@@ -646,7 +646,6 @@ function assertRenderObservation(observation) {
 
 const mutationSummary = (operation) => ({
   status: operation.status,
-  queued: operation.queued,
   clientMutationId: operation.clientMutationId,
   sequence: operation.sequence,
   presentation: operation.presentation,
@@ -718,7 +717,7 @@ try {
     assert.equal(queuedOperations.length, 4);
     for (const operation of queuedOperations) {
       assert.equal(operation.status, 'queued');
-      assert.equal(operation.queued, true);
+      assert.equal('queued' in operation, false);
       assert.equal(operation.presentation, 'withheld');
       assert.equal(typeof operation.clientMutationId, 'string');
       assert.ok(operation.clientMutationId.length > 0);

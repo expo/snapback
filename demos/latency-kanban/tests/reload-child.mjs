@@ -35,7 +35,7 @@ if (mode === 'queue') {
   });
   process.send?.({
     kind: 'queued',
-    queued,
+    outcome: queued,
     layers: view.getSnapshot().layers.length,
     titles: view.getSnapshot().visibleRows.cards.map((card) => card.title),
   });

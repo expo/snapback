@@ -173,8 +173,8 @@ await runAcceptance(suite, async () => {
       args: { postId: 'seed_post_3', userHandle: ADA },
       userId: ADA,
     });
-    assertEqual(queuedPost.queued, true, 'post queued');
-    assertEqual(queuedLike.queued, true, 'like queued');
+    assertEqual(queuedPost.status, 'queued', 'post queued');
+    assertEqual(queuedLike.status, 'queued', 'like queued');
     assert(queuedLike.sequence > queuedPost.sequence, 'monotonic sequence order');
     const pending = await clientB.rqsStore.outboxPending();
     assertEqual(pending.map((r) => r.function), ['createPost', 'likePost'], 'durable ordered queue');

@@ -214,7 +214,7 @@ try {
     } finally {
       globalThis.fetch = delayedFetch;
     }
-    assertEqual(queued.queued, true, 'ambiguous committed response remains replayable');
+    assertEqual(queued.status, 'queued', 'ambiguous committed response remains replayable');
     assertEqual(droppedRequest.clientMutationId, queued.clientMutationId,
       'queued retry preserves protocol identity');
     const replay = await alice.replayQueuedMutations();

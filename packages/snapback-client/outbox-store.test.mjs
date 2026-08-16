@@ -894,6 +894,7 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
   globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
   const queued = await client.mutate('createThing', { args: { title: 'offline' } });
   assert.equal(queued.status, 'queued');
+  assert.equal('queued' in queued, false, 'the elapsed compatibility alias is absent');
   assert.equal(queued.presentation, 'withheld');
   assert.match(queued.clientMutationId, /^mut_[0-9a-hjkmnp-tv-z]{26}$/u);
   assert.equal(queued.sequence, 1);
@@ -1312,6 +1313,7 @@ test('server epoch-capacity refusal keeps uncovered intent queued for fresh auth
     userId: 'user-a',
   });
   assert.equal(queued.status, 'queued');
+  assert.equal('queued' in queued, false, 'the no-attempt branch also omits the alias');
   assert.equal(queued.operationCoverageDisposition, 'uncovered-range-exhausted');
   assert.deepEqual(devDiagnosticsEvents, [{
     code: 'SNAPBACK_OFFLINE_MUTATION_QUEUED',
@@ -2549,7 +2551,7 @@ test('replay drop-and-mark-failed on server refusal, pending kept on connectivit
 // diagnostic, no receipt), not constructor identity. Expo/RN fetch rejects
 // connection failures with a PLAIN Error, so the pre-fix
 // `instanceof TypeError` gate meant the M2 queue could never engage on that
-// carrier — the raw transport error surfaced instead of {queued:true}.
+// carrier — the raw transport error surfaced instead of {status:'queued'}.
 test('mutate queues when the carrier fetch rejects a plain Error (Expo shape)', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();

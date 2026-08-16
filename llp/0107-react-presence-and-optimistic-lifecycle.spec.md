@@ -5,6 +5,8 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
+**Revised:** 2026-08-15 (LLP 0218 P6 removed the elapsed queued-property
+alias and throw-site-free `SnapbackQueuedMutationError` migration export)
 **Revised:** 2026-08-10 (LLP 0219 presence-churn, queue-condition, and
 advisory-delivery amendment over LLP 0218 P3); 2026-08-10 (LLP 0218 P3 React-contract amendment: accepted
 offline intent resolves through the queued dispatch union instead of rejecting;
@@ -276,8 +278,9 @@ and `resultGone` retire it while LLP 0043 custody remains visible in the
 outbox; and `unknown` retains it as orphaned until evidence or authority loss.
 Authority replacement still synchronously blanks every layer. This supersedes
 the 2026-08-09 queued-rejection projection; `SnapbackQueuedMutationError`
-remains only as a deprecated migration export and has no throw site. Callers
-that explicitly require a result-only promise use
+was retained only as a deprecated, throw-site-free migration export through
+the LLP 0218 window and was removed by P6 on 2026-08-15. Callers that
+explicitly require a result-only promise use
 `useSnapbackSettledMutation` or `{queue:false}`, which makes connectivity
 failure reject before any enqueue.
 
@@ -477,6 +480,13 @@ rejection, authority cuts, Strict Mode remount, replay recovery, and zero-leak
 cleanup. The existing provider-live conformance gate adds a real served
 drop-after-commit/replay witness with identical protocol identity and one
 canonical rendered row. No new proof gate was introduced.
+
+2026-08-15 (LLP 0218 P6): the post-release caller audit found no live React
+consumer of the queued-property alias or the throw-site-free compatibility
+class. React now consumes only `status:'queued'`, and the class export was
+removed from the root, core, and Expo-re-exported surfaces after the union
+first shipped in 0.1.19 and releases through 0.1.22 carried the migration
+window.
 
 2026-08-10 (LLP 0218 P3 React contract): queued acceptance resolves the
 dispatch union, installed layers remain pending across enqueue, and

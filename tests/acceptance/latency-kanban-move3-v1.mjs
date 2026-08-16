@@ -354,6 +354,7 @@ async function runRealExit() {
       cwd: ROOT, stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
     });
     const queued = await childMessage(queueChild, 'queued');
+    assert.equal(queued.outcome.status, 'queued');
     assert.equal(queued.layers, 1);
     assert.equal(queued.titles.filter((title) => title === 'Retained after SIGKILL').length, 1);
     const killed = new Promise((resolveExit) => queueChild.once('exit', (code, signal) => resolveExit({ code, signal })));
@@ -369,7 +370,7 @@ async function runRealExit() {
       inspectChild.once('exit', (code) => code === 0 ? resolveExit() : reject(new Error(`inspect child exit ${code}`)));
     });
     assert.equal(inspected.layers, 1);
-    assert.deepEqual(inspected.layerIds, [queued.queued.clientMutationId]);
+    assert.deepEqual(inspected.layerIds, [queued.outcome.clientMutationId]);
     assert.equal(inspected.titles.filter((title) => title === 'Retained after SIGKILL').length, 1);
 
     reloadStore = createFileRqsResumeStore({
@@ -392,7 +393,7 @@ async function runRealExit() {
     assert.equal(rowsSignature(actorFinal), rowsSignature(observerFinal));
     assert.equal(actorFinal.filter((card) => card.title === 'Retained after SIGKILL').length, 1);
     const reloadRecords = await reloadStore.outboxRecords();
-    assert.equal(reloadRecords.filter((record) => record.id === queued.queued.clientMutationId).length, 1);
+    assert.equal(reloadRecords.filter((record) => record.id === queued.outcome.clientMutationId).length, 1);
 
     return {
       sourceIdentity: await staticIdentityEvidence(),
@@ -431,7 +432,7 @@ async function runRealExit() {
       },
       lossFreeReload: {
         processKilledWith: killedExit.signal,
-        queuedIdentity: queued.queued.clientMutationId,
+        queuedIdentity: queued.outcome.clientMutationId,
         preKillLayers: queued.layers,
         relaunchLayers: inspected.layers,
         postIntentRowsBeforeNetwork: inspected.titles.filter((title) => title === 'Retained after SIGKILL').length,

@@ -73,7 +73,7 @@ await suite.pass('fn.short-interruption-write', async () => {
   queuedCreate = await offlineClient.mutate(api.createRecord, {args: {
     assignmentId: 'north', title: 'Offline specimen', body: 'Captured without a network',
   }});
-  assertNode.equal(queuedCreate.queued, true);
+  assertNode.equal(queuedCreate.status, 'queued');
   return {contract: 'durable queue', clientMutationId: queuedCreate.clientMutationId};
 });
 
@@ -81,7 +81,7 @@ await suite.pass('fn.disconnected-write-contract', async () => {
   queuedUpdate = await offlineClient.mutate(api.updateRecord, {args: {
     id: 'record-001', body: 'Offline corrected observation', revision: 2,
   }});
-  assertNode.equal(queuedUpdate.queued, true);
+  assertNode.equal(queuedUpdate.status, 'queued');
   pendingSnapshot = await offlineClient.rqsStore.outboxPending();
   assertNode.deepEqual(pendingSnapshot.map((row) => row.function), ['createRecord', 'updateRecord']);
   return {declared: 'queued', pending: pendingSnapshot.length,

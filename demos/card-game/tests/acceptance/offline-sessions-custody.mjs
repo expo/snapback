@@ -113,7 +113,7 @@ try {
       const queued = await currentAda.client.mutate('acceptHandCard', {
         args: { gameId: 'game_1', position: 20, card: 'cold-replay-card' },
       });
-      assertEqual(queued.queued, true, 'offline mutation queued');
+      assertEqual(queued.status, 'queued', 'offline mutation queued');
       const durableBeforeSend = await store.outboxPending();
       assertEqual(durableBeforeSend.length, 1, 'record persisted before any send can succeed');
       assertEqual(durableBeforeSend[0].id, queued.clientMutationId, 'durable identity');
@@ -145,7 +145,7 @@ try {
       const predecessor = await currentAda.client.mutate('acceptHandCard', {
         args: { gameId: 'game_1', position: 21, card: 'rerecorded-card' },
       });
-      assertEqual(predecessor.queued, true, 'predecessor queued offline');
+      assertEqual(predecessor.status, 'queued', 'predecessor queued offline');
       await closeClient(currentAda.client);
 
       await bootServer();
@@ -190,7 +190,7 @@ try {
       const privateQueued = await currentAda.client.mutate('acceptHandCard', {
         args: { gameId: 'game_1', position: 22, card: 'must-never-cross-principals' },
       });
-      assertEqual(privateQueued.queued, true, 'predecessor private mutation queued');
+      assertEqual(privateQueued.status, 'queued', 'predecessor private mutation queued');
       // Every fenced disposition in the shared store belongs to the
       // predecessor principal: the settled rows from the two checks above
       // plus this pending intent. The cross-principal boundary deletes them
