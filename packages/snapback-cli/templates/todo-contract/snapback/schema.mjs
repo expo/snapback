@@ -5,5 +5,10 @@ export default defineSchema({
     title: v.string(),
     completed: v.boolean(),
     userId: v.string(),
-  }).index('by_user', ['userId']).sync(),
+  })
+    // @ref LLP 0234#phase-g2--d2-enforcing-closure — listTodos and createTodo
+    // bind userId to authUserId(), so this is the row's principal field.
+    .visibility({ kind: 'owner', field: 'userId' })
+    .index('by_user', ['userId'])
+    .sync(),
 });

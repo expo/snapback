@@ -216,7 +216,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:329da2b2bc51771c15524908baa29bbe22769ec01605ad2862aad966cc116d7c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:b7b0aec5bebf80a5dd69d0b54d73f5026a936d93757a87e140dc95fb5808b78c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createTodo": FunctionReference<"createTodo", 'Mutation', { title: string }, Id<"todos">, "snapback-explicit-v1">;
   /**
@@ -225,7 +225,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:329da2b2bc51771c15524908baa29bbe22769ec01605ad2862aad966cc116d7c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:b7b0aec5bebf80a5dd69d0b54d73f5026a936d93757a87e140dc95fb5808b78c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "listTodos": FunctionReference<"listTodos", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["todos"]>, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

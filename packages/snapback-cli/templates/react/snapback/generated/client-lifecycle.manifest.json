@@ -1,7 +1,7 @@
 {
   "appId": "react",
   "artifactKind": "clientLifecycleManifest",
-  "authoredSourceHash": "sha256:62b4ca9c0c77f2171960308ade5484cb2c1876152bfbbc94332b4ecf1695889e",
+  "authoredSourceHash": "sha256:a10a001780749111b7ef9603afe4579642b067fe8a7e6c06ae9cc4d68457c983",
   "commands": [],
   "compatibilityAliases": [
     {
@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:329da2b2bc51771c15524908baa29bbe22769ec01605ad2862aad966cc116d7c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:b7b0aec5bebf80a5dd69d0b54d73f5026a936d93757a87e140dc95fb5808b78c",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [

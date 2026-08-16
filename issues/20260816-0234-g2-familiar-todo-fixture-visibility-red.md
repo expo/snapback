@@ -24,3 +24,11 @@ fixtures with the honest policy for their synthetic rows (the G2 diagnostic
 itself warns against reflexive `public-read`; the fixtures have no owner
 field today, so the 0234 owner should pick the intended shape), then re-run
 `packages/snapback-expo/app-binding.test.mjs`.
+
+## Resolution note — 2026-08-16 (template half)
+
+The template half of the G2 fallout is fixed by the landing that adds explicit
+visibility to all five CLI scaffold templates and regenerates their committed
+artifacts. The default `scaffoldApp` → `generateApp` path and direct generation
+of all five template backends pass. This note does not change this ticket's
+status or claim the familiar-todo fixture half; that remains with its owner.

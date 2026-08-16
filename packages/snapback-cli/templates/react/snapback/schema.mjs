@@ -31,10 +31,12 @@ const authProgram = defineAuth({
 
 export default defineSchema(
   {
+    // @ref LLP 0234#phase-g2--d2-enforcing-closure — this starter's anonymous
+    // list/create flow is a shared public board, so every todo is public by design.
     todos: defineTable({
       title: v.string(),
       completed: v.boolean(),
-    }).index('by_title', ['title']).visibility({ kind: 'public-read' }).sync(),
+    }).visibility({ kind: 'public-read' }).index('by_title', ['title']).sync(),
   },
   { auth: { mode: 'sessions' }, authProgram },
 );

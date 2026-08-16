@@ -5,15 +5,16 @@
   "auth": {
     "mode": "sessions"
   },
-  "authoredSourceHash": "sha256:d32390e2348e77ee3b3aa3827f33832aad78eaa212633d3343e2a6ca3db67308",
+  "authoredSourceHash": "sha256:4408fc053f27c314099414a81a1267796bf80b3e1aba3f77d219685201473bd1",
+  "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:dc747855cb7bded810f0d8ed449d51d83a71c319afa726db32c294bb50805a56",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:617c38ceea34e00b075dd0e91a8a445ada7f1e3b874bf44c76716db685ba3c16",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:8e3836b0165c26bafc92da152efd2325e4f739badebaae04a4115f7b859b7d4b",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:b41cdf7c04193dd5f6d6920383f13440b0dd8724eb05f87672f445be95ebf921",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -44,7 +45,10 @@
         }
       ],
       "name": "teams",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "fields": [
@@ -107,7 +111,10 @@
         }
       ],
       "name": "projects",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     }
   ],
   "targetProfile": "local-dev-sqlite-ibex"

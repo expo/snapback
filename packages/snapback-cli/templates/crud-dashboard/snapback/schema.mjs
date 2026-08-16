@@ -1,10 +1,12 @@
 import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 
+// @ref LLP 0234#phase-g2--d2-enforcing-closure — the dashboard is a shared
+// public sample: its anonymous directory and CRUD functions serve every row.
 export const teams = defineTable({
   slug: v.string(),
   name: v.string(),
   color: v.string(),
-}).index('by_slug', ['slug'], { unique: true }).sync();
+}).visibility({ kind: 'public-read' }).index('by_slug', ['slug'], { unique: true }).sync();
 
 export const projects = defineTable({
   projectKey: v.string(),
@@ -15,6 +17,7 @@ export const projects = defineTable({
   budget: v.integer(),
   updatedAt: v.integer(),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_updated', ['updatedAt'])
   .index('by_key', ['projectKey'], { unique: true })
   .index('by_team_updated', ['teamSlug', 'updatedAt'])

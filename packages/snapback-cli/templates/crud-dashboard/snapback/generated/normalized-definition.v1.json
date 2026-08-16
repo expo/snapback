@@ -1,0 +1,1179 @@
+{
+  "definition": {
+    "application": {
+      "assetUploadIntents": [],
+      "authorityProfile": null,
+      "memberships": [],
+      "migrations": null,
+      "retention": {
+        "operations": [
+          {
+            "operationName": "createProject",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "deleteProject",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "listTeams",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "projectDetail",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "projectDirectory",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "updateProject",
+            "retainable": false,
+            "retentionClass": null
+          }
+        ],
+        "schema": null
+      },
+      "routes": null,
+      "schema": {
+        "api": null,
+        "assets": null,
+        "auth": {
+          "mode": "sessions"
+        },
+        "authProgram": null,
+        "ephemeralCollections": [],
+        "portabilityFlags": [],
+        "pushSeam": null,
+        "requiredCapabilities": [
+          "auth.sessions.v1"
+        ],
+        "strictDeclarations": false,
+        "tables": [
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "slug",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "name",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "color",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "slug"
+                ],
+                "name": "by_slug",
+                "unique": true
+              }
+            ],
+            "name": "teams",
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
+          },
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "projectKey",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "teamSlug",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "title",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "summary",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "status",
+                "optional": false
+              },
+              {
+                "field_type": "Integer",
+                "name": "budget",
+                "optional": false
+              },
+              {
+                "field_type": "Integer",
+                "name": "updatedAt",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "updatedAt"
+                ],
+                "name": "by_updated"
+              },
+              {
+                "fields": [
+                  "projectKey"
+                ],
+                "name": "by_key",
+                "unique": true
+              },
+              {
+                "fields": [
+                  "teamSlug",
+                  "updatedAt"
+                ],
+                "name": "by_team_updated"
+              }
+            ],
+            "name": "projects",
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
+          }
+        ],
+        "version": "snapback.v1"
+      }
+    },
+    "operations": [
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "teamSlug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "summary",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "status",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "budget",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "projects"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createProject",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "kind": "string",
+            "maxBytes": 1048576
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "projects",
+          "tables": [
+            "projects"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "projectKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "projects"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "projects"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "deleteProject",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": "projects",
+          "tables": [
+            "projects"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "kind": "boolean"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "projects",
+          "tables": [
+            "projects"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "teams"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "listTeams",
+        "plan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "name"
+              }
+            ],
+            "table": "teams"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "teams",
+          "tables": [
+            "teams"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "teams"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "slug",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "name",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "color",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "teams"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "projectKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": true,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1",
+          "single_table_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_key",
+              "table": "projects"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "projectDetail",
+        "plan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "projectKey",
+                "op": "Eq",
+                "value": {
+                  "Arg": "projectKey"
+                }
+              }
+            ],
+            "indexed_by": "by_key",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "projects"
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "singleTable",
+          "primaryTable": "projects",
+          "tables": [
+            "projects"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "projects"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "projectKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "teamSlug",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "summary",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "status",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "budget",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              },
+              {
+                "name": "updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "projects"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "cursor",
+              "required": false,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "relational_query_v1",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_updated",
+              "table": "projects"
+            },
+            {
+              "access": "query",
+              "index": "by_slug",
+              "table": "teams"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "projectDirectory",
+        "plan": {
+          "RelationalQuery": {
+            "joinKind": "Left",
+            "joinOn": [
+              {
+                "joinedField": "slug",
+                "rootField": "teamSlug"
+              }
+            ],
+            "joined": "teams",
+            "joinedAlias": "teams",
+            "joinedIndex": "by_slug",
+            "joinedVisibility": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "updatedAt"
+              }
+            ],
+            "projection": [
+              {
+                "name": "projectKey",
+                "source": {
+                  "RootField": "projectKey"
+                }
+              },
+              {
+                "name": "title",
+                "source": {
+                  "RootField": "title"
+                }
+              },
+              {
+                "name": "summary",
+                "source": {
+                  "RootField": "summary"
+                }
+              },
+              {
+                "name": "status",
+                "source": {
+                  "RootField": "status"
+                }
+              },
+              {
+                "name": "budget",
+                "source": {
+                  "RootField": "budget"
+                }
+              },
+              {
+                "name": "updatedAt",
+                "source": {
+                  "RootField": "updatedAt"
+                }
+              },
+              {
+                "name": "teamSlug",
+                "source": {
+                  "RootField": "teamSlug"
+                }
+              },
+              {
+                "name": "teamName",
+                "source": {
+                  "JoinedField": "name"
+                }
+              },
+              {
+                "name": "teamColor",
+                "source": {
+                  "JoinedField": "color"
+                }
+              }
+            ],
+            "root": "projects",
+            "rootAlias": "projects",
+            "rootFilters": [],
+            "rootIndex": "by_updated",
+            "rootVisibility": [],
+            "take": 50
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "relational",
+          "primaryTable": "projects",
+          "tables": [
+            "projects",
+            "teams"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "kind": "records",
+          "record": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "projectKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "summary",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "status",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "budget",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              },
+              {
+                "name": "updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              },
+              {
+                "name": "teamSlug",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "teamName",
+                "required": true,
+                "value": {
+                  "kind": "union",
+                  "variants": [
+                    {
+                      "kind": "null"
+                    },
+                    {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    }
+                  ]
+                }
+              },
+              {
+                "name": "teamColor",
+                "required": true,
+                "value": {
+                  "kind": "union",
+                  "variants": [
+                    {
+                      "kind": "null"
+                    },
+                    {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    }
+                  ]
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "rows": {
+            "maxItems": 50,
+            "minItems": 0
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "projectKey",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "teamSlug",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "summary",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "status",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "budget",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": -9007199254740991
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "public",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "ibex_ctx_db_host_bridge",
+          "inline_handler_v1",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [],
+          "basis": "declared",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "table": "projects"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "declared"
+              ],
+              "table": "projects"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "updateProject",
+        "plan": null,
+        "reads": {
+          "authScopeField": null,
+          "mode": "handlerDeclared",
+          "primaryTable": "projects",
+          "tables": [
+            "projects"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "kind": "value",
+          "value": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "projectKey",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "teamSlug",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "summary",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "status",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "budget",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              },
+              {
+                "name": "updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": -9007199254740991
+                }
+              }
+            ],
+            "kind": "object"
+          }
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "handlerDeclared",
+          "primaryTable": "projects",
+          "tables": [
+            "projects"
+          ]
+        }
+      }
+    ]
+  },
+  "excludedFields": [
+    "behavior",
+    "graphRecords",
+    "authoringProfile",
+    "appId"
+  ],
+  "normalizedContractId": "sha256:87d021320881aea071bed65b399812f147f782c5af6362edc6cb8219cf55aa43",
+  "normalizedSchemaId": "sha256:995114434eab1fd71cd2d0b6262988d26b5289f92d472942be99a1c54cb5bd06",
+  "schemaVersion": "snapback.normalized-application-definition.v1"
+}

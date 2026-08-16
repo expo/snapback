@@ -55,6 +55,8 @@ const authProgram = defineAuth({
 
 export default defineSchema(
   {
+    // @ref LLP 0234#phase-g2--d2-enforcing-closure — retained history in this
+    // seeded test-persona starter is public by design; production chat uses membership.
     users: defineTable({
       handle: v.string(),
       name: v.string(),

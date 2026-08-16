@@ -6,6 +6,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
+export type AuthoringProfile = 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';
 export type SearchMatchAtomV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } };
 export type SearchClauseV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } } | { Any: readonly SearchMatchAtomV1[] } | { Not: SearchMatchAtomV1 } | { Filter: { field: string; op: "eq"; value: string | number | boolean } };
 export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }
@@ -35,15 +36,23 @@ export interface GeneratedMutationIrV1 {
   readonly usesRuntimeNow: boolean;
   readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
 }
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
+/** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */
+export type FunctionReferenceDelivery<Kind extends FunctionKind> = Kind extends 'LiveQuery' ? Readonly<{ delivery: 'live' }> : Kind extends 'Query' ? Readonly<{ delivery: 'read' }> : Readonly<Record<never, never>>;
+export interface FunctionReferenceBase<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
   id: string;
   name: Name;
   kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
+  authoringProfile: Profile;
+  retention: string;
+  readonly __snapbackAuthoringProfile?: Profile;
+  authRequirement: 'public' | 'optional-user' | 'authenticated';
   implementationHash: string;
   argsContractHash: string;
+  argsContract: Readonly<{ fields: readonly Readonly<{ name: string; required: boolean; value: Readonly<Record<string, unknown>> }>[] }>;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
   authoredSourceHash: `sha256:${string}`;
@@ -56,6 +65,11 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
+export type FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReferenceBase<Name, Kind, Args, Result, Profile> & FunctionReferenceDelivery<Kind>;
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Query', Args, Result, Profile>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'LiveQuery', Args, Result, Profile>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Mutation', Args, Result, Profile>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Action', Args, Result, Profile>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -137,6 +151,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value,
   routingFields: readonly string[];
   defaultTtlMs: number;
   maxTtlMs: number;
+  withdrawalVisibilityDeadlineMs: number;
   maxValueBytes: number;
   publishRate: { readonly sustainedHz: number; readonly burst: number };
   deliveryMode: 'latest';
@@ -160,13 +175,16 @@ export interface GeneratedPatchModel {
 export interface GeneratedIndexNames {
   "entries": "by_page_key";
 }
+export interface GeneratedUniqueIndexKeys {
+  "entries": { "by_page_key": Readonly<{ "pageKey": NonNullable<GeneratedDataModel["entries"]["pageKey"]> }> };
+}
 export interface GeneratedTableAdmissionMaps {
   readonly read: Record<GeneratedReadableTableName, true>;
   readonly insert: Record<GeneratedInsertableTableName, true>;
   readonly patch: Record<GeneratedPatchableTableName, true>;
   readonly delete: Record<GeneratedDeletableTableName, true>;
 }
-export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps>;
+export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps, GeneratedUniqueIndexKeys>;
 export type GeneratedQueryBuilder<Table extends GeneratedReadableTableName> = QueryBuilder<GeneratedHandlerSchema, Table>;
 export type GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>;
 export type GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>;
@@ -184,22 +202,48 @@ export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedA
 export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, RealtimeContext>;
 export interface GeneratedFunctionContexts {
-  createEntry: GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
-  liveFeed: GeneratedQueryContext;
-  olderFeedPage: GeneratedQueryContext;
+  "createEntry": GeneratedMutationContext<GeneratedAuthenticatedAuthContext>;
+  "liveFeed": GeneratedQueryContext;
+  "olderFeedPage": GeneratedQueryContext;
 }
 export interface GeneratedEphemeral {
 }
 export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
-  createEntry: FunctionReference<'createEntry', 'Mutation', { authorName: string; caption: string; photo: string }, Id<"entries">>;
-  liveFeed: FunctionReference<'liveFeed', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["entries"]>>;
-  olderFeedPage: FunctionReference<'olderFeedPage', 'LiveQuery', { before: string }, ReadonlyArray<GeneratedDataModel["entries"]>>;
+  /**
+   * Mutation reference `media-feed:createEntry`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:17b8bc580cbacadcfcd733077e37c352dbdff3ac4eb36fbdc456cf8c23f521ef`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "createEntry": FunctionReference<"createEntry", 'Mutation', { authorName: string; caption: string; photo: string }, Id<"entries">, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `media-feed:liveFeed`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:17b8bc580cbacadcfcd733077e37c352dbdff3ac4eb36fbdc456cf8c23f521ef`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "liveFeed": FunctionReference<"liveFeed", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["entries"]>, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `media-feed:olderFeedPage`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:17b8bc580cbacadcfcd733077e37c352dbdff3ac4eb36fbdc456cf8c23f521ef`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "olderFeedPage": FunctionReference<"olderFeedPage", 'LiveQuery', { before: string }, ReadonlyArray<GeneratedDataModel["entries"]>, "snapback-explicit-v1">;
   feedPhotoUpload: AssetUploadReference<"feedPhotoUpload", Record<string, never>>;
   privatePhotoUpload: AssetUploadReference<"privatePhotoUpload", Record<string, never>>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
+}
+export interface GeneratedCommandTargets {
 }
 export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;
 export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? Handler<GeneratedFunctionContexts[Name], Args, Result> : never;

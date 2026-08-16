@@ -6,6 +6,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
+export type AuthoringProfile = 'snapback-explicit-v1' | 'snapback-familiar-ts-v1';
 export type SearchMatchAtomV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } };
 export type SearchClauseV1 = { Term: { field?: string; value: string } } | { Phrase: { field?: string; values: readonly string[] } } | { Prefix: { field?: string; value: string } } | { Any: readonly SearchMatchAtomV1[] } | { Not: SearchMatchAtomV1 } | { Filter: { field: string; op: "eq"; value: string | number | boolean } };
 export interface SearchQueryAstV1 { all: readonly SearchClauseV1[] }
@@ -35,15 +36,23 @@ export interface GeneratedMutationIrV1 {
   readonly usesRuntimeNow: boolean;
   readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
 }
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
+/** Optional own-property `undefined` is normalized exactly as omission; required, array, and open-JSON undefined still refuse before dispatch. */
+export type FunctionReferenceDelivery<Kind extends FunctionKind> = Kind extends 'LiveQuery' ? Readonly<{ delivery: 'live' }> : Kind extends 'Query' ? Readonly<{ delivery: 'read' }> : Readonly<Record<never, never>>;
+export interface FunctionReferenceBase<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
   id: string;
   name: Name;
   kind: Kind;
+  readonly __snapbackReferenceKind: Kind;
+  authoringProfile: Profile;
+  retention: string;
+  readonly __snapbackAuthoringProfile?: Profile;
+  authRequirement: 'public' | 'optional-user' | 'authenticated';
   implementationHash: string;
   argsContractHash: string;
+  argsContract: Readonly<{ fields: readonly Readonly<{ name: string; required: boolean; value: Readonly<Record<string, unknown>> }>[] }>;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
   authoredSourceHash: `sha256:${string}`;
@@ -56,6 +65,11 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   readonly __args?: Args;
   readonly __result?: Result;
 }
+export type FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReferenceBase<Name, Kind, Args, Result, Profile> & FunctionReferenceDelivery<Kind>;
+export type QueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Query', Args, Result, Profile>;
+export type LiveQueryRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'LiveQuery', Args, Result, Profile>;
+export type MutationRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Mutation', Args, Result, Profile>;
+export type ActionRef<Name extends string = string, Args = Record<string, unknown>, Result = unknown, Profile extends AuthoringProfile = AuthoringProfile> = FunctionReference<Name, 'Action', Args, Result, Profile>;
 export type FunctionArgs<Ref> = Ref extends FunctionReference<string, FunctionKind, infer Args, unknown> ? Args : never;
 export type FunctionResult<Ref> = Ref extends FunctionReference<string, FunctionKind, unknown, infer Result> ? Result : never;
 export type QueryInvocation<Ref extends FunctionReference<string, 'Query' | 'LiveQuery', unknown, unknown>> = { function: Ref; args: FunctionArgs<Ref> };
@@ -137,6 +151,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value,
   routingFields: readonly string[];
   defaultTtlMs: number;
   maxTtlMs: number;
+  withdrawalVisibilityDeadlineMs: number;
   maxValueBytes: number;
   publishRate: { readonly sustainedHz: number; readonly burst: number };
   deliveryMode: 'latest';
@@ -164,13 +179,17 @@ export interface GeneratedIndexNames {
   "teams": "by_slug";
   "projects": "by_updated" | "by_key" | "by_team_updated";
 }
+export interface GeneratedUniqueIndexKeys {
+  "teams": { "by_slug": Readonly<{ "slug": NonNullable<GeneratedDataModel["teams"]["slug"]> }> };
+  "projects": { "by_key": Readonly<{ "projectKey": NonNullable<GeneratedDataModel["projects"]["projectKey"]> }> };
+}
 export interface GeneratedTableAdmissionMaps {
   readonly read: Record<GeneratedReadableTableName, true>;
   readonly insert: Record<GeneratedInsertableTableName, true>;
   readonly patch: Record<GeneratedPatchableTableName, true>;
   readonly delete: Record<GeneratedDeletableTableName, true>;
 }
-export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps>;
+export type GeneratedHandlerSchema = HandlerSchema<GeneratedDataModel, GeneratedIndexNames, GeneratedInsertModel, GeneratedPatchModel, GeneratedTableAdmissionMaps, GeneratedUniqueIndexKeys>;
 export type GeneratedQueryBuilder<Table extends GeneratedReadableTableName> = QueryBuilder<GeneratedHandlerSchema, Table>;
 export type GeneratedQueryDatabase = QueryDatabase<GeneratedHandlerSchema>;
 export type GeneratedMutationDatabase = MutationDatabase<GeneratedHandlerSchema>;
@@ -188,26 +207,76 @@ export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedA
 export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;
 export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, never, RealtimeContext>;
 export interface GeneratedFunctionContexts {
-  createProject: GeneratedMutationContext;
-  deleteProject: GeneratedMutationContext;
-  listTeams: GeneratedQueryContext;
-  projectDetail: GeneratedQueryContext;
-  projectDirectory: GeneratedQueryContext;
-  updateProject: GeneratedMutationContext;
+  "createProject": GeneratedMutationContext;
+  "deleteProject": GeneratedMutationContext;
+  "listTeams": GeneratedQueryContext;
+  "projectDetail": GeneratedQueryContext;
+  "projectDirectory": GeneratedQueryContext;
+  "updateProject": GeneratedMutationContext;
 }
 export interface GeneratedEphemeral {
 }
 export interface GeneratedQueryGroups {
 }
 export interface GeneratedApi {
-  createProject: FunctionReference<'createProject', 'Mutation', { teamSlug: string; title: string; summary: string; status: string; budget: number }, string>;
-  deleteProject: FunctionReference<'deleteProject', 'Mutation', { projectKey: string }, boolean>;
-  listTeams: FunctionReference<'listTeams', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["teams"]>>;
-  projectDetail: FunctionReference<'projectDetail', 'LiveQuery', { projectKey: string }, ReadonlyArray<GeneratedDataModel["projects"]>>;
-  projectDirectory: FunctionReference<'projectDirectory', 'LiveQuery', { cursor?: string }, ReadonlyArray<{ "projectKey": string; "title": string; "summary": string; "status": string; "budget": number; "updatedAt": number; "teamSlug": string; "teamName": null | string; "teamColor": null | string }>>;
-  updateProject: FunctionReference<'updateProject', 'Mutation', { projectKey: string; teamSlug: string; title: string; summary: string; status: string; budget: number }, { "projectKey": string; "teamSlug": string; "title": string; "summary": string; "status": string; "budget": number; "updatedAt": number }>;
+  /**
+   * Mutation reference `crud-dashboard:createProject`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:617c38ceea34e00b075dd0e91a8a445ada7f1e3b874bf44c76716db685ba3c16`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "createProject": FunctionReference<"createProject", 'Mutation', { teamSlug: string; title: string; summary: string; status: string; budget: number }, string, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `crud-dashboard:deleteProject`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:617c38ceea34e00b075dd0e91a8a445ada7f1e3b874bf44c76716db685ba3c16`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "deleteProject": FunctionReference<"deleteProject", 'Mutation', { projectKey: string }, boolean, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `crud-dashboard:listTeams`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:617c38ceea34e00b075dd0e91a8a445ada7f1e3b874bf44c76716db685ba3c16`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "listTeams": FunctionReference<"listTeams", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["teams"]>, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `crud-dashboard:projectDetail`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`, `single_table_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:617c38ceea34e00b075dd0e91a8a445ada7f1e3b874bf44c76716db685ba3c16`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "projectDetail": FunctionReference<"projectDetail", 'LiveQuery', { projectKey: string }, ReadonlyArray<GeneratedDataModel["projects"]>, "snapback-explicit-v1">;
+  /**
+   * LiveQuery reference `crud-dashboard:projectDirectory`.
+   * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `relational_query_v1`, `result_contract_v1`.
+   * Freshness: authoritative initial snapshot followed by live updates Retention: none.
+   * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:617c38ceea34e00b075dd0e91a8a445ada7f1e3b874bf44c76716db685ba3c16`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "projectDirectory": FunctionReference<"projectDirectory", 'LiveQuery', { cursor?: string }, ReadonlyArray<{ "projectKey": string; "title": string; "summary": string; "status": string; "budget": number; "updatedAt": number; "teamSlug": string; "teamName": null | string; "teamColor": null | string }>, "snapback-explicit-v1">;
+  /**
+   * Mutation reference `crud-dashboard:updateProject`.
+   * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
+   * Auth: `public`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
+   * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
+   * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:617c38ceea34e00b075dd0e91a8a445ada7f1e3b874bf44c76716db685ba3c16`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "updateProject": FunctionReference<"updateProject", 'Mutation', { projectKey: string; teamSlug: string; title: string; summary: string; status: string; budget: number }, { "projectKey": string; "teamSlug": string; "title": string; "summary": string; "status": string; "budget": number; "updatedAt": number }, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
+}
+export interface GeneratedCommandTargets {
 }
 export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;
 export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? Handler<GeneratedFunctionContexts[Name], Args, Result> : never;

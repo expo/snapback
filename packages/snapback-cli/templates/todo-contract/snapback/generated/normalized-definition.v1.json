@@ -1,0 +1,346 @@
+{
+  "definition": {
+    "application": {
+      "assetUploadIntents": [],
+      "authorityProfile": null,
+      "memberships": [],
+      "migrations": null,
+      "retention": {
+        "operations": [
+          {
+            "operationName": "createTodo",
+            "retainable": false,
+            "retentionClass": null
+          },
+          {
+            "operationName": "listTodos",
+            "retainable": false,
+            "retentionClass": null
+          }
+        ],
+        "schema": null
+      },
+      "routes": null,
+      "schema": {
+        "api": null,
+        "assets": null,
+        "auth": null,
+        "authProgram": null,
+        "ephemeralCollections": [],
+        "portabilityFlags": [],
+        "pushSeam": null,
+        "requiredCapabilities": [],
+        "strictDeclarations": false,
+        "tables": [
+          {
+            "fields": [
+              {
+                "field_type": "String",
+                "name": "title",
+                "optional": false
+              },
+              {
+                "field_type": "Boolean",
+                "name": "completed",
+                "optional": false
+              },
+              {
+                "field_type": "String",
+                "name": "userId",
+                "optional": false
+              }
+            ],
+            "indexes": [
+              {
+                "fields": [
+                  "userId"
+                ],
+                "name": "by_user"
+              }
+            ],
+            "name": "todos",
+            "syncable": true,
+            "visibility": {
+              "field": "userId",
+              "kind": "owner"
+            }
+          }
+        ],
+        "version": "snapback.v0"
+      }
+    },
+    "operations": [
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": [
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ]
+        },
+        "authority": {
+          "authRequirement": "optional-user",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "mutation_read_set_validation",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [
+            "authUserId"
+          ],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [],
+          "version": "EffectCeilingV1",
+          "writes": [
+            {
+              "operations": [
+                "insert"
+              ],
+              "table": "todos"
+            }
+          ]
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "Mutation",
+        "operationName": "createTodo",
+        "plan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": null,
+                  "table": "todos",
+                  "values": {
+                    "completed": {
+                      "Literal": false
+                    },
+                    "title": {
+                      "Arg": "title"
+                    },
+                    "userId": "AuthUserId"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "reads": {
+          "authScopeField": null,
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        },
+        "refusals": [],
+        "result": {
+          "kind": "unknown"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "mutation",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "mutationPlan",
+          "primaryTable": "todos",
+          "tables": [
+            "todos"
+          ]
+        }
+      },
+      {
+        "apiExposure": null,
+        "args": {
+          "fields": []
+        },
+        "authority": {
+          "authRequirement": "optional-user",
+          "authorityCreating": false,
+          "authorityIndependent": false,
+          "authorityProfileDependence": [],
+          "authorizationDependence": [
+            "userId"
+          ],
+          "elevatedDbCapabilities": [],
+          "fieldBoundary": null
+        },
+        "boundedSkew": null,
+        "capabilities": [
+          "args_contract_v1",
+          "host_plan_runtime",
+          "live_subscriptions",
+          "result_contract_v1"
+        ],
+        "effects": {
+          "authorizationInputs": [
+            "authUserId"
+          ],
+          "basis": "static",
+          "hostOperations": [],
+          "reads": [
+            {
+              "access": "query",
+              "index": "by_user",
+              "table": "todos"
+            }
+          ],
+          "version": "EffectCeilingV1",
+          "writes": []
+        },
+        "mediaCommandBindings": [],
+        "operationKind": "LiveQuery",
+        "operationName": "listTodos",
+        "plan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_user",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "todos",
+            "tableVisibility": {
+              "field": "userId",
+              "kind": "owner"
+            }
+          }
+        },
+        "reads": {
+          "authScopeField": "userId",
+          "mode": "singleTable",
+          "primaryTable": "todos",
+          "tables": [
+            "todos"
+          ]
+        },
+        "refusals": [],
+        "result": {
+          "document": {
+            "allowExtra": false,
+            "fields": [
+              {
+                "name": "_id",
+                "required": true,
+                "value": {
+                  "kind": "id",
+                  "table": "todos"
+                }
+              },
+              {
+                "name": "_version",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_createdAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "_updatedAt",
+                "required": true,
+                "value": {
+                  "kind": "integer",
+                  "max": 9007199254740991,
+                  "min": 0
+                }
+              },
+              {
+                "name": "title",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              },
+              {
+                "name": "completed",
+                "required": true,
+                "value": {
+                  "kind": "boolean"
+                }
+              },
+              {
+                "name": "userId",
+                "required": true,
+                "value": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                }
+              }
+            ],
+            "kind": "object"
+          },
+          "kind": "documents",
+          "table": "todos"
+        },
+        "retention": {
+          "retainable": false,
+          "retentionClass": null
+        },
+        "runtime": null,
+        "secrets": [],
+        "sequences": [],
+        "standardPattern": null,
+        "stream": false,
+        "syncabilityClass": "syncable-live",
+        "trackedRefusals": [],
+        "writes": {
+          "mode": "none",
+          "primaryTable": null,
+          "tables": []
+        }
+      }
+    ]
+  },
+  "excludedFields": [
+    "behavior",
+    "graphRecords",
+    "authoringProfile",
+    "appId"
+  ],
+  "normalizedContractId": "sha256:c49aab5c3050cac17baa64b39ec1a224a14b495700ededbe1d03efbedbb90ac3",
+  "normalizedSchemaId": "sha256:e524d12da26ff3bdf1666b4e979d8d2720eaa0be9cf378b05c63c2de57174245",
+  "schemaVersion": "snapback.normalized-application-definition.v1"
+}
