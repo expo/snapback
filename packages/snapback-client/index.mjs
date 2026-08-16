@@ -7357,18 +7357,30 @@ export class SnapbackClient {
       return Object.freeze({ status: 'unknown' });
     }
     if (!record) return Object.freeze({ status: 'unknown' });
+    const dataCustody = record.dataTransaction?.artifactKind === 'dataTransaction'
+      ? record.dataCustodyClass === 'queue-eligible'
+        ? 'accepted'
+        : 'not-offered'
+      : record.dataDispositionCustody === 'accepted'
+          || record.dataDispositionCustody === 'not-offered'
+        ? record.dataDispositionCustody
+        : null;
+    const disposition = (value) => freezeDeep({
+      ...value,
+      ...(dataCustody === null ? {} : { custody: dataCustody }),
+    });
     if (record.status === 'pending') {
       if (
         record.dataCustodyClass === 'online-only'
         && record.dispatchBoundary === 'possibly-crossed'
       ) {
-        return Object.freeze({ status: 'pending', blockedReason: 'outcome-unknown' });
+        return disposition({ status: 'pending', blockedReason: 'outcome-unknown' });
       }
       if (
         record.dataCustodyClass === 'online-only'
         && record.dispatchBoundary === 'not-crossed'
       ) {
-        return freezeDeep({
+        return disposition({
           status: 'failed',
           failure: {
             code: 'SNAPBACK_DATA_DISPATCH_NOT_ACCEPTED',
@@ -7378,31 +7390,31 @@ export class SnapbackClient {
       }
       // Ordinary pending records retain the pre-amendment vocabulary: only
       // the online-only boundary is authority for outcome-unknown.
-      return Object.freeze({ status: 'pending', blockedReason: null });
+      return disposition({ status: 'pending', blockedReason: null });
     }
     if (record.status === 'settled') {
       if (record.settlement?.dataOutcome === 'refused') {
-        return freezeDeep({
+        return disposition({
           status: 'failed',
           failure: structuredClone(record.settlement.diagnostic),
         });
       }
-      return freezeDeep({
+      return disposition({
         status: 'settled',
         settlement: structuredClone(record.settlement),
         settledAt: record.settledAt,
       });
     }
     if (record.status === 'failed') {
-      return freezeDeep({
+      return disposition({
         status: 'failed',
         failure: structuredClone(record.failure),
       });
     }
-    if (record.status === 'stranded') return Object.freeze({ status: 'stranded' });
-    if (record.status === 'quarantined') return Object.freeze({ status: 'quarantined' });
+    if (record.status === 'stranded') return disposition({ status: 'stranded' });
+    if (record.status === 'quarantined') return disposition({ status: 'quarantined' });
     if (record.status === 'result-gone') {
-      return freezeDeep({ status: 'resultGone', ...structuredClone(record.resultGone) });
+      return disposition({ status: 'resultGone', ...structuredClone(record.resultGone) });
     }
     return Object.freeze({ status: 'unknown' });
   }
@@ -7510,6 +7522,9 @@ export class SnapbackClient {
             : 'unavailable'
           : 'installed',
         status: record.status,
+        receiptVersion: Number.isSafeInteger(record.settlement?.version)
+          ? record.settlement.version
+          : null,
       }))
       .sort((left, right) => left.sequence - right.sequence || left.intentId.localeCompare(right.intentId));
     return Object.freeze(projected);

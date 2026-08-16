@@ -402,23 +402,27 @@ export type MutationDispatchOutcome<Result> =
   };
 
 export type MutationDisposition =
-  | { readonly status: 'pending'; readonly blockedReason: string | null }
+  | { readonly status: 'pending'; readonly blockedReason: string | null;
+      readonly custody?: 'accepted' | 'not-offered' }
   | {
     readonly status: 'settled';
     readonly settlement: MutationOutput<unknown>;
     readonly settledAt: number;
+    readonly custody?: 'accepted' | 'not-offered';
   }
   | {
     readonly status: 'failed';
     readonly failure: Readonly<{ readonly code: string; readonly message: string }>;
+    readonly custody?: 'accepted' | 'not-offered';
   }
-  | { readonly status: 'stranded' }
-  | { readonly status: 'quarantined' }
+  | { readonly status: 'stranded'; readonly custody?: 'accepted' | 'not-offered' }
+  | { readonly status: 'quarantined'; readonly custody?: 'accepted' | 'not-offered' }
   | {
     readonly status: 'resultGone';
     readonly disposition: 'result-expired';
     readonly outcome: 'committed' | 'refused';
     readonly receiptDigest: `sha256:${string}`;
+    readonly custody?: 'accepted' | 'not-offered';
   }
   | { readonly status: 'unknown' };
 

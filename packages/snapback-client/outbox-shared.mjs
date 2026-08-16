@@ -463,6 +463,13 @@ const quarantineTombstone = (record) => ({
   refusalCode: record.quarantine?.refusalCode ?? 'SNAPBACK_UPGRADE_REQUIRED',
   quarantineDisposition: record.quarantine?.disposition ?? 'compatibility-unclassified',
   causeClientMutationId: record.quarantine?.causeClientMutationId ?? record.id,
+  ...(record.dataTransaction?.artifactKind === 'dataTransaction'
+    ? {
+        dataDispositionCustody: record.dataCustodyClass === 'queue-eligible'
+          ? 'accepted'
+          : 'not-offered',
+      }
+    : {}),
   provenance: {
     source: 'server-replay-refusal',
     payload: 'redacted',

@@ -108,6 +108,7 @@ test('explicit and familiar generated bindings preserve React/headless descripto
       query() {},
       liveQuery() {},
       subscribeMutation() { return () => {}; },
+      subscribeOutbox() { return () => {}; },
     };
     const headless = createDataClient({ client, data: generated.data });
     const fromGenerated = generated.data.todos

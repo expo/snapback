@@ -41,6 +41,7 @@ function clientFor(generated) {
     async query() { return { rows: [], cursor: null }; },
     liveQuery() {},
     subscribeMutation() { return () => {}; },
+    subscribeOutbox() { return () => {}; },
     async inspect() {
       return {
         targetProfileId: 'local-dev-sqlite-ibex',

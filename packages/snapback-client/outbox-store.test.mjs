@@ -2716,6 +2716,48 @@ test('mutationStatus maps result-gone and carries its retained outcome facts', a
   });
 });
 
+test('mutationStatus carries accepted custody for every terminal data disposition', async () => {
+  const dataRecord = (id) => ({
+    id,
+    function: 'data.tx_fixture',
+    dataCustodyClass: 'queue-eligible',
+    dataTransaction: {
+      artifactKind: 'dataTransaction',
+      core: { reach: { reads: [], writes: ['todos'] } },
+    },
+  });
+  const cases = [
+    ['failed', (store, id) => store.outboxMarkFailed(id, {
+      code: 'SNAPBACK_TEST_FAILURE', message: 'fixture failure',
+    })],
+    ['stranded', (store, id) => store.outboxMarkStranded(
+      id,
+      'fixture-stranded',
+      {
+        authMode: 'sessions',
+        authorizationStreamIncarnation: 'fixture-stream',
+        userId: TEST_SESSION_USER_ID,
+      },
+    )],
+    ['quarantined', (store, id) => store.outboxMarkQuarantined(id, {
+      code: 'SNAPBACK_TEST_QUARANTINE', message: 'fixture quarantine',
+    })],
+    ['resultGone', (store, id) => store.outboxMarkResultGone(id, {
+      outcome: 'committed', receiptDigest: `sha256:${'f'.repeat(64)}`,
+    })],
+  ];
+  for (const [expectedStatus, transition] of cases) {
+    const store = createDurableTestStore();
+    const id = `cm-data-${expectedStatus}`;
+    await store.outboxEnqueue(dataRecord(id));
+    await transition(store, id);
+    const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+    const status = await client.mutationStatus(id);
+    assert.equal(status.status, expectedStatus, expectedStatus);
+    assert.equal(status.custody, 'accepted', expectedStatus);
+  }
+});
+
 test('result-gone acknowledgement is payload-free and releases its ordered-successor fence', async () => {
   const store = createDurableTestStore();
   await store.outboxEnqueue({ id: 'cm-ack-result-gone', function: 'createThing' });

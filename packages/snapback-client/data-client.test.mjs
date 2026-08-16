@@ -11,6 +11,13 @@ import { emptyOutboxState, outboxOps, pendingOutboxRecords } from './outbox-shar
 import { createFileRqsResumeStore } from './rqs-store-file.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
 
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((yes) => { resolve = yes; });
+  return { promise, resolve };
+};
+
 const generation = Object.freeze({
   schemaVersion: 'snapback.v0',
   appId: 'data-test',
@@ -119,6 +126,7 @@ function fakeClient({ disposition = 'settled', presentation = 'installed' } = {}
   const queryCalls = [];
   const liveCalls = [];
   const listeners = new Set();
+  const outboxListeners = new Set();
   return {
     calls,
     queryCalls,
@@ -145,6 +153,10 @@ function fakeClient({ disposition = 'settled', presentation = 'installed' } = {}
     },
     async mutationStatus() { return { status: disposition === 'queued' ? 'pending' : 'unknown' }; },
     subscribeMutation(_intentId, listener) { listeners.add(listener); return () => listeners.delete(listener); },
+    subscribeOutbox(listener) { outboxListeners.add(listener); return () => outboxListeners.delete(listener); },
+    notifyOutbox() {
+      for (const listener of [...outboxListeners]) listener();
+    },
     async __dataPendingWrites() {
       return Object.freeze([
         Object.freeze({
@@ -169,19 +181,21 @@ function fakeClient({ disposition = 'settled', presentation = 'installed' } = {}
       liveCalls.push({ reference, options });
       const handle = {
         rows: [{ _id: 'todo-1', title: 'first' }],
+        version: 4,
         cursor: 'dc1.next',
         connection: 'live',
         freshness: 'current',
         retention: { retainable: false, reason: 'data v1 is unretained' },
         async poll() {
           this.rows = [...this.rows, { _id: 'todo-2', title: 'second' }];
+          this.version += 1;
           this.cursor = null;
-          options.onUpdate?.(this.rows, { kind: 'snapshot' });
+          options.onUpdate?.(this.rows, { kind: 'snapshot', version: this.version });
           return this.rows;
         },
         dispose() { this.disposed = true; },
       };
-      options.onUpdate?.(handle.rows, { kind: 'snapshot' });
+      options.onUpdate?.(handle.rows, { kind: 'snapshot', version: handle.version });
       return handle;
     },
   };
@@ -239,6 +253,73 @@ test('handle subscription is notify-only and dispose never cancels dispatch cust
   assert.equal((await handle.settled).status, 'committed');
   assert.equal(client.calls.length, 1, 'dispose does not cancel accepted work');
   assert.deepEqual(notifications, [], 'disposed observation receives no later notification');
+});
+
+test('accepted terminal dispositions stay distinct from pre-custody refusal', async () => {
+  const client = fakeClient({ disposition: 'queued' });
+  let mutationListener = null;
+  let disposition = { status: 'pending', custody: 'accepted', blockedReason: null };
+  client.mutationStatus = async () => disposition;
+  client.subscribeMutation = (_intentId, listener) => {
+    mutationListener = listener;
+    return () => {};
+  };
+  const db = createDataClient({ client, data: binding() });
+  const handle = db.transact(
+    db.tx.todos.create({ title: 'a' }),
+    db.tx.todos.update({ id: 'todo-1', title: 'b' }),
+  );
+  assert.equal((await handle.dispatched).status, 'queued');
+  disposition = {
+    status: 'failed',
+    custody: 'accepted',
+    failure: { code: 'SNAPBACK_TEST_FAILURE', message: 'failed after custody' },
+  };
+  mutationListener();
+  const settlement = await handle.settled;
+  assert.equal(settlement.status, 'refused');
+  assert.deepEqual(handle.snapshot(), {
+    intentId: handle.intentId,
+    presentation: 'installed',
+    custody: 'accepted',
+    dispatch: 'failed',
+    settlement: 'refused',
+    observation: 'origin-only',
+  });
+
+  for (const terminal of ['failed', 'stranded', 'quarantined', 'resultGone']) {
+    const recoveredClient = fakeClient();
+    recoveredClient.mutationStatus = async () => ({
+      status: terminal,
+      custody: 'accepted',
+      ...(terminal === 'failed'
+        ? { failure: { code: 'SNAPBACK_TEST_FAILURE', message: 'recovered failure' } }
+        : {}),
+    });
+    const recovered = createDataClient({ client: recoveredClient, data: binding() })
+      .transaction(`cm-recovered-${terminal}`);
+    await flush();
+    assert.equal(recovered.snapshot().custody, 'accepted', terminal);
+    assert.equal(recovered.snapshot().dispatch, terminal, terminal);
+    assert.equal(
+      recovered.snapshot().settlement,
+      terminal === 'resultGone' ? 'result-gone' : terminal === 'failed' ? 'refused' : 'pending',
+      terminal,
+    );
+    recovered.dispose();
+  }
+
+  const refusedClient = fakeClient({ disposition: 'refused' });
+  const refusedDb = createDataClient({ client: refusedClient, data: binding() });
+  const refused = refusedDb.transact(
+    refusedDb.tx.todos.create({ title: 'a' }),
+    refusedDb.tx.todos.update({ id: 'todo-1', title: 'b' }),
+  );
+  assert.equal((await refused.dispatched).status, 'refused');
+  assert.equal((await refused.settled).status, 'refused');
+  assert.equal(refused.snapshot().custody, 'not-offered');
+  assert.equal(refused.snapshot().dispatch, 'refused');
+  assert.equal(refused.snapshot().settlement, 'refused');
 });
 
 test('pendingWrites intersects materialization reach and preserves owner ordering without payloads', async () => {
@@ -348,6 +429,187 @@ test('watch projects refreshing, blocked, and error arms from the canonical live
   assert.equal(watch.snapshot().status, 'error');
   assert.equal(watch.snapshot().error.code, 'SNAPBACK_AUTH_INVALIDATION_CORRUPT');
   watch.dispose();
+});
+
+test('watch project generations keep auth denial and later rows ahead of stale async work', async () => {
+  const client = fakeClient();
+  let callbacks = null;
+  const handle = {
+    rows: [{ _id: 'todo-initial', title: 'initial' }],
+    version: 1,
+    cursor: null,
+    connection: 'live',
+    freshness: 'current',
+    retention: { retainable: false, reason: 'fixture' },
+    authorizationDenial: null,
+    async poll() {},
+    dispose() {},
+  };
+  client.liveQuery = async (_reference, options) => {
+    callbacks = options;
+    return handle;
+  };
+  const watch = createDataClient({ client, data: binding() }).watch(queryDescriptor);
+  await flush();
+  assert.equal(watch.snapshot().status, 'ready');
+
+  const pending = [];
+  client.__dataPendingWrites = () => {
+    const next = deferred();
+    pending.push(next);
+    return next.promise;
+  };
+  callbacks.onUpdate([{ _id: 'todo-stale', title: 'stale' }], {
+    kind: 'snapshot', version: 2,
+  });
+  callbacks.onUpdate([], {
+    kind: 'authorization_denied', version: 2,
+    error: { code: 'SNAPBACK_AUTH_REQUIRED', message: 'sign in' },
+  });
+  pending[1].resolve([]);
+  await flush();
+  assert.equal(watch.snapshot().status, 'blocked');
+  pending[0].resolve([]);
+  await flush();
+  assert.equal(watch.snapshot().status, 'blocked', 'older rows cannot cross the denial barrier');
+  watch.dispose();
+
+  const orderedClient = fakeClient();
+  let orderedCallbacks = null;
+  orderedClient.liveQuery = async (_reference, options) => {
+    orderedCallbacks = options;
+    return { ...handle, authorizationDenial: null };
+  };
+  const orderedWatch = createDataClient({ client: orderedClient, data: binding() })
+    .watch(queryDescriptor);
+  await flush();
+  const orderedPending = [];
+  orderedClient.__dataPendingWrites = () => {
+    const next = deferred();
+    orderedPending.push(next);
+    return next.promise;
+  };
+  orderedCallbacks.onUpdate([{ _id: 'todo-old', title: 'old' }], {
+    kind: 'snapshot', version: 2,
+  });
+  orderedCallbacks.onUpdate([{ _id: 'todo-new', title: 'new' }], {
+    kind: 'snapshot', version: 3,
+  });
+  orderedPending[1].resolve([]);
+  await flush();
+  assert.equal(orderedWatch.snapshot().data.rows[0].title, 'new');
+  orderedPending[0].resolve([]);
+  await flush();
+  assert.equal(
+    orderedWatch.snapshot().data.rows[0].title,
+    'new',
+    'an earlier async projection cannot publish after a later event',
+  );
+  orderedWatch.dispose();
+});
+
+test('watch follows outbox pending writes and retires settled writes at its receipt frontier', async () => {
+  const client = fakeClient();
+  let callbacks = null;
+  let writes = [];
+  let handle = null;
+  client.__dataPendingWrites = async () => writes;
+  client.__dataMutation = async (_reference, options) => {
+    writes = [{
+      intentId: options.clientMutationId,
+      sequence: 1,
+      state: 'queued',
+      presentation: 'withheld',
+      receiptVersion: null,
+      reach: { reads: [], writes: ['todos'] },
+    }];
+    client.notifyOutbox();
+    return {
+      status: 'queued',
+      clientMutationId: options.clientMutationId,
+      presentation: 'withheld',
+    };
+  };
+  client.liveQuery = async (_reference, options) => {
+    callbacks = options;
+    handle = {
+      rows: [{ _id: 'todo-1', title: 'first' }],
+      version: 4,
+      cursor: null,
+      connection: 'live',
+      freshness: 'current',
+      retention: { retainable: false, reason: 'fixture' },
+      authorizationDenial: null,
+      async poll() {},
+      dispose() {},
+    };
+    return handle;
+  };
+  const db = createDataClient({ client, data: binding() });
+  const watch = db.watch(queryDescriptor);
+  await flush();
+  assert.deepEqual(watch.snapshot().pendingWrites, []);
+
+  const transaction = db.transact(
+    db.tx.todos.create({ title: 'a' }),
+    db.tx.todos.update({ id: 'todo-1', title: 'b' }),
+  );
+  await transaction.dispatched;
+  await flush();
+  assert.deepEqual(watch.snapshot().pendingWrites, [
+    { intentId: transaction.intentId, state: 'queued', presentation: 'withheld' },
+  ]);
+
+  writes = [{
+    intentId: transaction.intentId, sequence: 1, state: 'settled-awaiting-convergence',
+    presentation: 'withheld', receiptVersion: 5,
+    reach: { reads: [], writes: ['todos'] },
+  }];
+  client.notifyOutbox();
+  await flush();
+  assert.equal(watch.snapshot().pendingWrites[0].state, 'settled-awaiting-convergence');
+
+  handle.version = 5;
+  handle.rows = [{ _id: 'todo-1', title: 'committed' }];
+  callbacks.onUpdate(handle.rows, { kind: 'snapshot', version: 5 });
+  await flush();
+  assert.deepEqual(watch.snapshot().pendingWrites, []);
+  transaction.dispose();
+  watch.dispose();
+});
+
+test('one transient mutationStatus failure does not reject recovered settlement', async () => {
+  const client = fakeClient();
+  let attempts = 0;
+  let mutationListener = null;
+  client.mutationStatus = async () => {
+    attempts += 1;
+    if (attempts === 1) throw new Error('transient store read');
+    return {
+      status: 'settled',
+      custody: 'accepted',
+      settlement: {
+        result: { _id: 'todo-1', title: 'settled' },
+        receipt: { kind: 'mutation', outcome: 'confirmed' },
+      },
+    };
+  };
+  client.subscribeMutation = (_intentId, listener) => {
+    mutationListener = listener;
+    return () => {};
+  };
+  const handle = createDataClient({ client, data: binding() }).transaction('cm-transient');
+  let promiseState = 'pending';
+  void handle.settled.then(
+    () => { promiseState = 'resolved'; },
+    () => { promiseState = 'rejected'; },
+  );
+  await flush();
+  assert.equal(promiseState, 'pending');
+  mutationListener();
+  assert.equal((await handle.settled).status, 'committed');
+  assert.equal(promiseState, 'resolved');
+  handle.dispose();
 });
 
 test('query admission refuses stale catalogues and missing capabilities before transport', () => {

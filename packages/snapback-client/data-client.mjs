@@ -239,15 +239,38 @@ function stateFromDisposition(previous, disposition) {
     return { ...previous, custody: 'accepted', dispatch: 'queued', settlement: 'pending' };
   }
   if (disposition.status === 'pending') {
-    return { ...previous, custody: 'not-offered', dispatch: 'pending', settlement: 'pending' };
+    return {
+      ...previous,
+      custody: disposition.custody ?? (previous.custody === 'accepted' ? 'accepted' : 'not-offered'),
+      dispatch: 'pending',
+      settlement: 'pending',
+    };
   }
   if (disposition.status === 'settled') {
     return { ...previous, custody: 'accepted', dispatch: 'settled', settlement: 'committed' };
   }
-  if (disposition.status === 'refused' || disposition.status === 'failed') {
+  if (disposition.status === 'refused') {
     return { ...previous, custody: 'not-offered', dispatch: 'refused', settlement: 'refused' };
   }
-  return { ...previous, dispatch: disposition.status ?? 'unknown' };
+  // @ref LLP 0255#s74-refusal-before-custody — accepted terminal failures
+  // retain their canonical disposition and never become admission refusals.
+  if (['failed', 'stranded', 'quarantined', 'resultGone'].includes(disposition.status)) {
+    return {
+      ...previous,
+      custody: disposition.custody ?? previous.custody,
+      dispatch: disposition.status,
+      settlement: disposition.status === 'resultGone'
+        ? 'result-gone'
+        : disposition.status === 'failed'
+          ? 'refused'
+          : previous.settlement,
+    };
+  }
+  return {
+    ...previous,
+    custody: disposition.custody ?? previous.custody,
+    dispatch: disposition.status ?? 'unknown',
+  };
 }
 
 function createHandle({ client, intentId, entry, launch = null }) {
@@ -292,9 +315,9 @@ function createHandle({ client, intentId, entry, launch = null }) {
       receiptDigest: settlementDigest(receipt ?? { result }),
     }));
   };
-  const refuseFrom = (failure) => {
+  const refuseFrom = (failure, dispatch = 'refused') => {
     const refusal = diagnosticOf(failure?.failure ?? failure);
-    publish({ ...current, dispatch: 'refused', settlement: 'refused' });
+    publish(stateFromDisposition(current, { ...failure, status: dispatch }));
     settleResolve(frozen({
       status: 'refused',
       intentId,
@@ -314,16 +337,28 @@ function createHandle({ client, intentId, entry, launch = null }) {
         disposition = await client.__refreshDataMutation(intentId);
       }
     } catch (error) {
-      if (!disposed) settleReject(error);
+      // mutationStatus can be transiently unreadable while the canonical
+      // subscription remains viable. A later outbox transition or explicit
+      // refresh gets another observation attempt.
       return;
     }
     if (disposition.status === 'settled') settleFrom(disposition);
-    else if (disposition.status === 'failed' || disposition.status === 'refused') refuseFrom(disposition);
+    else if (disposition.status === 'failed') refuseFrom(disposition, 'failed');
+    else if (disposition.status === 'refused') refuseFrom(disposition);
     else publish(stateFromDisposition(current, disposition));
   };
   const startObservation = () => {
     if (unsubscribe !== null) return;
-    unsubscribe = client.subscribeMutation(intentId, () => { void observe(); });
+    try {
+      unsubscribe = client.subscribeMutation(intentId, () => { void observe(); });
+      if (typeof unsubscribe !== 'function') {
+        throw new TypeError('subscribeMutation must return an unsubscribe function');
+      }
+    } catch (error) {
+      unsubscribe = null;
+      if (!disposed) settleReject(error);
+      return;
+    }
     void observe();
   };
   if (launch !== null) {
@@ -347,6 +382,7 @@ function createHandle({ client, intentId, entry, launch = null }) {
       });
       dispatchResolve(frozen(dispatch));
       if (result.status === 'settled') settleFrom(result);
+      else if (result.status === 'refused') refuseFrom(result);
       else startObservation();
     }).catch((error) => {
       const refusal = diagnosticOf(error);
@@ -392,6 +428,7 @@ export function createDataClient({ client, data } = {}) {
     || typeof client.query !== 'function'
     || typeof client.liveQuery !== 'function'
     || typeof client.subscribeMutation !== 'function'
+    || typeof client.subscribeOutbox !== 'function'
   ) throw dataError(
     'SNAPBACK_DATA_BINDING_REQUIRED',
     `createDataClient requires an app-data-capable Snapback client; ${DATA_SETUP_ACTION}`,
@@ -492,16 +529,22 @@ export function createDataClient({ client, data } = {}) {
     });
   };
 
-  const pendingWrites = async (descriptor) => {
+  const pendingWriteRecords = async (descriptor) => {
     if (descriptor?.status === 'skipped') return frozen([]);
     const resourceName = descriptor?.core?.resource ?? descriptor?.shape?.resource;
     const table = binding.dataResources.find(({ core }) => core.resource === resourceName)?.core?.table;
     if (typeof table !== 'string') return frozen([]);
     return frozen((await client.__dataPendingWrites())
       .filter((write) => write.reach.writes.includes(table))
-      .sort((left, right) => left.sequence - right.sequence || left.intentId.localeCompare(right.intentId))
-      .map(({ intentId, state, presentation }) => ({ intentId, state, presentation })));
+      .sort((left, right) => left.sequence - right.sequence || left.intentId.localeCompare(right.intentId)));
   };
+
+  const publicPendingWrites = (writes) => frozen(writes
+    .map(({ intentId, state, presentation }) => ({ intentId, state, presentation })));
+
+  const pendingWrites = async (descriptor) => publicPendingWrites(
+    await pendingWriteRecords(descriptor),
+  );
 
   const read = async (descriptor, options = {}) => {
     assertQueryDescriptor(binding, descriptor, 'read');
@@ -519,6 +562,8 @@ export function createDataClient({ client, data } = {}) {
     let current = queryState();
     let liveHandle = null;
     let disposed = false;
+    let projectGeneration = 0;
+    let authorizationBarrier = null;
     const listeners = new Set();
     const publish = (next) => {
       current = next;
@@ -528,36 +573,61 @@ export function createDataClient({ client, data } = {}) {
       }
     };
     const project = async (rows = liveHandle?.rows, detail = {}) => {
-      const writes = await pendingWrites(descriptor);
-      if (disposed) return;
+      const generation = ++projectGeneration;
+      const detailDenial = detail.kind === 'authorization_denied'
+        ? detail.error ?? detail.authorization
+        : null;
+      if (detailDenial !== null) authorizationBarrier = detailDenial;
+      else if (detail.kind === 'authorization_error' && detail.error) {
+        authorizationBarrier = detail.error;
+      } else if (
+        rows !== undefined
+        && ['snapshot', 'registered', 'live_replace', 'live_delta', 'current_as_of', 'authorization_snapshot']
+          .includes(detail.kind)
+        && liveHandle?.authorizationDenial == null
+      ) authorizationBarrier = null;
+      const observedVersion = Number.isSafeInteger(detail.version)
+        ? detail.version
+        : liveHandle?.version;
+      const writes = (await pendingWriteRecords(descriptor)).filter((write) => !(
+        write.state === 'settled-awaiting-convergence'
+        && Number.isSafeInteger(write.receiptVersion)
+        && Number.isSafeInteger(observedVersion)
+        && observedVersion >= write.receiptVersion
+      ));
+      if (disposed || generation < projectGeneration) return;
       const projectedHandle = liveHandle ?? {
         connection: detail.connection ?? 'connecting',
         freshness: null,
         retention: null,
       };
-      const denial = detail.kind === 'authorization_denied'
-        ? detail.error ?? detail.authorization
-        : liveHandle?.authorizationDenial;
+      const denial = authorizationBarrier ?? liveHandle?.authorizationDenial;
       if ((denial?.diagnostic?.code ?? denial?.code) === 'SNAPBACK_AUTH_REQUIRED') {
-        publish(blockedQueryState({ handle: projectedHandle, pendingWrites: writes }));
+        publish(blockedQueryState({
+          handle: projectedHandle,
+          pendingWrites: publicPendingWrites(writes),
+        }));
         return;
       }
       if (denial || detail.kind === 'authorization_error' || detail.error) {
         publish(queryState({
           handle: projectedHandle,
           error: detail.error ?? denial ?? new Error('live query connection failed'),
-          pendingWrites: writes,
+          pendingWrites: publicPendingWrites(writes),
         }));
         return;
       }
       if (rows === undefined) {
-        publish(queryState({ handle: projectedHandle, pendingWrites: writes }));
+        publish(queryState({
+          handle: projectedHandle,
+          pendingWrites: publicPendingWrites(writes),
+        }));
         return;
       }
       publish(queryState({
         handle: projectedHandle,
         data: pageFrom({ rows, cursor: liveHandle?.cursor ?? null }),
-        pendingWrites: writes,
+        pendingWrites: publicPendingWrites(writes),
       }));
     };
     const started = client.liveQuery(descriptor.functionReference, {
@@ -581,7 +651,16 @@ export function createDataClient({ client, data } = {}) {
         ? {}
         : { kind: 'authorization_denied', error: handle.authorizationDenial });
     }).catch((error) => {
-      if (!disposed) publish(queryState({ error }));
+      if (!disposed) {
+        projectGeneration += 1;
+        publish(queryState({ error }));
+      }
+    });
+    const unsubscribeOutbox = client.subscribeOutbox(() => {
+      void project(liveHandle?.rows, {
+        kind: 'outbox',
+        version: liveHandle?.version,
+      });
     });
     return frozen({
       snapshot: () => current,
@@ -600,7 +679,9 @@ export function createDataClient({ client, data } = {}) {
       dispose() {
         if (disposed) return;
         disposed = true;
+        projectGeneration += 1;
         listeners.clear();
+        unsubscribeOutbox();
         if (liveHandle !== null) void liveHandle.dispose();
       },
     });
