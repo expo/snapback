@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Native Custody Probes",
+    "slug": "native-custody-probes",
+    "version": "0.1.0",
+    "scheme": "dev.snapback.custodyprobes",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "experiments": {
+      "onDemandFilesystem": false
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "dev.snapback.custodyprobes",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "dev.snapback.custodyprobes",
+      "usesCleartextTraffic": true
+    },
+    "extra": {
+      "probe": "llp-0258-phase-2-native-custody"
+    }
+  }
+}

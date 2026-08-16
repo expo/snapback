@@ -1,0 +1,10 @@
+{
+  "tables": {
+    "probeDocuments": [
+      {
+        "_id": "native_custody_probe_document",
+        "label": "authenticated custody restored"
+      }
+    ]
+  }
+}
