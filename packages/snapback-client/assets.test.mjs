@@ -1019,6 +1019,17 @@ globalThis.fetch = server.fetch;
     'video delivery is projected without a portable-playability claim',
   );
 
+  // Device finding 2026-08-16: image-only rendition options must route per
+  // kind — a mixed collection with widthPx must not throw for its video
+  // children (they use their declared delivery instead).
+  const mixed = collectionAssets.mediaCollectionStore([
+    { itemId: 'item-mixed-image', ordinal: 0, media: { assetId: 'asset-mixed-image', kind: 'image' } },
+    { itemId: 'item-mixed-video', ordinal: 1, media: { assetId: 'asset-mixed-video', kind: 'video' } },
+  ], { widthPx: 960 });
+  const mixedSnapshot = mixed.getSnapshot();
+  assert.equal(mixedSnapshot.length, 2, 'mixed widthPx collection projects both children');
+  assert.equal(mixedSnapshot[1].state.media.kind, 'video');
+
   const sharedMedia = Object.freeze({ assetId: 'asset-shared', kind: 'image' });
   const shared = collectionAssets.mediaCollectionStore([
     { itemId: 'item-shared-a', ordinal: 0, media: sharedMedia },

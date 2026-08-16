@@ -788,7 +788,16 @@ class MediaCollectionStore {
 
   constructor(assetClient, items, options) {
     this.#children = items.map((item) => {
-      const store = assetClient.mediaStore(item.media, options);
+      // Rendition options route per admitted kind (LLP 0239 D5): a mixed
+      // collection may carry image-only selections like widthPx without
+      // breaking its video/audio/file siblings, which use their declared
+      // deliveries instead.
+      let childOptions = options;
+      if (item.media.kind !== 'image' && options && options.widthPx !== undefined) {
+        const { widthPx: _imageOnly, ...rest } = options;
+        childOptions = rest;
+      }
+      const store = assetClient.mediaStore(item.media, childOptions);
       const child = {
         item,
         store,
