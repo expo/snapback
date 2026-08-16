@@ -4,13 +4,13 @@ id: getting-started.the-authoring-loop
 order: 2
 audience: agent-first
 capabilities: [backend.codegen, authoring.declaration-suggestions, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, src/cli.rs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, src/cli.rs, src/dev_identity.rs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
 examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:f1d8f7daf9ba99659b9c7a72003879add600b9353f0cea566636052afe2f9727
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:2e65285c7733161978cafa2fcbf8994cbd131ee45ee1f6ca92f64bf3a7a38eac
 ---
 
 # The authoring loop
@@ -236,6 +236,18 @@ before reading the managed owner-only token. A different target fails with
 started by this command is stopped. If later generation succeeds but live load
 fails, the event state is `generated-but-not-loaded`; generation errors are
 the distinct `generation-failed` state.
+
+For a dev-auth app, the served backend rotates an owner-only `sbdev_`
+capability each boot and advertises its path as
+`devIdentityCapabilityFile` in the ready descriptor. The managed Vite loop
+re-reads that sidecar and stamps `x-snapback-dev-identity` on relayed app
+requests and `/connection/open`; it overwrites a browser-supplied value and
+never exposes the bearer through `virtual:snapback/dev`. Attach or external
+Vite instead receives the explicit trusted-host handoff
+`SNAPBACK_DEV_IDENTITY_FILE=<path>`. During LLP 0262 rollout stage 1, missing
+custody still runs with one server warning per boot; a capability that is
+present but does not verify is already refused, and full enforcement waits for
+the carrier acceptance witness.
 
 Use `snapback --help` to enumerate the complete packaged and delegated native
 surface. `snapback <command> [<subcommand>...] --help` is non-executing and

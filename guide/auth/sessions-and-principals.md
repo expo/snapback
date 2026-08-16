@@ -4,13 +4,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/admin.rs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, src/admin.rs, src/auth/mode.rs, src/auth/provider.rs, src/dev_identity.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:189be9d1f43cb5a1c125e943a28c129db1294d9ad11d46f7f38bffa43c6e2d8d
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:2ac1a38c4cdf294b94a69fe2733378017375a3c2ac6171aaa140926868346199
 ---
 
 # Sessions and principals
@@ -31,6 +31,17 @@ Auth mode is per-app schema config
 [your first backend](../getting-started/your-first-backend.md)). `dev` mode
 is the trusted-local convenience where tests pass `userId:` directly;
 `sessions` is the real thing below.
+
+That dev-mode assertion now has a per-boot `sbdev_` custody capability,
+separate from sessions, admin tokens, and impersonation. The ready descriptor
+names its owner-only sidecar in `devIdentityCapabilityFile`; direct/headless
+clients and the demo kit read it, managed Vite stamps it behind the same-origin
+relay, external dev hosts receive `SNAPBACK_DEV_IDENTITY_FILE`, and supervised
+native Expo redeems a one-shot launch nonce. Stage 1 verifies any capability
+that is presented but still accepts an absent one with a single server warning
+per boot. Missing capability becomes a refusal only at LLP 0262's enforce
+stage, after every supported carrier has an acceptance witness; none of this
+adds a second gate to admin-token-gated `function.run` or `auth.mintSession`.
 
 ## Choose each function's auth requirement
 

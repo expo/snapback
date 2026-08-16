@@ -4,13 +4,13 @@ id: auth.targets
 order: 7
 audience: agent-first
 capabilities: [auth.target-honesty, auth.sender-constrained-browser]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, src/admin.rs, packages/snapback-client/hosted-browser.mjs, README.md]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, src/admin.rs, src/cli.rs, src/dev_identity.rs, src/host_ops_contract.rs, src/server.rs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, packages/snapback-client/hosted-browser.mjs, README.md]
 examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-client/sender-transport.test.mjs, tests/sender_proof_cross_language.rs]
 status: current
 targets: [all]
 maturity: partial
-reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:c9a46467cbe390642c43535f8e137e9f239cb51d3887f1c412bfd5004db1caf9
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:f98678eb61296e546f6705fc3d9fa99ede1c16217906a95ccd8ca5a66708d741
 ---
 
 # Targets — what each one claims
@@ -51,6 +51,39 @@ profile fails closed when the hosted prerequisites are absent and may refuse
 the local-only provisioning and impersonation operations the app needs. Treat
 a tunnelled loopback server as an unsupported public exposure: use it only in
 a controlled development context, never as a production deployment recipe.
+
+Client-asserted dev identity now has a separate per-boot `sbdev_` custody
+capability ([LLP 0262 D1](repo:llp/0262-dev-identity-custody-capability.rfc.md#d1-the-dev-identity-capability)).
+The mint follows the admin-token anchor ladder: `<db>.dev-identity` for a
+file-backed database, otherwise `<ready-file>.dev-identity`, otherwise a
+per-process value disclosed once on the operator TTY. A file is overwritten
+each boot, unlinked on clean shutdown, and advertised as
+`devIdentityCapabilityFile`; production never mints and refuses startup when
+its resolved sidecar is present. Direct clients present the value in
+`x-snapback-dev-identity` (never `Authorization`), while the managed Vite relay
+stamps it server-side so browser code never sees the bearer. This is rollout
+stage 1: a presented malformed or mismatched capability is refused with the
+generic `SNAPBACK_DEV_IDENTITY_REFUSED`, but an absent capability is still
+accepted and produces only the first capability-less-dev-assertion warning of
+that boot. Enforcement waits for LLP 0262 D5's acceptance witness across every
+supported carrier; the current stage does not make a tunnel a supported public
+deployment.
+
+Declare reachability with the closed
+`SNAPBACK_EXPOSURE={fronted,direct}` vocabulary. Empty or unset is unset;
+`direct` is behaviorally identical to unset. `fronted` with an
+unset `SNAPBACK_PROFILE` selects full production semantics, so no dev
+capability is minted and dev identity is unavailable. `fronted` with an
+explicit non-production profile retains that profile and capability but prints
+the exposure warning; production remains production. Any other nonempty value
+fails closed as `fronted` and prints one startup warning naming the value. For
+the [LLP 0036 SSH-tunnel posture](repo:llp/0036-app-secrets-and-config.rfc.md),
+declare `fronted` and use credentialed surfaces. A credential-holding dev host
+fronted in turn (for example tunneled Vite) can still stamp for strangers; LLP
+0262 records that residual rather than treating the capability as public-front
+authentication. `--allow-insecure-dev-auth` still means only dev auth over a
+plaintext non-loopback bind; it neither declares a front nor substitutes for
+the capability.
 
 ## Cloudflare — the hosted proof, as far as it is real
 

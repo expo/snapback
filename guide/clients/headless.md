@@ -4,13 +4,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store, clients.micro]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/commands.mjs, packages/snapback-client/commands.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, packages/snapback-client/exact-reference-types.fixture.ts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/reference-kind.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-client/outbox-drain.test.mjs, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/_kit/server-process.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:a027ddc81cecd9e981d56f07e9366390a41b69d5c6d26b3c222b41d1c88ea239
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:6b68e7615f3702c753f1dbaa9422dd8f05265ca3947ec058f5698b9bfec1c2cd
 ---
 
 # The headless client
@@ -59,9 +59,19 @@ operations, or a one-off verification script.
 
 ## Construct one client per backend and custody context
 
+When this client installs dev-mode, client-asserted identity, pass the current
+per-boot capability as `devIdentityCapability`; the client sends its dedicated
+`x-snapback-dev-identity` carrier only on identity-bearing app requests and
+`/connection/open`, never on admin-token-gated host operations. The demo
+server kit validates the ready descriptor's `devIdentityCapabilityFile`, reads
+the owner-only sidecar, and exposes both `server.devIdentityCapability` and
+`server.clientOptions` for direct construction. LLP 0262 rollout stage 1 still
+accepts a client whose kit or older server has no carrier, with one server
+warning per boot; a presented bad value already receives the generic
+`SNAPBACK_DEV_IDENTITY_REFUSED`, and absence becomes a refusal only after the
+supported-carrier acceptance witness permits the enforce-stage flip.
+
 ```js source=packages/snapback-client/index.mjs
-  constructor(baseUrl, {
-    adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
     bearerToken = null,
     // 0137 A4-f6: an explicit anonymous mode so headless consumers (suites,
     // SSR, prerender) can read `auth: 'public'` operations from a sessions
