@@ -48,6 +48,8 @@ export const postMedia = assetCollection({
   grants: 'none',
 });
 
+// @ref LLP 0264#d3-owner-inserts-are-host-stamped — the handler omits the
+// installed owner field and closes its otherwise opaque generic-write ceiling.
 export const createPostMutation = defineJsMutation({
   auth: 'authenticated',
   args: {
@@ -55,9 +57,11 @@ export const createPostMutation = defineJsMutation({
     assetIds: v.array(v.assetRef({ upload: 'sharedMediaUpload' }), { maxItems: 4 }),
   },
   writes: ['posts'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['posts'],
   result: results.value(v.object({ _id: v.id('posts') })),
   handler: async (ctx, args) => ({
-    _id: await ctx.db.insert('posts', { ownerId: ctx.auth.userId, body: args.body }),
+    _id: await ctx.db.insert('posts', { body: args.body }),
   }),
 });
 
@@ -96,6 +100,8 @@ export const messageMedia = assetCollection({
   },
 });
 
+// @ref LLP 0264#d3-owner-inserts-are-host-stamped — the handler omits the
+// installed owner field and closes its otherwise opaque generic-write ceiling.
 export const sendMessageMutation = defineJsMutation({
   auth: 'authenticated',
   args: {
@@ -104,10 +110,11 @@ export const sendMessageMutation = defineJsMutation({
     assetIds: v.array(v.assetRef({ upload: 'sharedMediaUpload' }), { maxItems: 8 }),
   },
   writes: ['messages'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['messages'],
   result: results.value(v.object({ _id: v.id('messages') })),
   handler: async (ctx, args) => ({
     _id: await ctx.db.insert('messages', {
-      ownerId: ctx.auth.userId,
       conversationId: args.conversationId,
       text: args.text,
     }),

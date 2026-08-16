@@ -237,7 +237,7 @@ export interface GeneratedApi {
    * Auth: `public`; required capabilities: `args_contract_v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "listProfiles": FunctionReference<"listProfiles", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["profiles"]>, "snapback-explicit-v1">;
   /**
@@ -246,7 +246,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "messageMediaAppend": FunctionReference<"messageMediaAppend", 'Mutation', { parentId: Id<'messages'>; assetIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<Principal> } }, { "parentId": Id<"messages">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
   /**
@@ -255,7 +255,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "messageMediaReplace": FunctionReference<"messageMediaReplace", 'Mutation', { parentId: Id<'messages'>; assetIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<Principal> } }, { "parentId": Id<"messages">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
   /**
@@ -264,7 +264,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "messageMediaRemove": FunctionReference<"messageMediaRemove", 'Mutation', { parentId: Id<'messages'>; itemIds: ReadonlyArray<string>; sharing?: { plan: "owner" } | { plan: "recipients"; principals: ReadonlyArray<Principal> } }, { "parentId": Id<"messages">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
   /**
@@ -273,7 +273,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "messageMediaReorder": FunctionReference<"messageMediaReorder", 'Mutation', { parentId: Id<'messages'>; itemIds: ReadonlyArray<string> }, { "parentId": Id<"messages">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
   /**
@@ -282,7 +282,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-ref-projection.v1`, `bounded_children_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "messageMediaList": FunctionReference<"messageMediaList", 'LiveQuery', { parentId: Id<'messages'>; cursor?: string }, readonly [{ "kind": "absent"; "parent": null; "children": ReadonlyArray<{ "itemId": Id<"_snapback_asset_collection_4f682e8526bbc2877b4a">; "ordinal": number; "media": { readonly assetId: string; readonly kind: "image" | "video" } }>; "continuation": null } | { "kind": "visible"; "parent": { "parentId": Id<"messages"> }; "children": ReadonlyArray<{ "itemId": Id<"_snapback_asset_collection_4f682e8526bbc2877b4a">; "ordinal": number; "media": { readonly assetId: string; readonly kind: "image" | "video" } }>; "continuation": null | string }], "snapback-explicit-v1">;
   /**
@@ -291,7 +291,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "postMediaAppend": FunctionReference<"postMediaAppend", 'Mutation', { parentId: Id<'posts'>; assetIds: ReadonlyArray<string>; sharing?: { plan: "none" } }, { "parentId": Id<"posts">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
   /**
@@ -300,7 +300,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "postMediaReplace": FunctionReference<"postMediaReplace", 'Mutation', { parentId: Id<'posts'>; assetIds: ReadonlyArray<string>; sharing?: { plan: "none" } }, { "parentId": Id<"posts">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
   /**
@@ -309,7 +309,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "postMediaRemove": FunctionReference<"postMediaRemove", 'Mutation', { parentId: Id<'posts'>; itemIds: ReadonlyArray<string>; sharing?: { plan: "none" } }, { "parentId": Id<"posts">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
   /**
@@ -318,7 +318,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-ref-projection.v1`, `host_plan_runtime`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "postMediaReorder": FunctionReference<"postMediaReorder", 'Mutation', { parentId: Id<'posts'>; itemIds: ReadonlyArray<string> }, { "parentId": Id<"posts">; "itemIds": ReadonlyArray<string> }, "snapback-explicit-v1">;
   /**
@@ -327,7 +327,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-ref-projection.v1`, `bounded_children_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "postMediaList": FunctionReference<"postMediaList", 'LiveQuery', { parentId: Id<'posts'>; cursor?: string }, readonly [{ "kind": "absent"; "parent": null; "children": ReadonlyArray<{ "itemId": Id<"_snapback_asset_collection_65c27f4eedd8b26fcd76">; "ordinal": number; "media": { readonly assetId: string; readonly kind: "image" | "video" } }>; "continuation": null } | { "kind": "visible"; "parent": { "parentId": Id<"posts"> }; "children": ReadonlyArray<{ "itemId": Id<"_snapback_asset_collection_65c27f4eedd8b26fcd76">; "ordinal": number; "media": { readonly assetId: string; readonly kind: "image" | "video" } }>; "continuation": null | string }], "snapback-explicit-v1">;
   profileImageUpload: AssetUploadReference<"profileImageUpload", Record<string, never>>;
@@ -342,7 +342,7 @@ export interface GeneratedCommandTargets {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-command.v1`, `assets.media-ref-projection.v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "createPostMutation": FunctionReference<"createPostMutation", 'Mutation', { body: string; assetIds: ReadonlyArray<string> }, { "_id": Id<"posts"> }, "snapback-explicit-v1">;
   /**
@@ -351,7 +351,7 @@ export interface GeneratedCommandTargets {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-command.v1`, `assets.media-ref-projection.v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "sendMessageMutation": FunctionReference<"sendMessageMutation", 'Mutation', { conversationId: string; text: string; assetIds: ReadonlyArray<string> }, { "_id": Id<"messages"> }, "snapback-explicit-v1">;
 }

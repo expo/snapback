@@ -2,7 +2,7 @@
   "admissionVersion": "snapback.handler-admission.legacy.v1",
   "appId": "media-profile-fixture",
   "artifactKind": "handlerRuntimeProfile",
-  "authoredSourceHash": "sha256:bb707bea2e0cb3060eb7eae94562f493647c86821c0ec2e06f7bcb4daf139a75",
+  "authoredSourceHash": "sha256:7ac4dd795adbb0433def4db1c39f797f924ce1c0e1cc02d3da7968709152ccc5",
   "computedAccess": {
     "dynamicProperties": "forbidden",
     "forbiddenReflectionProperties": [
@@ -557,7 +557,7 @@
       ]
     }
   },
-  "inputsHash": "8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015",
+  "inputsHash": "6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",
@@ -596,17 +596,17 @@
         "moduleFormat": "esm",
         "nodes": [
           {
-            "canonicalExecutableAstDigest": "sha256:3a04a68916832bd35bb88f70a3633f26b8a5332753cc003b7352a86877a61aa5",
+            "canonicalExecutableAstDigest": "sha256:d5650fca102ad80928a1d0277438084baeb5ca1be9494941917d8a1f9e66e73c",
             "kind": "handler",
             "moduleFormat": "esm",
             "name": "createPostMutation",
             "nodeId": "handler:createPostMutation",
             "normalizedTarget": "functions.mjs",
-            "rawSourceEvidenceDigest": "sha256:816508fb8e67f88c3197526d86812f734f5ce2ff39550b4f5006add1be25890d",
+            "rawSourceEvidenceDigest": "sha256:5d7ab35381a1b870f50f00f45d8ee2c05f73091690c963f0b4853fa9c3029d49",
             "sourceSpan": {
               "column": 12,
               "file": "functions.mjs",
-              "line": 59
+              "line": 63
             }
           }
         ],
@@ -614,7 +614,7 @@
           "importerSpan": {
             "column": 12,
             "file": "functions.mjs",
-            "line": 59
+            "line": 63
           },
           "name": "createPostMutation",
           "nodeId": "handler:createPostMutation",
@@ -664,17 +664,17 @@
         "moduleFormat": "esm",
         "nodes": [
           {
-            "canonicalExecutableAstDigest": "sha256:3f423f0db94114801416540e6e78c58d2e3f37b94ec9a735a0a91cbedb6bfb46",
+            "canonicalExecutableAstDigest": "sha256:13873caab8a9fada30f91b111a6866d5339bd8ada4ba7db108db6527383ba7ca",
             "kind": "handler",
             "moduleFormat": "esm",
             "name": "sendMessageMutation",
             "nodeId": "handler:sendMessageMutation",
             "normalizedTarget": "functions.mjs",
-            "rawSourceEvidenceDigest": "sha256:15b9555921349a8c2981a19b3f176a69420ca36813860a5e318faab23a3f23ea",
+            "rawSourceEvidenceDigest": "sha256:75ca8313a7594c3db51a405f7c8e02cb8221e341d43fd63874b11ea334530d6f",
             "sourceSpan": {
               "column": 12,
               "file": "functions.mjs",
-              "line": 108
+              "line": 116
             }
           }
         ],
@@ -682,7 +682,7 @@
           "importerSpan": {
             "column": 12,
             "file": "functions.mjs",
-            "line": 108
+            "line": 116
           },
           "name": "sendMessageMutation",
           "nodeId": "handler:sendMessageMutation",

@@ -2,7 +2,7 @@
   "admissionVersion": "snapback.handler-admission.legacy.v1",
   "appId": "media-reprojection-fixture",
   "artifactKind": "handlerRuntimeProfile",
-  "authoredSourceHash": "sha256:c36ef77b058e429bdbfbccb32002b40c90013b4336bb305f16228aceb62e292f",
+  "authoredSourceHash": "sha256:3e1e5117edcd4255a750df97190f00d6134c513fe896de60bed6bfe2d764b2f8",
   "computedAccess": {
     "dynamicProperties": "forbidden",
     "forbiddenReflectionProperties": [
@@ -557,7 +557,7 @@
       ]
     }
   },
-  "inputsHash": "80397cb71b3ff2c622178f3cf4af6733fdae357b4918a2c92f7e62e6af915c81",
+  "inputsHash": "d19ab5f5e93e6f58c0a58f00a213040aa3e78489b124b3edff6a64138f1a2a0f",
   "moduleGraph": {
     "admittedSpecifiers": [],
     "cycles": "forbidden",
@@ -596,17 +596,17 @@
         "moduleFormat": "esm",
         "nodes": [
           {
-            "canonicalExecutableAstDigest": "sha256:592eb1171c4623eb46053ecca75bef7f3502689af4d8d37e2a5cd4c3059dae56",
+            "canonicalExecutableAstDigest": "sha256:c6fa2634d0cf4f5368eda2dd85d1449e8764eee072a2687a324da2ada1a720bc",
             "kind": "handler",
             "moduleFormat": "esm",
             "name": "createProfile",
             "nodeId": "handler:createProfile",
             "normalizedTarget": "functions.mjs",
-            "rawSourceEvidenceDigest": "sha256:087841951de49ae1efe43efb07d68aa6004e373a1ca621143048b55071c67406",
+            "rawSourceEvidenceDigest": "sha256:a0d4bffbe1c151b77fd9c1b0f8a397d3aad85f99ae9bdfda6a06412c295e361a",
             "sourceSpan": {
               "column": 12,
               "file": "functions.mjs",
-              "line": 23
+              "line": 27
             }
           }
         ],
@@ -614,7 +614,7 @@
           "importerSpan": {
             "column": 12,
             "file": "functions.mjs",
-            "line": 23
+            "line": 27
           },
           "name": "createProfile",
           "nodeId": "handler:createProfile",
@@ -674,7 +674,7 @@
             "sourceSpan": {
               "column": 12,
               "file": "functions.mjs",
-              "line": 54
+              "line": 65
             }
           }
         ],
@@ -682,7 +682,7 @@
           "importerSpan": {
             "column": 12,
             "file": "functions.mjs",
-            "line": 54
+            "line": 65
           },
           "name": "returnStoredProfile",
           "nodeId": "handler:returnStoredProfile",
@@ -708,7 +708,7 @@
             "sourceSpan": {
               "column": 12,
               "file": "functions.mjs",
-              "line": 40
+              "line": 47
             }
           }
         ],
@@ -716,7 +716,7 @@
           "importerSpan": {
             "column": 12,
             "file": "functions.mjs",
-            "line": 40
+            "line": 47
           },
           "name": "setProfileImage",
           "nodeId": "handler:setProfileImage",

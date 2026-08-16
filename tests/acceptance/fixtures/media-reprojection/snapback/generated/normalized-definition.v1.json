@@ -201,6 +201,14 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "declaredTableCeiling": [
+            "profiles"
+          ],
+          "disclosures": [],
+          "opaqueWritePosture": "conservative-v1",
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "profiles",
@@ -376,6 +384,14 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "declaredTableCeiling": [
+            "profiles"
+          ],
+          "disclosures": [],
+          "opaqueWritePosture": "conservative-v1",
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "profiles",
@@ -558,6 +574,14 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "declaredTableCeiling": [
+            "profiles"
+          ],
+          "disclosures": [],
+          "opaqueWritePosture": "conservative-v1",
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "profiles",
@@ -574,7 +598,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:2e0ce228bf06450eb4b820da6cde0503f19add272e25d53c6eb00bd925bf2f25",
+  "normalizedContractId": "sha256:6ce04dc293802f223fde882f4ed67c0bc039cd71ad0e5dc19c39a7245cde97a4",
   "normalizedSchemaId": "sha256:2e1fb28c4c4a2aef9291b58a997d3d027753e5908a0f10191df339c6d9f86e8e",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

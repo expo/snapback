@@ -13,6 +13,7 @@ export const profiles = defineTable({
     variants: ['primary'],
   })),
 })
+  .visibility({ kind: 'public-read' })
   .assetSharing({ kind: 'owner', field: 'ownerId' })
   .sync();
 

@@ -47,9 +47,9 @@
       }
     }
   ],
-  "authoredSourceHash": "sha256:c36ef77b058e429bdbfbccb32002b40c90013b4336bb305f16228aceb62e292f",
+  "authoredSourceHash": "sha256:3e1e5117edcd4255a750df97190f00d6134c513fe896de60bed6bfe2d764b2f8",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:856bcac9e24fc9e2",
+  "bundleHash": "sha256:381f137b79151b35",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -87,7 +87,7 @@
       "exportedName": "createProfile",
       "handlerForm": "inline",
       "id": "media-reprojection-fixture:createProfile",
-      "implementationHash": "sha256:37b4492a8aa39929eadd267f6a4b26667026c7b50053af28f0b438b104f83373",
+      "implementationHash": "sha256:a0f5fde0605b13b6332183d6a531de0ed4f72317ecaf20abb306d045a453779c",
       "kind": "Mutation",
       "name": "createProfile",
       "readSetSummary": {
@@ -114,16 +114,24 @@
       "runtime": {
         "IbexModule": {
           "export": "createProfile",
-          "source": "globalThis.__snapbackHandlers = { \"createProfile\": (async (ctx, args) =>\n    ctx.db.insert('profiles', {\n      ownerId: ctx.auth.userId,\n      displayName: args.displayName,\n      image: null,\n    })) };\n"
+          "source": "globalThis.__snapbackHandlers = { \"createProfile\": (async (ctx, args) =>\n    ctx.db.insert('profiles', {\n      displayName: args.displayName,\n      image: null,\n    })) };\n"
         }
       },
       "sourceSpan": {
         "column": 12,
         "file": "functions.mjs",
-        "line": 23
+        "line": 27
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "declaredTableCeiling": [
+          "profiles"
+        ],
+        "disclosures": [],
+        "opaqueWritePosture": "conservative-v1",
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "profiles",
@@ -171,7 +179,7 @@
       "exportedName": "returnStoredProfile",
       "handlerForm": "inline",
       "id": "media-reprojection-fixture:returnStoredProfile",
-      "implementationHash": "sha256:c5b690471b4d3d0a97ccd5bb0dae96e2f1c734ee621be76334944c638f01ddcc",
+      "implementationHash": "sha256:33daf82a94b52334ca718213f6a434d17941fe088035402dd8cdd7366b94a15d",
       "kind": "Mutation",
       "name": "returnStoredProfile",
       "readSetSummary": {
@@ -291,10 +299,18 @@
       "sourceSpan": {
         "column": 12,
         "file": "functions.mjs",
-        "line": 54
+        "line": 65
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "declaredTableCeiling": [
+          "profiles"
+        ],
+        "disclosures": [],
+        "opaqueWritePosture": "conservative-v1",
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "profiles",
@@ -349,7 +365,7 @@
       "exportedName": "setProfileImage",
       "handlerForm": "inline",
       "id": "media-reprojection-fixture:setProfileImage",
-      "implementationHash": "sha256:34321f7fb801f460c04feea1e6c4c8c58070e55b4ede996cc9850392b6b25529",
+      "implementationHash": "sha256:e442510390a8a8655763665b0cb095e7927accb983e73130c3a09539b0cf91e4",
       "kind": "Mutation",
       "name": "setProfileImage",
       "readSetSummary": {
@@ -469,10 +485,18 @@
       "sourceSpan": {
         "column": 12,
         "file": "functions.mjs",
-        "line": 40
+        "line": 47
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "declaredTableCeiling": [
+          "profiles"
+        ],
+        "disclosures": [],
+        "opaqueWritePosture": "conservative-v1",
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "profiles",
@@ -483,7 +507,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "80397cb71b3ff2c622178f3cf4af6733fdae357b4918a2c92f7e62e6af915c81",
+  "inputsHash": "d19ab5f5e93e6f58c0a58f00a213040aa3e78489b124b3edff6a64138f1a2a0f",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

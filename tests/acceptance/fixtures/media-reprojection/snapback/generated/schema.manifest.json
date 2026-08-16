@@ -2,16 +2,16 @@
   "appId": "media-reprojection-fixture",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:c36ef77b058e429bdbfbccb32002b40c90013b4336bb305f16228aceb62e292f",
+  "authoredSourceHash": "sha256:3e1e5117edcd4255a750df97190f00d6134c513fe896de60bed6bfe2d764b2f8",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "80397cb71b3ff2c622178f3cf4af6733fdae357b4918a2c92f7e62e6af915c81",
+  "inputsHash": "d19ab5f5e93e6f58c0a58f00a213040aa3e78489b124b3edff6a64138f1a2a0f",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "assets.media-ref-projection.v1"
   ],
-  "schemaHash": "sha256:db484a3a107567b8",
+  "schemaHash": "sha256:cb27c6b0871b1055",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

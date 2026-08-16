@@ -92,11 +92,11 @@
       }
     }
   ],
-  "authoredSourceHash": "sha256:bb707bea2e0cb3060eb7eae94562f493647c86821c0ec2e06f7bcb4daf139a75",
+  "authoredSourceHash": "sha256:7ac4dd795adbb0433def4db1c39f797f924ce1c0e1cc02d3da7968709152ccc5",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015",
+  "inputsHash": "6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "assets.media-ref-projection.v1",
@@ -104,7 +104,7 @@
     "bounded_children_v1",
     "assets.media-command.v1"
   ],
-  "schemaHash": "sha256:4268f67fe6dcabfd",
+  "schemaHash": "sha256:cc5a47836e490108",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -149,7 +149,10 @@
       ],
       "indexes": [],
       "name": "profiles",
-      "syncable": true
+      "syncable": true,
+      "visibility": {
+        "kind": "public-read"
+      }
     },
     {
       "assetSharing": {

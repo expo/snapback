@@ -93,9 +93,9 @@
       }
     }
   ],
-  "authoredSourceHash": "sha256:bb707bea2e0cb3060eb7eae94562f493647c86821c0ec2e06f7bcb4daf139a75",
+  "authoredSourceHash": "sha256:7ac4dd795adbb0433def4db1c39f797f924ce1c0e1cc02d3da7968709152ccc5",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:09e266882f63752d",
+  "bundleHash": "sha256:6a1abfe98c53f0fe",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -144,7 +144,7 @@
       "exportedName": "createPostMutation",
       "handlerForm": "inline",
       "id": "media-profile-fixture:createPostMutation",
-      "implementationHash": "sha256:cb48e74adc903ec028ad696b4a2cdc8d4def9cda59cbf471dd1ffc42046eb510",
+      "implementationHash": "sha256:f756ea1df9255254ab6f9a4bf10c2a98d44bee81d02fafbabe9e89d7f21d0238",
       "kind": "Mutation",
       "mediaCommandBindings": [
         {
@@ -160,7 +160,7 @@
             "name": "createPost"
           },
           "format": "snapback.media-command-binding.v1",
-          "identity": "sha256:bb1fd648537cccfbc85e2565d72ae56666048c21a2e31d10ddd8fc7c2559a129",
+          "identity": "sha256:de9ee86cf5c6fc664159e448d9c761b9f5062416d726d7a7d8cc839a822c8712",
           "itemIdentityPlan": {
             "format": "snapback:asset-collection-item-id:v1",
             "operation": "append",
@@ -191,7 +191,7 @@
           "targetMutation": {
             "argsContractHash": "sha256:4e0df690bda9e8cbd5f82778919e005920dda466cc8db8a57b4aa34912b48445",
             "id": "media-profile-fixture:createPostMutation",
-            "implementationHash": "sha256:eb2522913d8df00502c2e29d2bd2dd7157143a0c507494b44da50728a3b6339d",
+            "implementationHash": "sha256:b96070aa76f5e68a8e99d98ce13d30f16432cc412350da001044212164590396",
             "name": "createPostMutation",
             "resultContractHash": "sha256:aae29e9209b06064547b06cbdb50f9d841d9a55159d431a254e6256553748e46"
           },
@@ -238,16 +238,24 @@
       "runtime": {
         "IbexModule": {
           "export": "createPostMutation",
-          "source": "globalThis.__snapbackHandlers = { \"createPostMutation\": (async (ctx, args) => ({\n    _id: await ctx.db.insert('posts', { ownerId: ctx.auth.userId, body: args.body }),\n  })) };\n"
+          "source": "globalThis.__snapbackHandlers = { \"createPostMutation\": (async (ctx, args) => ({\n    _id: await ctx.db.insert('posts', { body: args.body }),\n  })) };\n"
         }
       },
       "sourceSpan": {
         "column": 12,
         "file": "functions.mjs",
-        "line": 59
+        "line": 63
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "declaredTableCeiling": [
+          "posts"
+        ],
+        "disclosures": [],
+        "opaqueWritePosture": "conservative-v1",
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "posts",
@@ -463,7 +471,7 @@
       "exportedName": "sendMessageMutation",
       "handlerForm": "inline",
       "id": "media-profile-fixture:sendMessageMutation",
-      "implementationHash": "sha256:6c798920417ab7da8f86938b36f2e629c586fc818ee2ed8c411abc497fd13985",
+      "implementationHash": "sha256:0c743697bb5ab92297100fc8e432416b5efdd4cf88c565d89b938a72965b2a13",
       "kind": "Mutation",
       "mediaCommandBindings": [
         {
@@ -479,7 +487,7 @@
             "name": "sendMessage"
           },
           "format": "snapback.media-command-binding.v1",
-          "identity": "sha256:2f8c85522c4ed8d58ab221906823998777858c0a8bd6f8e7487071e055284b8e",
+          "identity": "sha256:80595e185602d7b6cac97fc1bf930681f010018062229ade8f96b66d235aedb7",
           "itemIdentityPlan": {
             "format": "snapback:asset-collection-item-id:v1",
             "operation": "append",
@@ -518,7 +526,7 @@
           "targetMutation": {
             "argsContractHash": "sha256:e7fe1fd60f2b469129a7f9ccf6f41c61e4db653012fb21f9ad248245596ce0b9",
             "id": "media-profile-fixture:sendMessageMutation",
-            "implementationHash": "sha256:38af7666c3d8147b69ba41c24b0bdb3b1bc7eb09eb7f298b5e3532ea66e70284",
+            "implementationHash": "sha256:672ff5e753fa8e8c02e4e07b47f0863291ad2d44e4b45a2abc04bf65a1ee2f9e",
             "name": "sendMessageMutation",
             "resultContractHash": "sha256:2efd7f25d51cec783bc48ee0d3de7207befbaffd888d33fd0efba95036a3e6e6"
           },
@@ -565,16 +573,24 @@
       "runtime": {
         "IbexModule": {
           "export": "sendMessageMutation",
-          "source": "globalThis.__snapbackHandlers = { \"sendMessageMutation\": (async (ctx, args) => ({\n    _id: await ctx.db.insert('messages', {\n      ownerId: ctx.auth.userId,\n      conversationId: args.conversationId,\n      text: args.text,\n    }),\n  })) };\n"
+          "source": "globalThis.__snapbackHandlers = { \"sendMessageMutation\": (async (ctx, args) => ({\n    _id: await ctx.db.insert('messages', {\n      conversationId: args.conversationId,\n      text: args.text,\n    }),\n  })) };\n"
         }
       },
       "sourceSpan": {
         "column": 12,
         "file": "functions.mjs",
-        "line": 108
+        "line": 116
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "declaredTableCeiling": [
+          "messages"
+        ],
+        "disclosures": [],
+        "opaqueWritePosture": "conservative-v1",
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "messages",
@@ -693,7 +709,7 @@
       "exportedName": "messageMediaAppend",
       "handlerForm": "plan",
       "id": "media-profile-fixture:messageMediaAppend",
-      "implementationHash": "sha256:3bf644e8d3d6645e9e7138fd3aad7042b86611eb0754e3f244e8934045fd2a4b",
+      "implementationHash": "sha256:688964b1e3f9841227555db611406f4b64e4b8f498f1aca819b0b480f02f5ff6",
       "kind": "Mutation",
       "name": "messageMediaAppend",
       "readSetSummary": {
@@ -783,6 +799,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
@@ -901,7 +921,7 @@
       "exportedName": "messageMediaReplace",
       "handlerForm": "plan",
       "id": "media-profile-fixture:messageMediaReplace",
-      "implementationHash": "sha256:c5d0b599aba1d270cfe56611dd5f65a44d6a0bb6124cccc370278840f01964a9",
+      "implementationHash": "sha256:24e332eb923ffb2bd7c31cedcd9a0ed05f6b3221980b3a9434313049b01733c3",
       "kind": "Mutation",
       "name": "messageMediaReplace",
       "readSetSummary": {
@@ -991,6 +1011,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
@@ -1110,7 +1134,7 @@
       "exportedName": "messageMediaRemove",
       "handlerForm": "plan",
       "id": "media-profile-fixture:messageMediaRemove",
-      "implementationHash": "sha256:85df928ec14d42b9ef5a698e1cda29c35f195bb05226bfba7ebe0c3aae02a981",
+      "implementationHash": "sha256:0837cb09411b999613821f72b958d5fd8f7b3da680bdb0ae2921383ee0d5089d",
       "kind": "Mutation",
       "name": "messageMediaRemove",
       "readSetSummary": {
@@ -1200,6 +1224,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
@@ -1271,7 +1299,7 @@
       "exportedName": "messageMediaReorder",
       "handlerForm": "plan",
       "id": "media-profile-fixture:messageMediaReorder",
-      "implementationHash": "sha256:76c6372cfcaefcb815d5639be1b4914fa41f6fd9ae45007108606611710ad878",
+      "implementationHash": "sha256:0f926781e4b5986fa76458c814fc4b10dcfe38717ef0faa5d1ad9146846e3bbf",
       "kind": "Mutation",
       "name": "messageMediaReorder",
       "readSetSummary": {
@@ -1361,6 +1389,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
@@ -1774,7 +1806,7 @@
       "exportedName": "postMediaAppend",
       "handlerForm": "plan",
       "id": "media-profile-fixture:postMediaAppend",
-      "implementationHash": "sha256:3633b1c63e67841f58f1083f4cc03b085cc6b8147d80e6d508db32503cafca9f",
+      "implementationHash": "sha256:03a648f2b023c49df360ca6b089d74e4581b713f4e896b22079bf1aee7d027e4",
       "kind": "Mutation",
       "name": "postMediaAppend",
       "readSetSummary": {
@@ -1864,6 +1896,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
@@ -1951,7 +1987,7 @@
       "exportedName": "postMediaReplace",
       "handlerForm": "plan",
       "id": "media-profile-fixture:postMediaReplace",
-      "implementationHash": "sha256:2817562021fc0cbe9f8abd9c27149a7b25bf5b051c5b78edb383c4727f84f318",
+      "implementationHash": "sha256:1e6361ea303fd581f940226ecef9b9a4d6fa0f0220de1bbe26f63177bf1fed2e",
       "kind": "Mutation",
       "name": "postMediaReplace",
       "readSetSummary": {
@@ -2041,6 +2077,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
@@ -2129,7 +2169,7 @@
       "exportedName": "postMediaRemove",
       "handlerForm": "plan",
       "id": "media-profile-fixture:postMediaRemove",
-      "implementationHash": "sha256:a27f670ce5d4b54bcb66224a75631d765c21c7d6ace07432f6548126d772cb57",
+      "implementationHash": "sha256:64326119058ffaa43f682f6b50dcec2e92de31ed96ef4d8005a433da71cc337c",
       "kind": "Mutation",
       "name": "postMediaRemove",
       "readSetSummary": {
@@ -2219,6 +2259,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
@@ -2289,7 +2333,7 @@
       "exportedName": "postMediaReorder",
       "handlerForm": "plan",
       "id": "media-profile-fixture:postMediaReorder",
-      "implementationHash": "sha256:3243d906dde6813a9fc50b9cf41f2205719c2faaba9cbdb2ac51666f92ae8b8e",
+      "implementationHash": "sha256:28644bce124160a914604132e5020e5bfc5362fe56d3df044a13aed785d6c0bc",
       "kind": "Mutation",
       "name": "postMediaReorder",
       "readSetSummary": {
@@ -2379,6 +2423,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
@@ -2715,7 +2763,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "8e69664c9dce42b373cbe1263278bf4bb45498dfe74f19eb37b611603c02a015",
+  "inputsHash": "6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

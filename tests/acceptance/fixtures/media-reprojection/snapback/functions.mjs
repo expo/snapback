@@ -14,20 +14,25 @@ export const profileImageUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 
+// @ref LLP 0264#d3-owner-inserts-are-host-stamped — owner identity comes from
+// the host and this opaque handler declares its closed generic-write ceiling.
 export const createProfile = defineJsMutation({
   auth: 'authenticated',
   args: { displayName: v.string() },
   reads: [],
   writes: ['profiles'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['profiles'],
   result: results.value(v.id('profiles')),
   handler: async (ctx, args) =>
     ctx.db.insert('profiles', {
-      ownerId: ctx.auth.userId,
       displayName: args.displayName,
       image: null,
     }),
 });
 
+// @ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally — the
+// commit seam authoritatively rechecks this opaque owner-policy patch.
 export const setProfileImage = defineJsMutation({
   auth: 'authenticated',
   args: {
@@ -36,6 +41,8 @@ export const setProfileImage = defineJsMutation({
   },
   reads: ['profiles'],
   writes: ['profiles'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['profiles'],
   result: results.document('profiles'),
   handler: async (ctx, args) => {
     await ctx.db.patch('profiles', args.profileId, {
@@ -45,11 +52,15 @@ export const setProfileImage = defineJsMutation({
   },
 });
 
+// @ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally — the
+// commit seam authoritatively rechecks this opaque owner-policy patch.
 export const returnStoredProfile = defineJsMutation({
   auth: 'authenticated',
   args: { displayName: v.string() },
   reads: ['profiles'],
   writes: ['profiles'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['profiles'],
   result: results.document('profiles'),
   handler: async (ctx, args) => {
     const profile = await ctx.db

@@ -190,7 +190,10 @@
             ],
             "indexes": [],
             "name": "profiles",
-            "syncable": true
+            "syncable": true,
+            "visibility": {
+              "kind": "public-read"
+            }
           },
           {
             "assetSharing": {
@@ -441,6 +444,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -483,7 +487,7 @@
               "name": "createPost"
             },
             "format": "snapback.media-command-binding.v1",
-            "identity": "sha256:bb1fd648537cccfbc85e2565d72ae56666048c21a2e31d10ddd8fc7c2559a129",
+            "identity": "sha256:de9ee86cf5c6fc664159e448d9c761b9f5062416d726d7a7d8cc839a822c8712",
             "itemIdentityPlan": {
               "format": "snapback:asset-collection-item-id:v1",
               "operation": "append",
@@ -514,7 +518,7 @@
             "targetMutation": {
               "argsContractHash": "sha256:4e0df690bda9e8cbd5f82778919e005920dda466cc8db8a57b4aa34912b48445",
               "id": "media-profile-fixture:createPostMutation",
-              "implementationHash": "sha256:eb2522913d8df00502c2e29d2bd2dd7157143a0c507494b44da50728a3b6339d",
+              "implementationHash": "sha256:b96070aa76f5e68a8e99d98ce13d30f16432cc412350da001044212164590396",
               "name": "createPostMutation",
               "resultContractHash": "sha256:aae29e9209b06064547b06cbdb50f9d841d9a55159d431a254e6256553748e46"
             },
@@ -561,6 +565,14 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "declaredTableCeiling": [
+            "posts"
+          ],
+          "disclosures": [],
+          "opaqueWritePosture": "conservative-v1",
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "posts",
@@ -580,6 +592,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -727,6 +740,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -812,6 +826,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -942,6 +957,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
@@ -980,6 +999,7 @@
           "authorizationDependence": [
             "userId"
           ],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -1279,6 +1299,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -1365,6 +1386,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -1495,6 +1517,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
@@ -1535,6 +1561,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -1665,6 +1692,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
@@ -1752,6 +1783,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -1882,6 +1914,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "_snapback_asset_collection_4f682e8526bbc2877b4a",
@@ -1939,6 +1975,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -2068,6 +2105,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
@@ -2106,6 +2147,7 @@
           "authorizationDependence": [
             "userId"
           ],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -2405,6 +2447,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -2461,6 +2504,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -2590,6 +2634,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
@@ -2630,6 +2678,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -2759,6 +2808,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
@@ -2816,6 +2869,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -2945,6 +2999,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
@@ -2992,6 +3050,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -3034,7 +3093,7 @@
               "name": "sendMessage"
             },
             "format": "snapback.media-command-binding.v1",
-            "identity": "sha256:2f8c85522c4ed8d58ab221906823998777858c0a8bd6f8e7487071e055284b8e",
+            "identity": "sha256:80595e185602d7b6cac97fc1bf930681f010018062229ade8f96b66d235aedb7",
             "itemIdentityPlan": {
               "format": "snapback:asset-collection-item-id:v1",
               "operation": "append",
@@ -3073,7 +3132,7 @@
             "targetMutation": {
               "argsContractHash": "sha256:e7fe1fd60f2b469129a7f9ccf6f41c61e4db653012fb21f9ad248245596ce0b9",
               "id": "media-profile-fixture:sendMessageMutation",
-              "implementationHash": "sha256:38af7666c3d8147b69ba41c24b0bdb3b1bc7eb09eb7f298b5e3532ea66e70284",
+              "implementationHash": "sha256:672ff5e753fa8e8c02e4e07b47f0863291ad2d44e4b45a2abc04bf65a1ee2f9e",
               "name": "sendMessageMutation",
               "resultContractHash": "sha256:2efd7f25d51cec783bc48ee0d3de7207befbaffd888d33fd0efba95036a3e6e6"
             },
@@ -3120,6 +3179,14 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "declaredTableCeiling": [
+            "messages"
+          ],
+          "disclosures": [],
+          "opaqueWritePosture": "conservative-v1",
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "messages",
@@ -3136,7 +3203,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:c340e3ddbffdf1457d99bc2327f394dbb7e5ec37782ef6ca29382fe2db879cba",
-  "normalizedSchemaId": "sha256:f6eeb570b10c49246125333bf6de0da81040f0a738f3e9ab2363b3822b2bef84",
+  "normalizedContractId": "sha256:d535d2ba43791f5d3f7461d75c3ed2176c0049d27f50b585e03d1bf57c571331",
+  "normalizedSchemaId": "sha256:e93bb81a52b41e201806d70fcaf19914307ae20425a828feb327387bf60be773",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

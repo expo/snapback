@@ -9028,6 +9028,7 @@ export const profiles = defineTable({
     variants: ['primary'],
   })),
 })
+  .visibility({ kind: 'public-read' })
   .assetSharing({ kind: 'owner', field: 'ownerId' })
   .sync();
 ```
@@ -9085,6 +9086,8 @@ export const postMedia = assetCollection({
   grants: 'none',
 });
 
+// @ref LLP 0264#d3-owner-inserts-are-host-stamped — the handler omits the
+// installed owner field and closes its otherwise opaque generic-write ceiling.
 export const createPostMutation = defineJsMutation({
   auth: 'authenticated',
   args: {
@@ -9092,9 +9095,11 @@ export const createPostMutation = defineJsMutation({
     assetIds: v.array(v.assetRef({ upload: 'sharedMediaUpload' }), { maxItems: 4 }),
   },
   writes: ['posts'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['posts'],
   result: results.value(v.object({ _id: v.id('posts') })),
   handler: async (ctx, args) => ({
-    _id: await ctx.db.insert('posts', { ownerId: ctx.auth.userId, body: args.body }),
+    _id: await ctx.db.insert('posts', { body: args.body }),
   }),
 });
 
