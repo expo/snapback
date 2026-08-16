@@ -7,7 +7,6 @@ import TestRenderer, { act } from 'react-test-renderer';
 import { IDBFactory } from 'fake-indexeddb';
 
 import { createSnapbackAppClient } from '@expo/snapback-client';
-import { createMemoryAuthCustodyStorage } from '@expo/snapback-contract/auth-coordinator';
 import {
   adoptSupervisedBootstrapAuthority,
   createSnapbackAppClientWithBootstrapObserver,
