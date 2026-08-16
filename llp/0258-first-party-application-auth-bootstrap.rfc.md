@@ -7,14 +7,12 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
-**Revised:** 2026-08-15 (entered super-refine review; Draft → Review at loop
-start. Initial Draft: proposes one first-party application bootstrap owner
-over the existing session, `AuthCoordinator`, client, platform-custody, and
-Expo provider contracts)
+**Revised:** 2026-08-15 (r2: super-refine round-1 revision — see Revision
+history)
 **Related:** LLP 0039, LLP 0043, LLP 0053, LLP 0057, LLP 0058, LLP 0059,
-LLP 0060, LLP 0061, LLP 0064, LLP 0096, LLP 0114, LLP 0151, LLP 0176,
-LLP 0181, LLP 0218, LLP 0227, LLP 0236, LLP 0238, LLP 0241, LLP 0247,
-LLP 0252, LLP 0253, Diary 0079, Diary 0083
+LLP 0060, LLP 0061, LLP 0064, LLP 0077, LLP 0096, LLP 0114, LLP 0151,
+LLP 0176, LLP 0181, LLP 0218, LLP 0227, LLP 0236, LLP 0238, LLP 0241,
+LLP 0247, LLP 0252, LLP 0253, Diary 0079, Diary 0083
 
 ## Summary
 
@@ -151,10 +149,15 @@ This RFC does not own:
 mode, admitted entry mechanisms, required custody grade, anonymous-public
 posture, and lifecycle protocol version.
 
-**Bootstrap owner** is the one process-local object that resolves platform
-custody, returns the canonical `AuthCoordinator`, constructs the canonical
-client, registers provider/store participants, and projects public auth state.
-It is not the durable authority; the LLP 0059 custody record is.
+**Authority key** is the pair (canonical app id, storage partition). It is
+exactly LLP 0059's coordinator and custody identity; this RFC introduces no
+additional key component.
+
+**Bootstrap owner** is the one process-local object, keyed by authority key,
+that resolves platform custody, returns the canonical `AuthCoordinator`,
+constructs the canonical client, registers provider/store participants, and
+projects public auth state. It is not the durable authority; the LLP 0059
+custody record is.
 
 **Custody adapter** implements LLP 0059's durable ownership/read/compare-and-
 replace contract for one platform and storage partition. It is not a generic
@@ -180,8 +183,11 @@ provenance, never authorization.
   state may explain construction, but it cannot invent a competing signed-in
   boolean or user cache.
 - A credential response is adopted only through its existing LLP 0057/0227
-  path and exact predecessor rules. No bearer setter exists on the ordinary
-  API.
+  path and exact predecessor rules. The ordinary path introduces no bearer
+  setter, and the exposed client's existing bearer-replacement surface
+  refuses under coordinator custody exactly as it does today
+  (`createExternalSessionClient`/`replaceBearerToken` remain
+  advanced-surface-only and mutually exclusive with the coordinator).
 - A durable-required policy never falls back to memory. Missing trustworthy
   custody is a typed pre-I/O refusal.
 - An `AppBinding` carries routing/capability facts and no authority. This RFC
@@ -224,6 +230,24 @@ referenced from it, but it has one content-addressed semantic identity and one
 admission path. It contains no email, persona, user id, bearer, provider
 secret, storage bytes, callback URL, or runtime endpoint.
 
+The policy is a **derived projection, not a second auth configuration**. The
+application already has one normalized auth program — the `defineAuth`
+declaration (mechanisms, providers, guest policy) and the schema auth mode
+that codegen normalizes today. Codegen derives every
+`ApplicationAuthBootstrapV1` field from that program: `mode` from the settled
+auth mode, `entryMechanisms` from the admitted mechanism/provider set,
+`anonymousPublic` from the guest policy. No bootstrap-policy field can be
+authored independently or disagree with the program; a program the policy
+schema cannot express is a codegen refusal, not a silent narrowing.
+`external-session-explicit-v1` appears only when the program explicitly
+declares the advanced external-session seam; it is never derived by default.
+
+Supervised development entry is deliberately **not** a policy fact.
+Admission of a supervised-development session is anchored on LLP 0181's
+supervised binding source (D5), so release artifacts exclude it structurally
+— a release binding is never supervised — rather than by pruning a generated
+field.
+
 `entryMechanisms` is an allowlist of application entry surfaces, not a claim
 that the target can serve them. Binding admission intersects it with target
 capabilities. Selecting `password-v1` against a target without `auth.passwords`
@@ -232,9 +256,10 @@ work.
 
 `durable-required` is the ordinary Sessions default for web and native.
 `volatile-explicit` exists for tests, disposable demos, and advanced shells;
-it must be written explicitly and appears in bootstrap/current-principal
-inspection. Codegen never infers it merely because a durable adapter is
-missing.
+it must be written explicitly and appears in bootstrap inspection (D7).
+`currentPrincipal` remains LLP 0238's closed projection and carries no
+custody facts. Codegen never infers `volatile-explicit` merely because a
+durable adapter is missing.
 
 Both authoring profiles spell or default these facts through their existing
 front ends and normalize them once. Familiar may offer a shorter declaration;
@@ -253,20 +278,48 @@ const appClient = await createSnapbackAppClient({
 ```
 
 Names remain subject to API review, but the ownership shape is normative.
+
+The bootstrap owner is keyed by the **authority key alone** — canonical app
+id and storage partition — exactly matching LLP 0059 coordinator and custody
+identity. The binding target (origin, routing, schema/functions generation
+identities) is a construction *input*, never key material: a supervisor
+generation remint rebinds transport facts on the same owner and coordinator
+and cannot mint a second authority owner. Constructing for an authority key
+that a live owner already holds with a **different** binding target refuses
+with `SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT` until the prior projection is
+disposed — authority is neither silently shared across targets nor duplicated.
+An application that genuinely wants two targets side by side gives them
+explicit distinct storage partitions.
+
+The ordinary default storage partition is a stable per-app constant. It is
+never derived from a supervisor generation or other rotating identity; the
+Expo path's per-generation `clientStoreId` remains a query-store axis and is
+not the auth-custody axis.
+
 Construction:
 
 1. validates the generated application, bootstrap policy, and binding before
    opening stores;
 2. resolves one admitted custody adapter for the platform/profile;
-3. obtains the process-local bootstrap owner keyed by canonical app id,
-   storage partition, and binding target;
+3. obtains the process-local bootstrap owner for the authority key;
 4. obtains or constructs the single logical `AuthCoordinator` for that key;
-5. registers the client store, connection owner, live resources, outbox, and
-   provider as LLP 0059 participants;
+5. constructs the ordinary Snapback client with that coordinator in an
+   unreleased state — the client's own constructor registers its mandatory
+   transport participant, and store, connection, outbox, and provider-owned
+   participants register as those owners are created;
 6. synchronizes durable custody or establishes the server-witnessed anonymous
-   predecessor through the existing handshake;
-7. constructs the ordinary Snapback client with that coordinator; and
-8. releases public application work only after exact settled confirmation.
+   predecessor through the client's existing session handshake owner;
+7. closes the then-existing mandatory participant set under LLP 0059's exact
+   settled confirmation (dynamically created live resources join later under
+   the existing late-registration rules — nothing is registered before it
+   exists); and
+8. releases public application work only after that confirmation.
+
+Durable custody initialization precedes every public release, including for
+`anonymousPublic: "allowed"` applications: the owner and the durable
+anonymous partition initialize first, so later protected adoption can never
+switch storage owners. This resolves former open question 3 conservatively —
+under `durable-required`, custody is a prerequisite even for public routes.
 
 The returned object projects:
 
@@ -280,15 +333,21 @@ interface SnapbackAppClient {
 }
 ```
 
-`auth` delegates to the existing `client.auth` namespace. `dispose` removes
-process-local resources and subscriptions; it does not log out or delete
-durable custody. Explicit `auth.signOut()` owns that authority transition.
+`auth` projects the `client.auth` namespace that LLP 0238 D6 specifies. That
+namespace is a 0238 vocabulary this RFC's Phase 1 implements, not a shipped
+surface — today's client exposes the flat `authPasswordSignup`-family
+methods, and the facade fronts them under the 0238 names. This sequencing
+dependency is explicit: Phase 1 delivers the 0238 D6 projection as part of
+the bootstrap owner. `dispose` removes process-local resources and
+subscriptions; it does not log out or delete durable custody. Explicit
+`auth.signOut()` owns that authority transition.
 
-Within one JavaScript context, repeat construction for the exact key returns a
-reference-counted projection of the same bootstrap owner. React Strict Mode,
-Fast Refresh, and nested providers cannot create a second coordinator. A
-different binding target or storage partition is a different explicit key and
-cannot silently share authority.
+Within one JavaScript context, repeat construction for the same authority key
+and binding target returns a reference-counted projection of the same
+bootstrap owner. React Strict Mode, Fast Refresh, and nested providers cannot
+create a second coordinator. A different storage partition is a different
+explicit authority key; a different binding target over a live key is the
+typed conflict refusal above.
 
 ### D3. Custody is selected by capability, never convenience fallback
 
@@ -297,28 +356,42 @@ The first-party platform matrix begins as:
 | Platform | Ordinary durable carrier | Minimum evidence |
 | --- | --- | --- |
 | Browser | existing IndexedDB + Web Locks adapter | two-tab ownership, reload restoration, corruption/recovery, logout replacement |
-| Expo iOS | first-party native durable adapter | process kill/relaunch, exact revision/epoch preservation, protected keychain/storage behavior, no overlapping-owner write |
-| Expo Android | first-party native durable adapter | force-stop/relaunch, exact revision/epoch preservation, Keystore/storage behavior, no overlapping-owner write |
+| Expo web | the same IndexedDB + Web Locks adapter (never the native carrier) | same as Browser |
+| Expo iOS | first-party native durable adapter (design below) | process kill/relaunch, exact revision/epoch preservation, protected keychain/storage behavior, no overlapping-owner write |
+| Expo Android | first-party native durable adapter (design below) | force-stop/relaunch, exact revision/epoch preservation, Keystore/storage behavior, no overlapping-owner write |
 | Node/headless | explicit file/transactional adapter where admitted | crash/reopen, owner fencing, mode/permission checks |
 | Memory | volatile only | explicit policy and visible nonclaim |
 
 The native carrier must implement LLP 0059's ownership and compare-and-replace
 semantics, not merely expose `getItem`/`setItem`. `expo-secure-store` may be a
 secret/persistence component, but packaging the guide's process-local queue as
-if it were a transactional cross-process adapter is insufficient. The rollout
-must select and prove one of:
+if it were a transactional cross-process adapter is insufficient.
 
-- a first-party native module or OS primitive that supplies the required
-  fenced ownership around secure credential storage; or
-- a narrowly declared single-runtime carrier whose platform/process exclusion
-  is independently demonstrated and whose capability refuses background or
-  multi-process use.
+**The selected v1 design is a first-party native custody module** shipped
+from a first-party package. Its normative contract:
 
-This carrier choice is the principal open design item before this RFC can move
-to Accepted. Whatever wins ships from a first-party package, owns its storage
-format/migrations, validates every read and write, and reports its exact
-durability/security grade. Application copies of the guide adapter do not
-qualify the first-party path.
+- it persists the entire LLP 0059 custody record (`AuthCustodyV2`, bearer
+  included) as one serialized unit in one OS-secure-storage domain — the
+  bearer is never split from the lease/revision metadata, preserving 0059's
+  same-transaction rule;
+- it implements compare-and-replace natively: every write is an atomic
+  replace conditioned on the exact expected revision/epoch, with crash-safe
+  read-verify, in that single storage domain;
+- it provides ownership fencing at the strongest level the OS proves. Where
+  cross-process fencing cannot be independently demonstrated for a platform,
+  the module declares a **single-runtime capability** for that platform:
+  background, extension, and multi-process use refuse with a typed
+  diagnostic rather than racing; and
+- it owns its storage format and migrations, validates every read and write,
+  and reports its exact durability/security grade per platform.
+
+Phase 0's iOS and Android probes validate this design's per-OS evidence
+(LLP 0064 — iOS evidence is not Android evidence); they inform grade
+declarations, not whether the module exists. If a probe shows a platform
+cannot even satisfy the single-runtime profile, that platform's
+`durable-required` capability stays refused — the design does not degrade to
+an unfenced adapter. Application copies of the guide adapter do not qualify
+the first-party path.
 
 If `durable-required` cannot resolve a qualifying adapter, construction fails
 with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` before protected resources or
@@ -333,49 +406,95 @@ The facade exposes mechanism-appropriate projections, beginning with LLP 0227:
 interface SnapbackAuthFacade {
   currentPrincipal(): CurrentPrincipalSnapshot
   subscribeCurrentPrincipal(listener: () => void): () => void
-  signUpWithPassword(input: PasswordSignupInput): Promise<void>
+  signUpWithPassword(
+    input: PasswordSignupInput,
+  ): Promise<AuthRecoveryCredentialPublicProjectionV1>
   signInWithPassword(input: PasswordSigninInput): Promise<void>
+  changePassword(input: PasswordChangeInput): Promise<void>
   signOut(): Promise<void>
 }
 ```
 
-The methods are conveniences over existing client methods, not new routes or
-result contracts. Password signup/sign-in receive the ordinary composed
-credential response and adopt it through LLP 0227's anonymous-issuance path on
-the same coordinator. Credential change uses same-authority rotation. Sign-out
-uses the existing server logout plus coordinator barrier and exposes anonymous
-state only after participant clearing and durable settlement.
+Every facade method **preserves the exact result contract of the client
+method it wraps** — the facade adds adoption and lifecycle ownership, never a
+new route or a narrowed result. In particular, signup returns the existing
+one-time recovery-credential projection (`recoveryCodes` included) exactly as
+`authPasswordSignup` does today: that return is the application's one
+deliberate boundary for showing recovery custody to the user, and eliding it
+would silently destroy required credential custody. The owner never retains,
+logs, or re-exposes that projection after the call resolves. Password
+signup/sign-in adopt the ordinary composed credential response through
+LLP 0227's anonymous-issuance path on the same coordinator; `changePassword`
+uses the existing same-authority rotation (Acceptance exercises it); the
+remaining password methods (set, reset, recovery consumption) stay available
+on the client surface and join the facade under the same exact-contract
+mapping via D9 rows. Sign-out uses the existing server logout plus
+coordinator barrier and exposes anonymous state only after participant
+clearing and durable settlement.
 
-An entry call while the predecessor state is loading, refreshing, clearing,
-blocked, or incompatible refuses with LLP 0238/0247's public diagnostic and
-remediation. It never assigns a bearer directly or treats the response's user
-id as application authority.
+Entry refusals project onto LLP 0238's closed public union — the facade
+widens nothing. An entry call while the principal is `loading`, `refreshing`,
+or `blocked` (including internal clearing/incompatibility phases, which
+surface as `loading`/`blocked` plus a typed LLP 0238/0247 diagnostic) refuses
+with remediation. An entry call while an **application-entered or restored
+authenticated principal** is settled refuses with a typed diagnostic
+directing explicit `signOut()` — there is no implicit user switch. The one
+composed exception is a supervised-development principal: D5 defines explicit
+application entry over it as an authorized displacement. No path assigns a
+bearer directly or treats the response's user id as application authority.
 
 Email-code and future LLP 0151 mechanisms join this facade only after their own
 mechanism/target/client-surface acceptance. The bootstrap API is deliberately
 mechanism-extensible without becoming provider-policy authority.
 
-### D5. Durable restoration wins over ambient development adoption
+### D5. Application authority wins over ambient development adoption
 
-Startup authority precedence is closed:
+Authority precedence is closed, and it governs the whole session — boot and
+every later supervisor event — not startup alone:
 
-1. a valid durable settled record for the exact app/partition/target is
-   restored and synchronized;
+1. a valid durable settled record for the authority key is restored and
+   synchronized;
 2. an explicit application entry operation may transition that settled
    predecessor under its normal rules;
 3. a supervised-development session may bootstrap only a fresh or settled
-   anonymous predecessor when the generated policy admits the development
-   entry; and
+   **anonymous** predecessor, and only when the `AppBinding` was admitted
+   through LLP 0181's supervised-development channel (the binding source is
+   the admission fact; there is no policy field for it — D1); and
 4. advanced external adoption requires an explicit advanced constructor or
    shell and never competes with the ordinary owner.
 
-A supervised session never overwrites a durable authenticated user merely
-because Metro or a supervisor restarted. If the supervisor requests a
-different principal while durable custody is authenticated, boot reports
-`authority-required`/`SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` with choices
-to keep the current principal, explicitly sign out and adopt the supervised
-principal, or select a separate storage partition. No automatic “latest
-credential wins” rule exists.
+**Explicit application entry displaces a supervised persona.** On the
+ordinary path, `signUpWithPassword`/`signInWithPassword` against a principal
+whose authority source is supervised development performs one composed,
+owner-driven operation: barrier sign-out of the supervised session, restored
+server-witnessed anonymous predecessor, then ordinary anonymous issuance —
+all under the existing LLP 0059 barrier, exposed as a single entry operation.
+A developer's ambient persona never forces the end user's sign-in through a
+manual sign-out. This composed rule applies **only** to supervised-source
+principals; an application-entered or restored authenticated principal still
+refuses entry and requires explicit `signOut()` (D4).
+
+**Supervisor events after boot obey the same precedence.** A binding remint,
+supervisor restart, or `refreshAuthority` cycle may replace session authority
+only while the current authority source is supervised (or the predecessor is
+anonymous and rule 3 admits it). While application-entered or restored
+authenticated authority holds, those events update binding/transport facts
+only and surface `SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` as a
+non-authoritative diagnostic; on the ordinary path they never replace a
+bearer (`replaceBearerToken`/`createExternalSessionClient` leave the ordinary
+path entirely — supervised adoption handshakes into the coordinator like any
+other session). No automatic “latest credential wins” rule exists at boot or
+after it.
+
+**The supervised conflict never wedges boot.** When durable custody holds an
+authenticated user and the supervisor requests a different principal, the
+bootstrap completes `ready` with the durable principal and reports the
+conflict diagnostic with its remediations. Every remediation is executable
+through the specified API: keep the current principal (default — no call),
+explicitly `signOut()` and let supervised bootstrap re-admit under rule 3, or
+reconstruct with a separate storage partition. `authority-required` is
+reserved for states with no settleable authority at all (for example blocked
+custody), not for this conflict.
 
 A stale or incompatible durable record follows LLP 0059's blocked/recovery
 path. The bootstrap cannot delete it merely to make development start. A
@@ -407,15 +526,19 @@ advanced ownership cannot be enabled for the same provider instance.
 
 React/Expo expose:
 
-- LLP 0238's `useSnapbackCurrentPrincipal()` unchanged;
+- `useSnapbackCurrentPrincipal()` with LLP 0238's exact specified contract
+  (0238 D6 is the vocabulary this RFC implements; it is not yet a shipped
+  surface — D2);
 - mechanism actions through a small `useSnapbackAuth()` projection over the
   app client's `auth` facade; and
 - bootstrap diagnostics through provider boot state, not another user-state
   hook.
 
 Familiar may re-export the ordinary hooks under its admitted profile brand.
-The hooks consume the same owner, state union, and generated mechanism table as
-Explicit. Familiar aliases never construct a cache, coordinator, or client.
+Because LLP 0253 S6.1 closes Familiar's v1 export list, those re-exports are
+an explicit 0253 amendment (Phase 0), not a side effect. The hooks consume
+the same owner, state union, and generated mechanism table as Explicit.
+Familiar aliases never construct a cache, coordinator, or client.
 
 ### D7. Bootstrap state is construction truth, not auth truth
 
@@ -434,6 +557,13 @@ construction, and participant exposure completed. It does not mean the
 principal is authenticated, the transport is online, or retained data is
 current. Those remain `currentPrincipal`, connection, and query freshness
 facts.
+
+After this RFC, **the bootstrap snapshot union above is owned here**, and
+LLP 0181's `ExpoBootState` is amended (Phase 0) to project it — one union,
+one source of truth, with 0181's provider as a projection. That amendment is
+a real change to 0181's public boot surface (new `custody` stage, `blocked`
+status, redefined `ready`) and is declared as such, not as a mere
+cross-reference.
 
 Public custody facts include carrier kind, durable/volatile grade, storage
 partition identity hash, format version, and recovery availability. They never
@@ -462,6 +592,11 @@ of its carriers by composition. In particular:
   durable custody read, or admitted supervised/external session channel;
 - it never appears in generated facts, `AppBinding`, React props, public
   state, logs, diagnostics, source maps, Metro environment, or receipts;
+- one-time recovery credentials (LLP 0227) cross exactly one deliberate
+  boundary — the synchronous signup/rotation return value (D4) — and the
+  owner never retains, logs, or re-exposes them; scans treat bearer material
+  and one-time recovery material as distinct classes with that single
+  admitted return boundary;
 - provider and application callbacks run only after the LLP 0059 final exact
   durable confirmation;
 - logout/user switch synchronously blanks every participant and destroys or
@@ -478,8 +613,11 @@ of its carriers by composition. In particular:
 
 The lifecycle manifest from LLP 0238 gains generated bootstrap rows for:
 
-- bootstrap-policy field and semantic-identity disposition;
-- mechanism → client method/hook/target-capability mapping;
+- bootstrap-policy field and semantic-identity disposition (including its
+  derivation from the normalized `defineAuth`/schema auth program — D1);
+- mechanism → client method/hook/target-capability mapping, with each
+  method's exact result contract (including the one-time recovery-credential
+  return boundary);
 - platform → admitted custody adapter and grade;
 - bootstrap stage/state/diagnostic tables;
 - ordinary versus advanced ownership exclusivity;
@@ -519,13 +657,18 @@ client, contract, Expo, React, codegen, and CLI/runtime support.
 
 ### Phase 0 — Freeze composition and carrier choices
 
-1. Resolve the native durable-carrier open question with an implementation
-   probe on iOS and Android.
+1. Validate the D3 native-custody-module design with implementation probes on
+   iOS and Android, recording per-OS fencing evidence and the resulting
+   grade/capability declarations (single-runtime where cross-process fencing
+   is unproven).
 2. Freeze `ApplicationAuthBootstrapV1`, bootstrap state, diagnostics, and the
    ordinary/advanced ownership boundary.
-3. Add dated cross-reference amendments to LLP 0059, LLP 0181, LLP 0227,
-   LLP 0238, LLP 0252, and LLP 0253 without changing their underlying
-   protocols.
+3. Land dated amendments: LLP 0181 (bootstrap-owned boot union; supervised
+   mint no longer auto-adopts over application authority at boot or refresh;
+   `refreshAuthority` is not a bearer setter on the ordinary path; `ready`
+   may be anonymous) and LLP 0253 S6.1 (auth hook re-exports). These change
+   the amended surfaces and say so. LLP 0059, LLP 0227, LLP 0238, and
+   LLP 0252 receive cross-references only — their protocols are unchanged.
 4. Freeze clean app fixtures for browser Explicit, Expo Explicit, browser
    Familiar, and Expo Familiar.
 
@@ -590,8 +733,11 @@ hosted or sender-constrained auth.
   construction for one exact key create one bootstrap/coordinator owner and
   bounded projections; final disposal leaks no listeners or connections.
 - A durable authenticated user is never overwritten by a supervised dev
-  session. Conflict produces the closed diagnostic and requires an explicit
-  transition or storage partition.
+  session — at boot, on supervisor restart, on binding remint, or on
+  `refreshAuthority`. Conflict boots `ready` with the durable principal and
+  produces the closed diagnostic; adoption requires an explicit transition or
+  storage partition. Explicit password entry over a supervised-source
+  principal completes as one composed displacement (D5).
 - Signup/sign-in, password change, refresh, logout, and supervised adoption
   all project one `currentPrincipal` state machine and one participant barrier.
 - Logout and user switch expose zero predecessor protected rows, optimistic
@@ -601,7 +747,9 @@ hosted or sender-constrained auth.
   request, credential entry, or public `ready`; memory fallback occurs only
   under explicit `volatile-explicit` policy.
 - Bundle, source-map, log, Metro environment, generated artifact, `AppBinding`,
-  public-state, and receipt scans find no bearer or credential payload.
+  public-state, and receipt scans find no bearer or credential payload; the
+  one-time recovery projection appears nowhere but its deliberate signup/
+  rotation return boundary.
 - Explicit and Familiar fixtures normalize equal bootstrap policy facts and
   use byte-identical runtime/client/custody paths; only generated source/profile
   identities differ as LLP 0252 requires.
@@ -669,25 +817,48 @@ exclusive owners over the same protocols, with measured migration.
 
 ## Open questions
 
-1. Which native carrier can satisfy LLP 0059 ownership while preserving an
-   ordinary Expo installation: a first-party native module/OS primitive, or a
-   proven single-runtime profile over secure persistence? This must be resolved
-   before acceptance, not deferred to implementation.
+1. Per-OS fencing evidence for the D3 native custody module: which platforms
+   prove cross-process fencing, and which ship the declared single-runtime
+   capability instead? The module design is decided (D3); the Phase 0 probes
+   answer only the per-platform grade declarations, and `durable-required`
+   stays refused on any platform that cannot meet even the single-runtime
+   profile.
 2. Should the framework-neutral constructor be the new primary
    `SnapbackClient` creation path in one compatibility epoch, or remain an
    application-level constructor beside the low-level client indefinitely?
-3. Should a release application with `anonymousPublic: "allowed"` construct a
-   ready anonymous client before durable custody is available, or does
-   `durable-required` make custody a prerequisite even for its public routes?
-   The conservative recommendation is that the owner and durable anonymous
-   partition still initialize first, so later protected adoption cannot switch
-   storage owners.
+
+Former open question 3 (anonymous-public readiness before durable custody)
+is resolved normatively in D2: custody initializes first.
 
 ## Status
 
 Review. The component protocols are already owned and substantially
 implemented. This RFC proposes the missing composition boundary, platform
-custody obligation, precedence rules, and whole-journey proof. It requires
-review of the native carrier choice and the cross-document ownership boundary
-before acceptance; implementation must not introduce a second auth protocol or
-weaken existing custody/barrier semantics.
+custody obligation, precedence rules, and whole-journey proof. The native
+carrier design is decided in D3 with fail-closed per-platform capability
+gating, so acceptance does not wait on the Phase 0 probes; each platform's
+`durable-required` capability flips only on its own probe evidence.
+Implementation must not introduce a second auth protocol or weaken existing
+custody/barrier semantics.
+
+## Revision history
+
+- **r1 (2026-08-15):** initial Draft; entered super-refine review
+  (Draft → Review).
+- **r2 (2026-08-15):** round-1 revision. Owner key closed to LLP 0059's
+  authority key with typed binding-conflict refusal and a stable default
+  partition (D2); construction order made compatible with the existing
+  participant registration/barrier (D2); former OQ3 resolved normatively —
+  custody initializes before any public release (D2); bootstrap policy
+  redefined as a derived projection of the `defineAuth`/schema program, with
+  supervised entry anchored on LLP 0181's binding source instead of a policy
+  field (D1, D5); native carrier design selected — first-party native custody
+  module with whole-record CAS and fail-closed single-runtime declaration
+  (D3), Expo web row added; facade preserves exact client result contracts
+  (recovery-credential return), adds `changePassword`, and maps refusals onto
+  LLP 0238's closed union (D4); precedence extended to first-run supervised
+  displacement, runtime remint/`refreshAuthority`, and non-wedging conflict
+  resolution with executable remediations (D5); LLP 0181/0253 amendments
+  declared as protocol changes and boot-union ownership moved here (D6, D7,
+  Phase 0); one-time recovery-credential boundary distinguished from bearer
+  rules (D8, Acceptance); LLP 0077 added to Related.
