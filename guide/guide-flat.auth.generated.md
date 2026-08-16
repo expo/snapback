@@ -9,13 +9,13 @@ id: auth.sessions-and-principals
 order: 1
 audience: agent-first
 capabilities: [auth.sessions, auth.browser-session-custody, auth.scoped-queries]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, packages/snapback-codegen/index.mjs, src/admin.rs, src/auth/mode.rs, src/auth/provider.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0172-explicit-function-authorization.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, packages/snapback-codegen/index.mjs, src/admin.rs, src/auth/mode.rs, src/auth/provider.rs, src/dev_identity.rs, src/host_ops.rs, src/server.rs, src/cli.rs, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/auth-identity-types.fixture.ts, packages/snapback-client/unrecognized-authority-recovery.test.mjs, packages/snapback-contract/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, demos/_kit/as-user.mjs, demos/_kit/server-process.mjs, demos/browser-auth/surfaces/web/main.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/browser-auth, demos/card-game, demos/party-wall, packages/snapback-client/auth-identity-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-12
-reviewed-authorities-digest: sha256:189be9d1f43cb5a1c125e943a28c129db1294d9ad11d46f7f38bffa43c6e2d8d
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:2ac1a38c4cdf294b94a69fe2733378017375a3c2ac6171aaa140926868346199
 ---
 
 # Sessions and principals
@@ -36,6 +36,17 @@ Auth mode is per-app schema config
 [your first backend](../getting-started/your-first-backend.md)). `dev` mode
 is the trusted-local convenience where tests pass `userId:` directly;
 `sessions` is the real thing below.
+
+That dev-mode assertion now has a per-boot `sbdev_` custody capability,
+separate from sessions, admin tokens, and impersonation. The ready descriptor
+names its owner-only sidecar in `devIdentityCapabilityFile`; direct/headless
+clients and the demo kit read it, managed Vite stamps it behind the same-origin
+relay, external dev hosts receive `SNAPBACK_DEV_IDENTITY_FILE`, and supervised
+native Expo redeems a one-shot launch nonce. Stage 1 verifies any capability
+that is presented but still accepts an absent one with a single server warning
+per boot. Missing capability becomes a refusal only at LLP 0262's enforce
+stage, after every supported carrier has an acceptance witness; none of this
+adds a second gate to admin-token-gated `function.run` or `auth.mintSession`.
 
 ## Choose each function's auth requirement
 
@@ -2983,13 +2994,13 @@ id: auth.targets
 order: 7
 audience: agent-first
 capabilities: [auth.target-honesty, auth.sender-constrained-browser]
-authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, src/admin.rs, packages/snapback-client/hosted-browser.mjs, README.md]
+authorities: [llp/0060-hosted-auth-security.rfc.md, llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0077-sender-constrained-browser-auth.spec.md, llp/0002-canonical-local-target.decision.md, llp/0014-cloudflare-strategy.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, src/admin.rs, src/cli.rs, src/dev_identity.rs, src/host_ops_contract.rs, src/server.rs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, packages/snapback-client/hosted-browser.mjs, README.md]
 examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-client/sender-transport.test.mjs, tests/sender_proof_cross_language.rs]
 status: current
 targets: [all]
 maturity: partial
-reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:c9a46467cbe390642c43535f8e137e9f239cb51d3887f1c412bfd5004db1caf9
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:f98678eb61296e546f6705fc3d9fa99ede1c16217906a95ccd8ca5a66708d741
 ---
 
 # Targets — what each one claims
@@ -3030,6 +3041,39 @@ profile fails closed when the hosted prerequisites are absent and may refuse
 the local-only provisioning and impersonation operations the app needs. Treat
 a tunnelled loopback server as an unsupported public exposure: use it only in
 a controlled development context, never as a production deployment recipe.
+
+Client-asserted dev identity now has a separate per-boot `sbdev_` custody
+capability ([LLP 0262 D1](repo:llp/0262-dev-identity-custody-capability.rfc.md#d1-the-dev-identity-capability)).
+The mint follows the admin-token anchor ladder: `<db>.dev-identity` for a
+file-backed database, otherwise `<ready-file>.dev-identity`, otherwise a
+per-process value disclosed once on the operator TTY. A file is overwritten
+each boot, unlinked on clean shutdown, and advertised as
+`devIdentityCapabilityFile`; production never mints and refuses startup when
+its resolved sidecar is present. Direct clients present the value in
+`x-snapback-dev-identity` (never `Authorization`), while the managed Vite relay
+stamps it server-side so browser code never sees the bearer. This is rollout
+stage 1: a presented malformed or mismatched capability is refused with the
+generic `SNAPBACK_DEV_IDENTITY_REFUSED`, but an absent capability is still
+accepted and produces only the first capability-less-dev-assertion warning of
+that boot. Enforcement waits for LLP 0262 D5's acceptance witness across every
+supported carrier; the current stage does not make a tunnel a supported public
+deployment.
+
+Declare reachability with the closed
+`SNAPBACK_EXPOSURE={fronted,direct}` vocabulary. Empty or unset is unset;
+`direct` is behaviorally identical to unset. `fronted` with an
+unset `SNAPBACK_PROFILE` selects full production semantics, so no dev
+capability is minted and dev identity is unavailable. `fronted` with an
+explicit non-production profile retains that profile and capability but prints
+the exposure warning; production remains production. Any other nonempty value
+fails closed as `fronted` and prints one startup warning naming the value. For
+the [LLP 0036 SSH-tunnel posture](repo:llp/0036-app-secrets-and-config.rfc.md),
+declare `fronted` and use credentialed surfaces. A credential-holding dev host
+fronted in turn (for example tunneled Vite) can still stamp for strangers; LLP
+0262 records that residual rather than treating the capability as public-front
+authentication. `--allow-insecure-dev-auth` still means only dev auth over a
+plaintext non-loopback bind; it neither declares a front nor substitutes for
+the capability.
 
 ## Cloudflare — the hosted proof, as far as it is real
 
