@@ -77,3 +77,12 @@ gate for that push.
    kernel operation by §3.1 rather than something to call up for.
 
 Until then this ticket is the record that the edge exists and whose it is.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+Disposition option 2 was taken: the kernel→sync
+`src/storage/auth_identity.rs → src/auth/sender_proof.rs` edge is recorded in
+`ownership.baseline.json` as a time-bounded waiver (deadline 2026-09-15,
+worklist `issues/20260811-llp0225-item-3-provider-split-implementation.md`).
+The “unrecorded” failure is gone. Remaining inversion work lives on the
+item-3 worklist, not this bookkeeping ticket.

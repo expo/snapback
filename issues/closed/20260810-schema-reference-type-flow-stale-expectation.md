@@ -18,3 +18,11 @@ pre-existing: the LLP 0211 typed-values work appears to have outrun this
 test's expectation. Whoever owns the 0211 slice should either bless the
 new behavior (update the expectation) or classify it as a real
 regression.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+The schema-reference type-flow case that expected `ok: false` now matches
+landed structured-value support. Generation succeeds and records
+`structured_stored_value_v1` instead of a capability refusal. This was the
+same LLP 0211 expectation drift as
+`issues/closed/20260810-codegen-stale-structured-stored-value-expectations.md`.

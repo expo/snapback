@@ -58,3 +58,12 @@ delivery without a projection oracle, pending attachment refusal, related-fact
 OCC conflict, and valid-JSON settlement corruption. The issue is ready to
 close when this lane is integrated; collection, command, class-M activation,
 and playable-video work remain separately out of scope under LLP 0239.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+The ticket already marked itself Ready to close. LLP 0244 froze
+same-snapshot `MediaRef` projection, disclosed coarse `kind`, finalized-only
+v1 attachment, and identity-bound settlement. `v.media()`, exact
+`mediaRef.v1` contracts, and the empty-safe controller shipped; capability
+`assets.media-field.v1` is **shipped**. Collection/command remain separately
+owned by `issues/20260815-finish-media-happy-path.md`.

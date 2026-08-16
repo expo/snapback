@@ -37,3 +37,11 @@ tuple is `POST /watches/{id}/renew` (the D9.3 automations bundle,
 fixes this ticket should pin all three: the `/effects` trio and the watches
 renew row. Observed during LLP 0223 execution, which touches no routes
 (`host_ops_v0` 13/13 and the mint lib tests are green on the same tree).
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+The S5 effects trio and the D9.3 watches-renew row are now first-class
+`route_policy_v1` inventory. `tests/route_policy_v1.rs` registers `/effects`,
+`/effects/{id}/approve`, `/effects/{id}/deny`, and `POST /watches/{id}/renew`
+in both the parity table and the body-auth probe set. The 2026-08-10 main red
+(router/registry/probe mismatch) no longer matches the tree.

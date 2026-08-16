@@ -53,3 +53,12 @@ schema-owner amendment.
   `llp/0226-identity-architecture.decision.md` (namespaces, conversion rules
   C-1–C-6, mint conformance M-1–M-5, the LLP 0135 fence clearance, the three
   owner lanes, and the `v.serial({ start })` spelling ruling).
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+The coordinating vocabulary Decision is Accepted
+[LLP 0226](../llp/0226-identity-architecture.decision.md) (`v.serial({ start })`,
+namespaces, conversion/mint conformance, owner-lane split). This ticket asked
+for that Decision, not the owner implementations. Schema work remains on
+`issues/20260808-numeric-identity-default-columns.md`; auth-claim exposure
+remains on `issues/20260808-guide-gap-principal-to-app-identity-binding.md`.

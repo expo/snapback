@@ -132,3 +132,11 @@ edges: each also imports engine symbols (`ResumeKeyring`, `mint_token_wire`,
 `decode_and_verify`, the cursor families, `relational_result_encoding_v1`,
 `relational_result_encoding_artifact`) that correctly stay in the sync engine.
 Those clear when the engine's consumers are drained, not by a shape move.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+This ticket already recorded **CLOSED 2026-08-11** in its body (365 → 349
+frozen edges; consumers repointed at `src/rqs_contract.rs`) but was never
+moved out of the open directory. Remaining `→ rqs.rs` edges are
+engine-symbol consumers, which this slice explicitly left behind. Close the
+still-open copy.

@@ -1,5 +1,7 @@
 # Umbrella first-publish gate blocks the D9 clock start
 
+**Status:** Resolved 2026-08-14
+
 **Filed:** 2026-08-14 (overnight LLP 0254 program session)
 **Blocks:** LLP 0254 Phase 4's final bullet (qualified publication of the
 tiny package closure → D9 clock start → evaluation → D10 packet)
@@ -49,3 +51,16 @@ schemas, prior-vector/first-publish handling, staging, packing, cold-install,
 and receipt paths pass their affected tests. This ticket remains open through
 the separately authorized morning-window ceremony; that qualified first
 publication starts the D9 clock and launches the LLP 0256 lanes.
+
+## Resolution — 2026-08-14
+
+Resolved by the qualified 0.1.21 promotion recorded in LLP 0041
+§0.1.21: `@expo/snapback` first-published as the twelfth package, all twelve
+packages were byte-verified and promoted to `latest`, and the LLP 0256 D9 clock
+started. The 0.1.22 fast-path publication subsequently carried the same
+twelve-package closure.
+
+The later `affected-selector-fixtures` failure is not a reopening of this
+publication decision. It is tracked separately in
+`issues/20260815-affected-selector-omits-umbrella-readme.md`, per LLP 0189
+D-1's one-ticket-per-root-signature rule.

@@ -16,3 +16,12 @@ eleven names; owned by the session that rolled it back).
 ceremony (first-qualified-ceremony recipe) immediately after, so the
 external-surfaces program ships to npm. Do not publish ahead of the fix;
 do not hold after it.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+The 0.1.16 receipt regression was withdrawn from `latest` and succeeded by
+0.1.17, which restored a bootable published closure. Subsequent qualified
+cuts continued; `guide/published-closure.json` now records `newestPublished`
+0.1.22 (2026-08-15) and `newestQualified` 0.1.21. The action this ticket
+queued — run the qualified ceremony immediately after the 0.1.16 fix so
+landed 0204-era surface is not stuck unpublished — has been performed.

@@ -121,3 +121,13 @@ Plus the existing envelope: `cargo test --lib {storage,server,auth}` failing
 This slice adds the recovery contract to §3.3's recorded set and retires the
 OQ-C exception, so it lands with a `Revised` entry and a §4 migration-sequence
 entry in `llp/0225-core-modularization.decision.md`.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+The OQ-C inert-until-reload machine is implemented in
+`src/generation_activation.rs` and `LocalSnapback`. Reopen fences serving
+until a digest-matching reload (`SNAPBACK_FUNCTION_GENERATION_AWAITING_RELOAD`);
+matching rehydration does not advance `generation_high_water`; mismatched
+explicit rehydration refuses `SNAPBACK_FUNCTION_GENERATION_REHYDRATION_MISMATCH`
+and stays fenced. LLP 0225 revision (p) retired the OQ-C exception and records
+the slice as executed.

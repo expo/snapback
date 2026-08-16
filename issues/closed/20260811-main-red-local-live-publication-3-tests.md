@@ -20,3 +20,12 @@ landings or the catalog-v3 fixture fix (they reproduce with those stashed).
 
 Owner: the realtime/live-updates + 0199 local-split authors. Filing for
 main-red tracking (LLP 0225) since no ticket existed.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+These were stale live-publication assertions after retained authorization
+became the sole frame source (LLP 0094). The three named `local::tests::*`
+cases now project successor snapshots at the delivery boundary and no longer
+expect unfenced live deltas. `issues/20260812-round2-lib-red-environment-classification.md`
+records them as real inventory that was fixed; the original main-red tracker
+is obsolete.

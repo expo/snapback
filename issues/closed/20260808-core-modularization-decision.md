@@ -108,3 +108,14 @@ migration sequence.
 review); it consolidates LLP 0199 with the shipped ownership-manifest
 vocabulary, the unconditional pre-push gate, and the landed
 generation-activation first slice.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+The commissioned incremental-extraction Decision landed as Accepted
+[LLP 0225](../llp/0225-core-modularization.decision.md). It consolidates
+superseded LLP 0199, records the ownership map and dependency direction, and
+names generation activation as the first slice. That slice and the companion
+ownership gate (`issues/closed/20260809-ownership-gate-prepush-tier.md`) are
+on main. Remaining extraction continues on
+`issues/20260809-0199-ownership-ratchet-worklist.md` and later 0225 slice
+tickets, not this commission.

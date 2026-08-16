@@ -102,3 +102,12 @@ the real claim manifest/generated-output check to the appropriate native/CI
 inventory once P0.0 records exist, arrange the repository-disclosure-authority
 review evidence, and decide the publication destination. The unrelated guide
 generation baseline above remains for its owning lane to repair.
+
+## Resolution — 2026-08-15 (backlog sweep)
+
+The 0197-only slice is committed: `benchmarks/tools/{validate-records,publish,sanitize-trace}.mjs`,
+publisher/sanitizer libraries, fixtures, and `checked-publisher.test.mjs`.
+The earlier "implemented in working tree — uncommitted by sandbox constraint"
+status is obsolete. Remaining N≥3 calibration, real claim manifests, and
+publication destination are owned by LLP 0198 / later integration, not this
+execution ticket.
