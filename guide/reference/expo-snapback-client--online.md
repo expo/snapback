@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:4b941775187b1c8b4651b515dcaef7f8b7cc94cbce30
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:92110d44a7ac28ea6094cd465158c55c19ceebf9e02f83f1718a101c0f968037`.
+`sha256:655c4ee33deff2dbb2554b0fb2a1e47032dfd4cdec0befe3cf0e6bfb39dc55dd`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2017`
+Source: `packages/snapback-client/index.d.mts:2028`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2013`
+Source: `packages/snapback-client/index.d.mts:2024`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,17 +73,22 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1538`
+Source: `packages/snapback-client/index.d.mts:1544`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
+  /** Constructor-selected default outbox scheduling policy. */
+  readonly outboxDrainPolicy: 'auto' | 'manual';
   /** LLP 0238 D6 namespaced projection; flat methods remain compatible. */
   readonly auth: SnapbackClientAuthNamespace;
   /** This client's bounded, process-local structured diagnostics channel. */
   diagnosticsChannel(): SnapbackClientDiagnosticsChannel;
+  /** Final client cleanup; the preferred lifecycle spelling. */
+  close(): Promise<void>;
   /** Final auth/client cleanup. Disposes the diagnostics channel and releases
-   * a client-owned default RQS store; an injected store remains caller-owned. */
+   * a client-owned default RQS store; an injected store remains caller-owned.
+   * Compatibility alias for close(). */
   closeAuth(): Promise<void>;
   authSession(options?: Readonly<{ readonly force?: boolean }>): Promise<AuthSessionProjectionV1>;
   authRequestCode(email: string): Promise<AuthChallengePublicProjectionV1>;
@@ -555,8 +560,10 @@ export class SnapbackClient {
 Members and overload groups:
 
 - `constructor` — constructor; 1 signature
+- `outboxDrainPolicy` — property; 1 signature
 - `auth` — property; 1 signature
 - `diagnosticsChannel` — method; 1 signature
+- `close` — method; 1 signature
 - `closeAuth` — method; 1 signature
 - `authSession` — method; 1 signature
 - `authRequestCode` — method; 1 signature
@@ -678,6 +685,10 @@ export interface SnapbackClientOptions {
    * a settlement; it settles by ordered replay after reconnect.
    */
   readonly offlineQueue?: 'auto' | boolean;
+  /** Automatic (default) owns one safety-gated drain lifecycle from client
+   * readiness through close(). Manual keeps the controller and diagnostics but
+   * schedules cycles only through drainNow()/replayQueuedMutations(). */
+  readonly outboxDrain?: 'auto' | 'manual';
   /** LLP 0218 P4 relinquishment-event seam. When omitted, events land on
    * this client's LLP 0219 structured diagnostics channel; injecting an
    * observer redirects them (tests/tooling). */
@@ -714,6 +725,7 @@ Members and overload groups:
 - `authCounterCeiling` — property; 1 signature
 - `rqsStore` — property; 1 signature
 - `offlineQueue` — property; 1 signature
+- `outboxDrain` — property; 1 signature
 - `devDiagnosticsChannel` — property; 1 signature
 - `devDiagnosticsReporter` — property; 1 signature
 - `queuedMutationWedgeWarningMs` — property; 1 signature

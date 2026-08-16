@@ -18,7 +18,9 @@ import {
   createClientDevConsoleReporter,
   createClientDiagnosticsChannel,
 } from '../snapback-client/client-diagnostics.mjs';
+import { SnapbackClient as HeadlessSnapbackClient } from '../snapback-client/index.mjs';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
+import { createMemoryRqsResumeStore } from '../snapback-client/rqs-store-memory.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
   SnapbackProvider,
@@ -670,7 +672,52 @@ function createOfflineFakeClient({ outbox = null } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 7. Settled-only compatibility is explicit: queue:false preserves the bare
+// 7. A real client lends its constructor drain policy to an omitted provider
+//    prop; an explicit provider policy wins only for that provider lifetime.
+// ---------------------------------------------------------------------------
+{
+  const store = createMemoryRqsResumeStore();
+  store.durability = () => ({ implementation: 'memory-test-double', durable: true });
+  const client = new HeadlessSnapbackClient('https://react-drain-policy.test', {
+    rqsStore: store,
+    outboxDrain: 'manual',
+    __offlineMutationReplayCapability: true,
+  });
+  const inspectionFixture = createOfflineFakeClient();
+  client.inspect = () => inspectionFixture.inspect();
+  client.authSession = async () => ({ activeMode: 'dev' });
+  const binding = await prepareReactBindingForClient(client, { generatedManifest });
+  const waitForDrainMode = async (mode) => {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      if ((await client.outboxStatus()).drainMode === mode) return;
+      await flush();
+    }
+    assert.fail(`timed out waiting for real client drain mode ${mode}`);
+  };
+
+  const inheritedProvider = createSnapbackReactProvider(binding, {
+    connectionId: 'offline-real-client-inherited-drain',
+  });
+  inheritedProvider.start();
+  await waitForDrainMode('manual');
+  assert.equal(client.outboxDrainPolicy, 'manual');
+  await inheritedProvider.dispose();
+  await waitForDrainMode('manual');
+
+  const automaticProvider = createSnapbackReactProvider(binding, {
+    connectionId: 'offline-real-client-explicit-auto-drain',
+    outboxDrain: 'auto',
+  });
+  automaticProvider.start();
+  await waitForDrainMode('auto');
+  assert.equal(client.outboxDrainPolicy, 'manual', 'provider policy does not rewrite construction');
+  await automaticProvider.dispose();
+  await waitForDrainMode('manual');
+  await client.close();
+}
+
+// ---------------------------------------------------------------------------
+// 8. Settled-only compatibility is explicit: queue:false preserves the bare
 //    validated result and connectivity rejects with the original error.
 // ---------------------------------------------------------------------------
 {
@@ -720,7 +767,7 @@ function createOfflineFakeClient({ outbox = null } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// 8. A queued hook dispatch resolves LLP 0218's pending union while the
+// 9. A queued hook dispatch resolves LLP 0218's pending union while the
 //    canonical client event and React compatibility projection dedup to one
 //    dev-console line. The React adapter owns no later wedge timer.
 // ---------------------------------------------------------------------------

@@ -320,16 +320,27 @@ change ACK eligibility. `unknown` means there is no durable record and licenses
 no settlement inference. Only `markMutationSettlementsConsumed()` owns the
 existing consumption cut.
 
-`outboxStatus()` adds `oldestPendingAtMs`, `drainPhase`
+`outboxStatus()` adds `oldestPendingAtMs`, `drainMode`
+(`auto | manual | none`), `drainPhase`
 (`idle | waiting-barrier | replaying | backoff | paused`), `lastAttemptAtMs`,
 `nextRetryAtMs`, and a payload-free `blockedReason` beside the existing
-disposition counts and `replaying` fact. For a non-React host, call
-`startOutboxDrain()` once per client/store lifecycle and stop the returned
-controller at teardown. It scans restored work at start, establishes a fresh
-resync/readiness barrier before replay, honors writer and captured-custody
-fences, retries transient failures on capped backoff, and wakes on store,
-connectivity, and authority transitions. `controller.drainNow()` requests one
-safety-gated cycle; `{ automatic: false }` disables scheduling, not safety.
+disposition counts and `replaying` fact. A qualified durable outbox starts one
+automatic controller after client readiness and owns it through `close()`.
+It scans restored work, establishes a fresh resync/readiness barrier before
+replay, honors writer and captured-custody fences, retries transient failures
+on capped backoff, and wakes on store, connectivity, writer, and authority
+transitions. Set constructor policy `outboxDrain: 'manual'` when the host owns
+scheduling; `false` is rejected so the policy stays aligned with React's
+`auto | manual` vocabulary. Manual mode remains observable through
+`client.outboxDrainPolicy`, `outboxStatus().drainMode`, and diagnostics, while
+`replayQueuedMutations()`/`controller.drainNow()` retain every safety gate.
+`startOutboxDrain()` remains the advanced compatibility entry and joins the
+single store controller rather than creating a competing replay owner. For
+clients sharing the same store object, the earliest active automatic
+participant owns transport; if none is automatic, the earliest active manual
+participant owns it. `close()` stops that engine before ownership transfers to
+the next participant, which establishes a fresh barrier. Separate handles for
+one durable domain still serialize replay through the store writer lock.
 
 Generated references carry their closed operation argument schema. The client
 validates it before network I/O for query, mutation, action, live subscribe,
@@ -576,7 +587,8 @@ The session entry points are:
 - `authRequestCode(email)` and `authExchange({ challengeId, code })`;
 - `authRefresh()` and `authLogout()`;
 - `authSession({ force })` for the exact server/mode/authority projection;
-- `closeAuth()` to terminally drain the client's auth and realtime ownership:
+- `close()` to terminally drain the client's outbox, auth, and realtime
+  ownership (`closeAuth()` remains a compatibility alias):
   it unregisters the transport participant, aborts active controllers, closes
   raw/managed live streams (including a forgotten live handle), releases local
   connection-grant and lane demand, and releases a store resolved by the
@@ -647,7 +659,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Framework bindings | `prepareReactBinding` |
 | Acceptance inspection | `localResourceInspection` |
 | Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
-| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `authTerminalStatus`, `subscribeAuthTerminal`, `registerAuthBarrierParticipant` |
+| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `close`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `authTerminalStatus`, `subscribeAuthTerminal`, `registerAuthBarrierParticipant` |
 | Auth adapter/coordinator seam | `captureAuthority`, `authorityCaptureFor`, `isAuthorityCaptureCurrent`, `allocateLiveQueryNamespace`, `registerAuthMaterialization`, `commitAuthorityPublication`, `commitSenderSocketNonce`, `handleTerminalAuthLoss`, `liveStreamProtocolsFor` |
 
 `run` is the primary one-shot action verb: it unwraps success to the plain
@@ -699,6 +711,6 @@ lifecycle; they are not additional client methods.
 - **Do not treat the readable connection label as the granted wire id.** Use
   the overlay/grant authority fact for connection-owned keys and raw frames.
 - **Do not reuse a connection id across unrelated custody/lifecycle owners.**
-- **Do not forget `dispose()` / `closeAuth()`.** Handles, overlays,
+- **Do not forget `dispose()` / `close()`.** Handles, overlays,
   coordinator participants, and default-resolved persistence stores own
   resources.

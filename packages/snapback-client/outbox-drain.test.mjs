@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '@expo/snapback-contract/auth-coordinator';
+
 import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
 import {
   createMemoryRqsResumeStore,
@@ -95,6 +100,41 @@ class FakeTimers {
   }
 }
 
+class FakeEventTarget {
+  listeners = new Map();
+
+  addEventListener(type, listener) {
+    let listeners = this.listeners.get(type);
+    if (!listeners) this.listeners.set(type, listeners = new Set());
+    listeners.add(listener);
+  }
+
+  removeEventListener(type, listener) {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  dispatch(type) {
+    for (const listener of [...(this.listeners.get(type) ?? [])]) listener();
+  }
+
+  count(type) {
+    return this.listeners.get(type)?.size ?? 0;
+  }
+}
+
+const installGlobalEventTarget = (t, target) => {
+  const originalAdd = globalThis.addEventListener;
+  const originalRemove = globalThis.removeEventListener;
+  globalThis.addEventListener = target.addEventListener.bind(target);
+  globalThis.removeEventListener = target.removeEventListener.bind(target);
+  t.after(() => {
+    if (originalAdd === undefined) delete globalThis.addEventListener;
+    else globalThis.addEventListener = originalAdd;
+    if (originalRemove === undefined) delete globalThis.removeEventListener;
+    else globalThis.removeEventListener = originalRemove;
+  });
+};
+
 async function installRetainedRegistration(store, name = 'listThings') {
   const meta = structuredClone(await store.readStoreMeta());
   meta.durableRegistrations = {
@@ -175,6 +215,21 @@ const authHandshake = Object.freeze({
   authorizedLease: null,
 });
 
+const anonymousAuthHandshake = Object.freeze({
+  ...authHandshake,
+  transitionGeneration: 0,
+  authority: Object.freeze({
+    kind: 'anonymous',
+    userId: null,
+    sessionId: null,
+    isAuthenticated: false,
+  }),
+  authorityDescriptor: Object.freeze({
+    ...authHandshake.authorityDescriptor,
+    sessionGeneration: 0,
+  }),
+});
+
 test('resync-before-replay: replay waits for the fresh authoritative barrier cut', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
@@ -233,6 +288,545 @@ test('cold-start drain: restored pending intent drains with no fresh external ev
   t.after(() => controller.stop());
   await waitFor(() => replayed === 1, 'cold-start replay');
   assert.equal((await client.mutationStatus('cm-cold-start')).status, 'settled');
+});
+
+test('default lifecycle settles restored and newly queued work when connectivity returns', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const events = new FakeEventTarget();
+  installGlobalEventTarget(t, events);
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-default-restored');
+  let connected = false;
+  const submissions = [];
+  globalThis.fetch = async (url, init = {}) => {
+    if (!connected) throw new TypeError('offline until the connectivity event');
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      submissions.push(JSON.parse(init.body).clientMutationId);
+      return settlement();
+    }
+    throw new Error(`unexpected default-lifecycle request ${path}`);
+  };
+
+  const client = new SnapbackClient('https://drain-default.test', { rqsStore: store });
+  t.after(() => client.close());
+  await waitFor(
+    async () => (await client.outboxStatus()).drainPhase === 'backoff',
+    'default restored-work backoff',
+  );
+  const queued = await client.mutate('createThing', {
+    args: { id: 'cm-default-new' },
+    clientMutationId: 'cm-default-new',
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal((await client.outboxStatus()).drainMode, 'auto');
+
+  await waitFor(
+    async () => (await client.outboxStatus()).drainPhase === 'backoff',
+    'post-enqueue backoff absorption',
+  );
+
+  connected = true;
+  events.dispatch('online');
+  await waitFor(
+    async () => (
+      (await client.mutationStatus('cm-default-restored')).status === 'settled'
+      && (await client.mutationStatus('cm-default-new')).status === 'settled'
+    ),
+    'default restored and new settlement',
+  );
+  assert.deepEqual(submissions, ['cm-default-restored', 'cm-default-new']);
+});
+
+test('default lifecycle does not replay a durable record while foreground owns it', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  let releaseForeground;
+  const foregroundResponse = new Promise((resolve) => { releaseForeground = resolve; });
+  let mutationRequests = 0;
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname;
+    if (path === '/mutation/createThing') {
+      mutationRequests += 1;
+      await foregroundResponse;
+      return settlement();
+    }
+    throw new Error(`unexpected foreground-fence request ${path}`);
+  };
+
+  const client = new SnapbackClient('https://drain-foreground-fence.test', { rqsStore: store });
+  t.after(() => client.close());
+  await waitFor(
+    async () => (await client.outboxStatus()).drainMode === 'auto',
+    'default foreground-fence lifecycle',
+  );
+  const foreground = client.mutate('createThing', {
+    args: { id: 'cm-foreground-fence' },
+    clientMutationId: 'cm-foreground-fence',
+  });
+  await waitFor(() => mutationRequests === 1, 'held foreground mutation request');
+  await tick();
+  await tick();
+  assert.equal(
+    mutationRequests,
+    1,
+    'the automatic drain cannot submit the foreground-owned durable record',
+  );
+
+  releaseForeground();
+  assert.equal((await foreground).status, 'settled');
+  await tick();
+  assert.equal(mutationRequests, 1, 'foreground settlement produces exactly one mutation request');
+});
+
+test('enqueue during replay re-arms the default lifecycle after the replay snapshot', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-replay-snapshot');
+  let signalReplayStarted;
+  const replayStarted = new Promise((resolve) => { signalReplayStarted = resolve; });
+  let releaseReplay;
+  const heldReplay = new Promise((resolve) => { releaseReplay = resolve; });
+  const attempts = new Map();
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      const clientMutationId = JSON.parse(init.body).clientMutationId;
+      const attempt = (attempts.get(clientMutationId) ?? 0) + 1;
+      attempts.set(clientMutationId, attempt);
+      if (clientMutationId === 'cm-replay-snapshot') {
+        signalReplayStarted();
+        await heldReplay;
+        return settlement();
+      }
+      if (clientMutationId === 'cm-during-replay' && attempt === 1) {
+        throw new TypeError('foreground request queued during replay');
+      }
+      return settlement();
+    }
+    throw new Error(`unexpected replay-level-wake request ${path}`);
+  };
+
+  const client = new SnapbackClient('https://drain-level-wake.test', { rqsStore: store });
+  t.after(() => client.close());
+  await replayStarted;
+  const queued = await client.mutate('createThing', {
+    args: { id: 'cm-during-replay' },
+    clientMutationId: 'cm-during-replay',
+  });
+  assert.equal(queued.status, 'queued');
+  releaseReplay();
+
+  await waitFor(
+    async () => (
+      (await client.mutationStatus('cm-replay-snapshot')).status === 'settled'
+      && (await client.mutationStatus('cm-during-replay')).status === 'settled'
+    ),
+    'post-snapshot enqueue settlement',
+  );
+  assert.equal(attempts.get('cm-replay-snapshot'), 1);
+  assert.equal(attempts.get('cm-during-replay'), 2);
+});
+
+test('replay-latched enqueue survives terminal pause without an external wake', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-terminal-replay-head');
+  let signalReplayStarted;
+  const replayStarted = new Promise((resolve) => { signalReplayStarted = resolve; });
+  let releaseReplay;
+  const heldReplay = new Promise((resolve) => { releaseReplay = resolve; });
+  const attempts = new Map();
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      const clientMutationId = JSON.parse(init.body).clientMutationId;
+      const attempt = (attempts.get(clientMutationId) ?? 0) + 1;
+      attempts.set(clientMutationId, attempt);
+      if (clientMutationId === 'cm-terminal-replay-head') {
+        signalReplayStarted();
+        await heldReplay;
+        return Response.json({
+          diagnostic: {
+            code: 'SNAPBACK_DRAIN_TERMINAL_TEST',
+            message: 'terminal head after a successor relinquishes',
+          },
+        }, { status: 400 });
+      }
+      if (clientMutationId === 'cm-terminal-replay-successor' && attempt === 1) {
+        throw new TypeError('foreground successor queued during replay');
+      }
+      return settlement();
+    }
+    throw new Error(`unexpected terminal-replay-wake request ${path}`);
+  };
+
+  const client = new SnapbackClient('https://drain-terminal-replay-wake.test', {
+    rqsStore: store,
+  });
+  t.after(() => client.close());
+  const controller = client.startOutboxDrain();
+  const phases = [];
+  const unsubscribe = client.subscribeOutbox(() => phases.push(controller.status().drainPhase));
+  t.after(unsubscribe);
+  await replayStarted;
+  const queued = await client.mutate('createThing', {
+    args: { id: 'cm-terminal-replay-successor' },
+    clientMutationId: 'cm-terminal-replay-successor',
+  });
+  assert.equal(queued.status, 'queued');
+  releaseReplay();
+
+  await waitFor(
+    async () => (
+      (await client.mutationStatus('cm-terminal-replay-successor')).status === 'settled'
+    ),
+    'replay-latched successor settlement after terminal pause',
+  );
+  assert.equal((await client.mutationStatus('cm-terminal-replay-head')).status, 'failed');
+  assert(phases.includes('paused'), 'the terminal replay exits through the paused phase');
+  assert.equal(attempts.get('cm-terminal-replay-head'), 1);
+  assert.equal(attempts.get('cm-terminal-replay-successor'), 2);
+});
+
+test('fenced default lifecycle settles restored work after synchronize with no other wake', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const storage = createMemoryAuthCustodyStorage();
+  const appId = 'snapback.test/default-drain-custody-wake';
+  const seed = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const seedCapture = await seed.establishAnonymous({
+    kind: 'anonymous',
+    authMode: 'sessions',
+    authorizationStreamIncarnation: authHandshake.authorizationStreamIncarnation,
+  });
+  await seed.close();
+
+  const store = createDurableTestStore();
+  await store.outboxEnqueue({
+    id: 'cm-restored-custody-wake',
+    function: 'createThing',
+    args: { id: 'cm-restored-custody-wake' },
+    authorityDescriptor: anonymousAuthHandshake.authorityDescriptor,
+    principalScope: {
+      authMode: 'sessions',
+      authorizationStreamIncarnation: authHandshake.authorizationStreamIncarnation,
+      userId: null,
+    },
+    custody: {
+      authorityEpoch: seedCapture.authorityEpoch,
+      authorityKey: seedCapture.authorityKey,
+    },
+  });
+  const coordinator = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  let replayed = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') {
+      return Response.json({
+        ...anonymousAuthHandshake,
+        deploymentIdentity: {
+          ...anonymousAuthHandshake.deploymentIdentity,
+          appId,
+        },
+      });
+    }
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      replayed += 1;
+      return settlement();
+    }
+    throw new Error(`unexpected custody-settlement-wake request ${path}`);
+  };
+  const client = new SnapbackClient('https://drain-custody-wake.test', {
+    authCoordinator: coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: store,
+  });
+  t.after(() => client.closeAuth());
+  // Do not wait for the drain to publish its pause: synchronize may settle
+  // custody in the exact capture-failed -> pause window from the review trace.
+  await coordinator.synchronize();
+  await waitFor(
+    async () => (await client.mutationStatus('cm-restored-custody-wake')).status === 'settled',
+    'synchronize-only restored settlement',
+  );
+  assert.equal(replayed, 1);
+});
+
+test('default controller quarantines an upgrade-incompatible restored intent', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-default-quarantine');
+  let submissions = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      submissions += 1;
+      return Response.json({
+        diagnostic: {
+          code: 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
+          message: 'default-controller quarantine fixture',
+        },
+      }, { status: 409 });
+    }
+    throw new Error(`unexpected default-quarantine request ${path}`);
+  };
+  const client = new SnapbackClient('https://drain-default-quarantine.test', { rqsStore: store });
+  t.after(() => client.close());
+  await waitFor(
+    async () => (await client.mutationStatus('cm-default-quarantine')).status === 'quarantined',
+    'default-controller quarantine',
+  );
+  assert.equal(submissions, 1);
+  assert.equal((await client.outboxStatus()).quarantined, 1);
+});
+
+test('default controller strands a server-stale restored intent', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-default-strand');
+  const markStranded = store.outboxMarkStranded.bind(store);
+  store.outboxMarkStranded = (clientMutationId, reason, predecessorPrincipalScope) => (
+    markStranded(clientMutationId, reason, predecessorPrincipalScope ?? {
+      authMode: 'sessions',
+      authorizationStreamIncarnation: authHandshake.authorizationStreamIncarnation,
+      userId: null,
+    })
+  );
+  let submissions = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      submissions += 1;
+      return Response.json({
+        diagnostic: {
+          code: 'SNAPBACK_AUTH_STALE_RESULT',
+          message: 'default-controller strand fixture',
+        },
+      }, { status: 409 });
+    }
+    throw new Error(`unexpected default-strand request ${path}`);
+  };
+  const client = new SnapbackClient('https://drain-default-strand.test', { rqsStore: store });
+  t.after(() => client.close());
+  await waitFor(
+    async () => (await client.mutationStatus('cm-default-strand')).status === 'stranded',
+    'default-controller strand',
+  );
+  assert.equal(submissions, 1);
+  assert.equal((await client.outboxStatus()).stranded, 1);
+});
+
+test('default controller preserves result-gone and stops before successors', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-default-result-gone');
+  await enqueue(store, 'cm-default-result-gone-successor');
+  const submissions = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') {
+      submissions.push(JSON.parse(init.body).clientMutationId);
+      return Response.json({
+        diagnostic: {
+          code: 'SNAPBACK_OPERATION_RESULT_EXPIRED',
+          message: 'default-controller result-gone fixture',
+          details: {
+            disposition: 'result-expired',
+            outcome: 'committed',
+            receiptDigest: `sha256:${'e'.repeat(64)}`,
+          },
+        },
+      }, { status: 410 });
+    }
+    throw new Error(`unexpected default-result-gone request ${path}`);
+  };
+  const client = new SnapbackClient('https://drain-default-result-gone.test', { rqsStore: store });
+  t.after(() => client.close());
+  await waitFor(
+    async () => (await client.mutationStatus('cm-default-result-gone')).status === 'resultGone',
+    'default-controller result-gone',
+  );
+  assert.deepEqual(submissions, ['cm-default-result-gone']);
+  assert.equal(
+    (await client.mutationStatus('cm-default-result-gone-successor')).status,
+    'pending',
+  );
+});
+
+test('close tears down the default lifecycle and no replay starts afterward', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const events = new FakeEventTarget();
+  installGlobalEventTarget(t, events);
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-close-fence');
+  let releaseReadiness;
+  const heldReadiness = new Promise((resolve) => { releaseReadiness = resolve; });
+  let readinessRequested = false;
+  let replayed = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') {
+      readinessRequested = true;
+      await heldReadiness;
+      return grant(JSON.parse(init.body).connectionId);
+    }
+    if (path === '/mutation/createThing') {
+      replayed += 1;
+      return settlement();
+    }
+    throw new Error(`unexpected close-fence request ${path}`);
+  };
+
+  const client = new SnapbackClient('https://drain-close.test', { rqsStore: store });
+  await waitFor(() => readinessRequested, 'default readiness barrier');
+  assert.equal(events.count('online'), 1);
+  await client.close();
+  assert.equal(events.count('online'), 0);
+  await enqueue(store, 'cm-after-close');
+  events.dispatch('online');
+  releaseReadiness();
+  await tick();
+  await tick();
+  assert.equal(replayed, 0);
+  await assert.rejects(
+    () => client.replayQueuedMutations(),
+    (error) => error?.code === 'SNAPBACK_CLIENT_CLOSED',
+  );
+});
+
+test('manual constructor policy is explicit, observable, diagnostic, and safety-gated', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const diagnostics = [];
+  let connected = false;
+  let requests = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    requests += 1;
+    if (!connected) throw new TypeError('manual fixture offline');
+    const path = new URL(url).pathname;
+    if (path === '/connection/open') return grant(JSON.parse(init.body).connectionId);
+    if (path === '/mutation/createThing') return settlement();
+    throw new Error(`unexpected manual request ${path}`);
+  };
+  const client = new SnapbackClient('https://drain-manual.test', {
+    rqsStore: store,
+    outboxDrain: 'manual',
+    devDiagnosticsChannel: { emit: (event) => diagnostics.push(event) },
+  });
+  t.after(() => client.close());
+  await waitFor(async () => (await client.outboxStatus()).drainMode === 'manual', 'manual mode');
+  assert.equal(client.outboxDrainPolicy, 'manual');
+  const queued = await client.mutate('createThing', {
+    args: { id: 'cm-manual' },
+    clientMutationId: 'cm-manual',
+  });
+  assert.equal(queued.status, 'queued');
+  assert.equal(diagnostics.at(-1)?.drainMode, 'manual');
+  const afterForeground = requests;
+  await tick();
+  assert.equal(requests, afterForeground, 'manual mode schedules no background cycle');
+
+  connected = true;
+  const outcome = await client.replayQueuedMutations();
+  assert.equal(outcome.replayed, 1);
+  assert.equal((await client.mutationStatus(queued.clientMutationId)).status, 'settled');
+  assert.throws(
+    () => new SnapbackClient('https://drain-manual-invalid.test', {
+      rqsStore: null,
+      outboxDrain: false,
+    }),
+    /outboxDrain must be 'auto' or 'manual'/u,
+  );
+});
+
+test('shared writer store has one replay engine and transfers it to the surviving client', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const events = new FakeEventTarget();
+  installGlobalEventTarget(t, events);
+  const store = createDurableTestStore();
+  await enqueue(store, 'cm-shared-first');
+  let connected = true;
+  let readinessRequests = 0;
+  const submissions = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (!connected) throw new TypeError('shared-store successor is offline');
+    if (path === '/connection/open') {
+      readinessRequests += 1;
+      return grant(JSON.parse(init.body).connectionId);
+    }
+    if (path === '/mutation/createThing') {
+      submissions.push(JSON.parse(init.body).clientMutationId);
+      return settlement();
+    }
+    throw new Error(`unexpected shared-store request ${path}`);
+  };
+
+  const first = new SnapbackClient('https://drain-shared.test', { rqsStore: store });
+  const second = new SnapbackClient('https://drain-shared.test', { rqsStore: store });
+  t.after(() => second.close());
+  await waitFor(
+    async () => (await first.mutationStatus('cm-shared-first')).status === 'settled',
+    'single shared-store settlement',
+  );
+  assert.deepEqual(submissions, ['cm-shared-first']);
+  assert.equal(readinessRequests, 1, 'one effective engine establishes one barrier');
+
+  connected = false;
+  const queuedByNonOwner = await second.mutate('createThing', {
+    args: { id: 'cm-shared-non-owner' },
+    clientMutationId: 'cm-shared-non-owner',
+  });
+  assert.equal(queuedByNonOwner.status, 'queued');
+  await waitFor(
+    async () => (await first.outboxStatus()).drainPhase === 'backoff',
+    'non-owner queue wake reaches the shared engine',
+  );
+  connected = true;
+  events.dispatch('online');
+  await waitFor(
+    async () => (await second.mutationStatus('cm-shared-non-owner')).status === 'settled',
+    'non-owner queued work settlement',
+  );
+  assert.deepEqual(submissions, ['cm-shared-first', 'cm-shared-non-owner']);
+
+  await first.close();
+  connected = false;
+  const queued = await second.mutate('createThing', {
+    args: { id: 'cm-shared-successor' },
+    clientMutationId: 'cm-shared-successor',
+  });
+  assert.equal(queued.status, 'queued');
+  connected = true;
+  events.dispatch('online');
+  await waitFor(
+    async () => (await second.mutationStatus('cm-shared-successor')).status === 'settled',
+    'surviving-client ownership transfer',
+  );
+  assert.deepEqual(submissions, [
+    'cm-shared-first',
+    'cm-shared-non-owner',
+    'cm-shared-successor',
+  ]);
+  assert.equal(readinessRequests, 3, 'the successor establishes a fresh barrier after handoff');
 });
 
 test('transient-failure retry: connectivity replay failure retries on backoff without an event', async (t) => {

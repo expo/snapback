@@ -15,6 +15,7 @@ class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
     super(baseUrl, {
       __offlineMutationReplayCapability: true,
+      __outboxDrainLifecycle: false,
       ...options,
     });
   }

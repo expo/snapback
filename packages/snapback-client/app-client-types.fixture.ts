@@ -12,6 +12,17 @@ const devIdentityOptions = {
 } satisfies SnapbackClientOptions;
 void devIdentityOptions;
 
+const manualOutboxDrainOptions = {
+  outboxDrain: 'manual',
+} satisfies SnapbackClientOptions;
+void manualOutboxDrainOptions;
+
+const invalidOutboxDrainOptions = {
+  // @ts-expect-error false is not a headless drain policy; use 'manual'.
+  outboxDrain: false,
+} satisfies SnapbackClientOptions;
+void invalidOutboxDrainOptions;
+
 const policy = {
   format: 'snapback.application-auth-bootstrap.v1',
   appId: 'app',

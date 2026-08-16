@@ -1,6 +1,6 @@
 # Give headless clients a default outbox-drain lifecycle
 
-**Status:** Open
+**Status:** Closed (2026-08-16)
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -59,3 +59,43 @@ cut under LLP 0270 and LLP 0218.
 - Two clients sharing a writer store do not produce concurrent replay owners;
   authority replacement, quarantine, strand, and result-gone cases retain LLP
   0218 semantics.
+
+## Resolution
+
+OQ2 is resolved as **readiness-anchored**. A qualified durable outbox installs
+its client-owned controller in the microtask after construction and inline boot
+binding settle, then retains that ownership through `close()`. This avoids
+constructor re-entrancy and prevents a restored-work scan from racing the
+client's own boot metadata installation, while still scanning restored intent
+without an application call. A synchronous explicit `startOutboxDrain()` made
+before that cut is joined rather than duplicated.
+
+The constructor policy is `outboxDrain: 'auto' | 'manual'`, defaulting to
+`'auto'`; boolean `false` is rejected at runtime and by TypeScript so headless
+and React use one vocabulary. Manual mode installs the same controller and
+changes scheduling only. Its policy/effective mode remain observable through
+`client.outboxDrainPolicy`, `outboxStatus().drainMode`, and queued diagnostics.
+
+Within one realm, clients sharing the same store object lease one WeakMap-keyed
+controller. The earliest active automatic participant owns transport; if none
+is automatic, the earliest active manual participant owns it. Closing that
+client stops and settles its engine before deterministically transferring to
+the next participant, which establishes a fresh barrier. Distinct store
+handles over one durable domain continue to use the store's writer lock, so
+only the durable writer can replay.
+
+---
+
+**Closed 2026-08-16.** Implemented and landed via the LLP 0270 wave-1
+orchestration: default readiness-anchored drain lifecycle with
+`outboxDrain: 'manual'` typed opt-out, realm-local single-owner coordination,
+close() teardown fencing, and React provider policy inheritance. Dual-family
+code review (codex + grok, xhigh) ran three rounds: round 1 caught a
+foreground double-replay race, a lost-wake stall, a fence-pause with no
+custody wake edge (permanent silent stop on ordinary fenced clients), and a
+React provider default that defeated the constructor opt-out; round 2 caught
+the latched-wake-lost-on-pause residual; round 3 verified converged READY.
+All settle/teardown/ownership acceptance cases have regression tests
+(outbox-drain 20/20, client suite green outside sandbox, inventory 299).
+The react package full-suite pretest red (prepare-type-fixtures.mjs, node 25)
+is inherited — reproduced byte-identical at pristine base.

@@ -3615,7 +3615,10 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
   const providerInstanceId = `provider-${++providerSequence}-${localUniqueLabel()}`;
   let registry = null;
   let disposePromise = null;
-  const initialDrainMode = options.outboxDrain ?? 'auto';
+  const constructorDrainMode = ['auto', 'manual'].includes(client.outboxDrainPolicy)
+    ? client.outboxDrainPolicy
+    : 'auto';
+  const initialDrainMode = options.outboxDrain ?? constructorDrainMode;
   if (!['auto', 'manual'].includes(initialDrainMode)) {
     throw new TypeError("outboxDrain must be 'auto' or 'manual'");
   }
@@ -3625,6 +3628,10 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
     handle: null,
     cleanups: [],
   };
+  const clientOwnsDrainLifecycle = (
+    typeof client.__configureOutboxDrain === 'function'
+    && ['auto', 'manual'].includes(client.outboxDrainPolicy)
+  );
   if (
     drainState.options === null
     || typeof drainState.options !== 'object'
@@ -3635,7 +3642,17 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
     for (const cleanup of drainState.cleanups.splice(0)) {
       try { cleanup(); } catch { /* deterministic best-effort host teardown */ }
     }
-    try { drainState.handle?.stop(); } catch { /* controller cleanup remains idempotent */ }
+    try {
+      if (clientOwnsDrainLifecycle) {
+        // @ref LLP 0270#d4-queue-and-settle-offline-intent-by-default — the
+        // headless client now owns the store lifecycle through close(); a
+        // provider only lends its mounted auto/manual policy and restores the
+        // constructor policy instead of terminating that client-owned lease.
+        client.__configureOutboxDrain(client.outboxDrainPolicy);
+      } else {
+        drainState.handle?.stop();
+      }
+    } catch { /* controller cleanup remains idempotent */ }
     drainState.handle = null;
   };
   const wakeOutboxDrain = () => {
@@ -3653,10 +3670,12 @@ export function createSnapbackReactFullProvider(binding, options = {}) {
       // @ref LLP 0218#43-the-platform-owned-drain — the provider owns one P2
       // controller for its durable writer store. Manual mode disables only
       // automatic scheduling; timer/eventTarget carrier seams pass through.
-      drainState.handle = client.startOutboxDrain({
-        ...drainOptions,
-        automatic: drainState.mode === 'auto',
-      });
+      drainState.handle = clientOwnsDrainLifecycle
+        ? client.__configureOutboxDrain(drainState.mode, drainOptions)
+        : client.startOutboxDrain({
+            ...drainOptions,
+            automatic: drainState.mode === 'auto',
+          });
     } catch (error) {
       if (![
         'SNAPBACK_OFFLINE_QUEUE_DISABLED',

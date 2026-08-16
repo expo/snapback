@@ -314,7 +314,7 @@ At the P3 relinquishment-to-queued cut, the client emits the canonical
 `SNAPBACK_REACT_MUTATION_QUEUED` is a compatibility projection carrying the
 same `clientMutationId`; the default dev reporter deduplicates the pair into
 one canonical console line. This is diagnostic delivery only: it does not
-alter the resolved union, optimistic-layer custody, or provider-owned drain.
+alter the resolved union, optimistic-layer custody, or drain lifecycle.
 
 After 30 seconds without durable queue-head advance, the client channel sets
 `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` as an active condition keyed by that
@@ -328,9 +328,11 @@ still blocks its successor; recover with the explicit
 comes from durable outbox notifications, never inference from bounded event
 history.
 
-The provider-owned controller drains automatically by default and reacts to
-the P3 wake sources. `outboxDrain="manual"` disables scheduling, not the
-controller. Request a safety-gated cycle through
+The headless client owns one controller from readiness through `close()`; the
+React provider configures that same lifecycle. Both drain automatically by
+default and react to the P3 wake sources. Constructor
+`outboxDrain: 'manual'` (or React `outboxDrain="manual"`) disables scheduling,
+not the controller. Request a safety-gated cycle through
 `useSnapbackOutbox().drainNow()` or call `client.replayQueuedMutations()` in a
 headless host. The [replay and settlement rules](#replay-and-settle-without-guessing)
 remain authoritative; diagnostics never infer settlement or reorder replay.

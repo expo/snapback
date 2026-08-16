@@ -19,6 +19,7 @@ class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
     super(baseUrl, {
       __offlineMutationReplayCapability: true,
+      __outboxDrainLifecycle: false,
       ...options,
     });
   }
@@ -565,6 +566,7 @@ test('principal switch deletes every predecessor disposition before successor ob
     quarantined: 0,
     resultGone: 0,
     replaying: false,
+    drainMode: 'none',
     oldestPendingAtMs: null,
     drainPhase: 'idle',
     lastAttemptAtMs: null,

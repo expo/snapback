@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:2a15a6a2a4ac0bacacc5a8790de2d530ded3908e2fc9
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:92110d44a7ac28ea6094cd465158c55c19ceebf9e02f83f1718a101c0f968037`.
+`sha256:655c4ee33deff2dbb2554b0fb2a1e47032dfd4cdec0befe3cf0e6bfb39dc55dd`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,17 +39,22 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1538`
+Source: `packages/snapback-client/index.d.mts:1544`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
+  /** Constructor-selected default outbox scheduling policy. */
+  readonly outboxDrainPolicy: 'auto' | 'manual';
   /** LLP 0238 D6 namespaced projection; flat methods remain compatible. */
   readonly auth: SnapbackClientAuthNamespace;
   /** This client's bounded, process-local structured diagnostics channel. */
   diagnosticsChannel(): SnapbackClientDiagnosticsChannel;
+  /** Final client cleanup; the preferred lifecycle spelling. */
+  close(): Promise<void>;
   /** Final auth/client cleanup. Disposes the diagnostics channel and releases
-   * a client-owned default RQS store; an injected store remains caller-owned. */
+   * a client-owned default RQS store; an injected store remains caller-owned.
+   * Compatibility alias for close(). */
   closeAuth(): Promise<void>;
   authSession(options?: Readonly<{ readonly force?: boolean }>): Promise<AuthSessionProjectionV1>;
   authRequestCode(email: string): Promise<AuthChallengePublicProjectionV1>;
@@ -521,8 +526,10 @@ export class SnapbackClient {
 Members and overload groups:
 
 - `constructor` — constructor; 1 signature
+- `outboxDrainPolicy` — property; 1 signature
 - `auth` — property; 1 signature
 - `diagnosticsChannel` — method; 1 signature
+- `close` — method; 1 signature
 - `closeAuth` — method; 1 signature
 - `authSession` — method; 1 signature
 - `authRequestCode` — method; 1 signature

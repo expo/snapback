@@ -677,9 +677,9 @@ Queued mutations use that same channel. The client emits canonical
 durable mutation id. The default dev reporter deduplicates the pair into one
 canonical console line. If the same durable queue head has not advanced after
 30 seconds, `SNAPBACK_REACT_MUTATION_QUEUE_WEDGED` appears as an active
-condition and one console line. The provider-owned drain runs automatically by
-default; use `outboxDrain="manual"` only when the host deliberately owns the
-cadence. Request a safety-gated cycle through
+condition and one console line. The client-owned drain runs automatically by
+default; the provider configures it while mounted. Use `outboxDrain="manual"`
+only when the host deliberately owns the cadence. Request a safety-gated cycle through
 `useSnapbackOutbox().drainNow()` (or the headless client's
 `replayQueuedMutations()`). Diagnostics only observe that machinery.
 
@@ -720,15 +720,15 @@ persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
   assert.equal(latest.retention?.retainable, true);
 ```
 
-For a durable writer store, `SnapbackProvider` owns the platform drain and
-defaults `outboxDrain="auto"`. It wakes on queued relinquishment, restored
+For a durable writer store, `SnapbackProvider` configures the client's platform
+drain and defaults `outboxDrain="auto"`. It wakes on queued relinquishment, restored
 connectivity, provider resume/foreground, writer acquisition, and custody or
 authority replacement. Set `outboxDrain="manual"` only when a host owns the
 schedule; the safety controller remains installed and `drainNow()` is still
 barrier- and custody-gated. `outboxDrainOptions` passes carrier scheduling and
-online-event seams to the headless controller. Provider teardown stops its
-controller, and Strict Mode/HMR share at most one live controller per durable
-store.
+online-event seams to the headless controller. Provider teardown restores the
+client's constructor policy; `client.close()` stops the lifecycle. Strict
+Mode/HMR share at most one live controller per durable store.
 
 `useSnapbackOutbox()` projects the durable queued-intent state
 ([`SnapbackOutboxState` exact type](../reference/expo-snapback-react.md#symbol-snapbackoutboxstate-904e9d7007),
@@ -773,7 +773,7 @@ package test exercises the projection and recovery surface directly:
     };
 ```
 
-plus a `drainNow()` action that requests one cycle from the provider-owned
+plus a `drainNow()` action that requests one cycle from the client-owned
 drain controller (`replay()` remains a deprecated alias). The controller runs
 automatically by default; `outboxDrain="manual"` keeps the controller and
 disables only automatic scheduling. The stranded/quarantine semantics and their

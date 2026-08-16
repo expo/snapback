@@ -1142,6 +1142,10 @@ export interface SnapbackClientOptions {
    * a settlement; it settles by ordered replay after reconnect.
    */
   readonly offlineQueue?: 'auto' | boolean;
+  /** Automatic (default) owns one safety-gated drain lifecycle from client
+   * readiness through close(). Manual keeps the controller and diagnostics but
+   * schedules cycles only through drainNow()/replayQueuedMutations(). */
+  readonly outboxDrain?: 'auto' | 'manual';
   /** LLP 0218 P4 relinquishment-event seam. When omitted, events land on
    * this client's LLP 0219 structured diagnostics channel; injecting an
    * observer redirects them (tests/tooling). */
@@ -1329,6 +1333,8 @@ export interface OutboxStatus {
    * are not replayable failures and keep ordered successors fenced. */
   readonly resultGone: number;
   readonly replaying: boolean;
+  /** Effective process-local lifecycle scheduling mode for this store. */
+  readonly drainMode: 'auto' | 'manual' | 'none';
   readonly oldestPendingAtMs: number | null;
   readonly drainPhase: OutboxDrainPhase;
   readonly lastAttemptAtMs: number | null;
@@ -1537,12 +1543,17 @@ export interface ProgrammaticQueryRegistrationOptions<Args = Record<string, unkn
 
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
+  /** Constructor-selected default outbox scheduling policy. */
+  readonly outboxDrainPolicy: 'auto' | 'manual';
   /** LLP 0238 D6 namespaced projection; flat methods remain compatible. */
   readonly auth: SnapbackClientAuthNamespace;
   /** This client's bounded, process-local structured diagnostics channel. */
   diagnosticsChannel(): SnapbackClientDiagnosticsChannel;
+  /** Final client cleanup; the preferred lifecycle spelling. */
+  close(): Promise<void>;
   /** Final auth/client cleanup. Disposes the diagnostics channel and releases
-   * a client-owned default RQS store; an injected store remains caller-owned. */
+   * a client-owned default RQS store; an injected store remains caller-owned.
+   * Compatibility alias for close(). */
   closeAuth(): Promise<void>;
   authSession(options?: Readonly<{ readonly force?: boolean }>): Promise<AuthSessionProjectionV1>;
   authRequestCode(email: string): Promise<AuthChallengePublicProjectionV1>;

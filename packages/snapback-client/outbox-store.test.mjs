@@ -30,6 +30,7 @@ class SnapbackClient extends InspectingSnapbackClient {
   constructor(baseUrl, options = {}) {
     super(baseUrl, {
       __offlineMutationReplayCapability: true,
+      __outboxDrainLifecycle: false,
       ...options,
     });
   }
@@ -817,7 +818,8 @@ test('a target advertising the settlement ledger still queues and replays', asyn
   let online = false;
   const delivered = [];
   globalThis.fetch = async (url, init) => {
-    if (new URL(url).pathname === '/inspect') {
+    const path = new URL(url).pathname;
+    if (path === '/inspect') {
       return Response.json({
         capabilityManifest: offlineReplayCapabilityManifest({
           supported: true,
@@ -826,6 +828,14 @@ test('a target advertising the settlement ledger still queues and replays', asyn
       });
     }
     if (!online) throw new TypeError('offline');
+    if (path === '/connection/open') {
+      const { connectionId } = JSON.parse(init.body);
+      return Response.json({
+        connectionId,
+        connectionToken: `sct_${connectionId}`,
+        wireVersion: 'snapback.v1',
+      });
+    }
     delivered.push(JSON.parse(init.body));
     return Response.json({ result: { ok: true }, version: 1 });
   };
@@ -2409,7 +2419,7 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
     { ...(await client.outboxStatus()) },
     {
       supported: true, pending: 1, failed: 0, stranded: 0,
-      quarantined: 0, resultGone: 1, replaying: false,
+      quarantined: 0, resultGone: 1, replaying: false, drainMode: 'none',
       oldestPendingAtMs: (await store.outboxRecords())
         .find((record) => record.status === 'pending').enqueuedAt,
       drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null, blockedReason: null,
@@ -2470,7 +2480,7 @@ test('recreated file-backed client preserves result-gone without redelivery', as
     { ...(await recreatedClient.outboxStatus()) },
     {
       supported: true, pending: 1, failed: 0, stranded: 0,
-      quarantined: 0, resultGone: 1, replaying: false,
+      quarantined: 0, resultGone: 1, replaying: false, drainMode: 'none',
       oldestPendingAtMs: (await reopenedStore.outboxRecords())
         .find((record) => record.status === 'pending').enqueuedAt,
       drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null, blockedReason: null,
@@ -2848,7 +2858,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     { ...(await disabled.outboxStatus()) },
     {
       supported: false, pending: 0, failed: 0, stranded: 0,
-      quarantined: 0, resultGone: 0, replaying: false,
+      quarantined: 0, resultGone: 0, replaying: false, drainMode: 'none',
       oldestPendingAtMs: null, drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null,
       blockedReason: null,
     },
@@ -2860,7 +2870,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     { ...(await client.outboxStatus()) },
     {
       supported: true, pending: 0, failed: 0, stranded: 0,
-      quarantined: 0, resultGone: 0, replaying: false,
+      quarantined: 0, resultGone: 0, replaying: false, drainMode: 'none',
       oldestPendingAtMs: null, drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null,
       blockedReason: null,
     },
@@ -2878,7 +2888,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     { ...queuedStatus },
     {
       supported: true, pending: 2, failed: 0, stranded: 0,
-      quarantined: 0, resultGone: 0, replaying: false,
+      quarantined: 0, resultGone: 0, replaying: false, drainMode: 'none',
       oldestPendingAtMs, drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null,
       blockedReason: null,
     },
@@ -2913,7 +2923,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
     { ...(await client.outboxStatus()) },
     {
       supported: true, pending: 0, failed: 1, stranded: 0,
-      quarantined: 0, resultGone: 0, replaying: false,
+      quarantined: 0, resultGone: 0, replaying: false, drainMode: 'none',
       oldestPendingAtMs: null, drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null,
       blockedReason: null,
     },
