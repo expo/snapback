@@ -13,14 +13,25 @@
     "schemaVersion": { "const": "snapback.visibility-governance-update-verdict.v1" },
     "verdictKind": { "const": "governedUpdateVerdict" },
     "disposition": { "enum": ["green", "red"] },
-    "providerProfile": { "enum": ["github-push-v1", "atomic-push-envelope-v1"] },
+    "providerProfile": {
+      "enum": [
+        "github-push-v1",
+        "atomic-push-envelope-v1",
+        "repository-local-dev-mint-v1"
+      ]
+    },
     "eventId": { "type": "string", "minLength": 1 },
     "eventInputDigest": { "$ref": "#/$defs/digest" },
     "governedRef": { "type": "string", "pattern": "^refs/" },
     "beforeOid": { "$ref": "#/$defs/oid" },
     "afterOid": { "$ref": "#/$defs/oid" },
     "observedAt": { "type": "string", "format": "date-time" },
-    "comparatorVersion": { "const": "snapback.visibility-governance-comparator.v1" },
+    "comparatorVersion": {
+      "enum": [
+        "snapback.visibility-governance-comparator.v1",
+        "snapback.visibility-governance-comparator.v2"
+      ]
+    },
     "deploymentIdentities": {
       "type": "array",
       "items": {

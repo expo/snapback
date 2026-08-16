@@ -2835,6 +2835,10 @@ impl AssetStoreConfig {
 
 pub struct LocalSnapback {
     db: LocalDatabase,
+    /// Independently host-resolved deployment posture used by every
+    /// governance preflight. Generated artifacts and target configs cannot
+    /// select or weaken this value.
+    server_profile: ServerProfile,
     /// Deployment configuration captured once at the public construction
     /// boundary. Asset-store construction never re-reads process-global env.
     asset_store_config: AssetStoreConfig,
@@ -4097,6 +4101,17 @@ impl LocalSnapback {
         self.telemetry.clone()
     }
 
+    /// Bind the transport adapter's already-resolved server posture before it
+    /// presents any startup or network generation for activation.
+    pub(crate) fn bind_server_profile(&mut self, profile: ServerProfile) {
+        self.server_profile = profile;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn server_profile_for_test(&self) -> ServerProfile {
+        self.server_profile
+    }
+
     fn renew_live_subscription_observation(
         &mut self,
         subscription_id: &str,
@@ -4976,7 +4991,9 @@ impl LocalSnapback {
             crate::visibility_governance::validate_activation_from_target(
                 &artifacts.schema,
                 &artifacts.functions,
+                self.server_profile,
                 now_millis(),
+                None,
             )?;
         // @ref LLP 0076#target-contract — cold-start capability admission
         // composes the candidate pair with the exact process's live egress
@@ -21603,6 +21620,10 @@ impl LocalSnapback {
             std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
             db,
+            // @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production
+            // — an unbound in-crate graph must refuse the repository-local
+            // dev provider until a host-owned startup seam binds otherwise.
+            server_profile: ServerProfile::Prod,
             asset_store_config,
             stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed),

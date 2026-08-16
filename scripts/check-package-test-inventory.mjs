@@ -84,6 +84,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'reset-dev-fresh.test.mjs',
       'reference-lookup.test.mjs',
       'sessions-dev-loop.test.mjs',
+      'visibility-governance-dev-loop.test.mjs',
       'verify.test.mjs',
     ],
   },
@@ -377,6 +378,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'typed-search-wrapper.test.mjs',
       'typescript-profile.test.mjs',
       'vector-authoring.test.mjs',
+      'visibility-governance-dev-config.test.mjs',
       'visibility-governance.test.mjs',
       'vector-distance-profile.test.mjs',
       'write-policy.test.mjs',
@@ -531,7 +533,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 300,
+  expectedTotal = 302,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -968,6 +970,10 @@ export function checkPackageTestInventories(options = {}) {
 // 299 -> 300 (2026-08-16, LLP 0244 generated-result typing):
 // @expo/snapback-codegen gains the strict generated LiveQuery MediaRef type
 // flow and physical-string negative-control suite.
+// 300 -> 302 (2026-08-16, LLP 0234 D4 dev mint): @expo/snapback-codegen gains
+// repository-local signed-config mint/fence proof; @expo/snapback-cli gains the
+// freshly-primed todo managed-bind regression (rbac mint/reader coverage lives
+// in the codegen and Rust suites; its live bind retains an unrelated grammar red).
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

@@ -2,6 +2,7 @@
 /.snapback/
 /.llp/ship-runs/
 **/.snapback/codegen-cache/
+**/.snapback/visibility-governance-dev-target-config.json
 # LLP 0241 R1 immutable generation envelopes are regenerable local build
 # custody, not reviewed source or a current-generation activation pointer.
 **/.snapback/generations/

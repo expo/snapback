@@ -72,6 +72,12 @@ use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 #[test]
+fn unbound_local_snapback_defaults_governance_activation_to_prod() {
+    let snapback = LocalSnapback::memory().expect("memory app");
+    assert_eq!(snapback.server_profile_for_test(), ServerProfile::Prod);
+}
+
+#[test]
 fn raw_schema_apply_cannot_bypass_governed_complete_pair_activation() {
     let mut snapback = LocalSnapback::memory().expect("governed local fixture");
     let mut schema = SchemaManifest::default();

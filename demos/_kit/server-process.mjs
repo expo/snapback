@@ -60,6 +60,10 @@ import {
   issueRuntimeReadinessReceipt,
   verifyRuntimeReadinessReceipt,
 } from '../../packages/snapback-cli/runtime-readiness.mjs';
+import {
+  resolveRegisteredVisibilityGovernanceDevBackendRoot,
+  visibilityGovernanceDevEnvironment,
+} from '../../packages/snapback-codegen/visibility-governance-dev-config.mjs';
 
 // A clean CI runner can spend nearly a minute compiling before the child
 // publishes readiness. Keep that cold start bounded, with enough margin that
@@ -115,6 +119,10 @@ export async function startServer({
   // Closed cold-start carrier used by sessions-mode acceptance tests. The
   // child validates ownership, exact schema/functions identity, and shape.
   startupArtifacts = null,
+  // Exact backend whose generated identity this child will activate. Most
+  // callers can leave this unset: bundle provenance or startup artifacts
+  // resolve it mechanically. Ambiguous launchers must name it explicitly.
+  governanceBackendRoot = null,
   // Closed LLP 0057 restore carrier emitted by `snapback auth restore`.
   // The lifecycle helper still owns readiness and teardown; it only projects
   // the native pre-bind declaration flag needed by backup acceptance.
@@ -157,6 +165,7 @@ export async function startServer({
       serverBinary,
       bindPortExactly,
       startupArtifacts,
+      governanceBackendRoot,
       restoredFromBackup,
       trustedCompositionActivation,
       captureImpersonationCapability,
@@ -195,6 +204,7 @@ async function startServerWithDeps({
   serverBinary = null,
   bindPortExactly = false,
   startupArtifacts = null,
+  governanceBackendRoot = null,
   restoredFromBackup = null,
   trustedCompositionActivation = null,
   captureImpersonationCapability = false,
@@ -219,6 +229,12 @@ async function startServerWithDeps({
     }
     resolvedStartupArtifacts = resolve(cwd, startupArtifacts);
   }
+  const resolvedGovernanceBackendRoot = resolveGovernanceBackendForLaunch({
+    cwd,
+    provenance,
+    resolvedStartupArtifacts,
+    governanceBackendRoot,
+  });
   if (
     restoredFromBackup !== null
     && (typeof restoredFromBackup !== 'string' || restoredFromBackup.length === 0)
@@ -335,24 +351,25 @@ async function startServerWithDeps({
   // @ref LLP 0031#server-binary-identity-on-health — the stamp carries
   // information only when it is independent of the expectation it is
   // compared against.
-  const childEnv = {
+  let childEnv = {
     ...process.env,
     ...env,
     ...runtimeEnv,
     ...(cronDisabled ? { SNAPBACK_CRON_DISABLED: '1' } : {}),
     ...(adminToken ? { SNAPBACK_ADMIN_TOKEN: adminToken } : {}),
   };
-
   const plans = resolveLaunchPlans({ serverBinary, cwd, deps, childEnv, expectedIdentity });
   const attemptContext = {
     port,
     db,
     bindPortExactly,
     resolvedStartupArtifacts,
+    resolvedGovernanceBackendRoot,
     restoredFromBackup,
     resolvedTrustedCompositionActivation,
     cwd,
     childEnv,
+    explicitEnvironment: env === process.env ? {} : env,
     deps,
     expectedIdentity,
     fetchImpl,
@@ -414,6 +431,42 @@ async function startServerWithDeps({
     }
   }
   throw new Error('snapback server launch resolved no runnable command (LLP 0030 ladder)');
+}
+
+function resolveGovernanceBackendForLaunch({
+  cwd,
+  provenance,
+  resolvedStartupArtifacts,
+  governanceBackendRoot,
+}) {
+  if (governanceBackendRoot !== null) {
+    if (typeof governanceBackendRoot !== 'string' || governanceBackendRoot.length === 0) {
+      throw new TypeError('governanceBackendRoot must be a non-empty path');
+    }
+    return resolve(cwd, governanceBackendRoot);
+  }
+  if (typeof provenance?.artifactsPath === 'string' && provenance.artifactsPath.length > 0) {
+    return dirname(dirname(resolve(cwd, provenance.artifactsPath)));
+  }
+  if (resolvedStartupArtifacts === null
+      || !existsSync(join(cwd, 'scripts', 'visibility-governance-dev-apps.v1.json'))) {
+    return null;
+  }
+  let carrier;
+  try {
+    carrier = JSON.parse(readFileSync(resolvedStartupArtifacts, 'utf8'));
+  } catch (error) {
+    throw new TypeError(`startupArtifacts must contain readable JSON: ${error.message}`);
+  }
+  const governance = carrier?.schema?.visibilityGovernance;
+  if (governance === undefined || governance === null) return null;
+  return resolveRegisteredVisibilityGovernanceDevBackendRoot({
+    repositoryRoot: cwd,
+    appId: carrier.schema.appId,
+    schemaHash: carrier.schema.schemaHash,
+    functionBundleHash: carrier.functions?.bundleHash,
+    generationInputsHash: governance.generationInputsHash,
+  });
 }
 
 // @ref LLP 0115#cv-3-a-persisted-readiness-receipt-across-doctor-bootstrap-and-harness —
@@ -604,10 +657,12 @@ async function launchServerAttempt(plan, {
   db,
   bindPortExactly,
   resolvedStartupArtifacts,
+  resolvedGovernanceBackendRoot,
   restoredFromBackup,
   resolvedTrustedCompositionActivation,
   cwd,
   childEnv,
+  explicitEnvironment,
   deps,
   expectedIdentity,
   fetchImpl,
@@ -619,6 +674,30 @@ async function launchServerAttempt(plan, {
 }) {
   const readyDir = mkdtempSync(join(tmpdir(), 'snapback-server-'));
   const readyFile = join(readyDir, 'ready.json');
+  let attemptChildEnv = childEnv;
+  let governanceTargetConfigPath = null;
+  const devRegistry = join(cwd, 'scripts', 'visibility-governance-dev-apps.v1.json');
+  if (existsSync(devRegistry)) {
+    // @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production
+    // — each owned child gets a fresh config under the same per-start custody
+    // directory as its ready descriptor. Ambient process.env paths are not
+    // caller custody, and the independently resolved native profile remains
+    // the reader-side production fence.
+    try {
+      const prepared = visibilityGovernanceDevEnvironment({
+        environment: childEnv,
+        callerEnvironment: explicitEnvironment,
+        backendRoot: resolvedGovernanceBackendRoot,
+        repositoryRoot: cwd,
+        outputPath: join(readyDir, 'visibility-governance-dev-target-config.json'),
+      });
+      attemptChildEnv = prepared.environment;
+      governanceTargetConfigPath = prepared.path;
+    } catch (error) {
+      rmSync(readyDir, { recursive: true, force: true });
+      throw error;
+    }
+  }
   // Ordinary starts use port zero so the listener binds itself atomically. An
   // explicit restart bind also goes directly to the OS without a preflight
   // probe. In both modes the unique ready-file returns the bound port and
@@ -648,24 +727,24 @@ async function launchServerAttempt(plan, {
   if (plan.rung === 'cargo') {
     const args = ['run', '--quiet', '--', ...serverArgs];
     launch = deps.launchSpec
-      ? deps.launchSpec({ args, readyFile, cwd, env: childEnv, expectedIdentity })
-      : { command: 'cargo', args, cwd, env: childEnv };
+      ? deps.launchSpec({ args, readyFile, cwd, env: attemptChildEnv, expectedIdentity })
+      : { command: 'cargo', args, cwd, env: attemptChildEnv };
   } else {
-    launch = { command: plan.command, args: serverArgs, cwd, env: childEnv };
+    launch = { command: plan.command, args: serverArgs, cwd, env: attemptChildEnv };
   }
   // Explicit stamp overrides in the launch environment are the deterministic
   // CI seam (build.rs prefers them over its own git probe), so a cargo-built
   // child's stamp attests the caller's declaration, not an independent probe.
   // A prebuilt binary cannot be re-stamped by env at all, so the seam is only
   // relevant on the cargo rung.
-  const launchEnv = launch.env ?? childEnv;
+  const launchEnv = launch.env ?? attemptChildEnv;
   const envStamp = plan.rung === 'cargo'
     && Boolean(launchEnv.SNAPBACK_BUILD_GIT_COMMIT || launchEnv.SNAPBACK_BUILD_GIT_DIRTY);
   let child;
   try {
     child = (deps.spawnImpl ?? spawn)(launch.command, launch.args, {
       cwd: launch.cwd ?? cwd,
-      env: launch.env ?? childEnv,
+      env: launch.env ?? attemptChildEnv,
       detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -781,6 +860,7 @@ async function launchServerAttempt(plan, {
             watch: watchState,
             identity,
             launch: { rung: plan.rung, command: launch.command },
+            governanceTargetConfigPath,
             runtimeRecovery: createRuntimeRecoveryRecord({
               selectedBinary: plan.rung === 'cargo'
                 ? join(cwd, 'target', 'debug', process.platform === 'win32' ? 'snapback.exe' : 'snapback')
@@ -863,6 +943,7 @@ function serverHandle({
   identity = null,
   launch = null,
   runtimeRecovery = null,
+  governanceTargetConfigPath = null,
   outputTail = null,
 }) {
   const credentials = Object.freeze({ adminToken, devIdentityCapability });
@@ -918,6 +999,7 @@ function serverHandle({
     // facts together so callers never have to reconstruct a safe override
     // from prose.
     runtimeRecovery,
+    governanceTargetConfigPath,
     // A bounded read-only view used by supervising acceptance gates when a
     // setup/lane failure needs the owned child's recent stdout/stderr. Callers
     // remain responsible for redaction before retaining or printing it.

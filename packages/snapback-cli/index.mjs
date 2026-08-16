@@ -47,6 +47,7 @@ import {
   resolveGeneratedArtifact,
   verifyGeneratedGraph,
 } from '@expo/snapback-codegen/review-surface';
+import { visibilityGovernanceDevEnvironment } from '@expo/snapback-codegen/visibility-governance-dev-config';
 import {
   addTarget,
   applyBackupPlan,
@@ -4381,6 +4382,40 @@ export async function runDev(options = {}) {
   const clientArm = resolveClientArm(options.client, projectRoot);
   const generated = await generateApp(backendRoot);
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
+  let devRuntimeEnvironment;
+  const prepareVisibilityGovernanceDevEnvironment =
+    options.visibilityGovernanceDevEnvironment ?? visibilityGovernanceDevEnvironment;
+  const refreshVisibilityGovernanceDevEnvironment = () => {
+    const configuredEnvironment = options.env ?? process.env;
+    const prepared = prepareVisibilityGovernanceDevEnvironment({
+      environment: configuredEnvironment,
+      callerEnvironment: options.env === process.env ? {} : (options.env ?? {}),
+      backendRoot,
+      outputPath: join(stateRoot, 'visibility-governance-dev-target-config.json'),
+    });
+    devRuntimeEnvironment = prepared.environment;
+    return prepared;
+  };
+  try {
+    refreshVisibilityGovernanceDevEnvironment();
+  } catch (error) {
+    const result = {
+      schemaVersion: 'snapback.dev.v1',
+      ok: false,
+      state: 'generated-but-not-loaded',
+      runtime,
+      runtimeRecovery,
+      diagnostics: [{
+        code: error.code ?? 'SNAPBACK_VISIBILITY_GOVERNANCE_DEV_CONFIG_REFUSED',
+        severity: 'error',
+        subsystem: 'auth',
+        message: error.message ?? 'visibility governance development config mint refused',
+        details: error.details ?? {},
+      }],
+    };
+    options.onEvent?.(result);
+    return result;
+  }
   const generatedRoot = join(backendRoot, 'generated');
   const generatedSchemaPath = resolveGeneratedArtifact(
     generatedRoot,
@@ -4444,7 +4479,7 @@ export async function runDev(options = {}) {
       ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
     ], {
       cwd: projectRoot,
-      env: managedDevRuntimeEnvironment(options.env),
+      env: managedDevRuntimeEnvironment(devRuntimeEnvironment),
       stdio: options.serverStdio ?? ['ignore', 2, 2],
     });
     managed = true;
@@ -4463,7 +4498,7 @@ export async function runDev(options = {}) {
           '--activate-startup-successor',
         ], {
           cwd: projectRoot,
-          env: managedDevRuntimeEnvironment(options.env),
+          env: managedDevRuntimeEnvironment(devRuntimeEnvironment),
           stdio: options.serverStdio ?? ['ignore', 2, 2],
         });
         try {
@@ -4552,7 +4587,7 @@ export async function runDev(options = {}) {
         skipSchemaFunctions: managed && startupArtifacts !== null,
         runtime,
         runtimeIdentity,
-        env: options.env,
+        env: devRuntimeEnvironment,
       },
     );
     const expectedTarget = expectedActivationTargetFromActivation(
@@ -4653,6 +4688,7 @@ export async function runDev(options = {}) {
     }
     if (closed) return null;
     try {
+      refreshVisibilityGovernanceDevEnvironment();
       const activation = await loadGenerated(
         runtime.binary,
         projectRoot,
@@ -4664,7 +4700,7 @@ export async function runDev(options = {}) {
           database,
           runtime,
           runtimeIdentity,
-          env: options.env,
+          env: devRuntimeEnvironment,
         },
       );
       const expectedTarget = expectedActivationTargetFromActivation(
@@ -4942,6 +4978,7 @@ export async function runDev(options = {}) {
       if (existsSync(readyFile)) rmSync(readyFile, { force: true });
       removeApplicationReadyReceipt();
       refreshStartupArtifacts();
+      refreshVisibilityGovernanceDevEnvironment();
       const startManagedChild = (activateSuccessor = false) => spawnManagedRuntime(runtime.binary, [
         'start',
         '--ready-file', readyFile,
@@ -4950,7 +4987,7 @@ export async function runDev(options = {}) {
         ...(activateSuccessor ? ['--activate-startup-successor'] : []),
       ], {
         cwd: projectRoot,
-        env: managedDevRuntimeEnvironment(options.env),
+        env: managedDevRuntimeEnvironment(devRuntimeEnvironment),
         stdio: options.serverStdio ?? ['ignore', 2, 2],
       });
       child = startManagedChild();
@@ -5079,6 +5116,7 @@ export async function runDev(options = {}) {
       }
       removeManagedDatabaseState(database, readyFile, applicationReadyFile);
       refreshStartupArtifacts();
+      refreshVisibilityGovernanceDevEnvironment();
       child = spawnManagedRuntime(runtime.binary, [
         'start',
         '--ready-file', readyFile,
@@ -5086,7 +5124,7 @@ export async function runDev(options = {}) {
         ...(startupArtifacts ? ['--startup-artifacts', startupArtifacts] : []),
       ], {
         cwd: projectRoot,
-        env: managedDevRuntimeEnvironment(options.env),
+        env: managedDevRuntimeEnvironment(devRuntimeEnvironment),
         stdio: options.serverStdio ?? ['ignore', 2, 2],
       });
       attachExitWatch(child);

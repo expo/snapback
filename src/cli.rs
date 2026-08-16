@@ -8445,6 +8445,11 @@ async fn run_composed(
             }
         }
     };
+    // The visibility-governance reader consumes the same closed profile fact
+    // the transport adapter resolved from bind + declared exposure. Neither a
+    // generated carrier nor its target config can self-declare this posture.
+    // @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production
+    snapback.bind_server_profile(startup_profile);
     let derived_fork_boot = snapback.is_derived_fork();
     let derived_fork_lineage = snapback.derived_fork_identity().cloned();
     debug_assert_eq!(derived_fork_boot, derived_fork_lineage.is_some());

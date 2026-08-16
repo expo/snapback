@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-governance-dev-registration.v1.json",
+  "title": "Snapback repository-local visibility governance registration v1",
+  "type": "object",
+  "required": [
+    "schemaVersion", "appId", "targetClass", "principalClass", "dataClassification",
+    "fixtureProfiles"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-governance-dev-registration.v1" },
+    "appId": { "type": "string", "minLength": 1 },
+    "targetClass": { "const": "repository-local" },
+    "principalClass": { "const": "synthetic" },
+    "dataClassification": { "const": "fixture-owned" },
+    "fixtureProfiles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "digest", "targetClassCeiling", "principalClass", "dataClassification"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "targetClassCeiling": { "const": "repository-local" },
+          "principalClass": { "const": "synthetic" },
+          "dataClassification": { "const": "fixture-owned" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

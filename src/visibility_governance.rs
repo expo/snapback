@@ -4,6 +4,7 @@
 //! consumes only the executable manifest record plus target-owned source OID,
 //! observer-key pin, signed verdict, fixture profile, and quarantine checkpoint.
 
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::manifest::{FunctionManifest, SchemaManifest};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -18,6 +19,8 @@ const TARGET_CONFIG_ENV: &str = "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG";
 const ACTIVATION_SCHEMA: &str = "snapback.visibility-governance-activation.v1";
 const TARGET_CONFIG_SCHEMA: &str = "snapback.visibility-governance-target-config.v1";
 const VERDICT_SCHEMA: &str = "snapback.visibility-governance-update-verdict.v1";
+const DEV_VERDICT_PROVIDER: &str = "repository-local-dev-mint-v1";
+const DEV_TARGET_CLASS: &str = "repository-local";
 
 fn refusal(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "auth", message.into())
@@ -207,6 +210,39 @@ fn verify_verdict_signature(config: &VisibilityGovernanceTargetConfigV1) -> Snap
         })
 }
 
+fn validate_verdict_provider(
+    governance: &VisibilityGovernanceActivationV1,
+    config: &VisibilityGovernanceTargetConfigV1,
+    server_profile: ServerProfile,
+) -> SnapbackResult<()> {
+    let provider = required_string(&config.verdict, "/providerProfile")?;
+    match provider {
+        "github-push-v1" | "atomic-push-envelope-v1" => Ok(()),
+        DEV_VERDICT_PROVIDER
+            if config.target_class == DEV_TARGET_CLASS
+                && matches!(
+                    server_profile,
+                    ServerProfile::Dev | ServerProfile::Demo | ServerProfile::Test
+                )
+                && governance.production_windows.is_empty() =>
+        {
+            Ok(())
+        }
+        DEV_VERDICT_PROVIDER => Err(refusal(
+            "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_FIXTURE_ONLY",
+            format!(
+                "repository-local development governance cannot activate server profile {}, target class {}, or production override authority",
+                server_profile.as_str(),
+                config.target_class
+            ),
+        )),
+        _ => Err(refusal(
+            "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION",
+            "visibility governance verdict uses an unsupported provider profile",
+        )),
+    }
+}
+
 fn observer_key_digest(public_key: &[u8]) -> SnapbackResult<String> {
     let mut der = vec![
         0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
@@ -304,9 +340,28 @@ fn expected_identity<'a>(
                 "green governance verdict lacks derived deployment identities",
             )
         })?;
+    let activation_digest = activation_carrier_digest(governance)?;
     let matches = identities
         .iter()
-        .filter(|identity| identity.get("appId").and_then(Value::as_str) == Some(&schema.app_id))
+        .filter(|identity| {
+            identity.get("appId").and_then(Value::as_str) == Some(&schema.app_id)
+                && identity.get("schemaHash").and_then(Value::as_str)
+                    == Some(schema.schema_hash.as_deref().unwrap_or(""))
+                && identity.get("functionBundleHash").and_then(Value::as_str)
+                    == Some(functions.bundle_hash.as_deref().unwrap_or(""))
+                && identity.get("generationInputsHash").and_then(Value::as_str)
+                    == Some(governance.generation_inputs_hash.as_str())
+                && identity
+                    .get("visibilityAuthorizationProgramDigest")
+                    .and_then(Value::as_str)
+                    == Some(governance.visibility_authorization_program_digest.as_str())
+                && identity
+                    .get("visibilityGovernanceActivationDigest")
+                    .and_then(Value::as_str)
+                    == Some(activation_digest.as_str())
+                && identity.get("quarantineHeadDigest").and_then(Value::as_str)
+                    == Some(governance.quarantine_head_digest.as_str())
+        })
         .collect::<Vec<_>>();
     if matches.len() != 1 {
         return Err(refusal(
@@ -318,38 +373,7 @@ fn expected_identity<'a>(
             ),
         ));
     }
-    let identity = matches[0];
-    let activation_digest = activation_carrier_digest(governance)?;
-    let checks = [
-        ("schemaHash", schema.schema_hash.as_deref().unwrap_or("")),
-        (
-            "functionBundleHash",
-            functions.bundle_hash.as_deref().unwrap_or(""),
-        ),
-        ("generationInputsHash", &governance.generation_inputs_hash),
-        (
-            "visibilityAuthorizationProgramDigest",
-            &governance.visibility_authorization_program_digest,
-        ),
-        ("visibilityGovernanceActivationDigest", &activation_digest),
-        ("quarantineHeadDigest", &governance.quarantine_head_digest),
-    ];
-    for (field, expected) in checks {
-        if identity.get(field).and_then(Value::as_str) != Some(expected) {
-            return Err(refusal(
-                "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_DEPLOYMENT_IDENTITY_MISMATCH",
-                format!(
-                    "staged visibility governance {field} does not match the protected verdict"
-                ),
-            )
-            .with_details(serde_json::json!({
-                "field": field,
-                "expected": expected,
-                "observed": identity.get(field),
-            })));
-        }
-    }
-    Ok(identity)
+    Ok(matches[0])
 }
 
 fn days_from_civil(year: i64, month: u32, day: u32) -> Option<i64> {
@@ -519,6 +543,7 @@ pub fn validate_activation_with_config(
     schema: &SchemaManifest,
     functions: &FunctionManifest,
     config: &VisibilityGovernanceTargetConfigV1,
+    server_profile: ServerProfile,
     now_ms: u64,
 ) -> SnapbackResult<Vec<Diagnostic>> {
     let Some(governance) = schema.visibility_governance.as_ref() else {
@@ -535,6 +560,10 @@ pub fn validate_activation_with_config(
     // the target always binds it to the protected exact-source verdict so an
     // edited manifest cannot downgrade activation by flipping one boolean.
     verify_verdict_signature(config)?;
+    // @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production
+    // — the dev mint is an explicit local provider class, never a spelling a
+    // production window or hosted target may consume.
+    validate_verdict_provider(governance, config, server_profile)?;
     if required_string(&config.verdict, "/schemaVersion")? != VERDICT_SCHEMA
         || required_string(&config.verdict, "/disposition")? != "green"
         || required_string(&config.verdict, "/afterOid")? != config.source_oid
@@ -603,20 +632,42 @@ pub fn validate_activation_with_config(
 pub(crate) fn validate_activation_from_target(
     schema: &SchemaManifest,
     functions: &FunctionManifest,
+    server_profile: ServerProfile,
     now_ms: u64,
+    config_path: Option<&Path>,
 ) -> SnapbackResult<Vec<Diagnostic>> {
     if schema.visibility_governance.is_none() {
         return Ok(Vec::new());
     }
-    let config = target_config_from_environment()?;
-    validate_activation_with_config(schema, functions, &config, now_ms)
+    let config = match config_path {
+        Some(path) => target_config_from_path(path)?,
+        None => target_config_from_environment()?,
+    };
+    validate_activation_with_config(schema, functions, &config, server_profile, now_ms)
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use ring::rand::SystemRandom;
     use ring::signature::{Ed25519KeyPair, KeyPair as _};
+    use std::process::Command;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn run_node(root: &Path, arguments: &[&str]) {
+        let output = Command::new(std::env::var_os("NODE").unwrap_or_else(|| "node".into()))
+            .args(arguments)
+            .current_dir(root)
+            .output()
+            .expect("Node must launch for the visibility-governance dev-mint fixture");
+        assert!(
+            output.status.success(),
+            "Node command failed: {}\nstdout:\n{}\nstderr:\n{}",
+            arguments.join(" "),
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+    }
 
     #[test]
     fn trusted_time_refuses_future_and_expired_windows_and_warns_last_thirty_days() {
@@ -760,6 +811,7 @@ mod tests {
         let mut verdict = serde_json::json!({
             "schemaVersion": VERDICT_SCHEMA,
             "disposition": "green",
+            "providerProfile": "github-push-v1",
             "afterOid": "1".repeat(40),
             "observedAt": "1970-01-01T00:00:00Z",
             "observerKeyEpoch": "epoch-1",
@@ -794,10 +846,34 @@ mod tests {
         (schema, functions, config, private_key.as_ref().to_vec())
     }
 
+    fn resign_verdict(config: &mut VisibilityGovernanceTargetConfigV1, private_key: &[u8]) {
+        config.verdict.as_object_mut().unwrap().remove("signature");
+        let key_pair = Ed25519KeyPair::from_pkcs8(private_key).unwrap();
+        let signature = key_pair.sign(canonical_json(&config.verdict).unwrap().as_bytes());
+        config.verdict.as_object_mut().unwrap().insert(
+            "signature".to_owned(),
+            Value::String(STANDARD.encode(signature)),
+        );
+    }
+
+    pub(crate) fn signed_repository_local_dev_activation_fixture() -> (
+        SchemaManifest,
+        FunctionManifest,
+        VisibilityGovernanceTargetConfigV1,
+    ) {
+        let (schema, functions, mut config, private_key) = signed_activation_fixture();
+        config.verdict["providerProfile"] = Value::String(DEV_VERDICT_PROVIDER.to_owned());
+        resign_verdict(&mut config, &private_key);
+        (schema, functions, config)
+    }
+
     #[test]
     fn activation_deep_matches_every_deployment_identity_digest() {
         let (schema, functions, config, _) = signed_activation_fixture();
-        assert!(validate_activation_with_config(&schema, &functions, &config, 0).is_ok());
+        assert!(
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
+                .is_ok()
+        );
 
         for field in [
             "schemaHash",
@@ -837,10 +913,16 @@ mod tests {
                 _ => unreachable!(),
             }
             assert_eq!(
-                validate_activation_with_config(&changed_schema, &changed_functions, &config, 0,)
-                    .unwrap_err()
-                    .diagnostic
-                    .code,
+                validate_activation_with_config(
+                    &changed_schema,
+                    &changed_functions,
+                    &config,
+                    ServerProfile::Dev,
+                    0,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
                 "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_DEPLOYMENT_IDENTITY_MISMATCH",
                 "field {field} must be verdict-bound",
             );
@@ -885,10 +967,16 @@ mod tests {
                 _ => unreachable!(),
             }
             assert_eq!(
-                validate_activation_with_config(&changed_schema, &functions, &config, 0)
-                    .unwrap_err()
-                    .diagnostic
-                    .code,
+                validate_activation_with_config(
+                    &changed_schema,
+                    &functions,
+                    &config,
+                    ServerProfile::Dev,
+                    0,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
                 "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_DEPLOYMENT_IDENTITY_MISMATCH",
                 "activation carrier field {field} must be verdict-bound",
             );
@@ -898,13 +986,13 @@ mod tests {
     #[test]
     fn node_canonical_signed_verdict_activates() {
         let (schema, functions, _, _) = signed_activation_fixture();
-        let key_digest = "sha256:8ed127ed402720643318c488a20db0edffd594138fadddd72cdde3b855b9cbdc";
+        let key_digest = "sha256:03c9c71d6d7cd9dd5f140942b7bcf352902fb716dcc23739bdd585adb93cd2f6";
         let config = VisibilityGovernanceTargetConfigV1 {
             schema_version: TARGET_CONFIG_SCHEMA.to_owned(),
             source_oid: "1".repeat(40),
             observer_key_epoch: "epoch-1".to_owned(),
             observer_key_digest: key_digest.to_owned(),
-            observer_public_key_base64: "4sPqkg5tE1ZkC4QkyfQcp1KGIUqBSdzHl1iR9vkBIdc=".to_owned(),
+            observer_public_key_base64: "qj7qMpwjJ9P9RPBLmnIlUt6ly6lxKeJxoUOTkSyWsng=".to_owned(),
             revoked_observer_key_epochs: Vec::new(),
             quarantine_checkpoint: "sha256:quarantine".to_owned(),
             target_class: "repository-local".to_owned(),
@@ -912,6 +1000,7 @@ mod tests {
             verdict: serde_json::json!({
                 "schemaVersion": VERDICT_SCHEMA,
                 "disposition": "green",
+                "providerProfile": "github-push-v1",
                 "afterOid": "1".repeat(40),
                 "observedAt": "1970-01-01T00:00:00Z",
                 "observerKeyEpoch": "epoch-1",
@@ -925,10 +1014,13 @@ mod tests {
                     "visibilityGovernanceActivationDigest": "sha256:3a90e8a597c05635c058c6b595c95506fb278cec0eeefe88ba217abb7a2ffe1a",
                     "quarantineHeadDigest": "sha256:quarantine"
                 }],
-                "signature": "OHaD4SzwYzZhbmfyTDyx97Yt1a00uJk6owLthLG/viPWwSpPeXctOgJjlprSnmSm2MN00PDNoJESXKppQziTDA=="
+                "signature": "9e5LE6sL3r1LBxdk9dcCOXwRgdoPG7FrtjokCDL6fvzdNvuMt+IOu9V9OvL3iyxqOv+xGpcBY/6MM8V2OBVWAQ=="
             }),
         };
-        assert!(validate_activation_with_config(&schema, &functions, &config, 0).is_ok());
+        assert!(
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -965,7 +1057,7 @@ mod tests {
             Value::String(STANDARD.encode(signature)),
         );
         assert_eq!(
-            validate_activation_with_config(&schema, &functions, &config, 0)
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -975,7 +1067,120 @@ mod tests {
         let (schema, functions, mut config, _) = signed_activation_fixture();
         config.observer_key_digest = "sha256:forged".to_owned();
         assert_eq!(
-            validate_activation_with_config(&schema, &functions, &config, 0)
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION",
+        );
+
+        for provider in ["", "unsupported-provider-v1"] {
+            let (schema, functions, mut config, private_key) = signed_activation_fixture();
+            config.verdict["providerProfile"] = Value::String(provider.to_owned());
+            resign_verdict(&mut config, &private_key);
+            assert_eq!(
+                validate_activation_with_config(
+                    &schema,
+                    &functions,
+                    &config,
+                    ServerProfile::Dev,
+                    0,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+                "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION",
+                "provider profile {provider:?} must be nonempty and supported",
+            );
+        }
+
+        let (schema, functions, mut config, _) = signed_activation_fixture();
+        config
+            .revoked_observer_key_epochs
+            .push(config.observer_key_epoch.clone());
+        assert_eq!(
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE",
+        );
+    }
+
+    #[test]
+    fn repository_local_dev_provider_refuses_production_and_hosted_targets() {
+        let (schema, functions, mut config, private_key) = signed_activation_fixture();
+        config.verdict["providerProfile"] = Value::String(DEV_VERDICT_PROVIDER.to_owned());
+        resign_verdict(&mut config, &private_key);
+
+        assert!(
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
+                .is_ok()
+        );
+        assert_eq!(
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Prod, 0,)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_FIXTURE_ONLY",
+            "the independently host-resolved production profile must refuse an unchanged dev mint",
+        );
+
+        for target_class in ["production", "hosted", "hosted-production"] {
+            config.target_class = target_class.to_owned();
+            assert_eq!(
+                validate_activation_with_config(
+                    &schema,
+                    &functions,
+                    &config,
+                    ServerProfile::Dev,
+                    0,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+                "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_FIXTURE_ONLY",
+            );
+        }
+
+        let (mut schema, functions, mut config, private_key) = signed_activation_fixture();
+        config.verdict["providerProfile"] = Value::String(DEV_VERDICT_PROVIDER.to_owned());
+        schema
+            .visibility_governance
+            .as_mut()
+            .unwrap()
+            .production_windows
+            .push(VisibilityProductionWindowV1 {
+                override_id: "production-v1".to_owned(),
+                issued_on: "1970-01-01T00:00:00Z".to_owned(),
+                expires_on: "1970-01-02".to_owned(),
+            });
+        config.verdict["deploymentIdentities"][0]["visibilityGovernanceActivationDigest"] =
+            Value::String(
+                activation_carrier_digest(schema.visibility_governance.as_ref().unwrap()).unwrap(),
+            );
+        resign_verdict(&mut config, &private_key);
+        assert_eq!(
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_FIXTURE_ONLY",
+            "repository-local dev governance must refuse a nonempty production window",
+        );
+    }
+
+    #[test]
+    fn activation_requires_provider_profile_and_exact_source_oids() {
+        let (schema, functions, mut config, private_key) = signed_activation_fixture();
+        config
+            .verdict
+            .as_object_mut()
+            .unwrap()
+            .remove("providerProfile");
+        resign_verdict(&mut config, &private_key);
+        assert_eq!(
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
                 .unwrap_err()
                 .diagnostic
                 .code,
@@ -983,15 +1188,118 @@ mod tests {
         );
 
         let (schema, functions, mut config, _) = signed_activation_fixture();
-        config
-            .revoked_observer_key_epochs
-            .push(config.observer_key_epoch.clone());
+        config.source_oid = "2".repeat(40);
         assert_eq!(
-            validate_activation_with_config(&schema, &functions, &config, 0)
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
                 .unwrap_err()
                 .diagnostic
                 .code,
-            "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE",
+            "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION",
+            "the unsigned target wrapper cannot rebind a signed afterOid",
+        );
+
+        let (schema, functions, mut config, private_key) = signed_activation_fixture();
+        config.verdict["afterOid"] = Value::String("2".repeat(40));
+        resign_verdict(&mut config, &private_key);
+        assert_eq!(
+            validate_activation_with_config(&schema, &functions, &config, ServerProfile::Dev, 0,)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION",
+            "a validly signed verdict for another afterOid cannot activate this target",
+        );
+    }
+
+    #[test]
+    fn primed_todo_and_rbac_dev_mints_validate_from_target_and_tampering_refuses() {
+        let repository_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let scratch = tempfile::tempdir().unwrap();
+        let mut fixtures = Vec::new();
+
+        for (index, backend) in ["demos/todo/snapback", "demos/rbac/snapback"]
+            .into_iter()
+            .enumerate()
+        {
+            run_node(
+                repository_root,
+                &["packages/snapback-codegen/index.mjs", backend],
+            );
+            let config_path = scratch.path().join(format!("target-config-{index}.json"));
+            run_node(
+                repository_root,
+                &[
+                    "scripts/mint-visibility-governance-dev-config.mjs",
+                    backend,
+                    "--out",
+                    config_path.to_str().unwrap(),
+                ],
+            );
+
+            let backend_root = repository_root.join(backend);
+            let schema: SchemaManifest = serde_json::from_slice(
+                &fs::read(backend_root.join("generated/schema.manifest.json")).unwrap(),
+            )
+            .unwrap();
+            let functions: FunctionManifest = serde_json::from_slice(
+                &fs::read(backend_root.join("generated/functions.manifest.json")).unwrap(),
+            )
+            .unwrap();
+            let now_ms = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64;
+            assert!(
+                validate_activation_from_target(
+                    &schema,
+                    &functions,
+                    ServerProfile::Dev,
+                    now_ms,
+                    Some(&config_path),
+                )
+                .is_ok()
+            );
+
+            let original = fs::read(&config_path).unwrap();
+            let mut tampered: Value = serde_json::from_slice(&original).unwrap();
+            tampered["verdict"]["signature"] = Value::String(STANDARD.encode([0_u8; 64]));
+            fs::write(&config_path, serde_json::to_vec_pretty(&tampered).unwrap()).unwrap();
+            assert_eq!(
+                validate_activation_from_target(
+                    &schema,
+                    &functions,
+                    ServerProfile::Dev,
+                    now_ms,
+                    Some(&config_path),
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+                "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION",
+            );
+            fs::write(&config_path, original).unwrap();
+            fixtures.push((schema, functions, config_path));
+        }
+
+        let (_, _, todo_config) = &fixtures[0];
+        let (rbac_schema, rbac_functions, _) = &fixtures[1];
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        assert_eq!(
+            validate_activation_from_target(
+                rbac_schema,
+                rbac_functions,
+                ServerProfile::Dev,
+                now_ms,
+                Some(todo_config),
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_DEPLOYMENT_IDENTITY_MISMATCH",
+            "a todo mint cannot authorize the rbac generated backend",
         );
     }
 }

@@ -2729,6 +2729,7 @@ impl AppState {
         ephemeral: EphemeralApi,
         server: ServerContext,
     ) -> SnapbackResult<(Self, SecretReadOperator)> {
+        let server_profile = server.profile;
         let (secret_reads, operator) =
             SecretReadLeaseRegistry::new(read.secret_read_reset_generation());
         let telemetry_export_continuation_key = telemetry_export_continuation_key()?;
@@ -2764,6 +2765,11 @@ impl AppState {
                 }
                 database.service_authority_fence_registry()
             };
+            // Embedders enter through this host-owned context seam rather
+            // than leaving governance admission on LocalSnapback's
+            // fail-closed production default. Ownership must be secured
+            // first: a rejected second wrapper cannot mutate the live graph.
+            instance.bind_server_profile(server_profile);
             instance.install_network_profile_state(network_profiles.clone());
             (
                 service_authority_fences,
@@ -6114,6 +6120,44 @@ mod tests {
         assert_eq!(
             owned.diagnostic.code,
             "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED"
+        );
+    }
+
+    #[test]
+    fn failed_second_dev_app_state_cannot_downgrade_production_activation() {
+        let snapback = LocalSnapback::memory().expect("memory app");
+        let read = snapback.read_lane();
+        let ephemeral = snapback.ephemeral_api();
+        let shared = Arc::new(Mutex::new(snapback));
+        let production =
+            ServerContext::new_with_resolved_profile("127.0.0.1", 0, true, ServerProfile::Prod);
+        let _state = AppState::try_new(shared.clone(), read.clone(), ephemeral.clone(), production)
+            .expect("production graph owner");
+
+        let dev =
+            ServerContext::new_with_resolved_profile("127.0.0.1", 0, true, ServerProfile::Dev);
+        let error = match AppState::try_new(shared.clone(), read, ephemeral, dev) {
+            Ok(_) => panic!("a second Dev wrapper must not claim the production graph"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_EMBED_APP_STATE_ALREADY_OWNED"
+        );
+
+        let (schema, functions, config) =
+            crate::visibility_governance::tests::signed_repository_local_dev_activation_fixture();
+        let profile = shared
+            .try_lock()
+            .expect("inspect production graph")
+            .server_profile_for_test();
+        let activation = crate::visibility_governance::validate_activation_with_config(
+            &schema, &functions, &config, profile, 0,
+        )
+        .expect_err("the production graph must continue to refuse the unchanged dev mint");
+        assert_eq!(
+            activation.diagnostic.code,
+            "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_FIXTURE_ONLY"
         );
     }
 

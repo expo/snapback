@@ -487,7 +487,7 @@ test('every G0 governance schema compiles under draft 2020-12', () => {
     (name.startsWith('visibility-') || name.startsWith('table-visibility-'))
     && name.endsWith('.schema.json')
   ));
-  assert.equal(files.length, 15);
+  assert.equal(files.length, 17);
   const schemas = files.map((file) => JSON.parse(readFileSync(join(packageRoot, file))));
   for (const schema of schemas) ajv.addSchema(schema);
   for (const schema of schemas) assert.equal(typeof ajv.getSchema(schema.$id), 'function');

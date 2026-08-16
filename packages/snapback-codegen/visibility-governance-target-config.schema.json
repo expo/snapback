@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-governance-target-config.v1.json",
+  "title": "Snapback visibility governance target config v1",
+  "type": "object",
+  "required": [
+    "schemaVersion", "sourceOid", "observerKeyEpoch", "observerKeyDigest",
+    "observerPublicKeyBase64", "revokedObserverKeyEpochs", "quarantineCheckpoint",
+    "targetClass", "verdict"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-governance-target-config.v1" },
+    "sourceOid": { "$ref": "#/$defs/oid" },
+    "observerKeyEpoch": { "type": "string", "minLength": 1 },
+    "observerKeyDigest": { "$ref": "#/$defs/digest" },
+    "observerPublicKeyBase64": { "type": "string", "minLength": 1 },
+    "revokedObserverKeyEpochs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "quarantineCheckpoint": { "$ref": "#/$defs/digest" },
+    "targetClass": { "type": "string", "minLength": 1 },
+    "fixtureProfile": {
+      "type": "object",
+      "required": ["id", "digest", "targetClass", "principalClass", "dataClassification"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" },
+        "targetClass": { "type": "string", "minLength": 1 },
+        "principalClass": { "const": "synthetic" },
+        "dataClassification": { "const": "fixture-owned" }
+      },
+      "additionalProperties": false
+    },
+    "verdict": {
+      "$ref": "https://schemas.snapback.dev/visibility-governance-update-verdict.v1.json"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "oid": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  }
+}

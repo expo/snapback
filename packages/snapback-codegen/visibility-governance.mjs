@@ -30,6 +30,7 @@ export const GOVERNANCE_SCHEMA_VERSIONS = Object.freeze({
   observerKeys: 'snapback.visibility-governance-observer-keys.v1',
   separationReceipt: 'snapback.visibility-governance-separation-receipt.v1',
   governedUpdateVerdict: 'snapback.visibility-governance-update-verdict.v1',
+  targetConfig: 'snapback.visibility-governance-target-config.v1',
   fixtureProfile: 'snapback.visibility-fixture-profile.v1',
   activation: 'snapback.visibility-governance-activation.v1',
   g1Closure: 'snapback.visibility-governance-g1-closure.v1',
