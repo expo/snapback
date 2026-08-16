@@ -85,6 +85,7 @@ function makeAssetServer() {
       path: url.pathname,
       headers,
       body: body.toString('utf8'),
+      redirect: init.redirect ?? null,
     });
     const json = (value, status = 200) => {
       return Response.json(value, { status });
@@ -1072,6 +1073,11 @@ globalThis.fetch = server.fetch;
         authorization,
         `${label} ${boundary} bearer projection`,
       );
+      assert.equal(
+        request.redirect,
+        authorization === null ? null : 'manual',
+        `${label} ${boundary} redirect posture`,
+      );
     }
   };
 
@@ -1191,6 +1197,117 @@ globalThis.fetch = server.fetch;
   assert.equal(devSeen.headers['x-snapback-dev-user'] ?? null, null, 'the dev lane sends no dead identity header');
   assert.equal(headSeen.headers.authorization, 'Bearer bearer_fence_1', 'TUS custody matches');
   assert.equal(headSeen.headers[protocolHeader], '1', 'TUS resume repeats auth/rr');
+  assert.equal(headSeen.redirect, 'manual', 'credentialed TUS HEAD refuses redirects');
+}
+
+// --- credentialed asset requests refuse 307 at create, TUS HEAD, and TUS
+// --- PATCH without replaying the bearer to a second origin. Existing 2xx
+// --- lifecycles above also pin that manual redirect mode changes no result. ---
+{
+  const parent = {
+    baseUrl,
+    bearerToken: 'bearer_redirect_1',
+    authProtocols: { authClient: 1 },
+    subscribeLive: () => {},
+  };
+  const redirected = () => new Response(null, {
+    status: 307,
+    headers: { location: 'https://redirect-target.invalid/replayed' },
+  });
+  const modelPlatformRedirect = (calls, url, init) => {
+    calls.push({ url, init });
+    if (init.redirect !== 'manual') {
+      calls.push({ url: 'https://redirect-target.invalid/replayed', init });
+      return Response.json({ replayed: true });
+    }
+    return redirected();
+  };
+
+  const createCalls = [];
+  globalThis.fetch = async (url, init) => modelPlatformRedirect(createCalls, url, init);
+  try {
+    const task = new SnapbackAssetClient(parent).start({
+      upload: AVATAR_UPLOAD_REF,
+      file: makeFile('create-redirect'),
+    });
+    const snapshot = await task.done;
+    assert.equal(snapshot.status, 'failed');
+    assert.equal(snapshot.diagnostic.code, 'SNAPBACK_REDIRECT_REFUSED');
+    assert.deepEqual(snapshot.diagnostic.details, { status: 307 });
+    assert.equal(createCalls.length, 1, 'asset create sends the bearer to one origin only');
+    assert.equal(createCalls[0].init.redirect, 'manual');
+    assert.equal(
+      createCalls.some(({ url }) => String(url).startsWith('https://redirect-target.invalid')),
+      false,
+      'asset create never replays the bearer to the redirect target',
+    );
+  } finally {
+    globalThis.fetch = server.fetch;
+  }
+
+  const patchCalls = [];
+  const patchAssets = new SnapbackAssetClient(parent, {
+    fetch: async (url, init) => {
+      if (init.method === 'POST' && String(url).endsWith('/assets/attempts')) {
+        return Response.json({
+          task: {
+            assetId: 'asset_redirect_patch',
+            attemptId: 'attempt_redirect_patch',
+            attemptState: 'open',
+            availability: 'pending',
+            acknowledgedOffset: 0,
+            totalBytes: 14,
+            expiresAtMs: 4102444800000,
+            integrityGrade: 'received-bytes-canonical',
+          },
+          transfer: {
+            uploadUrl: '/assets/tus/attempt_redirect_patch',
+            tusResumable: '1.0.0',
+            uploadLength: 14,
+            expiresAtMs: 4102444800000,
+            checksumAlgorithms: ['sha256'],
+            maxChunkBytes: CHUNK,
+          },
+        });
+      }
+      return modelPlatformRedirect(patchCalls, url, init);
+    },
+  });
+  const patchSnapshot = await patchAssets.start({
+    upload: AVATAR_UPLOAD_REF,
+    file: makeFile('patch-redirect'),
+  }).done;
+  assert.equal(patchSnapshot.status, 'failed');
+  assert.equal(patchSnapshot.diagnostic.code, 'SNAPBACK_REDIRECT_REFUSED');
+  assert.equal(patchCalls.length, 1, 'TUS PATCH sends the bearer to one origin only');
+  assert.equal(patchCalls[0].init.method, 'PATCH');
+  assert.equal(patchCalls[0].init.redirect, 'manual');
+
+  const headCalls = [];
+  const resumeStore = createMemoryAssetTaskStore();
+  const headAssets = new SnapbackAssetClient(parent, {
+    taskStore: resumeStore,
+    fetch: async (url, init) => modelPlatformRedirect(headCalls, url, init),
+  });
+  resumeStore.set(
+    headAssets.taskStoreKey({ userId: null, assetId: 'asset_redirect_head' }),
+    JSON.stringify({
+      assetId: 'asset_redirect_head',
+      attemptId: 'attempt_redirect_head',
+      attemptExpiresAtMs: 4102444800000,
+      fileSize: 13,
+      fileName: null,
+    }),
+  );
+  const headSnapshot = await headAssets.resumePersisted({
+    assetId: 'asset_redirect_head',
+    file: makeFile('head-redirect'),
+  }).done;
+  assert.equal(headSnapshot.status, 'failed');
+  assert.equal(headSnapshot.diagnostic.code, 'SNAPBACK_REDIRECT_REFUSED');
+  assert.equal(headCalls.length, 1, 'TUS HEAD sends the bearer to one origin only');
+  assert.equal(headCalls[0].init.method, 'HEAD');
+  assert.equal(headCalls[0].init.redirect, 'manual');
 }
 
 // --- watchStore consumes the real establishment shape (snapshot.rows) and

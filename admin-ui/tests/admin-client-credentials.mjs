@@ -209,6 +209,65 @@ assert.notEqual(
 );
 assert.match(ordinaryTransportFailure.message, /\[REDACTED\]/);
 
+// A 307 must remain a first-hop response. A fetch adapter that sees anything
+// but manual mode models the platform default by recording the credential at
+// the hostile target; the hardened client never lets that branch run.
+const redirectRequests = [];
+fetchOverride = async (url, options) => {
+  redirectRequests.push({ url, options });
+  if (options.redirect !== 'manual') {
+    redirectRequests.push({
+      url: 'https://redirect-target.invalid/replayed',
+      options,
+    });
+    return response(200, { replayed: true });
+  }
+  return {
+    ok: false,
+    status: 307,
+    type: 'basic',
+    headers: { get: () => null },
+    body: { cancel: async () => {} },
+    async text() { assert.fail('redirect bodies are not materialized'); },
+  };
+};
+const redirectFailure = await captureFailure(() => headless.inspect());
+assert.equal(redirectFailure.code, 'SNAPBACK_REDIRECT_REFUSED');
+assert.deepEqual(redirectFailure.diagnostic.details, { status: 307 });
+assert.equal(redirectRequests.length, 1, 'the admin credential is sent to one origin only');
+assert.equal(redirectRequests[0].options.redirect, 'manual');
+assert.equal(
+  redirectRequests.some(({ url }) => url.startsWith('https://redirect-target.invalid')),
+  false,
+  'the admin credential is never replayed to the redirect target',
+);
+
+fetchOverride = async (_url, options) => {
+  assert.equal(options.redirect, 'manual', 'credentialed happy paths retain the redirect fence');
+  return response(200, { ok: true });
+};
+assert.deepEqual(await headless.inspect(), { ok: true }, 'ordinary 2xx admin responses are unchanged');
+
+let oversizedBodyCancelled = false;
+fetchOverride = async () => ({
+  ok: true,
+  status: 200,
+  headers: {
+    get(name) {
+      return name === 'content-length' ? String(64 * 1024 * 1024 + 1) : null;
+    },
+  },
+  body: { cancel: async () => { oversizedBodyCancelled = true; } },
+  async text() { assert.fail('oversized admin responses are rejected before materialization'); },
+});
+const oversizedFailure = await captureFailure(() => headless.inspect());
+assert.equal(oversizedFailure.code, 'SNAPBACK_INGRESS_LIMIT_EXCEEDED');
+assert.deepEqual(oversizedFailure.diagnostic.details, {
+  ingressClass: 'admin',
+  limitBytes: 64 * 1024 * 1024,
+});
+assert.equal(oversizedBodyCancelled, true);
+
 fetchOverride = async () => ({
   ok: false,
   status: 502,

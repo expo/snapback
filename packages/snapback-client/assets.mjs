@@ -244,6 +244,45 @@ function transferError(status) {
   return error;
 }
 
+function redirectRefusedError(status) {
+  const message = 'redirects on credential-carrying requests are terminal';
+  const error = new Error(`SNAPBACK_REDIRECT_REFUSED: ${message}`);
+  error.code = 'SNAPBACK_REDIRECT_REFUSED';
+  error.diagnostic = Object.freeze({
+    code: error.code,
+    message,
+    details: Object.freeze({ status: typeof status === 'number' ? status : null }),
+  });
+  return error;
+}
+
+// 304 is a cache validator, not a redirect; every member below names another
+// hop that must not receive the original request's bearer.
+const REDIRECT_STATUSES = new Set([300, 301, 302, 303, 305, 307, 308]);
+const isRedirectResponse = (response) => (
+  response?.type === 'opaqueredirect' || REDIRECT_STATUSES.has(response?.status)
+);
+
+function hasAuthorizationHeader(headers) {
+  if (!headers) return false;
+  if (typeof headers.get === 'function') return headers.get('authorization') != null;
+  if (Array.isArray(headers)) {
+    return headers.some(([name]) => String(name).toLowerCase() === 'authorization');
+  }
+  return Object.keys(headers).some((name) => name.toLowerCase() === 'authorization');
+}
+
+function assetFetchInit(init) {
+  if (!hasAuthorizationHeader(init?.headers)) return init;
+  return { ...init, redirect: 'manual' };
+}
+
+async function refuseCredentialRedirect(response, headers) {
+  if (!hasAuthorizationHeader(headers) || !isRedirectResponse(response)) return;
+  try { await response.body?.cancel?.(); } catch { /* the refusal owns cleanup */ }
+  throw redirectRefusedError(response.status);
+}
+
 function immutableDiagnosticValue(value, seen = new Map()) {
   if (value === null || typeof value !== 'object') return value;
   if (seen.has(value)) return seen.get(value);
@@ -824,7 +863,10 @@ export class SnapbackAssetClient {
     this.#client = client;
     this.#taskStore = taskStore ?? createMemoryAssetTaskStore();
     this.#chunkBytes = chunkBytes;
-    this.#fetch = fetchOverride ?? ((...args) => fetch(...args));
+    // @ref LLP 0062#4-auth-the-existing-model-projected--with-explicit-selection —
+    // the default adapter is itself a last-line redirect fence for every
+    // bearer-carrying asset request.
+    this.#fetch = fetchOverride ?? ((input, init) => fetch(input, assetFetchInit(init)));
     if (typeof this.#client.registerAuthMaterialization === 'function') {
       this.#client.registerAuthMaterialization({
         capture: () => this.#issuedUrlAuthorityCapture,
@@ -934,11 +976,12 @@ export class SnapbackAssetClient {
       'content-type': 'application/json',
       ...this.#custodyHeaders(userId, authorityCapture, externalTransportGeneration),
     };
-    const response = await this.#fetch(`${this.#client.baseUrl}${path}`, {
+    const response = await this.#fetch(`${this.#client.baseUrl}${path}`, assetFetchInit({
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    }));
+    await refuseCredentialRedirect(response, headers);
     const text = await response.text();
     const value = text.length > 0 ? JSON.parse(text) : null;
     if (!response.ok) {
@@ -1299,20 +1342,22 @@ export class SnapbackAssetClient {
     try {
       if (state.offset === null) {
         // Resume: the acknowledged offset is the server's fact.
+        const headers = {
+          'tus-resumable': TUS_VERSION,
+          ...this.#custodyHeaders(
+            state.userId,
+            state.authorityCapture,
+            state.externalTransportGeneration,
+          ),
+        };
         const head = await this.#fetch(
           `${this.#client.baseUrl}${state.transfer.uploadUrl}`,
-          {
+          assetFetchInit({
             method: 'HEAD',
-            headers: {
-              'tus-resumable': TUS_VERSION,
-              ...this.#custodyHeaders(
-                state.userId,
-                state.authorityCapture,
-                state.externalTransportGeneration,
-              ),
-            },
-          },
+            headers,
+          }),
         );
+        await refuseCredentialRedirect(head, headers);
         if (!head.ok) {
           throw transferError(head.status);
         }
@@ -1344,26 +1389,28 @@ export class SnapbackAssetClient {
         const bytes = await chunkBytesOf(state.file.slice(state.offset, end));
         const controller = new AbortController();
         task._bindAbort(controller);
+        const headers = {
+          'tus-resumable': TUS_VERSION,
+          'content-type': 'application/offset+octet-stream',
+          'upload-offset': String(state.offset),
+          // The conformance requirement: every PATCH carries a checksum.
+          'upload-checksum': `sha256 ${sha256Base64(bytes)}`,
+          ...this.#custodyHeaders(
+            state.userId,
+            state.authorityCapture,
+            state.externalTransportGeneration,
+          ),
+        };
         const response = await this.#fetch(
           `${this.#client.baseUrl}${state.transfer.uploadUrl}`,
-          {
+          assetFetchInit({
             method: 'PATCH',
             signal: controller.signal,
-            headers: {
-              'tus-resumable': TUS_VERSION,
-              'content-type': 'application/offset+octet-stream',
-              'upload-offset': String(state.offset),
-              // The conformance requirement: every PATCH carries a checksum.
-              'upload-checksum': `sha256 ${sha256Base64(bytes)}`,
-              ...this.#custodyHeaders(
-                state.userId,
-                state.authorityCapture,
-                state.externalTransportGeneration,
-              ),
-            },
+            headers,
             body: bytes,
-          },
+          }),
         );
+        await refuseCredentialRedirect(response, headers);
         if (!response.ok) {
           throw transferError(response.status);
         }

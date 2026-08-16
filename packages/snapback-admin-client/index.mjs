@@ -15,6 +15,7 @@ const REACHABILITY_STORAGE_PREFIX = 'snapback_reachability_credential_v1:';
 const REACHABILITY_INDEX_KEY = 'snapback_reachability_sessions_v1';
 const LEGACY_MASTER_STORAGE_KEY = 'snapback_admin_token';
 const CREDENTIAL_REDACTION = '[REDACTED]';
+const ADMIN_RESPONSE_LIMIT_BYTES = 64 * 1024 * 1024;
 
 export class AdminClient {
   constructor(baseUrl, { token } = {}) {
@@ -215,6 +216,7 @@ export class AdminClient {
       headers['x-snapback-secret-read-lease'] = this.secretReadLease;
     }
     if (body !== undefined) headers['content-type'] = 'application/json';
+    const credentialed = collectAdminSecrets(body, headers).size > 0;
     const requestSecrets = collectAdminSecrets(body, headers, this.#knownSecrets());
     let res;
     let text;
@@ -223,8 +225,23 @@ export class AdminClient {
         method,
         headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
+        // @ref LLP 0062#4-auth-the-existing-model-projected--with-explicit-selection —
+        // credential-bearing admin requests refuse redirects at the first hop;
+        // fetch's default follow mode could replay a 307/308 body and headers.
+        ...(credentialed ? { redirect: 'manual' } : {}),
       });
-      text = await res.text();
+    } catch (error) {
+      if (preserveCredentialResponse) {
+        throw opaqueCredentialResponseError();
+      }
+      throw sanitizeAdminError(error, requestSecrets);
+    }
+    if (credentialed && isRedirectResponse(res)) {
+      try { await res.body?.cancel?.(); } catch { /* the refusal owns cleanup */ }
+      throw redirectRefusedError(res.status);
+    }
+    try {
+      text = await readBoundedAdminResponseText(res);
     } catch (error) {
       if (preserveCredentialResponse) {
         throw opaqueCredentialResponseError();
@@ -771,6 +788,72 @@ function guideTransportError(code, message) {
   error.code = code;
   error.diagnostic = { code, message };
   return error;
+}
+
+function redirectRefusedError(status) {
+  const message = 'redirects on credential-carrying requests are terminal';
+  const error = new Error(`SNAPBACK_REDIRECT_REFUSED: ${message}`);
+  error.code = 'SNAPBACK_REDIRECT_REFUSED';
+  error.diagnostic = Object.freeze({
+    code: error.code,
+    message,
+    details: Object.freeze({ status: typeof status === 'number' ? status : null }),
+  });
+  return error;
+}
+
+// 304 is a cache validator, not a redirect; every member below names another
+// hop that must not receive the original request's credential.
+const REDIRECT_STATUSES = new Set([300, 301, 302, 303, 305, 307, 308]);
+const isRedirectResponse = (response) => (
+  response?.type === 'opaqueredirect' || REDIRECT_STATUSES.has(response?.status)
+);
+
+function adminResponseLimitExceededError() {
+  const message = `admin response exceeds the ${ADMIN_RESPONSE_LIMIT_BYTES}-byte decoded ingress bound`;
+  const error = new Error(`SNAPBACK_INGRESS_LIMIT_EXCEEDED: ${message}`);
+  error.code = 'SNAPBACK_INGRESS_LIMIT_EXCEEDED';
+  error.diagnostic = Object.freeze({
+    code: error.code,
+    message,
+    details: Object.freeze({
+      ingressClass: 'admin',
+      limitBytes: ADMIN_RESPONSE_LIMIT_BYTES,
+    }),
+  });
+  return error;
+}
+
+async function readBoundedAdminResponseText(response) {
+  const declared = Number(response.headers?.get?.('content-length') ?? NaN);
+  if (Number.isFinite(declared) && declared > ADMIN_RESPONSE_LIMIT_BYTES) {
+    try { await response.body?.cancel?.(); } catch { /* the refusal owns cleanup */ }
+    throw adminResponseLimitExceededError();
+  }
+  const body = response.body;
+  if (!body || typeof body.getReader !== 'function') {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > ADMIN_RESPONSE_LIMIT_BYTES) {
+      throw adminResponseLimitExceededError();
+    }
+    return text;
+  }
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let receivedBytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    receivedBytes += value?.byteLength ?? value?.length ?? 0;
+    if (receivedBytes > ADMIN_RESPONSE_LIMIT_BYTES) {
+      try { await reader.cancel(); } catch { /* bounded refusal owns cleanup */ }
+      throw adminResponseLimitExceededError();
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  text += decoder.decode();
+  return text;
 }
 
 function opaqueCredentialResponseError() {
