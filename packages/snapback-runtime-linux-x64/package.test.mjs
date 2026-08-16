@@ -804,6 +804,25 @@ if (existsSync(binary) || existsSync(hermes)) {
       assert(sealedArtifactPaths.has(`lib/${name}`));
     }
   }
-  assert.equal(resolveRuntimeBinary().binary, binary);
+  // The repository-linked CLI and an installed CLI are distinct custody
+  // shapes. The former must reopen the release binary's sibling source
+  // receipt; the latter must independently reopen this package-owned seal.
+  // @ref LLP 0010#native-runtime-bootstrap — source-checkout resolution never
+  // accepts a package seal in place of the sibling release-binary receipt.
+  const sourceRuntime = resolveRuntimeBinary();
+  assert.equal(
+    sourceRuntime.binary,
+    fileURLToPath(new URL('../../target/release/snapback', import.meta.url)),
+  );
+  assert.equal(sourceRuntime.source, 'source-checkout');
+
+  // Passing a non-CLI package root models the topology of a packed/installed
+  // CLI, which has no owning source checkout and must select the sealed
+  // platform package.
+  // @ref LLP 0123#package-seal-landing-2026-08-06 — installed resolution
+  // reopens the immutable package-owned seal before returning the binary.
+  const installedRuntime = resolveRuntimeBinary({ cliPackageRoot: packageRoot });
+  assert.equal(installedRuntime.binary, binary);
+  assert.equal(installedRuntime.source, PACKAGE_NAME);
 }
 console.log('package.test.mjs: Linux x64 portability + attestation v3 + non-destructive staged assembly pass');

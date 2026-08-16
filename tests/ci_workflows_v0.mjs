@@ -462,6 +462,40 @@ const coldClone = readFileSync(join(workflowDir, 'all-aboard-cold-clone.yml'), '
 assertExactHermesCache(coldClone, 'all-aboard-cold-clone');
 const linuxRuntimePackage = readFileSync(join(workflowDir, 'linux-runtime-package.yml'), 'utf8');
 assertExactHermesCache(linuxRuntimePackage, 'linux-runtime-package');
+// @ref LLP 0010#native-runtime-bootstrap — the fresh release build is a
+// source-custody binary until package assembly copies and separately seals it.
+const linuxReleaseBuildIndex = linuxRuntimePackage.indexOf(
+  'SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback',
+);
+const linuxSourceReceiptIssueIndex = linuxRuntimePackage.indexOf(
+  'node packages/snapback-cli/runtime-readiness.mjs issue',
+);
+const linuxSourceLoaderClosureIndex = linuxRuntimePackage.indexOf(
+  'cp vendor/ibex/linux/lib/libhermesvm.so target/lib/libhermesvm.so',
+);
+const linuxSourceReceiptVerifyIndex = linuxRuntimePackage.indexOf(
+  'node packages/snapback-cli/runtime-readiness.mjs verify',
+);
+const linuxPackagePreparationIndex = linuxRuntimePackage.indexOf(
+  'node packages/snapback-runtime-linux-x64/prepare-runtime.mjs',
+);
+const linuxPackageTestIndex = linuxRuntimePackage.indexOf(
+  'node packages/snapback-runtime-linux-x64/package.test.mjs',
+);
+assert(
+  linuxReleaseBuildIndex >= 0
+    && linuxSourceLoaderClosureIndex > linuxReleaseBuildIndex
+    && linuxSourceReceiptIssueIndex > linuxSourceLoaderClosureIndex
+    && linuxSourceReceiptVerifyIndex > linuxSourceReceiptIssueIndex
+    && linuxPackagePreparationIndex > linuxSourceReceiptVerifyIndex
+    && linuxPackageTestIndex > linuxPackagePreparationIndex,
+  'Linux runtime workflow must stage the loader-relative source closure, then issue and reopen the exact release binary sibling receipt before package preparation and tests',
+);
+assert.match(
+  linuxRuntimePackage,
+  /--binary "\$GITHUB_WORKSPACE\/target\/release\/snapback"[\s\S]*--issuer linux-runtime-package-source-release/u,
+  'Linux runtime workflow must bind source qualification to target/release/snapback with a named issuer',
+);
 assert.match(
   linuxRuntimePackage,
   /snapback-package-cold-install\.mjs/,

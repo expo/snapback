@@ -76,6 +76,24 @@ jobs:
           scripts/bootstrap-ibex-runtime
           bun run --cwd admin-ui build
           SNAPBACK_BUILD_DISTRIBUTION=public-package cargo build --release --bin snapback
+
+      # @ref LLP 0010#native-runtime-bootstrap — the linked source CLI selects
+      # this exact release binary and therefore requires its own sibling
+      # receipt; the staged package seal remains separate custody.
+      - name: Qualify and reopen the release source runtime receipt
+        run: |
+          mkdir -p target/lib
+          cp vendor/ibex/linux/lib/libhermesvm.so target/lib/libhermesvm.so
+          node packages/snapback-cli/runtime-readiness.mjs issue \
+            --root "$GITHUB_WORKSPACE" \
+            --binary "$GITHUB_WORKSPACE/target/release/snapback" \
+            --issuer linux-runtime-package-source-release
+          node packages/snapback-cli/runtime-readiness.mjs verify \
+            --root "$GITHUB_WORKSPACE" \
+            --binary "$GITHUB_WORKSPACE/target/release/snapback"
+
+      - name: Prepare and test the sealed Linux runtime package
+        run: |
           node packages/snapback-runtime-linux-x64/prepare-runtime.mjs
           node packages/snapback-runtime-linux-x64/package.test.mjs
           status="$(git status --porcelain --untracked-files=all)"
