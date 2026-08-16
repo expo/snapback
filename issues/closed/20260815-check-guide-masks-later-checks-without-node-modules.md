@@ -59,3 +59,41 @@ turns on exactly this distinction — inherited reds proceed, introduced content
 reds block. A gate that cannot distinguish them pushes that judgement onto each
 agent, and at least one agent in this run got it wrong in the direction that
 would have landed a regression.
+
+## Resolution (2026-08-15)
+
+Updated `scripts/check-guide.mjs` to execute every selected sub-check through a
+result collector and print one complete status list. Checks now report `PASS`,
+`FAILED`, `SKIPPED (dependency unavailable)`, or `PRECONDITION`; skips and
+preconditions keep the overall exit nonzero. The runner resolves its required
+`typescript` and `ajv` packages before the first check and prints one top-level
+environment precondition with `bun install --frozen-lockfile` when
+`node_modules` or either package is unavailable. Missing gitignored
+`competitive-checkpoint` / `todo-v2` sources are classified as generated-demo
+preconditions rather than content errors, and later independent checks still
+run.
+
+Evidence:
+
+```text
+$ node scripts/check-guide.mjs
+[guide-check] PASS — guide manifest and MCP projection
+[guide-check] PASS — guide flat projections
+[guide-check] ok — 18 passed, 0 failed, 0 skipped, 0 preconditions; 140 pages, 1524 snippets, 171 routes + 51 host-ops joined, 80 warnings
+```
+
+With `node_modules` temporarily moved aside and restored after the run:
+
+```text
+[guide-check] environment precondition: node_modules is absent; run `bun install --frozen-lockfile`
+[guide-check] SKIPPED (dependency unavailable: typescript) — symbol registry
+[guide-check] SKIPPED (dependency unavailable: ajv) — control-catalog Guide projection
+[guide-check] PASS — guide manifest and MCP projection
+[guide-check] PASS — guide flat projections
+[guide-check] FAILED — 16 passed, 0 failed, 2 skipped, 0 preconditions; 140 pages, 1524 snippets, 171 routes + 51 host-ops joined, 80 warnings
+```
+
+Before materializing the ignored demo outputs, the same runner reported
+`PRECONDITION (generated demo artifacts unavailable)` for the corpus/snippet/
+manifest checks while still reporting every later independent check. The 80
+authority-freshness findings are the checker's existing warning-only output.
