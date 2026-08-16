@@ -1,0 +1,34 @@
+{
+  "name": "snapback-media-happy-post-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "expo/AppEntry",
+  "scripts": {
+    "generate": "node ../../packages/snapback-codegen/index.mjs snapback",
+    "smoke": "node scripts/smoke-generated.mjs",
+    "start": "expo start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@expo/snapback-client": "file:.snapback/local-source-packages/client.332a94db82198a202cc325a550037750934c03abfe1c6d5aa807a9a9f65279e4.tgz",
+    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.da69d3ca52ea7f4bc556aa3e6467293e95f53764a5072fd680a2c3165f33c920.tgz",
+    "@expo/snapback-react": "file:.snapback/local-source-packages/react.225f1d5ad2b31b80fc997216944b8dc73037b9d01efcf570c97d57ff28c63e9d.tgz",
+    "expo": "~57.0.7",
+    "expo-crypto": "~57.0.1",
+    "expo-file-system": "~57.0.1",
+    "expo-image-picker": "~57.0.7",
+    "react": "19.2.3",
+    "react-native": "0.86.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.0",
+    "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "@expo/snapback-client": "file:.snapback/local-source-packages/client.332a94db82198a202cc325a550037750934c03abfe1c6d5aa807a9a9f65279e4.tgz",
+    "@expo/snapback-contract": "file:.snapback/local-source-packages/contract.aed22903b52a14bcc879a33b7f1999eb6479b527dbf278433d5b94120fc23666.tgz",
+    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.da69d3ca52ea7f4bc556aa3e6467293e95f53764a5072fd680a2c3165f33c920.tgz",
+    "@expo/snapback-react": "file:.snapback/local-source-packages/react.225f1d5ad2b31b80fc997216944b8dc73037b9d01efcf570c97d57ff28c63e9d.tgz"
+  }
+}

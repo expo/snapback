@@ -1,0 +1,61 @@
+{
+  "id": "media-happy-post",
+  "title": "Media Happy Post — owner-scoped Expo media feed",
+  "description": "A minimal Expo SDK 57 acceptance vehicle for owner-scoped profile avatars and ordered image/video post collections through generated Snapback media commands and delivery hooks.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Assets", "Storage", "Auth", "Realtime", "React/Expo", "Codegen", "Developer experience"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "sessions",
+    "assetLifecycle": true,
+    "assetImagePipeline": true,
+    "assetDeliveryProfiles": ["private-strict"],
+    "liveSubscriptions": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/seed.json",
+    "codegen": "bun run --cwd demos/media-happy-post generate",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "seed": {
+    "file": "snapback/seed.json"
+  },
+  "surfaces": {
+    "expo": {
+      "requirement": "integration",
+      "buildTargets": ["ios", "android"],
+      "entrypoint": "App.tsx",
+      "runner": "node scripts/dev-server.mjs --reset",
+      "toolchain": "node>=24, cargo, bun, Expo Go"
+    }
+  },
+  "acceptanceChecks": {
+    "expo": [
+      "two development-only session personas sign in to isolated owner-principal feeds",
+      "an image picker updates the profile avatar through v.media and useSnapbackMedia",
+      "a multi-select image/video picker drives the generated createPost command with per-item progress",
+      "text-only posts commit with no media input",
+      "postMediaList and useSnapbackMediaCollection render ordered sibling-local delivery states"
+    ]
+  },
+  "capabilityGaps": [
+    "physical-device reachability is an operator-run source path, not a receipt produced by this phase",
+    "video items are labeled delivery tiles; playback is intentionally not claimed",
+    "LAN binding is an unsupported local-development workaround"
+  ],
+  "capabilityGapsBoundary": {
+    "status": "current-demo-scope",
+    "asOf": "2026-08-16",
+    "authority": "guide/capabilities.md",
+    "reason": "These entries are explicit boundaries of this source acceptance vehicle, not platform GAP rows."
+  },
+  "notClaiming": [
+    "production authentication",
+    "hosted deployment",
+    "video playback",
+    "a physical-device run in this phase"
+  ]
+}

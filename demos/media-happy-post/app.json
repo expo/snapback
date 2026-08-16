@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Snapback Media Post",
+    "slug": "snapback-media-happy-post",
+    "version": "1.0.0",
+    "platforms": ["ios", "android"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": ["@expo/snapback-expo", "expo-image-picker"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.snapback.mediahappypost",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.snapback.mediahappypost",
+      "usesCleartextTraffic": true
+    }
+  }
+}

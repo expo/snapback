@@ -39,6 +39,7 @@ rows in `guide/capabilities.md`, the current capability truth.
 | `fleet-observatory-move1` | One mixed snapshot-batch.v2 composite route over 250,000 protected events | none declared (web app + `tests/`; workload-manifest.2026-08-06.v1.json) | yes |
 | `graffiti` | Shared pixel wall: durable last-writer-wins marks over live queries plus TTL ephemeral cursor presence | headless/widget (required), contract (optional), macosNative (blocked), react (absent — historical scoping) | yes |
 | `latency-kanban` | Generated-IR optimistic paint, Lane-L settlement, observer convergence, loss-free retained replay | none declared (web app + `tests/`) | yes |
+| `media-happy-post` | Owner-scoped Expo avatar and ordered image/video posts through generated media commands and delivery hooks | expo (ios/android integration) | yes |
 | `messaging-snapback` | Expo Router messaging app: DMs, groups, text/image messages, reactions, reply previews, live typing | expo (ios/android/web), headless acceptance | yes |
 | `partiful-matrix` | Partitime: one event/RSVP/wall contract as a 3×4 matrix across React/Contract/vanilla JS and four backends | headless (required) + 16 integration arms | yes |
 | `party-wall` | Full asset-pipeline consumer: strip-declared photo uploads, required variants, ctx.assets.attach, RBAC'd live wall | headless (required), react (integration) | yes |

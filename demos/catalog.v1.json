@@ -187,6 +187,19 @@
       "documentation": { "status": "contract", "path": "demos/latency-kanban/README.md" }
     },
     {
+      "id": "media-happy-post",
+      "directory": "demos/media-happy-post",
+      "teaches": "A minimal Expo SDK 57 acceptance vehicle for owner-scoped profile avatars and ordered image/video post collections through generated Snapback media commands and delivery hooks.",
+      "clients": ["expo"],
+      "targets": ["local"],
+      "maturity": "integration",
+      "run": "node demos/media-happy-post/scripts/dev-server.mjs --reset",
+      "proof": "bun run --cwd demos/media-happy-post typecheck",
+      "expectedEvidence": "A generated-app smoke pass and strict Expo TypeScript pass; the physical-device run remains operator-owned.",
+      "evidence": ["demos/media-happy-post/scripts/smoke-generated.mjs"],
+      "documentation": { "status": "contract", "path": "demos/media-happy-post/README.md" }
+    },
+    {
       "id": "messaging-snapback",
       "directory": "demos/messaging-snapback",
       "teaches": "An Expo Router SDK 57 messaging app backed by Snapback: DMs, groups, image messages, reactions, reply previews, live typing, and a Sessions-mode headless witness for recipient-bound view-once asset grants.",
