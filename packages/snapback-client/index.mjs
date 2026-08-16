@@ -5230,7 +5230,7 @@ export class SnapbackClient {
         // custody header accompanies only body-installed dev authority and
         // the connection grant that witnesses later identity-bearing frames.
         ...(!admin && devIdentityCapabilityFor(this) && (
-          path === '/connection/open' || carriesClientAssertedDevIdentity(requestBody)
+          path === '/connection/open' || carriesClientAssertedDevIdentity(wireBody)
         ) ? { [DEV_IDENTITY_HEADER]: devIdentityCapabilityFor(this) } : {}),
       };
       const connectionGrantToken = merged[CONNECTION_TOKEN_HEADER] ?? null;

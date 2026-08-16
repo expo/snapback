@@ -29,7 +29,7 @@ const EXPECTED = {
 writeFileSync(fixture, String.raw`
 const { randomUUID } = require('node:crypto');
 const { spawn } = require('node:child_process');
-const { chmodSync, writeFileSync, renameSync } = require('node:fs');
+const { chmodSync, realpathSync, writeFileSync, renameSync } = require('node:fs');
 const { createServer } = require('node:http');
 const { resolve } = require('node:path');
 // Positional (legacy launchSpec style: <readyFile> [port]) or flag style
@@ -101,18 +101,19 @@ const listen = () => server.listen(bindPort, '127.0.0.1', () => {
     writeFileSync(descriptor.impersonationCapabilityFile, 'sbic_fixture_capability.1234abcd');
   }
   if (process.env.FIXTURE_DEV_IDENTITY === '1') {
-    descriptor.devIdentityCapabilityFile = database === null
+    const devIdentityCapabilityFile = database === null
       ? readyFile + '.dev-identity'
       : resolve(database) + '.dev-identity';
     writeFileSync(
-      descriptor.devIdentityCapabilityFile,
+      devIdentityCapabilityFile,
       'sbdev_fixture_capability',
       { mode: 0o600 },
     );
     chmodSync(
-      descriptor.devIdentityCapabilityFile,
+      devIdentityCapabilityFile,
       Number.parseInt(process.env.FIXTURE_DEV_IDENTITY_MODE || '0600', 8),
     );
+    descriptor.devIdentityCapabilityFile = realpathSync(devIdentityCapabilityFile);
   }
   writeFileSync(tmp, JSON.stringify(descriptor));
   renameSync(tmp, readyFile);

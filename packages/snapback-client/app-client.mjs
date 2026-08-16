@@ -8,7 +8,10 @@ import {
 } from '@expo/snapback-contract/auth-custody-indexeddb';
 
 import { snapbackDiagnosticError } from './diagnostic-error.mjs';
-import { installDevIdentityCapability } from './dev-identity-capability.mjs';
+import {
+  installDevIdentityCapability,
+  validateDevIdentityCapability,
+} from './dev-identity-capability.mjs';
 import { SnapbackClient } from './index.mjs';
 
 export const DEFAULT_AUTH_STORAGE_PARTITION = 'default';
@@ -1393,12 +1396,23 @@ export async function __adoptSupervisedBootstrapAuthority(
   if (owner.entryInFlight) return Object.freeze({ status: 'dropped' });
   return serializeOwner(owner, async () => {
     if (owner.entryInFlight) return Object.freeze({ status: 'dropped' });
+    const carriesDevIdentityCapability = Object.hasOwn(
+      clientOptions,
+      'devIdentityCapability',
+    );
+    const devIdentityCapability = carriesDevIdentityCapability
+      ? validateDevIdentityCapability(clientOptions.devIdentityCapability)
+      : null;
+    if (
+      devIdentityCapability !== null
+      && ['browser', 'expo-web'].includes(owner.platform.kind)
+    ) {
+      throw new TypeError(
+        `raw devIdentityCapability installation is refused on ${owner.platform.kind}`,
+      );
+    }
     owner.ownerTransitionInFlight = true;
     try {
-      installDevIdentityCapability(
-        owner.client,
-        clientOptions.devIdentityCapability ?? null,
-      );
       let allowSameAuthorityRotation = false;
       if (owner.supervisedAdoptionCapture !== null) {
         try {
@@ -1423,6 +1437,9 @@ export async function __adoptSupervisedBootstrapAuthority(
       if (result.status === 'adopted') {
         owner.supervisedAdoptionCapture = result.capture;
         owner.authoritySource = 'supervised-development';
+      }
+      if (carriesDevIdentityCapability) {
+        installDevIdentityCapability(owner.client, devIdentityCapability);
       }
       // A restored/application authority that happens to name the same
       // principal remains protected; equality does not create a process-local

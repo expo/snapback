@@ -1009,7 +1009,11 @@ function readSpawnedDevIdentityCapability(ready, readyFile, database, cwd) {
   const expected = database === ':memory:'
     ? `${readyFile}.dev-identity`
     : `${resolve(cwd, database)}.dev-identity`;
-  if (resolve(cwd, advertised) !== resolve(expected)) {
+  const canonicalLeaf = (path) => {
+    const resolved = resolve(cwd, path);
+    return existsSync(resolved) ? realpathSync(resolved) : resolved;
+  };
+  if (canonicalLeaf(advertised) !== canonicalLeaf(expected)) {
     throw new Error('snapback ready file does not name its dev-identity sidecar on the anchor ladder');
   }
   const metadata = lstatSync(expected);

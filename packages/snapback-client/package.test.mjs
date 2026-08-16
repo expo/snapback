@@ -1112,6 +1112,29 @@ assert.equal(appStateListeners.size, 0);
     assert(requests.every(({ init }) => (
       new Headers(init.headers).get('x-snapback-dev-identity') === null
     )), 'unset capability preserves the legacy header absence');
+
+    requests.length = 0;
+    const sessionsClient = createExternalSessionClient('http://snapback.test', {
+      bearerToken: 'sbs_dev_identity_sessions_fixture',
+      devIdentityCapability: capability,
+      rqsStore: null,
+    });
+    sessionsClient.authSession = async () => ({
+      activeMode: 'sessions',
+      availability: { onlineRequestResponse: { available: true, reason: null } },
+    });
+    await sessionsClient.query('listTodos', { userId: 'stripped_user_fixture' });
+    const [{ init: strippedInit }] = requests;
+    assert.equal(
+      JSON.parse(strippedInit.body).auth,
+      undefined,
+      'sessions mode strips the client-asserted identity from the wire body',
+    );
+    assert.equal(
+      new Headers(strippedInit.headers).get('x-snapback-dev-identity'),
+      null,
+      'an assertion stripped from the wire does not carry the dev capability',
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

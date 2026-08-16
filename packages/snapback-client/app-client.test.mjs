@@ -1221,31 +1221,122 @@ test('supervised adoption installs and rotates private dev-identity custody on t
   const firstCapability = 'sbdev_app_client_first';
   const rotatedCapability = 'sbdev_app_client_rotated';
   try {
+    server.respond('/connection/open', ({ body }) => Response.json({
+      connectionId: body.connectionId,
+      connectionToken: `sct_${body.connectionId}`,
+      wireVersion: 'snapback.v1',
+    }));
     assert.equal((await __adoptSupervisedBootstrapAuthority(appClient, {
       bearer: SUPERVISED_BEARER,
       binding: makeBinding(app),
       clientOptions: { devIdentityCapability: firstCapability },
     })).status, 'adopted');
-    server.respond('/query/devIdentityProbe', () => Response.json({ rows: [], version: 1 }));
-    await appClient.client.query('devIdentityProbe', { userId: USER });
-    const query = server.requests.findLast(({ path }) => path === '/query/devIdentityProbe');
-    assert.equal(query.devIdentityCapability, firstCapability);
+    await appClient.client.connectionGrant('app-client-dev-identity-first');
+    const firstOpen = server.requests.findLast(({ path }) => path === '/connection/open');
+    assert.equal(firstOpen.devIdentityCapability, firstCapability);
 
     assert.equal((await __adoptSupervisedBootstrapAuthority(appClient, {
       bearer: ROTATED_BEARER,
       binding: makeBinding(app),
       clientOptions: { devIdentityCapability: rotatedCapability },
     })).status, 'rebound');
-    server.respond('/connection/open', ({ body }) => Response.json({
-      connectionId: body.connectionId,
-      connectionToken: 'sct_app_client_dev_identity',
-      wireVersion: 'snapback.v1',
-    }));
-    await appClient.client.connectionGrant('app-client-dev-identity');
+    await appClient.client.connectionGrant('app-client-dev-identity-rotated');
     const open = server.requests.findLast(({ path }) => path === '/connection/open');
     assert.equal(open.devIdentityCapability, rotatedCapability);
   } finally {
     await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('supervised adoption omission preserves live dev-identity custody', async () => {
+  const server = installServer();
+  const app = makeApp();
+  const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    storagePartition: 'dev-identity-omission',
+  }));
+  const capability = 'sbdev_app_client_retained';
+  try {
+    server.respond('/connection/open', ({ body }) => Response.json({
+      connectionId: body.connectionId,
+      connectionToken: 'sct_app_client_dev_identity_retained',
+      wireVersion: 'snapback.v1',
+    }));
+    assert.equal((await __adoptSupervisedBootstrapAuthority(appClient, {
+      bearer: SUPERVISED_BEARER,
+      binding: makeBinding(app),
+      clientOptions: { devIdentityCapability: capability },
+    })).status, 'adopted');
+    assert.equal((await __adoptSupervisedBootstrapAuthority(appClient, {
+      bearer: ROTATED_BEARER,
+      binding: makeBinding(app),
+    })).status, 'rebound');
+    await appClient.client.connectionGrant('app-client-dev-identity-retained');
+    const open = server.requests.findLast(({ path }) => path === '/connection/open');
+    assert.equal(open.devIdentityCapability, capability);
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('supervised adoption conflict does not mutate live dev-identity custody', async () => {
+  const server = installServer();
+  const app = makeApp();
+  const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+    storagePartition: 'dev-identity-conflict',
+  }));
+  const capability = 'sbdev_app_client_before_conflict';
+  try {
+    server.respond('/connection/open', ({ body }) => Response.json({
+      connectionId: body.connectionId,
+      connectionToken: 'sct_app_client_dev_identity_conflict',
+      wireVersion: 'snapback.v1',
+    }));
+    assert.equal((await __adoptSupervisedBootstrapAuthority(appClient, {
+      bearer: SUPERVISED_BEARER,
+      binding: makeBinding(app),
+      clientOptions: { devIdentityCapability: capability },
+    })).status, 'adopted');
+    assert.equal((await __adoptSupervisedBootstrapAuthority(appClient, {
+      bearer: PEER_BEARER,
+      binding: makeBinding(app),
+      clientOptions: { devIdentityCapability: 'sbdev_app_client_conflicting' },
+    })).status, 'conflict');
+    await appClient.client.connectionGrant('app-client-dev-identity-after-conflict');
+    const open = server.requests.findLast(({ path }) => path === '/connection/open');
+    assert.equal(open.devIdentityCapability, capability);
+  } finally {
+    await appClient.dispose();
+    server.restore();
+  }
+});
+
+test('supervised adoption refuses raw dev-identity custody on web platforms', async () => {
+  const server = installServer();
+  const app = makeApp();
+  const clients = [];
+  try {
+    for (const kind of ['browser', 'expo-web']) {
+      const appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+        platform: { kind, cryptoObject: webcrypto },
+        storagePartition: `dev-identity-${kind}`,
+      }));
+      clients.push(appClient);
+      const requestCount = server.requests.length;
+      await assert.rejects(
+        __adoptSupervisedBootstrapAuthority(appClient, {
+          bearer: SUPERVISED_BEARER,
+          binding: makeBinding(app),
+          clientOptions: { devIdentityCapability: `sbdev_app_client_${kind}` },
+        }),
+        new RegExp(`raw devIdentityCapability installation is refused on ${kind}`, 'u'),
+      );
+      assert.equal(server.requests.length, requestCount, 'web refusal precedes bearer adoption');
+      assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+    }
+  } finally {
+    await Promise.all(clients.map((client) => client.dispose()));
     server.restore();
   }
 });

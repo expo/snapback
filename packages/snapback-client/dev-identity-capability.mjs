@@ -1,6 +1,6 @@
 const capabilities = new WeakMap();
 
-const normalizeCapability = (capability) => {
+export const validateDevIdentityCapability = (capability) => {
   if (
     capability !== null
     && (typeof capability !== 'string' || capability.length === 0)
@@ -17,7 +17,7 @@ const normalizeCapability = (capability) => {
 // supervised app-client adoption seam. The bearer never becomes an own or
 // prototype property of the inspectable client object.
 export function installDevIdentityCapability(client, capability) {
-  capabilities.set(client, normalizeCapability(capability));
+  capabilities.set(client, validateDevIdentityCapability(capability));
 }
 
 export function devIdentityCapabilityFor(client) {
