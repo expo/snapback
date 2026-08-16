@@ -53,10 +53,12 @@ class CustodyProbeService : Service() {
     receiver?.send(0, Bundle().apply {
       putBoolean("attempted", attempted)
       putString("processName", processName)
+      putInt("servicePid", Process.myPid())
       putString("diagnosticCode", code)
       putString("diagnosticMessage", message)
     })
-    stopSelf(startId)
+    // Stay alive until the host has observed both main and :probe PIDs with
+    // adb shell ps. Harness cleanup force-stops the package after the proof.
     return START_NOT_STICKY
   }
 

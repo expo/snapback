@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { run } from './process.mjs';
+import { eventually, run, runToFileExclusive } from './process.mjs';
 
 function availableDevice(catalog, requested) {
   const devices = Object.entries(catalog.devices ?? {})
@@ -59,6 +59,21 @@ export async function createIosDevice({ appRoot, evidence, options }) {
   if (!existsSync(appPath)) {
     throw new Error(`P0/ios-artifact: app bundle not found at ${appPath}; remove --skip-build or pass --app-path`);
   }
+  evidence.writeArtifact(
+    'metro.log',
+    'Metro was not spawned: the iOS Release simulator build carries its bundled JavaScript.\n',
+  );
+
+  const processRow = async () => {
+    const output = await run('locate iOS probe process', 'xcrun', [
+      'simctl', 'spawn', device.udid, 'launchctl', 'list',
+    ], { cwd: appRoot });
+    const marker = `UIKitApplication:${options.bundleId}[`;
+    const line = output.split('\n').find((entry) => entry.includes(marker));
+    if (line === undefined) return null;
+    const pid = Number.parseInt(line.trim().split(/\s+/u)[0], 10);
+    return Number.isSafeInteger(pid) && pid > 0 ? Object.freeze({ pid, marker }) : null;
+  };
 
   const terminate = async () => {
     try {
@@ -95,19 +110,51 @@ export async function createIosDevice({ appRoot, evidence, options }) {
       ], { cwd: appRoot });
     },
     async kill({ midWrite = false } = {}) {
-      const output = await run('locate iOS probe process', 'xcrun', [
-        'simctl', 'spawn', device.udid, 'launchctl', 'list',
-      ], { cwd: appRoot });
-      const line = output.split('\n').find((entry) => entry.includes(options.bundleId));
-      const pid = line === undefined ? null : Number.parseInt(line.trim().split(/\s+/u)[0], 10);
-      if (!Number.isSafeInteger(pid) || pid <= 0) {
+      const row = await processRow();
+      if (row === null) {
         throw new Error(`P${midWrite ? '2' : '1'}/ios-kill: no PID for ${options.bundleId}`);
       }
-      process.kill(pid, 'SIGKILL');
+      let mechanism = 'xcrun simctl spawn kill -9';
+      try {
+        await run('SIGKILL iOS simulator app', 'xcrun', [
+          'simctl', 'spawn', device.udid, 'kill', '-9', String(row.pid),
+        ], { cwd: appRoot, timeoutMs: 15_000 });
+      } catch (error) {
+        if (!/(?:unable to spawn|no such file|not found|unsupported)/iu.test(error.message)) throw error;
+        process.kill(row.pid, 'SIGKILL');
+        mechanism = 'host kill -9 fallback (simctl spawn-kill unsupported)';
+      }
+      await eventually(async () => ((await processRow())?.pid === row.pid ? null : true),
+        `iOS PID ${row.pid} disappearance`, 10_000, 25);
+      return Object.freeze({ mechanism, pid: row.pid, verifiedGone: true, launchLabel: row.marker });
     },
     async screenshot(path) {
+      if (existsSync(path)) throw new Error(`P6/ios-screenshot: refusing to overwrite ${path}`);
       await run('iOS milestone screenshot', 'xcrun', ['simctl', 'io', device.udid, 'screenshot', path], {
         cwd: appRoot,
+      });
+    },
+    async captureDeviceLogs(path) {
+      return runToFileExclusive(
+        'capture iOS simulator log',
+        'xcrun',
+        [
+          'simctl', 'spawn', device.udid,
+          'log', 'show', '--last', '30m', '--style', 'compact',
+          '--predicate', 'process == "NativeCustodyProbes"',
+        ],
+        path,
+        { cwd: appRoot, timeoutMs: 120_000 },
+      );
+    },
+    async observeSecondaryProcess() {
+      throw new Error('P4/ios-processes: iOS extension evidence is externally supplied');
+    },
+    artifact() {
+      return Object.freeze({
+        kind: 'app-binary',
+        path: appPath,
+        binaryPath: join(appPath, 'NativeCustodyProbes'),
       });
     },
     async reinstallPreservingOsCustody() {

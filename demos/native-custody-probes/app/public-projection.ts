@@ -17,12 +17,19 @@ export function publicError(error: unknown) {
 
 export function publicCustodyFacts(record: SnapbackAuthCustodyRecord | null) {
   if (record === null) {
-    return Object.freeze({ revision: null, epoch: null, phase: null, bearerSha256: null });
+    return Object.freeze({
+      revision: null,
+      epoch: null,
+      phase: null,
+      bearerSha256: null,
+      principalId: null,
+    });
   }
   return Object.freeze({
     revision: record.revision,
     epoch: record.authorityEpoch,
     phase: record.phase,
     bearerSha256: sha256(record.bearer),
+    principalId: record.authority?.kind === 'session' ? record.authority.userId : null,
   });
 }

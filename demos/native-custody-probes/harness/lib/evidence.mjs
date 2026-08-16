@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import {
   appendFileSync,
   mkdirSync,
@@ -5,10 +6,14 @@ import {
   readdirSync,
   writeFileSync,
 } from 'node:fs';
-import { join, relative } from 'node:path';
+import { basename, join, relative } from 'node:path';
 
-export function calendarDate(now = new Date()) {
-  return now.toISOString().slice(0, 10).replaceAll('-', '');
+export function utcRunTimestamp(now = new Date()) {
+  return now.toISOString().replace(/[-:]/gu, '').replace(/\.\d{3}Z$/u, 'Z');
+}
+
+export function shortRunId() {
+  return randomBytes(4).toString('hex');
 }
 
 function canonical(value) {
@@ -23,23 +28,54 @@ export function jsonlFrame(value) {
   return `${JSON.stringify(canonical(value))}\n`;
 }
 
+function artifactName(name) {
+  if (typeof name !== 'string' || name.length === 0 || basename(name) !== name) {
+    throw new TypeError('evidence artifact names must be non-empty basenames');
+  }
+  return name;
+}
+
 export class EvidenceWriter {
-  constructor({ root, platform, date = calendarDate(), metadata = {} }) {
+  constructor({
+    root,
+    platform,
+    now = new Date(),
+    runId = shortRunId(),
+    metadata = {},
+  }) {
+    if (!/^[a-z0-9]{4,16}$/u.test(runId)) {
+      throw new TypeError('evidence runId must contain 4-16 lowercase letters or digits');
+    }
     this.platform = platform;
-    this.date = date;
-    this.directory = join(root, platform);
-    this.base = `${date}-phase2-${platform}`;
+    this.timestamp = utcRunTimestamp(now);
+    this.runId = runId;
+    this.base = `${this.timestamp}-${runId}-phase2-${platform}`;
+    this.directory = join(root, this.base);
     this.jsonlPath = join(this.directory, `${this.base}.jsonl`);
     this.markdownPath = join(this.directory, `${this.base}.md`);
-    this.metadata = { ...metadata };
+    this.metadata = { ...metadata, runId, runTimestampUtc: this.timestamp };
     this.records = [];
-    mkdirSync(this.directory, { recursive: true });
-    writeFileSync(this.jsonlPath, '', { mode: 0o600 });
+    mkdirSync(root, { recursive: true, mode: 0o700 });
+    // A run directory is an evidence identity. Reusing it is always a refusal,
+    // never permission to truncate or append to another run's artifacts.
+    mkdirSync(this.directory, { recursive: false, mode: 0o700 });
+    writeFileSync(this.jsonlPath, '', { flag: 'wx', mode: 0o600 });
+  }
+
+  pathFor(name) {
+    return join(this.directory, artifactName(name));
+  }
+
+  writeArtifact(name, contents) {
+    const path = this.pathFor(name);
+    writeFileSync(path, contents, { flag: 'wx', mode: 0o600 });
+    return path;
   }
 
   record(probe, step, { expected, observed, verdict, durationMs = null }) {
     const entry = Object.freeze({
       schemaVersion: 'snapback.native-custody-evidence.v1',
+      runId: this.runId,
       platform: this.platform,
       probe,
       step,
@@ -56,13 +92,13 @@ export class EvidenceWriter {
 
   setMetadata(values) { Object.assign(this.metadata, values); }
 
-  finalize({ overallVerdict, failure = null }) {
+  renderFinal({ overallVerdict, failure = null }) {
     const lines = [
       `# LLP 0258 Phase 2 native custody — ${this.platform}`,
       '',
-      `- Date: ${this.date}`,
+      `- Run: \`${this.base}\``,
       `- Overall verdict: **${overallVerdict}**`,
-      `- Evidence schema: \`snapback.native-custody-evidence.v1\``,
+      '- Evidence schema: `snapback.native-custody-evidence.v1`',
     ];
     for (const [key, value] of Object.entries(this.metadata)) {
       lines.push(`- ${key}: ${typeof value === 'string' ? value : `\`${JSON.stringify(value)}\``}`);
@@ -78,12 +114,17 @@ export class EvidenceWriter {
       '',
       '## Safety posture',
       '',
-      '- Bearers are projected only as SHA-256 digests inside the app process.',
-      '- Passwords and recovery codes are not written to this receipt or JSONL.',
-      '- Screenshots show only public probe status and typed diagnostic codes.',
+      '- Bearer and recovery-code literals cross only the one-shot in-memory scanner channel; evidence stores only public hashes/counts.',
+      '- Every run artifact, including host/device logs and raw PNG bytes, is scanned before this final verdict is written.',
+      '- Screenshot OCR is out of scope; screenshot state is verified from the app-rendered structural milestone report before capture.',
       '',
     );
-    writeFileSync(this.markdownPath, `${lines.join('\n')}\n`, { mode: 0o600 });
+    return `${lines.join('\n')}\n`;
+  }
+
+  finalize({ overallVerdict, failure = null, rendered = null }) {
+    const contents = rendered ?? this.renderFinal({ overallVerdict, failure });
+    writeFileSync(this.markdownPath, contents, { flag: 'wx', mode: 0o600 });
     return { jsonlPath: this.jsonlPath, markdownPath: this.markdownPath };
   }
 }
@@ -101,21 +142,31 @@ function filesUnder(root) {
   return files;
 }
 
-export function scanEvidenceForLeaks(root, { forbiddenLiterals = [] } = {}) {
+export function scanEvidenceForLeaks(root, {
+  forbiddenLiterals = [],
+  virtualFiles = [],
+} = {}) {
   const findings = [];
-  const exact = forbiddenLiterals.filter((value) => typeof value === 'string' && value.length > 0);
+  const exact = [...new Set(forbiddenLiterals)]
+    .filter((value) => typeof value === 'string' && value.length > 0);
   const forbiddenField = /"(?:bearer|password|recoveryCodes?|token|authorization)"\s*:/giu;
-  for (const file of filesUnder(root)) {
-    const bytes = readFileSync(file);
+  const candidates = [
+    ...filesUnder(root).map((file) => ({ name: relative(root, file), bytes: readFileSync(file) })),
+    ...virtualFiles.map(({ name, bytes }) => ({
+      name: artifactName(name),
+      bytes: Buffer.isBuffer(bytes) ? bytes : Buffer.from(String(bytes)),
+    })),
+  ];
+  for (const { name, bytes } of candidates) {
     for (const literal of exact) {
       if (bytes.includes(Buffer.from(literal))) {
-        findings.push({ file: relative(root, file), kind: 'literal', sha256Only: false });
+        findings.push({ file: name, kind: 'literal', sha256Only: false });
       }
     }
-    if (/\.(?:md|jsonl|json|txt)$/u.test(file)) {
+    if (/\.(?:md|jsonl|json|txt|log)$/u.test(name)) {
       const text = bytes.toString('utf8');
       for (const match of text.matchAll(forbiddenField)) {
-        findings.push({ file: relative(root, file), kind: 'forbidden-field', field: match[0].split('"')[1] });
+        findings.push({ file: name, kind: 'forbidden-field', field: match[0].split('"')[1] });
       }
     }
   }

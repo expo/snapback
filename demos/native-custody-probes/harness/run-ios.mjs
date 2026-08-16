@@ -12,6 +12,7 @@ const options = parseArgs(process.argv.slice(2), 'iOS', {
   udid: process.env.SNAPBACK_IOS_UDID ?? null,
   derivedData: process.env.SNAPBACK_IOS_DERIVED_DATA ?? null,
   appPath: process.env.SNAPBACK_IOS_APP_PATH ?? null,
+  iosExtensionEvidence: process.env.SNAPBACK_IOS_EXTENSION_EVIDENCE ?? null,
   email: null,
   password: null,
 });

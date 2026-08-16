@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
-import { eventually, run, spawnOwned, stopOwned } from './process.mjs';
+import { eventually, listenerPids, run, spawnOwned, stopOwned } from './process.mjs';
 
 async function portGuard(port) {
   const server = createNetServer();
@@ -51,7 +51,7 @@ async function staleOwnerCleanup(ownerFile, commandToken) {
   } catch { /* stale receipt or process already gone */ }
 }
 
-export async function startBackend({ repoRoot, demoRoot, platform, serverPort }) {
+export async function startBackend({ repoRoot, demoRoot, platform, serverPort, logPath = null }) {
   const backendRoot = join(demoRoot, 'snapback');
   const stateRoot = join(demoRoot, '.snapback', `native-custody-${platform}`);
   const ownerFile = join(stateRoot, 'harness-owner.json');
@@ -60,6 +60,19 @@ export async function startBackend({ repoRoot, demoRoot, platform, serverPort })
   const database = join(stateRoot, 'probe.sqlite3');
   mkdirSync(stateRoot, { recursive: true });
   await staleOwnerCleanup(ownerFile, readyFile);
+  const releaseDeadline = Date.now() + 5_000;
+  while (listenerPids(serverPort).length > 0 && Date.now() < releaseDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  const occupants = listenerPids(serverPort);
+  if (occupants.length > 0) {
+    const details = occupants.map((pid) => {
+      try {
+        return `${pid} (${execFileSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }).trim()})`;
+      } catch { return `${pid} (<process exited>)`; }
+    });
+    throw new Error(`P0/backend-port: TCP ${serverPort} has foreign occupant ${details.join(', ')}`);
+  }
   for (const file of ['dev.ready.json', 'application.ready.json', 'probe.sqlite3']) {
     rmSync(join(stateRoot, file), { force: true });
   }
@@ -94,7 +107,7 @@ export async function startBackend({ repoRoot, demoRoot, platform, serverPort })
       '--db', database,
       '--json',
     ],
-    { cwd: demoRoot },
+    { cwd: demoRoot, logPath },
   );
   writeFileSync(ownerFile, `${JSON.stringify({
     kind: 'native-custody-probe-harness',

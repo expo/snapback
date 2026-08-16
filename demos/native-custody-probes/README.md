@@ -11,12 +11,16 @@ SecureStore custody.
 - `app/`: Expo 57 / React Native 0.86 witness with committed iOS and Android
   native projects (`dev.snapback.custodyprobes`).
 - `harness/`: dependency-free Node directors for iOS and Android.
-- `evidence/`: generated JSONL, Markdown receipts, and milestone screenshots.
+- `evidence/`: one timestamp/run-id directory per execution, containing JSONL,
+  Markdown receipts, build receipts, host/device logs, and milestone screenshots.
 
 The app long-polls the host director, executes one command at a time, and posts
 events and correlated results. Public evidence includes custody revision,
-authority epoch, phase, and an in-process SHA-256 of the bearer. The bearer,
-password, and recovery-code values are never returned to the host.
+authority epoch, phase, principal id, and an in-process SHA-256 of the bearer.
+Each bearer and recovery code is one-shot reported over a separate endpoint
+into the director's in-memory leakage set; those literals are never retained
+in events, results, logs, or receipts. The host adds every run password to the
+same set and scans every run artifact before writing the final verdict.
 
 ## Run
 
@@ -29,7 +33,7 @@ SNAPBACK_RUNTIME_BINARY=/path/to/snapback \
   --server-port 4298 \
   --director-port 18771 \
   --iterations 15 \
-  --leakage-scan
+  --ios-extension-evidence /path/to/supervisor-native-refusal-evidence.txt
 ```
 
 ```sh
@@ -39,21 +43,28 @@ SNAPBACK_RUNTIME_BINARY=/path/to/snapback \
   --server-port 4299 \
   --director-port 18772 \
   --metro-port 8081 \
-  --iterations 15 \
-  --leakage-scan
+  --iterations 15
 ```
 
 Both runners discover an existing target when an explicit identifier is
 omitted. iOS accepts `--derived-data` and `--app-path`; Android accepts
 `--serial`, `--adb`, `--emulator`, and `--apk`. `--skip-build` reuses the
-resolved `.app` or APK but still generates the backend, installs JavaScript
-dependencies, starts the backend, and (for Android debug) starts Metro.
+resolved `.app` or APK only when an earlier per-run build receipt binds its
+current SHA-256; otherwise the runner refuses. It still generates the backend,
+installs JavaScript dependencies, starts the backend, and (for Android debug)
+starts Metro. Leakage scanning is mandatory; the retained `--leakage-scan`
+spelling is compatibility-only.
 
 The iOS fresh-install precondition resets the selected simulator keychain.
 Pass `--preserve-keychain` only when the target is already known clean. The
 post-journey uninstall/reinstall does not reset it, which is the behavior P5
-measures. Android disables app backup and device transfer, then measures the
-fresh reinstall result.
+measures. Android P5 claims only uninstall-clears-data. `bmgr` backup/restore
+(LLP 0263 A-9) and device-to-device transfer remain explicitly not claimed.
+
+Android P2 uses only a verified SIGKILL: the host tries debug-app `run-as`
+and plain `kill -9`, requires a successful command, observes the exact PID
+absent via `adb shell ps`, and only then uses force-stop as cleanup. The
+distinct force-stop-mid-write arm (LLP 0263 A-3) remains not claimed.
 
 ## Native custody integration
 
@@ -75,7 +86,9 @@ source declaration for `auth.application-bootstrap.v1`. `app/probe-app.ts`
 adds that required capability at the provider descriptor layer without
 changing generated identities; the director offers the same capability.
 
-iOS v1 deliberately has no extension target. `refusalProbe` records
-`SNAPBACK_AUTH_CUSTODY_EXTENSION_NATIVE_UNIT_FALLBACK_REQUIRED`; the Phase 2
-bundle must pair that receipt with Lane A's native-unit extension-context
-refusal evidence.
+iOS v1 deliberately has no extension target. Without
+`--ios-extension-evidence`, P4 is `INCOMPLETE` and the overall result is the
+qualified `PASS (P4-iOS INCOMPLETE: extension refusal not exercised)`. A
+supervisor-supplied evidence file must contain the exact
+`SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED` code; its bytes are copied into
+the isolated run, scanned, and SHA-256-bound in the receipt before P4 can pass.

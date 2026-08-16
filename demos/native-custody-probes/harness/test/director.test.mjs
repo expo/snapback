@@ -32,3 +32,20 @@ test('director records app events', async (t) => {
   const event = await director.waitEvent((entry) => entry.event === 'witness-ready');
   assert.equal(event.launchId, 'launch-1');
 });
+
+test('director retains scanner secrets only in memory and never in event or request logs', async (t) => {
+  const director = createDirector({ port: 0 });
+  const address = await director.listen();
+  t.after(() => director.close());
+  const literal = 'one-shot-bearer-literal';
+  const posted = await fetch(`http://127.0.0.1:${address.port}/secret`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ kind: 'bearer', literal }),
+  });
+  assert.equal(posted.ok, true);
+  assert.deepEqual(director.secretLiterals(), [literal]);
+  assert.deepEqual(director.secretSummary(), { bearer: 1 });
+  assert.equal(director.events.length, 0);
+  assert.doesNotMatch(director.capturedLog(), new RegExp(literal, 'u'));
+});

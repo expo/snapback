@@ -17,7 +17,11 @@ import type {
 } from '@expo/snapback-contract/auth-coordinator';
 
 import api from '@probe/generated-api';
-import { nativeCustodyStorage } from './native-platform';
+import { SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED } from './custody-module';
+import {
+  nativeCustodyStorage,
+  nativeCustodyStorageCounters,
+} from './native-platform';
 import { app } from './probe-app';
 import { diagnosticCode, publicCustodyFacts, publicError } from './public-projection';
 import type { ProbeCommand } from './witness';
@@ -34,6 +38,9 @@ type RuntimeSnapshot = {
 const runtime: RuntimeSnapshot = { auth: null, principal: null, query: null, boot: null };
 let credentialEntryCalls = 0;
 let bootstrapInvoker: null | ((mode: string) => Promise<unknown>) = null;
+let milestoneRenderer: null | ((milestone: Readonly<Record<string, unknown>>) => void) = null;
+let milestoneLaunchId: string | null = null;
+let writeLoopSequence = 0;
 
 const ownerKey: SnapbackAuthCustodyOwnerKey = Object.freeze({
   appId: app.identity.app,
@@ -58,6 +65,14 @@ async function waitFor<T>(read: () => T | null, label: string, timeoutMs = 15_00
 
 export function installBootstrapInvoker(invoke: (mode: string) => Promise<unknown>) {
   bootstrapInvoker = invoke;
+}
+
+export function installMilestoneRenderer(
+  render: (milestone: Readonly<Record<string, unknown>>) => void,
+  launchId: string,
+) {
+  milestoneRenderer = render;
+  milestoneLaunchId = launchId;
 }
 
 export function ProbeRuntime() {
@@ -104,7 +119,22 @@ function publicPrincipal(principal: CurrentPrincipalSnapshot | null) {
 }
 
 async function readRecord(): Promise<SnapbackAuthCustodyRecord | null> {
-  return nativeCustodyStorage.withOwnership(ownerKey, (owner) => owner.read());
+  const record = await nativeCustodyStorage.withOwnership(ownerKey, (owner) => owner.read());
+  if (typeof record?.bearer === 'string') {
+    const report = (globalThis as {
+      __nativeCustodyProbeReportSecret?: (
+        kind: 'bearer' | 'recovery-code',
+        literal: string,
+      ) => Promise<void>;
+    }).__nativeCustodyProbeReportSecret;
+    if (report === undefined) {
+      throw Object.assign(new Error('the in-memory secret scanner channel is unavailable'), {
+        code: 'SNAPBACK_NATIVE_PROBE_SECRET_SCANNER_UNAVAILABLE',
+      });
+    }
+    await report('bearer', record.bearer);
+  }
+  return record;
 }
 
 function nextRevision(record: SnapbackAuthCustodyRecord): SnapbackAuthCustodyRecord {
@@ -188,23 +218,48 @@ async function tightWriteLoop() {
   const emit = (globalThis as {
     __nativeCustodyProbeEmit?: (event: string, details: Readonly<Record<string, unknown>>) => Promise<void>;
   }).__nativeCustodyProbeEmit;
+  if (emit === undefined) {
+    throw Object.assign(new Error('write pulses require the director event channel'), {
+      code: 'SNAPBACK_NATIVE_PROBE_WRITE_PULSE_UNAVAILABLE',
+    });
+  }
+  writeLoopSequence += 1;
+  const loopId = `loop-${writeLoopSequence}`;
   void (async () => {
+    let sequence = 0;
     for (;;) {
       const record = await readRecord();
       if (record === null) throw Object.assign(new Error('tight write loop requires custody'), {
         code: 'SNAPBACK_AUTH_CUSTODY_RECORD_MISSING',
       });
-      try {
-        const written = await replaceFrom(record);
-        await emit?.('tight-write-heartbeat', { revision: written.revision });
-      } catch (error) {
-        if (diagnosticCode(error) !== 'SNAPBACK_AUTH_CUSTODY_CAS_STALE') throw error;
-      }
+      sequence += 1;
+      const facts = publicCustodyFacts(record);
+      // Initiate the entry pulse before native replace without awaiting the
+      // HTTP acknowledgement. The host can therefore act while the native
+      // compare-and-replace promise is still unresolved.
+      const enteredPulse = emit('write-entered', {
+        loopId,
+        sequence,
+        predecessorRevision: record.revision,
+        successorRevision: record.revision + 1,
+        epoch: record.authorityEpoch,
+        phase: record.phase,
+        bearerSha256: facts.bearerSha256,
+        principalId: facts.principalId,
+      });
+      const written = await replaceFrom(record);
+      await enteredPulse;
+      await emit('write-completed', {
+        loopId,
+        sequence,
+        predecessorRevision: record.revision,
+        successorRevision: written.revision,
+      });
     }
   })().catch(async (error) => {
-    await emit?.('tight-write-failed', publicError(error));
+    await emit('tight-write-failed', { loopId, ...publicError(error) });
   });
-  return Object.freeze({ started: true });
+  return Object.freeze({ started: true, loopId });
 }
 
 async function corruptionProbe() {
@@ -248,7 +303,59 @@ async function refusalProbe() {
       diagnostic: { code: 'SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_PROBE_UNAVAILABLE' },
     });
   }
-  return harness.runSecondaryProcessProbe();
+  const result = await harness.runSecondaryProcessProbe();
+  const diagnostic = result.diagnostic as undefined | { code?: unknown };
+  if (diagnostic?.code !== SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED) {
+    throw Object.assign(new Error('secondary process did not return the exact custody refusal'), {
+      code: typeof diagnostic?.code === 'string'
+        ? diagnostic.code
+        : 'SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_RESULT_MISSING',
+    });
+  }
+  return result;
+}
+
+async function probeState() {
+  return Object.freeze({
+    custodyFacts: await custodyFacts(),
+    principal: publicPrincipal(runtime.principal),
+    credentialEntryCalls,
+    storageCounters: nativeCustodyStorageCounters(),
+  });
+}
+
+async function renderMilestone(name: string) {
+  if (milestoneRenderer === null) {
+    throw Object.assign(new Error('milestone renderer is not installed'), {
+      code: 'SNAPBACK_NATIVE_PROBE_MILESTONE_RENDERER_UNAVAILABLE',
+    });
+  }
+  let facts: Awaited<ReturnType<typeof custodyFacts>> | null = null;
+  let custodyDiagnostic: string | null = null;
+  try {
+    facts = await custodyFacts();
+  } catch (error) {
+    custodyDiagnostic = diagnosticCode(error);
+  }
+  const principal = publicPrincipal(runtime.principal);
+  const principalId = 'userId' in principal
+    ? principal.userId
+    : principal.status === 'anonymous'
+      ? 'anonymous'
+      : principal.status;
+  const milestone = Object.freeze({
+    name,
+    launchId: milestoneLaunchId,
+    custodyRevision: facts?.revision ?? null,
+    bearerSha256Prefix: typeof facts?.bearerSha256 === 'string'
+      ? facts.bearerSha256.slice(0, 8)
+      : 'none',
+    principalId,
+    custodyDiagnostic,
+  });
+  milestoneRenderer(milestone);
+  await delay(50);
+  return milestone;
 }
 
 export async function executeProbeCommand(command: ProbeCommand): Promise<unknown> {
@@ -266,6 +373,20 @@ export async function executeProbeCommand(command: ProbeCommand): Promise<unknow
         password: String(args.password),
       });
       const recoveryCodes = (result as { recoveryCodes?: unknown }).recoveryCodes;
+      if (Array.isArray(recoveryCodes)) {
+        const report = (globalThis as {
+          __nativeCustodyProbeReportSecret?: (
+            kind: 'bearer' | 'recovery-code',
+            literal: string,
+          ) => Promise<void>;
+        }).__nativeCustodyProbeReportSecret;
+        if (report === undefined) {
+          throw Object.assign(new Error('the in-memory secret scanner channel is unavailable'), {
+            code: 'SNAPBACK_NATIVE_PROBE_SECRET_SCANNER_UNAVAILABLE',
+          });
+        }
+        await Promise.all(recoveryCodes.map((code) => report('recovery-code', String(code))));
+      }
       return Object.freeze({
         principal: publicPrincipal(auth.currentPrincipal()),
         recoveryCodeCount: Array.isArray(recoveryCodes) ? recoveryCodes.length : 0,
@@ -296,6 +417,12 @@ export async function executeProbeCommand(command: ProbeCommand): Promise<unknow
       });
     }
     case 'custodyFacts': return custodyFacts();
+    case 'probeState': return probeState();
+    case 'probeCounters': return Object.freeze({
+      credentialEntryCalls,
+      storageCounters: nativeCustodyStorageCounters(),
+    });
+    case 'renderMilestone': return renderMilestone(String(args.name ?? 'unnamed'));
     case 'casProbe': return casProbe(Number.isSafeInteger(args.iterations) ? Number(args.iterations) : 8);
     case 'staleCasProbe': return staleCasProbe();
     case 'tightWriteLoop': return tightWriteLoop();
