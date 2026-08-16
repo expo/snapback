@@ -1,12 +1,12 @@
 # LLP 0264: Table write policy
 
 **Type:** Spec
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Auth, Security/authorization, Storage, Code generation, Application data API, Generated artifacts, Diagnostics, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-15
-**Revised:** 2026-08-15
-**Related:** LLP 0231, LLP 0234, LLP 0255, LLP 0173, LLP 0240, LLP 0056
+**Revised:** 2026-08-15 (round-3 targeted response)
+**Related:** LLP 0231, LLP 0234, LLP 0255, LLP 0173, LLP 0240, LLP 0056, LLP 0065, LLP 0135, LLP 0239
 
 ## Summary
 
@@ -108,6 +108,12 @@ operator, and admin-data writers are not generic merely because they
 eventually touch storage. Their own tagged authority and invariants remain in
 force.
 
+The shipped `MutationStep` classification is closed: the five forms above are
+generic; `AssetCollection` and `AllocateSequence` are specialized LLP 0239 D2
+and LLP 0135 writers that use only their descriptor/declaration authority; and
+`Get`, `Guard`, `Let`, `AssertCurrentRelation`, and `AssertSourceChanged` are
+non-writers. Every variant has exactly one exhaustive-dispatch class.
+
 The **authoritative transaction** is the target-owned transaction that
 linearizes and commits the write—SQLite's immediate write transaction on the
 local target, or the equivalent serialization point on another target. A
@@ -121,10 +127,15 @@ principal source for this Spec.
 
 **Absent semantics** means that the public operation cannot distinguish a
 missing row from a row whose old owner does not match the effective principal.
-It preserves the operation's existing missing-row shape: boolean `false` for
-the point `ctx.db` calls, no matched effect for bare point/set HostPlan steps,
-or the same operation-declared not-found refusal (for example
-`SNAPBACK_ROW_NOT_FOUND`) when the plan explicitly uses `Get`/`Guard`.
+It preserves the operation's declared missing-row shape: boolean `false` for
+the point `ctx.db` calls, no matched effect for a HostPlan point write whose
+authoritative check declares `no-effect`, or one canonical operation-declared
+refusal whose complete public bytes are bound to that check. A preceding
+`Get`/`Guard` sequence is neither that declaration nor write authorization.
+For HostPlan `no-effect`, this is a whole-plan contract: after the authoritative
+check takes the absent path, every later observation of that target row inside
+the same plan sees the same canonical absent view for missing and not-owned.
+The write step's disposition is not a step-local promise.
 
 ## D1. One table policy is the read and write locus
 
@@ -142,19 +153,34 @@ it is never the only owner check.
 
 The executable policy carrier has a versioned semantic identity included in
 generation and activation inputs. Changing the meaning of a policy kind is a
-policy-program activation, not a library implementation detail. A table-policy
-edit that broadens or is incomparable with the prior write posture is the same
-governed ordinary-policy transition LLP 0234 D5 already records. It requires
-LLP 0234's remotely prior transition approval, separation receipt, exact-set
-ratchet, and activation verdict; this Spec creates no write-only approval
-vocabulary.
+policy-program activation, not a library implementation detail.
 
-Examples of governed incomparable or broader changes include changing an
-owner field, changing an owner policy to a future membership-write policy, or
-making a presently non-writable policy kind generically writable. A
-restricted-to-`public-read` edit may narrow writes while widening reads; it is
-still governed by LLP 0234 because the shared policy change is incomparable or
-broader on at least one authorization axis.
+This Spec extends LLP 0234 D5's shared body/digest, baseline, ledger, and both
+comparators; its read-only order is insufficient. Every predecessor/successor
+gains versioned `writePosture`: semantic version, per-form disposition, owner
+field, authority-table class, and declared global-unique disclosures. Each
+disclosure is a canonical
+`{ table, writeForm, constraint, operations[] }` entry whose sorted exact
+`operations[]` names stable generated operation/entrypoint identities. The
+complete entries and operation sets participate in the normalized policy body,
+body digest, baseline, every ledger node, transition approval, both admission
+comparators, and the trusted runtime carrier. Old readers refuse the new schema
+version.
+
+The comparator is read × write; `narrowing` requires neither axis to broaden.
+Refused-to-owner, new forms, new global-conflict disclosures, and growth of a
+disclosure's `operations[]` set broaden. Removing an operation from that set is
+write narrowing only when no other write fact broadens; owner-field,
+semantic-version, identity rebinds, and unproved changes are incomparable. An
+approval for operation A therefore cannot authorize operation B merely because
+table, form, and constraint are equal.
+`legacy-undeclared` exists only at D2's root. Broader/incomparable successors
+use LLP 0234's remotely prior approval, separation receipt, exact-set ratchet,
+and activation verdict.
+
+Consequently `public-read|any-of -> owner` is governed despite read narrowing,
+and `owner -> public-read` is governed despite write narrowing. V1 refuses
+declared-policy removal in every migration phase.
 
 ## D2. V1 default write posture by policy kind
 
@@ -164,13 +190,21 @@ broader on at least one authorization axis.
 | `membership { ... }` | Generic writes are refused. A read membership is not a write role. Future membership-scoped ordinary-data writes must extend this same policy IR. |
 | `any-of { ... }` | Generic writes are refused, including a group containing an owner arm. A read disjunction is not an unambiguous write principal. |
 | `public-read` | Generic writes are refused. Public disclosure never means anonymous, authenticated, system, or public mutation authority. |
-| undeclared during LLP 0234 G1 migration | Phase 1 preserves the existing behavior only as an explicitly projected legacy gap and emits the existing missing-policy diagnostic. No enforcement or capability claim is permitted. G2 changes omission to a generation failure. |
+| exact pre-cut undeclared table named by the D2 migration root | Before G2, Phase 1 may preserve existing behavior only as an explicitly projected `legacy-undeclared` gap with the existing missing-policy diagnostic. No enforcement or capability claim is permitted. G2 changes omission to a generation failure. |
+| undeclared table absent from that root, including a new table or one whose declaration was removed | Generic writes refuse during every phase. At G2 the shared missing-policy generation failure applies as well. It never acquires `legacy-undeclared`. |
 
 This table is a default-closed derivation, not a second policy. V1 implements
 only the exact owner slice; every other current declared kind has a generic
 write disposition of `refused`. An application needing another write model
 uses an already-governed specialized operation or waits for a sibling that
 extends the shared IR.
+
+Before first Phase-1 activation, the shared baseline freezes a versioned root
+from the protected immediately prior installed lineage: source/schema digest
+plus the exact then-undeclared table ids (empty for a fresh app). Activation
+deep-matches and retains it through G1. Thus a predecessor exists pre-G0/G1;
+only exact root members get warning-backed legacy behavior before G2. New
+omission, declared-then-deleted policy, missing root, or root mutation refuses.
 
 ## D3. Owner inserts are host-stamped
 
@@ -218,6 +252,43 @@ V1 does not provide owner delegation, owner transfer, caller-selected service
 owners, or system stamping. Those are different authority operations, not
 insert options.
 
+### Unique-conflict disclosure gate
+
+Success versus unique conflict is an existence oracle. Every owner insert
+reaches all unique constraints; a patch reaches each constraint whose member
+may change, with uncertainty treated as reach. Each must contain the installed
+owner field or be named by the operation's closed `discloseUniqueConflicts`
+fact, mirroring `SNAPBACK_STANDARD_PATTERN_DISCLOSURE_REQUIRED`. The latter
+intentionally admits only the value-free conflict/success bit and joins D1's
+write posture.
+
+The declaration normalizes into D1's sorted
+`{ table, writeForm, constraint, operations[] }` entries in function/plan
+operation metadata. The operation being generated and the runtime carrier must
+name the same stable identity and be a member of `operations[]`.
+Unknown/duplicate facts, identity aliases, and caller input refuse; they never
+become authority.
+
+The gate is evaluated per statically classified write form. A JavaScript
+operation whose write call sites cannot be enumerated or whose form cannot be
+classified refuses generation in Phase 1 unless its operation metadata declares
+the exact versioned posture `opaqueWritePosture: conservative-v1` and a closed
+table ceiling. That posture means every ceiling member is treated as reachable
+through all JavaScript generic forms (`insert`, `patch`, and `delete`), every
+unique constraint is reachable from insert, and every field and therefore
+every unique constraint may be reached by patch. D1's operation-bound conflict
+disclosures must independently cover the resulting insert and patch facts. It
+is conservative admission input, not runtime write authority; the central
+dispatcher still enforces the exact call. A missing or opaque table ceiling
+always refuses in Phase 1.
+
+For exact and conservatively opaque censuses alike, any reachable
+non-owner-partitioned constraint without the operation-bound declaration makes
+generation/activation refuse the affected insert/patch form. Statically
+classified runtime-table sites satisfy all closed ceiling members. A declared
+conflict uses `SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION` and D9 names the
+constraint. Error redaction alone cannot close the bit.
+
 ## D4. Update and delete check the old row transactionally
 
 For `ctx.db.patch`, `ctx.db.delete`, and HostPlan `Patch`, `Delete`, and
@@ -232,6 +303,33 @@ results do not contain the stored owner, expected principal, existence bit, or
 which comparison leg failed. Protected operator telemetry may record a
 value-free internal reason under the repository's existing redaction rules.
 
+Every HostPlan owner `Patch`/`Delete` carries sealed `ownerWriteCheck` (or a
+closed compound), binding `no-effect` or `refuse` with canonical public
+code/message/details bytes and digest. Before row binding, it applies that
+outcome to missing principal/row, malformed owner, and different owner.
+
+`Get`/`Guard` is never the carrier. An aliasing/uncertain prior read refuses
+unless compounded or independently composed to identical absent bytes. That
+proof ranges over every intermediate step which can observe the aliased binding
+and the complete public plan outcome, not only the prior read's direct error.
+Thus an identical-byte `Get` followed by a divergent intermediate `Guard` is
+not composable. The generated wedge migrates; each same-id read/write has
+distinct identity.
+
+When a HostPlan `ownerWriteCheck` with `no-effect` takes the absent path, the
+executor records a host-owned, plan-local identical-absent marker for the
+canonical table/id target before continuing. Every later `Get`, binding,
+`Guard`, `Let`/expression, point write, changed-count observation,
+`AssertCurrentRelation`/`AssertSourceChanged` observer step, document or
+record return, and copy that resolves that target or a proven alias consults
+the marker before storage and receives the same canonical absent value/effect
+for missing and not-owned. No later step can recover or branch on the real
+not-owned row. Preflight refuses a computed target or alias whose relationship
+to a checked target cannot be proved. This normalization applies through the
+last step and return value; unrelated steps may continue only with effects and
+public bytes identical between the two absent cases. A `refuse` carrier instead
+terminates with its bound canonical refusal before later steps execute.
+
 The surface-specific effects are:
 
 - `ctx.db.patch` and `ctx.db.delete` return `false` and buffer no effect when
@@ -243,9 +341,11 @@ The surface-specific effects are:
   conflict/retry path reruns the mutation; the retried caller-scoped read then
   produces absent semantics. No other buffered effect from the stale attempt
   commits.
-- A bare HostPlan `Patch` or `Delete` preserves its missing-row no-effect
-  behavior for a not-owned row. A plan that explicitly uses `Get`/`Guard`
-  receives the same declared not-found refusal for missing and not-owned rows.
+- A HostPlan `Patch` or `Delete` whose authoritative carrier declares
+  `no-effect` preserves its missing-row no-effect behavior for a not-owned row
+  across the whole remaining plan and its return. A carrier declaring `refuse`
+  returns its byte-identical canonical refusal for missing and not-owned rows.
+  A nearby or later `Get`/`Guard` does not change either.
 - `DeleteWhere` conjoins the exact owner predicate with the authored filter in
   the transaction. An empty authored filter deletes all and only rows owned by
   the effective principal. With no principal it matches none. It never scans
@@ -275,7 +375,6 @@ form targets an ineligible policy or cannot be composed, the plan refuses and
 executes zero steps. A future `MutationStep` variant cannot inherit generic
 write authority from a wildcard/default match; it must be exhaustively
 classified or fail with `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE`.
-
 The policy dispatcher consumes the installed schema policy and host-resolved
 principal. Function `writes`, effect ceilings, standard-pattern ids, generated
 guards, static source scans, and `writePolicyChecks[]` are review/admission
@@ -346,6 +445,16 @@ non-disclosing result failures. Until then, a capability claim may say
 “generic owner write admission” only. It may not say that arbitrary mutation
 results or copies are authorization-safe.
 
+This deferral does not defer or weaken D4's narrower noninterference duty.
+After a HostPlan checked write takes the absent path, every same-target
+intermediate observation and the final return are normalized solely to keep
+missing and not-owned indistinguishable. That whole-plan normalization is part
+of write admission; it proves nothing about egress from owned or unrelated
+rows.
+
+D3's unique-conflict bit is in scope: a declared global conflict is a projected
+residual disclosure, not a non-disclosing result claim.
+
 The deferred risk is exfiltration after an otherwise legitimate write or read:
 for example, a handler authorized to update Alice's row returning Bob's
 snapshot, or a generated plan copying an old value into a public activity row.
@@ -359,36 +468,59 @@ only that section's schema identity. The artifact remains deterministic,
 consumer-committed, and fact-only. It is never an enforcement or approval
 locus.
 
-The section has one canonical row per operation × generic write form × exact
-target table. A dynamically targeted JavaScript host call that codegen cannot
-enumerate uses `tableResolution: runtime` plus its declared table ceiling (or
-`opaque`); runtime resolution remains central, and the projection does not
-invent a table. Each row contains these normalized facts:
+For HostPlan and statically classifiable JavaScript, rows key operation ×
+stable source/plan `siteId` × form × table fact, so same-form/table sites never
+collapse. Exact sites emit once; a classifiable site with a closed runtime table
+ceiling emits one `runtime-ceiling-member` row per member.
+
+JavaScript for which codegen cannot enumerate stable call sites or classify
+their forms instead emits exactly one operation-level `opaque` site entry,
+mirroring LLP 0234 D6's elevated-site census rather than inventing spans or
+collapsing guessed calls. The entry has `siteId: null`,
+`siteResolution: opaque-module`, `writeForm: opaque`,
+`writeFormCeiling: ["insert", "patch", "delete"]`, `table: null`,
+`tableResolution: opaque-module`, the operation's sorted closed
+`declaredTableCeiling`, and `sourceEvidence` containing the module path/digest
+plus `opaqueWritePosture: conservative-v1`. Its target-dependent policy and
+owner facts use D9's runtime-resolved sentinels; its preflight facts expose the
+complete conservative D3 insert/patch census. Absence of that posture or of a
+closed table ceiling is a Phase-1 generation refusal, whose structured
+diagnostic carries this candidate entry. No generated artifact is published
+for the refusal.
+
+The phase boundary is explicit: Phase 1 admits an opaque JavaScript site only
+through D3's conservative posture above, while an unbounded target refuses even
+then. Phase 2 refuses every remaining `siteResolution: opaque-module` entry,
+including one that satisfied the Phase-1 conservative gate; exact-site
+completeness is a Phase-2 closure requirement. Fields are:
 
 | Fact | Contents |
 | --- | --- |
-| `id` | Stable identity derived from operation, surface, write form, table resolution, and policy identity. |
+| `id`, `siteId`, `siteResolution` | `id` covers operation/site/form/table/policy, or operation plus the opaque capability identity; exact/member `siteId` stays stable across policy edits. `siteId` is null only for `siteResolution: opaque-module`. |
 | `operation`, `runtimeClass` | Generated operation name and `javascript-handler` or `host-plan`. |
-| `surface`, `writeForm` | `ctx-db` or `host-plan`; one of `insert`, `insert-each`, `patch`, `delete`, `delete-where`. |
-| `table`, `tableResolution`, `declaredTableCeiling` | Exact table when known; otherwise the honest runtime/opaque fact and closed declared ceiling when one exists. |
-| `policyKind`, `policyDigest`, `declarationOrigin` | Installed normalized table-policy identity, including `legacy-default` during migration. |
-| `ownerField` | Exact field for owner policy, otherwise null. |
-| `genericWriteDisposition` | `owner-policy`, `generic-refused`, or `legacy-undeclared`. This reports the installed disposition; it is not a safety verdict. |
-| `principalSource` | `auth.userId`, `none`, or `not-applicable`; never a caller argument. |
-| `ownerInputDisposition` | `host-stamped`, `sealed-auth-user-id-marker`, `refused`, or `not-applicable`. |
-| `transactionChecks[]` | Exact ordered facts such as `stamp-owner`, `check-old-owner`, `conjoin-delete-where-owner`, and `owner-field-immutable`, each with `authoritative-transaction` as its locus. |
-| `absentDisposition` | `ctx-db-false`, `host-plan-no-effect`, `declared-not-found`, or `not-applicable`. |
-| `authorityTableClass` | `ordinary`, `membership`, or `permission-backing`. |
+| `surface`, `writeForm`, `writeFormCeiling` | `ctx-db` or `host-plan`; exact rows use one of `insert`, `insert-each`, `patch`, `delete`, `delete-where` and a null ceiling. The opaque JavaScript entry uses `opaque` and the closed v1 JavaScript ceiling. |
+| `table`, `tableResolution`, `declaredTableCeiling` | Exact/member table or opaque null; canonical ceiling or null. |
+| `policyKind`, `policyDigest`, `declarationOrigin` | Exact installed/member facts (`legacy-default` only for a root member); opaque uses `runtime-resolved`, null, `runtime-resolved`. |
+| `ownerField` | Exact field for owner policy, null for an exact non-owner policy, and null plus `ownerFieldResolution: runtime-resolved` for opaque. |
+| `genericWriteDisposition` | `owner-policy`, `generic-refused`, `legacy-undeclared`, or `runtime-resolved`. This is a fact, not a verdict. |
+| `principalSource` | `auth.userId`, `none`, `not-applicable`, or `runtime-resolved`; never a caller argument. |
+| `ownerInputDisposition` | `host-stamped`, `sealed-auth-user-id-marker`, `refused`, `not-applicable`, or `runtime-resolved`. |
+| `preflightChecks[]` | Ordered early target/class/input/immutability/unique-disclosure checks. |
+| `authoritativeChecks[]` | Ordered transaction policy/stamp/old-owner/delete-filter/absent checks; no early-only facts. |
+| `absentDisposition` | `ctx-db-false`, `host-plan-no-effect`, `declared-refusal`, `not-applicable`, or `runtime-resolved`; it is fixed by the source/canonical carrier, not inferred from table policy. Only the opaque JavaScript entry uses `runtime-resolved`. |
+| `absentDispositionDigest` | Digest of the D4 HostPlan canonical public refusal bytes, null for no-effect/ctx-db/not-applicable/runtime-resolved. This is site-declared and remains known for a classifiable runtime table target. |
+| `uniqueConflictDisposition` | Exact `owner-partitioned`, `declared-disclosure` plus constraint ids, `not-applicable`, or `runtime-resolved`. |
+| `authorityTableClass` | `ordinary`, `membership`, `permission-backing`, or `runtime-resolved`. |
 | `writeElevation` | Always `unavailable` in v1. |
 | `resultEgress` | `separate-phase-not-covered`, preserving §D8's claim boundary. |
-| `sourceEvidence` | Generated plan/span or opaque-module facts already available to codegen, without promoting opacity into a verdict. |
+| `sourceEvidence` | An exact site's generated step/span, or the opaque entry's module path/digest and conservative-posture fact. Multiple classifiable sites have separate rows; the one opaque entry is explicitly operation-level, never a fabricated site census. |
 
 Rows and set-valued fields use LLP 0173's canonical ordering. Failed
-generation publishes no projection; the structured diagnostic carries the
-refused source fact instead. Human rendering may group policy/check changes
-and use the closed LLP 0234 comparator's `narrowing`, `broadening`, or
-`incomparable` structural relation. It must not render `safe`, `authorized`,
-`approved`, `reviewed`, `waived`, or `discharged`.
+generation publishes no projection; its structured diagnostic carries the
+complete refused candidate row. Human rendering may group policy/check changes
+and use D1's extended LLP 0234 product comparator's `narrowing`, `broadening`,
+or `incomparable` structural relation. It must not render `safe`,
+`authorized`, `approved`, `reviewed`, `waived`, or `discharged`.
 
 The section is review evidence only. Changing, deleting, or forging it cannot
 change runtime write authority, and an empty/opaque row is never treated as
@@ -403,9 +535,12 @@ the chosen spellings in generated schemas and negative fixtures.
 
 | Code | Severity and locus | Meaning |
 | --- | --- | --- |
-| `SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` (existing) | warning during G1; generation error at G2 | The table policy is undeclared. Write details list generic target surfaces without claiming a posture. |
+| `SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` (existing) | warning before G2 only for an exact D2 migration-root member; generation error at G2 | The pre-cut table policy remains undeclared. Write details list generic target surfaces without claiming enforcement. |
+| `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED` | generation/activation error before G2; shared missing-policy error at G2 | A new/unknown undeclared table is not in the retained legacy root and a generic write targets it. |
+| `SNAPBACK_TABLE_WRITE_POLICY_REMOVAL_REFUSED` | generation/activation error in every phase | A table with a declared predecessor removed its policy. Removal never restores legacy writes. |
 | `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE` | generation/activation error | A generic write form lacks the central policy dispatcher or target implementation. No outputs/steps are published. |
 | `SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE` | generation/activation and runtime error | A generic write targets `public-read`, `membership`, or `any-of`. Details contain table, policy kind, and write form only. |
+| `SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED` | generation/activation error | A reachable unique constraint omits owner and the insert/patch operation lacks its exact conflict-disclosure declaration. |
 | `SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED` | generation or runtime error before buffering/execution | Caller/plan data attempts to set the owner field. The exact sealed HostPlan `AuthUserId` compatibility marker is not caller input. |
 | `SNAPBACK_TABLE_WRITE_OWNER_DEFAULT_REFUSED` | generation error | A trusted default targets the owner field. |
 | `SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE` | generation or runtime error before old-row read | A generic patch names the owner field, even with the same value. |
@@ -413,6 +548,7 @@ the chosen spellings in generated schemas and negative fixtures.
 | `SNAPBACK_TABLE_WRITE_ELEVATION_UNAVAILABLE` | generation/activation error | Source or artifact attempts to declare a generic write elevation. |
 | `SNAPBACK_AUTH_USER_MISSING` (existing) | runtime error before write | An owner insert has no effective principal to stamp. |
 | `SNAPBACK_ROW_NOT_FOUND` (existing, when operation-declared) | runtime absent result | Missing and not-owned old rows use identical public bytes. Bare no-effect/boolean surfaces introduce no new visibility code. |
+| `SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION` (existing family, when declared) | runtime conflict | An operation explicitly admitted the named non-owner-partitioned constraint's success/conflict disclosure. Details remain value-free. |
 
 Static diagnostics may name table, owner field, policy kind, write form,
 operation, and source span. Old-row failures may not expose stored owner,
@@ -421,7 +557,25 @@ operands. A future target that cannot provide the authoritative transaction
 semantics refuses with `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE`; it does not
 fall back to handler checks or post-filtered writes.
 
+Policy-refusal precedence is: uncomposed surface; authority-table class;
+removal/unrooted omission; ineligible policy kind; unique-disclosure gate;
+owner input/default/immutability; missing principal/row. Thus a membership or
+permission-backing table returns
+`SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE` even when its row policy is
+also ineligible. Owning parse/schema failures remain earlier.
+
 ## Migration and rollout
+
+### Cross-document obligation
+
+- **Pending reciprocal LLP 0234 amendment.** Before Phase-1 implementation
+  activates, LLP 0234 D5/D6 must be amended to name this Spec's versioned
+  `writePosture` as part of the shared ordinary-policy body, digest, baseline,
+  ledger, approval closure, and read × write comparators; it must include the
+  operation-set identity and set-growth rule for conflict disclosures and point
+  its projection contract at D9. That amendment must land with the Phase-1
+  implementation. LLP 0264 records the obligation but does not amend or claim
+  acceptance on behalf of LLP 0234.
 
 ### Phase 1 — declared-owner enforcement
 
@@ -431,31 +585,50 @@ Land central enforcement for every generic form on tables with an explicit
 - declared `public-read`, `membership`, and `any-of` generic writes refuse;
 - membership/permission-backing generic writes refuse regardless of row
   policy;
-- undeclared tables retain current behavior only behind the existing warning,
-  a `legacy-undeclared` projection fact, and an explicit nonclaim;
+- only exact members of the frozen D2 pre-cut root retain current behavior
+  behind the existing warning, a `legacy-undeclared` projection fact, and an
+  explicit nonclaim; new omission and policy removal refuse;
+- the shared normalized policy body/digest and comparator include D1's write
+  posture from the first activation, even if remote transition authority is
+  not yet available;
+- opaque JavaScript write forms refuse unless their operation declares D3's
+  conservative posture over a closed table ceiling; any remaining opaque site
+  is projected honestly and cannot survive Phase 2;
 - `writePolicyChecks[]` becomes populated and deterministic;
 - no write elevation is added; and
 - the guide may document the experimental boundary but may not mark a generic
   table-write capability shipped until the phase's target-specific acceptance
   evidence exists.
 
-Phase 1 may land before LLP 0234 G1 corpus closure because migrating an
-unchecked generic table to exact owner enforcement is a narrowing. It may not
-activate a broader/incomparable policy edit while LLP 0234 G0 authority is
-unavailable; such an edit stays inert/refused until the governance path can
-validate it.
+Phase 1 may precede G1 because exact legacy-root-to-owner migration narrows.
+The protected root and product comparator still distinguish later omission
+pre-G0; broader/incomparable edits refuse without remote authority.
 
 Phase-1 acceptance is structural and executable:
 
 1. Exhaustive dispatch covers `ctx.db` insert/patch/delete and HostPlan
    Insert/InsertEach/Patch/Delete/DeleteWhere at both early validation and the
-   authoritative transaction; adding an unclassified mutation form breaks the
-   exhaustiveness test or gets the uncomposed-surface refusal.
+   authoritative transaction; every other variant retains Scope's class. An
+   unclassified variant breaks the test or refuses uncomposed.
 2. Alice and Bob fixtures prove handler and HostPlan inserts always stamp the
    effective principal, reject an authored owner value even when equal, reject
-   owner defaults, and atomically refuse ownerless `InsertEach`.
+   owner defaults, and atomically refuse ownerless `InsertEach`. Insert/patch
+   fixtures admit owner-partitioned uniqueness, refuse undeclared global
+   conflicts, and expose only the declared global conflict bit. Operations A
+   and B target the same table/form/constraint with only A listed in the
+   disclosure: A's runtime carrier cannot authorize B, and adding B to
+   `operations[]` changes the transition identity, classifies as widening, and
+   requires its remotely prior approval/receipt.
 3. Point patch/delete fixtures prove missing and other-owner rows have
-   byte-identical/publicly identical absent outcomes. Owned rows succeed.
+   byte-identical public code/message/details. HostPlan negatives cover bare
+   `Get`, differing Get/Guard codes, same-id multi-read/write, missing, and
+   other-owner rows; only the checked-write carrier governs. One negative uses
+   an identical-byte `Get`, then a divergent intermediate `Guard`, then the
+   checked write and must refuse composition. A second checked-`no-effect`
+   negative continues through same-target `Get`, binding, expression/guard,
+   copy/mixed step, changed-count observation, and document return: missing and
+   not-owned inputs produce byte-identical results and identical companion
+   effects, while an uncertain alias refuses preflight. Owned rows succeed.
    Changing the owner between handler observation and commit produces no stale
    commit and no partial companion effects.
 4. `DeleteWhere` with an empty authored filter deletes Alice's rows and leaves
@@ -472,10 +645,17 @@ Phase-1 acceptance is structural and executable:
 8. The landed `defineOwnedCrud`/`lowerDataResourceV1` fixtures continue to
    generate and execute, but deleting their explicit plan guard does not remove
    central enforcement.
-9. `writePolicyChecks[]` has exact golden rows for every positive, refused,
-   legacy, exact-table, and opaque/runtime-resolved class; stale or malformed
-   projection fails LLP 0173 custody checks and no human rendering contains a
-   verdict word.
+9. Published `writePolicyChecks[]` has exact golden rows for every successful
+   positive, legacy, multi-site, exact, and runtime-ceiling-member class,
+   including D9 sentinels. Opaque JavaScript goldens cover statically
+   classifiable per-site entries and the one operation-level `opaque` entry
+   under `conservative-v1`; structured-diagnostic candidate-row goldens cover
+   Phase-1 refusal without that declaration and Phase-2 refusal even with it.
+   Stale/malformed output fails custody; renderings lack verdicts.
+10. Comparator fixtures cover `public-read -> owner`, each other refused kind
+    `-> owner`, semantic-version change, `owner -> omitted`, and new omission
+    before/after G0/G1. Only the pre-cut root yields `legacy-undeclared`;
+    widening needs receipts, while removal/new omission refuse.
 
 ### Phase 2 — LLP 0234 G1 write migration closure
 
@@ -488,14 +668,15 @@ Close the required demo/package-consumer corpus alongside LLP 0234 G1:
   permission-backing targets remain behind generic write declarations;
 - zero generic write surfaces are uncomposed;
 - the ordinary-policy baseline/transition ledger contains the same normalized
-  policy identity the write dispatcher consumes; and
+  read × write body and digest the write dispatcher consumes, with the retained
+  migration root and no remaining legacy member; and
 - all broader/incomparable transitions are receipted under LLP 0234 rather
   than grandfathered by this migration.
 
 Phase-2 acceptance runs a corpus inventory over generated write reach and the
 authorization projection. It fails on any implicit target, ineligible generic
-target, opaque target without a closed runtime ceiling, missing transition
-provenance, or policy/check digest disagreement. The retained G1 closure
+target, remaining opaque site, runtime table target without a closed ceiling,
+missing transition provenance, or policy/check digest disagreement. The retained G1 closure
 receipt names the write-policy semantic version and the exact corpus result.
 
 ### Phase 3 — LLP 0234 G2 omission failure and completion proof
@@ -503,7 +684,8 @@ receipt names the write-policy semantic version and the exact corpus result.
 Only after G1 closes may the existing implicit-table warning become a
 generation error under LLP 0234 G2. Missing policy writes no generated outputs
 and cannot be repaired by suggesting `public-read` merely to make a write
-compile.
+compile. This flip closes the exact pre-cut legacy set; declared-policy removal
+and newly introduced omission already refused before G2 and continue to do so.
 
 The card-game read completion test has this write-side analogue: one fixture
 targets the `hands` table from each generic form—handler insert/patch/delete
@@ -553,11 +735,51 @@ phase qualifies independently.
 
 ## Status
 
-Draft. This document specifies the owner-policy slice for generic writes. It
+Accepted (2026-08-15, author-directed after dual-family same-revision READY
+convergence; run journal at `llp/reviews/0264-table-write-policy.run.md`).
+Acceptance authorizes the Phase-1 owner-write implementation. This document
+still specifies the owner-policy slice for generic writes. It
 claims no current enforcement, no current `writePolicyChecks[]` population, no
 generic membership/public write authority, and no result-egress protection.
 
 ## Revision history
 
+- 2026-08-15 — Status Draft → Accepted, author-directed (Class R
+  row-authorization completion program, sequence step 5). Three review rounds
+  (full, delta, confirming), six artifacts under `llp/reviews/0264-*`, both
+  families VERDICT: READY on the round-3 revision. The confirming round's one
+  residual MINOR (the `AssertCurrentRelation`/`AssertSourceChanged` observer
+  variants missing from D4's marker enumeration) is applied in this same
+  edit. Phase-1 implementation authorized; the reciprocal LLP 0234 D5/D6
+  write-axis amendment remains a listed Phase-1 obligation.
 - 2026-08-15 — initial Draft, authored as the write-side sibling reserved by
   LLP 0231 D6.
+- 2026-08-15 — round-2 dual-family response. Every finding was accepted; no
+  finding was rejected.
+- 2026-08-15 — round-3 targeted response. The three requested GPT round-2
+  MATERIAL findings and three Claude round-2 MINOR findings were accepted; no
+  finding was rejected. Status remains Draft.
+
+| Reviewer | Finding | Disposition |
+| --- | --- | --- |
+| GPT, MATERIAL 1 | Comparator/removal gap. | Accepted: D1 product order; D2 rooted removal/omission refusal. |
+| GPT, MATERIAL 2 | HostPlan absent carrier. | Accepted: D4 sealed byte-bound carrier and alias tests. |
+| GPT, MATERIAL 3 | Uniqueness oracle. | Accepted: D3 gate; D9/D10 projection/diagnostic. |
+| GPT, MATERIAL 4 | D9 site/runtime loss. | Accepted: site rows, ceiling expansion, opaque form. |
+| Claude, MATERIAL 1 | Read/write laundering. | Accepted: D1 two-axis governed order. |
+| Claude, MATERIAL 2 | Removal/pre-G0 source. | Accepted: D2 installed-lineage root and refusal. |
+| Claude, MATERIAL 3 | Uniqueness oracle. | Accepted: GPT MATERIAL 3 disposition. |
+| Claude, MINOR 4 | Step classifications. | Accepted: Scope/D5 exhaustive classes. |
+| Claude, MINOR 5 | Runtime D9 fields. | Accepted: exact members/sentinels and split loci. |
+| Claude, MINOR 6 | Refusal precedence. | Accepted: D10 authority class first. |
+
+Round-3 targeted dispositions:
+
+| Reviewer | Finding | Disposition |
+| --- | --- | --- |
+| GPT r2, MATERIAL 1 | HostPlan `no-effect` allowed later same-target observation. | Accepted: D4 now carries an identical-absent view through every later step and return; uncertain aliases refuse, with a composite negative fixture. |
+| GPT r2, MATERIAL 2 | Conflict disclosure omitted operation identity from the D1 transition. | Accepted: every disclosure lists exact stable `operations[]`; the set is bound into every transition artifact/carrier and set growth is widening, with an A/B operation fixture. |
+| GPT r2, MATERIAL 3 | D9 could not represent opaque JavaScript and D3 lacked its per-form gate. | Accepted: classifiable sites stay per-site; otherwise one operation-level `opaque` entry requires `conservative-v1`, a closed ceiling, and all-form/all-field D3 evaluation. |
+| Claude r2, MINOR 1 | D3 and D9 disagreed on the opaque-refusal phase. | Accepted: Phase 1 permits only declared conservative opacity with a closed target ceiling; Phase 2 refuses every remaining opaque site. |
+| Claude r2, MINOR 2 | D4's identical-absent proof did not quantify intermediate steps. | Accepted: the proof now spans every intermediate alias observation and the complete outcome; an identical `Get` plus divergent intermediate `Guard` is a negative fixture. |
+| Claude r2, MINOR 3 | LLP 0234 still needs the reciprocal shared-ledger amendment. | Accepted: Migration lists the pending LLP 0234 D5/D6 amendment as a Phase-1 obligation; this revision does not edit LLP 0234. |
