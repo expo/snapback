@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -24,6 +25,8 @@ const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
 const OPERATION_TIMEOUT_MS = 30_000;
 const ACCEPTANCE_WATCHDOG_MS = 120_000;
 const ACCEPTANCE_TERMINAL_GRACE_MS = 10_000;
+const GOVERNANCE_REMOTE_CUSTODY_REFUSAL =
+  'SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE';
 let acceptanceWatchdog = null;
 let serverStopPromise = null;
 let primaryFailure = null;
@@ -54,6 +57,78 @@ const assertSubscriptionScope = (live, scope, label) => {
   assert.deepEqual(scope?.namespace, live.authorizationNamespace, `${label} crossed query namespace`);
   assert.equal(scope?.subscriptionId, live.subscriptionId, `${label} crossed subscription identity`);
 };
+
+// @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
+// — the live server, not only the dev-mint helper, must consume target-owned
+// custody and refuse before readiness when that carrier is unavailable.
+async function assertMissingGovernanceTargetRefusesBoot({ binaryPath, startupArtifacts }) {
+  assert.equal(typeof binaryPath, 'string', 'the exact selected server binary path must be retained');
+  const readyFile = join(scratch, 'missing-governance-ready.json');
+  const missingTargetConfig = join(scratch, 'missing-governance-target-config.json');
+  await rm(readyFile, { force: true });
+  await rm(missingTargetConfig, { force: true });
+
+  const environment = {
+    ...process.env,
+    SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG: missingTargetConfig,
+  };
+  for (const key of [
+    'SNAPBACK_SERVER_BINARY',
+    'SNAPBACK_BUILD_GIT_COMMIT',
+    'SNAPBACK_BUILD_GIT_DIRTY',
+  ]) {
+    delete environment[key];
+  }
+
+  const child = spawn(binaryPath, [
+    'start',
+    '--port',
+    '0',
+    '--ready-file',
+    readyFile,
+    '--memory',
+    '--startup-artifacts',
+    startupArtifacts,
+  ], {
+    cwd: repoRoot,
+    env: environment,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  child.stdout.on('data', (chunk) => { output += chunk; });
+  child.stderr.on('data', (chunk) => { output += chunk; });
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    child.kill('SIGKILL');
+  }, OPERATION_TIMEOUT_MS);
+  let exit;
+  try {
+    exit = await new Promise((resolveExit, reject) => {
+      let spawnError = null;
+      child.once('error', (error) => { spawnError = error; });
+      child.once('close', (code, signal) => {
+        if (spawnError !== null) reject(spawnError);
+        else resolveExit({ code, signal });
+      });
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  assert.equal(timedOut, false, `missing governance target boot did not settle:\n${output}`);
+  assert.equal(exit.signal, null, `missing governance target boot was signaled:\n${output}`);
+  assert.notEqual(exit.code, 0, 'missing governance target config unexpectedly booted');
+  assert.match(output, new RegExp(GOVERNANCE_REMOTE_CUSTODY_REFUSAL, 'u'));
+  await assert.rejects(
+    readFile(readyFile, 'utf8'),
+    (error) => error?.code === 'ENOENT',
+    'governance refusal must happen before the child publishes readiness',
+  );
+  console.log(
+    `REFUSED snapback child missing governance target config ${GOVERNANCE_REMOTE_CUSTODY_REFUSAL}`,
+  );
+}
 
 async function applyAuthorizationProjection(live, projection, fallbackSnapshot = null) {
   const { obligation, resolution = null } = projection;
@@ -201,6 +276,40 @@ try {
     cwd: repoRoot,
     startupArtifacts: carrier,
     captureImpersonationCapability: true,
+  });
+  assert.match(server.baseUrl, /^http:\/\/127\.0\.0\.1:\d+$/u);
+  assert.notEqual(server.launch?.rung, 'configured', 'the governed rung cannot use a configured binary');
+  assert(
+    ['verified', 'pinned-binary-dirty-checkout'].includes(server.identity?.verdict),
+    `the governed rung requires an exact clean child build, got ${server.identity?.verdict ?? 'no identity'}`,
+  );
+  assert.match(server.identity.binary.gitCommit, /^[0-9a-f]{40}$/u);
+  assert.equal(server.identity.binary.gitCommit, server.identity.expected.gitCommit);
+  assert.equal(server.identity.binary.gitDirty, false);
+  assert.equal(server.identity.binary.crateVersion, server.identity.expected.crateVersion);
+  assert.equal(server.identity.binary.startupNonce, server.startupNonce);
+  assert.equal(
+    typeof server.governanceTargetConfigPath,
+    'string',
+    'the governed RBAC boot must expose its demo-kit-owned target config',
+  );
+  const governanceTargetConfig = await readJson(server.governanceTargetConfigPath);
+  assert.equal(governanceTargetConfig.schemaVersion, 'snapback.visibility-governance-target-config.v1');
+  assert.equal(governanceTargetConfig.targetClass, 'repository-local');
+  assert.equal(governanceTargetConfig.verdict.providerProfile, 'repository-local-dev-mint-v1');
+  assert.deepEqual(
+    governanceTargetConfig.verdict.deploymentIdentities.map(({ appId }) => appId),
+    [schema.appId],
+  );
+  console.log(`BOUND demo-kit rbac ${server.baseUrl}`);
+  console.log(`MINTED demo-kit rbac governance target config ${server.governanceTargetConfigPath}`);
+  console.log(
+    `EXACT snapback child build ${server.identity.binary.gitCommit} ` +
+      `${server.identity.binary.crateVersion} ${server.identity.binary.startupNonce}`,
+  );
+  await assertMissingGovernanceTargetRefusesBoot({
+    binaryPath: server.runtimeRecovery?.selectedBinary,
+    startupArtifacts: carrier,
   });
   // Expiry aborts every tracked client request and stops the isolated server.
   // Joining continues normally; a second live timer terminates the acceptance

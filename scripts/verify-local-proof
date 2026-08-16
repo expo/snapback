@@ -605,7 +605,10 @@ run auth-session-schema-parity -- node demos/_kit/tests/auth-session-schema-pari
 run auth-coordinator-client -- node demos/_kit/tests/auth-coordinator-client.mjs
 run auth-invalidation-client -- node demos/_kit/tests/auth-invalidation-client.mjs
 run card-game-authority-scope --requires current-binary-readiness -- node demos/card-game/tests/acceptance/authority-scope.mjs
-run rbac-acceptance --requires current-binary-readiness -- node demos/rbac/tests/acceptance/rbac.mjs
+# @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production —
+# the canonical RBAC rung now starts from clean-checkout generated state and
+# proves the demo-kit-owned repository-local governance mint at the live bind.
+run rbac-governed-fresh-prime --requires current-binary-readiness -- node tests/acceptance/rbac-governed-fresh-prime.mjs
 run client-errors -- node demos/_kit/tests/client-errors.mjs
 run live-wire-schema -- node demos/_kit/tests/live-wire-schema.mjs
 run js-live-wire-fixtures -- node tests/conformance/js-live-wire-fixtures-v1.mjs
