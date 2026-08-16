@@ -124,6 +124,23 @@ function diagnosticError(code, message, details = {}) {
   return error;
 }
 
+function committedEffectError(error, clientMutationId) {
+  const source = error?.diagnostic;
+  const committed = diagnosticError(
+    source?.code ?? error?.code ?? 'SNAPBACK_REACT_OPTIMISTIC_POST_DISPATCH_FAILED',
+    source?.message ?? error?.message ?? String(error),
+    {
+      ...(source?.details ?? {}),
+      effectCommitted: true,
+      clientMutationId,
+    },
+  );
+  committed.effectCommitted = true;
+  committed.clientMutationId = clientMutationId;
+  committed.cause = error;
+  return committed;
+}
+
 function diagnosticsChannelForClient(client) {
   try {
     const channel = client?.diagnosticsChannel?.();
@@ -1901,6 +1918,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       retention: store.retention,
     }));
 
+    let effectCommitted = false;
+    let committedMutationId = id;
     try {
       if (capture && !client.authorityFence?.isCurrent?.(capture)) {
         throw diagnosticError(
@@ -1915,13 +1934,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         queue,
         ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       });
+      effectCommitted = true;
+      committedMutationId = output?.clientMutationId ?? id;
+      layer.clientMutationId = committedMutationId;
       if (output?.status === 'queued' || output?.queued === true) {
-        if (queue === false) {
-          throw diagnosticError(
-            'SNAPBACK_REACT_QUEUE_FALSE_VIOLATED',
-            'headless client returned queued after queue:false',
-          );
-        }
         let presentation = 'installed';
         let diagnosticCode = null;
         try {
@@ -1937,6 +1953,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           diagnosticCode = 'SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE';
           layer.orphaned = true;
           emitQueuedPresentationDiagnostic(admittedMutation, output, diagnosticCode, error);
+        }
+        if (queue === false) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_QUEUE_FALSE_VIOLATED',
+            'headless client returned queued after queue:false',
+          );
         }
         return queuedMutationOutcome(admittedMutation, output, presentation, diagnosticCode);
       }
@@ -1954,6 +1976,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       confirmOptimisticLayer(store, layer, result);
       return queue === false ? result : Object.freeze({ status: 'settled', result });
     } catch (error) {
+      // @ref LLP 0180#mutation-ambiguity — once mutate returns accepted work,
+      // a local presentation/authority failure cannot advertise non-commit or
+      // invite a fresh mutation identity.
+      if (effectCommitted) {
+        store.pendingMutations.delete(id);
+        if (!layer.retired && layer.mutationSubscription === null) layer.orphaned = true;
+        publishMaterialized(store);
+        throw committedEffectError(error, committedMutationId);
+      }
       store.pendingMutations.delete(id);
       store.optimisticLayers = store.optimisticLayers.filter((entry) => entry !== layer);
       releaseLayerPin(store, layer);

@@ -224,6 +224,9 @@ function fakeClient() {
       authorityEpoch += 1;
       await barrier.resume();
     },
+    invalidateAuthorityWithoutBarrier() {
+      authorityEpoch += 1;
+    },
     inspection() {
       return {
         attempts,
@@ -373,7 +376,7 @@ await provider.dispose();
 client.disposeDiagnostics();
 assert.equal(client.inspection().handles, 0);
 
-async function queuedLayerHarness({ disableStatusSubscription = false } = {}) {
+async function queuedLayerHarness({ disableStatusSubscription = false, queue = undefined } = {}) {
   const queuedClient = fakeClient();
   if (disableStatusSubscription) {
     queuedClient.subscribeMutation = () => {
@@ -403,10 +406,76 @@ async function queuedLayerHarness({ disableStatusSubscription = false } = {}) {
       optimistic: optimistic(1, {
         update: (current) => current.map((row) => ({ ...row, count: 1 })),
       }),
+      ...(queue === undefined ? {} : { queue }),
     },
   );
   const attempt = queuedClient.inspection().attempts[0];
   return { queuedClient, queuedProvider, queuedObserver, dispatch, attempt };
+}
+
+// Once headless mutate returns a settled outcome, a local result-contract
+// failure is a presentation defect over committed effect, not rollback proof.
+{
+  const harness = await queuedLayerHarness();
+  harness.attempt.resolveOutput({
+    status: 'settled',
+    clientMutationId: harness.attempt.clientMutationId,
+    result: { targetCount: 'invalid' },
+  });
+  const error = await harness.dispatch.catch((caught) => caught);
+  assert.equal(error.code, 'SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED');
+  assert.equal(error.effectCommitted, true);
+  assert.equal(error.diagnostic.details.effectCommitted, true);
+  assert.equal(error.clientMutationId, harness.attempt.clientMutationId);
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.equal(harness.queuedProvider.inspection().orphanedOptimisticLayers.length, 1);
+  assert.equal(harness.queuedObserver.snapshot().queries.feed.data[0].count, 1);
+  await harness.queuedClient.cutAuthority();
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
+}
+
+// The same post-dispatch rule applies when the captured authority becomes
+// stale after the server response: the error says committed and retains the
+// layer until the ordinary authority barrier owns cleanup.
+{
+  const harness = await queuedLayerHarness();
+  harness.queuedClient.invalidateAuthorityWithoutBarrier();
+  harness.attempt.resolveOutput({
+    status: 'settled',
+    clientMutationId: harness.attempt.clientMutationId,
+    result: { targetCount: 1 },
+  });
+  const error = await harness.dispatch.catch((caught) => caught);
+  assert.equal(error.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+  assert.equal(error.effectCommitted, true);
+  assert.equal(error.diagnostic.details.effectCommitted, true);
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.equal(harness.queuedProvider.inspection().orphanedOptimisticLayers.length, 1);
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
+}
+
+// A broken headless queue:false promise is still durable acceptance. Preserve
+// the installed layer and its status subscription while surfacing the client
+// contract violation as committed effect.
+{
+  const harness = await queuedLayerHarness({ queue: false });
+  harness.attempt.queue(42);
+  const error = await harness.dispatch.catch((caught) => caught);
+  assert.equal(error.code, 'SNAPBACK_REACT_QUEUE_FALSE_VIOLATED');
+  assert.equal(error.effectCommitted, true);
+  assert.equal(error.diagnostic.details.effectCommitted, true);
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.equal(harness.queuedClient.inspection().mutationSubscriptions, 1);
+  harness.attempt.disposition('failed');
+  await flush();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 0);
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
 }
 
 // M7 regression: queued dispatch resolves; a generic rollback-on-error
