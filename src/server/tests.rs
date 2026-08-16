@@ -20111,6 +20111,10 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "environment variable restoring legacy inline live fan-out for settlement-isolation A/B measurement (LLP 0200 Phase 1)",
     ),
     (
+        "SNAPBACK_LIVE_EVAL_MEMO_DISABLED",
+        "environment variable disabling same-principal live-evaluation memoization as the D2-H1 control arm (LLP 0209 G1)",
+    ),
+    (
         "SNAPBACK_SPIKE_TRACE",
         "environment variable enabling the measurement-only A/B trace (LLP 0200 §3); never an HTTP diagnostic",
     ),

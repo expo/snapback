@@ -11,8 +11,9 @@ use crate::auth::invalidation::{
     ScopeRetirement, ScopeRetirementCandidate,
 };
 use crate::auth::invocation::{
-    FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
-    ResolvedAppAuthority, RetainedLiveAuthority, WireAuthorityFields, descriptor_for_authority,
+    FunctionAttribution, HandlerAuthProjection, InvocationGate, InvocationSource,
+    PreparedAuthority, PreparedInvocation, ResolvedAppAuthority, RetainedLiveAuthority,
+    WireAuthorityFields, descriptor_for_authority,
 };
 use crate::auth::lease::{
     AuthorizedLease, AuthorizedLeaseConfig, AuthorizedLeaseData, AuthorizedLeaseIssue,
@@ -785,7 +786,7 @@ struct LiveEvaluationMemoKey {
     function_generation: u64,
     function: String,
     canonical_arguments: String,
-    principal: String,
+    authority: String,
     cut_version: u64,
 }
 
@@ -794,7 +795,7 @@ impl LiveEvaluationMemoKey {
         std::mem::size_of::<Self>()
             .saturating_add(self.function.len())
             .saturating_add(self.canonical_arguments.len())
-            .saturating_add(self.principal.len())
+            .saturating_add(self.authority.len())
     }
 }
 
@@ -812,26 +813,38 @@ struct LiveEvaluationMemo {
     max_bytes: usize,
     next_sequence: u64,
     disabled: bool,
+    #[cfg(test)]
+    keys_built: u64,
+    #[cfg(test)]
+    result_clones: u64,
 }
 
 impl Default for LiveEvaluationMemo {
     fn default() -> Self {
+        Self::empty(live_evaluation_memo_disabled(
+            std::env::var("SNAPBACK_LIVE_EVAL_MEMO_DISABLED")
+                .ok()
+                .as_deref(),
+        ))
+    }
+}
+
+impl LiveEvaluationMemo {
+    fn empty(disabled: bool) -> Self {
         Self {
             entries: BTreeMap::new(),
             estimated_bytes: 0,
             max_entries: LIVE_EVALUATION_MEMO_MAX_ENTRIES,
             max_bytes: LIVE_EVALUATION_MEMO_MAX_ESTIMATED_BYTES,
             next_sequence: 0,
-            disabled: live_evaluation_memo_disabled(
-                std::env::var("SNAPBACK_LIVE_EVAL_MEMO_DISABLED")
-                    .ok()
-                    .as_deref(),
-            ),
+            disabled,
+            #[cfg(test)]
+            keys_built: 0,
+            #[cfg(test)]
+            result_clones: 0,
         }
     }
-}
 
-impl LiveEvaluationMemo {
     fn get(
         &mut self,
         key: &LiveEvaluationMemoKey,
@@ -842,6 +855,10 @@ impl LiveEvaluationMemo {
         }
         let entry = self.entries.get_mut(key)?;
         let result = entry.result.clone();
+        #[cfg(test)]
+        {
+            self.result_clones = self.result_clones.saturating_add(1);
+        }
         if entry.holders.insert(subscription_id.to_owned()) {
             let added = subscription_id
                 .len()
@@ -857,10 +874,15 @@ impl LiveEvaluationMemo {
         &mut self,
         key: LiveEvaluationMemoKey,
         subscription_id: &str,
-        result: QueryInvocation,
+        result: &QueryInvocation,
     ) -> u64 {
         if self.disabled {
             return 0;
+        }
+        let result = result.clone();
+        #[cfg(test)]
+        {
+            self.result_clones = self.result_clones.saturating_add(1);
         }
         self.next_sequence = self.next_sequence.wrapping_add(1).max(1);
         let sequence = self.next_sequence;
@@ -905,11 +927,31 @@ impl LiveEvaluationMemo {
     }
 
     fn retire_subscription(&mut self, subscription_id: &str) {
+        if self.disabled {
+            return;
+        }
         let retired = self
             .entries
             .iter()
             .filter(|(_, entry)| entry.holders.contains(subscription_id))
             .map(|(key, _)| key.clone())
+            .collect::<Vec<_>>();
+        for key in retired {
+            if let Some(entry) = self.entries.remove(&key) {
+                self.estimated_bytes = self.estimated_bytes.saturating_sub(entry.estimated_bytes);
+            }
+        }
+    }
+
+    fn retire_authority(&mut self, authority: &str) {
+        if self.disabled {
+            return;
+        }
+        let retired = self
+            .entries
+            .keys()
+            .filter(|key| key.authority == authority)
+            .cloned()
             .collect::<Vec<_>>();
         for key in retired {
             if let Some(entry) = self.entries.remove(&key) {
@@ -948,6 +990,17 @@ impl Default for PendingLiveScheduler {
 }
 
 impl PendingLiveScheduler {
+    fn empty_with_memo_disabled(disabled: bool) -> Self {
+        Self {
+            entries: BTreeMap::new(),
+            authority: VecDeque::new(),
+            refresh: VecDeque::new(),
+            data: VecDeque::new(),
+            next_generation: 0,
+            evaluation_memo: LiveEvaluationMemo::empty(disabled),
+        }
+    }
+
     fn next_generation(&mut self) -> u64 {
         self.next_generation = self.next_generation.wrapping_add(1).max(1);
         self.next_generation
@@ -4361,45 +4414,103 @@ impl LocalSnapback {
         Ok(prepared)
     }
 
+    fn live_evaluation_memo_authority_component(
+        auth: &AuthInput,
+        projection: &HandlerAuthProjection,
+        authority_identity: &str,
+    ) -> Option<String> {
+        // `AuthInput`'s public wire serializer deliberately skips the
+        // server-owned authorization projection. Those facts remain runtime
+        // inputs, so spell out every field alongside the complete sealed
+        // handler projection and the bearer-free prepared-authority identity.
+        let AuthInput {
+            principal,
+            session_id,
+            user_id,
+            authorization_kind,
+            authorization_actor_kind,
+            authorization_activity_actor_kind,
+            authorization_actor_user_id,
+            authorization_grant_id,
+            client_mutation_id,
+            client_mutation_digest,
+            authorization_is_delegated,
+        } = auth;
+        crate::watches::canonical_json(&json!({
+            "authInput": {
+                "principal": principal.as_deref(),
+                "sessionId": session_id.as_deref(),
+                "userId": user_id.as_deref(),
+                "authorizationKind": authorization_kind.as_deref(),
+                "authorizationActorKind": authorization_actor_kind.as_deref(),
+                "authorizationActivityActorKind": authorization_activity_actor_kind.as_deref(),
+                "authorizationActorUserId": authorization_actor_user_id.as_deref(),
+                "authorizationGrantId": authorization_grant_id.as_deref(),
+                "clientMutationId": client_mutation_id.as_deref(),
+                "clientMutationDigest": client_mutation_digest.as_deref(),
+                "authorizationIsDelegated": authorization_is_delegated,
+            },
+            "handlerProjection": projection,
+            "authorityIdentity": authority_identity,
+        }))
+        .ok()
+    }
+
     fn live_evaluation_memo_key(
-        &self,
+        &mut self,
         subscription: &LiveSubscription,
+        authority: &PreparedAuthority,
     ) -> Option<LiveEvaluationMemoKey> {
+        if self.pending_live_fanout.evaluation_memo.disabled {
+            return None;
+        }
+        // Exhaustive on purpose: a future HandlerInput field must be assigned
+        // to the key, the refusal rule, or a documented result-irrelevant
+        // category before this compiles again. `read_set` is mutation OCC
+        // metadata and query execution does not consume it; `correlation` is
+        // telemetry/receipt metadata and is never exposed to the handler.
+        let HandlerInput {
+            args,
+            auth,
+            read_set: _,
+            correlation: _,
+            ctx_ledger,
+        } = &subscription.input;
+        if ctx_ledger.is_some() {
+            return None;
+        }
         let cut_version = self
             .current_live_evaluation
             .as_ref()
             .map(|evaluation| evaluation.cut_version)?;
-        let canonical_arguments = crate::watches::canonical_json(&subscription.input.args).ok()?;
-        let auth = &subscription.input.auth;
-        // `AuthInput`'s public wire serializer deliberately skips the
-        // server-owned authorization projection. Those facts are nevertheless
-        // handler-visible inputs, so spell them out in this internal identity.
-        let principal = crate::watches::canonical_json(&json!({
-            "principal": auth.principal.as_deref(),
-            "sessionId": auth.session_id.as_deref(),
-            "userId": auth.user_id.as_deref(),
-            "authorizationKind": auth.authorization_kind.as_deref(),
-            "authorizationActorKind": auth.authorization_actor_kind.as_deref(),
-            "authorizationActivityActorKind": auth.authorization_activity_actor_kind.as_deref(),
-            "authorizationActorUserId": auth.authorization_actor_user_id.as_deref(),
-            "authorizationGrantId": auth.authorization_grant_id.as_deref(),
-            "clientMutationId": auth.client_mutation_id.as_deref(),
-            "clientMutationDigest": auth.client_mutation_digest.as_deref(),
-            "authorizationIsDelegated": auth.authorization_is_delegated,
-        }))
-        .ok()?;
+        let canonical_arguments = crate::watches::canonical_json(args).ok()?;
+        let authority_component = Self::live_evaluation_memo_authority_component(
+            auth,
+            authority.projection(),
+            &authority.resolved().invalidation_subject(),
+        )?;
         // @ref LLP 0209#6 — the pre-G0 key is deliberately no broader than
         // exact function/plan generation + canonical args + handler-visible
-        // principal + the scheduler's atomic evaluation cut. The containing
-        // scheduler makes instance identity implicit and prevents sharing
-        // across LocalSnapback instances.
-        Some(LiveEvaluationMemoKey {
+        // prepared authority + the scheduler's atomic evaluation cut. The
+        // containing scheduler makes instance identity implicit and prevents
+        // sharing across LocalSnapback instances. A ctx-answer ledger refuses
+        // memoization because it is an additional handler-visible input.
+        let key = LiveEvaluationMemoKey {
             function_generation: self.app_generation,
             function: subscription.function.clone(),
             canonical_arguments,
-            principal,
+            authority: authority_component,
             cut_version,
-        })
+        };
+        #[cfg(test)]
+        {
+            self.pending_live_fanout.evaluation_memo.keys_built = self
+                .pending_live_fanout
+                .evaluation_memo
+                .keys_built
+                .saturating_add(1);
+        }
+        Some(key)
     }
 
     fn invoke_live_subscription_query(
@@ -4410,8 +4521,7 @@ impl LocalSnapback {
         // Generation admission is a per-subscription gate, not part of the
         // evaluation turn, and therefore still runs on a memo hit.
         self.validate_expected_generation(&authority, subscription.expected_generation.as_ref())?;
-        let key = self.live_evaluation_memo_key(subscription);
-        let memo_disabled = self.pending_live_fanout.evaluation_memo.disabled;
+        let key = self.live_evaluation_memo_key(subscription, &authority);
         if let Some(key) = key.as_ref()
             && let Some((cached, evictions)) = self
                 .pending_live_fanout
@@ -4430,7 +4540,7 @@ impl LocalSnapback {
                 .saturating_add(evictions);
             return Ok(cached);
         }
-        if key.is_some() && !memo_disabled {
+        if key.is_some() {
             self.live_evaluation_stats.memo_misses =
                 self.live_evaluation_stats.memo_misses.saturating_add(1);
         }
@@ -4458,7 +4568,7 @@ impl LocalSnapback {
             let evictions = self.pending_live_fanout.evaluation_memo.insert(
                 key,
                 &subscription.id,
-                result.clone(),
+                &result,
             );
             self.live_evaluation_stats.memo_evictions = self
                 .live_evaluation_stats
@@ -5411,7 +5521,8 @@ impl LocalSnapback {
             subscription.observation.finish(200, None, "reset");
         }
         self.subscriptions.clear();
-        self.pending_live_fanout = PendingLiveScheduler::default();
+        let memo_disabled = self.pending_live_fanout.evaluation_memo.disabled;
+        self.pending_live_fanout = PendingLiveScheduler::empty_with_memo_disabled(memo_disabled);
         self.live_evaluation_timeout_streaks.clear();
         if let Some(coalescer) = &self.live_coalescer {
             for subscription in &dropped_subscriptions {
@@ -15775,6 +15886,9 @@ impl LocalSnapback {
             if let Some(retired) = self.subscriptions.remove(&old_id) {
                 retired.observation.finish(200, None, "superseded");
             }
+            self.pending_live_fanout
+                .evaluation_memo
+                .retire_subscription(&old_id);
             if let (Some(state), Some((scope, candidate, retirement))) =
                 (self.auth_invalidation.as_mut(), prepared_retirement)
             {
@@ -16141,6 +16255,9 @@ impl LocalSnapback {
         // No fallible step remains after the retained producer is removed.
         self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
+        self.pending_live_fanout
+            .evaluation_memo
+            .retire_subscription(&subscription.id);
         subscription.observation.finish(200, None, "unsubscribed");
         self.refresh_auth_scoped_live_connections();
         let scope_retirement = match (self.auth_invalidation.as_mut(), prepared_retirement) {
@@ -18707,6 +18824,12 @@ impl LocalSnapback {
                     .map(|authorization| authorization.scope_id.clone())
             })
             .collect::<Vec<_>>();
+        let retired_subscription_ids = self
+            .subscriptions
+            .values()
+            .filter(|subscription| subscription.connection_id == connection_id)
+            .map(|subscription| subscription.id.clone())
+            .collect::<Vec<_>>();
         for subscription in self
             .subscriptions
             .values()
@@ -18734,6 +18857,11 @@ impl LocalSnapback {
         }
         self.subscriptions
             .retain(|_, subscription| subscription.connection_id != connection_id);
+        for subscription_id in retired_subscription_ids {
+            self.pending_live_fanout
+                .evaluation_memo
+                .retire_subscription(&subscription_id);
+        }
         self.refresh_auth_scoped_live_connections();
         if let Some(state) = self.auth_invalidation.as_mut() {
             for scope in retired_authorization_scopes {
@@ -20583,6 +20711,15 @@ impl LocalSnapback {
                     .map(|authorization| authorization.scope_id.clone())
             })
             .collect::<Vec<_>>();
+        let retired_subscription_ids = self
+            .subscriptions
+            .values()
+            .filter(|subscription| {
+                subscription.connection_id == connection_id
+                    && subscription.effect_fence.as_ref() == Some(effect_fence)
+            })
+            .map(|subscription| subscription.id.clone())
+            .collect::<Vec<_>>();
         for subscription in self.subscriptions.values().filter(|subscription| {
             subscription.connection_id == connection_id
                 && subscription.effect_fence.as_ref() == Some(effect_fence)
@@ -20593,6 +20730,11 @@ impl LocalSnapback {
             subscription.connection_id != connection_id
                 || subscription.effect_fence.as_ref() != Some(effect_fence)
         });
+        for subscription_id in retired_subscription_ids {
+            self.pending_live_fanout
+                .evaluation_memo
+                .retire_subscription(&subscription_id);
+        }
         if let Some(state) = self.auth_invalidation.as_mut() {
             for scope in retired_scopes {
                 let _ = state.obligations.retire_scope(&scope);
@@ -22277,6 +22419,9 @@ impl LocalSnapback {
                 })?
             };
             self.subscriptions.remove(&subscription.id);
+            self.pending_live_fanout
+                .evaluation_memo
+                .retire_subscription(&subscription.id);
             subscription
                 .observation
                 .finish(200, None, "schema_publication");
@@ -22838,11 +22983,6 @@ impl LocalSnapback {
         &mut self,
         coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
     ) {
-        self.pending_live_fanout.evaluation_memo.disabled = live_evaluation_memo_disabled(
-            std::env::var("SNAPBACK_LIVE_EVAL_MEMO_DISABLED")
-                .ok()
-                .as_deref(),
-        );
         self.live_coalescer = Some(coalescer);
     }
 
@@ -23653,6 +23793,9 @@ impl LocalSnapback {
         let Some(subscription) = self.subscriptions.remove(subscription_id) else {
             return;
         };
+        self.pending_live_fanout
+            .evaluation_memo
+            .retire_subscription(subscription_id);
         if let Ok(_publication) = admission.effect_guard("live timeout teardown publication")
             && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
                 network_profile: None,
@@ -24524,12 +24667,27 @@ impl LocalSnapback {
             // never leave predecessor-authority delivery enabled.
             let marking_started = Instant::now();
             for subscription in &subscriptions {
-                // @ref LLP 0209#6 — an authority fence also retires every
-                // memo result held under the predecessor authority; the
-                // per-subscription delivery gate remains the safety boundary.
-                self.pending_live_fanout
-                    .evaluation_memo
-                    .retire_subscription(&subscription.id);
+                // @ref LLP 0209#6 — an authority fence retires the complete
+                // predecessor authority component, independent of current
+                // holder membership. That includes orphaned entries left by
+                // any earlier lifecycle defect; the delivery gate remains the
+                // safety boundary.
+                if !self.pending_live_fanout.evaluation_memo.disabled {
+                    let projection = HandlerAuthProjection::from_authority(
+                        subscription.authority.resolved(),
+                    );
+                    if let Some(authority_component) =
+                        Self::live_evaluation_memo_authority_component(
+                            &subscription.input.auth,
+                            &projection,
+                            &subscription.authority.resolved().invalidation_subject(),
+                        )
+                    {
+                        self.pending_live_fanout
+                            .evaluation_memo
+                            .retire_authority(&authority_component);
+                    }
+                }
                 coalescer.fence_authority(&subscription.id, authorization.version.clone());
                 crate::spike_trace::fence(
                     &subscription.id,
@@ -24784,6 +24942,9 @@ impl LocalSnapback {
             .collect::<BTreeSet<_>>();
         for (subscription, payload) in subscriptions.iter().zip(payloads) {
             self.subscriptions.remove(&subscription.id);
+            self.pending_live_fanout
+                .evaluation_memo
+                .retire_subscription(&subscription.id);
             let cause = if subscription.expected_generation.is_some() {
                 "artifact_identity_mismatch"
             } else {

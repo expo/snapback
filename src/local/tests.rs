@@ -2,8 +2,8 @@ use super::{
     ASSET_RECORD_LIVE_FUNCTION, AssetFinalizeCrashPoint, AuthorizationBlastRadiusStats,
     AuthorizationInvalidationAckInput, AuthorizationInvalidationManualRetryInput,
     BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
-    BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, CurrentLiveEvaluation,
-    DetachedIbexMutation, DetachedMutationRead, DiagnosticBoundary, EnsureAppMode,
+    BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
+    DetachedMutationRead, DiagnosticBoundary, EnsureAppMode,
     FAIL_NEXT_ADDITIONAL_JOB_ADMISSION, FAIL_NEXT_LIVE_SCOPE_REGISTRATION,
     FAIL_NEXT_SCOPE_RETIREMENT_AUTH, FinalizePhaseAOutcomeV1, FinalizePreflightV1,
     INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission, LiveResumeInput,
@@ -435,6 +435,224 @@ fn live_evaluation_memo_different_args_or_function_do_not_share() {
 }
 
 #[test]
+fn live_evaluation_memo_ctx_ledger_refuses_lookup_and_population() {
+    let mut snapback = live_limit_snapback();
+    install_live_memo_scheduler(&mut snapback);
+    for (index, now) in [100_u64, 200_u64].into_iter().enumerate() {
+        let mut input = live_memo_input(
+            &format!("memo-ledger-{index}"),
+            json!({}),
+            "principal-a",
+        );
+        input.input.ctx_ledger = Some(CtxAnswerLedger {
+            version: ctx_ledger_version(),
+            ids: Vec::new(),
+            now,
+            auth_fingerprint: None,
+        });
+        snapback
+            .subscribe_live("listItems", input)
+            .expect("subscribe ledger-bearing observer");
+    }
+    let before = snapback.live_evaluation_stats.clone();
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        2
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        0
+    );
+    assert_eq!(snapback.pending_live_fanout.evaluation_memo.keys_built, 0);
+    assert_eq!(
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .result_clones,
+        0
+    );
+    assert!(
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .entries
+            .is_empty(),
+        "ledger-bearing subscriptions neither consult nor populate the memo"
+    );
+}
+
+#[test]
+fn live_evaluation_memo_prepared_authority_projection_isolates_roles() {
+    let mut snapback = live_limit_snapback();
+    install_live_memo_scheduler(&mut snapback);
+    for (connection_id, roles) in [
+        ("memo-role-admin", vec!["admin".to_owned()]),
+        ("memo-role-member", Vec::new()),
+    ] {
+        let authority = InvocationGate::prepare_authority(
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::DevImpersonation {
+                user_id: "principal-a".to_owned(),
+                roles,
+                local_dev_only: true,
+            },
+        )
+        .expect("prepare role-bearing live authority");
+        snapback
+            .subscribe_live_prepared(
+                "listItems",
+                live_memo_input(connection_id, json!({}), "principal-a"),
+                authority,
+            )
+            .expect("subscribe role-isolated observer");
+    }
+    let stored_auth = snapback
+        .subscriptions
+        .values()
+        .map(|subscription| subscription.input.auth.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(stored_auth[0], stored_auth[1], "AuthInput is intentionally identical");
+    let before = snapback.live_evaluation_stats.clone();
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        2
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        2
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0,
+        "different handler-visible role projections cannot share"
+    );
+    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 2);
+}
+
+#[test]
+fn live_evaluation_memo_unsubscribe_supersession_and_disconnect_retire_entries() {
+    let mut snapback = live_limit_snapback();
+    install_live_memo_scheduler(&mut snapback);
+    let first = snapback
+        .subscribe_live(
+            "listItems",
+            live_memo_input("memo-life-a", json!({}), "principal-a"),
+        )
+        .expect("subscribe first lifecycle observer");
+    let second = snapback
+        .subscribe_live(
+            "listItems",
+            live_memo_input("memo-life-b", json!({}), "principal-a"),
+        )
+        .expect("subscribe second lifecycle observer");
+    queue_and_flush_live_memo_refresh(&mut snapback);
+    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+
+    snapback
+        .unsubscribe_live(
+            "listItems",
+            LiveUnsubscribeInput {
+                subscription_id: first.subscription_id,
+                connection_id: "memo-life-a".to_owned(),
+                auth: AuthInput {
+                    user_id: Some("principal-a".to_owned()),
+                    ..AuthInput::default()
+                },
+            },
+        )
+        .expect("unsubscribe retires shared holder entry");
+    assert!(snapback.pending_live_fanout.evaluation_memo.entries.is_empty());
+
+    let before = snapback.live_evaluation_stats.clone();
+    queue_and_flush_live_memo_refresh(&mut snapback);
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        1,
+        "the surviving subscription cannot hit the retired entry"
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+
+    let mut replacement = live_memo_input("memo-life-b", json!({}), "principal-a");
+    replacement.supersedes = Some(second.subscription_id);
+    let replacement = snapback
+        .subscribe_live("listItems", replacement)
+        .expect("supersede lifecycle observer");
+    assert!(
+        snapback.pending_live_fanout.evaluation_memo.entries.is_empty(),
+        "supersession retires the predecessor holder entry"
+    );
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+    assert!(snapback.subscriptions.contains_key(&replacement.subscription_id));
+    snapback.disconnect("memo-life-b", now_millis());
+    assert!(
+        snapback.pending_live_fanout.evaluation_memo.entries.is_empty(),
+        "connection teardown retires every dropped subscription entry"
+    );
+}
+
+#[test]
+fn live_evaluation_memo_delta_lane_neither_consults_nor_populates() {
+    let mut snapback = rqs_snapback();
+    install_live_memo_scheduler(&mut snapback);
+    snapback
+        .subscribe_live(
+            "listPublicTodos",
+            rqs_subscribe_input("memo-delta", None),
+        )
+        .expect("subscribe DK-3-eligible observer");
+    let before = snapback.live_evaluation_stats.clone();
+
+    snapback
+        .invoke_mutation(
+            "createTodo",
+            HandlerInput {
+                args: json!({ "title": "delta-only" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("commit delta-eligible row");
+    assert!(snapback.flush_pending_live_fanout());
+
+    let frames = live_memo_frames(&mut snapback, "memo-delta");
+    assert!(frames.iter().any(|frame| frame["kind"] == "live_delta"));
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        0
+    );
+    assert_eq!(snapback.live_evaluation_stats.memo_hits - before.memo_hits, 0);
+    assert_eq!(snapback.live_evaluation_stats.memo_misses - before.memo_misses, 0);
+    assert_eq!(snapback.pending_live_fanout.evaluation_memo.keys_built, 0);
+    assert_eq!(
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .result_clones,
+        0
+    );
+    assert!(snapback.pending_live_fanout.evaluation_memo.entries.is_empty());
+}
+
+#[test]
 fn live_evaluation_memo_matcher_wake_retires_and_delivers_fresh_result() {
     let mut snapback = live_limit_snapback();
     install_live_memo_scheduler(&mut snapback);
@@ -497,102 +715,107 @@ fn live_evaluation_memo_matcher_wake_retires_and_delivers_fresh_result() {
 }
 
 #[test]
-fn live_evaluation_memo_authority_fence_retires_predecessor_entries() {
+fn live_evaluation_memo_writeless_authority_fence_retires_departed_holder_orphan() {
     let mut snapback = live_limit_snapback();
     snapback
-        .apply_schema(SchemaManifest {
-            schema_hash: Some("memo-authority-schema".to_owned()),
-            tables: vec![TableManifest {
-                name: "items".to_owned(),
-                fields: vec![FieldManifest {
-                    name: "value".to_owned(),
-                    field_type: FieldType::String,
-                    optional: false,
-                }],
-                indexes: vec![IndexManifest {
-                    name: "by_value".to_owned(),
-                    fields: vec!["value".to_owned()],
-                    unique: false,
-                    where_applicable: false,
-                }],
-                syncable: true,
-                permission_backing: true,
-                permission_fields: None,
-                search_indexes: Vec::new(),
-                vector_indexes: Vec::new(),
-                search_live_limits: None,
-                membership: None,
-                authority_profile: None,
-                asset_sharing: None,
-                visibility: None,
-                history: None,
-            }],
-            ..SchemaManifest::default()
-        })
-        .expect("mark memo fixture permission-backing");
+        .synchronize_auth_mode_admission(&settled_sessions_state())
+        .expect("publish sessions-mode scheduler admission");
     let connection = install_test_invalidation(&mut snapback);
     install_live_memo_scheduler(&mut snapback);
+    let mut subscription_ids = Vec::new();
+    for (connection_id, instance) in [("memo-authority-a", 901), ("memo-authority-b", 902)] {
+        subscription_ids.push(
+            snapback
+                .subscribe_live_with_invalidation(
+                    "listItems",
+                    LiveSubscribeInput {
+                        connection_id: connection_id.to_owned(),
+                        input: HandlerInput::default(),
+                        authorization_namespace: Some(test_authorization_namespace(instance)),
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: Some(connection.clone()),
+                        effect_fence: None,
+                    },
+                )
+                .expect("subscribe authority memo observer")
+                .subscription_id,
+        );
+    }
+
+    // Populate through one real scheduler invocation. B is live but has not
+    // consulted the memo, which recreates the leak shape from the review.
+    snapback.notify_live_subscriptions(&[]);
+    let now = Instant::now();
     snapback
-        .subscribe_live_with_invalidation(
-            "listItems",
-            LiveSubscribeInput {
-                connection_id: "memo-authority".to_owned(),
-                input: HandlerInput::default(),
-                authorization_namespace: Some(test_authorization_namespace(901)),
-                supersedes: None,
-                resume_from_token: None,
-            },
-            LiveInvalidationAdmission {
-                session_mode: true,
-                connection: Some(connection),
-                effect_fence: None,
-            },
-        )
-        .expect("subscribe authority memo holder");
-    let subscription = snapback
-        .subscriptions
+        .pending_live_fanout
+        .entries
+        .get_mut(&subscription_ids[0])
+        .expect("A pending")
+        .first_deferred_at = now - Duration::from_secs(2);
+    snapback
+        .pending_live_fanout
+        .entries
+        .get_mut(&subscription_ids[1])
+        .expect("B pending")
+        .first_deferred_at = now - Duration::from_secs(1);
+    assert!(snapback.run_pending_live_subscription(
+        &subscription_ids[0],
+        Arc::new(crate::live_coalesce::LiveEvaluationControl::default()),
+    ));
+    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+    let holder_ids = &snapback
+        .pending_live_fanout
+        .evaluation_memo
+        .entries
         .values()
         .next()
-        .expect("retained authority subscription")
-        .clone();
-    let admission = test_session_admission();
-    let cut_version = snapback.durable_version().expect("memo cut version");
-    let control = Arc::new(crate::live_coalesce::LiveEvaluationControl::default());
-    snapback.current_live_evaluation = Some(CurrentLiveEvaluation {
-        subscription_id: subscription.id.clone(),
-        connection_id: subscription.connection_id.clone(),
-        cut_version,
-        commit_versions: vec![cut_version],
-        queued_ms: None,
-        started_ms: None,
-        started_at: Instant::now(),
-        delivered_frames: 0,
-        delivered_bytes: 0,
-        wire_kind: None,
-        control,
-    });
-    let authority = snapback
-        .prepare_live_rerun_authority(&subscription.authority, admission)
-        .expect("prepare authority-scoped memo query");
+        .expect("real query populated memo")
+        .holders;
+    assert_eq!(holder_ids, &BTreeSet::from([subscription_ids[0].clone()]));
+
+    // Simulate an inherited pre-fix orphan: the holder has departed while B,
+    // under the same authority component, remains live. The memo entry itself
+    // was produced above by the real invoke_authorization_resolution path;
+    // it is not white-box seeded.
     snapback
-        .invoke_live_subscription_query(&subscription, authority)
-        .expect("seed authority-scoped memo entry through the scheduler invocation seam");
-    snapback.current_live_evaluation = None;
-    assert_eq!(
-        snapback.pending_live_fanout.evaluation_memo.entries.len(),
-        1
-    );
+        .subscriptions
+        .remove(&subscription_ids[0])
+        .expect("depart memo holder")
+        .observation
+        .finish(200, None, "test_departed_holder");
 
-    invoke_test_session_mutation(
-        &mut snapback,
-        "insertItem",
-        HandlerInput {
-            args: json!({ "value": "authority-transition" }),
-            ..HandlerInput::default()
+    let admission = test_session_admission();
+    let cut_version = snapback.durable_version().expect("unchanged data cut");
+    let prior_authorization = snapback
+        .auth_invalidation
+        .as_ref()
+        .expect("invalidation state")
+        .obligations
+        .expectation()
+        .authorization
+        .clone();
+    let revocation = crate::storage::AuthorizationCommitWitness {
+        version: crate::storage::AuthorizationVersion {
+            incarnation: prior_authorization.incarnation,
+            epoch: prior_authorization.epoch + 1,
         },
-    )
-    .expect("commit permission-backing authority transition");
-
+        event: true,
+        incarnation_rotated: false,
+        membership_declarations: Vec::new(),
+    };
+    let before = snapback.live_evaluation_stats.clone();
+    snapback
+        .notify_authorization_event_in_frame(&revocation, cut_version, &admission)
+        .expect("publish writeless authority revocation");
+    assert_eq!(
+        snapback.durable_version().expect("post-revocation data cut"),
+        cut_version,
+        "the authority event does not advance the application-data cut"
+    );
     assert_eq!(snapback.live_authority_stats.fences_applied, 1);
     assert!(
         snapback
@@ -600,7 +823,22 @@ fn live_evaluation_memo_authority_fence_retires_predecessor_entries() {
             .evaluation_memo
             .entries
             .is_empty(),
-        "the authority fence retires predecessor-principal memo state"
+        "the fence retires matching authority entries without consulting holders"
+    );
+
+    assert!(snapback.flush_pending_live_fanout());
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        1,
+        "B's post-fence restoration executes instead of hitting A's orphan"
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        1
     );
 }
 
@@ -632,9 +870,25 @@ fn live_evaluation_memo_kill_switch_restores_one_execution_per_subscription() {
     }
 
     let mut snapback = live_limit_snapback();
+    assert!(
+        snapback.pending_live_fanout.evaluation_memo.disabled,
+        "the instance snapshots the disabled arm at construction"
+    );
+    // This child runs only this exact test, so changing its environment cannot
+    // race another test. Installation must preserve the construction-time
+    // snapshot even after the process environment changes.
+    unsafe { std::env::remove_var("SNAPBACK_LIVE_EVAL_MEMO_DISABLED") };
     snapback
         .install_live_fanout_coalescer(Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new()));
-    assert!(snapback.pending_live_fanout.evaluation_memo.disabled);
+    assert!(
+        snapback.pending_live_fanout.evaluation_memo.disabled,
+        "coalescer installation cannot flip a running instance"
+    );
+    snapback.reset().expect("reset disabled-arm instance");
+    assert!(
+        snapback.pending_live_fanout.evaluation_memo.disabled,
+        "instance reset cannot re-read the environment and flip the snapshot"
+    );
     for index in 0..3 {
         snapback
             .subscribe_live(
@@ -658,6 +912,14 @@ fn live_evaluation_memo_kill_switch_restores_one_execution_per_subscription() {
     assert_eq!(
         snapback.live_evaluation_stats.memo_misses - before.memo_misses,
         0
+    );
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.keys_built, 0,
+        "the disabled arm constructs no memo key"
+    );
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.result_clones, 0,
+        "the disabled arm clones no query result for the memo"
     );
     assert!(
         snapback
