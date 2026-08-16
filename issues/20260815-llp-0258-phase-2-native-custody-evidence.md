@@ -69,12 +69,19 @@ do not fall back to memory.
 ## Claim (2026-08-16)
 
 A fresh orchestration session (continuing the 531ce12aa program per its
-memory handoff) is executing the Phase 2 build: the LLP 0258 D3 first-party
-native custody module shipped through `@expo/snapback-expo` (iOS Keychain
-single-item + serial-queue CAS, Android DataStore + Keystore AES-GCM, both
-declared single-runtime per LLP 0263 §1.4/§2.4), the LLP 0263 probe host,
-and the simulator/emulator (S)-probe runs. Physical-device (D) probes and
-the per-OS capability flips remain gated on their evidence and are NOT
-claimed as done by this note. Per the fleet convention this claim yields to
-landed code.
+memory handoff) claimed the Phase 2 build here at b7f01a693.
+
+**Ceded 2026-08-16 ~01:5x** by direct cross-session deconfliction: a
+concurrently commissioned orchestrate session (author-commissioned ~01:05
+specifically for Phase 2, with a codex implementation lane already running
+and a fleet probe host bootstrapped) now owns the ENTIRE native scope —
+the D3 module, the LLP 0263 probe host, (S)/(D) probe runs, and per-OS
+evidence/flips. Its module lands as a separate package
+(`packages/snapback-expo-custody`), consumed through `@expo/snapback-expo`
+— the ceding session concurs that layout satisfies LLP 0260's "through
+`@expo/snapback-expo`" wording without forcing native code into the
+JS-only package. The ceding session stopped its implementation lane before
+any files were written (no competing partial work exists) and retains only
+`issues/20260816-llp-0258-phase-1-4-real-browser-proofs.md`. Per the fleet
+convention all of this yields to landed code.
 
