@@ -49,3 +49,13 @@ owner-#2 jobs/cron facade slice, bfd4b437c LLP 0188 G1/G2 self-hosted
 lane, da67ba627 ratchet slice 1), and the LLP 0214 catalog-v3 wave
 (961b8be8c) touched `src/storage.rs` in the same window. Routing should
 focus there; the LLP 0218 program takes no further action on this ticket.
+
+## Re-observation — 2026-08-15
+
+`node scripts/check-module-ownership.mjs` at `1c05bba66`:
+`PASS: 239 modules (235 assigned, 4 unassigned); 1765 module edges; 1228
+cross-owner; 18 new allowed; 0 stale baseline; 5 inherited outstanding
+(this ticket); 0 unresolved module references`. The five inherited
+fingerprints are unchanged and still the complete outstanding set; the gate
+admits them as recorded inherited state without laundering. The fix remains
+the kernel→transport edge inversions (or reviewed LLP 0225 §2 waivers).

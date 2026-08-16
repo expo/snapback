@@ -116,3 +116,25 @@ qualification/reopening step against the real public-package release ELF,
 exercising both source and package resolution with real Hermes bytes, packing
 the closure, cold installation/doctor/dev proof, and evidence upload. The
 ticket remains open until that workflow completes.
+
+## Resolution (2026-08-15)
+
+Fix landed at `68eee7986` (workflow qualifies the exact
+`SNAPBACK_BUILD_DISTRIBUTION=public-package` release binary and issues/reopens
+its sibling source-custody receipt via the existing
+`runtime-readiness.mjs issue`/`verify` entry points before package
+preparation; `package.test.mjs` exercises source-checkout and
+installed-package resolution as separate custody paths;
+`ci_workflows_v0` pins the build → loader closure → receipt issue → verify →
+prepare/test ordering).
+
+CI proof: dispatch run
+[31924683184](https://github.com/expo/snapback/actions/runs/31924683184)
+(branch `ci/linux-receipt-proof-20260815`, pinned at `1c05bba66`) advanced
+through release build, qualification, receipt issue+verify, package
+preparation, package tests, and packing with no
+`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` — the refusal this ticket is about is
+gone. The run then failed in a later suite on a distinct, pre-existing defect
+(stale committed comparator receipt), filed separately as
+`issues/20260815-comparator-receipt-stale-generated-digests.md` per the
+LLP 0189 distinct-signature rule.
