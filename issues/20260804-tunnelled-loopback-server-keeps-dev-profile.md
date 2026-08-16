@@ -80,3 +80,27 @@ development; public exposure this way is unsupported; `SNAPBACK_PROFILE=prod`
 is not a repair and may fail closed. Verified against `src/admin.rs` and
 LLP 0060 D1. Directions 2 (explicit exposure declaration) and 3 (narrowing
 loopback default authority) remain open — this ticket stays open for them.
+
+## Dated note — 2026-08-15 (directions 2/3 ruled: RFC commissioned)
+
+Author ruling 2026-08-15: pursue direction 3 via a focused RFC, with
+direction 2 folded in as declared-exposure vocabulary rather than a
+free-standing flag. **LLP 0262** (`llp/0262-dev-identity-custody-capability.rfc.md`,
+Draft) is now the owner of record for both directions; this ticket stays open
+until the enforce stage lands.
+
+The commissioning survey sharpened the exposure claim, verified against
+source at `80aa7b8a5`:
+
+- Destructive/provisioning is already custody-gated over HTTP: served
+  instances always resolve/mint the `0600` admin token (ENG-23443,
+  `resolve_serve_admin_token`) and `evaluate_access` requires it for all
+  writes; the tokenless-loopback write branch is embedded-router-only. The
+  original "destructive/provisioning capability via the loopback default"
+  fear is therefore mostly fenced already.
+- The live residual through a front is (a) app-data read/write under
+  client-asserted dev identity, and (b) tokenless admin reads via
+  `evaluate_access`'s loopback read arm.
+- The custody primitive the RFC generalizes already ships five times
+  (admin token, impersonation/agent-destroy/rehearsal capabilities,
+  secret-read proof) on `secure_file`/`owner_only_file`.
