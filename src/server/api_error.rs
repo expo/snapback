@@ -555,6 +555,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         //   the final eligible holder, deleting a resource whose roster remains,
         //   and creating a protected resource without seating its bootstrap holder.
         | "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        | "SNAPBACK_AUTHORITY_OWNER_COUNT_INVALID"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
         | "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED"
@@ -643,6 +644,11 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED"
         | "SNAPBACK_MEMBERSHIP_READ_PRIVATE"
         | "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY"
+        // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+        //   — attempting an owner mutation outside transferOwner, or calling
+        //   transferOwner without current-owner authority, is forbidden.
+        | "SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER"
+        | "SNAPBACK_AUTHORITY_TRANSFER_OWNER_DENIED"
         // LLP 0065: profile-class admission — an authenticated principal
         // that projects no user subject is refused after the auth gate.
         | "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED"
@@ -1269,6 +1275,18 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_PRINCIPAL_ADDRESSED_INVALID"
         | "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID"
         | "SNAPBACK_MEMBERSHIP_TARGET_SELF"
+        // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface —
+        //   malformed paging/target arguments and calls against a declaration
+        //   that cannot generate the requested authority-profile operation are
+        //   author-input errors, distinct from the authorization refusals above.
+        | "SNAPBACK_AUTHORITY_PROFILE_INVALID"
+        | "SNAPBACK_AUTHORITY_PROFILE_REQUIRED"
+        | "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID"
+        | "SNAPBACK_AUTHORITY_ROSTER_PAGE_INVALID"
+        | "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_INACTIVE"
+        | "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_INVALID"
+        | "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_SELF"
+        | "SNAPBACK_AUTHORITY_TRANSFER_OWNER_UNSUPPORTED"
         | "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE"

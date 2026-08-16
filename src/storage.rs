@@ -522,6 +522,52 @@ pub struct AuthorizationCommitWitness {
     pub membership_declarations: Vec<String>,
 }
 
+/// The authority-relevant state of one membership row. Application-specific
+/// roster columns and host-private provenance deliberately stay out of the
+/// transition receipt; the subject and scope are carried separately.
+///
+/// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — mutation
+///   receipts expose predecessor/successor authority state without making
+///   private membership metadata application-visible.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityMembershipStateV1 {
+    pub role: String,
+    pub status: AuthorityMembershipStatusV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuthorityMembershipStatusV1 {
+    Active,
+    Invited,
+}
+
+/// Whether the exact commit advanced the durable authorization generation.
+/// Preview is explicit because dry-run executes the same storage plan but
+/// intentionally rolls it back.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuthorityInvalidationDispositionV1 {
+    GlobalAuthorizationEpochAdvanced,
+    NoAuthorizationEvent,
+    PreviewRolledBack,
+}
+
+/// One affected subject in a writer-seam membership commit. Atomic operations
+/// such as `transferOwner` return one receipt per changed subject, all carrying
+/// the disposition of their shared commit.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityTransitionReceiptV1 {
+    pub declaration: String,
+    pub predecessor: Option<AuthorityMembershipStateV1>,
+    pub successor: Option<AuthorityMembershipStateV1>,
+    pub subject: String,
+    pub scope: Option<String>,
+    pub invalidation_disposition: AuthorityInvalidationDispositionV1,
+}
+
 /// Process-local impact metadata for the protected-room commit interlock.
 ///
 /// The durable authorization version intentionally remains one global pair,
@@ -801,6 +847,12 @@ pub struct MutationCommit {
     /// transaction, including ordinary commits that did not advance it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authorization: Option<AuthorizationCommitWitness>,
+    /// Typed authority transitions produced by the central membership writer
+    /// seam. Refusals remain `SnapbackError` and therefore retain their stable
+    /// declaration-aware diagnostic code without manufacturing a second error
+    /// vocabulary.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub authority_transitions: Vec<AuthorityTransitionReceiptV1>,
     /// Server-only post-commit egress carrier. Storage constructs the
     /// result-readiness default; Local replaces it immediately after a real
     /// commit, before preparing live bytes or the caller receipt.
@@ -2799,6 +2851,7 @@ impl LocalDatabase {
                     asset_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
+                    authority_transitions: Vec::new(),
                     network_egress: Default::default(),
                 }
             }))
@@ -4007,6 +4060,7 @@ impl LocalDatabase {
                 asset_changes: asset_changes.into_iter().collect(),
                 sequence_allocations: sequence_allocation_facts,
                 authorization,
+                authority_transitions: Vec::new(),
                 network_egress: Default::default(),
             },
             generated_ids,
@@ -4296,6 +4350,7 @@ impl LocalDatabase {
         }
 
         let mut changes = Vec::new();
+        let mut authority_transition_drafts = Vec::new();
         for (write, write_gate, write_writer) in carried_writes {
             check_live()?;
             if schema
@@ -4352,6 +4407,11 @@ impl LocalDatabase {
                         now_ms,
                         &self.order_field_bounds,
                     )?;
+                    if let Some(draft) =
+                        authority_transition_receipt_draft(table, None, Some(&document))?
+                    {
+                        authority_transition_drafts.push(draft);
+                    }
                     write_membership_creation_provenance(&tx, table, &id, write_writer.as_ref())?;
                     record_membership_transition(
                         &tx,
@@ -4404,6 +4464,13 @@ impl LocalDatabase {
                         &self.order_field_bounds,
                     )? {
                         let document = get_document_from_tx(&tx, table, &id, next_version)?;
+                        if let Some(draft) = authority_transition_receipt_draft(
+                            table,
+                            before.as_ref(),
+                            document.as_ref(),
+                        )? {
+                            authority_transition_drafts.push(draft);
+                        }
                         record_membership_transition(
                             &tx,
                             table,
@@ -4446,6 +4513,11 @@ impl LocalDatabase {
                         );
                     }
                     if delete_document(&tx, table, &id)? {
+                        if let Some(draft) =
+                            authority_transition_receipt_draft(table, document.as_ref(), None)?
+                        {
+                            authority_transition_drafts.push(draft);
+                        }
                         record_membership_transition(
                             &tx,
                             table,
@@ -4511,11 +4583,16 @@ impl LocalDatabase {
         // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
         let protected_membership_change = changes.iter().any(|change| {
             schema.tables.iter().any(|table| {
-                table.membership.as_ref().is_some_and(|membership| {
-                    membership.last_holder.is_some()
-                        && (table.name == change.table
-                            || membership.resource_table.as_deref() == Some(change.table.as_str()))
-                })
+                let protects_final_state = table.authority_profile.is_some()
+                    || table
+                        .membership
+                        .as_ref()
+                        .is_some_and(|membership| membership.last_holder.is_some());
+                protects_final_state
+                    && (table.name == change.table
+                        || table.membership.as_ref().is_some_and(|membership| {
+                            membership.resource_table.as_deref() == Some(change.table.as_str())
+                        }))
             })
         });
         if protected_membership_change {
@@ -4683,6 +4760,17 @@ impl LocalDatabase {
         } else {
             None
         };
+        let authority_invalidation_disposition = match authorization.as_ref() {
+            Some(witness) if witness.event => {
+                AuthorityInvalidationDispositionV1::GlobalAuthorizationEpochAdvanced
+            }
+            Some(_) => AuthorityInvalidationDispositionV1::NoAuthorizationEvent,
+            None => AuthorityInvalidationDispositionV1::PreviewRolledBack,
+        };
+        let authority_transitions = authority_transition_drafts
+            .into_iter()
+            .map(|draft| draft.finish(authority_invalidation_disposition.clone()))
+            .collect();
         if options.apply {
             check_live()?;
             let prepared_authorization_commit = prepare_authorization_commit_interlock(
@@ -4745,6 +4833,7 @@ impl LocalDatabase {
             asset_changes: asset_changes.into_iter().collect(),
             sequence_allocations,
             authorization,
+            authority_transitions,
             network_egress: Default::default(),
         })
     }
@@ -6942,6 +7031,46 @@ impl DbRead<'_> {
                 input,
                 effective_query_limit(plan),
                 true,
+            ),
+        }
+    }
+
+    /// Keyset twin of the private membership evaluator read. The boundary is
+    /// host-private: a later application surface must wrap it in the existing
+    /// custody envelope before returning a continuation token.
+    ///
+    /// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — the
+    ///   profile roster is a bounded host-evaluated projection, not a generic
+    ///   membership-table read.
+    pub(crate) fn query_private_membership_keyset(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        keyset: Option<&KeysetAfter>,
+        storage_limit: usize,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => query_on_with_storage_limit_visibility_keyset(
+                conn,
+                schema,
+                plan,
+                input,
+                storage_limit,
+                true,
+                keyset,
+                true,
+                None,
+            ),
+            DbRead::Live(db) => query_on_with_storage_limit_visibility_keyset(
+                &db.conn,
+                &db.schema,
+                plan,
+                input,
+                storage_limit,
+                true,
+                keyset,
+                true,
+                None,
             ),
         }
     }
@@ -12424,6 +12553,10 @@ enum BufferedMembershipOp {
         resource: Option<String>,
         principal: String,
     },
+    TransferOwner {
+        resource: Option<String>,
+        principal: String,
+    },
 }
 
 impl BufferedMembershipCommand {
@@ -12539,6 +12672,22 @@ impl BufferedMembershipCommand {
             writer,
             table,
             op: BufferedMembershipOp::RemovePrincipal {
+                resource,
+                principal,
+            },
+        }
+    }
+
+    pub(crate) fn transfer_owner(
+        writer: MembershipWriter,
+        table: String,
+        resource: Option<String>,
+        principal: String,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::TransferOwner {
                 resource,
                 principal,
             },
@@ -13939,6 +14088,86 @@ fn membership_axis_value(
                 format!("membership {label} field {field:?} is absent or not a string"),
             )
         })
+}
+
+#[derive(Clone, Debug)]
+struct AuthorityTransitionReceiptDraft {
+    declaration: String,
+    predecessor: Option<AuthorityMembershipStateV1>,
+    successor: Option<AuthorityMembershipStateV1>,
+    subject: String,
+    scope: Option<String>,
+}
+
+impl AuthorityTransitionReceiptDraft {
+    fn finish(
+        self,
+        invalidation_disposition: AuthorityInvalidationDispositionV1,
+    ) -> AuthorityTransitionReceiptV1 {
+        AuthorityTransitionReceiptV1 {
+            declaration: self.declaration,
+            predecessor: self.predecessor,
+            successor: self.successor,
+            subject: self.subject,
+            scope: self.scope,
+            invalidation_disposition,
+        }
+    }
+}
+
+fn authority_membership_state(
+    membership: &MembershipManifest,
+    row: Option<&Value>,
+) -> SnapbackResult<Option<AuthorityMembershipStateV1>> {
+    let Some(role) = membership_axis_value(row, &membership.role, "role")? else {
+        return Ok(None);
+    };
+    let status = if membership.roles.iter().any(|candidate| candidate == &role) {
+        AuthorityMembershipStatusV1::Active
+    } else if membership
+        .pending_roles
+        .iter()
+        .flatten()
+        .any(|candidate| candidate == &role)
+    {
+        AuthorityMembershipStatusV1::Invited
+    } else {
+        return Err(membership_refusal(
+            "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE",
+            format!(
+                "membership receipt encountered role {role:?} outside the declaration vocabulary"
+            ),
+        ));
+    };
+    Ok(Some(AuthorityMembershipStateV1 { role, status }))
+}
+
+fn authority_transition_receipt_draft(
+    table: &TableManifest,
+    before: Option<&Value>,
+    after: Option<&Value>,
+) -> SnapbackResult<Option<AuthorityTransitionReceiptDraft>> {
+    let Some(membership) = &table.membership else {
+        return Ok(None);
+    };
+    let subject = membership_axis_value(after.or(before), &membership.principal, "principal")?
+        .ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID",
+                "membership receipt lacks a predecessor and successor subject",
+            )
+        })?;
+    let scope = match &membership.resource {
+        Some(field) => membership_axis_value(after.or(before), field, "resource")?,
+        None => None,
+    };
+    Ok(Some(AuthorityTransitionReceiptDraft {
+        declaration: membership.effective_id(&table.name).to_owned(),
+        predecessor: authority_membership_state(membership, before)?,
+        successor: authority_membership_state(membership, after)?,
+        subject,
+        scope,
+    }))
 }
 
 #[allow(clippy::too_many_arguments)]

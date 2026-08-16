@@ -4157,6 +4157,19 @@ impl<'a> IbexHostContext<'a> {
                         ),
                         Value::Null,
                     ),
+                    // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+                    // — owner transfer is one dedicated two-row plan; the
+                    // storage planner derives caller/target roles and keeps
+                    // ordinary role/remove operations out of the owner state.
+                    "transferOwner" => (
+                        BufferedMembershipCommand::transfer_owner(
+                            writer,
+                            table,
+                            optional_nullable_string(&args, "resource")?,
+                            required_string(&args, "principal")?,
+                        ),
+                        Value::Null,
+                    ),
                     _ => {
                         return Err(SnapbackError::error(
                             "SNAPBACK_MEMBERSHIP_OPERATION_INVALID",
@@ -4510,11 +4523,10 @@ impl<'a> IbexHostContext<'a> {
                 // dead `Permission` kind — so a role revoked between check and
                 // commit fails commit-time read-set validation, and
                 // terminalization preserves the denial witness.
-                self.push_read_dependency(outcome.dependency);
-                match outcome.denial {
-                    None => Ok(Value::Bool(true)),
-                    Some(_) if !terminal => Ok(Value::Bool(false)),
-                    Some(denial) => {
+                match outcome.finish(|dependency| self.push_read_dependency(dependency)) {
+                    Ok(()) => Ok(Value::Bool(true)),
+                    Err(_denial) if !terminal => Ok(Value::Bool(false)),
+                    Err(denial) => {
                         // Record the trusted brand out-of-band; the outer
                         // result-assembly returns it regardless of handler catch.
                         self.terminal_denial = Some(denial.clone());
@@ -10586,6 +10598,36 @@ globalThis.__snapbackHandlers = {
             error.diagnostic.code,
             "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED"
         );
+    }
+
+    #[test]
+    fn transfer_owner_host_vocabulary_reaches_the_central_membership_planner() {
+        let mut db = ready_db();
+        let mut ctx = context(&db);
+        let result = ctx
+            .handle_host_call(
+                "membership.write",
+                json!({
+                    "declaration": "event_members",
+                    "operation": "transferOwner",
+                    "resource": "event-a",
+                    "principal": "bob"
+                }),
+            )
+            .expect("runtime recognizes the dedicated operation vocabulary");
+        assert_eq!(result, json!(null));
+        let commands = std::mem::take(&mut ctx.membership_commands);
+        drop(ctx);
+        assert_eq!(commands.len(), 1);
+        let error = db
+            .membership_plans()
+            .authorize_membership_commands(commands)
+            .expect_err("plain membership declaration remains unsupported");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_TRANSFER_OWNER_UNSUPPORTED"
+        );
+        assert_eq!(error.diagnostic.details["declaration"], "event_members");
     }
 
     #[test]

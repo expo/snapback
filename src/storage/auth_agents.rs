@@ -1036,33 +1036,55 @@ pub(crate) fn validate_protected_membership_final_state(
     let require_catalog_principal = manifest.effective_auth_mode() == AuthMode::Sessions;
     let mut stranded = Vec::new();
     for table in &manifest.tables {
-        let Some(membership) = &table.membership else {
-            continue;
+        let profile = table.authority_profile.as_ref();
+        let membership = match (&table.membership, profile) {
+            (Some(membership), _) => membership,
+            (None, Some(profile)) => {
+                return Err(declared_protected_membership_final_state_invalid(
+                    &table.name,
+                    &profile.membership.declaration,
+                    "authority profile requires a membership declaration",
+                ));
+            }
+            (None, None) => continue,
         };
-        let Some(last_holder) = &membership.last_holder else {
-            continue;
+        let declaration = membership.effective_id(&table.name);
+        let last_holder = match &membership.last_holder {
+            Some(last_holder) => last_holder,
+            None if profile.is_some() => {
+                return Err(declared_protected_membership_final_state_invalid(
+                    &table.name,
+                    declaration,
+                    "authority profile requires lastHolder",
+                ));
+            }
+            None => continue,
         };
         let resource_column = membership.resource.as_deref().ok_or_else(|| {
-            protected_membership_final_state_invalid(
+            declared_protected_membership_final_state_invalid(
                 &table.name,
+                declaration,
                 "lastHolder requires a resource axis",
             )
         })?;
         let resource_table = membership.resource_table.as_deref().ok_or_else(|| {
-            protected_membership_final_state_invalid(
+            declared_protected_membership_final_state_invalid(
                 &table.name,
+                declaration,
                 "lastHolder requires a resourceTable binding",
             )
         })?;
         if !table_exists(conn, &table.name)? {
-            return Err(protected_membership_final_state_invalid(
+            return Err(declared_protected_membership_final_state_invalid(
                 &table.name,
+                declaration,
                 "membership table is absent at the final-state check",
             ));
         }
         if !table_exists(conn, resource_table)? {
-            return Err(protected_membership_final_state_invalid(
+            return Err(declared_protected_membership_final_state_invalid(
                 &table.name,
+                declaration,
                 "resource table is absent at the final-state check",
             ));
         }
@@ -1097,6 +1119,34 @@ pub(crate) fn validate_protected_membership_final_state(
                     Ok((row.get::<_, String>(0)?, row.get::<_, SqlValue>(1)?))
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
+            // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+            //   — a live profile scope has exactly one owner; every writer
+            //   class reaches this commit-stage boundary.
+            if let Some(profile) = profile {
+                if profile.owner_bootstrap_invariant.role != last_holder.protect {
+                    return Err(declared_protected_membership_final_state_invalid(
+                        &table.name,
+                        declaration,
+                        "authority profile owner role does not match lastHolder.protect",
+                    ));
+                }
+                if principals.len() != 1 {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTHORITY_OWNER_COUNT_INVALID",
+                        "auth",
+                        format!(
+                            "authority profile declaration {declaration:?} requires exactly one active owner for live resource {resource:?}; found {}",
+                            principals.len()
+                        ),
+                    )
+                    .with_details(json!({
+                        "declaration": declaration,
+                        "resource": resource,
+                        "ownerRole": profile.owner_bootstrap_invariant.role,
+                        "activeOwnerCount": principals.len(),
+                    })));
+                }
+            }
             let mut eligible = false;
             for (principal, version) in principals {
                 validate_managed_version(
@@ -1106,7 +1156,6 @@ pub(crate) fn validate_protected_membership_final_state(
                 )?;
                 if principal_is_eligible_on(conn, &principal, require_catalog_principal)? {
                     eligible = true;
-                    break;
                 }
             }
             if !eligible {
@@ -1138,6 +1187,19 @@ fn protected_membership_final_state_invalid(table: &str, message: &str) -> Snapb
         format!("membership declaration {table:?} cannot be evaluated: {message}"),
     )
     .with_details(json!({ "table": table }))
+}
+
+fn declared_protected_membership_final_state_invalid(
+    table: &str,
+    declaration: &str,
+    message: &str,
+) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MEMBERSHIP_FINAL_STATE_SCHEMA_INVALID",
+        "auth",
+        format!("membership declaration {table:?} cannot be evaluated: {message}"),
+    )
+    .with_details(json!({ "table": table, "declaration": declaration }))
 }
 
 /// Quote a SQLite identifier. Membership table/column names are validated

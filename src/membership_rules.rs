@@ -33,9 +33,10 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     FieldType, FilterExpr, FilterOp, HandlerInput, MembershipManifest, MembershipPredicate,
-    MembershipResourceRef, QueryPlan, SchemaManifest, TableManifest, ValueExpr,
+    MembershipResourceRef, OrderDirection, OrderExpr, QUERY_MAX_LIMIT, QueryPlan, SchemaManifest,
+    TableManifest, ValueExpr,
 };
-use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead};
+use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead, KeysetAfter};
 use serde_json::{Value, json};
 
 pub(crate) use crate::manifest::{
@@ -284,6 +285,41 @@ pub(crate) fn role_denial() -> SnapbackError {
         .with_details(json!({ "kind": "role" }))
 }
 
+/// A host-private membership read whose dependencies must be registered before
+/// its value or denial is surfaced. Keeping the result private makes the
+/// ordering structural at every caller: [`Self::finish`] drains every capture
+/// first and only then returns the result.
+///
+/// @ref LLP 0056#invalidation-the-llp-0053-mapping — empty membership results
+///   remain captured matcher dependencies so a later grant wakes the read.
+pub struct CapturedMembershipReadOutcome<T> {
+    result: SnapbackResult<T>,
+    dependencies: Vec<CapturedReadDependency>,
+}
+
+impl<T> CapturedMembershipReadOutcome<T> {
+    fn allowed(value: T, dependencies: Vec<CapturedReadDependency>) -> Self {
+        Self {
+            result: Ok(value),
+            dependencies,
+        }
+    }
+
+    fn denied(denial: SnapbackError, dependencies: Vec<CapturedReadDependency>) -> Self {
+        Self {
+            result: Err(denial),
+            dependencies,
+        }
+    }
+
+    pub fn finish(self, mut register: impl FnMut(CapturedReadDependency)) -> SnapbackResult<T> {
+        for dependency in self.dependencies {
+            register(dependency);
+        }
+        self.result
+    }
+}
+
 /// The `requireRole` composition: the membership read, then — on a failed check
 /// — the trusted deny. The read's ordinary capture is returned on **both**
 /// outcomes so terminalization can preserve it (the denial-witness minimum: a
@@ -291,13 +327,6 @@ pub(crate) fn role_denial() -> SnapbackError {
 ///
 /// @ref LLP 0056#rule-helpers — terminalization
 ///   preserves the membership lookup's snapshot-bound dependency.
-pub(crate) struct RequireRoleOutcome {
-    /// The membership read's ordinary capture — recorded on both outcomes.
-    pub dependency: CapturedReadDependency,
-    /// `None` when the role is held; `Some(trusted denial)` otherwise.
-    pub denial: Option<SnapbackError>,
-}
-
 pub(crate) fn require_role(
     db: &DbRead<'_>,
     membership: &MembershipManifest,
@@ -305,16 +334,335 @@ pub(crate) fn require_role(
     principal: &str,
     resource: ResourceBinding,
     roles: &[String],
-) -> SnapbackResult<RequireRoleOutcome> {
+) -> SnapbackResult<CapturedMembershipReadOutcome<()>> {
     let outcome = membership_read(db, membership, table_name, principal, resource, roles)?;
-    let denial = if outcome.present {
-        None
+    if outcome.present {
+        Ok(CapturedMembershipReadOutcome::allowed(
+            (),
+            vec![outcome.dependency],
+        ))
     } else {
-        Some(role_denial())
+        Ok(CapturedMembershipReadOutcome::denied(
+            role_denial(),
+            vec![outcome.dependency],
+        ))
+    }
+}
+
+/// Host-private page request for the authority-profile roster. `after` is an
+/// already-verified internal boundary; a public generated surface must keep it
+/// inside the existing opaque cursor custody envelope.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AuthorityRosterPageRequestV1 {
+    pub limit: usize,
+    pub after: Option<KeysetAfter>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AuthorityRosterPageV1 {
+    pub rows: Vec<Value>,
+    pub next: Option<KeysetAfter>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityMyRoleV1 {
+    pub role: String,
+    pub status: crate::storage::AuthorityMembershipStatusV1,
+}
+
+fn authority_profile_declaration<'a>(
+    schema: &'a SchemaManifest,
+    declaration: &str,
+) -> SnapbackResult<(
+    &'a TableManifest,
+    &'a MembershipManifest,
+    &'a crate::manifest::AuthorityProfileV1,
+)> {
+    let Some((table, membership)) = find_declaration(schema, declaration) else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
+            "auth",
+            "authority roster operation names an unknown membership declaration",
+        )
+        .with_details(json!({ "declaration": declaration })));
     };
-    Ok(RequireRoleOutcome {
-        dependency: outcome.dependency,
-        denial,
+    let Some(profile) = table.authority_profile.as_ref() else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTHORITY_PROFILE_REQUIRED",
+            "auth",
+            "host-private roster reads require an authorityProfile declaration",
+        )
+        .with_details(json!({ "declaration": declaration })));
+    };
+    if profile.id != membership.effective_id(&table.name) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTHORITY_PROFILE_INVALID",
+            "auth",
+            "authority profile identity does not match its membership declaration",
+        )
+        .with_details(json!({ "declaration": declaration })));
+    }
+    Ok((table, membership, profile))
+}
+
+fn authority_resource_binding(
+    membership: &MembershipManifest,
+    resource: Option<&str>,
+) -> SnapbackResult<ResourceBinding> {
+    match (&membership.resource, resource) {
+        (Some(_), Some(resource)) if !resource.is_empty() => {
+            Ok(ResourceBinding::Fixed(Value::String(resource.to_owned())))
+        }
+        (Some(_), _) => Err(SnapbackError::error(
+            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+            "auth",
+            "resource-scoped authority roster read requires a resource id",
+        )),
+        (None, None) => Ok(ResourceBinding::AppSingleton),
+        (None, Some(_)) => Err(SnapbackError::error(
+            "SNAPBACK_MEMBERSHIP_RESOURCE_UNEXPECTED",
+            "auth",
+            "app-scoped authority roster read does not accept a resource id",
+        )),
+    }
+}
+
+fn authority_roster_plan(
+    table: &TableManifest,
+    membership: &MembershipManifest,
+    resource: &ResourceBinding,
+    limit: usize,
+    role_visible: bool,
+) -> QueryPlan {
+    let mut filters = Vec::new();
+    if let (ResourceBinding::Fixed(value), Some(resource_field)) =
+        (resource, membership.resource.as_ref())
+    {
+        filters.push(FilterExpr {
+            field: resource_field.clone(),
+            op: FilterOp::Eq,
+            value: ValueExpr::Literal(value.clone()),
+        });
+    }
+    filters.push(FilterExpr {
+        field: membership.role.clone(),
+        op: FilterOp::In,
+        value: ValueExpr::Literal(Value::Array(
+            membership
+                .roles
+                .iter()
+                .cloned()
+                .map(Value::String)
+                .collect(),
+        )),
+    });
+    let mut order = Vec::new();
+    if role_visible {
+        order.push(OrderExpr {
+            field: membership.role.clone(),
+            direction: OrderDirection::Asc,
+            max_encoded_bytes: None,
+        });
+    }
+    order.push(OrderExpr {
+        field: membership.principal.clone(),
+        direction: OrderDirection::Asc,
+        max_encoded_bytes: None,
+    });
+    QueryPlan {
+        table_visibility: None,
+        table: table.name.clone(),
+        filters,
+        membership_filters: Vec::new(),
+        order,
+        limit: Some(limit),
+        // The generated `_membership_reverse` index is host-owned and is not
+        // repeated in `TableManifest::indexes`; naming it through the public
+        // `indexedBy` validator would therefore reject the otherwise valid
+        // private plan. The profile activation contract qualifies that index,
+        // while SQLite selects it for this exact scope/role/principal shape.
+        indexed_by: None,
+    }
+}
+
+/// Evaluate one roster page entirely inside the host. Admission first proves
+/// that the caller has an active role in the exact scope; only then may the
+/// visibility-bypassing roster query run. Missing scopes and non-members both
+/// fail with the same invariant role denial because neither produces a caller
+/// membership witness.
+///
+/// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — profile
+///   visible fields are the complete projection allowlist and refusals retain
+///   LLP 0056 non-enumeration.
+pub fn authority_roster_list(
+    db: &DbRead<'_>,
+    declaration: &str,
+    caller: Option<&str>,
+    resource: Option<&str>,
+    page: AuthorityRosterPageRequestV1,
+) -> SnapbackResult<CapturedMembershipReadOutcome<AuthorityRosterPageV1>> {
+    if page.limit == 0 || page.limit > QUERY_MAX_LIMIT {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTHORITY_ROSTER_PAGE_INVALID",
+            "auth",
+            format!("authority roster page limit must be 1..={QUERY_MAX_LIMIT}"),
+        ));
+    }
+    let declaration = declaration.to_owned();
+    let caller = caller.map(str::to_owned);
+    let resource = resource.map(str::to_owned);
+    db.with_pinned_read_view(move |db| {
+        let (table, membership, profile) =
+            authority_profile_declaration(db.schema(), &declaration)?;
+        let binding = authority_resource_binding(membership, resource.as_deref())?;
+        let Some(caller) = caller.as_deref() else {
+            return Ok(CapturedMembershipReadOutcome::denied(
+                role_denial(),
+                Vec::new(),
+            ));
+        };
+        let caller_read = membership_read(
+            &db,
+            membership,
+            &table.name,
+            caller,
+            match &binding {
+                ResourceBinding::Fixed(value) => ResourceBinding::Fixed(value.clone()),
+                ResourceBinding::AppSingleton => ResourceBinding::AppSingleton,
+                ResourceBinding::PerRow => unreachable!("authority roster binds one scope"),
+            },
+            &membership.roles,
+        )?;
+        if !caller_read.present {
+            return Ok(CapturedMembershipReadOutcome::denied(
+                role_denial(),
+                vec![caller_read.dependency],
+            ));
+        }
+
+        for field in &profile.roster.visible_fields {
+            if field.starts_with('_') || table.field(field).is_none() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID",
+                    "auth",
+                    "authority profile roster projection names an unknown or system field",
+                )
+                .with_details(json!({
+                    "declaration": declaration,
+                    "field": field,
+                })));
+            }
+        }
+
+        let role_visible = profile
+            .roster
+            .visible_fields
+            .iter()
+            .any(|field| field == &membership.role);
+        let plan = authority_roster_plan(table, membership, &binding, page.limit, role_visible);
+        let mut output = db.query_private_membership_keyset(
+            &plan,
+            &HandlerInput::default(),
+            page.after.as_ref(),
+            page.limit + 1,
+        )?;
+        let has_more = output.rows.len() > page.limit;
+        output.rows.truncate(page.limit);
+        let next = if has_more {
+            output.rows.last().map(|row| KeysetAfter {
+                entries: plan
+                    .order
+                    .iter()
+                    .map(|order| (order.field.clone(), row[&order.field].clone()))
+                    .collect(),
+                id: row["_id"].as_str().unwrap_or_default().to_owned(),
+            })
+        } else {
+            None
+        };
+        let matching_ids = output
+            .rows
+            .iter()
+            .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
+            .collect();
+        let roster_dependency = membership_capture_dependency(&plan, output.version, matching_ids)?;
+        let rows = output
+            .rows
+            .into_iter()
+            .map(|row| {
+                let mut projected = serde_json::Map::new();
+                for field in &profile.roster.visible_fields {
+                    if let Some(value) = row.get(field) {
+                        projected.insert(field.clone(), value.clone());
+                    }
+                }
+                Value::Object(projected)
+            })
+            .collect();
+        Ok(CapturedMembershipReadOutcome::allowed(
+            AuthorityRosterPageV1 { rows, next },
+            vec![caller_read.dependency, roster_dependency],
+        ))
+    })
+}
+
+/// Return only the caller's own role/status authority fact. Pending roles are
+/// deliberately representable here while they remain excluded from `list`
+/// admission and active roster rows.
+pub fn authority_my_role(
+    db: &DbRead<'_>,
+    declaration: &str,
+    caller: Option<&str>,
+    resource: Option<&str>,
+) -> SnapbackResult<CapturedMembershipReadOutcome<AuthorityMyRoleV1>> {
+    let declaration = declaration.to_owned();
+    let caller = caller.map(str::to_owned);
+    let resource = resource.map(str::to_owned);
+    db.with_pinned_read_view(move |db| {
+        let (table, membership, _profile) =
+            authority_profile_declaration(db.schema(), &declaration)?;
+        let binding = authority_resource_binding(membership, resource.as_deref())?;
+        let Some(caller) = caller.as_deref() else {
+            return Ok(CapturedMembershipReadOutcome::denied(
+                role_denial(),
+                Vec::new(),
+            ));
+        };
+        let roles = membership
+            .vocabulary()
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        let plan = membership_probe_plan(membership, &table.name, caller, &binding, &roles);
+        let output = db.query_private_membership(&plan, &HandlerInput::default())?;
+        let ids = output
+            .rows
+            .iter()
+            .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
+            .collect();
+        let dependency = membership_capture_dependency(&plan, output.version, ids)?;
+        let Some(row) = output.rows.first() else {
+            return Ok(CapturedMembershipReadOutcome::denied(
+                role_denial(),
+                vec![dependency],
+            ));
+        };
+        let Some(role) = row.get(&membership.role).and_then(Value::as_str) else {
+            return Ok(CapturedMembershipReadOutcome::denied(
+                role_denial(),
+                vec![dependency],
+            ));
+        };
+        let role = role.to_owned();
+        let status = if membership.roles.iter().any(|candidate| candidate == &role) {
+            crate::storage::AuthorityMembershipStatusV1::Active
+        } else {
+            crate::storage::AuthorityMembershipStatusV1::Invited
+        };
+        Ok(CapturedMembershipReadOutcome::allowed(
+            AuthorityMyRoleV1 { role, status },
+            vec![dependency],
+        ))
     })
 }
 

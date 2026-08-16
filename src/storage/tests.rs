@@ -13238,6 +13238,107 @@ mod membership_write_tests {
         }
     }
 
+    fn authority_profile_schema() -> SchemaManifest {
+        let mut schema = membership_schema();
+        let table = &mut schema.tables[1];
+        let membership = table.membership.as_mut().expect("membership declaration");
+        let rename = |role: &mut String| {
+            *role = match role.as_str() {
+                "host" => "owner",
+                "cohost" => "admin",
+                "guest" => "member",
+                other => other,
+            }
+            .to_owned();
+        };
+        for role in &mut membership.roles {
+            rename(role);
+        }
+        membership.bootstrap_role = Some("owner".to_owned());
+        membership
+            .last_holder
+            .as_mut()
+            .expect("protected role")
+            .protect = "owner".to_owned();
+        for transition in &mut membership.transitions {
+            for role in &mut transition.by {
+                rename(role);
+            }
+            for role in transition.from.iter_mut().flatten() {
+                rename(role);
+            }
+            for role in transition.to.iter_mut().flatten() {
+                rename(role);
+            }
+        }
+        table.authority_profile = Some(
+            serde_json::from_value(json!({
+                "version": 1,
+                "id": "event_members",
+                "generation": "sha256:authority-profile-test",
+                "membership": {
+                    "declaration": "event_members",
+                    "manifestPath": "tables.event_members.membership",
+                    "predicateIdentity": "snapback.membership-predicate.v1"
+                },
+                "tablePolicy": {
+                    "identity": "snapback.table-visibility.v1",
+                    "membershipDeclaration": "event_members"
+                },
+                "scopeRelation": {
+                    "table": "event_members",
+                    "resourceField": "eventId",
+                    "resourceTable": "events",
+                    "principalKey": "userId"
+                },
+                "statusPredicates": {
+                    "active": "membership.roles",
+                    "invited": "membership.pendingRoles"
+                },
+                "roleLattice": [
+                    { "role": "owner", "implies": ["owner", "admin", "member"] },
+                    { "role": "admin", "implies": ["admin", "member"] },
+                    { "role": "member", "implies": ["member"] }
+                ],
+                "ownerBootstrapInvariant": {
+                    "role": "owner",
+                    "bootstrapRole": "owner",
+                    "protectedLastHolderRole": "owner"
+                },
+                "transitionPreconditions": {
+                    "source": "membership.transitions",
+                    "ownerMutation": "transfer-owner-only"
+                },
+                "authorizationEventFields": ["eventId", "userId", "role"],
+                "subjectDerivation": {
+                    "strategy": "membership-principal-resource-v1",
+                    "principalField": "userId",
+                    "scopeField": "eventId",
+                    "coarseGlobalWakeUniverse": ["membership-relation-insert-update-delete"]
+                },
+                "requiredIndexes": [
+                    {
+                        "name": "_membership_pk",
+                        "fields": ["userId", "eventId"],
+                        "unique": true,
+                        "lookup": "principal-in-scope-point"
+                    },
+                    {
+                        "name": "_membership_reverse",
+                        "fields": ["eventId", "role", "userId"],
+                        "unique": false,
+                        "lookup": "protected-holders-and-scope-invalidation-range"
+                    }
+                ],
+                "permittedCompositionClasses": ["table-visibility.membership.v1"],
+                "notYetQualifiedCompositionClasses": [],
+                "roster": { "visibleFields": ["userId", "role", "notifyPrefs"] }
+            }))
+            .expect("authority profile fixture"),
+        );
+        schema
+    }
+
     fn ready_db() -> LocalDatabase {
         ready_db_with_schema(membership_schema())
     }
@@ -13936,6 +14037,832 @@ mod membership_write_tests {
         db.membership_plans()
             .commit_membership_plan(&writer, plan)
             .map(|_| ())
+    }
+
+    fn authority_fixture() -> (LocalDatabase, String, String, String, String) {
+        let mut db = ready_db_with_schema(authority_profile_schema());
+        let (event_id, alice) = create_event(&mut db, "alice");
+        invite(&mut db, "alice", &event_id, "bob");
+        let bob = member_id(&db, &event_id, "bob");
+        set_role(&mut db, "bob", &bob, "member").expect("bob accepts invite");
+        set_role(&mut db, "alice", &bob, "admin").expect("bob becomes admin");
+        invite(&mut db, "alice", &event_id, "carol");
+        let carol = member_id(&db, &event_id, "carol");
+        set_role(&mut db, "carol", &carol, "member").expect("carol accepts invite");
+        (db, event_id, alice, bob, carol)
+    }
+
+    fn transfer_owner(
+        db: &mut LocalDatabase,
+        caller: &str,
+        event_id: &str,
+        target: &str,
+    ) -> SnapbackResult<MutationCommit> {
+        let writer = user(caller);
+        let plan = db.membership_plans().plan_membership_transfer_owner(
+            &writer,
+            "event_members",
+            Some(event_id),
+            target,
+        )?;
+        db.membership_plans().commit_membership_plan(&writer, plan)
+    }
+
+    #[test]
+    fn authority_profile_bootstrap_refuses_an_initial_owner() {
+        let mut schema = authority_profile_schema();
+        schema.tables[1]
+            .membership
+            .as_mut()
+            .expect("membership declaration")
+            .transitions
+            .push(MembershipTransition {
+                op: MembershipOp::Insert,
+                by: vec!["owner".to_owned()],
+                target: MembershipTarget::Other,
+                from: None,
+                to: Some(vec!["owner".to_owned()]),
+                fields: None,
+            });
+        let db = ready_db_with_schema(schema);
+        let error = db
+            .plan_membership_bootstrap_with_id(
+                &user("alice"),
+                "events",
+                "event-double-owner".to_owned(),
+                Map::from_iter([("title".to_owned(), json!("double owner"))]),
+                "event_members",
+                vec![Map::from_iter([
+                    ("userId".to_owned(), json!("bob")),
+                    ("role".to_owned(), json!("owner")),
+                ])],
+            )
+            .expect_err("bootstrap initial seats are ordinary inserts");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER"
+        );
+        assert_eq!(error.diagnostic.details["declaration"], "event_members");
+    }
+
+    #[test]
+    fn authority_profile_exactly_one_owner_is_a_commit_boundary_invariant() {
+        let (mut doctored, event_id, _, bob, _) = authority_fixture();
+        let doctored_plan = MembershipPlan {
+            writes: vec![BufferedWrite::Patch {
+                table: "event_members".to_owned(),
+                id: bob.clone(),
+                values: Map::from_iter([("role".to_owned(), json!("owner"))]),
+            }],
+            read_dependencies: Vec::new(),
+            result: Value::Null,
+            skipped_protected: Vec::new(),
+        };
+        let error = doctored
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), doctored_plan)
+            .expect_err("the commit seam rejects a plan that skipped owner closure");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_OWNER_COUNT_INVALID"
+        );
+        assert_eq!(error.diagnostic.details["declaration"], "event_members");
+        assert_eq!(error.diagnostic.details["resource"], event_id);
+        assert_eq!(error.diagnostic.details["activeOwnerCount"], 2);
+        assert_eq!(role_of(&doctored, &bob).as_deref(), Some("admin"));
+
+        let (mut privileged, event_id, _, _, _) = authority_fixture();
+        let second_owner = privileged
+            .membership_plans()
+            .plan_privileged_membership_insert(
+                &MembershipWriter::Admin,
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("dave")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("owner")),
+                ]),
+            )
+            .expect("privileged planning retains its tagged transition bypass");
+        let error = privileged
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::Admin, second_owner)
+            .expect_err("privileged writers retain profile final-state invariants");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_OWNER_COUNT_INVALID"
+        );
+
+        let mut plain = ready_db();
+        let (event_id, _) = create_event(&mut plain, "alice");
+        let second_holder = plain
+            .membership_plans()
+            .plan_privileged_membership_insert(
+                &MembershipWriter::Admin,
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("bob")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("host")),
+                ]),
+            )
+            .expect("plain membership permits multiple protected-role holders");
+        plain
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::Admin, second_holder)
+            .expect("the exactly-one rule is profile-specific");
+    }
+
+    #[test]
+    fn authority_profile_without_last_holder_refuses_at_the_final_state_boundary() {
+        let mut db = ready_db_with_schema(authority_profile_schema());
+        let (event_id, _) = create_event(&mut db, "alice");
+        let mut doctored =
+            serde_json::to_value(db.schema()).expect("serialize active authority manifest");
+        doctored["tables"][1]["membership"]
+            .as_object_mut()
+            .expect("membership declaration")
+            .remove("lastHolder");
+        db.schema = serde_json::from_value(doctored)
+            .expect("authority profile without optional lastHolder remains parseable");
+
+        let second_owner = db
+            .membership_plans()
+            .plan_privileged_membership_insert(
+                &MembershipWriter::Admin,
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("bob")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("owner")),
+                ]),
+            )
+            .expect("privileged planning retains its tagged transition bypass");
+        let error = db
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::Admin, second_owner)
+            .expect_err("missing lastHolder must not suppress the owner invariant");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_FINAL_STATE_SCHEMA_INVALID"
+        );
+        assert_eq!(error.diagnostic.details["table"], "event_members");
+        assert_eq!(error.diagnostic.details["declaration"], "event_members");
+        let owner_count: u64 = db
+            .conn
+            .query_row(
+                "SELECT count(*) FROM event_members WHERE eventId = ?1 AND role = 'owner'",
+                [&event_id],
+                |row| row.get(0),
+            )
+            .expect("count owners after refusal");
+        assert_eq!(owner_count, 1, "the second owner write rolled back");
+    }
+
+    #[test]
+    fn non_profile_membership_without_last_holder_remains_unprotected() {
+        let mut schema = membership_schema();
+        schema.tables[1]
+            .membership
+            .as_mut()
+            .expect("membership declaration")
+            .last_holder = None;
+        let mut db = ready_db_with_schema(schema);
+        db.mutation_writes()
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "events".to_owned(),
+                    id: "event-without-holder".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("unprotected event"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("non-profile membership without lastHolder keeps existing behavior");
+        auth_agents::validate_protected_membership_final_state(
+            &db.conn,
+            db.schema(),
+            current_version_on(&db.conn).expect("current version"),
+        )
+        .expect("non-profile declaration remains outside the protected final-state invariant");
+    }
+
+    // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+    //   — owner transfer is the sole ordinary owner-state transition and its
+    //   two row changes share one commit and typed receipt disposition.
+    #[test]
+    fn authority_profile_transfer_owner_is_atomic_closed_and_receipted() {
+        let (mut db, event_id, alice, bob, carol) = authority_fixture();
+
+        let non_owner = db
+            .membership_plans()
+            .plan_membership_transfer_owner(&user("bob"), "event_members", Some(&event_id), "carol")
+            .expect_err("admin cannot transfer ownership");
+        assert_eq!(
+            non_owner.diagnostic.code,
+            "SNAPBACK_AUTHORITY_TRANSFER_OWNER_DENIED"
+        );
+        assert_eq!(non_owner.diagnostic.details["declaration"], "event_members");
+
+        let create_owner = db
+            .membership_plans()
+            .plan_membership_set_role(&user("alice"), "event_members", &carol, "owner")
+            .expect_err("ordinary setRole cannot produce an owner");
+        assert_eq!(
+            create_owner.diagnostic.code,
+            "SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER"
+        );
+        let remove_owner = db
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &alice)
+            .expect_err("ordinary remove cannot remove an owner");
+        assert_eq!(
+            remove_owner.diagnostic.code,
+            "SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER"
+        );
+
+        let commit = transfer_owner(&mut db, "alice", &event_id, "bob")
+            .expect("current owner transfers to active admin");
+        assert_eq!(role_of(&db, &alice).as_deref(), Some("admin"));
+        assert_eq!(role_of(&db, &bob).as_deref(), Some("owner"));
+
+        let mut receipts = commit.authority_transitions.clone();
+        receipts.sort_by(|left, right| left.subject.cmp(&right.subject));
+        assert_eq!(receipts.len(), 2);
+        assert_eq!(receipts[0].declaration, "event_members");
+        assert_eq!(receipts[0].subject, "alice");
+        assert_eq!(receipts[0].scope.as_deref(), Some(event_id.as_str()));
+        assert_eq!(
+            receipts[0]
+                .predecessor
+                .as_ref()
+                .map(|state| state.role.as_str()),
+            Some("owner")
+        );
+        assert_eq!(
+            receipts[0]
+                .successor
+                .as_ref()
+                .map(|state| state.role.as_str()),
+            Some("admin")
+        );
+        assert_eq!(receipts[1].subject, "bob");
+        assert_eq!(
+            receipts[1]
+                .predecessor
+                .as_ref()
+                .map(|state| state.role.as_str()),
+            Some("admin")
+        );
+        assert_eq!(
+            receipts[1]
+                .successor
+                .as_ref()
+                .map(|state| state.role.as_str()),
+            Some("owner")
+        );
+        assert!(receipts.iter().all(|receipt| {
+            receipt.invalidation_disposition
+                == AuthorityInvalidationDispositionV1::GlobalAuthorizationEpochAdvanced
+        }));
+
+        let incidental = db
+            .membership_plans()
+            .plan_membership_patch(
+                &user("alice"),
+                "event_members",
+                &alice,
+                Map::from_iter([("notifyPrefs".to_owned(), json!("mentions"))]),
+            )
+            .expect("former owner may patch its own incidental field");
+        let incidental = db
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), incidental)
+            .expect("incidental membership patch commits");
+        assert_eq!(incidental.authority_transitions.len(), 1);
+        assert_eq!(
+            incidental.authority_transitions[0].predecessor,
+            incidental.authority_transitions[0].successor,
+            "non-authority roster fields preserve the typed authority state"
+        );
+        assert_eq!(
+            incidental.authority_transitions[0].invalidation_disposition,
+            AuthorityInvalidationDispositionV1::NoAuthorizationEvent
+        );
+
+        let old_owner_retry = db
+            .membership_plans()
+            .plan_membership_transfer_owner(
+                &user("alice"),
+                "event_members",
+                Some(&event_id),
+                "carol",
+            )
+            .expect_err("demoted caller immediately loses owner authority");
+        assert_eq!(
+            old_owner_retry.diagnostic.code,
+            "SNAPBACK_AUTHORITY_TRANSFER_OWNER_DENIED"
+        );
+    }
+
+    #[test]
+    fn transfer_owner_requires_the_declared_profile_and_active_target() {
+        let mut plain = ready_db();
+        let (event_id, _) = create_event(&mut plain, "alice");
+        let unsupported = plain
+            .membership_plans()
+            .plan_membership_transfer_owner(&user("alice"), "event_members", Some(&event_id), "bob")
+            .expect_err("plain memberships do not acquire transferOwner");
+        assert_eq!(
+            unsupported.diagnostic.code,
+            "SNAPBACK_AUTHORITY_TRANSFER_OWNER_UNSUPPORTED"
+        );
+        assert_eq!(
+            unsupported.diagnostic.details["declaration"],
+            "event_members"
+        );
+
+        let (mut db, event_id, _, _, _) = authority_fixture();
+        let empty_resource = db
+            .membership_plans()
+            .plan_membership_transfer_owner(&user("alice"), "event_members", Some(""), "bob")
+            .expect_err("an empty resource id is missing, not a scope lookup");
+        assert_eq!(
+            empty_resource.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
+        );
+        invite(&mut db, "alice", &event_id, "dave");
+        for principal in ["dave", "missing"] {
+            let error = db
+                .membership_plans()
+                .plan_membership_transfer_owner(
+                    &user("alice"),
+                    "event_members",
+                    Some(&event_id),
+                    principal,
+                )
+                .expect_err("pending and absent targets are not active");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_INACTIVE",
+                "{principal}"
+            );
+        }
+    }
+
+    #[test]
+    fn transfer_owner_races_target_removal_and_concurrent_transfer_in_both_orders() {
+        // Target removal wins; the transfer's exact target-row capture is stale.
+        let (mut remove_first, event_id, _, bob, _) = authority_fixture();
+        let transfer = remove_first
+            .membership_plans()
+            .plan_membership_transfer_owner(&user("alice"), "event_members", Some(&event_id), "bob")
+            .expect("transfer plan");
+        let remove = remove_first
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &bob)
+            .expect("target removal plan");
+        remove_first
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), remove)
+            .expect("target removal commits first");
+        let error = remove_first
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), transfer)
+            .expect_err("stale transfer loses to target removal");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+
+        // Transfer wins; the removal planned against an admin cannot delete
+        // the now-protected owner row.
+        let (mut transfer_first, event_id, _, bob, _) = authority_fixture();
+        let transfer = transfer_first
+            .membership_plans()
+            .plan_membership_transfer_owner(&user("alice"), "event_members", Some(&event_id), "bob")
+            .expect("transfer plan");
+        let remove = transfer_first
+            .membership_plans()
+            .plan_membership_remove(&user("alice"), "event_members", &bob)
+            .expect("concurrent target removal plan");
+        transfer_first
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), transfer)
+            .expect("transfer commits first");
+        let error = transfer_first
+            .membership_plans()
+            .commit_membership_plan(&user("alice"), remove)
+            .expect_err("stale removal cannot delete the new owner");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        assert_eq!(role_of(&transfer_first, &bob).as_deref(), Some("owner"));
+
+        for first in ["bob", "carol"] {
+            let (mut db, event_id, _, bob, carol) = authority_fixture();
+            let bob_transfer = db
+                .membership_plans()
+                .plan_membership_transfer_owner(
+                    &user("alice"),
+                    "event_members",
+                    Some(&event_id),
+                    "bob",
+                )
+                .expect("bob transfer plan");
+            let carol_transfer = db
+                .membership_plans()
+                .plan_membership_transfer_owner(
+                    &user("alice"),
+                    "event_members",
+                    Some(&event_id),
+                    "carol",
+                )
+                .expect("carol transfer plan");
+            let (winner, loser) = if first == "bob" {
+                (bob_transfer, carol_transfer)
+            } else {
+                (carol_transfer, bob_transfer)
+            };
+            db.membership_plans()
+                .commit_membership_plan(&user("alice"), winner)
+                .expect("selected transfer commits first");
+            let error = db
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), loser)
+                .expect_err("second transfer shares a stale caller-owner witness");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+            assert_eq!(
+                role_of(&db, if first == "bob" { &bob } else { &carol }).as_deref(),
+                Some("owner")
+            );
+        }
+    }
+
+    #[test]
+    fn transfer_owner_and_owner_departure_are_safe_in_both_orders() {
+        // Removal/leave cannot linearize before transfer because the caller is
+        // the protected owner. The refusal is stable and the transfer remains
+        // usable, so the live scope never passes through zero owners.
+        let (mut leave_first, event_id, alice, _, _) = authority_fixture();
+        for label in ["caller removal", "owner leave"] {
+            let error = leave_first
+                .membership_plans()
+                .plan_membership_remove(&user("alice"), "event_members", &alice)
+                .expect_err("owner departure before transfer is closed");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER",
+                "{label}"
+            );
+        }
+        transfer_owner(&mut leave_first, "alice", &event_id, "bob")
+            .expect("refused departure does not consume transfer authority");
+
+        // In the opposite order Alice is an ordinary admin, so both an
+        // owner-targeted removal attempt (by Bob) and Alice's own leave obey
+        // the normal matrix while Bob remains the eligible owner.
+        for departure_by in ["alice", "bob"] {
+            let (mut transfer_first, event_id, alice, bob, _) = authority_fixture();
+            transfer_owner(&mut transfer_first, "alice", &event_id, "bob")
+                .expect("transfer commits first");
+            let departure = transfer_first
+                .membership_plans()
+                .plan_membership_remove(&user(departure_by), "event_members", &alice)
+                .expect("former owner is now removable admin");
+            transfer_first
+                .membership_plans()
+                .commit_membership_plan(&user(departure_by), departure)
+                .expect("post-transfer departure commits");
+            assert_eq!(role_of(&transfer_first, &alice), None);
+            assert_eq!(role_of(&transfer_first, &bob).as_deref(), Some("owner"));
+        }
+    }
+
+    fn plan_remove_self(db: &LocalDatabase, principal: &str, event_id: &str) -> MembershipPlan {
+        let mut authorized = db
+            .authorize_membership_commands(vec![BufferedMembershipCommand::remove_self(
+                user(principal),
+                "event_members".to_owned(),
+                Some(event_id.to_owned()),
+            )])
+            .expect("removeSelf resolves and plans from the pinned snapshot");
+        assert_eq!(authorized.len(), 1);
+        authorized.pop().expect("one plan").plan
+    }
+
+    #[test]
+    fn transfer_owner_races_target_remove_self_in_both_commit_orders() {
+        for target in ["bob", "carol"] {
+            // transferOwner wins: the target's removeSelf was authorized while
+            // they were admin/member. Its exact target-row version is stale
+            // after promotion, so it cannot delete the newly protected owner.
+            let (mut transfer_first, event_id, _, _, _) = authority_fixture();
+            let transfer = transfer_first
+                .membership_plans()
+                .plan_membership_transfer_owner(
+                    &user("alice"),
+                    "event_members",
+                    Some(&event_id),
+                    target,
+                )
+                .expect("transfer plan");
+            let stale_leave = plan_remove_self(&transfer_first, target, &event_id);
+            transfer_first
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), transfer)
+                .expect("transfer commits first");
+            let error = transfer_first
+                .membership_plans()
+                .commit_membership_plan(&user(target), stale_leave)
+                .expect_err("stale removeSelf cannot delete the promoted owner");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+            let target_id = member_id(&transfer_first, &event_id, target);
+            assert_eq!(
+                role_of(&transfer_first, &target_id).as_deref(),
+                Some("owner")
+            );
+
+            // removeSelf wins: both plans are structurally plannable from the
+            // pre-transfer snapshot. The stale transfer then loses its exact
+            // target-row witness. By contrast, Alice's owner removeSelf cannot
+            // be staged in either order at all: owner closure refuses it during
+            // planning, as the preceding test pins.
+            let (mut leave_first, event_id, _, _, _) = authority_fixture();
+            let transfer = leave_first
+                .membership_plans()
+                .plan_membership_transfer_owner(
+                    &user("alice"),
+                    "event_members",
+                    Some(&event_id),
+                    target,
+                )
+                .expect("transfer plan");
+            let leave = plan_remove_self(&leave_first, target, &event_id);
+            leave_first
+                .membership_plans()
+                .commit_membership_plan(&user(target), leave)
+                .expect("target removeSelf commits first");
+            let error = leave_first
+                .membership_plans()
+                .commit_membership_plan(&user("alice"), transfer)
+                .expect_err("transfer cannot spend a removed target witness");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        }
+    }
+
+    // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — the
+    //   profile-gated private read returns only allowlisted data, preserves
+    //   non-enumeration, and carries ordinary query invalidation captures.
+    #[test]
+    fn authority_roster_reads_are_profile_gated_private_paginated_and_captured() {
+        let (mut db, event_id, _, _, _) = authority_fixture();
+        invite(&mut db, "alice", &event_id, "dave");
+
+        let mut first_dependencies = Vec::new();
+        let first = db
+            .membership_reads()
+            .read_authority_roster_page(
+                "event_members",
+                Some("alice"),
+                Some(&event_id),
+                crate::membership_rules::AuthorityRosterPageRequestV1 {
+                    limit: 1,
+                    after: None,
+                },
+                |dependency| first_dependencies.push(dependency),
+            )
+            .expect("first roster page");
+        assert_eq!(first.rows.len(), 1);
+        assert!(first.next.is_some());
+        assert!(
+            first.rows[0]
+                .as_object()
+                .unwrap()
+                .keys()
+                .all(|field| { ["userId", "role", "notifyPrefs"].contains(&field.as_str()) })
+        );
+        assert!(!first.rows[0].get("_id").is_some());
+        assert!(first_dependencies.iter().all(|dependency| {
+            dependency.kind == CapturedReadKind::Query
+                && dependency.table.as_deref() == Some("event_members")
+        }));
+        let inserted = ChangedRow {
+            table: "event_members".to_owned(),
+            id: "future-member".to_owned(),
+            op: ChangeOp::Insert,
+            row: Some(json!({
+                "_id": "future-member",
+                "userId": "erin",
+                "eventId": event_id,
+                "role": "member"
+            })),
+            changed_fields: Vec::new(),
+        };
+        assert!(first_dependencies.iter().any(|dependency| {
+            crate::live_matcher::query_dependency_change_may_affect(
+                &HandlerInput::default(),
+                dependency,
+                &inserted,
+            )
+        }));
+
+        let mut principals = Vec::new();
+        let mut after = None;
+        loop {
+            let page = db
+                .membership_reads()
+                .read_authority_roster_page(
+                    "event_members",
+                    Some("alice"),
+                    Some(&event_id),
+                    crate::membership_rules::AuthorityRosterPageRequestV1 { limit: 1, after },
+                    |_| {},
+                )
+                .expect("bounded roster page");
+            principals.extend(page.rows.iter().map(|row| {
+                row["userId"]
+                    .as_str()
+                    .expect("visible principal")
+                    .to_owned()
+            }));
+            after = page.next;
+            if after.is_none() {
+                break;
+            }
+        }
+        principals.sort();
+        assert_eq!(principals, ["alice", "bob", "carol"]);
+
+        let invited = db
+            .membership_reads()
+            .read_authority_my_role("event_members", Some("dave"), Some(&event_id), |_| {})
+            .expect("pending member can inspect only its own status");
+        assert_eq!(invited.role, "invited");
+        assert_eq!(invited.status, AuthorityMembershipStatusV1::Invited);
+
+        let mut missing_member_dependencies = Vec::new();
+        let missing_member = db
+            .membership_reads()
+            .read_authority_roster_page(
+                "event_members",
+                Some("mallory"),
+                Some(&event_id),
+                crate::membership_rules::AuthorityRosterPageRequestV1 {
+                    limit: 10,
+                    after: None,
+                },
+                |dependency| missing_member_dependencies.push(dependency),
+            )
+            .expect_err("non-member refusal");
+        let mut missing_scope_dependencies = Vec::new();
+        let missing_scope = db
+            .membership_reads()
+            .read_authority_roster_page(
+                "event_members",
+                Some("mallory"),
+                Some("absent-scope"),
+                crate::membership_rules::AuthorityRosterPageRequestV1 {
+                    limit: 10,
+                    after: None,
+                },
+                |dependency| missing_scope_dependencies.push(dependency),
+            )
+            .expect_err("nonexistent-scope refusal");
+        assert_eq!(
+            serde_json::to_vec(&missing_member).unwrap(),
+            serde_json::to_vec(&missing_scope).unwrap(),
+            "non-membership and nonexistence must be byte-identical"
+        );
+        assert_eq!(
+            serde_json::to_vec(&missing_member).unwrap(),
+            serde_json::to_vec(&crate::membership_rules::role_denial()).unwrap(),
+            "roster denial bytes remain exactly the invariant role denial"
+        );
+        for dependencies in [&missing_member_dependencies, &missing_scope_dependencies] {
+            assert_eq!(dependencies.len(), 1);
+            assert_eq!(dependencies[0].kind, CapturedReadKind::Query);
+            assert_eq!(dependencies[0].table.as_deref(), Some("event_members"));
+            assert_eq!(dependencies[0].result_count, Some(0));
+            assert!(dependencies[0].predicate.is_some());
+        }
+        let mut missing_member_role_dependencies = Vec::new();
+        let missing_member_role = db
+            .membership_reads()
+            .read_authority_my_role(
+                "event_members",
+                Some("mallory"),
+                Some(&event_id),
+                |dependency| missing_member_role_dependencies.push(dependency),
+            )
+            .expect_err("non-member own-role refusal");
+        let mut missing_scope_role_dependencies = Vec::new();
+        let missing_scope_role = db
+            .membership_reads()
+            .read_authority_my_role(
+                "event_members",
+                Some("mallory"),
+                Some("absent-scope"),
+                |dependency| missing_scope_role_dependencies.push(dependency),
+            )
+            .expect_err("nonexistent-scope own-role refusal");
+        assert_eq!(
+            serde_json::to_vec(&missing_member_role).unwrap(),
+            serde_json::to_vec(&missing_scope_role).unwrap(),
+            "myRole preserves the same non-enumeration boundary"
+        );
+        assert_eq!(
+            serde_json::to_vec(&missing_member_role).unwrap(),
+            serde_json::to_vec(&crate::membership_rules::role_denial()).unwrap(),
+            "myRole denial bytes remain exactly the invariant role denial"
+        );
+        for dependencies in [
+            &missing_member_role_dependencies,
+            &missing_scope_role_dependencies,
+        ] {
+            assert_eq!(dependencies.len(), 1);
+            assert_eq!(dependencies[0].kind, CapturedReadKind::Query);
+            assert_eq!(dependencies[0].table.as_deref(), Some("event_members"));
+            assert_eq!(dependencies[0].result_count, Some(0));
+            assert!(dependencies[0].predicate.is_some());
+        }
+
+        let grant = db
+            .membership_plans()
+            .plan_privileged_membership_insert(
+                &MembershipWriter::Admin,
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("mallory")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("member")),
+                ]),
+            )
+            .expect("admin plans a direct active grant");
+        let grant = db
+            .membership_plans()
+            .commit_membership_plan(&MembershipWriter::Admin, grant)
+            .expect("active grant commits");
+        let changed = grant
+            .changes
+            .iter()
+            .find(|change| change.table == "event_members")
+            .expect("membership grant change");
+        for dependencies in [
+            &missing_member_dependencies,
+            &missing_member_role_dependencies,
+        ] {
+            assert!(dependencies.iter().any(|dependency| {
+                crate::live_matcher::query_dependency_change_may_affect(
+                    &HandlerInput::default(),
+                    dependency,
+                    changed,
+                )
+            }));
+        }
+
+        let mut plain = ready_db();
+        let (plain_event, _) = create_event(&mut plain, "alice");
+        let error = plain
+            .membership_reads()
+            .read_authority_my_role("event_members", Some("alice"), Some(&plain_event), |_| {})
+            .expect_err("private read is profile gated");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTHORITY_PROFILE_REQUIRED");
+    }
+
+    #[test]
+    fn authority_roster_hides_role_from_order_and_continuation_when_not_visible() {
+        let mut schema = authority_profile_schema();
+        schema.tables[1]
+            .authority_profile
+            .as_mut()
+            .expect("authority profile")
+            .roster
+            .visible_fields = vec!["userId".to_owned()];
+        let mut db = ready_db_with_schema(schema);
+        let (event_id, _) = create_event(&mut db, "alice");
+        invite(&mut db, "alice", &event_id, "bob");
+        let bob = member_id(&db, &event_id, "bob");
+        set_role(&mut db, "bob", &bob, "member").expect("bob accepts");
+        set_role(&mut db, "alice", &bob, "admin").expect("bob becomes admin");
+        invite(&mut db, "alice", &event_id, "carol");
+        let carol = member_id(&db, &event_id, "carol");
+        set_role(&mut db, "carol", &carol, "member").expect("carol accepts");
+
+        let page = db
+            .membership_reads()
+            .read_authority_roster_page(
+                "event_members",
+                Some("alice"),
+                Some(&event_id),
+                crate::membership_rules::AuthorityRosterPageRequestV1 {
+                    limit: 1,
+                    after: None,
+                },
+                |_| {},
+            )
+            .expect("role-hidden roster page");
+        assert_eq!(page.rows, vec![json!({ "userId": "alice" })]);
+        let next = page.next.expect("full page has a continuation");
+        assert_eq!(
+            next.entries,
+            vec![("userId".to_owned(), json!("alice"))],
+            "the host-private boundary carries only fields used by the active ordering"
+        );
     }
 
     /// Seat a second, real `host` by promoting an invited principal all the way up.
@@ -15010,10 +15937,9 @@ mod membership_write_tests {
             &["host".to_owned()],
         )
         .expect("autonomous role check");
-        assert!(
-            access.denial.is_none(),
-            "post-revocation authority is explained by the durable row"
-        );
+        access
+            .finish(|_| {})
+            .expect("post-revocation authority is explained by the durable row");
     }
 
     #[test]

@@ -12189,6 +12189,7 @@ impl LocalSnapback {
                     asset_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
+                    authority_transitions: Vec::new(),
                     network_egress: Default::default(),
                 };
                 let recorded = self.record_mutation_commit_after_publication_guard(
@@ -12290,6 +12291,7 @@ impl LocalSnapback {
                     asset_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
+                    authority_transitions: Vec::new(),
                     network_egress: Default::default(),
                 };
                 let recorded = self.record_mutation_commit_after_publication_guard(
@@ -12984,6 +12986,7 @@ impl LocalSnapback {
                     asset_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
+                    authority_transitions: Vec::new(),
                     network_egress: Default::default(),
                 });
             }
@@ -13028,6 +13031,7 @@ impl LocalSnapback {
                 asset_changes: Vec::new(),
                 sequence_allocations,
                 authorization: None,
+                authority_transitions: Vec::new(),
                 network_egress: Default::default(),
             });
         }

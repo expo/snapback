@@ -99,6 +99,46 @@ impl LocalDatabase {
         })
     }
 
+    pub(super) fn read_authority_roster_page(
+        &self,
+        declaration: &str,
+        caller: Option<&str>,
+        resource: Option<&str>,
+        page: crate::membership_rules::AuthorityRosterPageRequestV1,
+    ) -> SnapbackResult<
+        crate::membership_rules::CapturedMembershipReadOutcome<
+            crate::membership_rules::AuthorityRosterPageV1,
+        >,
+    > {
+        // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface —
+        // roster bytes leave storage only through the profile-gated host plan.
+        crate::membership_rules::authority_roster_list(
+            &super::DbRead::Live(self),
+            declaration,
+            caller,
+            resource,
+            page,
+        )
+    }
+
+    pub(super) fn read_authority_my_role(
+        &self,
+        declaration: &str,
+        caller: Option<&str>,
+        resource: Option<&str>,
+    ) -> SnapbackResult<
+        crate::membership_rules::CapturedMembershipReadOutcome<
+            crate::membership_rules::AuthorityMyRoleV1,
+        >,
+    > {
+        crate::membership_rules::authority_my_role(
+            &super::DbRead::Live(self),
+            declaration,
+            caller,
+            resource,
+        )
+    }
+
     #[cfg(test)]
     fn test_insert_channel_member(
         &mut self,
@@ -147,6 +187,31 @@ impl<'a> MembershipReadsKernel<'a> {
     ) -> SnapbackResult<(Vec<Value>, Vec<CapturedReadDependency>)> {
         self.db
             .read_my_memberships_projection(caller, table_name, membership)
+    }
+
+    pub fn read_authority_roster_page(
+        &self,
+        declaration: &str,
+        caller: Option<&str>,
+        resource: Option<&str>,
+        page: crate::membership_rules::AuthorityRosterPageRequestV1,
+        register: impl FnMut(CapturedReadDependency),
+    ) -> SnapbackResult<crate::membership_rules::AuthorityRosterPageV1> {
+        self.db
+            .read_authority_roster_page(declaration, caller, resource, page)?
+            .finish(register)
+    }
+
+    pub fn read_authority_my_role(
+        &self,
+        declaration: &str,
+        caller: Option<&str>,
+        resource: Option<&str>,
+        register: impl FnMut(CapturedReadDependency),
+    ) -> SnapbackResult<crate::membership_rules::AuthorityMyRoleV1> {
+        self.db
+            .read_authority_my_role(declaration, caller, resource)?
+            .finish(register)
     }
 
     #[cfg(test)]

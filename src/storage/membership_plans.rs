@@ -1,5 +1,111 @@
 use super::*;
 
+fn authority_declaration_detail(
+    error: SnapbackError,
+    table: &TableManifest,
+    membership: &MembershipManifest,
+) -> SnapbackError {
+    error.with_detail(
+        "declaration",
+        membership.effective_id(&table.name).to_owned(),
+    )
+}
+
+fn require_transfer_owner_profile(
+    table: &TableManifest,
+    membership: &MembershipManifest,
+) -> SnapbackResult<()> {
+    let valid = table.authority_profile.as_ref().is_some_and(|profile| {
+        profile.id == membership.effective_id(&table.name)
+            && profile.owner_bootstrap_invariant.role == "owner"
+            && profile.owner_bootstrap_invariant.bootstrap_role == "owner"
+            && profile.owner_bootstrap_invariant.protected_last_holder_role == "owner"
+    }) && membership.roles.iter().any(|role| role == "owner")
+        && membership.roles.iter().any(|role| role == "admin")
+        && membership.bootstrap_role.as_deref() == Some("owner")
+        && membership
+            .last_holder
+            .as_ref()
+            .is_some_and(|last| last.protect == "owner");
+    if valid {
+        return Ok(());
+    }
+    Err(authority_declaration_detail(
+        membership_refusal(
+            "SNAPBACK_AUTHORITY_TRANSFER_OWNER_UNSUPPORTED",
+            "transferOwner requires an authority profile whose active vocabulary contains owner and admin and whose bootstrapRole/lastHolder role is owner",
+        ),
+        table,
+        membership,
+    ))
+}
+
+fn validate_membership_scope_argument(
+    membership: &MembershipManifest,
+    resource: Option<&str>,
+    operation: &str,
+) -> SnapbackResult<()> {
+    match (&membership.resource, resource) {
+        (Some(_), None | Some("")) => Err(membership_refusal(
+            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+            format!("resource-scoped {operation} requires a resource id"),
+        )),
+        (None, Some(_)) => Err(membership_refusal(
+            "SNAPBACK_MEMBERSHIP_RESOURCE_UNEXPECTED",
+            format!("app-scoped {operation} does not accept a resource id"),
+        )),
+        _ => Ok(()),
+    }
+}
+
+fn refuse_ordinary_profile_owner_change(
+    table: &TableManifest,
+    membership: &MembershipManifest,
+    from_role: Option<&str>,
+    to_role: Option<&str>,
+    operation: &str,
+) -> SnapbackResult<()> {
+    if table.authority_profile.is_none() || (from_role != Some("owner") && to_role != Some("owner"))
+    {
+        return Ok(());
+    }
+    Err(authority_declaration_detail(
+        membership_refusal(
+            "SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER",
+            format!(
+                "ordinary {operation} cannot create, demote, or remove an authority-profile owner; use transferOwner"
+            ),
+        ),
+        table,
+        membership,
+    ))
+}
+
+fn transfer_owner_denied(table: &TableManifest, membership: &MembershipManifest) -> SnapbackError {
+    authority_declaration_detail(
+        membership_refusal(
+            "SNAPBACK_AUTHORITY_TRANSFER_OWNER_DENIED",
+            "transferOwner requires the effective principal to be the current owner of this scope",
+        ),
+        table,
+        membership,
+    )
+}
+
+fn transfer_owner_target_inactive(
+    table: &TableManifest,
+    membership: &MembershipManifest,
+) -> SnapbackError {
+    authority_declaration_detail(
+        membership_refusal(
+            "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_INACTIVE",
+            "transferOwner requires another active non-owner member of this scope",
+        ),
+        table,
+        membership,
+    )
+}
+
 /// The generated true-unique index makes concurrent same-pair inserts resolve to
 /// one row; the referential-integrity and closed-vocabulary refusals are
 /// enforced here on the live path for every writer, not only at activation.
@@ -159,6 +265,15 @@ impl LocalDatabase {
                         resource.as_deref(),
                         &principal,
                     )?,
+                    BufferedMembershipOp::TransferOwner {
+                        resource,
+                        principal,
+                    } => self.plan_membership_transfer_owner(
+                        &command.writer,
+                        &command.table,
+                        resource.as_deref(),
+                        &principal,
+                    )?,
                 };
                 Ok(AuthorizedMembershipPlan::user_transition(
                     command.writer,
@@ -277,6 +392,13 @@ impl LocalDatabase {
             let inserted_principal = extract_axis(&values, &membership.principal, "principal")?;
             let inserted_role = extract_axis(&values, &membership.role, "role")?;
             require_in_vocabulary(membership, &inserted_role)?;
+            refuse_ordinary_profile_owner_change(
+                table_manifest,
+                membership,
+                None,
+                Some(&inserted_role),
+                "insert",
+            )?;
             let inserted_resource = match &membership.resource {
                 Some(resource_field) => Some(extract_axis(&values, resource_field, "resource")?),
                 None => None,
@@ -379,6 +501,13 @@ impl LocalDatabase {
 
             let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
                 .ok_or_else(|| target_row_missing(member_id))?;
+            refuse_ordinary_profile_owner_change(
+                table_manifest,
+                membership,
+                Some(&row.role),
+                Some(to_role),
+                "setRole",
+            )?;
             let (class, target, caller_dependency) = self.derive_class_and_target(
                 table_manifest,
                 membership,
@@ -446,6 +575,13 @@ impl LocalDatabase {
 
             let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
                 .ok_or_else(|| target_row_missing(member_id))?;
+            refuse_ordinary_profile_owner_change(
+                table_manifest,
+                membership,
+                Some(&row.role),
+                None,
+                "remove",
+            )?;
             let (class, target, caller_dependency) = self.derive_class_and_target(
                 table_manifest,
                 membership,
@@ -619,6 +755,117 @@ impl LocalDatabase {
                     skipped_protected: Vec::new(),
                 }),
             }
+        })
+    }
+
+    /// Atomically move the profile's protected owner role from the effective
+    /// principal to one active target member. This is a dedicated plan kind,
+    /// not a transition-matrix spelling: ordinary insert/setRole/remove paths
+    /// are independently barred from creating or removing profile owners.
+    ///
+    /// @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+    ///   — only a current owner may promote an active target and demote itself
+    ///   to admin in one membership plan/transaction.
+    pub(super) fn plan_membership_transfer_owner(
+        &self,
+        writer: &MembershipWriter,
+        table: &str,
+        resource: Option<&str>,
+        target_principal: &str,
+    ) -> SnapbackResult<MembershipPlan> {
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            require_transfer_owner_profile(table_manifest, membership)?;
+            validate_membership_scope_argument(membership, resource, "transferOwner")?;
+            if target_principal.is_empty() {
+                return Err(membership_refusal(
+                    "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_INVALID",
+                    "transferOwner requires a non-empty target principal",
+                )
+                .with_detail(
+                    "declaration",
+                    membership.effective_id(&table_manifest.name).to_owned(),
+                ));
+            }
+            let effective = self.require_effective_principal(writer)?;
+
+            // Resolve caller authority before the target lookup. A non-owner
+            // receives one invariant refusal and learns nothing target-shaped.
+            let (caller_pair, caller_dependency) = read_membership_pair_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                resource,
+                effective,
+            )?;
+            let Some((caller_id, caller_role)) = caller_pair else {
+                return Err(transfer_owner_denied(table_manifest, membership));
+            };
+            if caller_role != "owner" {
+                return Err(transfer_owner_denied(table_manifest, membership));
+            }
+            if target_principal == effective {
+                return Err(membership_refusal(
+                    "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_SELF",
+                    "transferOwner requires another active member",
+                )
+                .with_detail(
+                    "declaration",
+                    membership.effective_id(&table_manifest.name).to_owned(),
+                ));
+            }
+
+            let (target_pair, target_dependency) = read_membership_pair_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                resource,
+                target_principal,
+            )?;
+            let Some((target_id, target_role)) = target_pair else {
+                return Err(transfer_owner_target_inactive(table_manifest, membership));
+            };
+            if !membership.roles.iter().any(|role| role == &target_role) || target_role == "owner" {
+                return Err(transfer_owner_target_inactive(table_manifest, membership));
+            }
+
+            let caller = read_membership_row(&self.conn, table_manifest, membership, &caller_id)?
+                .ok_or_else(|| transfer_owner_denied(table_manifest, membership))?;
+            let target =
+                read_membership_row(&self.conn, table_manifest, membership, &target_id)?
+                    .ok_or_else(|| transfer_owner_target_inactive(table_manifest, membership))?;
+            self.require_eligible_if_protected(membership, "owner", &target.principal)?;
+
+            let mut target_patch = Map::new();
+            target_patch.insert(membership.role.clone(), Value::String("owner".to_owned()));
+            let mut caller_patch = Map::new();
+            caller_patch.insert(membership.role.clone(), Value::String("admin".to_owned()));
+            Ok(MembershipPlan {
+                // Promote first inside the private transaction, then demote;
+                // the complete protected-holder evaluator judges the final
+                // state before COMMIT and no intermediate state is observable.
+                writes: vec![
+                    BufferedWrite::Patch {
+                        table: table_manifest.name.clone(),
+                        id: target.id.clone(),
+                        values: target_patch,
+                    },
+                    BufferedWrite::Patch {
+                        table: table_manifest.name.clone(),
+                        id: caller.id.clone(),
+                        values: caller_patch,
+                    },
+                ],
+                read_dependencies: vec![
+                    caller_dependency,
+                    target_dependency,
+                    target_row_dependency(&table_manifest.name, &caller),
+                    target_row_dependency(&table_manifest.name, &target),
+                ],
+                result: Value::Null,
+                skipped_protected: Vec::new(),
+            })
         })
     }
 
@@ -807,6 +1054,13 @@ impl LocalDatabase {
                 let principal = extract_axis(&values, &membership.principal, "principal")?;
                 let role = extract_axis(&values, &membership.role, "role")?;
                 require_in_vocabulary(membership, &role)?;
+                refuse_ordinary_profile_owner_change(
+                    member_table_manifest,
+                    membership,
+                    None,
+                    Some(&role),
+                    "bootstrap initial-member insert",
+                )?;
                 if !principals.insert(principal.clone()) {
                     return Err(membership_refusal(
                         "SNAPBACK_MEMBERSHIP_BOOTSTRAP_DUPLICATE_PRINCIPAL",
@@ -1335,6 +1589,17 @@ impl<'a> MembershipPlansKernel<'a> {
             .plan_membership_remove_principal(writer, table, resource, principal)
     }
 
+    pub fn plan_membership_transfer_owner(
+        &self,
+        writer: &MembershipWriter,
+        table: &str,
+        resource: Option<&str>,
+        principal: &str,
+    ) -> SnapbackResult<MembershipPlan> {
+        self.db
+            .plan_membership_transfer_owner(writer, table, resource, principal)
+    }
+
     pub fn plan_membership_patch(
         &self,
         writer: &MembershipWriter,
@@ -1435,6 +1700,17 @@ impl<'a> MembershipPlansReadKernel<'a> {
     ) -> SnapbackResult<MembershipPlan> {
         self.db
             .plan_membership_remove_principal(writer, table, resource, principal)
+    }
+
+    pub fn plan_membership_transfer_owner(
+        &self,
+        writer: &MembershipWriter,
+        table: &str,
+        resource: Option<&str>,
+        principal: &str,
+    ) -> SnapbackResult<MembershipPlan> {
+        self.db
+            .plan_membership_transfer_owner(writer, table, resource, principal)
     }
 
     pub fn plan_membership_patch(
