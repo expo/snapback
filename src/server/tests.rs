@@ -776,6 +776,38 @@ async fn tus_upload_cors_headers_cover_the_protocol() {
     );
 }
 
+#[test]
+fn tus_patch_route_runs_durable_append_between_writer_windows() {
+    let source = include_str!("asset_routes.rs");
+    let route = source
+        .split("pub(super) async fn asset_tus_patch_route")
+        .nth(1)
+        .and_then(|tail| tail.split("pub(super) async fn asset_tus_delete_route").next())
+        .expect("asset TUS PATCH route source");
+    let preflight = route
+        .find("asset_tus_patch_preflight")
+        .expect("lock-held TUS preflight");
+    let blocking = route
+        .find("tokio::task::spawn_blocking")
+        .expect("blocking-pool staging append");
+    let append = route.find("ticket.append").expect("durable staging append");
+    let guard_return = route
+        .find("(ticket, attempt_guard)")
+        .expect("owned attempt guard returned from the blocking append");
+    let commit = route
+        .rfind("asset_tus_patch_commit")
+        .expect("lock-held TUS offset CAS");
+    assert!(
+        preflight < blocking && blocking < append && append < guard_return && guard_return < commit,
+        "write/flush/sync and its cancellation-safe guard must remain outside and between the two Local writer windows"
+    );
+    assert_eq!(
+        route.matches("with_snapback(&state").count(),
+        2,
+        "the route has one preflight and one CAS writer window"
+    );
+}
+
 #[tokio::test]
 async fn http_telemetry_uses_registered_names_codes_and_private_unmatched_details() {
     let directory = tempfile::tempdir().expect("telemetry HTTP fixture directory");
@@ -1323,6 +1355,69 @@ async fn rehearsal_capability_manifest_reports_absent_available_and_active() {
     assert_eq!(projected_rehearsal_status(&state).await, "active");
     Arc::make_mut(&mut state.server).profile = ServerProfile::Prod;
     assert_eq!(projected_rehearsal_status(&state).await, "absent");
+}
+
+#[test]
+fn rehearsal_host_op_future_sizes_stay_heap_bounded() {
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+    let Extension(route_admission) = test_route_admission(&state);
+    let request: crate::host_ops::HostOpsRequest = serde_json::from_value(json!({
+        "operation": "auth.rehearsal.exercise",
+        "args": {
+            "effect": "challenge.capture",
+            "idempotencyKey": "future-size",
+            "challengeId": "challenge-size-fixture",
+        },
+    }))
+    .expect("rehearsal exercise request");
+    let headers = HeaderMap::new();
+
+    let auth = super::execute_auth_host_operation(
+        &state,
+        &headers,
+        None,
+        &route_admission,
+        request.clone(),
+        None,
+    );
+    let auth_size = std::mem::size_of_val(&auth);
+    drop(auth);
+    let inner = super::host_ops_handler_inner(
+        State(state.clone()),
+        Some(Extension(route_admission.clone())),
+        None,
+        None,
+        headers.clone(),
+        Json(request.clone()),
+    );
+    let inner_size = std::mem::size_of_val(&inner);
+    drop(inner);
+    let outer = super::host_ops_handler(
+        State(state),
+        Some(Extension(route_admission)),
+        None,
+        None,
+        headers,
+        Json(request),
+    );
+    let outer_size = std::mem::size_of_val(&outer);
+    drop(outer);
+
+    eprintln!(
+        "rehearsal host-op future sizes: execute_auth={auth_size}, inner={inner_size}, outer={outer_size}"
+    );
+    assert!(
+        auth_size <= 22_000,
+        "auth dispatcher future regrew beyond its post-fix 21,032-byte size: {auth_size}"
+    );
+    assert!(
+        inner_size <= 26_000,
+        "host-op inner future regrew beyond its recorded 25,408-byte size: {inner_size}"
+    );
+    assert!(
+        outer_size <= 9_000,
+        "host-op outer future regrew beyond its recorded 8,224-byte size: {outer_size}"
+    );
 }
 
 /// @ref LLP 0213#effect-execution-and-audit — the real provider mailbox is

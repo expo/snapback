@@ -21269,7 +21269,7 @@ async fn execute_auth_host_operation(
                         .await);
                     }
                 };
-                let outcome = coordinated_exchange_session(
+                let outcome = Box::pin(coordinated_exchange_session(
                     runtime,
                     &provider,
                     exchange,
@@ -21282,7 +21282,7 @@ async fn execute_auth_host_operation(
                         exercise,
                         require_existing_identity: false,
                     }),
-                )
+                ))
                 .await
                 .map_err(ProviderError::into_snapback_error)
                 .and_then(|issue| {
@@ -21402,7 +21402,7 @@ async fn execute_auth_host_operation(
                     outcome: serde_json::json!({ "kind": "authRehearsalSession.v1" }),
                     now_ms,
                 };
-                let outcome = coordinated_mint_session(
+                let outcome = Box::pin(coordinated_mint_session(
                     runtime,
                     &provider,
                     admission,
@@ -21413,7 +21413,7 @@ async fn execute_auth_host_operation(
                         exercise,
                         require_existing_identity: true,
                     }),
-                )
+                ))
                 .await
                 .and_then(|issue| {
                     let (credential, _committed_revocation) = issue.into_parts();
@@ -21515,17 +21515,24 @@ async fn execute_auth_host_operation(
                     return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
                 }
             };
-            let outcome =
-                coordinated_mint_session(runtime, &provider, admission, route_admission, None)
-                    .await
-                    .and_then(|issue| {
-                        let (credential, committed_revocation) = issue.into_parts();
-                        // Cap finalization has already completed before plaintext
-                        // reaches this serialization boundary.
-                        let _ = committed_revocation;
-                        serde_json::to_value(credential)
-                            .map_err(|_| auth_provider_unavailable_error())
-                    });
+            // The coordinator is a large lifecycle/commit state machine.
+            // Keep it on its own heap allocation so every auth host-op
+            // variant does not inherit that state in the dispatcher future.
+            let outcome = Box::pin(coordinated_mint_session(
+                runtime,
+                &provider,
+                admission,
+                route_admission,
+                None,
+            ))
+            .await
+            .and_then(|issue| {
+                let (credential, committed_revocation) = issue.into_parts();
+                // Cap finalization has already completed before plaintext
+                // reaches this serialization boundary.
+                let _ = committed_revocation;
+                serde_json::to_value(credential).map_err(|_| auth_provider_unavailable_error())
+            });
             Ok(auth_host_result(runtime, request, server_url, outcome).await)
         }
         "auth.rescueCollidingTable" => {
