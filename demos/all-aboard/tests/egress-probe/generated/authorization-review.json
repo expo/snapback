@@ -1,0 +1,392 @@
+{
+  "appId": "all-aboard",
+  "authMode": "dev",
+  "authorityProfiles": [],
+  "authorizationTables": [],
+  "fieldPolicies": [],
+  "inputsHash": "5c91e8f07e3c64f18a9606873aa53f2abc760a562e29f334bbf98d5918904062",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Action",
+      "maskedFieldUses": [],
+      "name": "egressProbe",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "deliveries"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "deliveries"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Query",
+      "maskedFieldUses": [],
+      "name": "listDeliveries",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "deliveries"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Action",
+      "maskedFieldUses": [],
+      "name": "notifyDelivery",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Action",
+      "maskedFieldUses": [],
+      "name": "notifyHostFetch",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Action",
+      "maskedFieldUses": [],
+      "name": "notifyInline",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "probe"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "probe"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Query",
+      "maskedFieldUses": [],
+      "name": "queryProbe",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "probe",
+        "tables": [
+          "probe"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "deliveries"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "recordDelivery",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "deliveries"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "probe"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

@@ -1,0 +1,142 @@
+{
+  "appId": "file-drop",
+  "authMode": "sessions",
+  "authorityProfiles": [],
+  "authorizationTables": [],
+  "fieldPolicies": [],
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:47d4195cf74d6ee6a78e63f30fe9a88e4ee0be462867b3fa229f75193dd0d488",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "photos"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "createPhoto",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "photos",
+        "tables": [
+          "photos"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "photos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "photos"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "listPhotos",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "photos",
+        "tables": [
+          "photos"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "photos"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

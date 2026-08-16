@@ -1,0 +1,324 @@
+{
+  "appId": "public-dashboard",
+  "authMode": "dev",
+  "authorityProfiles": [],
+  "authorizationTables": [],
+  "fieldPolicies": [],
+  "inputsHash": "b9c67e79d0504db11ad065190282f539d43cc64bafd17dc526d56699efb8276d",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "public"
+      },
+      "authorityIndependent": true,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_dashboard",
+            "table": "metrics"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "metrics"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "dashboardMetrics",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "metrics",
+        "tables": [
+          "metrics"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "public"
+      },
+      "authorityIndependent": true,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_dashboard",
+            "table": "metrics"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "metrics"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "dashboardMetricsByContext",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "metrics",
+        "tables": [
+          "metrics"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "public"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_dashboard",
+            "table": "metrics"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "metrics"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "metricsFeed",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "metrics",
+        "tables": [
+          "metrics"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "metrics"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "recordMetric",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "metrics",
+        "tables": [
+          "metrics"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "metrics"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "metrics"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "setMetricValue",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "metrics",
+        "tables": [
+          "metrics"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "metrics",
+        "tables": [
+          "metrics"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "metrics"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

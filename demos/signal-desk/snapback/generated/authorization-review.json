@@ -1,0 +1,1422 @@
+{
+  "appId": "backend-bakeoff",
+  "authMode": "sessions",
+  "authorityProfiles": [],
+  "authorizationTables": [],
+  "fieldPolicies": [],
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:7d58892f13b523accf29b2237fd0d34c9fd7c6df7a70bfec8300e9a75589fc65",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "activity"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "comments"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidents"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "addComment",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "activity",
+          "comments",
+          "incidents"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "incidents"
+          },
+          {
+            "access": "query",
+            "table": "tasks"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "activity"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidents"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "tasks"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "incidents"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "tasks"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "addTask",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents",
+          "tasks"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "activity",
+          "incidents",
+          "tasks"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "activityActorKind",
+          "actualActor",
+          "authUserId",
+          "grantId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "clientMutationDigest",
+          "clientMutationSettlement",
+          "runtimeNow"
+        ],
+        "reads": [
+          {
+            "access": "point",
+            "table": "incidents"
+          },
+          {
+            "access": "sourceEffect",
+            "table": "tasks"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "activity"
+          },
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "tasks"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "addTaskWithActivity",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents",
+          "tasks"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "tasks",
+        "tables": [
+          "activity",
+          "tasks"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "activity"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "activity"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "allActivity",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "activity",
+        "tables": [
+          "activity"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "comments"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "comments"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "allComments",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "comments",
+        "tables": [
+          "comments"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "tasks"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "tasks"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "allTasks",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "tasks",
+        "tables": [
+          "tasks"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "activity"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidents"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "createIncident",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "activity",
+          "incidents"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "incidents"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "delete"
+            ],
+            "table": "incidents"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "deleteIncidentForAcceptance",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "activity"
+          },
+          {
+            "access": "query",
+            "table": "comments"
+          },
+          {
+            "access": "query",
+            "table": "incidents"
+          },
+          {
+            "access": "query",
+            "table": "tasks"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "activity"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "comments"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "incidents"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "tasks"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Query",
+      "maskedFieldUses": [],
+      "name": "generateBrief",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "activity",
+          "comments",
+          "incidents",
+          "tasks"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "parentVisibility"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_incident_sort_key",
+            "table": "activity"
+          },
+          {
+            "access": "point",
+            "table": "incidents"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "incidentActivity",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "activity",
+          "incidents"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "parentVisibility"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_incident_created",
+            "table": "comments"
+          },
+          {
+            "access": "point",
+            "table": "incidents"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "incidentComments",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "comments",
+          "incidents"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "parentVisibility"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "incidents"
+          },
+          {
+            "access": "query",
+            "index": "by_incident_position",
+            "table": "tasks"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "incidentTasks",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents",
+          "tasks"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_incident_created",
+            "table": "activity"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "activity"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "listActivity",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "activity",
+        "tables": [
+          "activity"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_incident_created",
+            "table": "comments"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "comments"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "listComments",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "comments",
+        "tables": [
+          "comments"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_updated",
+            "table": "incidents"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "incidents"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "listIncidents",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_incident_position",
+            "table": "tasks"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "tasks"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "listTasks",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "tasks",
+        "tables": [
+          "tasks"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "public"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "search",
+            "index": "search_incidents",
+            "table": "incidents"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Query",
+      "maskedFieldUses": [],
+      "name": "searchIncidents",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "incidents"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "activity"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidents"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "incidents"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "setStatus",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "activity",
+          "incidents"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "tasks"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "activity"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "incidents"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "tasks"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "tasks"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "toggleTask",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "tasks",
+        "tables": [
+          "tasks"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "incidents",
+        "tables": [
+          "activity",
+          "incidents",
+          "tasks"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "activityActorKind",
+          "actualActor",
+          "authUserId",
+          "grantId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "clientMutationDigest",
+          "clientMutationSettlement",
+          "runtimeNow"
+        ],
+        "reads": [
+          {
+            "access": "point",
+            "table": "incidents"
+          },
+          {
+            "access": "relationIncarnation",
+            "table": "incidents"
+          },
+          {
+            "access": "point",
+            "table": "tasks"
+          },
+          {
+            "access": "sourceEffect",
+            "table": "tasks"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "activity"
+          },
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "tasks"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "toggleTaskWithActivity",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "incidents",
+        "tables": [
+          "incidents",
+          "tasks"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "tasks",
+        "tables": [
+          "activity",
+          "tasks"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "activity"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "comments"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "incidents"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "tasks"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

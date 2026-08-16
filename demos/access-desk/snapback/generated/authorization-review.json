@@ -1,0 +1,331 @@
+{
+  "appId": "access-desk",
+  "authMode": "dev",
+  "authorityProfiles": [],
+  "authorizationTables": [
+    {
+      "definition": {
+        "bootstrapRole": "owner",
+        "id": "workspaceMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "workspaceId",
+        "resourceTable": "workspaces",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "id": "workspaceMembers",
+      "kind": "membership",
+      "table": "workspaceMembers"
+    }
+  ],
+  "fieldPolicies": [],
+  "inputsHash": "0547d3d2d799c70d84aa1b27527382078fd3038c9c4fff653a0b871c12ed62c9",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "addMember",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaceMembers",
+        "tables": [
+          "workspaceMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "notes"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "addNote",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "notes",
+        "tables": [
+          "notes"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaceMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "workspaces"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "createWorkspace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "workspaces",
+        "tables": [
+          "workspaceMembers",
+          "workspaces"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [
+        {
+          "declaration": "workspaceMembers",
+          "kind": "membership",
+          "resource": {
+            "arg": {
+              "path": "workspaceId",
+              "resourceTable": "workspaces"
+            }
+          },
+          "roles": null,
+          "table": "notes"
+        }
+      ],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_workspace",
+            "table": "notes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "notes"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "workspaceNotes",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "notes",
+        "tables": [
+          "notes",
+          "workspaceMembers"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "notes"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "workspaceMembers"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "workspaces"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

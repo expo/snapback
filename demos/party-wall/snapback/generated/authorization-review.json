@@ -1,0 +1,549 @@
+{
+  "appId": "party-wall",
+  "authMode": "sessions",
+  "authorityProfiles": [],
+  "authorizationTables": [
+    {
+      "definition": {
+        "bootstrapRole": "host",
+        "id": "eventMembers",
+        "lastHolder": {
+          "protect": "host"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "eventId",
+        "resourceTable": "events",
+        "role": "role",
+        "roles": [
+          "host",
+          "guest"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "host"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "guest"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "guest"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "id": "eventMembers",
+      "kind": "membership",
+      "table": "eventMembers"
+    }
+  ],
+  "fieldPolicies": [],
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:3ca77290fb315e5b1be3a9aaa028f854c0374cbd0cc228d650c68f086d86862b",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "eventMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "addGuest",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "eventMembers",
+        "tables": [
+          "eventMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "eventMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "events"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "createEvent",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "events",
+        "tables": [
+          "eventMembers",
+          "events"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "posts"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "createPost",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "posts",
+        "tables": [
+          "posts"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "posts"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "deletePost",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "posts",
+        "tables": [
+          "posts"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "legacy-default",
+        "value": "optional-user"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [
+        {
+          "declaration": "eventMembers",
+          "kind": "membership",
+          "resource": {
+            "arg": {
+              "path": "eventId",
+              "resourceTable": "events"
+            }
+          },
+          "roles": null,
+          "table": "posts"
+        }
+      ],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_event",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "posts"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "eventWall",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "eventMembers",
+          "posts"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "events"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "events"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Query",
+      "maskedFieldUses": [],
+      "name": "getEvent",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "events",
+        "tables": [
+          "events"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "eventMembers"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "leaveEvent",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "eventMembers",
+        "tables": [
+          "eventMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "events"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "setCover",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "events",
+        "tables": [
+          "events"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "eventMembers"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "events"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "posts"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

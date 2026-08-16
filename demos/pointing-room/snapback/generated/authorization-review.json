@@ -1,0 +1,423 @@
+{
+  "appId": "pointing-room",
+  "authMode": "sessions",
+  "authorityProfiles": [],
+  "authorizationTables": [],
+  "fieldPolicies": [],
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:210c8ff108510ad0e4bb4baa283fcd73653160b05b9a3579e72702e18ebdbfe9",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rounds"
+          },
+          {
+            "access": "query",
+            "table": "votes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "votes"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "rounds"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "votes"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "castVote",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds",
+          "votes"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "votes",
+        "tables": [
+          "votes"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rounds"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "rounds"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "liveRound",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rounds"
+          },
+          {
+            "access": "query",
+            "table": "votes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "rounds"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "votes"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": {
+        "condition": "the round is revealed or the caller owns the vote",
+        "enforcement": "handler-residual",
+        "fields": [
+          "value"
+        ]
+      },
+      "handlerForm": "inline",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "liveTally",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds",
+          "votes"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rounds"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rounds"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "rounds"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "revealRound",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rooms"
+          },
+          {
+            "access": "query",
+            "table": "rounds"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rounds"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "rooms"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "rounds"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-admitted-handler-graph",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "inline",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "startRound",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "rooms",
+          "rounds"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rounds",
+        "tables": [
+          "rounds"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "rooms"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "rounds"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "votes"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

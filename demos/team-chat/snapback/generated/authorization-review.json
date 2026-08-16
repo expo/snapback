@@ -1,0 +1,1390 @@
+{
+  "appId": "team-chat",
+  "authMode": "dev",
+  "authorityProfiles": [],
+  "authorizationTables": [
+    {
+      "definition": {
+        "bootstrapRole": "owner",
+        "id": "roomMembers",
+        "lastHolder": {
+          "protect": "owner"
+        },
+        "pendingRoles": [
+          "invited"
+        ],
+        "principal": "userId",
+        "principalAddressedWrites": {
+          "remove": true
+        },
+        "provenance": "full",
+        "resource": "roomId",
+        "resourceTable": "rooms",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "invited"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "invited"
+            ],
+            "op": "setRole",
+            "target": "self",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "invited",
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
+          },
+          {
+            "by": [
+              "owner"
+            ],
+            "op": "remove",
+            "target": "other"
+          }
+        ]
+      },
+      "id": "roomMembers",
+      "kind": "membership",
+      "table": "roomMembers"
+    }
+  ],
+  "fieldPolicies": [],
+  "inputsHash": "4b2101348b786203633c41a68bdb972a38e305f6ba7623e2c778399a0270fd7d",
+  "operations": [
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomParticipants"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "acceptInvite",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomParticipants",
+        "tables": [
+          "roomParticipants"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "rooms"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "createRoom",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "rooms",
+        "tables": [
+          "roomMembers",
+          "roomParticipants",
+          "rooms"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_recipient_page_key",
+            "table": "deliveries"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "deliveries"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "firstInboxPage",
+      "readSetSummary": {
+        "authScopeField": {
+          "authorizationProof": false,
+          "field": "recipientId",
+          "purpose": "live-invalidation-disjointness"
+        },
+        "mode": "singleTable",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "owned-keyset-pages.v1",
+        "profile": "owner.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [
+        {
+          "declaration": "roomMembers",
+          "kind": "membership",
+          "resource": {
+            "arg": {
+              "path": "roomId",
+              "resourceTable": "rooms"
+            }
+          },
+          "roles": [
+            "member",
+            "owner"
+          ],
+          "table": "messages"
+        }
+      ],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_room_page_key",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "messages"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Query",
+      "maskedFieldUses": [],
+      "name": "firstRoomMessagePage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "roomMembers"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "membership-keyset-pages.v1",
+        "membership": {
+          "declaration": "roomMembers",
+          "resourceArg": "roomId",
+          "resourceField": "roomId",
+          "roles": [
+            "member",
+            "owner"
+          ]
+        },
+        "profile": "membership.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomMembers"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomParticipants"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "inviteMember",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "roomMembers",
+          "roomParticipants"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "deliveries"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "deliveries"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "deliveries"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomMembers"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomParticipants"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "leaveRoom",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "deliveries",
+          "roomMembers",
+          "roomParticipants"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "deliveries",
+          "roomMembers",
+          "roomParticipants"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_user",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "roomParticipants"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "listMyRooms",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "roomParticipants",
+        "tables": [
+          "roomParticipants"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "deliveries"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "deliveries"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "deliveries"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomMembers"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "markRoomRead",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "deliveries",
+          "roomMembers"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_recipient_page_key",
+            "table": "deliveries"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "deliveries"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "nextInboxPage",
+      "readSetSummary": {
+        "authScopeField": {
+          "authorizationProof": false,
+          "field": "recipientId",
+          "purpose": "live-invalidation-disjointness"
+        },
+        "mode": "singleTable",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "owned-keyset-pages.v1",
+        "profile": "owner.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "derived",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [
+        {
+          "declaration": "roomMembers",
+          "kind": "membership",
+          "resource": {
+            "arg": {
+              "path": "roomId",
+              "resourceTable": "rooms"
+            }
+          },
+          "roles": [
+            "member",
+            "owner"
+          ],
+          "table": "messages"
+        }
+      ],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_room_page_key",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "messages"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "Query",
+      "maskedFieldUses": [],
+      "name": "nextRoomMessagePage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "roomMembers"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": {
+        "helper": "membership-keyset-pages.v1",
+        "membership": {
+          "declaration": "roomMembers",
+          "resourceArg": "roomId",
+          "resourceField": "roomId",
+          "roles": [
+            "member",
+            "owner"
+          ]
+        },
+        "profile": "membership.v1"
+      },
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "deliveries"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "deliveries"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "roomParticipants"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "deliveries"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomMembers"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomParticipants"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "ownerRemoveMember",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "deliveries",
+          "roomMembers",
+          "roomParticipants"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "deliveries",
+          "roomMembers",
+          "roomParticipants"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [
+        {
+          "declaration": "roomMembers",
+          "kind": "membership",
+          "resource": {
+            "arg": {
+              "path": "roomId",
+              "resourceTable": "rooms"
+            }
+          },
+          "roles": null,
+          "table": "rooms"
+        }
+      ],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "rooms"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "rooms"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "roomDetails",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "rooms",
+        "tables": [
+          "roomMembers",
+          "rooms"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [
+        {
+          "declaration": "roomMembers",
+          "kind": "membership",
+          "resource": {
+            "arg": {
+              "path": "roomId",
+              "resourceTable": "rooms"
+            }
+          },
+          "roles": null,
+          "table": "messages"
+        }
+      ],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_room_page_key",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "messages"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "roomMessages",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "messages",
+          "roomMembers"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [],
+      "authorizationPredicates": "opaque",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          },
+          {
+            "access": "query",
+            "table": "roomMembers"
+          },
+          {
+            "access": "query",
+            "table": "roomParticipants"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "deliveries"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "messages"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomMembers"
+        },
+        {
+          "composition": "ordinary-default",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "handler.ctx.db",
+          "table": "roomParticipants"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": true,
+        "captureCompleteness": "direct-static-sites-in-selected-module-handler",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "module",
+      "kind": "Mutation",
+      "maskedFieldUses": [],
+      "name": "sendMessage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "roomMembers",
+        "tables": [
+          "messages",
+          "roomMembers",
+          "roomParticipants"
+        ]
+      },
+      "runtimeClass": "javascript-handler",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "deliveries",
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": {
+        "origin": "explicit",
+        "value": "authenticated"
+      },
+      "authorityIndependent": false,
+      "authorityProfileIdentities": [],
+      "authorizationDependence": [
+        "userId"
+      ],
+      "authorizationPredicates": [],
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_recipient_page_key",
+            "table": "deliveries"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "effectiveTablePolicies": [
+        {
+          "composition": "schema-rederived",
+          "origin": "legacy-default",
+          "policy": {
+            "kind": "public-read"
+          },
+          "surface": "host-plan.single-table",
+          "table": "deliveries"
+        }
+      ],
+      "elevatedDatabase": {
+        "available": false,
+        "captureCompleteness": "not-applicable",
+        "uses": []
+      },
+      "fieldBoundary": null,
+      "handlerForm": "plan",
+      "kind": "LiveQuery",
+      "maskedFieldUses": [],
+      "name": "unreadDeliveries",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "deliveries",
+        "tables": [
+          "deliveries"
+        ]
+      },
+      "runtimeClass": "host-plan",
+      "standardPattern": null,
+      "uncomposedReadSurfaces": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "schemaVersion": "snapback.authorization-review.v1",
+  "sectionSchemas": {
+    "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
+    "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+  },
+  "tablePolicies": [
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "deliveries"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "messages"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "roomMembers"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "roomParticipants"
+    },
+    {
+      "origin": "legacy-default",
+      "policy": {
+        "kind": "public-read"
+      },
+      "table": "rooms"
+    }
+  ],
+  "tablePolicyTransitions": [],
+  "visibilityOverrides": [],
+  "writePolicyChecks": []
+}

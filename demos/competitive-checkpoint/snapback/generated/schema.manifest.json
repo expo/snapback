@@ -9,12 +9,12 @@
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "9369d7c7e41967232671cf1f873133bf43cfa6ff6a8a7ec461aa0bc6dad2c764",
+  "inputsHash": "677618b5e4980359c0d0f4e9993d4b9ca126f33fa8d8530b37f8d48082228c71",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "relational_query_v1"
   ],
-  "schemaHash": "sha256:214c7113870d5c02",
+  "schemaHash": "sha256:4b83a8fee6084471",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

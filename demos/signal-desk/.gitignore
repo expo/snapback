@@ -5,3 +5,4 @@
 dist/
 snapback/generated/*
 !snapback/generated/artifacts.json
+!snapback/generated/authorization-review.json

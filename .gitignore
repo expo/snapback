@@ -17,8 +17,10 @@ __pycache__/
 # the digest-bound graph from each app's .snapback/codegen-cache.
 demos/*/snapback/generated/*
 !demos/*/snapback/generated/artifacts.json
+!demos/*/snapback/generated/authorization-review.json
 demos/*/snapback-sessions/generated/*
 !demos/*/snapback-sessions/generated/artifacts.json
+!demos/*/snapback-sessions/generated/authorization-review.json
 !demos/competitive-checkpoint/snapback/generated/api.d.ts
 !demos/competitive-checkpoint/snapback/generated/api.mjs
 !demos/competitive-checkpoint/snapback/generated/functions.manifest.json
@@ -30,8 +32,10 @@ demos/*/snapback-sessions/generated/*
 !demos/partiful-matrix/snapback/generated/api.mjs
 demos/todo-v2/snapback/generated-remote-service/*
 !demos/todo-v2/snapback/generated-remote-service/artifacts.json
+!demos/todo-v2/snapback/generated-remote-service/authorization-review.json
 demos/all-aboard/tests/egress-probe/generated/*
 !demos/all-aboard/tests/egress-probe/generated/artifacts.json
+!demos/all-aboard/tests/egress-probe/generated/authorization-review.json
 *.swp
 /cloudflare/.wrangler/
 /dist-publish/

@@ -91,6 +91,12 @@ import {
   stableArtifactJson,
 } from './review-surface.mjs';
 import {
+  AUTHORIZATION_REVIEW_FILE,
+  createAuthorizationReview,
+  serializeAuthorizationReview,
+  validateAuthorizationReview,
+} from './authorization-review.mjs';
+import {
   buildSeedAssetFixturesV1,
   canonicalSeedAssetFixturesJson,
   canonicalSeedArtifactJson,
@@ -98,6 +104,7 @@ import {
 } from './seed-artifact.mjs';
 import { withCodegenGenerationLock } from './generation-lock.mjs';
 import {
+  captureElevatedDbUseSites,
   extractInlineHandlers,
   renameExtractedInlineHandler,
   renderInlineHandlerModule,
@@ -3617,16 +3624,24 @@ async function generateInProcessLocked({
         inlineHelpers: (extracted.helpers ?? []).map(
           ({ name: helperName, contentHash }) => ({ name: helperName, contentHash }),
         ),
+        elevatedDbUses: extracted.elevatedDbUses ?? [],
         sourceSpan: extracted.sourceSpan,
       };
     }
     const loaded = loadHandlerSource(def.js?.source, name);
+    const exportName = def.js?.exportName ?? name;
     return {
       source: loaded?.source ?? '',
       exportName: def.js?.exportName,
       handlerForm: 'module',
       sourceSpan: null,
       typescriptIdentity: loaded?.typescriptIdentity ?? null,
+      elevatedDbUses: loaded
+        ? captureElevatedDbUseSites(loaded.authoredSource, {
+            path: loaded.identity,
+            exportName,
+          })
+        : [],
     };
   };
 
@@ -4575,6 +4590,7 @@ async function generateInProcessLocked({
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
+        elevatedDbUses: resolvedHandler?.elevatedDbUses ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: readTables,
@@ -4880,6 +4896,7 @@ async function generateInProcessLocked({
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
+        elevatedDbUses: resolvedHandler?.elevatedDbUses ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: reads,
@@ -5141,6 +5158,7 @@ async function generateInProcessLocked({
         handlerForm: resolvedHandler?.handlerForm ?? 'module',
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
+        elevatedDbUses: resolvedHandler?.elevatedDbUses ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: [],
@@ -7018,6 +7036,20 @@ async function generateInProcessLocked({
   const contractArtifactFiles = contractModules.map((module) => `contract/${module.file}`);
   const operationArtifactFiles = operationSchemas.map((schema) => `operations/${schema.file}`);
   const remoteServiceArtifactFiles = remoteServicePublication?.artifacts.map((artifact) => artifact.file) ?? [];
+  const authorizationSummary = createCodegenSummary({
+    appId,
+    inputsHash,
+    tables,
+    functions: functionManifest.functions,
+    ephemeralCollections,
+    fileRecords: [],
+    diagnostics: [...diagnostics, ...infoDiagnostics],
+    sourceSpans: functionDefinitionSourceSpans,
+    schemaFieldSpans: schemaPropertySourceSpans,
+    outputDirectory: targetConfig.outputDirectory,
+    seedArtifact,
+    seedRowCount,
+  });
   const legacyArtifactIndex = {
     artifactKind: 'artifactIndex',
     // @ref LLP 0037#revisit-triggers — this codegen-owned review index follows
@@ -7030,7 +7062,7 @@ async function generateInProcessLocked({
     bundleHash,
     authoredSourceHash,
     ...(activationGenerationAdvanced === null ? {} : { activationGenerationAdvanced }),
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', ...(dataResourceWitnesses.length === 0 ? [] : ['data.mjs', 'data.d.ts']), ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', AUTHORIZATION_REVIEW_FILE, 'normalized-definition.v1.json', 'handler-runtime-profile.v1.json', HANDLER_TYPESCRIPT_PROFILE_ARTIFACT_FILE, CLIENT_LIFECYCLE_MANIFEST_FILE, 'client-lifecycle.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'app.descriptor.json', contentAddressedDescriptorFile, 'app.binding.mjs', contentAddressedAppBindingFile, 'app.mjs', 'app.d.ts', 'api.mjs', 'api.d.ts', ...(dataResourceWitnesses.length === 0 ? [] : ['data.mjs', 'data.d.ts']), ...(apiFlatModule ? ['api.flat.mjs'] : []), ...(familiarServerModule ? ['server.mjs', 'server.d.ts'] : []), API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -7054,10 +7086,33 @@ async function generateInProcessLocked({
   let verifiedGraph;
   let splitIdentities;
   let generationEnvelope = null;
+  let authorizationReview;
   try {
+    // @ref LLP 0173#1-artifact-and-custody — build and validate the review
+    // projection from the same in-memory graph as the executable pair before
+    // the complete candidate inventory is hashed and atomically published.
+    authorizationReview = createAuthorizationReview({
+      appId,
+      authMode,
+      inputsHash,
+      tables,
+      functions: functionManifest.functions,
+      sourceFunctions: functions,
+      uncomposedReadSurfaceDiagnostics: diagnostics.filter(
+        ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE',
+      ),
+      summary: authorizationSummary,
+    });
+    const authorizationReviewProblems = validateAuthorizationReview(authorizationReview);
+    if (authorizationReviewProblems.length > 0) {
+      throw new TypeError(
+        `authorization review projection is invalid: ${authorizationReviewProblems.join('; ')}`,
+      );
+    }
     writeGeneratedOutput(tmpOutDir, {
       schemaManifest,
       functionManifest,
+      authorizationReview,
       normalizedDefinition,
       handlerRuntimeProfile,
       clientLifecycleManifest,
@@ -7271,6 +7326,7 @@ async function generateInProcessLocked({
     outDir,
     schemaManifest,
     functionManifest,
+    authorizationReview,
     normalizedDefinition,
     handlerRuntimeProfile,
     clientLifecycleManifest,
@@ -7361,6 +7417,7 @@ async function generateInProcessLocked({
             });
           }
           handlerSourceCache.set(capability.identity, {
+            identity: capability.identity,
             bytes,
             authoredSource: source,
             runtimeBytes: Buffer.alloc(0),
@@ -7413,6 +7470,7 @@ async function generateInProcessLocked({
             });
           }
           handlerSourceCache.set(capability.identity, {
+            identity: capability.identity,
             bytes,
             authoredSource: source,
             runtimeBytes: transformed.javascriptBytes,
@@ -7425,6 +7483,7 @@ async function generateInProcessLocked({
         }
       } else {
         handlerSourceCache.set(capability.identity, {
+          identity: capability.identity,
           bytes,
           authoredSource: source,
           runtimeBytes: bytes,
@@ -17157,6 +17216,7 @@ function validateSeedVersionEvidence(backendRoot, outputDirectory, candidate) {
 function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
+  authorizationReview,
   normalizedDefinition,
   handlerRuntimeProfile,
   clientLifecycleManifest,
@@ -17199,6 +17259,7 @@ function writeGeneratedOutput(outDir, {
   mkdirSync(operationsOutDir, { recursive: true });
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
+  writeFileSync(join(outDir, AUTHORIZATION_REVIEW_FILE), serializeAuthorizationReview(authorizationReview));
   writeFileSync(join(outDir, 'normalized-definition.v1.json'), stableJson(normalizedDefinition) + '\n');
   writeFileSync(join(outDir, 'handler-runtime-profile.v1.json'), stableJson(handlerRuntimeProfile) + '\n');
   writeFileSync(join(outDir, CLIENT_LIFECYCLE_MANIFEST_FILE), stableJson(clientLifecycleManifest) + '\n');

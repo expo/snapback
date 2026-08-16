@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/authorization-review.v1.json",
+  "title": "Snapback authorization review projection",
+  "type": "object",
+  "required": [
+    "schemaVersion", "appId", "authMode", "inputsHash", "operations",
+    "tablePolicies", "authorizationTables", "authorityProfiles", "sectionSchemas",
+    "fieldPolicies", "visibilityOverrides", "tablePolicyTransitions", "writePolicyChecks"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.authorization-review.v1" },
+    "appId": { "type": "string", "minLength": 1 },
+    "authMode": { "type": "string", "minLength": 1 },
+    "inputsHash": { "type": "string", "minLength": 1 },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name", "kind", "runtimeClass", "handlerForm", "authRequirement",
+          "authorityIndependent", "authorizationDependence", "readSetSummary",
+          "writeSetSummary", "authorizationPredicates", "effectCeiling", "standardPattern",
+          "effectiveTablePolicies", "uncomposedReadSurfaces", "elevatedDatabase",
+          "authorityProfileIdentities", "fieldBoundary", "maskedFieldUses"
+        ],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["Query", "LiveQuery", "Mutation", "Action"] },
+          "runtimeClass": { "enum": ["host-plan", "javascript-handler"] },
+          "handlerForm": { "type": "string", "minLength": 1 },
+          "authRequirement": {
+            "type": "object",
+            "required": ["value", "origin"],
+            "properties": {
+              "value": { "enum": ["public", "optional-user", "authenticated"] },
+              "origin": { "enum": ["explicit", "derived", "legacy-default"] }
+            },
+            "additionalProperties": false
+          },
+          "authorityIndependent": { "type": "boolean" },
+          "authorizationDependence": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "readSetSummary": { "type": "object" },
+          "writeSetSummary": { "type": "object" },
+          "authorizationPredicates": {
+            "oneOf": [
+              { "const": "opaque" },
+              {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["kind", "table"],
+                  "properties": {
+                    "kind": { "enum": ["filter", "membership"] },
+                    "table": { "type": "string" },
+                    "field": { "type": "string" },
+                    "operator": { "type": "string" },
+                    "input": {},
+                    "declaration": { "type": "string" },
+                    "resource": { "type": "object" },
+                    "roles": { "type": ["array", "null"], "items": { "type": "string" }, "uniqueItems": true }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            ]
+          },
+          "effectCeiling": { "type": "object" },
+          "standardPattern": { "type": ["object", "string", "null"] },
+          "effectiveTablePolicies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["table", "surface", "origin", "composition", "policy"],
+              "properties": {
+                "table": { "type": "string" },
+                "surface": { "enum": ["host-plan.single-table", "handler.ctx.db"] },
+                "origin": { "enum": ["declared", "legacy-default"] },
+                "composition": { "enum": ["schema-rederived", "ordinary-default"] },
+                "policy": { "$ref": "#/$defs/tablePolicy" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "uncomposedReadSurfaces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["surface", "table", "declaredPolicy", "analysisLimit"],
+              "properties": {
+                "surface": { "type": "string" },
+                "table": { "type": "string" },
+                "declaredPolicy": { "$ref": "#/$defs/tablePolicy" },
+                "analysisLimit": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "elevatedDatabase": {
+            "type": "object",
+            "required": ["available", "captureCompleteness", "uses"],
+            "properties": {
+              "available": { "type": "boolean" },
+              "captureCompleteness": { "enum": ["direct-static-sites-in-admitted-handler-graph", "direct-static-sites-in-selected-module-handler", "not-applicable"] },
+              "uses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["member", "table", "source", "capture"],
+                  "properties": {
+                    "member": { "enum": ["query", "get", "getMany", "uniqueMany"] },
+                    "table": { "type": ["string", "null"] },
+                    "source": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "path": { "type": "string" }, "line": { "type": "integer", "minimum": 1 }, "column": { "type": "integer", "minimum": 1 }
+                      },
+                      "required": ["path", "line", "column"],
+                      "additionalProperties": false
+                    },
+                    "capture": { "type": "string" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "authorityProfileIdentities": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/profileIdentity" }
+          },
+          "fieldBoundary": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "required": ["enforcement", "fields", "condition"],
+                "properties": {
+                  "enforcement": { "const": "handler-residual" },
+                  "fields": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+                  "condition": { "type": "string" }
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "maskedFieldUses": { "type": "array", "maxItems": 0 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "tablePolicies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["table", "origin", "policy"],
+        "properties": {
+          "table": { "type": "string" },
+          "origin": { "enum": ["declared", "legacy-default"] },
+          "policy": { "$ref": "#/$defs/tablePolicy" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "authorizationTables": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["kind", "id", "table", "definition"],
+            "properties": {
+              "kind": { "const": "membership" }, "id": { "type": "string" },
+              "table": { "type": "string" }, "definition": { "type": "object" }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": ["kind", "id", "table", "fields"],
+            "properties": {
+              "kind": { "const": "permission-backing" }, "id": { "type": "string" },
+              "table": { "type": "string" },
+              "fields": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "authorityProfiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "generation", "roleLattice"],
+        "properties": {
+          "id": { "type": "string" },
+          "generation": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "roleLattice": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["role", "implies"],
+              "properties": {
+                "role": { "type": "string" },
+                "implies": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "sectionSchemas": {
+      "type": "object",
+      "required": ["fieldPolicies", "maskedFieldUses", "tablePolicyTransitions", "visibilityOverrides", "writePolicyChecks"],
+      "properties": {
+        "fieldPolicies": { "const": "snapback.authorization-review.field-policies.reserved.v1" },
+        "maskedFieldUses": { "const": "snapback.authorization-review.masked-field-uses.reserved.v1" },
+        "tablePolicyTransitions": { "const": "snapback.authorization-review.table-policy-transitions.reserved.v1" },
+        "visibilityOverrides": { "const": "snapback.authorization-review.visibility-overrides.reserved.v1" },
+        "writePolicyChecks": { "const": "snapback.authorization-review.write-policy-checks.reserved.v1" }
+      },
+      "additionalProperties": false
+    },
+    "fieldPolicies": { "type": "array", "maxItems": 0 },
+    "visibilityOverrides": { "type": "array", "maxItems": 0 },
+    "tablePolicyTransitions": { "type": "array", "maxItems": 0 },
+    "writePolicyChecks": { "type": "array", "maxItems": 0 }
+  },
+  "$defs": {
+    "profileIdentity": {
+      "type": "object",
+      "required": ["id", "generation"],
+      "properties": {
+        "id": { "type": "string" },
+        "generation": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "tablePolicy": {
+      "oneOf": [
+        {
+          "type": "object", "required": ["kind"],
+          "properties": { "kind": { "const": "public-read" } }, "additionalProperties": false
+        },
+        {
+          "type": "object", "required": ["kind", "field"],
+          "properties": { "kind": { "const": "owner" }, "field": { "type": "string" } }, "additionalProperties": false
+        },
+        {
+          "type": "object", "required": ["kind", "declaration", "resourceField"],
+          "properties": {
+            "kind": { "const": "membership" }, "declaration": { "type": "string" },
+            "resourceField": { "type": "string" }, "roles": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object", "required": ["kind", "arms"],
+          "properties": {
+            "kind": { "const": "any-of" }, "arms": { "type": "array", "items": { "$ref": "#/$defs/tablePolicy" } }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "additionalProperties": false
+}

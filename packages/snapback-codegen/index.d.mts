@@ -434,6 +434,8 @@ export interface GenerateSuccess {
     functions: ReadonlyArray<Readonly<Record<string, unknown>>>;
     [fact: string]: unknown;
   }>;
+  /** Consumer-committed structural facts for authorization review. */
+  readonly authorizationReview: Readonly<Record<string, unknown>>;
   readonly normalizedDefinition: Readonly<{
     schemaVersion: 'snapback.normalized-application-definition.v1';
     excludedFields: readonly ['behavior', 'graphRecords', 'authoringProfile', 'appId'];

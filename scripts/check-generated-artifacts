@@ -45,6 +45,7 @@ while IFS=$'\t' read -r outbound_actions target_profile backend_root; do
         run "${codegen[@]}"
     fi
 done <<< "$CODEGEN_JOBS"
+run node scripts/check-authorization-review.mjs
 run node scripts/check-data-tier-corpus-exemplar.mjs
 run node admin-ui/generate-contract-bindings.mjs
 
@@ -76,6 +77,7 @@ while IFS= read -r generated_root; do
 done <<< "$FULLY_COMMITTED_ROOTS"
 
 if ! git diff --exit-code -- "${REVIEW_PATHS[@]}"; then
+    node scripts/check-authorization-review.mjs --against-git >&2 || true
     echo "[check-generated-artifacts] FAIL: committed review manifests or policy projections are stale" >&2
     exit 1
 fi

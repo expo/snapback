@@ -226,7 +226,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `cde6e57b24d19fde1ee5dde19c09f4796508f9ce66ca521ad34f9a18c2c8281b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `e8de2ac77c788993b701e1c975535a27eb9644808545485445b71410049f41b7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "clearReservations": FunctionReference<"clearReservations", 'Mutation', Record<string, never>, number, "snapback-explicit-v1">;
   /**
@@ -235,7 +235,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `cde6e57b24d19fde1ee5dde19c09f4796508f9ce66ca521ad34f9a18c2c8281b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `e8de2ac77c788993b701e1c975535a27eb9644808545485445b71410049f41b7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "reservationsForSlot": FunctionReference<"reservationsForSlot", 'LiveQuery', { slotKey: string; ownerId: string }, ReadonlyArray<GeneratedDataModel["reservations"]>, "snapback-explicit-v1">;
   /**
@@ -244,7 +244,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `cde6e57b24d19fde1ee5dde19c09f4796508f9ce66ca521ad34f9a18c2c8281b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `e8de2ac77c788993b701e1c975535a27eb9644808545485445b71410049f41b7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "reserve": FunctionReference<"reserve", 'Mutation', { idempotencyKey: string; resourceKey: string; slotKey: string; ownerId: string; title: string; now: number }, Id<"reservations">, "snapback-explicit-v1">;
   /**
@@ -253,7 +253,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `cde6e57b24d19fde1ee5dde19c09f4796508f9ce66ca521ad34f9a18c2c8281b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `e8de2ac77c788993b701e1c975535a27eb9644808545485445b71410049f41b7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "resourceList": FunctionReference<"resourceList", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["resources"]>, "snapback-explicit-v1">;
   /**
@@ -262,7 +262,7 @@ export interface GeneratedApi {
    * Auth: `optional-user`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `live_subscriptions`, `result_contract_v1`.
    * Freshness: authoritative initial snapshot followed by live updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `cde6e57b24d19fde1ee5dde19c09f4796508f9ce66ca521ad34f9a18c2c8281b`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `e8de2ac77c788993b701e1c975535a27eb9644808545485445b71410049f41b7`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "schedule": FunctionReference<"schedule", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["reservations"]>, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

@@ -171,6 +171,48 @@ function staticMemberName(node, checker, boundary) {
   return null;
 }
 
+function elevatedDbMember(node, checker, boundary) {
+  if (!ts.isPropertyAccessExpression(node) && !ts.isElementAccessExpression(node)) {
+    return null;
+  }
+  const receiver = node.expression;
+  const rootedAtElevatedCtxDb = ts.isPropertyAccessExpression(receiver)
+    && receiver.name.text === 'elevated'
+    && ts.isPropertyAccessExpression(receiver.expression)
+    && receiver.expression.name.text === 'db'
+    && ts.isIdentifier(receiver.expression.expression)
+    && receiver.expression.expression.text === 'ctx';
+  if (!rootedAtElevatedCtxDb) return null;
+  const member = staticMemberName(node, checker, boundary);
+  return member !== null && ELEVATED_DB_MEMBERS.has(member) ? member : null;
+}
+
+function elevatedDbUsesIn(node, checker, boundary, sourceFile, path, capture) {
+  const uses = [];
+  const visit = (current) => {
+    const member = elevatedDbMember(current, checker, boundary);
+    if (member) {
+      const call = current.parent;
+      uses.push({
+        member,
+        table: ts.isCallExpression(call) && call.expression === current
+          ? staticString(call.arguments[0], checker, boundary)
+          : null,
+        source: sourceSpanForNode(path, current, sourceFile),
+        capture,
+      });
+    }
+    ts.forEachChild(current, visit);
+  };
+  visit(node);
+  return uses.sort((left, right) => (
+    left.source.line - right.source.line
+    || left.source.column - right.source.column
+    || compareText(left.member, right.member)
+    || compareText(left.table ?? '', right.table ?? '')
+  ));
+}
+
 // Walk back from a call's callee to the chain root; a chain rooted at
 // `ctx.db.query(...)` may use only QUERY_BUILDER_VERBS.
 function queryChainProblem(node) {
@@ -396,6 +438,7 @@ function selfContainedProblems(expression, checker, sourceFile) {
   const inadmissibleRefs = [];
   const inadmissibleSeen = new Set();
   const forbidden = [];
+  const elevatedDbUses = [];
   const collect = (node) => {
     if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
       forbidden.push({ node, reason: 'class syntax is outside inline_handler_v1' });
@@ -428,6 +471,17 @@ function selfContainedProblems(expression, checker, sourceFile) {
       const dbMemberReason = ctxDbMemberProblem(node, checker, expression);
       if (dbMemberReason) {
         forbidden.push({ node, reason: dbMemberReason });
+      }
+      const elevatedMember = elevatedDbMember(node, checker, expression);
+      if (elevatedMember) {
+        const call = node.parent;
+        elevatedDbUses.push({
+          member: elevatedMember,
+          table: ts.isCallExpression(call) && call.expression === node
+            ? staticString(call.arguments[0], checker, expression)
+            : null,
+          source: sourceSpanForNode(sourceFile.fileName, node, sourceFile),
+        });
       }
     }
     const chainReason = queryChainProblem(node);
@@ -518,7 +572,73 @@ function selfContainedProblems(expression, checker, sourceFile) {
     helperRefs,
     selfHelperRefs,
     inadmissibleRefs,
+    elevatedDbUses,
   };
+}
+
+// @ref LLP 0173#3-operation-facts — module handlers remain opaque, but the
+// direct static `ctx.db.elevated` syntax inside the selected export is still a
+// useful per-handler review fact. This scan does not claim data-flow coverage.
+export function captureElevatedDbUseSites(source, {
+  path = 'handler.mjs',
+  exportName,
+} = {}) {
+  const scriptKind = /\.(?:ts|mts|tsx|cts)$/iu.test(path) ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+  const sourceFile = ts.createSourceFile(path, source, ts.ScriptTarget.ES2022, true, scriptKind);
+  if (sourceFile.parseDiagnostics.length > 0) return [];
+  const compilerOptions = { allowJs: true, checkJs: true, noLib: true, target: ts.ScriptTarget.ES2022 };
+  const compilerHost = ts.createCompilerHost(compilerOptions);
+  compilerHost.fileExists = (fileName) => fileName === path;
+  compilerHost.readFile = (fileName) => (fileName === path ? source : undefined);
+  compilerHost.getSourceFile = (fileName) => (fileName === path ? sourceFile : undefined);
+  const checker = ts.createProgram([path], compilerOptions, compilerHost).getTypeChecker();
+  const localTargets = new Map();
+  const aliases = new Map();
+  for (const statement of sourceFile.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.name) {
+      localTargets.set(statement.name.text, statement);
+    }
+    if (ts.isVariableStatement(statement)) {
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name) && declaration.initializer) {
+          localTargets.set(declaration.name.text, declaration.initializer);
+        }
+      }
+    }
+    if (!ts.isExportDeclaration(statement) || statement.moduleSpecifier
+      || !statement.exportClause || !ts.isNamedExports(statement.exportClause)) continue;
+    for (const specifier of statement.exportClause.elements) {
+      aliases.set(specifier.name.text, specifier.propertyName?.text ?? specifier.name.text);
+    }
+  }
+  const localName = aliases.get(exportName) ?? exportName;
+  const targets = [];
+  if (localTargets.has(localName)) targets.push(localTargets.get(localName));
+  const findRegistryHandler = (node) => {
+    if (
+      ts.isBinaryExpression(node)
+      && node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && ts.isPropertyAccessExpression(node.left)
+      && node.left.name.text === '__snapbackHandlers'
+      && ts.isIdentifier(node.left.expression)
+      && node.left.expression.text === 'globalThis'
+      && ts.isObjectLiteralExpression(node.right)
+    ) {
+      for (const member of node.right.properties) {
+        if (authoredPropertyName(member) !== exportName) continue;
+        if (ts.isMethodDeclaration(member)) targets.push(member);
+        else if (ts.isPropertyAssignment(member)) targets.push(member.initializer);
+        else if (ts.isShorthandPropertyAssignment(member) && localTargets.has(member.name.text)) {
+          targets.push(localTargets.get(member.name.text));
+        }
+      }
+    }
+    ts.forEachChild(node, findRegistryHandler);
+  };
+  findRegistryHandler(sourceFile);
+  return [...new Set(targets)].flatMap((target) => (
+    elevatedDbUsesIn(target, checker, target, sourceFile, path, 'module-export')
+  ));
 }
 
 function canonicalAst(node, sourceFile) {
@@ -1064,7 +1184,12 @@ export function extractInlineHandlers(source, {
       helperRefs,
       selfHelperRefs,
       inadmissibleRefs,
+      elevatedDbUses,
     } = selfContainedProblems(declaration, checker, sourceFile);
+    analysis.elevatedDbUses = elevatedDbUses.map((use) => ({
+      ...use,
+      capture: `helper:${name}`,
+    }));
     // The 2026-07-28 adversarial refusals hold across the helper boundary: a
     // sibling helper body is scanned under exactly the handler-expression
     // rules, so alias/destructuring/computed-access reflection cannot be
@@ -1154,6 +1279,7 @@ export function extractInlineHandlers(source, {
         ast,
         contentHash,
         sourceSpan,
+        elevatedDbUses,
       } = helperAnalyses.get(helperName);
       return {
         name,
@@ -1162,6 +1288,7 @@ export function extractInlineHandlers(source, {
         ast,
         contentHash,
         sourceSpan,
+        elevatedDbUses,
       };
     });
   };
@@ -1287,6 +1414,7 @@ export function extractInlineHandlers(source, {
         freeTopLevel,
         helperRefs,
         inadmissibleRefs,
+        elevatedDbUses,
       } = selfContainedProblems(expression, checker, sourceFile);
       for (const problem of forbidden) {
         diagnostics.push(diagnostic(
@@ -1356,6 +1484,14 @@ export function extractInlineHandlers(source, {
         ast,
         helpers,
         graphRecord,
+        elevatedDbUses: [
+          ...elevatedDbUses.map((use) => ({ ...use, capture: 'handler' })),
+          ...helpers.flatMap((helper) => helper.elevatedDbUses ?? []),
+        ].sort((left, right) => (
+          left.source.line - right.source.line
+          || left.source.column - right.source.column
+          || compareText(left.capture, right.capture)
+        )),
         ...(call.expression.text === 'defineJsLiveQuery'
           ? { plainJoinCandidate: plainJoinCandidate(expression) }
           : {}),

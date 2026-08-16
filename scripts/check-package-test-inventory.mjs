@@ -293,6 +293,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'asset-upload-authoring.test.mjs',
       'auth-artifacts.test.mjs',
       'auth-crypto-vectors.test.mjs',
+      'authorization-review.test.mjs',
       'authoring-validation.test.mjs',
       'client-lifecycle.test.mjs',
       'contract-binding-reads.test.mjs',
@@ -502,7 +503,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 284,
+  expectedTotal = 285,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -892,6 +893,8 @@ export function checkPackageTestInventories(options = {}) {
 // provider/skip/binding doorway and one-owner architecture-negative suites.
 // 283 -> 284 (2026-08-15, LLP 0253 r4): @expo/snapback-cli gains the Familiar
 // codegen-to-dev-loop canonical generated-directory acceptance proof.
+// 284 -> 285 (2026-08-15, LLP 0173): @expo/snapback-codegen gains the
+// deterministic authorization-review projection and staleness/diff suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

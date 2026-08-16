@@ -15,6 +15,7 @@ export type ArtifactCustody = 'consumer-committed' | 'regenerable-cache';
 
 export type ArtifactLogicalKind =
   | 'schema-manifest'
+  | 'authorization-review'
   | 'function-manifest'
   | 'normalized-application-definition'
   | 'handler-runtime-profile'
@@ -38,7 +39,8 @@ export type ArtifactConsumer =
   | 'app-cli'
   | 'release'
   | 'migration-tooling'
-  | 'tooling';
+  | 'tooling'
+  | 'authorization-reviewers';
 
 /** Stable two-space JSON with recursively sorted object keys. */
 export function stableArtifactJson(value: unknown): string;
@@ -61,6 +63,7 @@ export interface ArtifactFileRecord {
   readonly logicalKind: ArtifactLogicalKind;
   readonly custody: ArtifactCustody;
   readonly consumer: ArtifactConsumer;
+  readonly authority?: string;
   readonly regeneration: Readonly<{ rule: 'complete-inputs-hash'; command: string }>;
 }
 

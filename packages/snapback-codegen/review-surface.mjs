@@ -82,6 +82,7 @@ export function codegenCacheGraphRoot(backendRoot, inputsHash) {
 }
 
 export function logicalArtifactKind(path) {
+  if (path === 'authorization-review.json') return 'authorization-review';
   if (path === 'schema.manifest.json') return 'schema-manifest';
   if (path === 'functions.manifest.json') return 'function-manifest';
   if (path === 'normalized-definition.v1.json') return 'normalized-application-definition';
@@ -103,6 +104,7 @@ export function logicalArtifactKind(path) {
 }
 
 export function artifactConsumer(path) {
+  if (path === 'authorization-review.json') return 'authorization-reviewers';
   if (path === 'handler-runtime-profile.v1.json') return 'developer-tooling';
   if (path === 'client-lifecycle.v1.json') return 'developer-tooling';
   if (path === 'normalized-definition.v1.json') return 'migration-tooling';
@@ -122,7 +124,9 @@ export function createArtifactFileRecords(
   artifactPaths,
   { committedProjectionPaths = [], targetProfile = 'local-dev-sqlite-ibex' } = {},
 ) {
-  const committed = new Set(committedProjectionPaths);
+  // @ref LLP 0173#1-artifact-and-custody — the authorization projection is
+  // always consumer-committed; app policy cannot demote this review surface.
+  const committed = new Set([...committedProjectionPaths, 'authorization-review.json']);
   const expectedPaths = [...artifactPaths].sort(compareCodeUnits);
   const actualPaths = listArtifactPaths(graphRoot);
   if (
@@ -158,6 +162,9 @@ export function createArtifactFileRecords(
       logicalKind: logicalArtifactKind(path),
       custody: committed.has(path) ? CUSTODY.consumerCommitted : CUSTODY.regenerableCache,
       consumer: artifactConsumer(path),
+      ...(path === 'authorization-review.json'
+        ? { authority: '@expo/snapback-codegen/authorization-review.schema.json' }
+        : {}),
       regeneration: {
         rule: 'complete-inputs-hash',
         command: `snapback generate snapback --target-profile ${targetProfile}`,
@@ -269,6 +276,17 @@ export function validateReviewManifest(manifest) {
       }
       if (typeof file.logicalKind !== 'string' || typeof file.consumer !== 'string') {
         problems.push(`${file.path} must name logicalKind and consumer`);
+      }
+      if (
+        file.path === 'authorization-review.json'
+        && (
+          file.custody !== CUSTODY.consumerCommitted
+          || file.logicalKind !== 'authorization-review'
+          || file.consumer !== 'authorization-reviewers'
+          || file.authority !== '@expo/snapback-codegen/authorization-review.schema.json'
+        )
+      ) {
+        problems.push('authorization-review.json must name its consumer-committed schema authority');
       }
       if (
         file.regeneration?.rule !== 'complete-inputs-hash'

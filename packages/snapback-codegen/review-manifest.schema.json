@@ -99,6 +99,7 @@
           "logicalKind": { "type": "string", "minLength": 1 },
           "custody": { "enum": ["consumer-committed", "regenerable-cache"] },
           "consumer": { "type": "string", "minLength": 1 },
+          "authority": { "type": "string", "minLength": 1 },
           "regeneration": {
             "type": "object",
             "required": ["rule", "command"],
