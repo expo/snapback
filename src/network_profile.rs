@@ -708,7 +708,7 @@ mod tests {
                     // The non-loopback fail-closed default resolves to Prod
                     // before it reaches this gate.
                     NetworkProfileAuthority::classified(
-                        crate::admin::resolve_profile(None, false),
+                        crate::admin::resolve_profile(None, false, false),
                         AuthDeploymentTarget::Local,
                         false,
                         false,

@@ -151,15 +151,6 @@ pub(crate) fn validate_plaintext_auth_transport(
     Ok(())
 }
 
-impl ServerProfile {
-    /// Resolve the profile from the concrete address startup will bind. The
-    /// CLI resolves hostnames once before auth composition and binds this same
-    /// address, so aliases cannot produce a pre-bind/post-bind policy split.
-    pub(crate) fn for_bind_ip(address: std::net::IpAddr) -> Self {
-        env_profile(address.is_loopback())
-    }
-}
-
 /// Environment half of an operation's authority tuple. Every transport and
 /// alias asks this same policy before invoking the operation core.
 ///
@@ -277,7 +268,73 @@ pub(crate) fn operation_profile_diagnostic(
 }
 
 fn env_profile(loopback: bool) -> ServerProfile {
-    resolve_profile(std::env::var("SNAPBACK_PROFILE").ok().as_deref(), loopback)
+    let exposure = environment_exposure();
+    resolve_profile(
+        std::env::var("SNAPBACK_PROFILE").ok().as_deref(),
+        loopback,
+        exposure.fronted(),
+    )
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ExposureDeclaration {
+    Unset,
+    Direct,
+    Fronted,
+    Unrecognized(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ExposureResolution {
+    declaration: ExposureDeclaration,
+}
+
+impl ExposureResolution {
+    pub(crate) fn fronted(&self) -> bool {
+        matches!(
+            self.declaration,
+            ExposureDeclaration::Fronted | ExposureDeclaration::Unrecognized(_)
+        )
+    }
+
+    pub(crate) fn startup_warning(&self, raw_profile: Option<&str>) -> Option<String> {
+        match &self.declaration {
+            ExposureDeclaration::Unrecognized(value) => Some(format!(
+                "warning: unrecognized SNAPBACK_EXPOSURE value {value:?}; applying full fronted semantics"
+            )),
+            ExposureDeclaration::Fronted
+                if matches!(raw_profile, Some("dev" | "demo" | "test")) =>
+            {
+                Some(format!(
+                    "warning: SNAPBACK_EXPOSURE=fronted with explicit SNAPBACK_PROFILE={}; retaining the explicit non-production profile and developer capability",
+                    raw_profile.expect("matched explicit non-production profile")
+                ))
+            }
+            ExposureDeclaration::Unset
+            | ExposureDeclaration::Direct
+            | ExposureDeclaration::Fronted => None,
+        }
+    }
+}
+
+pub(crate) fn resolve_exposure(raw: Option<&str>) -> ExposureResolution {
+    let declaration = match raw {
+        None | Some("") => ExposureDeclaration::Unset,
+        Some("direct") => ExposureDeclaration::Direct,
+        Some("fronted") => ExposureDeclaration::Fronted,
+        Some(value) => ExposureDeclaration::Unrecognized(value.to_owned()),
+    };
+    ExposureResolution { declaration }
+}
+
+pub(crate) fn environment_exposure() -> ExposureResolution {
+    match std::env::var("SNAPBACK_EXPOSURE") {
+        Ok(value) => resolve_exposure(Some(&value)),
+        Err(std::env::VarError::NotPresent) => resolve_exposure(None),
+        Err(std::env::VarError::NotUnicode(_)) => ExposureResolution {
+            declaration: ExposureDeclaration::Unrecognized("<non-Unicode>".to_owned()),
+        },
+    }
 }
 
 fn canonical_loopback_http_origin(raw: &str) -> Option<String> {
@@ -319,22 +376,25 @@ fn env_dev_auth_origins() -> BTreeSet<String> {
         .collect()
 }
 
-/// Resolve the server profile from the raw `SNAPBACK_PROFILE` value (pure, so
-/// the fail-closed behavior is testable without mutating the process
-/// environment). An exact `dev|demo|test|prod` wins; ANY other non-empty value
-/// — a typo, `production`, `PROD`, `staging` — fails CLOSED to `Prod` rather
-/// than silently granting the destructive/provisioning capability via the
-/// loopback default (ENG-22527 FIX 3). Unset or empty falls back to the
-/// bind-address default: zero-config `dev` on loopback, `prod` on a real
-/// interface.
-pub(crate) fn resolve_profile(raw: Option<&str>, loopback: bool) -> ServerProfile {
+/// Resolve the server profile from the raw `SNAPBACK_PROFILE` value and the
+/// already-classified exposure declaration. An exact profile wins; any other
+/// non-empty profile fails closed to Prod. Unset/empty uses the bind default,
+/// except a fronted declaration makes that default Prod even on loopback.
+///
+/// @ref LLP 0262#d4-declared-exposure — `fronted` changes only the unset
+///   profile default; an explicit non-production profile remains explicit.
+pub(crate) fn resolve_profile(
+    raw: Option<&str>,
+    loopback: bool,
+    fronted: bool,
+) -> ServerProfile {
     match raw {
         Some("dev") => ServerProfile::Dev,
         Some("demo") => ServerProfile::Demo,
         Some("test") => ServerProfile::Test,
         Some("prod") => ServerProfile::Prod,
         Some(value) if !value.is_empty() => ServerProfile::Prod,
-        _ if loopback => ServerProfile::Dev,
+        _ if loopback && !fronted => ServerProfile::Dev,
         _ => ServerProfile::Prod,
     }
 }
@@ -2133,13 +2193,22 @@ impl ServerContext {
     /// caller-described form does not establish listener transport authority;
     /// network session embedders use `server::app(state).bind(listener)`.
     pub fn new(host: impl Into<String>, port: u16, loopback: bool) -> Self {
+        Self::new_with_resolved_profile(host, port, loopback, env_profile(loopback))
+    }
+
+    pub(crate) fn new_with_resolved_profile(
+        host: impl Into<String>,
+        port: u16,
+        loopback: bool,
+        profile: ServerProfile,
+    ) -> Self {
         Self {
             host: host.into(),
             port,
             loopback,
             listener_transport: ListenerTransportPosture::Unknown,
             dev_auth_origins: env_dev_auth_origins(),
-            profile: env_profile(loopback),
+            profile,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
             pid: std::process::id(),
             started: Instant::now(),
@@ -7119,32 +7188,80 @@ mod tests {
     }
 
     #[test]
-    fn profile_resolution_fails_closed_on_unrecognized_values() {
+    fn resolve_profile_fails_closed_on_unrecognized_values() {
         // Exact matches win, on either bind.
-        assert_eq!(resolve_profile(Some("dev"), true), ServerProfile::Dev);
-        assert_eq!(resolve_profile(Some("demo"), false), ServerProfile::Demo);
-        assert_eq!(resolve_profile(Some("test"), true), ServerProfile::Test);
-        assert_eq!(resolve_profile(Some("prod"), true), ServerProfile::Prod);
+        assert_eq!(resolve_profile(Some("dev"), true, false), ServerProfile::Dev);
+        assert_eq!(resolve_profile(Some("demo"), false, false), ServerProfile::Demo);
+        assert_eq!(resolve_profile(Some("test"), true, false), ServerProfile::Test);
+        assert_eq!(resolve_profile(Some("prod"), true, false), ServerProfile::Prod);
 
         // ENG-22527 FIX 3: any unrecognized NON-EMPTY value fails CLOSED to
         // Prod even on loopback — a typo must never grant provisioning.
         for typo in ["production", "PROD", "Dev", "staging", "prd", "true"] {
             assert_eq!(
-                resolve_profile(Some(typo), true),
+                resolve_profile(Some(typo), true, false),
                 ServerProfile::Prod,
                 "unrecognized profile {typo:?} must fail closed to Prod"
             );
             assert!(
-                !resolve_profile(Some(typo), true).allows_provisioning(),
+                !resolve_profile(Some(typo), true, false).allows_provisioning(),
                 "unrecognized profile {typo:?} must not allow provisioning"
             );
         }
 
         // Unset or empty falls back to the bind-address default.
-        assert_eq!(resolve_profile(None, true), ServerProfile::Dev);
-        assert_eq!(resolve_profile(Some(""), true), ServerProfile::Dev);
-        assert_eq!(resolve_profile(None, false), ServerProfile::Prod);
-        assert_eq!(resolve_profile(Some(""), false), ServerProfile::Prod);
+        assert_eq!(resolve_profile(None, true, false), ServerProfile::Dev);
+        assert_eq!(resolve_profile(Some(""), true, false), ServerProfile::Dev);
+        assert_eq!(resolve_profile(None, false, false), ServerProfile::Prod);
+        assert_eq!(resolve_profile(Some(""), false, false), ServerProfile::Prod);
+    }
+
+    #[test]
+    fn resolve_profile_exposure_truth_table_is_closed_and_fail_closed() {
+        for raw in [None, Some("")] {
+            let exposure = resolve_exposure(raw);
+            assert!(!exposure.fronted());
+            assert_eq!(resolve_profile(None, true, exposure.fronted()), ServerProfile::Dev);
+            assert!(exposure.startup_warning(None).is_none());
+        }
+
+        let direct = resolve_exposure(Some("direct"));
+        assert!(!direct.fronted());
+        assert_eq!(resolve_profile(None, true, direct.fronted()), ServerProfile::Dev);
+        assert!(direct.startup_warning(Some("dev")).is_none());
+
+        let fronted = resolve_exposure(Some("fronted"));
+        assert!(fronted.fronted());
+        assert_eq!(resolve_profile(None, true, fronted.fronted()), ServerProfile::Prod);
+        assert_eq!(resolve_profile(Some(""), true, fronted.fronted()), ServerProfile::Prod);
+        for (raw, expected) in [
+            ("dev", ServerProfile::Dev),
+            ("demo", ServerProfile::Demo),
+            ("test", ServerProfile::Test),
+            ("prod", ServerProfile::Prod),
+        ] {
+            assert_eq!(resolve_profile(Some(raw), true, fronted.fronted()), expected);
+        }
+        assert!(fronted.startup_warning(None).is_none());
+        assert!(fronted.startup_warning(Some("prod")).is_none());
+        for explicit in ["dev", "demo", "test"] {
+            let warning = fronted.startup_warning(Some(explicit)).unwrap();
+            assert!(warning.contains("SNAPBACK_EXPOSURE=fronted"));
+            assert!(warning.contains(explicit));
+        }
+
+        for unrecognized in ["FRONTED", "proxy", "1", " direct "] {
+            let exposure = resolve_exposure(Some(unrecognized));
+            assert!(exposure.fronted());
+            assert_eq!(resolve_profile(None, true, exposure.fronted()), ServerProfile::Prod);
+            assert_eq!(
+                resolve_profile(Some("dev"), true, exposure.fronted()),
+                ServerProfile::Dev
+            );
+            let warning = exposure.startup_warning(None).unwrap();
+            assert!(warning.contains(unrecognized));
+            assert_eq!(warning.lines().count(), 1);
+        }
     }
 
     #[test]

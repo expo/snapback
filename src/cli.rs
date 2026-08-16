@@ -4419,7 +4419,8 @@ fn password_non_stdin_profile_allowed(
     target_url: &str,
     carrier: &str,
 ) -> anyhow::Result<()> {
-    let profile = crate::admin::resolve_profile(raw_profile, origin_is_loopback(target_url));
+    let profile =
+        crate::admin::resolve_profile(raw_profile, origin_is_loopback(target_url), false);
     anyhow::ensure!(
         matches!(profile, ServerProfile::Dev | ServerProfile::Test),
         "SNAPBACK_PROFILE_FORBIDS: {carrier} is accepted only under dev or test profiles; stdin is the only password carrier in other profiles"
@@ -8197,7 +8198,19 @@ async fn run_composed(
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
-    let startup_profile = ServerProfile::for_bind_ip(bind_ip);
+    let raw_startup_profile = std::env::var("SNAPBACK_PROFILE").ok();
+    let exposure = crate::admin::environment_exposure();
+    let startup_profile = crate::admin::resolve_profile(
+        raw_startup_profile.as_deref(),
+        bind_ip.is_loopback(),
+        exposure.fronted(),
+    );
+    // @ref LLP 0262#d4-declared-exposure — a fronted unset profile resolves
+    // to full Prod semantics; explicit non-production remains explicit and
+    // visible, while every unrecognized nonempty value fails fronted.
+    if let Some(warning) = exposure.startup_warning(raw_startup_profile.as_deref()) {
+        eprintln!("{warning}");
+    }
     // @ref LLP 0060#d5-hosted-readiness-is-conjunctive — reject an explicit
     // hosted request before opening target state; operator config is a request,
     // never authority for target-owned TLS/proxy/throttle/invalidation facts.
@@ -8418,6 +8431,7 @@ async fn run_composed(
                     return run_auth_collision_recovery(
                         &args,
                         bind_ip,
+                        startup_profile,
                         db_path.clone(),
                         lock,
                         ready_target,
@@ -8540,8 +8554,13 @@ async fn run_composed(
     // can make sessions active. The listener is still absent; later
     // ready-descriptor publication remains the final admission cut.
     let loopback = bind_ip.is_loopback();
-    let mut server_context = ServerContext::new(bind_ip.to_string(), 0, loopback)
-        .with_auth_deployment(args.auth_deployment);
+    let mut server_context = ServerContext::new_with_resolved_profile(
+        bind_ip.to_string(),
+        0,
+        loopback,
+        startup_profile,
+    )
+    .with_auth_deployment(args.auth_deployment);
     if derived_fork_boot {
         // @ref LLP 0158#design-sketch — an inherited process environment is
         // not credential authority for the new instance; load the freshly
@@ -9412,6 +9431,7 @@ async fn run_composed(
 async fn run_auth_collision_recovery(
     args: &Args,
     bind_ip: IpAddr,
+    startup_profile: ServerProfile,
     database_path: PathBuf,
     mut database_lock: DatabaseInstanceLock,
     mut ready_target: Option<ReadyFileTarget>,
@@ -9421,8 +9441,13 @@ async fn run_auth_collision_recovery(
     impersonation_temp_path: Option<PathBuf>,
 ) -> anyhow::Result<()> {
     crate::auth::recovery::validate_loopback_bind_ip(bind_ip)?;
-    let mut server_context =
-        ServerContext::new(bind_ip.to_string(), 0, true).with_auth_deployment(args.auth_deployment);
+    let mut server_context = ServerContext::new_with_resolved_profile(
+        bind_ip.to_string(),
+        0,
+        true,
+        startup_profile,
+    )
+    .with_auth_deployment(args.auth_deployment);
 
     // Profiles that can never expose recovery fail before token minting or any
     // other startup publication.

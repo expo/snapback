@@ -20342,6 +20342,10 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
         "local owner-only custody-file parser refusal; never an HTTP diagnostic",
     ),
     (
+        "SNAPBACK_DEV_IDENTITY_CAPABILITY_MISSING",
+        "stage-1 server-local once-per-boot compatibility warning; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG",
         "target-owned configuration path for LLP 0234 activation custody; never an HTTP diagnostic",
     ),
@@ -20797,6 +20801,10 @@ const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
         "SNAPBACK_PROFILE",
         "environment variable selecting the server profile",
+    ),
+    (
+        "SNAPBACK_EXPOSURE",
+        "closed environment declaration selecting fronted versus direct startup semantics; never an HTTP diagnostic",
     ),
     (
         "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT",
