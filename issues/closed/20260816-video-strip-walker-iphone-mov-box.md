@@ -53,3 +53,17 @@ non-printable kinds and carry byte offsets. Synthetic Apple-layout tests
 cover the shapes. REMAINING before close: verify against the author's
 real device MOV (AirDrop pending) and upgrade/supplement the fixture from
 its box structure.
+
+## Closed (2026-08-16): real-device verification complete
+
+The author's actual iPhone MOV (13.6MB QuickTime: ftyp(qt) + wide + mdat +
+trailing moov with nine trak atoms and two QuickTime meta atoms whose first
+child is a direct hdlr at +8 — no fullbox version/flags) uploaded through
+the full generated media command against a live server, finalized through
+the fixed strip walker, committed atomically, and read back as an ordered
+collection item with server-admitted kind "video"
+(demos/media-happy-post/tests/probe-real-video.mjs). The committed
+regression coverage stays synthetic by design: real iPhone meta/ilst atoms
+can carry location and device metadata, so the personal file's bytes are
+deliberately not embedded in the repository; its box layout is recorded
+above and mirrored by the synthesized tests.

@@ -73,10 +73,9 @@ export const ensureProfile = defineJsMutation({
       }
       return existing._id;
     }
-    return ctx.db.insert('profiles', {
-      ownerId: ctx.auth.userId,
-      displayName: args.displayName,
-    });
+    // ownerId is host-stamped on owner-policy inserts; authored owner
+    // input is refused by the ownership-composition rules.
+    return ctx.db.insert('profiles', { displayName: args.displayName });
   },
 });
 
@@ -133,7 +132,7 @@ export const createPostMutation = defineJsMutation({
       throw new Error('Post text must be between 1 and 280 characters.');
     }
     return {
-      _id: await ctx.db.insert('posts', { ownerId: ctx.auth.userId, body }),
+      _id: await ctx.db.insert('posts', { body }),
     };
   },
 });

@@ -46,3 +46,12 @@ The wave owner (or a commissioned burn-down lane) sweeps the remaining ~207
 using the classes and pattern above, suite by suite, rather than letting
 the drift backstop file per-signature tickets. Counts above are the
 baseline for measuring the sweep.
+
+## Scope note (2026-08-16, post-filing)
+
+The wave is not test-fixture-only: AUTHORED demo handlers that insert
+owner-policy rows with an explicit owner field now refuse at runtime with
+`SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED` (owner fields are host-stamped).
+`demos/media-happy-post` hit this live and was adapted (drop the authored
+ownerId from inserts); other demos with the same authored pattern will hit
+it on their next boot — relevant to any demo boot sweep.
