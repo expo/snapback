@@ -1,5 +1,13 @@
-import { useSnapbackMedia } from '@expo/snapback-react';
+import api, {
+  type FunctionResult,
+  type GeneratedDataModel,
+} from './generated/api';
 
-// A handler/storage value is only the physical asset-id string. It must not
-// cross the result-projection boundary as though it were a public MediaRef.
-useSnapbackMedia('physical-asset-id');
+type ProjectedProfile = FunctionResult<typeof api.listProfiles>[number];
+
+declare const physicalImage: GeneratedDataModel['profiles']['image'];
+
+// The generated handler/storage model is a physical string, while the same
+// generated field at the operation-result boundary is a public MediaRef.
+const projectedImage: ProjectedProfile['image'] = physicalImage;
+void projectedImage;

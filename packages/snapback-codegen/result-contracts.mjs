@@ -1020,7 +1020,8 @@ export function vectorPageResultType(contract) {
 function resultValueType(value) {
   if (value.kind === 'null') return 'null';
   if (value.kind === 'boolean') return 'boolean';
-  if (value.kind === 'string' || value.kind === 'principal' || value.kind === 'assetRef') return 'string';
+  if (value.kind === 'principal') return 'Principal';
+  if (value.kind === 'string' || value.kind === 'assetRef') return 'string';
   if (value.kind === 'mediaRef.v1') {
     return `MediaRef<${value.kinds.map(JSON.stringify).join(' | ')}>`;
   }
