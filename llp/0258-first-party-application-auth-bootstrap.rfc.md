@@ -991,9 +991,11 @@ is resolved normatively in D2: custody initializes first.
 
 ## Status
 
-Accepted (2026-08-15, author build directive following super-refine
-convergence; the r4 revision is unreviewed and the growth-budget escalation
-in the run journal remains open for author ratification). The component
+Accepted (2026-08-15 on the author's build directive following super-refine
+convergence; ratified by the author 2026-08-16, who also dispositioned the
+review-loop growth — the grown normative text stands and the revision
+ledger below is the compact form, with full verbatim detail in the
+`llp/reviews/0258-*` artifacts and run journal). The component
 protocols are already owned and substantially
 implemented. This RFC proposes the missing composition boundary, platform
 custody obligation, precedence rules, and whole-journey proof. The native
@@ -1037,78 +1039,34 @@ custody/barrier semantics.
 
 ## Revision history
 
-- **r1 (2026-08-15):** initial Draft; entered super-refine review
-  (Draft → Review).
-- **r2 (2026-08-15):** round-1 revision. Owner key closed to LLP 0059's
-  owner key with typed binding-conflict refusal and a stable default
-  partition (D2); construction order made compatible with the existing
-  participant registration/barrier (D2); former OQ3 resolved normatively —
-  custody initializes before any public release (D2); bootstrap policy
-  redefined as a derived projection of the `defineAuth`/schema program, with
-  supervised entry anchored on LLP 0181's binding source instead of a policy
-  field (D1, D5); native carrier design selected — first-party native custody
-  module with whole-record CAS and fail-closed single-runtime declaration
-  (D3), Expo web row added; facade preserves exact client result contracts
-  (recovery-credential return), adds `changePassword`, and maps refusals onto
-  LLP 0238's closed union (D4); precedence extended to first-run supervised
-  displacement, runtime remint/`refreshAuthority`, and non-wedging conflict
-  resolution with executable remediations (D5); LLP 0181/0253 amendments
-  declared as protocol changes and boot-union ownership moved here (D6, D7,
-  Phase 0); one-time recovery-credential boundary distinguished from bearer
-  rules (D8, Acceptance); LLP 0077 added to Related.
-- **r3 (2026-08-15):** round-2 delta revision (all round-2 MATERIAL concerns
-  were in-delta). "Authority key" renamed **owner key** with explicit
-  disambiguation from LLP 0059's `CanonicalAuthorityKey` (Terminology, D2).
-  D1 field derivations pinned per field: `anonymousPublic` re-derived from
-  anonymous operation access (not `guestPolicy` — guest principals are not
-  anonymity), `custody` and the external-session seam sourced to a named
-  LLP 0214 `defineAuth` amendment, and anonymous boot made unconditional so
-  entry surfaces are always reachable. D2 gained the ordinary
-  `storagePartition` input and split the binding target into rebind inputs
-  (generation identities — remint reuses/rebinds the live owner) versus
-  conflict inputs (app/origin/routing). D4 return types now match the
-  shipped client contracts (`AuthCredentialPublicProjectionV1` for
-  sign-in/change, logout result for sign-out) with D9 generating facade
-  returns from the shipped declarations. D5's displacement predicate moved
-  to the owner's process-local transition record (`authoritySource` stays
-  diagnostic; restored authority — even originally supervised — is
-  protected), the composed displacement got serialization/withholding/
-  failure/deferral semantics over unchanged LLP 0059 transitions, and the
-  post-`signOut` re-admission trigger is named. D7's `ready` arm gained
-  non-blocking `advisories` (carrying the D5 conflict), every existing 0181
-  boot field is dispositioned, and `blocked` vs `authority-required` is
-  bounded. The recovery boundary widened to the exact shipped class
-  (signup/consume/rotate) and cited to LLP 0214/0151. Phase 0 names the
-  LLP 0214 amendment and confirms `AuthCustodyV2` gains no field. Acceptance
-  gained displacement-race and password-only cold-start fixtures.
-- **r4 (2026-08-15, UNREVIEWED):** post-convergence fix revision. The
-  super-refine loop converged at round 3 under the delta rule (no family
-  reported a MATERIAL concern in pre-existing text); r4 closes the four
-  remaining in-delta MATERIALs and actionable minors and is itself
-  unreviewed. D5's single-exposure guarantee scoped to the initiating
-  context with peer-race behavior specified over unchanged LLP 0059
-  broadcast rules; withholding narrowed to public/`currentPrincipal`
-  publication (participants recapture normally); the process-local record
-  binds to the exact authority capture; mid-entry remints during a failed
-  displacement are dropped, not deferred-then-adopted. Authority source
-  gained fresh-anonymous establishment (cold boot and post-sign-out) so
-  every settled state is representable in D7. Recovery lifecycle
-  (consumption + rotation) sourced to LLP 0214 `recoveryPolicy` with its own
-  D9 completeness rows, excluded from `entryMechanisms` along with
-  guest/passkey facts. D2's rebind rule narrowed to policy-compatible
-  successor generations with an LLP 0241 successor proof; policy-rotating
-  remints refuse and require reconstruction. The facade redefined as a
-  composing layer over `client.auth` (owner-dependent behavior never lands
-  on the low-level client); `changePassword` exempted from entry refusals;
-  D3 adapters required to key by the full owner key; the LLP 0214 amendment
-  paired with its LLP 0252 D1 field dispositions.
-- **r5 (2026-08-15):** post-convergence r4 delta review (codex + grok, both
-  NOT READY on the delta, no new pre-existing MATERIAL). Fixes: Acceptance
-  aligned with D5's drop-only mid-entry rule and initiating-context exposure
-  scope (it still carried r3's "deferred or refused" oracle); the
-  authority-source union closed with the external-transition arm the D5
-  peer race produces; the D2 rotation predicate stated as any
-  policy-semantic-identity change; the Implementation record's remaining
-  list completed with the 0241 successor-proof ticket. Companion code fix:
-  supervisor adoption arriving mid-entry now drops at arrival time and the
-  intermediate anonymous state is never published to bootstrap subscribers.
+Full per-revision detail (verdict-lined review artifacts, delta
+enumerations, disposition ledgers) lives in
+`llp/reviews/0258-first-party-application-auth-bootstrap.{run,claude,codex,grok}.md`.
+Compact ledger:
+
+- **r1** (2026-08-15, `fbea5491…`): initial Draft; entered super-refine
+  review (Draft → Review, landed `4cc971ea4`).
+- **r2** (2026-08-15, `840995cb…`): round-1 revision — owner key closed to
+  LLP 0059 identity; construction order fixed; OQ3 resolved (custody
+  initializes first); policy redefined as a derived projection; native
+  carrier design selected; exact facade result contracts; precedence
+  extended to first-run displacement and runtime remint; 0181/0253
+  amendments declared as protocol changes.
+- **r3** (2026-08-15, `2fb1bd9f…`): round-2 delta revision — owner-key
+  naming disambiguated; per-field policy derivations pinned
+  (`anonymousPublic` from operation access, `custody` via the LLP 0214
+  amendment); unconditional anonymous boot; `storagePartition` constructor
+  input; rebind/conflict split; shipped return contracts; process-local
+  displacement predicate with composed-operation semantics; D7 ready
+  advisories and 0181 field dispositions. **The loop converged on this
+  revision** (delta rule: no MATERIAL concern in pre-existing text, any
+  family).
+- **r4** (2026-08-15, `dc6cb829…`): post-convergence fixes for the four
+  round-3 in-delta MATERIALs — initiating-context exposure scoping,
+  fresh-anonymous authority source, recoveryPolicy-derived completeness
+  rows, policy-rotation rebind refusal.
+- **r5** (2026-08-15, `9fb0555a…` at authoring): r4 delta-review alignment
+  (codex + grok) — Acceptance matched to the drop-only mid-entry rule;
+  authority-source union closed with `external-transition`; rotation
+  predicate = any policy-semantic-identity change; companion code fix
+  (arrival-time drop, no intermediate publication) landed `32f902a09`.

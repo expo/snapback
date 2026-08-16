@@ -187,3 +187,14 @@ authorized transition), landed on main as `4cc971ea4`.
 - **r5 remains unreviewed** (narrow, enumerated in its Revision-history
   bullet); the unreviewed-r4 escalation is superseded by this reviewed
   round plus the r5 delta.
+
+## Author ratification (2026-08-16)
+
+Author ruling (Charlie Cheever, in-session, 2026-08-16): the Accepted flip
+is **ratified**, and the growth escalation is **dispositioned** — the grown
+normative text stands as part of the accepted document, and the target's
+Revision-history section is compacted to a hash-pinned ledger pointing at
+these artifacts for full verbatim detail. With this ruling, every open
+author gate from the loop close-out is resolved: the r4-unreviewed gap was
+closed by the 2026-08-16 delta review + r5, and the ratification/growth
+gates close here. No loop escalations remain open.
