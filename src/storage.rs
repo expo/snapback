@@ -1,10 +1,11 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{validate_collection_definitions, validate_collection_permission_backing};
 use crate::manifest::{
-    AuthInput, AuthMode, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
-    CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput,
-    MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
-    MutationOutput, MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
+    AssetCollectionMutationPlanV1, AssetCollectionOperationV1, AuthInput, AuthMode,
+    CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION,
+    CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MembershipManifest,
+    MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
+    MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ResultValueContract, ReturnValue,
     SchemaManifest, SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest,
@@ -2945,6 +2946,7 @@ impl LocalDatabase {
         let mut touched_tables = BTreeSet::new();
         for step in &plan.steps {
             let target = match step {
+                MutationStep::AssetCollection(plan) => Some(plan.child_table.as_str()),
                 MutationStep::Insert { table, .. }
                 | MutationStep::Patch { table, .. }
                 | MutationStep::Delete { table, .. }
@@ -2958,6 +2960,26 @@ impl LocalDatabase {
                 | MutationStep::Let { .. } => None,
             };
             if let Some(target) = target {
+                if matches!(
+                    step,
+                    MutationStep::Insert { .. }
+                        | MutationStep::Patch { .. }
+                        | MutationStep::Delete { .. }
+                        | MutationStep::DeleteWhere { .. }
+                        | MutationStep::InsertEach { .. }
+                ) && schema
+                    .asset_collections
+                    .iter()
+                    .any(|collection| collection.child_table == target)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED",
+                        "asset-collection",
+                        format!(
+                            "generic HostPlan writes cannot target framework-owned collection table {target}"
+                        ),
+                    ));
+                }
                 touched_tables.insert(target.to_owned());
                 if !matches!(
                     step,
@@ -2996,11 +3018,30 @@ impl LocalDatabase {
         // expressions go through `next_id` and stay generic (LLP 0148 §D6).
         let next_id_for =
             |site: &str, table: &str| plan_ids.borrow_mut().next_for(site, Some(table));
+        let mut collection_result = None;
+        let mut asset_changes = BTreeSet::new();
 
         for (step_index, step) in plan.steps.iter().enumerate() {
             check_live()?;
             let step_site = format!("plan/steps/{step_index}");
             match step {
+                MutationStep::AssetCollection(collection_plan) => {
+                    let (result, changed_assets) = execute_asset_collection_step(
+                        &tx,
+                        &schema,
+                        collection_plan,
+                        input,
+                        identity,
+                        next_version,
+                        now_ms,
+                        &self.order_field_bounds,
+                        &plan_ids,
+                        &mut changes,
+                        check_live,
+                    )?;
+                    collection_result = Some(result);
+                    asset_changes.extend(changed_assets);
+                }
                 MutationStep::AllocateSequence {
                     counter,
                     scope,
@@ -3655,6 +3696,14 @@ impl LocalDatabase {
             }
         }
 
+        asset_changes.extend(cascade_asset_collection_parent_deletions(
+            &tx,
+            &schema,
+            &mut changes,
+            next_version,
+            now_ms,
+        )?);
+
         // @ref LLP 0080#5-transactionally-maintained-projections — every
         //   source mutation computes the bounded affected-key set and
         //   updates the outputs in this same transaction and commit
@@ -3695,42 +3744,49 @@ impl LocalDatabase {
             },
             now_ms,
         )?;
-        if !changes.is_empty() || !sequence_allocation_facts.is_empty() {
+        if !changes.is_empty() || !sequence_allocation_facts.is_empty() || !asset_changes.is_empty()
+        {
             set_version(&tx, next_version)?;
         }
 
-        let result = match &plan.return_value {
-            Some(ReturnValue::Literal(value)) => value.clone(),
-            Some(ReturnValue::Binding(name)) => bindings.get(name).cloned().unwrap_or(Value::Null),
-            Some(ReturnValue::Document { table, id }) => {
-                let table = schema_table(&schema, table)?;
-                let id = expect_string(
-                    eval_expr(
-                        id,
-                        input,
-                        &bindings,
-                        now_ms,
-                        Some(&next_id),
-                        "plan/return/document/id",
-                    )?,
-                    "document id",
-                )?;
-                let mut document =
-                    get_document_from_tx(&tx, table, &id, next_version)?.unwrap_or(Value::Null);
-                if !document.is_null() {
-                    project_media_fields_on(&tx, table, &mut document)?;
+        let result = if let Some(result) = collection_result {
+            result
+        } else {
+            match &plan.return_value {
+                Some(ReturnValue::Literal(value)) => value.clone(),
+                Some(ReturnValue::Binding(name)) => {
+                    bindings.get(name).cloned().unwrap_or(Value::Null)
                 }
-                document
+                Some(ReturnValue::Document { table, id }) => {
+                    let table = schema_table(&schema, table)?;
+                    let id = expect_string(
+                        eval_expr(
+                            id,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            "plan/return/document/id",
+                        )?,
+                        "document id",
+                    )?;
+                    let mut document =
+                        get_document_from_tx(&tx, table, &id, next_version)?.unwrap_or(Value::Null);
+                    if !document.is_null() {
+                        project_media_fields_on(&tx, table, &mut document)?;
+                    }
+                    document
+                }
+                Some(ReturnValue::ChangedCount) | None => json!(changes.len()),
+                Some(ReturnValue::Expr(expr)) => eval_expr(
+                    expr,
+                    input,
+                    &bindings,
+                    now_ms,
+                    Some(&next_id),
+                    "plan/return/expression",
+                )?,
             }
-            Some(ReturnValue::ChangedCount) | None => json!(changes.len()),
-            Some(ReturnValue::Expr(expr)) => eval_expr(
-                expr,
-                input,
-                &bindings,
-                now_ms,
-                Some(&next_id),
-                "plan/return/expression",
-            )?,
         };
         let settlement_media = match &plan.return_value {
             Some(ReturnValue::Document { table, .. }) => {
@@ -3752,7 +3808,10 @@ impl LocalDatabase {
         plan_ids.borrow().ensure_exact_consumption()?;
         let generated_ids = plan_ids.borrow().generated.clone();
 
-        let version = if changes.is_empty() && sequence_allocation_facts.is_empty() {
+        let version = if changes.is_empty()
+            && sequence_allocation_facts.is_empty()
+            && asset_changes.is_empty()
+        {
             current_version
         } else {
             next_version
@@ -3867,7 +3926,7 @@ impl LocalDatabase {
                 // note's callee/producer scoping).
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
-                asset_changes: Vec::new(),
+                asset_changes: asset_changes.into_iter().collect(),
                 sequence_allocations: sequence_allocation_facts,
                 authorization,
                 network_egress: Default::default(),
@@ -4147,6 +4206,20 @@ impl LocalDatabase {
         let mut changes = Vec::new();
         for (write, write_gate, write_writer) in carried_writes {
             check_live()?;
+            if schema
+                .asset_collections
+                .iter()
+                .any(|collection| collection.child_table == write.table())
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED",
+                    "asset-collection",
+                    format!(
+                        "buffered writes cannot target framework-owned collection table {}",
+                        write.table()
+                    ),
+                ));
+            }
             if write_gate == MembershipWriteGate::Sanctioned {
                 revalidate_sanctioned_membership_write(&schema, &tx, &write, next_version)?;
             }
@@ -4312,6 +4385,14 @@ impl LocalDatabase {
             }
         }
 
+        let mut asset_changes = cascade_asset_collection_parent_deletions(
+            &tx,
+            &schema,
+            &mut changes,
+            next_version,
+            now_ms,
+        )?;
+
         // Re-evaluate the complete protected-holder invariant only when this
         // transaction changed a protected roster or its resource table. This
         // remains the serialized final-state linearization point for every
@@ -4369,7 +4450,7 @@ impl LocalDatabase {
         // @ref LLP 0210#d5--recipient-scoped-authority-recipe-now-grant-ops-as-the-paved-spelling —
         // grant transitions share the app-write transaction and revalidate
         // owner/principal authority plus quota under this final write lock.
-        let asset_changes = if asset_grant_ops.is_empty() {
+        let explicit_asset_changes = if asset_grant_ops.is_empty() {
             BTreeSet::new()
         } else {
             let principal = input.auth.user_id.as_deref().ok_or_else(|| {
@@ -4381,6 +4462,7 @@ impl LocalDatabase {
             })?;
             asset_grants::apply_in_tx(&tx, principal, &asset_grant_ops)?
         };
+        asset_changes.extend(explicit_asset_changes);
 
         apply_sequence_allocations_in_tx(&tx, &schema, &sequence_allocations)?;
 
@@ -8454,8 +8536,28 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     // and future LLP 0055 resource-scope grants reference the id durably.
     // @ref LLP 0056#declaring-a-membership-table — ids are unique across the manifest.
     let mut membership_declaration_ids: BTreeMap<String, String> = BTreeMap::new();
+    let framework_collection_tables = manifest
+        .asset_collections
+        .iter()
+        .map(|collection| collection.child_table.as_str())
+        .collect::<BTreeSet<_>>();
     for table in &manifest.tables {
-        validate_user_identifier("table", &table.name)?;
+        if framework_collection_tables.contains(table.name.as_str()) {
+            if !table.name.starts_with("_snapback_asset_collection_")
+                || !table
+                    .name
+                    .bytes()
+                    .all(|byte| byte == b'_' || byte.is_ascii_alphanumeric())
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+                    "asset-collection",
+                    format!("invalid framework-owned collection table {}", table.name),
+                ));
+            }
+        } else {
+            validate_user_identifier("table", &table.name)?;
+        }
         if !tables.insert(table.name.clone()) {
             return Err(SnapbackError::error(
                 "SNAPBACK_SCHEMA_DUPLICATE_TABLE",
@@ -11613,6 +11715,20 @@ fn seed_into_transaction(
     version: u64,
     order_field_bounds: &BTreeMap<(String, String), u64>,
 ) -> SnapbackResult<Vec<ChangedRow>> {
+    if let Some(table) = seed.tables.keys().find(|table| {
+        schema
+            .asset_collections
+            .iter()
+            .any(|collection| collection.child_table == table.as_str())
+    }) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED",
+            "asset-collection",
+            format!(
+                "seed data cannot target framework-owned collection table {table}; use the generated collection operations or asset-cut restore"
+            ),
+        ));
+    }
     // @ref LLP 0109#17-dated-amendment-seed-asset-fixtures-2026-07-31 — by
     //   this point every placeholder must have been resolved by the install
     //   path; legacy and resetInstall paths carry none, so an unresolved
@@ -11633,6 +11749,8 @@ fn seed_into_transaction(
         }
     }
     let mut changes = seed_rows_into_transaction(tx, schema, seed, version, order_field_bounds)?;
+    let _ =
+        cascade_asset_collection_parent_deletions(tx, schema, &mut changes, version, now_millis())?;
     // @ref LLP 0044#typed-references-and-atomic-attachment — seeds run the
     //   same commit-boundary admission under system authority: restricted
     //   fields verify the asset (owner check waived for system custody),
@@ -13068,6 +13186,92 @@ fn enforce_membership_write_gate(
         MembershipGuardOp::Patch => {}
     }
     Ok(())
+}
+
+// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation — deleting a parent
+// atomically retires its framework-owned item identities. Otherwise hidden
+// orphan rows would keep reverse-reference GC roots alive indefinitely.
+fn cascade_asset_collection_parent_deletions(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    changes: &mut Vec<ChangedRow>,
+    version: u64,
+    now_ms: u64,
+) -> SnapbackResult<BTreeSet<String>> {
+    let deleted_parents = changes
+        .iter()
+        .filter(|change| change.op == ChangeOp::Delete)
+        .map(|change| (change.table.clone(), change.id.clone()))
+        .collect::<BTreeSet<_>>();
+    if deleted_parents.is_empty() {
+        return Ok(BTreeSet::new());
+    }
+    let mut affected_assets = BTreeSet::new();
+    for collection in &schema.asset_collections {
+        let table = schema_table(schema, &collection.child_table)?;
+        for (_, parent_id) in deleted_parents
+            .iter()
+            .filter(|(table, _)| table == &collection.owner_table)
+        {
+            let sql = format!(
+                "SELECT * FROM {} WHERE parentId = ?1 ORDER BY ordinal, _id",
+                quote_ident(&table.name)?
+            );
+            let mut statement = tx.prepare(&sql)?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut rows = statement.query([parent_id])?;
+            let mut items = Vec::new();
+            while let Some(row) = rows.next()? {
+                let document = row_to_document(row, table, &columns)?;
+                let id = document
+                    .get("_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| {
+                        asset_collection_error(
+                            "SNAPBACK_MEDIA_COLLECTION_STORAGE_INVALID",
+                            "collection item is missing its stable id",
+                        )
+                    })?
+                    .to_owned();
+                let asset_id = document
+                    .get("assetId")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                let ordinal = document
+                    .get("ordinal")
+                    .and_then(Value::as_u64)
+                    .and_then(|value| usize::try_from(value).ok())
+                    .unwrap_or_default();
+                items.push(AssetCollectionStoredItem {
+                    id,
+                    asset_id,
+                    ordinal,
+                    document,
+                });
+            }
+            drop(rows);
+            drop(statement);
+            let item_ids = items
+                .iter()
+                .map(|item| item.id.clone())
+                .collect::<BTreeSet<_>>();
+            affected_assets.extend(asset_grants::revoke_collection_managed_in_tx(
+                tx,
+                &collection.generation,
+                &item_ids,
+                now_ms,
+            )?);
+            for item in items {
+                record_asset_collection_delete(tx, table, &item, version, now_ms, changes)?;
+            }
+        }
+    }
+    Ok(affected_assets)
 }
 
 /// The asset-reference commit hook (LLP 0044 §Typed references; LLP 0007
@@ -14773,6 +14977,1139 @@ fn get_document_from_tx(
     }
 }
 
+#[derive(Clone)]
+struct AssetCollectionStoredItem {
+    id: String,
+    asset_id: String,
+    ordinal: usize,
+    document: Value,
+}
+
+fn asset_collection_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error(code, "asset-collection", message)
+}
+
+fn collection_descriptor_for_plan<'a>(
+    schema: &'a SchemaManifest,
+    plan: &AssetCollectionMutationPlanV1,
+) -> SnapbackResult<&'a crate::manifest::AssetCollectionManifestV1> {
+    use crate::manifest::AssetCollectionOrderV1;
+    let descriptor = schema
+        .asset_collections
+        .iter()
+        .find(|collection| collection.name == plan.collection)
+        .ok_or_else(|| {
+            asset_collection_error(
+                "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+                "collection mutation names no active descriptor",
+            )
+        })?;
+    let order = match descriptor.order {
+        AssetCollectionOrderV1::Manual => "manual",
+        AssetCollectionOrderV1::Created => "created",
+    };
+    let sharing_arg =
+        (!matches!(plan.operation, AssetCollectionOperationV1::Reorder)).then_some("sharing");
+    let sharing_derivation_tables = descriptor
+        .sharing
+        .ceiling
+        .iter()
+        .filter_map(|entry| match &entry.plan {
+            crate::manifest::AssetCollectionSharingPlanV1::Derived { table, .. } => {
+                Some(table.clone())
+            }
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let sharing_grant_capable = descriptor.sharing.ceiling.iter().any(|entry| {
+        matches!(
+            entry.plan,
+            crate::manifest::AssetCollectionSharingPlanV1::Recipients { .. }
+                | crate::manifest::AssetCollectionSharingPlanV1::Derived { .. }
+        )
+    });
+    if plan.generation != descriptor.generation
+        || plan.policy_generation != descriptor.generation
+        || plan.owner_table != descriptor.owner_table
+        || plan.owner_field != descriptor.owner_field
+        || plan.child_table != descriptor.child_table
+        || plan.parent_id_arg != "parentId"
+        || plan.max_items != descriptor.max_items
+        || plan.order != order
+        || plan.intent != descriptor.intent
+        || plan.kinds != descriptor.kinds
+        || plan.duplicate_policy != "refuse.v1"
+        || plan.sharing_arg.as_deref() != sharing_arg
+        || plan.default_sharing_plan != descriptor.sharing.default_plan
+        || plan.sharing_derivation_tables != sharing_derivation_tables
+        || plan.sharing_grant_capable != sharing_grant_capable
+    {
+        return Err(asset_collection_error(
+            "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+            "collection mutation drifted from its active digest-bound descriptor",
+        ));
+    }
+    Ok(descriptor)
+}
+
+fn asset_collection_attempt_item_id(
+    child_table: &str,
+    generation: &str,
+    attempt_digest: &str,
+    ordinal: usize,
+) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback:asset-collection-item-id:v1\n");
+    let ordinal = ordinal.to_string();
+    for part in [generation, attempt_digest, ordinal.as_str()] {
+        digest.update((part.len() as u64).to_be_bytes());
+        digest.update(part.as_bytes());
+    }
+    let bytes = digest.finalize();
+    let mut body = [0_u8; 16];
+    body.copy_from_slice(&bytes[..16]);
+    format!(
+        "{}_{}",
+        crate::ids::table_prefix(child_table),
+        crate::ids::encode_body(&body)
+    )
+}
+
+fn load_asset_collection_items(
+    tx: &Transaction<'_>,
+    table: &TableManifest,
+    parent_table: &str,
+    parent_id: &str,
+    maximum_version: u64,
+) -> SnapbackResult<Vec<AssetCollectionStoredItem>> {
+    let sql = format!(
+        "SELECT * FROM {} \
+          WHERE parentId = ?1 \
+            AND parentIncarnation = ( \
+              SELECT incarnation FROM _snapback_relation_incarnations_v1 \
+               WHERE table_name = ?2 AND row_id = ?1 AND active = 1 \
+            ) \
+          ORDER BY ordinal ASC, _id ASC",
+        quote_ident(&table.name)?
+    );
+    let mut statement = tx.prepare(&sql)?;
+    let columns = statement
+        .column_names()
+        .into_iter()
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let mut rows = statement.query(params![parent_id, parent_table])?;
+    let mut items = Vec::new();
+    while let Some(row) = rows.next()? {
+        let document = row_to_document(row, table, &columns)?;
+        validate_document_version_at_most(&document, maximum_version, &table.name)?;
+        let id = document
+            .get("_id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_STORAGE_INVALID",
+                    "collection item is missing its stable id",
+                )
+            })?
+            .to_owned();
+        let asset_id = document
+            .get("assetId")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_STORAGE_INVALID",
+                    "collection item is missing its asset id",
+                )
+            })?
+            .to_owned();
+        let ordinal = document
+            .get("ordinal")
+            .and_then(Value::as_i64)
+            .and_then(|value| usize::try_from(value).ok())
+            .ok_or_else(|| {
+                asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_STORAGE_INVALID",
+                    "collection item has an invalid ordinal",
+                )
+            })?;
+        items.push(AssetCollectionStoredItem {
+            id,
+            asset_id,
+            ordinal,
+            document,
+        });
+    }
+    if items
+        .iter()
+        .enumerate()
+        .any(|(expected, item)| item.ordinal != expected)
+        || items
+            .iter()
+            .map(|item| item.asset_id.as_str())
+            .collect::<BTreeSet<_>>()
+            .len()
+            != items.len()
+    {
+        return Err(asset_collection_error(
+            "SNAPBACK_MEDIA_COLLECTION_STORAGE_INVALID",
+            "collection storage has non-contiguous order or duplicate assets",
+        ));
+    }
+    Ok(items)
+}
+
+fn finalized_collection_asset_kind(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    plan: &AssetCollectionMutationPlanV1,
+    principal: &str,
+    asset_id: &str,
+) -> SnapbackResult<crate::contract_types::MediaKindV1> {
+    use crate::assets::{AssetAvailability, AssetRenditionState, AssetWritePath};
+    let authority = crate::assets::AssetCommitAuthority {
+        path: AssetWritePath::HostPlan,
+        principal: Some(principal),
+        admissions: &[],
+    };
+    let asset = crate::assets::verify_attachment(
+        tx,
+        &schema.app_id,
+        asset_id,
+        Some(&plan.intent),
+        None,
+        &authority,
+    )?;
+    if asset.availability != AssetAvailability::Ready {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_ASSET_NOT_FINALIZED",
+            "assets",
+            "await asset finalization before adding it to a media collection",
+        ));
+    }
+    let rendition_id = asset
+        .primary_rendition_id
+        .as_deref()
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    let rendition = crate::assets::load_rendition(tx, rendition_id)?
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    if rendition.state != AssetRenditionState::Ready {
+        return Err(crate::assets::media_projection_integrity());
+    }
+    let detected = rendition
+        .media_facts
+        .as_ref()
+        .and_then(|facts| facts.get("contentType"))
+        .and_then(Value::as_str)
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    let expected = crate::assets::media_kind_for_detected_content_type(detected);
+    let stored = asset
+        .media_kind
+        .ok_or_else(crate::assets::media_projection_integrity)?;
+    if stored != expected {
+        return Err(crate::assets::media_projection_integrity());
+    }
+    if !plan.kinds.contains(&stored) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_KIND_NOT_ADMITTED",
+            "assets",
+            "the finalized asset kind is not admitted by this media collection",
+        ));
+    }
+    Ok(stored)
+}
+
+fn media_kind_label(kind: crate::contract_types::MediaKindV1) -> &'static str {
+    match kind {
+        crate::contract_types::MediaKindV1::Image => "image",
+        crate::contract_types::MediaKindV1::Video => "video",
+        crate::contract_types::MediaKindV1::Audio => "audio",
+        crate::contract_types::MediaKindV1::File => "file",
+    }
+}
+
+fn record_asset_collection_insert(
+    tx: &Transaction<'_>,
+    table: &TableManifest,
+    plan: &AssetCollectionMutationPlanV1,
+    parent_id: &str,
+    id: &str,
+    asset_id: &str,
+    kind: crate::contract_types::MediaKindV1,
+    ordinal: usize,
+    version: u64,
+    now_ms: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
+    changes: &mut Vec<ChangedRow>,
+) -> SnapbackResult<()> {
+    let values = Map::from_iter([
+        ("parentId".to_owned(), Value::String(parent_id.to_owned())),
+        ("assetId".to_owned(), Value::String(asset_id.to_owned())),
+        (
+            "kind".to_owned(),
+            Value::String(media_kind_label(kind).to_owned()),
+        ),
+        (
+            "policyGeneration".to_owned(),
+            Value::String(plan.policy_generation.clone()),
+        ),
+        ("ordinal".to_owned(), json!(ordinal)),
+    ]);
+    let changed_fields = changed_field_names(&values);
+    let document = insert_document(tx, table, id, &values, version, now_ms, order_field_bounds)?;
+    record_change(
+        tx,
+        version,
+        &table.name,
+        id,
+        ChangeOp::Insert,
+        Some(&document),
+        now_ms,
+    )?;
+    changes.push(ChangedRow {
+        table: table.name.clone(),
+        id: id.to_owned(),
+        op: ChangeOp::Insert,
+        row: Some(document),
+        changed_fields,
+    });
+    Ok(())
+}
+
+fn record_asset_collection_ordinal(
+    tx: &Transaction<'_>,
+    table: &TableManifest,
+    id: &str,
+    ordinal: usize,
+    version: u64,
+    now_ms: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
+    changes: &mut Vec<ChangedRow>,
+) -> SnapbackResult<()> {
+    let values = Map::from_iter([("ordinal".to_owned(), json!(ordinal))]);
+    if patch_document(tx, table, id, &values, version, now_ms, order_field_bounds)? {
+        let document = get_document_from_tx(tx, table, id, version)?.ok_or_else(|| {
+            asset_collection_error(
+                "SNAPBACK_MEDIA_COLLECTION_STORAGE_INVALID",
+                "collection item disappeared while its ordinal was updated",
+            )
+        })?;
+        record_change(
+            tx,
+            version,
+            &table.name,
+            id,
+            ChangeOp::Update,
+            Some(&document),
+            now_ms,
+        )?;
+        changes.push(ChangedRow {
+            table: table.name.clone(),
+            id: id.to_owned(),
+            op: ChangeOp::Update,
+            row: Some(document),
+            changed_fields: vec!["ordinal".to_owned()],
+        });
+    }
+    Ok(())
+}
+
+fn record_asset_collection_delete(
+    tx: &Transaction<'_>,
+    table: &TableManifest,
+    item: &AssetCollectionStoredItem,
+    version: u64,
+    now_ms: u64,
+    changes: &mut Vec<ChangedRow>,
+) -> SnapbackResult<()> {
+    if delete_document(tx, table, &item.id)? {
+        record_change(
+            tx,
+            version,
+            &table.name,
+            &item.id,
+            ChangeOp::Delete,
+            None,
+            now_ms,
+        )?;
+        changes.push(ChangedRow {
+            table: table.name.clone(),
+            id: item.id.clone(),
+            op: ChangeOp::Delete,
+            row: Some(item.document.clone()),
+            changed_fields: Vec::new(),
+        });
+    }
+    Ok(())
+}
+
+#[derive(Clone)]
+// @ref LLP 0239#d4-grants-and-authority-are-declarative-at-the-command-edge —
+// selections only reconcile collection-owned grants inside the ordinary
+// mutation transaction; omission and no-change never mint ambient authority.
+struct AssetCollectionSelectedSharing {
+    name: String,
+    state: Option<crate::assets::AssetGrantState>,
+    principals: Vec<String>,
+    reconcile_targets: bool,
+}
+
+fn asset_collection_recipient_principals(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    _descriptor: &crate::manifest::AssetCollectionManifestV1,
+    entry: &crate::manifest::AssetCollectionSharingPlanManifestV1,
+    input: &HandlerInput,
+    parent_id: &str,
+    selection: Option<&Map<String, Value>>,
+) -> SnapbackResult<AssetCollectionSelectedSharing> {
+    use crate::assets::AssetGrantState;
+    use crate::manifest::{
+        AssetCollectionGrantStateV1, AssetCollectionSharingPlanV1, FilterExpr, FilterOp,
+        OrderDirection, OrderExpr, QueryPlan, ValueExpr,
+    };
+
+    let state = |state| match state {
+        AssetCollectionGrantStateV1::Active => AssetGrantState::Active,
+        AssetCollectionGrantStateV1::Pending => AssetGrantState::Pending,
+    };
+    let (grant_state, max_recipients, principals, reconcile_targets) = match &entry.plan {
+        AssetCollectionSharingPlanV1::None => {
+            if selection.is_some_and(|selection| selection.len() != 1) {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                    "a no-change sharing selection contains only the plan name",
+                ));
+            }
+            (None, 0, Vec::new(), false)
+        }
+        AssetCollectionSharingPlanV1::OwnerOnly => {
+            if selection.is_some_and(|selection| selection.len() != 1) {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                    "an owner-only sharing selection contains only the plan name",
+                ));
+            }
+            (None, 0, Vec::new(), true)
+        }
+        AssetCollectionSharingPlanV1::Recipients {
+            state: declared_state,
+            max_recipients,
+        } => {
+            let selection = selection.ok_or_else(|| {
+                asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                    "a direct-recipient sharing plan cannot be selected by omission",
+                )
+            })?;
+            if selection.len() != 2 {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                    "a direct-recipient sharing selection contains exactly plan and principals",
+                ));
+            }
+            let values = selection
+                .get("principals")
+                .and_then(Value::as_array)
+                .ok_or_else(|| {
+                    asset_collection_error(
+                        "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                        "a direct-recipient sharing selection requires a principals array",
+                    )
+                })?;
+            if values.is_empty() || values.len() > usize::from(*max_recipients) {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                    "the direct recipient list is empty or exceeds its declared bound",
+                ));
+            }
+            let principals = values
+                .iter()
+                .map(|value| {
+                    value
+                        .as_str()
+                        .filter(|principal| {
+                            !principal.trim().is_empty() && principal.len() <= 512
+                        })
+                        .map(str::to_owned)
+                        .ok_or_else(|| {
+                            asset_collection_error(
+                                "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                                "recipient principals must be non-empty strings of at most 512 bytes",
+                            )
+                        })
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            (
+                Some(state(*declared_state)),
+                *max_recipients,
+                principals,
+                true,
+            )
+        }
+        AssetCollectionSharingPlanV1::Derived {
+            state: declared_state,
+            max_recipients,
+            table,
+            parent_field,
+            principal_field,
+            ..
+        } => {
+            if selection.is_some_and(|selection| selection.len() != 1) {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                    "a derived sharing selection contains only its plan name",
+                ));
+            }
+            let source = schema.table(table).ok_or_else(|| {
+                asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID",
+                    "the sharing derivation source table is unavailable",
+                )
+            })?;
+            let query = QueryPlan {
+                table: table.clone(),
+                table_visibility: source.visibility.clone(),
+                filters: vec![FilterExpr {
+                    field: parent_field.clone(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Arg("parentId".to_owned()),
+                }],
+                membership_filters: Vec::new(),
+                order: vec![OrderExpr {
+                    field: principal_field.clone(),
+                    direction: OrderDirection::Asc,
+                    max_encoded_bytes: None,
+                }],
+                limit: Some(usize::from(*max_recipients) + 1),
+                indexed_by: None,
+            };
+            let mut derivation_input = input.clone();
+            derivation_input.args = json!({ "parentId": parent_id });
+            let rows = query_on(tx, schema, &query, &derivation_input)?.rows;
+            if rows.len() > usize::from(*max_recipients) {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID",
+                    "the generated recipient derivation exceeds its declared bound",
+                ));
+            }
+            let principals = rows
+                .iter()
+                .map(|row| {
+                    row.get(principal_field)
+                        .and_then(Value::as_str)
+                        .filter(|principal| !principal.trim().is_empty() && principal.len() <= 512)
+                        .map(str::to_owned)
+                        .ok_or_else(|| {
+                            asset_collection_error(
+                                "SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID",
+                                "the generated recipient derivation returned an invalid principal",
+                            )
+                        })
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            (
+                Some(state(*declared_state)),
+                *max_recipients,
+                principals,
+                true,
+            )
+        }
+        AssetCollectionSharingPlanV1::InheritCommand => {
+            return Err(asset_collection_error(
+                "SNAPBACK_MEDIA_COLLECTION_COMMAND_BINDING_REQUIRED",
+                "inherit-command sharing requires the exact versioned media-command binding that Phase B installs",
+            ));
+        }
+    };
+    if principals.iter().collect::<BTreeSet<_>>().len() != principals.len()
+        || principals.len() > usize::from(max_recipients)
+    {
+        return Err(asset_collection_error(
+            if matches!(
+                entry.plan,
+                crate::manifest::AssetCollectionSharingPlanV1::Derived { .. }
+            ) {
+                "SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID"
+            } else {
+                "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID"
+            },
+            "the selected sharing plan produced duplicate or over-bound recipients",
+        ));
+    }
+    Ok(AssetCollectionSelectedSharing {
+        name: entry.name.clone(),
+        state: grant_state,
+        principals,
+        reconcile_targets,
+    })
+}
+
+fn select_asset_collection_sharing(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    descriptor: &crate::manifest::AssetCollectionManifestV1,
+    plan: &AssetCollectionMutationPlanV1,
+    input: &HandlerInput,
+    args: &Map<String, Value>,
+    parent_id: &str,
+) -> SnapbackResult<Option<AssetCollectionSelectedSharing>> {
+    let Some(sharing_arg) = plan.sharing_arg.as_deref() else {
+        return Ok(None);
+    };
+    let selection = match args.get(sharing_arg) {
+        None => None,
+        Some(Value::Object(selection)) => Some(selection),
+        Some(_) => {
+            return Err(asset_collection_error(
+                "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                "sharing must be an exact generated selection object",
+            ));
+        }
+    };
+    let selected_name = match selection {
+        Some(selection) => selection
+            .get("plan")
+            .and_then(Value::as_str)
+            .ok_or_else(|| {
+                asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+                    "an explicit sharing selection requires a string plan name",
+                )
+            })?,
+        None => descriptor.sharing.default_plan.as_str(),
+    };
+    let entry = descriptor
+        .sharing
+        .ceiling
+        .iter()
+        .find(|entry| entry.name == selected_name)
+        .ok_or_else(|| {
+            asset_collection_error(
+                "SNAPBACK_MEDIA_COLLECTION_SHARING_OUTSIDE_CEILING",
+                "the selected sharing plan is outside the collection ceiling",
+            )
+        })?;
+    asset_collection_recipient_principals(
+        tx, schema, descriptor, entry, input, parent_id, selection,
+    )
+    .map(Some)
+}
+
+fn asset_collection_grant_id(
+    generation: &str,
+    item_id: &str,
+    plan_name: &str,
+    principal: &str,
+    state: crate::assets::AssetGrantState,
+) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback:asset-collection-grant-id:v1\n");
+    for part in [
+        generation,
+        item_id,
+        plan_name,
+        principal,
+        match state {
+            crate::assets::AssetGrantState::Active => "active",
+            crate::assets::AssetGrantState::Pending => "pending",
+        },
+    ] {
+        digest.update((part.len() as u64).to_be_bytes());
+        digest.update(part.as_bytes());
+    }
+    let bytes = digest.finalize();
+    let mut body = [0_u8; 16];
+    body.copy_from_slice(&bytes[..16]);
+    format!("agr_{}", crate::ids::encode_body(&body))
+}
+
+fn reconcile_asset_collection_sharing(
+    tx: &Transaction<'_>,
+    plan: &AssetCollectionMutationPlanV1,
+    identity: &ClientMutationIdentity,
+    current: &[AssetCollectionStoredItem],
+    final_items: &[AssetCollectionStoredItem],
+    selected: Option<&AssetCollectionSelectedSharing>,
+    principal: &str,
+    now_ms: u64,
+) -> SnapbackResult<BTreeSet<String>> {
+    use crate::assets::BufferedAssetGrantOp;
+
+    if matches!(plan.operation, AssetCollectionOperationV1::Reorder) {
+        return Ok(BTreeSet::new());
+    }
+    let final_ids = final_items
+        .iter()
+        .map(|item| item.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let removed = current
+        .iter()
+        .filter(|item| !final_ids.contains(item.id.as_str()))
+        .collect::<Vec<_>>();
+    let targets = match plan.operation {
+        AssetCollectionOperationV1::Append => final_items
+            .iter()
+            .filter(|item| !current.iter().any(|prior| prior.id == item.id))
+            .collect::<Vec<_>>(),
+        AssetCollectionOperationV1::Replace => final_items.iter().collect::<Vec<_>>(),
+        AssetCollectionOperationV1::Remove | AssetCollectionOperationV1::Reorder => Vec::new(),
+    };
+    let reconciled_targets = selected
+        .filter(|selected| selected.reconcile_targets)
+        .map_or(&[][..], |_| targets.as_slice());
+    let scope_ids = removed
+        .iter()
+        .chain(reconciled_targets.iter())
+        .map(|item| item.id.clone())
+        .collect::<BTreeSet<_>>();
+    if scope_ids.is_empty() {
+        return Ok(BTreeSet::new());
+    }
+    let existing = asset_grants::collection_managed_grants(tx, &plan.generation, &scope_ids)?;
+    let mut desired = BTreeMap::new();
+    if let Some(selected) = selected
+        && let Some(state) = selected.state
+    {
+        for item in reconciled_targets {
+            for recipient in &selected.principals {
+                let grant_id = asset_collection_grant_id(
+                    &plan.generation,
+                    &item.id,
+                    &selected.name,
+                    recipient,
+                    state,
+                );
+                desired.insert(
+                    grant_id,
+                    (
+                        item.asset_id.clone(),
+                        item.id.clone(),
+                        recipient.clone(),
+                        state,
+                    ),
+                );
+            }
+        }
+    }
+    let existing_by_id = existing
+        .iter()
+        .map(|grant| (grant.grant_id.clone(), grant))
+        .collect::<BTreeMap<_, _>>();
+    let mut ops = Vec::new();
+    for grant in &existing {
+        let keep = desired
+            .get(&grant.grant_id)
+            .is_some_and(|(asset_id, _, recipient, state)| {
+                grant.asset_id == *asset_id
+                    && grant.principal == *recipient
+                    && grant.state == *state
+            });
+        if !keep {
+            ops.push(BufferedAssetGrantOp::Revoke {
+                grant_id: grant.grant_id.clone(),
+                at_ms: now_ms,
+            });
+        }
+    }
+    for (grant_id, (asset_id, item_id, recipient, state)) in desired {
+        let present = existing_by_id.get(&grant_id).is_some_and(|grant| {
+            grant.asset_id == asset_id && grant.principal == recipient && grant.state == state
+        });
+        if !present {
+            ops.push(BufferedAssetGrantOp::Grant {
+                grant_id,
+                asset_id,
+                principal: recipient,
+                state,
+                mutation: format!(
+                    "asset-collection.v1|{}|{}|{}|{}",
+                    plan.generation,
+                    item_id,
+                    selected.map_or("none", |selected| selected.name.as_str()),
+                    identity.function,
+                ),
+                at_ms: now_ms,
+            });
+        }
+    }
+    if ops.is_empty() {
+        Ok(BTreeSet::new())
+    } else {
+        asset_grants::apply_in_tx(tx, principal, &ops)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_asset_collection_step<Check>(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    plan: &AssetCollectionMutationPlanV1,
+    input: &HandlerInput,
+    identity: Option<&ClientMutationIdentity>,
+    next_version: u64,
+    now_ms: u64,
+    order_field_bounds: &BTreeMap<(String, String), u64>,
+    plan_ids: &RefCell<PlanIdSource<'_>>,
+    changes: &mut Vec<ChangedRow>,
+    check_live: &Check,
+) -> SnapbackResult<(Value, BTreeSet<String>)>
+where
+    Check: Fn() -> SnapbackResult<()>,
+{
+    let descriptor = collection_descriptor_for_plan(schema, plan)?;
+    let identity = identity.ok_or_else(|| {
+        asset_collection_error(
+            "SNAPBACK_MEDIA_COLLECTION_MUTATION_ATTEMPT_REQUIRED",
+            "collection mutations require a replay-stable client mutation identity",
+        )
+    })?;
+    let principal = input.auth.user_id.as_deref().ok_or_else(|| {
+        asset_collection_error(
+            "SNAPBACK_MEDIA_COLLECTION_PARENT_FORBIDDEN",
+            "collection mutation requires an authenticated user",
+        )
+    })?;
+    let args = input.args.as_object().ok_or_else(|| {
+        asset_collection_error(
+            "SNAPBACK_MEDIA_COLLECTION_ARGUMENT_INVALID",
+            "collection mutation arguments must be an object",
+        )
+    })?;
+    let parent_id = args
+        .get(&plan.parent_id_arg)
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            asset_collection_error(
+                "SNAPBACK_MEDIA_COLLECTION_ARGUMENT_INVALID",
+                "collection mutation requires a parentId string",
+            )
+        })?;
+    let owner_table = schema_table(schema, &plan.owner_table)?;
+    let parent =
+        get_document_from_tx(tx, owner_table, parent_id, next_version)?.ok_or_else(|| {
+            asset_collection_error(
+                "SNAPBACK_MEDIA_COLLECTION_PARENT_UNAVAILABLE",
+                "collection parent is missing or inactive",
+            )
+        })?;
+    if parent.get(&plan.owner_field).and_then(Value::as_str) != Some(principal) {
+        return Err(asset_collection_error(
+            "SNAPBACK_MEDIA_COLLECTION_PARENT_FORBIDDEN",
+            "caller does not own the collection parent at commit time",
+        ));
+    }
+    let child_table = schema_table(schema, &plan.child_table)?;
+    let current =
+        load_asset_collection_items(tx, child_table, &plan.owner_table, parent_id, next_version)?;
+    if current.len() > usize::from(descriptor.max_items) {
+        return Err(asset_collection_error(
+            "SNAPBACK_MEDIA_COLLECTION_STORAGE_INVALID",
+            "stored collection exceeds its declared maximum",
+        ));
+    }
+    let selected_sharing =
+        select_asset_collection_sharing(tx, schema, descriptor, plan, input, args, parent_id)?;
+    let input_items = args
+        .get(&plan.items_arg)
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            asset_collection_error(
+                "SNAPBACK_MEDIA_COLLECTION_ARGUMENT_INVALID",
+                format!("collection mutation requires an {} array", plan.items_arg),
+            )
+        })?;
+    let requested = input_items
+        .iter()
+        .map(|value| {
+            value.as_str().map(str::to_owned).ok_or_else(|| {
+                asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_ARGUMENT_INVALID",
+                    format!("{} entries must be strings", plan.items_arg),
+                )
+            })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    if requested.len() > usize::from(plan.max_items) {
+        return Err(asset_collection_error(
+            "SNAPBACK_MEDIA_COLLECTION_LIMIT_EXCEEDED",
+            "collection mutation exceeds its declared item maximum",
+        ));
+    }
+    if requested.iter().collect::<BTreeSet<_>>().len() != requested.len() {
+        let code = match plan.operation {
+            AssetCollectionOperationV1::Append | AssetCollectionOperationV1::Replace => {
+                "SNAPBACK_MEDIA_COLLECTION_DUPLICATE_ASSET"
+            }
+            AssetCollectionOperationV1::Remove | AssetCollectionOperationV1::Reorder => {
+                "SNAPBACK_MEDIA_COLLECTION_DUPLICATE_ITEM"
+            }
+        };
+        return Err(asset_collection_error(
+            code,
+            "collection mutation contains a duplicate identifier",
+        ));
+    }
+    let attempt_digest = identity.activity_digest();
+    let mut final_ids = Vec::new();
+    match plan.operation {
+        AssetCollectionOperationV1::Append => {
+            if current.len() + requested.len() > usize::from(plan.max_items) {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_LIMIT_EXCEEDED",
+                    "append would exceed the collection maximum",
+                ));
+            }
+            let existing = current
+                .iter()
+                .map(|item| item.asset_id.as_str())
+                .collect::<BTreeSet<_>>();
+            if requested
+                .iter()
+                .any(|asset| existing.contains(asset.as_str()))
+            {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_DUPLICATE_ASSET",
+                    "append names an asset already attached to this collection",
+                ));
+            }
+            final_ids.extend(current.iter().map(|item| item.id.clone()));
+            for (input_ordinal, asset_id) in requested.iter().enumerate() {
+                check_live()?;
+                let kind = finalized_collection_asset_kind(tx, schema, plan, principal, asset_id)?;
+                let site = format!(
+                    "asset-collection/{}/append/{input_ordinal}",
+                    plan.collection
+                );
+                let id = asset_collection_attempt_item_id(
+                    &plan.child_table,
+                    &plan.generation,
+                    &attempt_digest,
+                    input_ordinal,
+                );
+                let id = plan_ids.borrow_mut().record_deterministic(&site, id)?;
+                record_asset_collection_insert(
+                    tx,
+                    child_table,
+                    plan,
+                    parent_id,
+                    &id,
+                    asset_id,
+                    kind,
+                    current.len() + input_ordinal,
+                    next_version,
+                    now_ms,
+                    order_field_bounds,
+                    changes,
+                )?;
+                final_ids.push(id);
+            }
+        }
+        AssetCollectionOperationV1::Replace => {
+            let by_asset = current
+                .iter()
+                .map(|item| (item.asset_id.as_str(), item))
+                .collect::<BTreeMap<_, _>>();
+            let retained = requested
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>();
+            for item in current
+                .iter()
+                .filter(|item| !retained.contains(item.asset_id.as_str()))
+            {
+                check_live()?;
+                record_asset_collection_delete(
+                    tx,
+                    child_table,
+                    item,
+                    next_version,
+                    now_ms,
+                    changes,
+                )?;
+            }
+            // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation —
+            // created order is immutable: retained rows keep their relative
+            // creation order and replacement-new rows follow in input order.
+            let ordered = if plan.order == "created" {
+                current
+                    .iter()
+                    .filter(|item| retained.contains(item.asset_id.as_str()))
+                    .map(|item| {
+                        let input_ordinal = requested
+                            .iter()
+                            .position(|asset| asset == &item.asset_id)
+                            .expect("retained asset occurs in replacement input");
+                        (item.asset_id.as_str(), input_ordinal)
+                    })
+                    .chain(
+                        requested
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, asset)| !by_asset.contains_key(asset.as_str()))
+                            .map(|(input_ordinal, asset)| (asset.as_str(), input_ordinal)),
+                    )
+                    .collect::<Vec<_>>()
+            } else {
+                requested
+                    .iter()
+                    .enumerate()
+                    .map(|(input_ordinal, asset)| (asset.as_str(), input_ordinal))
+                    .collect::<Vec<_>>()
+            };
+            for (final_ordinal, (asset_id, input_ordinal)) in ordered.into_iter().enumerate() {
+                check_live()?;
+                if let Some(item) = by_asset.get(asset_id) {
+                    record_asset_collection_ordinal(
+                        tx,
+                        child_table,
+                        &item.id,
+                        final_ordinal,
+                        next_version,
+                        now_ms,
+                        order_field_bounds,
+                        changes,
+                    )?;
+                    final_ids.push(item.id.clone());
+                } else {
+                    let kind =
+                        finalized_collection_asset_kind(tx, schema, plan, principal, asset_id)?;
+                    let site = format!(
+                        "asset-collection/{}/replace/{input_ordinal}",
+                        plan.collection
+                    );
+                    let id = asset_collection_attempt_item_id(
+                        &plan.child_table,
+                        &plan.generation,
+                        &attempt_digest,
+                        input_ordinal,
+                    );
+                    let id = plan_ids.borrow_mut().record_deterministic(&site, id)?;
+                    record_asset_collection_insert(
+                        tx,
+                        child_table,
+                        plan,
+                        parent_id,
+                        &id,
+                        asset_id,
+                        kind,
+                        final_ordinal,
+                        next_version,
+                        now_ms,
+                        order_field_bounds,
+                        changes,
+                    )?;
+                    final_ids.push(id);
+                }
+            }
+        }
+        AssetCollectionOperationV1::Remove => {
+            let requested = requested
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>();
+            let known = current
+                .iter()
+                .map(|item| item.id.as_str())
+                .collect::<BTreeSet<_>>();
+            if !requested.is_subset(&known) {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_ITEM_UNKNOWN",
+                    "remove names an item outside the current collection generation",
+                ));
+            }
+            for item in current
+                .iter()
+                .filter(|item| requested.contains(item.id.as_str()))
+            {
+                check_live()?;
+                record_asset_collection_delete(
+                    tx,
+                    child_table,
+                    item,
+                    next_version,
+                    now_ms,
+                    changes,
+                )?;
+            }
+            for (ordinal, item) in current
+                .iter()
+                .filter(|item| !requested.contains(item.id.as_str()))
+                .enumerate()
+            {
+                record_asset_collection_ordinal(
+                    tx,
+                    child_table,
+                    &item.id,
+                    ordinal,
+                    next_version,
+                    now_ms,
+                    order_field_bounds,
+                    changes,
+                )?;
+                final_ids.push(item.id.clone());
+            }
+        }
+        AssetCollectionOperationV1::Reorder => {
+            if plan.order == "created" {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_CREATED_ORDER_REORDER_REFUSED",
+                    "created-order collections do not admit reorder; declare order: \"manual\" for caller-controlled ordering",
+                ));
+            }
+            let current_ids = current
+                .iter()
+                .map(|item| item.id.as_str())
+                .collect::<BTreeSet<_>>();
+            let requested_ids = requested
+                .iter()
+                .map(String::as_str)
+                .collect::<BTreeSet<_>>();
+            if requested.len() != current.len() || requested_ids != current_ids {
+                return Err(asset_collection_error(
+                    "SNAPBACK_MEDIA_COLLECTION_REORDER_INVALID",
+                    "reorder must be an exact permutation of current stable item ids",
+                ));
+            }
+            let by_id = current
+                .iter()
+                .map(|item| (item.id.as_str(), item))
+                .collect::<BTreeMap<_, _>>();
+            for (ordinal, id) in requested.iter().enumerate() {
+                record_asset_collection_ordinal(
+                    tx,
+                    child_table,
+                    &by_id[id.as_str()].id,
+                    ordinal,
+                    next_version,
+                    now_ms,
+                    order_field_bounds,
+                    changes,
+                )?;
+                final_ids.push(id.clone());
+            }
+        }
+    }
+    let final_items =
+        load_asset_collection_items(tx, child_table, &plan.owner_table, parent_id, next_version)?;
+    let asset_changes = reconcile_asset_collection_sharing(
+        tx,
+        plan,
+        identity,
+        &current,
+        &final_items,
+        selected_sharing.as_ref(),
+        principal,
+        now_ms,
+    )?;
+    Ok((
+        json!({ "parentId": parent_id, "itemIds": final_ids }),
+        asset_changes,
+    ))
+}
+
 #[derive(Clone, Debug)]
 struct SettlementMediaContextV1 {
     result_contract_hash: String,
@@ -15857,7 +17194,13 @@ fn type_error(expected: &str, value: &Value) -> SnapbackError {
 }
 
 fn schema_table<'a>(schema: &'a SchemaManifest, table: &str) -> SnapbackResult<&'a TableManifest> {
-    validate_user_identifier("table", table)?;
+    if !schema
+        .asset_collections
+        .iter()
+        .any(|collection| collection.child_table == table)
+    {
+        validate_user_identifier("table", table)?;
+    }
     schema.table(table).ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_UNKNOWN_TABLE",
@@ -16098,6 +17441,45 @@ impl<'a> PlanIdSource<'a> {
                 None => new_id(),
             },
         };
+        self.cursor += 1;
+        self.generated.push(id.clone());
+        let occurrence = self.occurrences.entry(site.to_owned()).or_default();
+        self.observations.push(SettlementMintObservation {
+            id: id.clone(),
+            site: site.to_owned(),
+            occurrence: *occurrence,
+        });
+        *occurrence += 1;
+        Ok(id)
+    }
+
+    /// Record a D2 id derived from mutation-attempt identity rather than from
+    /// wall time. Replay must carry the identical answer at the same site.
+    /// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+    fn record_deterministic(&mut self, site: &str, id: String) -> SnapbackResult<String> {
+        if self.generated.len() >= CTX_ANSWER_LEDGER_MAX_IDS {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
+                "runtime",
+                "mutation requested too many host-generated ids",
+            ));
+        }
+        if let Some(ledger) = self.replay {
+            let replayed = ledger.ids.get(self.cursor).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_CTX_LEDGER_EXHAUSTED",
+                    "runtime",
+                    "replay omitted a deterministic collection item id",
+                )
+            })?;
+            if replayed != &id {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CTX_LEDGER_DIVERGED",
+                    "runtime",
+                    "replayed collection item id differs from the mutation-attempt derivation",
+                ));
+            }
+        }
         self.cursor += 1;
         self.generated.push(id.clone());
         let occurrence = self.occurrences.entry(site.to_owned()).or_default();

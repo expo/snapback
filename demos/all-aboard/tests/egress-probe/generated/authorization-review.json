@@ -4,7 +4,7 @@
   "authorityProfiles": [],
   "authorizationTables": [],
   "fieldPolicies": [],
-  "inputsHash": "aa693011aea60c7e1dcef27fbe611177f7f98e0571a997b5ef098470017c2874",
+  "inputsHash": "2b1da745108c38aa4fe50fcea2689d02c45451345eb785830b349aa4f6d4bc2b",
   "operations": [
     {
       "authRequirement": {

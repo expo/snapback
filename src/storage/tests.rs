@@ -18017,3 +18017,1485 @@ mod media_ref_projection_acceptance_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod media_collection_acceptance_tests {
+    use super::*;
+    use crate::contract_types::{MediaFieldDescriptorV1, MediaKindV1};
+    use crate::manifest::{
+        AssetCollectionFieldsManifestV1, AssetCollectionGrantStateV1, AssetCollectionManifestV1,
+        AssetCollectionOperationsManifestV1, AssetCollectionOrderV1,
+        AssetCollectionSharingManifestV1, AssetCollectionSharingPlanManifestV1,
+        AssetCollectionSharingPlanV1, IndexManifest, TableVisibilityV1,
+    };
+
+    const CHILD: &str = "_snapback_asset_collection_gallery";
+    const GENERATION: &str =
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    fn field(name: &str, field_type: FieldType) -> FieldManifest {
+        FieldManifest {
+            name: name.to_owned(),
+            field_type,
+            optional: false,
+        }
+    }
+
+    fn collection_schema() -> SchemaManifest {
+        let owner = TableManifest {
+            name: "posts".to_owned(),
+            fields: vec![field("ownerId", FieldType::Principal)],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
+            history: None,
+        };
+        let media = MediaFieldDescriptorV1 {
+            intent: "collectionUpload".to_owned(),
+            policy: GENERATION.to_owned(),
+            kinds: vec![MediaKindV1::Image],
+            delivery: None,
+            variants: Vec::new(),
+            classification_profile: "detected-content-type.v1".to_owned(),
+            retention_class: "media-reference.v1".to_owned(),
+            target_capability: "assets.media-ref-projection.v1".to_owned(),
+        };
+        let child = TableManifest {
+            name: CHILD.to_owned(),
+            fields: vec![
+                field(
+                    "parentId",
+                    FieldType::Id {
+                        table: "posts".to_owned(),
+                    },
+                ),
+                field(
+                    "parentIncarnation",
+                    FieldType::RelationIncarnation {
+                        foreign_key_field: "parentId".to_owned(),
+                        parent_table: "posts".to_owned(),
+                    },
+                ),
+                field(
+                    "assetId",
+                    FieldType::AssetRef {
+                        upload: Some("collectionUpload".to_owned()),
+                        media: Some(media),
+                    },
+                ),
+                field("kind", FieldType::String),
+                field("policyGeneration", FieldType::String),
+                field("ordinal", FieldType::Integer),
+            ],
+            indexes: vec![
+                IndexManifest {
+                    name: "byParentOrdinal".to_owned(),
+                    fields: vec![
+                        "parentId".to_owned(),
+                        "parentIncarnation".to_owned(),
+                        "ordinal".to_owned(),
+                    ],
+                    unique: false,
+                    where_applicable: false,
+                },
+                IndexManifest {
+                    name: "uniqueParentAsset".to_owned(),
+                    fields: vec![
+                        "parentId".to_owned(),
+                        "parentIncarnation".to_owned(),
+                        "assetId".to_owned(),
+                    ],
+                    unique: true,
+                    where_applicable: false,
+                },
+            ],
+            syncable: false,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: None,
+            history: None,
+        };
+        SchemaManifest {
+            app_id: "collection-test".to_owned(),
+            required_capabilities: vec![
+                "assets.media-collection.v1".to_owned(),
+                "assets.media-ref-projection.v1".to_owned(),
+            ],
+            asset_collections: vec![AssetCollectionManifestV1 {
+                format: "snapback.asset-collection.v1".to_owned(),
+                name: "gallery".to_owned(),
+                generation: GENERATION.to_owned(),
+                owner_table: "posts".to_owned(),
+                owner_field: "ownerId".to_owned(),
+                intent: "collectionUpload".to_owned(),
+                max_items: 3,
+                order: AssetCollectionOrderV1::Manual,
+                kinds: vec![MediaKindV1::Image],
+                duplicate_policy: "refuse.v1".to_owned(),
+                sharing: AssetCollectionSharingManifestV1 {
+                    format: "snapback.asset-collection-sharing.v1".to_owned(),
+                    ceiling: vec![AssetCollectionSharingPlanManifestV1 {
+                        name: "none".to_owned(),
+                        plan: AssetCollectionSharingPlanV1::None,
+                    }],
+                    default_plan: "none".to_owned(),
+                },
+                child_table: CHILD.to_owned(),
+                fields: AssetCollectionFieldsManifestV1 {
+                    parent_id: "parentId".to_owned(),
+                    parent_incarnation: "parentIncarnation".to_owned(),
+                    asset_id: "assetId".to_owned(),
+                    kind: "kind".to_owned(),
+                    policy_generation: "policyGeneration".to_owned(),
+                    ordinal: "ordinal".to_owned(),
+                },
+                operations: AssetCollectionOperationsManifestV1 {
+                    query: "galleryList".to_owned(),
+                    append: "galleryAppend".to_owned(),
+                    replace: "galleryReplace".to_owned(),
+                    remove: "galleryRemove".to_owned(),
+                    reorder: Some("galleryReorder".to_owned()),
+                },
+            }],
+            tables: vec![owner, child],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn sharing_schema() -> SchemaManifest {
+        let mut schema = collection_schema();
+        schema.tables.push(TableManifest {
+            name: "postRecipients".to_owned(),
+            fields: vec![
+                field("ownerId", FieldType::Principal),
+                field(
+                    "postId",
+                    FieldType::Id {
+                        table: "posts".to_owned(),
+                    },
+                ),
+                field("recipientId", FieldType::Principal),
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
+            search_live_limits: None,
+            membership: None,
+            authority_profile: None,
+            asset_sharing: None,
+            visibility: Some(TableVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            }),
+            history: None,
+        });
+        schema.asset_collections[0].sharing = AssetCollectionSharingManifestV1 {
+            format: "snapback.asset-collection-sharing.v1".to_owned(),
+            ceiling: vec![
+                AssetCollectionSharingPlanManifestV1 {
+                    name: "none".to_owned(),
+                    plan: AssetCollectionSharingPlanV1::None,
+                },
+                AssetCollectionSharingPlanManifestV1 {
+                    name: "owner".to_owned(),
+                    plan: AssetCollectionSharingPlanV1::OwnerOnly,
+                },
+                AssetCollectionSharingPlanManifestV1 {
+                    name: "directActive".to_owned(),
+                    plan: AssetCollectionSharingPlanV1::Recipients {
+                        state: AssetCollectionGrantStateV1::Active,
+                        max_recipients: 2,
+                    },
+                },
+                AssetCollectionSharingPlanManifestV1 {
+                    name: "directPending".to_owned(),
+                    plan: AssetCollectionSharingPlanV1::Recipients {
+                        state: AssetCollectionGrantStateV1::Pending,
+                        max_recipients: 2,
+                    },
+                },
+                AssetCollectionSharingPlanManifestV1 {
+                    name: "derivedPending".to_owned(),
+                    plan: AssetCollectionSharingPlanV1::Derived {
+                        state: AssetCollectionGrantStateV1::Pending,
+                        max_recipients: 2,
+                        function: "galleryRecipients".to_owned(),
+                        table: "postRecipients".to_owned(),
+                        parent_field: "postId".to_owned(),
+                        principal_field: "recipientId".to_owned(),
+                    },
+                },
+                AssetCollectionSharingPlanManifestV1 {
+                    name: "command".to_owned(),
+                    plan: AssetCollectionSharingPlanV1::InheritCommand,
+                },
+            ],
+            default_plan: "none".to_owned(),
+        };
+        schema
+    }
+
+    fn database(owner: &str) -> LocalDatabase {
+        database_with_schema(owner, collection_schema())
+    }
+
+    fn database_with_schema(owner: &str, schema: SchemaManifest) -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.schema_seed()
+            .apply_schema(schema)
+            .expect("apply collection schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "posts".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("post-1")),
+                        ("ownerId".to_owned(), json!(owner)),
+                    ])],
+                )]),
+            })
+            .expect("seed collection parent");
+        db
+    }
+
+    fn install_asset(
+        db: &mut LocalDatabase,
+        asset_id: &str,
+        owner: &str,
+        availability: crate::assets::AssetAvailability,
+        kind: MediaKindV1,
+    ) {
+        install_asset_with_grants(db, asset_id, owner, availability, kind, false);
+    }
+
+    fn install_asset_with_grants(
+        db: &mut LocalDatabase,
+        asset_id: &str,
+        owner: &str,
+        availability: crate::assets::AssetAvailability,
+        kind: MediaKindV1,
+        grants_enabled: bool,
+    ) {
+        use sha2::Digest as _;
+        let ready = availability == crate::assets::AssetAvailability::Ready;
+        let content_type = match kind {
+            MediaKindV1::Image => "image/png",
+            MediaKindV1::Video => "video/mp4",
+            MediaKindV1::Audio => "audio/mpeg",
+            MediaKindV1::File => "application/octet-stream",
+        };
+        let tx = db.conn.transaction().expect("asset fixture transaction");
+        crate::assets::insert_asset(
+            &tx,
+            &crate::assets::AssetRecordV1 {
+                asset_id: asset_id.to_owned(),
+                app_id: "collection-test".to_owned(),
+                intent_id: format!("collection-test:collectionUpload"),
+                intent_name: "collectionUpload".to_owned(),
+                intent_policy_hash: "sha256:collection-policy".to_owned(),
+                policy_generation: 0,
+                owner_principal: owner.to_owned(),
+                delivery_profile: crate::assets::AssetDeliveryProfile::PrivateStrict,
+                read_access: crate::assets::AssetReadAccessPolicy::ViaReferences,
+                grants_enabled,
+                availability,
+                primary_rendition_id: ready.then(|| format!("rendition-{asset_id}")),
+                media_kind: ready.then_some(kind),
+                lifecycle_generation: u64::from(ready),
+                created_at_ms: 1,
+                updated_at_ms: 1,
+                deleted_at_ms: None,
+            },
+        )
+        .expect("insert fixture asset");
+        if ready {
+            let digest = format!("{:x}", sha2::Sha256::digest(asset_id.as_bytes()));
+            crate::assets::insert_blob(
+                &tx,
+                &crate::assets::AssetBlobRecordV1 {
+                    blob_id: format!("blob-{asset_id}"),
+                    app_id: "collection-test".to_owned(),
+                    store: "local-fs".to_owned(),
+                    physical_key: format!("source-{asset_id}"),
+                    byte_length: 1,
+                    detected_content_type: content_type.to_owned(),
+                    digest_algorithm: crate::assets::ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
+                    digest,
+                    canonicalization_policy: crate::assets::ASSET_CANONICALIZATION_NONE.to_owned(),
+                    created_at_ms: 1,
+                },
+                1,
+            )
+            .expect("insert fixture blob");
+            crate::assets::insert_rendition(
+                &tx,
+                &crate::assets::AssetRenditionRecordV1 {
+                    rendition_id: format!("rendition-{asset_id}"),
+                    asset_id: asset_id.to_owned(),
+                    variant_key: crate::assets::ASSET_RENDITION_PRIMARY.to_owned(),
+                    blob_id: format!("blob-{asset_id}"),
+                    state: crate::assets::AssetRenditionState::Ready,
+                    recipe: "identity".to_owned(),
+                    recipe_version: 1,
+                    media_facts: Some(json!({ "contentType": content_type })),
+                    created_at_ms: 1,
+                    updated_at_ms: 1,
+                    failure: None,
+                },
+            )
+            .expect("insert fixture rendition");
+        }
+        tx.commit().expect("commit asset fixture");
+    }
+
+    fn input(user: Option<&str>, key: &str, items: &[&str]) -> HandlerInput {
+        HandlerInput {
+            args: json!({ "parentId": "post-1", key: items }),
+            auth: AuthInput {
+                principal: user.map(str::to_owned),
+                user_id: user.map(str::to_owned),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn plan(operation: AssetCollectionOperationV1) -> MutationPlan {
+        let items_arg = match operation {
+            AssetCollectionOperationV1::Append | AssetCollectionOperationV1::Replace => "assetIds",
+            AssetCollectionOperationV1::Remove | AssetCollectionOperationV1::Reorder => "itemIds",
+        };
+        MutationPlan {
+            steps: vec![MutationStep::AssetCollection(
+                AssetCollectionMutationPlanV1 {
+                    collection: "gallery".to_owned(),
+                    generation: GENERATION.to_owned(),
+                    operation,
+                    owner_table: "posts".to_owned(),
+                    owner_field: "ownerId".to_owned(),
+                    child_table: CHILD.to_owned(),
+                    parent_id_arg: "parentId".to_owned(),
+                    items_arg: items_arg.to_owned(),
+                    max_items: 3,
+                    order: "manual".to_owned(),
+                    intent: "collectionUpload".to_owned(),
+                    kinds: vec![MediaKindV1::Image],
+                    duplicate_policy: "refuse.v1".to_owned(),
+                    policy_generation: GENERATION.to_owned(),
+                    sharing_arg: (!matches!(operation, AssetCollectionOperationV1::Reorder))
+                        .then(|| "sharing".to_owned()),
+                    default_sharing_plan: "none".to_owned(),
+                    sharing_derivation_tables: Vec::new(),
+                    sharing_grant_capable: false,
+                },
+            )],
+            return_value: None,
+        }
+    }
+
+    fn sharing_plan(operation: AssetCollectionOperationV1) -> MutationPlan {
+        let mut plan = plan(operation);
+        let MutationStep::AssetCollection(collection) = &mut plan.steps[0] else {
+            unreachable!()
+        };
+        collection.sharing_derivation_tables = vec!["postRecipients".to_owned()];
+        collection.sharing_grant_capable = true;
+        plan
+    }
+
+    fn input_with_sharing(user: &str, key: &str, items: &[&str], sharing: Value) -> HandlerInput {
+        HandlerInput {
+            args: json!({ "parentId": "post-1", key: items, "sharing": sharing }),
+            auth: AuthInput {
+                principal: Some(user.to_owned()),
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn execute_with_sharing(
+        db: &mut LocalDatabase,
+        operation: AssetCollectionOperationV1,
+        attempt: &str,
+        user: &str,
+        items: &[&str],
+        sharing: Value,
+    ) -> SnapbackResult<MutationCommit> {
+        let key = match operation {
+            AssetCollectionOperationV1::Append | AssetCollectionOperationV1::Replace => "assetIds",
+            AssetCollectionOperationV1::Remove | AssetCollectionOperationV1::Reorder => "itemIds",
+        };
+        let input = input_with_sharing(user, key, items, sharing);
+        let identity = ClientMutationIdentity::new(attempt, format!("gallery-{attempt}"), &input);
+        db.mutation_writes().execute_mutation_idempotent(
+            &sharing_plan(operation),
+            &input,
+            &identity,
+        )
+    }
+
+    fn seed_recipients(db: &mut LocalDatabase, rows: &[(&str, &str, &str)]) {
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "postRecipients".to_owned(),
+                    rows.iter()
+                        .map(|(id, owner, recipient)| {
+                            Map::from_iter([
+                                ("_id".to_owned(), json!(id)),
+                                ("ownerId".to_owned(), json!(owner)),
+                                ("postId".to_owned(), json!("post-1")),
+                                ("recipientId".to_owned(), json!(recipient)),
+                            ])
+                        })
+                        .collect(),
+                )]),
+            })
+            .expect("seed generated recipient derivation source");
+    }
+
+    fn asset_grants(db: &LocalDatabase) -> Vec<crate::assets::AssetGrantRecordV1> {
+        db.conn
+            .prepare("SELECT record_json FROM _snapback_asset_grants_v1 ORDER BY grant_id")
+            .expect("prepare asset grants")
+            .query_map([], |row| row.get::<_, String>(0))
+            .expect("query asset grants")
+            .map(|row| {
+                serde_json::from_str(&row.expect("asset grant json")).expect("decode asset grant")
+            })
+            .collect()
+    }
+
+    fn execute(
+        db: &mut LocalDatabase,
+        operation: AssetCollectionOperationV1,
+        attempt: &str,
+        user: &str,
+        items: &[&str],
+    ) -> MutationCommit {
+        let key = match operation {
+            AssetCollectionOperationV1::Append | AssetCollectionOperationV1::Replace => "assetIds",
+            AssetCollectionOperationV1::Remove | AssetCollectionOperationV1::Reorder => "itemIds",
+        };
+        let input = input(Some(user), key, items);
+        let identity = ClientMutationIdentity::new(attempt, format!("gallery-{attempt}"), &input);
+        db.mutation_writes()
+            .execute_mutation_idempotent(&plan(operation), &input, &identity)
+            .expect("collection mutation")
+    }
+
+    fn item_ids(commit: &MutationCommit) -> Vec<String> {
+        commit.output.result["itemIds"]
+            .as_array()
+            .expect("item ids")
+            .iter()
+            .map(|value| value.as_str().expect("item id").to_owned())
+            .collect()
+    }
+
+    #[test]
+    fn append_replace_remove_reorder_preserve_and_retire_stable_ids() {
+        let mut db = database("alice");
+        for asset_id in ["asset-a", "asset-b", "asset-c"] {
+            install_asset(
+                &mut db,
+                asset_id,
+                "alice",
+                crate::assets::AssetAvailability::Ready,
+                MediaKindV1::Image,
+            );
+        }
+        let appended = execute(
+            &mut db,
+            AssetCollectionOperationV1::Append,
+            "append-ab",
+            "alice",
+            &["asset-a", "asset-b"],
+        );
+        let original = item_ids(&appended);
+        assert_eq!(original.len(), 2);
+        let reordered = execute(
+            &mut db,
+            AssetCollectionOperationV1::Reorder,
+            "reorder-ba",
+            "alice",
+            &[&original[1], &original[0]],
+        );
+        assert_eq!(
+            item_ids(&reordered),
+            vec![original[1].clone(), original[0].clone()]
+        );
+        let replaced = execute(
+            &mut db,
+            AssetCollectionOperationV1::Replace,
+            "replace-bc",
+            "alice",
+            &["asset-b", "asset-c"],
+        );
+        let replaced_ids = item_ids(&replaced);
+        assert_eq!(replaced_ids[0], original[1], "retained asset keeps its id");
+        assert_ne!(replaced_ids[1], original[0]);
+        let removed = execute(
+            &mut db,
+            AssetCollectionOperationV1::Remove,
+            "remove-c",
+            "alice",
+            &[&replaced_ids[1]],
+        );
+        assert_eq!(item_ids(&removed), vec![original[1].clone()]);
+        let revived_content = execute(
+            &mut db,
+            AssetCollectionOperationV1::Append,
+            "append-a-again",
+            "alice",
+            &["asset-a"],
+        );
+        assert_ne!(
+            item_ids(&revived_content)[1],
+            original[0],
+            "content equality never revives a retired id"
+        );
+        let rows = db
+            .query_reads_read()
+            .query(
+                &QueryPlan {
+                    table: CHILD.to_owned(),
+                    table_visibility: None,
+                    filters: Vec::new(),
+                    membership_filters: Vec::new(),
+                    order: vec![OrderExpr {
+                        field: "ordinal".to_owned(),
+                        direction: OrderDirection::Asc,
+                        max_encoded_bytes: None,
+                    }],
+                    limit: Some(3),
+                    indexed_by: Some("byParentOrdinal".to_owned()),
+                },
+                &input(Some("alice"), "itemIds", &[]),
+            )
+            .expect("ordered collection read");
+        assert_eq!(
+            rows.rows[0]["assetId"],
+            json!({ "assetId": "asset-b", "kind": "image" })
+        );
+    }
+
+    #[test]
+    fn created_order_replace_keeps_retained_creation_order_then_appends_new_items() {
+        let mut schema = collection_schema();
+        schema.asset_collections[0].order = AssetCollectionOrderV1::Created;
+        schema.asset_collections[0].operations.reorder = None;
+        let mut db = database_with_schema("alice", schema);
+        for asset_id in ["asset-a", "asset-b", "asset-c"] {
+            install_asset(
+                &mut db,
+                asset_id,
+                "alice",
+                crate::assets::AssetAvailability::Ready,
+                MediaKindV1::Image,
+            );
+        }
+        let mut append = plan(AssetCollectionOperationV1::Append);
+        let MutationStep::AssetCollection(append_plan) = &mut append.steps[0] else {
+            unreachable!()
+        };
+        append_plan.order = "created".to_owned();
+        let append_input = input(Some("alice"), "assetIds", &["asset-a", "asset-b"]);
+        let append_identity =
+            ClientMutationIdentity::new("created-append", "galleryAppend", &append_input);
+        let appended = db
+            .mutation_writes()
+            .execute_mutation_idempotent(&append, &append_input, &append_identity)
+            .expect("created append");
+        let original = item_ids(&appended);
+
+        let mut replace = plan(AssetCollectionOperationV1::Replace);
+        let MutationStep::AssetCollection(replace_plan) = &mut replace.steps[0] else {
+            unreachable!()
+        };
+        replace_plan.order = "created".to_owned();
+        let replace_input = input(Some("alice"), "assetIds", &["asset-c", "asset-a"]);
+        let replace_identity =
+            ClientMutationIdentity::new("created-replace", "galleryReplace", &replace_input);
+        let replaced = db
+            .mutation_writes()
+            .execute_mutation_idempotent(&replace, &replace_input, &replace_identity)
+            .expect("created replace");
+        let ids = item_ids(&replaced);
+        assert_eq!(ids[0], original[0], "retained item keeps creation order");
+        assert_ne!(ids[1], original[1], "removed identity is retired");
+        let assets = db
+            .conn
+            .prepare(&format!("SELECT assetId FROM {CHILD} ORDER BY ordinal"))
+            .expect("created-order query")
+            .query_map([], |row| row.get::<_, String>(0))
+            .expect("created-order rows")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("created-order assets");
+        assert_eq!(assets, ["asset-a", "asset-c"]);
+    }
+
+    #[test]
+    fn retry_is_exact_and_refusals_are_atomic_and_stable() {
+        let mut db = database("alice");
+        install_asset(
+            &mut db,
+            "asset-a",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+        );
+        install_asset(
+            &mut db,
+            "asset-pending",
+            "alice",
+            crate::assets::AssetAvailability::Pending,
+            MediaKindV1::Image,
+        );
+        install_asset(
+            &mut db,
+            "asset-video",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Video,
+        );
+        let append_input = input(Some("alice"), "assetIds", &["asset-a"]);
+        let identity = ClientMutationIdentity::new("same-attempt", "galleryAppend", &append_input);
+        let first = db
+            .mutation_writes()
+            .execute_mutation_idempotent(
+                &plan(AssetCollectionOperationV1::Append),
+                &append_input,
+                &identity,
+            )
+            .expect("first append");
+        let replay = db
+            .mutation_writes()
+            .execute_mutation_idempotent(
+                &plan(AssetCollectionOperationV1::Append),
+                &append_input,
+                &identity,
+            )
+            .expect("retry append");
+        assert_eq!(replay.output, first.output);
+        assert!(replay.changes.is_empty());
+
+        let cases = [
+            (
+                input(Some("alice"), "assetIds", &["asset-a"]),
+                "SNAPBACK_MEDIA_COLLECTION_DUPLICATE_ASSET",
+            ),
+            (
+                input(Some("alice"), "assetIds", &["asset-pending"]),
+                "SNAPBACK_MEDIA_ASSET_NOT_FINALIZED",
+            ),
+            (
+                input(Some("alice"), "assetIds", &["asset-video"]),
+                "SNAPBACK_MEDIA_KIND_NOT_ADMITTED",
+            ),
+            (
+                input(Some("mallory"), "assetIds", &["asset-pending"]),
+                "SNAPBACK_MEDIA_COLLECTION_PARENT_FORBIDDEN",
+            ),
+            (
+                input(Some("alice"), "assetIds", &["a", "b", "c", "d"]),
+                "SNAPBACK_MEDIA_COLLECTION_LIMIT_EXCEEDED",
+            ),
+        ];
+        for (index, (input, expected)) in cases.into_iter().enumerate() {
+            let identity =
+                ClientMutationIdentity::new(format!("refusal-{index}"), "galleryAppend", &input);
+            let error = db
+                .mutation_writes()
+                .execute_mutation_idempotent(
+                    &plan(AssetCollectionOperationV1::Append),
+                    &input,
+                    &identity,
+                )
+                .expect_err(expected);
+            assert_eq!(error.diagnostic.code, expected);
+        }
+        let missing_identity = db
+            .mutation_writes()
+            .execute_mutation(
+                &plan(AssetCollectionOperationV1::Append),
+                &input(Some("alice"), "assetIds", &[]),
+            )
+            .expect_err("identity is mandatory");
+        assert_eq!(
+            missing_identity.diagnostic.code,
+            "SNAPBACK_MEDIA_COLLECTION_MUTATION_ATTEMPT_REQUIRED"
+        );
+        let raw = db
+            .mutation_writes()
+            .commit_buffered_writes(
+                &input(Some("alice"), "assetIds", &[]),
+                vec![BufferedWrite::Insert {
+                    table: CHILD.to_owned(),
+                    id: "forged".to_owned(),
+                    values: Map::new(),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("framework table raw write");
+        assert_eq!(
+            raw.diagnostic.code,
+            "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED"
+        );
+        let raw_seed = db
+            .schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(CHILD.to_owned(), vec![Map::new()])]),
+            })
+            .expect_err("framework table seed write");
+        assert_eq!(
+            raw_seed.diagnostic.code,
+            "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED"
+        );
+        let count: i64 = db
+            .conn
+            .query_row(&format!("SELECT COUNT(*) FROM {CHILD}"), [], |row| {
+                row.get(0)
+            })
+            .expect("item count");
+        assert_eq!(count, 1, "all refusals roll back without partial rows");
+    }
+
+    #[test]
+    fn collection_runtime_refusal_codes_cover_closed_input_and_storage_boundaries() {
+        let mut db = database("alice");
+        for asset_id in ["asset-a", "asset-b"] {
+            install_asset(
+                &mut db,
+                asset_id,
+                "alice",
+                crate::assets::AssetAvailability::Ready,
+                MediaKindV1::Image,
+            );
+        }
+        let authenticated = |args: Value| HandlerInput {
+            args,
+            auth: AuthInput {
+                principal: Some("alice".to_owned()),
+                user_id: Some("alice".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let refuse = |db: &mut LocalDatabase,
+                      mutation: MutationPlan,
+                      input: HandlerInput,
+                      attempt: &str,
+                      expected: &str| {
+            let identity = ClientMutationIdentity::new(attempt, "galleryAppend", &input);
+            let error = db
+                .mutation_writes()
+                .execute_mutation_idempotent(&mutation, &input, &identity)
+                .expect_err(expected);
+            assert_eq!(error.diagnostic.code, expected);
+        };
+
+        refuse(
+            &mut db,
+            plan(AssetCollectionOperationV1::Append),
+            authenticated(Value::Null),
+            "args-not-object",
+            "SNAPBACK_MEDIA_COLLECTION_ARGUMENT_INVALID",
+        );
+        refuse(
+            &mut db,
+            plan(AssetCollectionOperationV1::Append),
+            authenticated(json!({ "parentId": "missing", "assetIds": [] })),
+            "parent-missing",
+            "SNAPBACK_MEDIA_COLLECTION_PARENT_UNAVAILABLE",
+        );
+        refuse(
+            &mut db,
+            plan(AssetCollectionOperationV1::Append),
+            authenticated(json!({ "parentId": "post-1", "assetIds": [17] })),
+            "item-not-string",
+            "SNAPBACK_MEDIA_COLLECTION_ARGUMENT_INVALID",
+        );
+        refuse(
+            &mut db,
+            plan(AssetCollectionOperationV1::Remove),
+            authenticated(json!({ "parentId": "post-1", "itemIds": ["missing"] })),
+            "item-unknown",
+            "SNAPBACK_MEDIA_COLLECTION_ITEM_UNKNOWN",
+        );
+        refuse(
+            &mut db,
+            plan(AssetCollectionOperationV1::Remove),
+            authenticated(json!({
+                "parentId": "post-1",
+                "itemIds": ["duplicate", "duplicate"],
+            })),
+            "item-duplicate",
+            "SNAPBACK_MEDIA_COLLECTION_DUPLICATE_ITEM",
+        );
+        refuse(
+            &mut db,
+            plan(AssetCollectionOperationV1::Reorder),
+            authenticated(json!({ "parentId": "post-1", "itemIds": ["missing"] })),
+            "reorder-not-permutation",
+            "SNAPBACK_MEDIA_COLLECTION_REORDER_INVALID",
+        );
+
+        let mut drifted = plan(AssetCollectionOperationV1::Append);
+        let MutationStep::AssetCollection(collection) = &mut drifted.steps[0] else {
+            unreachable!()
+        };
+        collection.policy_generation = "sha256:drifted".to_owned();
+        refuse(
+            &mut db,
+            drifted,
+            authenticated(json!({ "parentId": "post-1", "assetIds": [] })),
+            "manifest-drift",
+            "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+        );
+
+        execute(
+            &mut db,
+            AssetCollectionOperationV1::Append,
+            "storage-corruption-seed",
+            "alice",
+            &["asset-a"],
+        );
+        db.conn
+            .execute(
+                &format!("UPDATE {CHILD} SET ordinal = 2"),
+                rusqlite::params![],
+            )
+            .expect("corrupt collection fixture directly");
+        refuse(
+            &mut db,
+            plan(AssetCollectionOperationV1::Append),
+            authenticated(json!({ "parentId": "post-1", "assetIds": ["asset-b"] })),
+            "storage-invalid",
+            "SNAPBACK_MEDIA_COLLECTION_STORAGE_INVALID",
+        );
+
+        let mut created_schema = collection_schema();
+        created_schema.asset_collections[0].order = AssetCollectionOrderV1::Created;
+        created_schema.asset_collections[0].operations.reorder = None;
+        let mut created = database_with_schema("alice", created_schema);
+        let mut created_reorder = plan(AssetCollectionOperationV1::Reorder);
+        let MutationStep::AssetCollection(collection) = &mut created_reorder.steps[0] else {
+            unreachable!()
+        };
+        collection.order = "created".to_owned();
+        refuse(
+            &mut created,
+            created_reorder,
+            authenticated(json!({ "parentId": "post-1", "itemIds": [] })),
+            "created-reorder",
+            "SNAPBACK_MEDIA_COLLECTION_CREATED_ORDER_REORDER_REFUSED",
+        );
+
+        assert!(
+            serde_json::from_value::<AssetCollectionSharingPlanManifestV1>(json!({
+                "name": "none",
+                "kind": "none",
+                "ambient": true,
+            }))
+            .is_err(),
+            "sharing-plan manifests fail closed on unknown fields"
+        );
+        let decoded = serde_json::from_value::<AssetCollectionSharingPlanManifestV1>(json!({
+            "name": "direct",
+            "kind": "recipients",
+            "state": "active",
+            "maxRecipients": 2,
+        }))
+        .expect("generated sharing-plan spelling decodes");
+        assert!(matches!(
+            decoded.plan,
+            AssetCollectionSharingPlanV1::Recipients {
+                state: AssetCollectionGrantStateV1::Active,
+                max_recipients: 2,
+            }
+        ));
+    }
+
+    #[test]
+    fn owner_replacement_revokes_old_authority_and_detach_enters_reference_gc() {
+        let mut db = database("alice");
+        install_asset(
+            &mut db,
+            "asset-a",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+        );
+        let appended = execute(
+            &mut db,
+            AssetCollectionOperationV1::Append,
+            "append-before-owner-change",
+            "alice",
+            &["asset-a"],
+        );
+        let item = item_ids(&appended).remove(0);
+        db.mutation_writes()
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Patch {
+                        table: "posts".to_owned(),
+                        id: ValueExpr::Literal(json!("post-1")),
+                        values: BTreeMap::from([(
+                            "ownerId".to_owned(),
+                            ValueExpr::Literal(json!("bob")),
+                        )]),
+                    }],
+                    return_value: None,
+                },
+                &input(Some("alice"), "itemIds", &[]),
+            )
+            .expect("replace parent owner");
+        let old_input = input(Some("alice"), "itemIds", &[&item]);
+        let old_identity = ClientMutationIdentity::new("old-owner", "galleryRemove", &old_input);
+        let error = db
+            .mutation_writes()
+            .execute_mutation_idempotent(
+                &plan(AssetCollectionOperationV1::Remove),
+                &old_input,
+                &old_identity,
+            )
+            .expect_err("old owner revoked");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEDIA_COLLECTION_PARENT_FORBIDDEN"
+        );
+        execute(
+            &mut db,
+            AssetCollectionOperationV1::Remove,
+            "new-owner-remove",
+            "bob",
+            &[&item],
+        );
+        let tx = db.conn.unchecked_transaction().expect("edge probe");
+        assert!(
+            crate::assets::load_edges_for_asset(&tx, "asset-a")
+                .expect("edges")
+                .is_empty()
+        );
+        tx.rollback().expect("rollback edge probe");
+        let cutoff = now_millis().saturating_add(1);
+        let reclaimable = db
+            .asset_maintenance()
+            .gc_reclaimable_reference_assets(cutoff)
+            .expect("reference GC candidates");
+        assert!(reclaimable.iter().any(|asset| asset.asset_id == "asset-a"));
+    }
+
+    #[test]
+    fn stale_parent_occ_baseline_refuses_before_collection_commit() {
+        let mut db = database("alice");
+        install_asset(
+            &mut db,
+            "asset-a",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+        );
+        let parent = db
+            .query_reads_read()
+            .get("posts", "post-1")
+            .expect("parent read")
+            .expect("parent row");
+        let parent_version = parent["_version"].as_u64().expect("parent version");
+        db.mutation_writes()
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Patch {
+                        table: "posts".to_owned(),
+                        id: ValueExpr::Literal(json!("post-1")),
+                        values: BTreeMap::from([(
+                            "ownerId".to_owned(),
+                            ValueExpr::Literal(json!("bob")),
+                        )]),
+                    }],
+                    return_value: None,
+                },
+                &input(Some("alice"), "itemIds", &[]),
+            )
+            .expect("move parent authority after read");
+        let mut stale = input(Some("alice"), "assetIds", &["asset-a"]);
+        stale.read_set = vec![ReadDependency {
+            table: "posts".to_owned(),
+            id: "post-1".to_owned(),
+            version: parent_version,
+        }];
+        let identity = ClientMutationIdentity::new("stale-parent", "galleryAppend", &stale);
+        let error = db
+            .mutation_writes()
+            .execute_mutation_idempotent(
+                &plan(AssetCollectionOperationV1::Append),
+                &stale,
+                &identity,
+            )
+            .expect_err("stale parent OCC baseline");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        let count: i64 = db
+            .conn
+            .query_row(&format!("SELECT COUNT(*) FROM {CHILD}"), [], |row| {
+                row.get(0)
+            })
+            .expect("collection row count");
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn asset_cut_round_trip_preserves_item_identity_order_edges_and_quota() {
+        let mut source = database_with_schema("alice", sharing_schema());
+        for asset_id in ["asset-a", "asset-b"] {
+            install_asset_with_grants(
+                &mut source,
+                asset_id,
+                "alice",
+                crate::assets::AssetAvailability::Ready,
+                MediaKindV1::Image,
+                true,
+            );
+        }
+        let appended = execute_with_sharing(
+            &mut source,
+            AssetCollectionOperationV1::Append,
+            "append-for-cut",
+            "alice",
+            &["asset-a", "asset-b"],
+            json!({ "plan": "directActive", "principals": ["bob"] }),
+        )
+        .expect("append collection and grants for cut");
+        let expected_ids = item_ids(&appended);
+        let schema = source.schema().clone();
+        let version = source.current_version().expect("source version");
+        let tx = source.conn.transaction().expect("capture cut");
+        let capture = crate::assets_cut::capture_cut(&tx, &schema, "collection-test", version, 100)
+            .expect("capture collection cut");
+        tx.rollback().expect("close capture");
+        assert_eq!(capture.manifest.collection_items.len(), 2);
+        assert_eq!(capture.manifest.quota.collection_item_count, 2);
+
+        source
+            .conn
+            .execute(
+                &format!("UPDATE {CHILD} SET policyGeneration = 'drifted'"),
+                rusqlite::params![],
+            )
+            .expect("corrupt export collection fixture");
+        let tx = source.conn.transaction().expect("invalid capture cut");
+        let error =
+            match crate::assets_cut::capture_cut(&tx, &schema, "collection-test", version, 100) {
+                Ok(_) => panic!("collection export revalidates generation"),
+                Err(error) => error,
+            };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_EXPORT_COLLECTION_INVALID"
+        );
+        tx.rollback().expect("close invalid capture");
+
+        let mut target = database_with_schema("alice", sharing_schema());
+        let target_schema = target.schema().clone();
+        let fresh_keys = capture
+            .manifest
+            .blobs
+            .iter()
+            .map(|blob| format!("restored-{}", blob.blob_id))
+            .collect::<Vec<_>>();
+        let mut mismatched_schema = target_schema.clone();
+        mismatched_schema.asset_collections[0].generation =
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_owned();
+        let tx = target.conn.transaction().expect("mismatched cut apply");
+        let error = crate::assets_cut::apply_cut(
+            &tx,
+            &mismatched_schema,
+            &capture.manifest,
+            &fresh_keys,
+            "local-fs",
+            200,
+        )
+        .expect_err("collection generation mismatch");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_IMPORT_COLLECTION_SCHEMA_MISMATCH"
+        );
+        tx.rollback().expect("close mismatched cut apply");
+
+        let mut parentless = LocalDatabase::memory().expect("parentless cut target");
+        parentless
+            .schema_seed()
+            .apply_schema(sharing_schema())
+            .expect("apply parentless target schema");
+        let parentless_schema = parentless.schema().clone();
+        let tx = parentless.conn.transaction().expect("parentless cut apply");
+        let error = crate::assets_cut::apply_cut(
+            &tx,
+            &parentless_schema,
+            &capture.manifest,
+            &fresh_keys,
+            "local-fs",
+            200,
+        )
+        .expect_err("collection parent must arrive in app-data cut");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_IMPORT_COLLECTION_PARENT_MISSING"
+        );
+        tx.rollback().expect("close parentless cut apply");
+
+        let tx = target.conn.transaction().expect("apply cut");
+        crate::assets_cut::apply_cut(
+            &tx,
+            &target_schema,
+            &capture.manifest,
+            &fresh_keys,
+            "local-fs",
+            200,
+        )
+        .expect("apply collection cut");
+        tx.commit().expect("commit collection cut");
+        let restored = target
+            .conn
+            .prepare(&format!("SELECT _id FROM {CHILD} ORDER BY ordinal"))
+            .expect("restored query")
+            .query_map([], |row| row.get::<_, String>(0))
+            .expect("restored rows")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("restored ids");
+        assert_eq!(restored, expected_ids);
+        assert_eq!(asset_grants(&target).len(), 2);
+        let tx = target
+            .conn
+            .unchecked_transaction()
+            .expect("restored edge probe");
+        assert_eq!(
+            crate::assets::load_edges_for_asset(&tx, "asset-a")
+                .expect("restored edge")
+                .len(),
+            1
+        );
+        tx.rollback().expect("rollback restored edge probe");
+    }
+
+    #[test]
+    fn sharing_plans_replace_and_revoke_collection_managed_recipient_grants_atomically() {
+        let mut db = database_with_schema("alice", sharing_schema());
+        for asset_id in ["asset-a", "asset-b"] {
+            install_asset_with_grants(
+                &mut db,
+                asset_id,
+                "alice",
+                crate::assets::AssetAvailability::Ready,
+                MediaKindV1::Image,
+                true,
+            );
+        }
+        let appended = execute_with_sharing(
+            &mut db,
+            AssetCollectionOperationV1::Append,
+            "sharing-append",
+            "alice",
+            &["asset-a", "asset-b"],
+            json!({ "plan": "directActive", "principals": ["bob", "carol"] }),
+        )
+        .expect("append with active recipients");
+        assert_eq!(appended.asset_changes, ["asset-a", "asset-b"]);
+        let original_ids = item_ids(&appended);
+        let grants = asset_grants(&db);
+        assert_eq!(grants.len(), 4);
+        assert!(grants.iter().all(|grant| {
+            grant.state == crate::assets::AssetGrantState::Active
+                && ["bob", "carol"].contains(&grant.principal.as_str())
+                && grant
+                    .provenance
+                    .mutation
+                    .starts_with(&format!("asset-collection.v1|{GENERATION}|"))
+        }));
+
+        execute_with_sharing(
+            &mut db,
+            AssetCollectionOperationV1::Replace,
+            "sharing-no-change",
+            "alice",
+            &["asset-a", "asset-b"],
+            json!({ "plan": "none" }),
+        )
+        .expect("no-change plan preserves retained recipient grants");
+        assert_eq!(asset_grants(&db), grants);
+
+        let replaced = execute_with_sharing(
+            &mut db,
+            AssetCollectionOperationV1::Replace,
+            "sharing-replace",
+            "alice",
+            &["asset-a"],
+            json!({ "plan": "directPending", "principals": ["bob"] }),
+        )
+        .expect("replace sharing and remove one item");
+        assert_eq!(item_ids(&replaced), [original_ids[0].clone()]);
+        let grants = asset_grants(&db);
+        assert_eq!(
+            grants.len(),
+            1,
+            "replacement revokes every stale managed edge"
+        );
+        assert_eq!(grants[0].asset_id, "asset-a");
+        assert_eq!(grants[0].principal, "bob");
+        assert_eq!(grants[0].state, crate::assets::AssetGrantState::Pending);
+
+        execute_with_sharing(
+            &mut db,
+            AssetCollectionOperationV1::Replace,
+            "sharing-owner-only",
+            "alice",
+            &["asset-a"],
+            json!({ "plan": "owner" }),
+        )
+        .expect("owner-only plan removes recipient authority");
+        assert!(asset_grants(&db).is_empty());
+        execute_with_sharing(
+            &mut db,
+            AssetCollectionOperationV1::Replace,
+            "sharing-pending-again",
+            "alice",
+            &["asset-a"],
+            json!({ "plan": "directPending", "principals": ["bob"] }),
+        )
+        .expect("restore one pending grant for removal coverage");
+
+        execute_with_sharing(
+            &mut db,
+            AssetCollectionOperationV1::Remove,
+            "sharing-remove",
+            "alice",
+            &[&original_ids[0]],
+            json!({ "plan": "none" }),
+        )
+        .expect("remove revokes collection-managed grants");
+        assert!(asset_grants(&db).is_empty());
+        let collection_count: i64 = db
+            .conn
+            .query_row(&format!("SELECT COUNT(*) FROM {CHILD}"), [], |row| {
+                row.get(0)
+            })
+            .expect("collection count");
+        assert_eq!(collection_count, 0);
+
+        execute_with_sharing(
+            &mut db,
+            AssetCollectionOperationV1::Append,
+            "sharing-before-parent-delete",
+            "alice",
+            &["asset-a"],
+            json!({ "plan": "directActive", "principals": ["bob"] }),
+        )
+        .expect("reattach before parent teardown");
+        db.mutation_writes()
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Delete {
+                        table: "posts".to_owned(),
+                        id: ValueExpr::Literal(json!("post-1")),
+                    }],
+                    return_value: None,
+                },
+                &input(Some("alice"), "itemIds", &[]),
+            )
+            .expect("delete parent and cascade collection authority");
+        assert!(asset_grants(&db).is_empty());
+        let collection_count: i64 = db
+            .conn
+            .query_row(&format!("SELECT COUNT(*) FROM {CHILD}"), [], |row| {
+                row.get(0)
+            })
+            .expect("post-parent-delete collection count");
+        assert_eq!(collection_count, 0);
+    }
+
+    #[test]
+    fn sharing_selection_and_generated_derivation_revalidate_and_refuse_atomically() {
+        let mut db = database_with_schema("alice", sharing_schema());
+        seed_recipients(
+            &mut db,
+            &[
+                ("recipient-bob", "alice", "bob"),
+                ("recipient-carol", "alice", "carol"),
+                ("recipient-eve", "mallory", "eve"),
+            ],
+        );
+        for (asset_id, grants_enabled) in [("asset-derived", true), ("asset-legacy", false)] {
+            install_asset_with_grants(
+                &mut db,
+                asset_id,
+                "alice",
+                crate::assets::AssetAvailability::Ready,
+                MediaKindV1::Image,
+                grants_enabled,
+            );
+        }
+        execute_with_sharing(
+            &mut db,
+            AssetCollectionOperationV1::Append,
+            "sharing-derived",
+            "alice",
+            &["asset-derived"],
+            json!({ "plan": "derivedPending" }),
+        )
+        .expect("commit-time generated derivation");
+        let grants = asset_grants(&db);
+        assert_eq!(grants.len(), 2);
+        assert_eq!(
+            grants
+                .iter()
+                .map(|grant| grant.principal.as_str())
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from(["bob", "carol"]),
+            "owner visibility excludes another owner's source rows"
+        );
+        assert!(
+            grants
+                .iter()
+                .all(|grant| grant.state == crate::assets::AssetGrantState::Pending)
+        );
+
+        let before_rows: i64 = db
+            .conn
+            .query_row(&format!("SELECT COUNT(*) FROM {CHILD}"), [], |row| {
+                row.get(0)
+            })
+            .expect("before refusal rows");
+        let before_grants = asset_grants(&db);
+        let refusals = [
+            (
+                "sharing-command",
+                "asset-legacy",
+                json!({ "plan": "command" }),
+                "SNAPBACK_MEDIA_COLLECTION_COMMAND_BINDING_REQUIRED",
+            ),
+            (
+                "sharing-outside",
+                "asset-legacy",
+                json!({ "plan": "ambientReaders" }),
+                "SNAPBACK_MEDIA_COLLECTION_SHARING_OUTSIDE_CEILING",
+            ),
+            (
+                "sharing-duplicate",
+                "asset-legacy",
+                json!({ "plan": "directActive", "principals": ["bob", "bob"] }),
+                "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+            ),
+            (
+                "sharing-over-bound",
+                "asset-legacy",
+                json!({ "plan": "directActive", "principals": ["a", "b", "c"] }),
+                "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID",
+            ),
+            (
+                "sharing-admission-frozen",
+                "asset-legacy",
+                json!({ "plan": "directActive", "principals": ["bob"] }),
+                "SNAPBACK_ASSET_GRANTS_UNDECLARED",
+            ),
+        ];
+        for (attempt, asset_id, sharing, code) in refusals {
+            let error = execute_with_sharing(
+                &mut db,
+                AssetCollectionOperationV1::Append,
+                attempt,
+                "alice",
+                &[asset_id],
+                sharing,
+            )
+            .expect_err(code);
+            assert_eq!(error.diagnostic.code, code);
+            let rows: i64 = db
+                .conn
+                .query_row(&format!("SELECT COUNT(*) FROM {CHILD}"), [], |row| {
+                    row.get(0)
+                })
+                .expect("post-refusal rows");
+            assert_eq!(rows, before_rows);
+            assert_eq!(asset_grants(&db), before_grants);
+        }
+
+        let mut overbound = database_with_schema("alice", sharing_schema());
+        seed_recipients(
+            &mut overbound,
+            &[
+                ("recipient-a", "alice", "a"),
+                ("recipient-b", "alice", "b"),
+                ("recipient-c", "alice", "c"),
+            ],
+        );
+        install_asset_with_grants(
+            &mut overbound,
+            "asset-overbound",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+            true,
+        );
+        let error = execute_with_sharing(
+            &mut overbound,
+            AssetCollectionOperationV1::Append,
+            "sharing-derived-overbound",
+            "alice",
+            &["asset-overbound"],
+            json!({ "plan": "derivedPending" }),
+        )
+        .expect_err("derived fan-out over bound");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID"
+        );
+        assert!(asset_grants(&overbound).is_empty());
+
+        let mut default_schema = sharing_schema();
+        default_schema.asset_collections[0].sharing.default_plan = "derivedPending".to_owned();
+        let mut defaulted = database_with_schema("alice", default_schema);
+        seed_recipients(&mut defaulted, &[("default-bob", "alice", "bob")]);
+        install_asset_with_grants(
+            &mut defaulted,
+            "asset-default",
+            "alice",
+            crate::assets::AssetAvailability::Ready,
+            MediaKindV1::Image,
+            true,
+        );
+        let default_input = input(Some("alice"), "assetIds", &["asset-default"]);
+        let default_identity =
+            ClientMutationIdentity::new("sharing-default", "galleryAppend", &default_input);
+        let mut default_plan = sharing_plan(AssetCollectionOperationV1::Append);
+        let MutationStep::AssetCollection(collection) = &mut default_plan.steps[0] else {
+            unreachable!()
+        };
+        collection.default_sharing_plan = "derivedPending".to_owned();
+        defaulted
+            .mutation_writes()
+            .execute_mutation_idempotent(&default_plan, &default_input, &default_identity)
+            .expect("omitted selection uses descriptor default derivation");
+        assert_eq!(asset_grants(&defaulted)[0].principal, "bob");
+    }
+}

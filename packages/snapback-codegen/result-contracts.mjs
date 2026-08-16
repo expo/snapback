@@ -484,6 +484,62 @@ function nullableValue(value) {
   return scalar('union', { variants: [scalar('null'), value] });
 }
 
+// `bounded-children.v1` normally carries an authored sealed union, but media
+// leaves need their exact schema source identity and therefore cannot be
+// lowered as anonymous validators. Derive the same closed union from the plan
+// and table manifests so a child `AssetRef.media` becomes the one canonical
+// `mediaRef.v1` node rather than a second collection-only value shape.
+// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+function boundedChildrenRowsValue(runtime, tables) {
+  const plan = runtime.HostPlan.BoundedChildrenQuery;
+  const resultField = (name, value) => ({ name, required: true, value });
+  const projected = (tableName, projection) => {
+    const table = tables[tableName];
+    if (!table) throw new TypeError(`bounded children references unknown table ${tableName}`);
+    return scalar('object', {
+      fields: projection.map(({ name, field: sourceName }) => {
+        if (sourceName === '_id') {
+          return resultField(name, scalar('id', { table: tableName }));
+        }
+        const source = table.fields.find((candidate) => candidate.name === sourceName);
+        if (!source) {
+          throw new TypeError(`bounded children projection references unknown field ${tableName}.${sourceName}`);
+        }
+        return resultField(name, tableFieldValue(source, tableName));
+      }),
+      allowExtra: false,
+    });
+  };
+  const parent = projected(plan.parentTable, plan.parentProjection);
+  const child = projected(plan.childTable, plan.childProjection);
+  const envelope = (kind, parentValue, maxItems, continuation) => scalar('object', {
+    fields: [
+      resultField('kind', scalar('literal', { value: kind })),
+      resultField('parent', parentValue),
+      resultField('children', scalar('array', { element: child, maxItems })),
+      resultField('continuation', continuation),
+    ],
+    allowExtra: false,
+  });
+  return {
+    kind: 'records',
+    record: scalar('union', {
+      variants: [
+        envelope('absent', scalar('null'), 0, scalar('null')),
+        envelope(
+          'visible',
+          parent,
+          plan.take,
+          scalar('union', {
+            variants: [scalar('null'), scalar('string', { maxBytes: 1_024 })],
+          }),
+        ),
+      ],
+    }),
+    rows: { minItems: 1, maxItems: 1 },
+  };
+}
+
 // @ref LLP 0080#1-closed-relational-plan — the projection is closed data,
 // so its result contract is derivable from the two schema declarations plus
 // literal leaves; there is no handler body whose return shape must be guessed.
@@ -864,6 +920,12 @@ export function effectiveResultContract({
         `${functionKind} cannot use ${String(def.resultContract.kind)} result contract`,
       );
     }
+  }
+  if (
+    (functionKind === 'Query' || functionKind === 'LiveQuery')
+    && runtime?.HostPlan?.BoundedChildrenQuery
+  ) {
+    return validateEffectiveResultContract(boundedChildrenRowsValue(runtime, tables));
   }
   const authored = authoredContract(def?.resultContract, tables);
   if (authored) return validateEffectiveResultContract(authored);

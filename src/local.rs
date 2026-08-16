@@ -28237,6 +28237,7 @@ fn validate_bounded_children_node_schema_references(
                             | FieldType::Real
                             | FieldType::Principal
                             | FieldType::Id { .. }
+                            | FieldType::AssetRef { media: Some(_), .. }
                     )
                 });
             if !portable {
@@ -28762,6 +28763,125 @@ fn validate_composed_table_visibility(
     })))
 }
 
+fn validate_asset_collection_function_plan(
+    function: &FunctionDefinition,
+    plan: &crate::manifest::AssetCollectionMutationPlanV1,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    use crate::manifest::{AssetCollectionOperationV1, AssetCollectionOrderV1};
+
+    let invalid = |reason: &str| {
+        SnapbackError::error(
+            "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+            "asset-collection",
+            format!("generated operation {} is invalid: {reason}", function.name),
+        )
+    };
+    let descriptor = schema
+        .asset_collections
+        .iter()
+        .find(|collection| collection.name == plan.collection)
+        .ok_or_else(|| invalid("its collection descriptor is missing"))?;
+    let expected_name = match plan.operation {
+        AssetCollectionOperationV1::Append => Some(descriptor.operations.append.as_str()),
+        AssetCollectionOperationV1::Replace => Some(descriptor.operations.replace.as_str()),
+        AssetCollectionOperationV1::Remove => Some(descriptor.operations.remove.as_str()),
+        AssetCollectionOperationV1::Reorder => descriptor.operations.reorder.as_deref(),
+    }
+    .ok_or_else(|| invalid("created-order collections do not admit reorder"))?;
+    let expected_order = match descriptor.order {
+        AssetCollectionOrderV1::Manual => "manual",
+        AssetCollectionOrderV1::Created => "created",
+    };
+    let expected_items_arg = match plan.operation {
+        AssetCollectionOperationV1::Append | AssetCollectionOperationV1::Replace => "assetIds",
+        AssetCollectionOperationV1::Remove | AssetCollectionOperationV1::Reorder => "itemIds",
+    };
+    let expected_sharing_arg =
+        (!matches!(plan.operation, AssetCollectionOperationV1::Reorder)).then_some("sharing");
+    let expected_derivation_tables = descriptor
+        .sharing
+        .ceiling
+        .iter()
+        .filter_map(|entry| match &entry.plan {
+            crate::manifest::AssetCollectionSharingPlanV1::Derived { table, .. } => {
+                Some(table.clone())
+            }
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    let expected_grant_capable = descriptor.sharing.ceiling.iter().any(|entry| {
+        matches!(
+            entry.plan,
+            crate::manifest::AssetCollectionSharingPlanV1::Recipients { .. }
+                | crate::manifest::AssetCollectionSharingPlanV1::Derived { .. }
+        )
+    });
+    let args = function
+        .args_contract
+        .as_ref()
+        .ok_or_else(|| invalid("its argument contract is missing"))?;
+    let has_arg = |name: &str| {
+        args.fields
+            .iter()
+            .any(|field| field.name == name && field.required)
+    };
+    if function.name != expected_name
+        || plan.generation != descriptor.generation
+        || plan.policy_generation != descriptor.generation
+        || plan.owner_table != descriptor.owner_table
+        || plan.owner_field != descriptor.owner_field
+        || plan.child_table != descriptor.child_table
+        || plan.parent_id_arg != "parentId"
+        || plan.items_arg != expected_items_arg
+        || plan.max_items != descriptor.max_items
+        || plan.order != expected_order
+        || plan.intent != descriptor.intent
+        || plan.kinds != descriptor.kinds
+        || plan.duplicate_policy != descriptor.duplicate_policy
+        || plan.sharing_arg.as_deref() != expected_sharing_arg
+        || plan.default_sharing_plan != descriptor.sharing.default_plan
+        || plan.sharing_derivation_tables != expected_derivation_tables
+        || plan.sharing_grant_capable != expected_grant_capable
+        || !has_arg(&plan.parent_id_arg)
+        || !has_arg(&plan.items_arg)
+        || expected_sharing_arg.is_some()
+            != args
+                .fields
+                .iter()
+                .any(|field| field.name == "sharing" && !field.required)
+        || function.write_set_summary.tables != [descriptor.child_table.clone()]
+        || !function
+            .read_set_summary
+            .tables
+            .iter()
+            .any(|table| table == &descriptor.owner_table)
+        || !function
+            .read_set_summary
+            .tables
+            .iter()
+            .any(|table| table == &descriptor.child_table)
+        || expected_derivation_tables.iter().any(|expected| {
+            !function
+                .read_set_summary
+                .tables
+                .iter()
+                .any(|table| table == expected)
+        })
+        || !function
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == "assets.media-collection.v1")
+    {
+        return Err(invalid(
+            "its digest, operation, schema, arguments, effects, or sharing plan drifted from the paired descriptor",
+        ));
+    }
+    Ok(())
+}
+
 /// Whole-manifest schema-reference preflight. Invocation-time checks remain as
 /// defense in depth, but a malformed direct artifact must not replace a known
 /// good function/config/cron generation and fail only on its first call.
@@ -28908,6 +29028,32 @@ fn validate_function_schema_references(
         .collect::<BTreeSet<_>>();
 
     for function in &manifest.functions {
+        let generated_collection_step = match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) if plan.steps.len() == 1 => {
+                match &plan.steps[0] {
+                    MutationStep::AssetCollection(step) => Some(step),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+        for write in &function.write_set_summary.tables {
+            if schema
+                .asset_collections
+                .iter()
+                .any(|collection| collection.child_table == *write)
+                && generated_collection_step.is_none()
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED",
+                    "asset-collection",
+                    format!(
+                        "function {} cannot write framework-owned collection table {} outside its generated operation",
+                        function.name, write
+                    ),
+                ));
+            }
+        }
         for sequence in &function.sequences {
             let scope = table(&sequence.scope_table)?;
             // @ref LLP 0135#11-counter-identity-and-scope — sequence scopes
@@ -29301,6 +29447,13 @@ fn validate_function_schema_references(
                 }
                 for step in &plan.steps {
                     match step {
+                        MutationStep::AssetCollection(collection_plan) => {
+                            validate_asset_collection_function_plan(
+                                function,
+                                collection_plan,
+                                schema,
+                            )?;
+                        }
                         MutationStep::Insert {
                             table: name,
                             values,
@@ -29316,6 +29469,20 @@ fn validate_function_schema_references(
                             values,
                             ..
                         } => {
+                            if schema
+                                .asset_collections
+                                .iter()
+                                .any(|collection| collection.child_table == *name)
+                            {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED",
+                                    "asset-collection",
+                                    format!(
+                                        "function {} cannot write framework-owned collection table {} with a generic mutation step",
+                                        function.name, name
+                                    ),
+                                ));
+                            }
                             table(name)?;
                             for field_name in values.keys() {
                                 field(name, field_name)?;
@@ -29324,6 +29491,21 @@ fn validate_function_schema_references(
                         MutationStep::Delete { table: name, .. }
                         | MutationStep::Get { table: name, .. }
                         | MutationStep::AssertSourceChanged { table: name, .. } => {
+                            if matches!(step, MutationStep::Delete { .. })
+                                && schema
+                                    .asset_collections
+                                    .iter()
+                                    .any(|collection| collection.child_table == *name)
+                            {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED",
+                                    "asset-collection",
+                                    format!(
+                                        "function {} cannot delete framework-owned collection rows with a generic mutation step",
+                                        function.name
+                                    ),
+                                ));
+                            }
                             table(name)?;
                         }
                         MutationStep::AssertCurrentRelation {
@@ -29342,6 +29524,20 @@ fn validate_function_schema_references(
                             table: name,
                             filter: filters,
                         } => {
+                            if schema
+                                .asset_collections
+                                .iter()
+                                .any(|collection| collection.child_table == *name)
+                            {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED",
+                                    "asset-collection",
+                                    format!(
+                                        "function {} cannot delete framework-owned collection rows with a generic mutation step",
+                                        function.name
+                                    ),
+                                ));
+                            }
                             table(name)?;
                             for filter in filters {
                                 field(name, &filter.field)?;
@@ -29414,6 +29610,7 @@ fn validate_function_schema_references(
                                     | crate::manifest::FieldType::Real
                                     | crate::manifest::FieldType::Principal
                                     | crate::manifest::FieldType::Id { .. }
+                                    | crate::manifest::FieldType::AssetRef { media: Some(_), .. }
                             )
                         })
                     {
@@ -29440,6 +29637,7 @@ fn validate_function_schema_references(
                                     | crate::manifest::FieldType::Real
                                     | crate::manifest::FieldType::Principal
                                     | crate::manifest::FieldType::Id { .. }
+                                    | crate::manifest::FieldType::AssetRef { media: Some(_), .. }
                             )
                         })
                     {
@@ -29966,6 +30164,85 @@ fn validate_function_schema_references(
             field(primary_table, auth_scope_field)?;
         }
     }
+    for collection in &schema.asset_collections {
+        for entry in &collection.sharing.ceiling {
+            let crate::manifest::AssetCollectionSharingPlanV1::Derived {
+                function,
+                table: source_table,
+                parent_field,
+                principal_field,
+                max_recipients,
+                ..
+            } = &entry.plan
+            else {
+                continue;
+            };
+            let derived = manifest
+                .functions
+                .iter()
+                .find(|candidate| candidate.name == *function)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+                        "asset-collection",
+                        format!(
+                            "collection {} sharing plan {} is missing generated derivation {}",
+                            collection.name, entry.name, function
+                        ),
+                    )
+                })?;
+            let source = schema
+                .table(source_table)
+                .expect("schema validation paired source");
+            let expected_plan = crate::manifest::QueryPlan {
+                table: source_table.clone(),
+                table_visibility: source.visibility.clone(),
+                filters: vec![crate::manifest::FilterExpr {
+                    field: parent_field.clone(),
+                    op: crate::manifest::FilterOp::Eq,
+                    value: crate::manifest::ValueExpr::Arg("parentId".to_owned()),
+                }],
+                membership_filters: Vec::new(),
+                order: vec![crate::manifest::OrderExpr {
+                    field: principal_field.clone(),
+                    direction: crate::manifest::OrderDirection::Asc,
+                    max_encoded_bytes: None,
+                }],
+                limit: Some(usize::from(*max_recipients) + 1),
+                indexed_by: None,
+            };
+            let exact_parent_arg = derived.args_contract.as_ref().is_some_and(|args| {
+                args.fields.len() == 1
+                    && args.fields[0].name == "parentId"
+                    && args.fields[0].required
+                    && args.fields[0].value
+                        == crate::manifest::ResultValueContract::Id {
+                            table: collection.owner_table.clone(),
+                        }
+            });
+            if derived.kind != crate::manifest::FunctionKind::Query
+                || derived.effective_auth_requirement()
+                    != crate::manifest::AuthRequirement::Authenticated
+                || !matches!(
+                    &derived.runtime,
+                    crate::manifest::FunctionRuntime::HostPlan(
+                        crate::manifest::HandlerPlan::Query(plan)
+                    ) if plan == &expected_plan
+                )
+                || !exact_parent_arg
+                || !derived.write_set_summary.tables.is_empty()
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+                    "asset-collection",
+                    format!(
+                        "collection {} sharing derivation {} drifted from its exact owner-authorized query",
+                        collection.name, function
+                    ),
+                ));
+            }
+        }
+    }
     validate_maintained_projections(manifest, schema)?;
     Ok(())
 }
@@ -30428,6 +30705,7 @@ fn validate_function_against_projection_outputs(
         )) => {
             for step in &plan.steps {
                 let target = match step {
+                    MutationStep::AssetCollection(plan) => Some(&plan.child_table),
                     MutationStep::Insert { table, .. }
                     | MutationStep::Patch { table, .. }
                     | MutationStep::Delete { table, .. }
@@ -31586,8 +31864,7 @@ fn data_cursor_binding(
             authority.schema_hash,
             authority.function_bundle_hash,
             authority.function_inputs_hash,
-        )
-    {
+        ) {
         crate::storage::operation_artifact_generation_digest(&ArtifactGeneration {
             schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
             app_id: app.to_owned(),
@@ -33487,6 +33764,12 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
             let mut writes = BTreeSet::new();
             for step in &plan.steps {
                 match step {
+                    MutationStep::AssetCollection(plan) => {
+                        reads.insert(plan.owner_table.clone());
+                        reads.insert(plan.child_table.clone());
+                        reads.extend(plan.sharing_derivation_tables.iter().cloned());
+                        writes.insert(plan.child_table.clone());
+                    }
                     MutationStep::Insert { table, .. } | MutationStep::InsertEach { table, .. } => {
                         writes.insert(table.clone());
                     }

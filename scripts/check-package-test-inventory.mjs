@@ -321,6 +321,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'inline-result-contracts.test.mjs',
       'live-search-authoring.test.mjs',
       'maintained-projections.test.mjs',
+      'media-collection-authoring.test.mjs',
       'media-field-authoring.test.mjs',
       'membership-search-authoring.test.mjs',
       'micro-profile.test.mjs',
@@ -508,7 +509,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 290,
+  expectedTotal = 291,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -909,6 +910,8 @@ export function checkPackageTestInventories(options = {}) {
 // 288 -> 290 (2026-08-15, LLP 0257): @expo/snapback-react and
 // @expo/snapback-expo gain the activity deadline/error and Expo lifecycle
 // wrapper suites.
+// 290 -> 291 (2026-08-15, LLP 0239 R3): @expo/snapback-codegen gains the
+// assetCollection declaration/lowering/source-attributed-refusal suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

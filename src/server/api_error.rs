@@ -924,6 +924,29 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ASSET_ATTACH_INTENT_MISMATCH"
         | "SNAPBACK_ASSET_ATTACH_UNAVAILABLE"
         | "SNAPBACK_ASSET_ATTACH_DENIED" => StatusCode::BAD_REQUEST,
+        // Generated media-collection operations (LLP 0239 D2/D4): argument,
+        // bound, ordering, and sharing-selection refusals are client
+        // contract faults like the attach family above; parent authority
+        // denial is 403; unknown parent/item are 404 (existence secrecy
+        // rides the same class as the asset-unknown family); duplicate
+        // asset/item admission races are 409. MANIFEST_INVALID and
+        // STORAGE_INVALID stay deliberately unlisted (truthful 500):
+        // both are descriptor/storage integrity defects, not client-fixable.
+        "SNAPBACK_MEDIA_COLLECTION_ARGUMENT_INVALID"
+        | "SNAPBACK_MEDIA_COLLECTION_MUTATION_ATTEMPT_REQUIRED"
+        | "SNAPBACK_MEDIA_COLLECTION_LIMIT_EXCEEDED"
+        | "SNAPBACK_MEDIA_COLLECTION_REORDER_INVALID"
+        | "SNAPBACK_MEDIA_COLLECTION_CREATED_ORDER_REORDER_REFUSED"
+        | "SNAPBACK_MEDIA_COLLECTION_SHARING_SELECTION_INVALID"
+        | "SNAPBACK_MEDIA_COLLECTION_SHARING_OUTSIDE_CEILING"
+        | "SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID"
+        | "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED"
+        | "SNAPBACK_MEDIA_COLLECTION_COMMAND_BINDING_REQUIRED" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_MEDIA_COLLECTION_PARENT_FORBIDDEN" => StatusCode::FORBIDDEN,
+        "SNAPBACK_MEDIA_COLLECTION_PARENT_UNAVAILABLE"
+        | "SNAPBACK_MEDIA_COLLECTION_ITEM_UNKNOWN" => StatusCode::NOT_FOUND,
+        "SNAPBACK_MEDIA_COLLECTION_DUPLICATE_ASSET"
+        | "SNAPBACK_MEDIA_COLLECTION_DUPLICATE_ITEM" => StatusCode::CONFLICT,
         "SNAPBACK_ASSET_ADMISSION_REVOKED" => StatusCode::FORBIDDEN,
         // Signed-URL refusals: an expired bearer is 401 (re-issuance is the
         // recovery); a token that does not validate — bad shape, rotated or

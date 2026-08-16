@@ -345,9 +345,10 @@ impl LocalDatabase {
         app_id: &str,
         now: u64,
     ) -> SnapbackResult<crate::assets_cut::AssetCutCapture> {
+        let schema = self.schema.clone();
         self.asset_reads_transaction(|tx| {
             let version = super::current_version_on(tx)?;
-            crate::assets_cut::capture_cut(tx, app_id, version, now)
+            crate::assets_cut::capture_cut(tx, &schema, app_id, version, now)
         })
     }
 
@@ -401,8 +402,9 @@ impl LocalDatabase {
         now: u64,
         summary: &Value,
     ) -> SnapbackResult<()> {
+        let schema = self.schema.clone();
         self.asset_reads_transaction(|tx| {
-            crate::assets_cut::apply_cut(tx, manifest, fresh_keys, store_kind, now)?;
+            crate::assets_cut::apply_cut(tx, &schema, manifest, fresh_keys, store_kind, now)?;
             assets::write_receipt(
                 tx,
                 &assets::AssetReceiptV1 {

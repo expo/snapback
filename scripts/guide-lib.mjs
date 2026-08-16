@@ -63,7 +63,10 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // public-doorway/lifecycle rows; future growth remains tied to named work.
 // Bumped 57856 -> 58368 on 2026-08-15 for the backend.familiar-profile-v1
 // GAP row (issues/20260815-guide-gap-familiar-authoring-profile-page.md).
-const CAPABILITIES_SIZE_BUDGET_BYTES = 58368;
+// Bumped 58368 -> 58880 on 2026-08-15 for the assets.media-collection.v1
+// experimental introduction row (LLP 0239 R3,
+// issues/20260815-finish-media-happy-path.md).
+const CAPABILITIES_SIZE_BUDGET_BYTES = 58880;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

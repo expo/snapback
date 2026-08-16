@@ -916,6 +916,49 @@ export interface AssetUploadSpec {
 }
 export declare function defineAssetUpload(spec: AssetUploadSpec): unknown;
 export declare function isAssetUploadDef(value: unknown): boolean;
+export type MediaKind = 'image' | 'video' | 'audio' | 'file';
+export type AssetCollectionGrantState = 'active' | 'pending';
+export type AssetCollectionGrantPlan =
+  | Readonly<{ kind: 'none' }>
+  | Readonly<{ kind: 'owner-only' }>
+  | Readonly<{
+    kind: 'recipients';
+    state: AssetCollectionGrantState;
+    maxRecipients: number;
+  }>
+  | Readonly<{
+    kind: 'derived';
+    state: AssetCollectionGrantState;
+    maxRecipients: number;
+    function: string;
+    table: string;
+    parentField: string;
+    principalField: string;
+  }>
+  | Readonly<{ kind: 'inherit-command' }>;
+export interface AssetCollectionGrantPolicy {
+  /** Named, closed plans form the collection's maximum sharing ceiling. */
+  readonly ceiling: Readonly<Record<string, AssetCollectionGrantPlan>>;
+  /** An input-free plan name used when a generated operation omits sharing. */
+  readonly default: string;
+}
+export interface AssetCollectionSpec {
+  readonly ownerTable: string;
+  readonly intent: string;
+  readonly maxItems: number;
+  readonly order: 'manual' | 'created';
+  readonly kinds: ReadonlyArray<MediaKind>;
+  /**
+   * Shorthands create a one-plan ceiling. The object form admits multiple
+   * named exact plans; generated append/replace/remove operations accept a
+   * `sharing` selection within that ceiling. Recipient plans additionally
+   * require their bounded principal list at invocation.
+   */
+  readonly grants: 'none' | 'owner-only' | 'inherit-command' | AssetCollectionGrantPolicy;
+}
+/** LLP 0239 D2 generated bounded zero-to-many media relation. */
+export declare function assetCollection(spec: AssetCollectionSpec): unknown;
+export declare function isAssetCollectionDef(value: unknown): boolean;
 export interface AssetBearingCommandSpec {
   readonly mutation: unknown;
   readonly assets?: Record<string, Readonly<{

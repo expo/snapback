@@ -15,11 +15,12 @@ pub use crate::contract_types::{
     AgentsManifest, AgentsMode, ApiAskBilling, ApiAskBudgets, ApiAskManifest, ApiAskModelManifest,
     ApiAskPerPrincipalDayBudget, ApiAskPerRequestBudget, ApiAskResultVolumeBudget,
     ApiAskTokenBudget, ApiBudgetsManifest, ApiDisclosure, ApiFunctionApproval, ApiFunctionExposure,
-    ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity, AuthManifest, AuthMode,
-    AuthPasswordIdentifierMode, AuthRequirement, BoundedParentVisibility, BoundedProjectionField,
-    DependencySummary, EffectCeiling, EffectCeilingRead, EffectCeilingWrite, FieldManifest,
-    FieldType, FunctionArgsContract, FunctionKind, FunctionResultContract, IbexModule,
-    IndexManifest, InvitedBy, JoinEquality, JoinKind, PermissionScopeExpr, ProjectionLeaf,
+    ApiManifest, ApiOAuthBundle, ApiOAuthManifest, AppIdentity, AssetCollectionMutationPlanV1,
+    AssetCollectionOperationV1, AuthManifest, AuthMode, AuthPasswordIdentifierMode,
+    AuthRequirement, BoundedParentVisibility, BoundedProjectionField, DependencySummary,
+    EffectCeiling, EffectCeilingRead, EffectCeilingWrite, FieldManifest, FieldType,
+    FunctionArgsContract, FunctionKind, FunctionResultContract, IbexModule, IndexManifest,
+    InvitedBy, JoinEquality, JoinKind, MediaKindV1, PermissionScopeExpr, ProjectionLeaf,
     ProjectionOutputKey, ProjectionSource, ProjectionVisibility, ResultObjectFieldContract,
     ResultRowsBound, ResultValueContract, STORED_STRUCTURED_CONTRACT_VERSION_V1,
     STORED_STRUCTURED_ENCODING_V1, SchemaRefAuthority, SequenceDeclaration,
@@ -425,6 +426,157 @@ fn validate_api_origin(origin: &str) -> SnapbackResult<()> {
     Ok(())
 }
 
+/// Framework-owned zero-to-many media relation. The generated child table is
+/// still an ordinary SQLite table for OCC, backup, and live-query purposes;
+/// this descriptor is the exclusive authority to mutate it.
+/// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetCollectionManifestV1 {
+    pub format: String,
+    pub name: String,
+    pub generation: String,
+    pub owner_table: String,
+    pub owner_field: String,
+    pub intent: String,
+    pub max_items: u8,
+    pub order: AssetCollectionOrderV1,
+    pub kinds: Vec<MediaKindV1>,
+    pub duplicate_policy: String,
+    pub sharing: AssetCollectionSharingManifestV1,
+    pub child_table: String,
+    pub fields: AssetCollectionFieldsManifestV1,
+    pub operations: AssetCollectionOperationsManifestV1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AssetCollectionOrderV1 {
+    Manual,
+    Created,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetCollectionSharingManifestV1 {
+    pub format: String,
+    pub ceiling: Vec<AssetCollectionSharingPlanManifestV1>,
+    #[serde(rename = "default")]
+    pub default_plan: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum AssetCollectionGrantStateV1 {
+    Active,
+    Pending,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetCollectionSharingPlanManifestV1 {
+    pub name: String,
+    #[serde(flatten)]
+    pub plan: AssetCollectionSharingPlanV1,
+}
+
+impl<'de> Deserialize<'de> for AssetCollectionSharingPlanManifestV1 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let Value::Object(mut object) = Value::deserialize(deserializer)? else {
+            return Err(serde::de::Error::custom(
+                "asset collection sharing plan must be an object",
+            ));
+        };
+        let name = object
+            .remove("name")
+            .and_then(|value| value.as_str().map(str::to_owned))
+            .ok_or_else(|| {
+                serde::de::Error::custom("asset collection sharing plan requires a string name")
+            })?;
+        let kind = object.get("kind").and_then(Value::as_str).ok_or_else(|| {
+            serde::de::Error::custom("asset collection sharing plan requires a string kind")
+        })?;
+        let allowed = match kind {
+            "none" | "owner-only" | "inherit-command" => &["kind"][..],
+            "recipients" => &["kind", "state", "maxRecipients"][..],
+            "derived" => &[
+                "kind",
+                "state",
+                "maxRecipients",
+                "function",
+                "table",
+                "parentField",
+                "principalField",
+            ][..],
+            _ => {
+                return Err(serde::de::Error::custom(
+                    "asset collection sharing plan kind is not admitted",
+                ));
+            }
+        };
+        if let Some(field) = object
+            .keys()
+            .find(|field| !allowed.contains(&field.as_str()))
+        {
+            return Err(serde::de::Error::custom(format!(
+                "asset collection sharing plan contains unknown field {field}",
+            )));
+        }
+        let plan =
+            serde_json::from_value(Value::Object(object)).map_err(serde::de::Error::custom)?;
+        Ok(Self { name, plan })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum AssetCollectionSharingPlanV1 {
+    None,
+    OwnerOnly,
+    Recipients {
+        state: AssetCollectionGrantStateV1,
+        #[serde(rename = "maxRecipients")]
+        max_recipients: u8,
+    },
+    Derived {
+        state: AssetCollectionGrantStateV1,
+        #[serde(rename = "maxRecipients")]
+        max_recipients: u8,
+        function: String,
+        table: String,
+        #[serde(rename = "parentField")]
+        parent_field: String,
+        #[serde(rename = "principalField")]
+        principal_field: String,
+    },
+    InheritCommand,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetCollectionFieldsManifestV1 {
+    pub parent_id: String,
+    pub parent_incarnation: String,
+    pub asset_id: String,
+    pub kind: String,
+    pub policy_generation: String,
+    pub ordinal: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetCollectionOperationsManifestV1 {
+    pub query: String,
+    pub append: String,
+    pub replace: String,
+    pub remove: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reorder: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SchemaManifest {
     #[serde(
@@ -525,6 +677,13 @@ pub struct SchemaManifest {
         alias = "ephemeral_collections"
     )]
     pub ephemeral_collections: Vec<EphemeralCollection>,
+    #[serde(
+        default,
+        rename = "assetCollections",
+        alias = "asset_collections",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub asset_collections: Vec<AssetCollectionManifestV1>,
     pub tables: Vec<TableManifest>,
 }
 
@@ -551,6 +710,7 @@ impl Default for SchemaManifest {
             target_profile: Some(TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()),
             portability_flags: Vec::new(),
             ephemeral_collections: Vec::new(),
+            asset_collections: Vec::new(),
             tables: Vec::new(),
         }
     }
@@ -1054,6 +1214,320 @@ impl SchemaManifest {
             crate::push::validate_declaration_against_schema(push_seam, self)?;
         }
 
+        self.validate_asset_collections()?;
+
+        Ok(())
+    }
+
+    /// Re-prove that every generated relation is exactly the closed D2
+    /// storage shape and that no lookalike system table exists without a
+    /// descriptor. Runtime mutation admission relies on this pairing.
+    /// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+    fn validate_asset_collections(&self) -> SnapbackResult<()> {
+        let invalid = |message: String| {
+            SnapbackError::error(
+                "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+                "asset-collection",
+                message,
+            )
+        };
+        if self.asset_collections.is_empty() {
+            if let Some(table) = self
+                .tables
+                .iter()
+                .find(|table| table.name.starts_with("_snapback_asset_collection_"))
+            {
+                return Err(invalid(format!(
+                    "framework-owned child table {} has no collection descriptor",
+                    table.name
+                )));
+            }
+            return Ok(());
+        }
+        if !self
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == TargetCapabilityId::MediaCollectionV1.as_str())
+        {
+            return Err(invalid(
+                "assetCollections requires assets.media-collection.v1".to_owned(),
+            ));
+        }
+        let mut names = BTreeSet::new();
+        let mut child_tables = BTreeSet::new();
+        let mut operations = BTreeSet::new();
+        for collection in &self.asset_collections {
+            if collection.format != "snapback.asset-collection.v1"
+                || collection.name.is_empty()
+                || !names.insert(collection.name.as_str())
+                || collection.generation.len() != 71
+                || !collection.generation.starts_with("sha256:")
+                || !collection.generation[7..]
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit())
+                || collection.max_items == 0
+                || collection.max_items > 32
+                || collection.kinds.is_empty()
+                || collection.kinds.iter().collect::<BTreeSet<_>>().len() != collection.kinds.len()
+                || collection.duplicate_policy != "refuse.v1"
+                || collection.sharing.format != "snapback.asset-collection-sharing.v1"
+                || collection.sharing.ceiling.is_empty()
+                || collection.sharing.ceiling.len() > 8
+                || !collection
+                    .child_table
+                    .starts_with("_snapback_asset_collection_")
+                || !child_tables.insert(collection.child_table.as_str())
+            {
+                return Err(invalid(format!(
+                    "collection {} is outside the closed descriptor profile",
+                    collection.name
+                )));
+            }
+            let portable_plan_name = |name: &str| {
+                (1..=64).contains(&name.len())
+                    && name
+                        .bytes()
+                        .next()
+                        .is_some_and(|byte| byte.is_ascii_alphabetic())
+                    && name
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+            };
+            let mut sharing_names = BTreeSet::new();
+            for sharing_plan in &collection.sharing.ceiling {
+                let bounded = match &sharing_plan.plan {
+                    AssetCollectionSharingPlanV1::None
+                    | AssetCollectionSharingPlanV1::OwnerOnly
+                    | AssetCollectionSharingPlanV1::InheritCommand => true,
+                    AssetCollectionSharingPlanV1::Recipients { max_recipients, .. }
+                    | AssetCollectionSharingPlanV1::Derived { max_recipients, .. } => {
+                        (1..=32).contains(max_recipients)
+                    }
+                };
+                if !portable_plan_name(&sharing_plan.name)
+                    || !sharing_names.insert(sharing_plan.name.as_str())
+                    || !bounded
+                {
+                    return Err(invalid(format!(
+                        "collection {} has an invalid or duplicate sharing ceiling plan",
+                        collection.name
+                    )));
+                }
+            }
+            let Some(default_sharing) = collection
+                .sharing
+                .ceiling
+                .iter()
+                .find(|plan| plan.name == collection.sharing.default_plan)
+            else {
+                return Err(invalid(format!(
+                    "collection {} sharing default is outside its ceiling",
+                    collection.name
+                )));
+            };
+            if matches!(
+                default_sharing.plan,
+                AssetCollectionSharingPlanV1::Recipients { .. }
+            ) {
+                return Err(invalid(format!(
+                    "collection {} cannot default a sharing plan that requires invocation principals",
+                    collection.name
+                )));
+            }
+            let operation_names = [
+                Some(collection.operations.query.as_str()),
+                Some(collection.operations.append.as_str()),
+                Some(collection.operations.replace.as_str()),
+                Some(collection.operations.remove.as_str()),
+                collection.operations.reorder.as_deref(),
+            ];
+            if operation_names
+                .into_iter()
+                .flatten()
+                .any(|name| name.is_empty() || !operations.insert(name))
+                || collection.sharing.ceiling.iter().any(|plan| {
+                    matches!(&plan.plan, AssetCollectionSharingPlanV1::Derived { function, .. }
+                        if function.is_empty() || !operations.insert(function))
+                })
+                || matches!(collection.order, AssetCollectionOrderV1::Manual)
+                    != collection.operations.reorder.is_some()
+            {
+                return Err(invalid(format!(
+                    "collection {} has empty or colliding generated operation names",
+                    collection.name
+                )));
+            }
+            let owner = self.table(&collection.owner_table).ok_or_else(|| {
+                invalid(format!(
+                    "collection {} owner table {} is missing",
+                    collection.name, collection.owner_table
+                ))
+            })?;
+            if owner.permission_backing
+                || owner.membership.is_some()
+                || owner.authority_profile.is_some()
+                || owner.visibility
+                    != Some(TableVisibilityV1::Owner {
+                        field: collection.owner_field.clone(),
+                    })
+            {
+                return Err(invalid(format!(
+                    "collection {} owner authority/sharing no longer matches its descriptor",
+                    collection.name
+                )));
+            }
+            for plan in &collection.sharing.ceiling {
+                let AssetCollectionSharingPlanV1::Derived {
+                    table,
+                    parent_field,
+                    principal_field,
+                    ..
+                } = &plan.plan
+                else {
+                    continue;
+                };
+                let source = self.table(table).ok_or_else(|| {
+                    invalid(format!(
+                        "collection {} sharing derivation table {} is missing",
+                        collection.name, table
+                    ))
+                })?;
+                let parent = source.field(parent_field);
+                let principal = source.field(principal_field);
+                if source.permission_backing
+                    || source.membership.is_some()
+                    || source.authority_profile.is_some()
+                    || !matches!(source.visibility, Some(TableVisibilityV1::Owner { .. }))
+                    || !parent.is_some_and(|field| {
+                        !field.optional
+                            && field.field_type
+                                == FieldType::Id {
+                                    table: collection.owner_table.clone(),
+                                }
+                    })
+                    || !principal.is_some_and(|field| {
+                        !field.optional && field.field_type == FieldType::Principal
+                    })
+                {
+                    return Err(invalid(format!(
+                        "collection {} sharing derivation {} is outside the closed owner-authorized profile",
+                        collection.name, plan.name
+                    )));
+                }
+            }
+            let child = self.table(&collection.child_table).ok_or_else(|| {
+                invalid(format!(
+                    "collection {} child table {} is missing",
+                    collection.name, collection.child_table
+                ))
+            })?;
+            let expected_fields = [
+                collection.fields.parent_id.as_str(),
+                collection.fields.parent_incarnation.as_str(),
+                collection.fields.asset_id.as_str(),
+                collection.fields.kind.as_str(),
+                collection.fields.policy_generation.as_str(),
+                collection.fields.ordinal.as_str(),
+            ];
+            if expected_fields
+                != [
+                    "parentId",
+                    "parentIncarnation",
+                    "assetId",
+                    "kind",
+                    "policyGeneration",
+                    "ordinal",
+                ]
+                || child.fields.len() != expected_fields.len()
+                || child.syncable
+                || child.permission_backing
+                || child.membership.is_some()
+                || child.authority_profile.is_some()
+                || child.asset_sharing.is_some()
+                || child.visibility.is_some()
+            {
+                return Err(invalid(format!(
+                    "collection {} child table is not framework-owned closed storage",
+                    collection.name
+                )));
+            }
+            let expected_types = [
+                FieldType::Id {
+                    table: collection.owner_table.clone(),
+                },
+                FieldType::RelationIncarnation {
+                    foreign_key_field: "parentId".to_owned(),
+                    parent_table: collection.owner_table.clone(),
+                },
+                FieldType::AssetRef {
+                    upload: Some(collection.intent.clone()),
+                    media: Some(crate::contract_types::MediaFieldDescriptorV1 {
+                        intent: collection.intent.clone(),
+                        policy: collection.generation.clone(),
+                        kinds: collection.kinds.clone(),
+                        delivery: None,
+                        variants: Vec::new(),
+                        classification_profile: "detected-content-type.v1".to_owned(),
+                        retention_class: "media-reference.v1".to_owned(),
+                        target_capability: "assets.media-ref-projection.v1".to_owned(),
+                    }),
+                },
+                FieldType::String,
+                FieldType::String,
+                FieldType::Integer,
+            ];
+            if child
+                .fields
+                .iter()
+                .zip(expected_fields.into_iter().zip(expected_types))
+                .any(|(field, (name, field_type))| {
+                    field.name != name || field.optional || field.field_type != field_type
+                })
+            {
+                return Err(invalid(format!(
+                    "collection {} child record fields drifted from the D2 shape",
+                    collection.name
+                )));
+            }
+            let index = |name: &str, fields: &[&str], unique: bool| {
+                child.indexes.iter().any(|index| {
+                    index.name == name
+                        && index
+                            .fields
+                            .iter()
+                            .map(String::as_str)
+                            .eq(fields.iter().copied())
+                        && index.unique == unique
+                        && !index.where_applicable
+                })
+            };
+            if child.indexes.len() != 2
+                || !index(
+                    "byParentOrdinal",
+                    &["parentId", "parentIncarnation", "ordinal"],
+                    false,
+                )
+                || !index(
+                    "uniqueParentAsset",
+                    &["parentId", "parentIncarnation", "assetId"],
+                    true,
+                )
+            {
+                return Err(invalid(format!(
+                    "collection {} child indexes drifted from the D2 shape",
+                    collection.name
+                )));
+            }
+        }
+        if let Some(table) = self.tables.iter().find(|table| {
+            table.name.starts_with("_snapback_asset_collection_")
+                && !child_tables.contains(table.name.as_str())
+        }) {
+            return Err(invalid(format!(
+                "framework-owned child table {} has no matching descriptor",
+                table.name
+            )));
+        }
         Ok(())
     }
 }
@@ -1099,6 +1573,8 @@ pub struct PublicSchemaManifest {
     pub portability_flags: Vec<String>,
     #[serde(rename = "ephemeralCollections")]
     pub ephemeral_collections: Vec<EphemeralCollection>,
+    #[serde(rename = "assetCollections", skip_serializing_if = "Vec::is_empty")]
+    pub asset_collections: Vec<AssetCollectionManifestV1>,
     pub tables: Vec<TableManifest>,
 }
 
@@ -1127,6 +1603,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             target_profile,
             portability_flags,
             ephemeral_collections,
+            asset_collections,
             tables,
         } = manifest;
         Self {
@@ -1149,6 +1626,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             target_profile,
             portability_flags,
             ephemeral_collections,
+            asset_collections,
             tables,
         }
     }
@@ -4933,6 +5411,27 @@ impl ObservedEffects {
             HandlerPlan::Mutation(plan) => {
                 for step in &plan.steps {
                     match step {
+                        MutationStep::AssetCollection(plan) => {
+                            self.read(&plan.owner_table, "point", None);
+                            self.read(&plan.child_table, "query", Some("uniqueParentAsset"));
+                            for table in &plan.sharing_derivation_tables {
+                                self.read(table, "query", None);
+                            }
+                            let operation = match plan.operation {
+                                AssetCollectionOperationV1::Append => "append",
+                                AssetCollectionOperationV1::Replace => "replace",
+                                AssetCollectionOperationV1::Remove => "remove",
+                                AssetCollectionOperationV1::Reorder => "reorder",
+                            };
+                            self.write(&plan.child_table, operation);
+                            self.authorization_inputs.insert("authUserId");
+                            self.authorization_inputs.insert("resolvedAppAuthority");
+                            self.host_operations.insert("assetCollectionCommit");
+                            if plan.sharing_grant_capable {
+                                self.host_operations.insert("assetGrantCommit");
+                            }
+                            self.host_operations.insert("clientMutationSettlement");
+                        }
                         MutationStep::AllocateSequence { scope, .. } => {
                             self.expr(scope);
                             self.host_operations.insert("sequenceAllocate");
@@ -7536,6 +8035,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
     let forbidden_expr =
         |expr: &ValueExpr| expr.uses_runtime_id() || expr.uses_authoritative_only();
     let step_uses_forbidden_expr = |step: &MutationStep| match step {
+        MutationStep::AssetCollection(_) => true,
         MutationStep::AllocateSequence { scope, .. } => forbidden_expr(scope),
         MutationStep::Insert { values, .. } => values.values().any(forbidden_expr),
         MutationStep::Patch { id, values, .. } => {
@@ -7739,7 +8239,8 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
             MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
             MutationStep::AssertSourceChanged { .. }
             | MutationStep::DeleteWhere { .. }
-            | MutationStep::InsertEach { .. } => return Err(invalid()),
+            | MutationStep::InsertEach { .. }
+            | MutationStep::AssetCollection(_) => return Err(invalid()),
         }
     }
     let expected_runtime_ids = if plan.source_operation == WriteWithActivitySourceOperation::Insert
@@ -9594,6 +10095,11 @@ pub struct MutationPlan {
 //   the v1 step set. (Plain comment: doc text flows into generated schemas.)
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum MutationStep {
+    /// Framework-generated collection transaction. No public IR builder
+    /// exposes this variant; schema/function pairing authenticates the exact
+    /// descriptor before execution.
+    /// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+    AssetCollection(AssetCollectionMutationPlanV1),
     /// One point-shaped host allocation. It is legal only inside a validated
     /// `write-with-activity.v1` plan, after the exact scope owner guard.
     /// @ref LLP 0135#12-allocation-surfaces
@@ -10930,6 +11436,8 @@ pub enum TargetCapabilityId {
     AssetLifecycleV1,
     #[serde(rename = "assets.media-ref-projection.v1")]
     MediaRefProjectionV1,
+    #[serde(rename = "assets.media-collection.v1")]
+    MediaCollectionV1,
     #[serde(rename = "asset_image_finalization_v1")]
     AssetImageFinalizationV1,
     #[serde(rename = "asset_image_pipeline_v1")]
@@ -10950,7 +11458,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 42] = [
+    pub const ALL: [Self; 43] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -10987,6 +11495,7 @@ impl TargetCapabilityId {
         Self::WriteActivityV1,
         Self::AssetLifecycleV1,
         Self::MediaRefProjectionV1,
+        Self::MediaCollectionV1,
         Self::AssetImageFinalizationV1,
         Self::AssetImagePipelineV1,
         Self::AssetReferenceGcV1,
@@ -11033,6 +11542,7 @@ impl TargetCapabilityId {
             Self::WriteActivityV1 => "write_activity_v1",
             Self::AssetLifecycleV1 => "asset_lifecycle_v1",
             Self::MediaRefProjectionV1 => "assets.media-ref-projection.v1",
+            Self::MediaCollectionV1 => "assets.media-collection.v1",
             Self::AssetImageFinalizationV1 => "asset_image_finalization_v1",
             Self::AssetVideoFinalizationV1 => "asset_video_finalization_v1",
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
@@ -11091,6 +11601,7 @@ impl TargetCapabilityId {
             | Self::WriteActivityV1
             | Self::AssetLifecycleV1
             | Self::MediaRefProjectionV1
+            | Self::MediaCollectionV1
             | Self::AssetImageFinalizationV1
             | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
@@ -11429,6 +11940,18 @@ impl TargetCapabilityId {
                     && manifest.storage_engine == "sqlite"
                     && Self::AssetLifecycleV1.is_supported_by(manifest, facts)
             }
+            // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+            // — registration names the manifest/storage/mutation/read
+            // implementation as one local experimental capability.
+            Self::MediaCollectionV1 => {
+                facts.media_collection_v1_registered
+                    && facts.host_plan_runtime
+                    && facts.mutation_read_set_validator_registered
+                    && Self::MediaRefProjectionV1.is_supported_by(manifest, facts)
+                    && Self::BoundedChildrenV1.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest.storage_engine == "sqlite"
+            }
             // @ref LLP 0044#capability-facts-and-implementation-slices — the
             // image facts block IS the `asset-image-finalization` fact: the
             // registered implementation plus the declared Enforced ceilings.
@@ -11542,13 +12065,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:18808937c4a49f1c6b5ce3137d8592aebb5f41333b773cb02805b936249b4f70";
+    "sha256:83f7da5ff4e8e2b1ab5d51328670236bc751188cd6e47b76e8dd032f3c0fc4b5";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:328824da5aa137b17a03ef8696f8a4bc6470c3de035537592b3a7ee3e82ee116";
+    "sha256:ebb1f59dc17e479a2b0ec5d85fb15ea7cc690ed6d3a81844d562f02474cb0fea";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -11948,12 +12471,12 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:f37443d8abc608f1b8e202dbdd5c719b80eda8a4e9a94b5e2a5582db9610e985"
+                    "sha256:07f694358559948208a77acb6ac2f31626f21ff30563da5409a40b3ec1055c26"
                         .to_owned(),
                 ),
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:19c84096098f4fbb0d943068a0af94a32160f262e4dfeb8b8e3c4382e68148a4"
+                    "sha256:338320055523cd8bcc6b993ffc0a62bb55b95579d9ffa3fbd6cb52b9105a723f"
                         .to_owned(),
                 ),
                 (
@@ -11983,12 +12506,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:c4d1959492c0e426718690b8549fea0f803eaac7309cbbcaf13c196b3db18db1"
+                    "sha256:1b18ce8994ac50e356642c90cd0b2e60f9896112e3a75d182fc5cf3000e19a3c"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:f6ed3131ce3fa9c79bcdce17ca2968081c4ae99522551a146ae3ac52591b432e"
+                    "sha256:0c0ce12c823862a1ee80b33ec5202a8feb8b5ef04411be644798b8b611d83e7e"
                         .to_owned(),
                 ),
                 (
@@ -12003,7 +12526,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:8e6223f3da22864215236f6ffafe66c9c1afa557f5179b1e541edc17d74af2b5"
+                    "sha256:8a96d922d85a006f9924a6b557769d9af9b38343d7352fc2dd19034ab9764959"
                         .to_owned(),
                 ),
                 (
@@ -12023,12 +12546,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:593480a211d77cbb6a314f0e04e82d37057da2afbfddb223891f0f8267607f3e"
+                    "sha256:b35dd330712309a868c728cd5e18ab149cd8bda67254652cedc3ffe7d5d05134"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:4acfcd49bffe23da39a92e19fa1ce1dc14184d40181bd31c3a4946c11e5b80ce"
+                    "sha256:42425bad49410ad0ad0d950d335b8cebe35d461904dc48697388236c3fe41bab"
                         .to_owned(),
                 ),
                 (
@@ -12053,12 +12576,12 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/authorization.rs".to_owned(),
-                    "sha256:25f785cecd49b6f6dc39f97ec45c2199a41a9d32ca6e24b072f2b1b46beaa46e"
+                    "sha256:1c26338d9cb79206135a594e48346e091aaca2a0d9ac07d102481249a10a1552"
                         .to_owned(),
                 ),
                 (
                     "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:1f6246d130af99183eeaf629d0000046c05c9e1953b7af510044bda368254ffd"
+                    "sha256:58fe02cd52bafbb03b1a0da1351df94705a71633dd6927fa0657597c65045a50"
                         .to_owned(),
                 ),
                 (
@@ -12073,17 +12596,17 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:6913334092944badf7ec08b4f72468af1d01579b776224361c1d9b05f03c0eb3"
+                    "sha256:0e4d9ccfd16cc571bbddebd8435c24aafed3f6813e302fb96ce071a88024dc1f"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
+                    "sha256:656eeb70671986959de3e64417c4e455576326e4faa22f0fabf70a6af9037cf5"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
+                    "sha256:96a85673f79cc021bbdfc9ad4db36fdc3b415a60dcf7a29d10d341a2bd5bef0e"
                         .to_owned(),
                 ),
                 (
@@ -12093,7 +12616,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:016feaa9c499c525cb05fe2503546d9c49ece8f34f9465e656d1aeaa5ef43b9e"
+                    "sha256:2d646c6d72b44eae4cdcd28943ba0021787310966cf395c3146e3825c4b5c26a"
                         .to_owned(),
                 ),
                 (
@@ -12105,7 +12628,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:3d092e041eec61be6bb599cbf1936496a12f9bea8ba757b7ca79bf39e0af5efd"
+                "sha256:f0c40cb2bef137f5b51d3f6f3db8cdc05e03fb48f91dd46128ce95eb23b33204"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -12156,7 +12679,7 @@ fn local_sequence_allocation_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:19c84096098f4fbb0d943068a0af94a32160f262e4dfeb8b8e3c4382e68148a4"
+                    "sha256:338320055523cd8bcc6b993ffc0a62bb55b95579d9ffa3fbd6cb52b9105a723f"
                         .to_owned(),
                 ),
                 (
@@ -12186,17 +12709,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:c4d1959492c0e426718690b8549fea0f803eaac7309cbbcaf13c196b3db18db1"
+                    "sha256:1b18ce8994ac50e356642c90cd0b2e60f9896112e3a75d182fc5cf3000e19a3c"
                         .to_owned(),
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:b7eef815a9c40bac6fd28d3bed4b3ea3d5a388cbf057cc4dce531fbd1dff8d4a"
+                    "sha256:d75fe4ff25af41de93f7952ee23b464bc5ab915d3c81e12bba62ab2149c04cd8"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:f6ed3131ce3fa9c79bcdce17ca2968081c4ae99522551a146ae3ac52591b432e"
+                    "sha256:0c0ce12c823862a1ee80b33ec5202a8feb8b5ef04411be644798b8b611d83e7e"
                         .to_owned(),
                 ),
                 (
@@ -12211,7 +12734,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:8e6223f3da22864215236f6ffafe66c9c1afa557f5179b1e541edc17d74af2b5"
+                    "sha256:8a96d922d85a006f9924a6b557769d9af9b38343d7352fc2dd19034ab9764959"
                         .to_owned(),
                 ),
                 (
@@ -12231,12 +12754,12 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:593480a211d77cbb6a314f0e04e82d37057da2afbfddb223891f0f8267607f3e"
+                    "sha256:b35dd330712309a868c728cd5e18ab149cd8bda67254652cedc3ffe7d5d05134"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:4acfcd49bffe23da39a92e19fa1ce1dc14184d40181bd31c3a4946c11e5b80ce"
+                    "sha256:42425bad49410ad0ad0d950d335b8cebe35d461904dc48697388236c3fe41bab"
                         .to_owned(),
                 ),
                 (
@@ -12261,12 +12784,12 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/authorization.rs".to_owned(),
-                    "sha256:25f785cecd49b6f6dc39f97ec45c2199a41a9d32ca6e24b072f2b1b46beaa46e"
+                    "sha256:1c26338d9cb79206135a594e48346e091aaca2a0d9ac07d102481249a10a1552"
                         .to_owned(),
                 ),
                 (
                     "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:1f6246d130af99183eeaf629d0000046c05c9e1953b7af510044bda368254ffd"
+                    "sha256:58fe02cd52bafbb03b1a0da1351df94705a71633dd6927fa0657597c65045a50"
                         .to_owned(),
                 ),
                 (
@@ -12281,17 +12804,17 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:6913334092944badf7ec08b4f72468af1d01579b776224361c1d9b05f03c0eb3"
+                    "sha256:0e4d9ccfd16cc571bbddebd8435c24aafed3f6813e302fb96ce071a88024dc1f"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
+                    "sha256:656eeb70671986959de3e64417c4e455576326e4faa22f0fabf70a6af9037cf5"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
+                    "sha256:96a85673f79cc021bbdfc9ad4db36fdc3b415a60dcf7a29d10d341a2bd5bef0e"
                         .to_owned(),
                 ),
                 (
@@ -12301,7 +12824,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:016feaa9c499c525cb05fe2503546d9c49ece8f34f9465e656d1aeaa5ef43b9e"
+                    "sha256:2d646c6d72b44eae4cdcd28943ba0021787310966cf395c3146e3825c4b5c26a"
                         .to_owned(),
                 ),
                 (
@@ -12313,7 +12836,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:3d092e041eec61be6bb599cbf1936496a12f9bea8ba757b7ca79bf39e0af5efd"
+                "sha256:f0c40cb2bef137f5b51d3f6f3db8cdc05e03fb48f91dd46128ce95eb23b33204"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -12445,12 +12968,12 @@ fn local_persistent_store_contributor_chain_verified(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:f37443d8abc608f1b8e202dbdd5c719b80eda8a4e9a94b5e2a5582db9610e985"
+                    "sha256:07f694358559948208a77acb6ac2f31626f21ff30563da5409a40b3ec1055c26"
                         .to_owned(),
                 ),
                 (
                     "src/local/auth_room_kick_acceptance.rs".to_owned(),
-                    "sha256:19c84096098f4fbb0d943068a0af94a32160f262e4dfeb8b8e3c4382e68148a4"
+                    "sha256:338320055523cd8bcc6b993ffc0a62bb55b95579d9ffa3fbd6cb52b9105a723f"
                         .to_owned(),
                 ),
                 (
@@ -12480,12 +13003,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:c4d1959492c0e426718690b8549fea0f803eaac7309cbbcaf13c196b3db18db1"
+                    "sha256:1b18ce8994ac50e356642c90cd0b2e60f9896112e3a75d182fc5cf3000e19a3c"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:f6ed3131ce3fa9c79bcdce17ca2968081c4ae99522551a146ae3ac52591b432e"
+                    "sha256:0c0ce12c823862a1ee80b33ec5202a8feb8b5ef04411be644798b8b611d83e7e"
                         .to_owned(),
                 ),
                 (
@@ -12500,7 +13023,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_agents.rs".to_owned(),
-                    "sha256:8e6223f3da22864215236f6ffafe66c9c1afa557f5179b1e541edc17d74af2b5"
+                    "sha256:8a96d922d85a006f9924a6b557769d9af9b38343d7352fc2dd19034ab9764959"
                         .to_owned(),
                 ),
                 (
@@ -12520,12 +13043,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/auth_mode.rs".to_owned(),
-                    "sha256:593480a211d77cbb6a314f0e04e82d37057da2afbfddb223891f0f8267607f3e"
+                    "sha256:b35dd330712309a868c728cd5e18ab149cd8bda67254652cedc3ffe7d5d05134"
                         .to_owned(),
                 ),
                 (
                     "src/storage/auth_rescue.rs".to_owned(),
-                    "sha256:4acfcd49bffe23da39a92e19fa1ce1dc14184d40181bd31c3a4946c11e5b80ce"
+                    "sha256:42425bad49410ad0ad0d950d335b8cebe35d461904dc48697388236c3fe41bab"
                         .to_owned(),
                 ),
                 (
@@ -12550,12 +13073,12 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/authorization.rs".to_owned(),
-                    "sha256:25f785cecd49b6f6dc39f97ec45c2199a41a9d32ca6e24b072f2b1b46beaa46e"
+                    "sha256:1c26338d9cb79206135a594e48346e091aaca2a0d9ac07d102481249a10a1552"
                         .to_owned(),
                 ),
                 (
                     "src/storage/authorized_lease.rs".to_owned(),
-                    "sha256:1f6246d130af99183eeaf629d0000046c05c9e1953b7af510044bda368254ffd"
+                    "sha256:58fe02cd52bafbb03b1a0da1351df94705a71633dd6927fa0657597c65045a50"
                         .to_owned(),
                 ),
                 (
@@ -12570,17 +13093,17 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/migration_executor.rs".to_owned(),
-                    "sha256:6913334092944badf7ec08b4f72468af1d01579b776224361c1d9b05f03c0eb3"
+                    "sha256:0e4d9ccfd16cc571bbddebd8435c24aafed3f6813e302fb96ce071a88024dc1f"
                         .to_owned(),
                 ),
                 (
                     "src/storage/migration_scan.rs".to_owned(),
-                    "sha256:3a7161c8bf9856072e1acd124d16e242d4532a1fc2cfc80b4ab6f921995b655d"
+                    "sha256:656eeb70671986959de3e64417c4e455576326e4faa22f0fabf70a6af9037cf5"
                         .to_owned(),
                 ),
                 (
                     "src/storage/projection_rebuild.rs".to_owned(),
-                    "sha256:f3c9c0d308825944154d519ec015c3c4b0fb57a218d8dae6c067c671e4b88996"
+                    "sha256:96a85673f79cc021bbdfc9ad4db36fdc3b415a60dcf7a29d10d341a2bd5bef0e"
                         .to_owned(),
                 ),
                 (
@@ -12590,7 +13113,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:016feaa9c499c525cb05fe2503546d9c49ece8f34f9465e656d1aeaa5ef43b9e"
+                    "sha256:2d646c6d72b44eae4cdcd28943ba0021787310966cf395c3146e3825c4b5c26a"
                         .to_owned(),
                 ),
                 (
@@ -12602,7 +13125,7 @@ fn local_persistent_store_contributor_chain_verified(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:229373c966f4f105a2dad222d38ffaeb8c2c4be37036d37e4855bd4d46f8078f"
+                "sha256:44aef44fa71d1bd0d26898ee572f4142ba36571f388ae5d4daf409fc0e850d45"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -12738,6 +13261,7 @@ pub struct TargetCapabilityFacts {
     packaged_store_qualification_mode: bool,
     asset_lifecycle_local_fs_registered: bool,
     media_ref_projection_v1_registered: bool,
+    media_collection_v1_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
     asset_video_finalization_registered: bool,
@@ -12848,6 +13372,7 @@ impl TargetCapabilityFacts {
         Self {
             asset_lifecycle_local_fs_registered: true,
             media_ref_projection_v1_registered: true,
+            media_collection_v1_registered: true,
             asset_image_finalization_registered: true,
             asset_reference_gc_registered: true,
             asset_video_finalization_registered: true,

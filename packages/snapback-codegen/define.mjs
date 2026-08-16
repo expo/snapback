@@ -27,6 +27,7 @@ const DATA_RESOURCE_SPEC_FIELDS = new Set([
 const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 const ASSET_UPLOAD = Symbol('snapback.assetUpload');
+const ASSET_COLLECTION = Symbol('snapback.assetCollection');
 const COMMAND = Symbol('snapback.command');
 const SURFACE = Symbol('snapback.surface');
 const SURFACE_BINDING = Symbol('snapback.surfaceBinding');
@@ -2565,6 +2566,40 @@ export function defineCommand(spec) {
 }
 
 // ---------------------------------------------------------------------------
+// Generated asset collections
+// ---------------------------------------------------------------------------
+// The authoring builder preserves only closed declaration data. Cross-export
+// facts (owner table, upload intent, sharing ceiling) are deliberately
+// resolved by codegen, where failures can carry the exported binding and exact
+// property span.
+// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+export function assetCollection(spec) {
+  assert(
+    spec && typeof spec === 'object' && !Array.isArray(spec),
+    'assetCollection() expects a spec object',
+    'SNAPBACK_MEDIA_COLLECTION_DECLARATION_INVALID',
+  );
+  const allowed = new Set(['ownerTable', 'intent', 'maxItems', 'order', 'kinds', 'grants']);
+  for (const field of Object.keys(spec)) {
+    assert(
+      allowed.has(field),
+      `assetCollection() has unknown field ${field}`,
+      'SNAPBACK_MEDIA_COLLECTION_DECLARATION_INVALID',
+    );
+  }
+  return {
+    [ASSET_COLLECTION]: true,
+    __kind: 'AssetCollection',
+    ownerTable: spec.ownerTable ?? null,
+    intent: spec.intent ?? null,
+    maxItems: spec.maxItems ?? null,
+    order: spec.order ?? null,
+    kinds: spec.kinds ?? null,
+    grants: spec.grants ?? null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Generated application surfaces
 // ---------------------------------------------------------------------------
 // @ref LLP 0179#closed-grammar — surface declarations are bounded data. The
@@ -2903,6 +2938,9 @@ function boundedProjectionValidator(facts, leaf, where) {
     ['String', 'Boolean', 'Integer', 'Real', 'Principal'].includes(field.fieldType)
     || field.fieldType?.Enum
     || field.fieldType?.Id
+    // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+    // — child pages admit the existing exact mediaRef.v1 result node.
+    || field.fieldType?.AssetRef?.media
   );
   assert(
     portable,
@@ -4782,6 +4820,10 @@ export function defineAssetUpload(spec) {
 
 export function isAssetUploadDef(value) {
   return !!(value && value[ASSET_UPLOAD]);
+}
+
+export function isAssetCollectionDef(value) {
+  return !!(value && value[ASSET_COLLECTION]);
 }
 
 export function isCommandDef(value) {

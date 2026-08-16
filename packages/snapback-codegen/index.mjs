@@ -48,7 +48,7 @@ import {
   transformTypeScriptHandler,
   typecheckTypeScriptHandler,
 } from './typescript-transform.mjs';
-import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, v } from './define.mjs';
+import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, results, v } from './define.mjs';
 import {
   decodeUtf8Source,
   resolveFileReadCapability,
@@ -1105,6 +1105,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'result_contract_v1',
   'args_contract_v1',
   'assets.media-ref-projection.v1',
+  'assets.media-collection.v1',
   'settlement.bounded_skew',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
@@ -1130,6 +1131,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'asset_image_pipeline_v1',
   'asset_lifecycle_v1',
   'assets.media-ref-projection.v1',
+  'assets.media-collection.v1',
   'asset_reference_gc_v1',
   'asset_video_finalization_v1',
   'bounded_children_v1',
@@ -3479,6 +3481,33 @@ async function generateInProcessLocked({
     }
   }
 
+  // @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+  // — lower the declaration before physical-index validation so generated
+  // child storage participates in the same global namespace and schema hash.
+  const assetCollectionCompilation = buildAssetCollections({
+    functionsModule,
+    tables,
+    attribution: functionDefinitionAttribution,
+    err,
+  });
+  Object.assign(functionsModule, assetCollectionCompilation.definitions);
+  Object.assign(functionDefinitionSourceSpans, assetCollectionCompilation.sourceSpans);
+  const assetCollections = assetCollectionCompilation.collections;
+  if (assetCollections.length > 0) {
+    for (const capability of [
+      'assets.media-collection.v1',
+      'assets.media-ref-projection.v1',
+      'bounded_children_v1',
+    ]) {
+      if (!schemaRequiredCapabilities.includes(capability)) {
+        schemaRequiredCapabilities.push(capability);
+      }
+    }
+  }
+  if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
+    return { ok: false, diagnostics };
+  }
+
   if (
     Object.values(tables).some((table) => (table.searchIndexes?.length ?? 0) > 0)
     && !schemaRequiredCapabilities.includes('full_text_search_v1')
@@ -5073,6 +5102,17 @@ async function generateInProcessLocked({
         if (!tables[table]) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: handler declares unknown table ${table}`, { function: name, table });
         }
+        if (writes.includes(table) && tables[table]?.frameworkOwned !== undefined) {
+          err('SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED', 'asset-collection', `${name}: handler cannot declare raw writes to framework-owned collection storage ${table}`, {
+            function: name,
+            table,
+            ...definitionAttributionDetails(functionDefinitionAttribution, [name]),
+            details: {
+              ...definitionAttributionDetails(functionDefinitionAttribution, [name]).details,
+              remediation: 'Use the generated collection mutation operations.',
+            },
+          });
+        }
       }
       const resolvedHandler = resolveJsHandler(def, name);
       validateStaticUniqueManyCalls(resolvedHandler?.source ?? '', name, tables, err);
@@ -5120,7 +5160,10 @@ async function generateInProcessLocked({
         sequenceCount: (def.sequences ?? []).length,
       });
     } else if (def.__kind === 'Mutation') {
-      const writes = new Set();
+      const collectionPlan = def.plan.steps
+        .find((step) => step.AssetCollection !== undefined)
+        ?.AssetCollection ?? null;
+      const writes = new Set(collectionPlan ? [collectionPlan.childTable] : []);
       let sequenceAllocationCount = 0;
       const checkValuesMap = (t, values, where) => {
         for (const [field, expr] of Object.entries(values)) {
@@ -5146,6 +5189,25 @@ async function generateInProcessLocked({
         const t = body.table;
         if (t !== undefined && !tables[t]) {
           err('QUERY_UNKNOWN_TABLE', 'function', `${name}: ${kind} on unknown table ${t}`, { function: name, table: t });
+          continue;
+        }
+        if (t !== undefined
+          && tables[t]?.frameworkOwned !== undefined
+          && ['Insert', 'Patch', 'Delete', 'DeleteWhere', 'InsertEach'].includes(kind)) {
+          err(
+            'SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED',
+            'asset-collection',
+            `${name}: generic ${kind} cannot write framework-owned collection storage ${t}`,
+            {
+              function: name,
+              table: t,
+              ...definitionAttributionDetails(functionDefinitionAttribution, [name]),
+              details: {
+                ...definitionAttributionDetails(functionDefinitionAttribution, [name]).details,
+                remediation: 'Use the generated append, replace, remove, or reorder operation for the collection.',
+              },
+            },
+          );
           continue;
         }
         if (kind === 'Insert') {
@@ -5278,6 +5340,9 @@ async function generateInProcessLocked({
           checkExpr(body.source, 'insertEach source');
           checkValuesMap(t, body.values, 'insertEach');
           checkRequiredFields(t, body.values, 'insertEach');
+        } else if (kind === 'AssetCollection') {
+          // Generated-only closed step. Schema/runtime pairing validates the
+          // descriptor; its exact effects are handled by the total ceiling.
         } else {
           err('MUTATION_UNSUPPORTED_STEP', 'function', `${name}: unsupported mutation step ${kind}`, { function: name, step: kind });
         }
@@ -5332,6 +5397,17 @@ async function generateInProcessLocked({
       for (const table of writes) {
         if (!tables[table]) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: action declares unknown write table ${table}`, { function: name, table });
+        }
+        if (tables[table]?.frameworkOwned !== undefined) {
+          err('SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED', 'asset-collection', `${name}: action cannot declare raw writes to framework-owned collection storage ${table}`, {
+            function: name,
+            table,
+            ...definitionAttributionDetails(functionDefinitionAttribution, [name]),
+            details: {
+              ...definitionAttributionDetails(functionDefinitionAttribution, [name]).details,
+              remediation: 'Use the generated collection mutation operations.',
+            },
+          });
         }
       }
       const resolvedHandler = resolveJsHandler(def, name);
@@ -6572,7 +6648,11 @@ async function generateInProcessLocked({
       ...diagnostics.filter(({ code }) => code === 'SNAPBACK_API_PAGINATION_RECOMMENDED'),
     ],
     ephemeralCollections,
-    tables: Object.values(tables),
+    ...(assetCollections.length > 0 ? { assetCollections } : {}),
+    tables: Object.values(tables).map((table) => {
+      const { frameworkOwned: _frameworkOwned, ...manifestTable } = table;
+      return manifestTable;
+    }),
     ...(normalizedDataResources.length === 0
       ? {}
       : {
@@ -8428,6 +8508,9 @@ export function serializeMutationPlan(plan, functionName, err) {
       for (const [k, e] of Object.entries(body.values)) values[k] = serializeExpr(e);
       return { InsertEach: { table: body.table, source: serializeExpr(body.source), item_as: body.item_as, values } };
     }
+    if (kind === 'AssetCollection') {
+      return { AssetCollection: structuredClone(body) };
+    }
     if (kind === 'AssertSourceChanged') {
       return {
         AssertSourceChanged: {
@@ -8708,6 +8791,11 @@ function mutationReadTables(plan) {
   for (const step of plan.steps) {
     const kind = Object.keys(step)[0];
     const body = step[kind];
+    if (kind === 'AssetCollection') {
+      reads.add(body.ownerTable);
+      reads.add(body.childTable);
+      for (const table of body.sharingDerivationTables ?? []) reads.add(table);
+    }
     if (kind === 'Patch' || kind === 'Delete' || kind === 'Get' || kind === 'DeleteWhere' || kind === 'AssertSourceChanged') {
       reads.add(body.table);
     }
@@ -9902,6 +9990,608 @@ function boundedChildrenRowDescriptor(plan, tables) {
   };
 }
 
+const ASSET_COLLECTION_KINDS = new Set(['image', 'video', 'audio', 'file']);
+const ASSET_COLLECTION_GRANT_STATES = new Set(['active', 'pending']);
+const ASSET_COLLECTION_GRANT_KINDS = new Set([
+  'none', 'owner-only', 'recipients', 'derived', 'inherit-command',
+]);
+const ASSET_COLLECTION_PLAN_NAME = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u;
+
+function uploadIntentMediaKinds(intent) {
+  const kinds = new Set();
+  for (const entry of intent?.accept?.mediaTypes ?? []) {
+    const mediaType = String(entry).toLowerCase();
+    if (mediaType === '*/*') {
+      kinds.add('image');
+      kinds.add('video');
+      kinds.add('audio');
+      kinds.add('file');
+    } else if (mediaType.startsWith('image/')) kinds.add('image');
+    else if (mediaType.startsWith('video/')) kinds.add('video');
+    else if (mediaType.startsWith('audio/')) kinds.add('audio');
+    else kinds.add('file');
+  }
+  return kinds;
+}
+
+function normalizeAssetCollectionSharing(definition, refuse) {
+  const authored = definition.grants;
+  const policy = typeof authored === 'string'
+    ? {
+        ceiling: {
+          [authored]: { kind: authored },
+        },
+        default: authored,
+      }
+    : authored;
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) {
+    refuse(
+      'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+      'grants',
+      'grants must be "none", "owner-only", "inherit-command", or a closed { ceiling, default } policy',
+      'Declare a shorthand or an object whose ceiling maps 1–8 plan names to closed plan descriptors.',
+    );
+    return null;
+  }
+  const policyKeys = Object.keys(policy);
+  if (policyKeys.some((key) => key !== 'ceiling' && key !== 'default')) {
+    refuse(
+      'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+      'grants',
+      `grants contains unknown field ${policyKeys.find((key) => key !== 'ceiling' && key !== 'default')}`,
+      'Use exactly grants: { ceiling: { <plan>: <descriptor> }, default: <plan> }.',
+    );
+    return null;
+  }
+  if (!policy.ceiling || typeof policy.ceiling !== 'object' || Array.isArray(policy.ceiling)) {
+    refuse(
+      'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+      'grants',
+      'grants.ceiling must be an object of named exact plans',
+      'Map 1–8 stable plan names to closed sharing descriptors.',
+    );
+    return null;
+  }
+  const entries = Object.entries(policy.ceiling);
+  if (entries.length < 1 || entries.length > 8) {
+    refuse(
+      'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+      'grants',
+      `grants.ceiling must contain 1–8 plans (got ${entries.length})`,
+      'Keep the sharing ceiling explicit and bounded to at most eight plans.',
+    );
+    return null;
+  }
+  const plans = [];
+  for (const [name, raw] of entries) {
+    if (!ASSET_COLLECTION_PLAN_NAME.test(name)) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+        'grants',
+        `sharing plan name ${JSON.stringify(name)} is not portable`,
+        'Use a 1–64 character ASCII plan name beginning with a letter.',
+        { plan: name },
+      );
+      continue;
+    }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)
+      || typeof raw.kind !== 'string' || !ASSET_COLLECTION_GRANT_KINDS.has(raw.kind)) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+        'grants',
+        `sharing plan ${name} has an unknown or missing kind`,
+        'Use exactly none, owner-only, recipients, derived, or inherit-command.',
+        { plan: name },
+      );
+      continue;
+    }
+    const allowed = raw.kind === 'recipients'
+      ? new Set(['kind', 'state', 'maxRecipients'])
+      : raw.kind === 'derived'
+        ? new Set([
+            'kind', 'state', 'maxRecipients', 'function', 'table', 'parentField',
+            'principalField',
+          ])
+        : new Set(['kind']);
+    const unknown = Object.keys(raw).find((key) => !allowed.has(key));
+    if (unknown !== undefined) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+        'grants',
+        `sharing plan ${name} contains unknown field ${unknown}`,
+        `Remove ${unknown}; ${raw.kind} is a closed sharing-plan shape.`,
+        { plan: name, field: unknown },
+      );
+      continue;
+    }
+    if (raw.kind === 'recipients' || raw.kind === 'derived') {
+      if (!ASSET_COLLECTION_GRANT_STATES.has(raw.state)) {
+        refuse(
+          'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+          'grants',
+          `sharing plan ${name}.state must be "active" or "pending"`,
+          'Choose the exact LLP 0210 grant state this named plan mints.',
+          { plan: name },
+        );
+        continue;
+      }
+      if (!Number.isSafeInteger(raw.maxRecipients)
+        || raw.maxRecipients < 1 || raw.maxRecipients > 32) {
+        refuse(
+          'SNAPBACK_MEDIA_COLLECTION_SHARING_PLAN_INVALID',
+          'grants',
+          `sharing plan ${name}.maxRecipients must be an integer in 1..32`,
+          'Choose a bounded recipient fan-out from 1 through 32.',
+          { plan: name },
+        );
+        continue;
+      }
+    }
+    plans.push({ name, ...structuredClone(raw) });
+  }
+  if (plans.length !== entries.length) return null;
+  if (typeof policy.default !== 'string'
+    || !plans.some((plan) => plan.name === policy.default)) {
+    refuse(
+      'SNAPBACK_MEDIA_COLLECTION_SHARING_DEFAULT_INVALID',
+      'grants',
+      `grants.default must name one plan inside the ceiling (got ${JSON.stringify(policy.default)})`,
+      'Set grants.default to an input-free plan name declared in grants.ceiling.',
+    );
+    return null;
+  }
+  if (plans.find((plan) => plan.name === policy.default)?.kind === 'recipients') {
+    refuse(
+      'SNAPBACK_MEDIA_COLLECTION_SHARING_DEFAULT_INVALID',
+      'grants',
+      `direct-recipient plan ${policy.default} cannot be the default because it requires invocation principals`,
+      'Default to none, owner-only, a named derivation, or inherit-command; callers can explicitly select a direct-recipient plan.',
+      { plan: policy.default },
+    );
+    return null;
+  }
+  return {
+    format: 'snapback.asset-collection-sharing.v1',
+    ceiling: plans,
+    default: policy.default,
+  };
+}
+
+// Lower one LLP 0239 D2 declaration into a protected child table, one
+// bounded-children read, and four ordinary mutation-host plans. The plans are
+// closed manifest data; no callback or second transaction owner is created.
+// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation
+function buildAssetCollections({ functionsModule, tables, attribution, err }) {
+  const collections = [];
+  const definitions = dict();
+  const sourceSpans = dict();
+  const collectionDefs = Object.entries(functionsModule)
+    .filter(([, value]) => isIsolatedDefinition(value, 'asset-collection'));
+  const intentDefs = new Map(
+    Object.entries(functionsModule)
+      .filter(([, value]) => isIsolatedDefinition(value, 'asset-upload')),
+  );
+  const occupiedFunctions = new Set(Object.keys(functionsModule));
+  const report = (code, binding, property, message, remediation, details = {}) => {
+    const path = [binding, ...(property ? [property] : [])];
+    const source = definitionAttributionDetails(attribution, path);
+    err(code, 'asset-collection', `${binding}${property ? `.${property}` : ''}: ${message}`, {
+      collection: binding,
+      property: property ?? null,
+      ...source,
+      ...details,
+      details: {
+        ...(source.details ?? {}),
+        remediation,
+        ...details,
+      },
+    });
+  };
+
+  for (const [binding, def] of collectionDefs) {
+    let valid = true;
+    const refuse = (code, property, message, remediation, details = {}) => {
+      report(code, binding, property, message, remediation, details);
+      valid = false;
+    };
+    if (!IDENT.test(binding) || RESERVED_WORDS.has(binding)) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_INVALID_IDENTIFIER',
+        null,
+        'the exported binding must be a portable identifier',
+        'Rename the exported collection binding to an ASCII identifier that is not reserved.',
+      );
+    }
+    const owner = typeof def.ownerTable === 'string' ? tables[def.ownerTable] : null;
+    if (!owner) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_OWNER_TABLE_UNKNOWN',
+        'ownerTable',
+        `ownerTable must name an existing application table (got ${JSON.stringify(def.ownerTable)})`,
+        'Set ownerTable to an existing ordinary table with owner visibility.',
+      );
+    } else if (
+      owner.frameworkOwned !== undefined
+      || owner.permissionBacking === true
+      || owner.membership !== undefined
+      || owner.authorityProfile !== undefined
+      || owner.visibility?.kind !== 'owner'
+    ) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_OWNER_TABLE_INELIGIBLE',
+        'ownerTable',
+        `${def.ownerTable} is not an ordinary owner-visible collection parent`,
+        'Use an ordinary table with visibility({ kind: "owner", field: <required principal/string field> }); membership/profile composition remains generation-refused.',
+        { ownerTable: def.ownerTable },
+      );
+    }
+    const intent = typeof def.intent === 'string' ? intentDefs.get(def.intent) : null;
+    if (!intent) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_INTENT_UNKNOWN',
+        'intent',
+        `intent must name one exported defineAssetUpload binding (got ${JSON.stringify(def.intent)})`,
+        'Set intent to the exported name of the upload policy whose finalized assets this collection admits.',
+      );
+    }
+    if (!Number.isSafeInteger(def.maxItems) || def.maxItems < 1 || def.maxItems > 32) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_MAX_ITEMS_INVALID',
+        'maxItems',
+        `maxItems must be an integer in 1..32 (got ${JSON.stringify(def.maxItems)})`,
+        'Choose an explicit collection maximum from 1 through 32.',
+      );
+    }
+    if (def.order !== 'manual' && def.order !== 'created') {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_ORDER_INVALID',
+        'order',
+        `order must be "manual" or "created" (got ${JSON.stringify(def.order)})`,
+        'Use order: "manual" for caller-controlled ordinal order or order: "created" for append order.',
+      );
+    }
+    const kinds = [];
+    if (!Array.isArray(def.kinds) || def.kinds.length === 0) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_KINDS_INVALID',
+        'kinds',
+        'kinds must be a non-empty array',
+        'Declare one or more of image, video, audio, or file.',
+      );
+    } else {
+      for (const kind of def.kinds) {
+        if (typeof kind !== 'string' || !ASSET_COLLECTION_KINDS.has(kind)) {
+          refuse(
+            'SNAPBACK_MEDIA_COLLECTION_KINDS_INVALID',
+            'kinds',
+            `kinds contains unsupported value ${JSON.stringify(kind)}`,
+            'Use only image, video, audio, or file.',
+          );
+        } else if (kinds.includes(kind)) {
+          refuse(
+            'SNAPBACK_MEDIA_COLLECTION_DUPLICATE_POLICY_INVALID',
+            'kinds',
+            `kinds repeats ${kind}; collection asset ids are also duplicate-refused in v1`,
+            'Remove the duplicate declaration entry; v1 has no duplicate-asset opt-in.',
+          );
+        } else kinds.push(kind);
+      }
+    }
+    if (intent) {
+      const admitted = uploadIntentMediaKinds(intent);
+      const impossible = kinds.filter((kind) => !admitted.has(kind));
+      if (impossible.length > 0) {
+        refuse(
+          'SNAPBACK_MEDIA_COLLECTION_INTENT_KIND_INCOMPATIBLE',
+          'kinds',
+          `intent ${def.intent} cannot finalize declared collection kinds ${impossible.join(', ')}`,
+          'Narrow kinds or select an upload intent whose accepted media types can finalize every declared kind.',
+          { intent: def.intent, impossibleKinds: impossible, admittedKinds: [...admitted].sort() },
+        );
+      }
+    }
+    // @ref LLP 0239#d4-grants-and-authority-are-declarative-at-the-command-edge —
+    // the declaration owns a closed named ceiling and one input-free default;
+    // invocation data selects a plan but never creates a new authority class.
+    const sharing = normalizeAssetCollectionSharing(def, refuse);
+    if (sharing && sharing.ceiling.some((plan) => (
+      plan.kind === 'recipients' || plan.kind === 'derived'
+    )) && intent?.grants !== true) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_SHARING_GRANTS_UNDECLARED',
+        'grants',
+        `recipient sharing requires upload intent ${String(def.intent)} to declare grants: true`,
+        'Enable grants on the upload intent before admitting active or pending recipient plans.',
+        { intent: def.intent },
+      );
+    }
+    if (sharing && owner) {
+      for (const plan of sharing.ceiling.filter(({ kind }) => kind === 'derived')) {
+        const source = typeof plan.table === 'string' ? tables[plan.table] : null;
+        const sourceField = (name) => source?.fields?.find((field) => field.name === name);
+        const parentField = sourceField(plan.parentField);
+        const principalField = sourceField(plan.principalField);
+        const sourceEligible = source
+          && source.frameworkOwned === undefined
+          && source.permissionBacking !== true
+          && source.membership === undefined
+          && source.authorityProfile === undefined
+          && source.visibility?.kind === 'owner';
+        if (!IDENT.test(plan.function) || RESERVED_WORDS.has(plan.function)
+          || !sourceEligible
+          || parentField?.optional === true
+          || parentField?.field_type?.Id?.table !== def.ownerTable
+          || principalField?.optional === true
+          || principalField?.field_type !== 'Principal') {
+          refuse(
+            'SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID',
+            'grants',
+            `derived plan ${plan.name} must name a portable generated function and an owner-visible ordinary table with required Id<${String(def.ownerTable)}> ${String(plan.parentField)} plus required Principal ${String(plan.principalField)}`,
+            'Fix the derived plan function/table/parentField/principalField; membership and authority-profile derivations remain generation-refused.',
+            { plan: plan.name, function: plan.function ?? null, table: plan.table ?? null },
+          );
+        }
+      }
+    }
+    if (!valid || !owner || !intent || !sharing) continue;
+
+    const names = {
+      query: `${binding}List`,
+      append: `${binding}Append`,
+      replace: `${binding}Replace`,
+      remove: `${binding}Remove`,
+      ...(def.order === 'manual' ? { reorder: `${binding}Reorder` } : {}),
+    };
+    const derivedNames = sharing.ceiling
+      .filter(({ kind }) => kind === 'derived')
+      .map((plan) => ({ operation: `sharing derivation ${plan.name}`, name: plan.function }));
+    const generatedNames = new Set();
+    for (const [operation, name] of [
+      ...Object.entries(names),
+      ...derivedNames.map(({ operation, name }) => [operation, name]),
+    ]) {
+      if (occupiedFunctions.has(name)
+        || Object.hasOwn(definitions, name)
+        || generatedNames.has(name)) {
+        refuse(
+          'SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_COLLISION',
+          null,
+          `generated ${operation} operation ${name} collides with an authored definition`,
+          `Rename collection ${binding} or the authored ${name} definition so the generated collection namespace is exclusive.`,
+          { operation, generatedName: name },
+        );
+      }
+      generatedNames.add(name);
+    }
+    if (!valid) continue;
+
+    const generationPreimage = {
+      format: 'snapback.asset-collection.v1',
+      binding,
+      ownerTable: def.ownerTable,
+      ownerVisibility: owner.visibility,
+      intent: def.intent,
+      maxItems: def.maxItems,
+      order: def.order,
+      kinds,
+      duplicatePolicy: 'refuse.v1',
+      grants: sharing,
+    };
+    const generation = `sha256:${sha256(`snapback:asset-collection:v1\n${canonicalResultJson(generationPreimage)}`)}`;
+    const childTable = `_snapback_asset_collection_${sha256(`${binding}\n${generation}`).slice(0, 20)}`;
+    if (Object.hasOwn(tables, childTable)) {
+      refuse(
+        'SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_COLLISION',
+        null,
+        `generated child table ${childTable} collides with an existing table`,
+        `Rename collection ${binding}; framework-owned child table identities may not alias authored storage.`,
+        { childTable },
+      );
+      continue;
+    }
+    const mediaDescriptor = {
+      intent: def.intent,
+      policy: generation,
+      kinds,
+      classificationProfile: 'detected-content-type.v1',
+      retentionClass: 'media-reference.v1',
+      targetCapability: 'assets.media-ref-projection.v1',
+    };
+    tables[childTable] = {
+      name: childTable,
+      fields: [
+        { name: 'parentId', field_type: { Id: { table: def.ownerTable } }, optional: false },
+        {
+          name: 'parentIncarnation',
+          field_type: { RelationIncarnation: { foreignKeyField: 'parentId', parentTable: def.ownerTable } },
+          optional: false,
+        },
+        {
+          name: 'assetId',
+          field_type: { AssetRef: { upload: def.intent, media: mediaDescriptor } },
+          optional: false,
+        },
+        { name: 'kind', field_type: 'String', optional: false },
+        { name: 'policyGeneration', field_type: 'String', optional: false },
+        { name: 'ordinal', field_type: 'Integer', optional: false },
+      ],
+      indexes: [
+        { name: 'byParentOrdinal', fields: ['parentId', 'parentIncarnation', 'ordinal'] },
+        { name: 'uniqueParentAsset', fields: ['parentId', 'parentIncarnation', 'assetId'], unique: true },
+      ],
+      syncable: false,
+      frameworkOwned: {
+        kind: 'asset-collection.v1',
+        collection: binding,
+        generation,
+      },
+    };
+    const descriptor = {
+      format: 'snapback.asset-collection.v1',
+      name: binding,
+      generation,
+      ownerTable: def.ownerTable,
+      ownerField: owner.visibility.field,
+      intent: def.intent,
+      maxItems: def.maxItems,
+      order: def.order,
+      kinds,
+      duplicatePolicy: 'refuse.v1',
+      sharing,
+      childTable,
+      fields: {
+        parentId: 'parentId',
+        parentIncarnation: 'parentIncarnation',
+        assetId: 'assetId',
+        kind: 'kind',
+        policyGeneration: 'policyGeneration',
+        ordinal: 'ordinal',
+      },
+      operations: names,
+    };
+    collections.push(descriptor);
+
+    const resultContract = results.value(v.object({
+      parentId: v.id(def.ownerTable),
+      itemIds: v.array(v.string(), { maxItems: def.maxItems }),
+    }));
+    const parentArgs = { parentId: v.id(def.ownerTable) };
+    const sharingVariants = sharing.ceiling.map((plan) => v.object({
+      plan: v.literal(plan.name),
+      ...(plan.kind === 'recipients'
+        ? { principals: v.array(v.principal(), { maxItems: plan.maxRecipients }) }
+        : {}),
+    }));
+    const sharingSelection = v.optional(
+      sharingVariants.length === 1 ? sharingVariants[0] : v.union(sharingVariants),
+    );
+    const operationDefinition = (operation, args) => ({
+      __snapbackDefinitionKind: 'function',
+      __kind: 'Mutation',
+      auth: 'authenticated',
+      args,
+      resultContract,
+      plan: {
+        steps: [{
+          AssetCollection: {
+            collection: binding,
+            generation,
+            operation,
+            ownerTable: def.ownerTable,
+            ownerField: owner.visibility.field,
+            childTable,
+            parentIdArg: 'parentId',
+            itemsArg: operation === 'append' || operation === 'replace' ? 'assetIds' : 'itemIds',
+            maxItems: def.maxItems,
+            order: def.order,
+            intent: def.intent,
+            kinds,
+            duplicatePolicy: 'refuse.v1',
+            policyGeneration: generation,
+            sharingArg: operation === 'reorder' ? null : 'sharing',
+            defaultSharingPlan: sharing.default,
+            sharingDerivationTables: [...new Set(sharing.ceiling
+              .filter(({ kind }) => kind === 'derived')
+              .map((plan) => plan.table))].sort(),
+            sharingGrantCapable: sharing.ceiling.some((plan) => (
+              plan.kind === 'recipients' || plan.kind === 'derived'
+            )),
+          },
+        }],
+        return_value: null,
+      },
+      standardPattern: { helper: 'assetCollection', profile: 'asset-collection.v1' },
+    });
+    const assetArray = v.array(v.assetRef({ upload: def.intent }), { maxItems: def.maxItems });
+    const itemIdArray = v.array(v.string(), { maxItems: def.maxItems });
+    definitions[names.append] = operationDefinition('append', {
+      ...parentArgs,
+      assetIds: assetArray,
+      sharing: sharingSelection,
+    });
+    definitions[names.replace] = operationDefinition('replace', {
+      ...parentArgs,
+      assetIds: assetArray,
+      sharing: sharingSelection,
+    });
+    definitions[names.remove] = operationDefinition('remove', {
+      ...parentArgs,
+      itemIds: itemIdArray,
+      sharing: sharingSelection,
+    });
+    if (names.reorder !== undefined) {
+      definitions[names.reorder] = operationDefinition('reorder', { ...parentArgs, itemIds: itemIdArray });
+    }
+    definitions[names.query] = {
+      __snapbackDefinitionKind: 'function',
+      __kind: 'LiveQuery',
+      auth: 'authenticated',
+      args: { ...parentArgs, cursor: v.optional(v.string({ maxBytes: 1_024 })) },
+      boundedChildrenPlan: {
+        profile: 'bounded-children.v1',
+        requiredCapability: 'bounded_children_v1',
+        parentTable: def.ownerTable,
+        parentIdArg: 'parentId',
+        parentVisibility: { owner: { field: owner.visibility.field } },
+        parentProjection: [{ name: 'parentId', field: '_id' }],
+        childTable,
+        childForeignKey: 'parentId',
+        childRelationIncarnation: 'parentIncarnation',
+        childIndex: 'byParentOrdinal',
+        order: [{ field: 'ordinal', direction: 'Asc' }],
+        take: def.maxItems,
+        childProjection: [
+          { name: 'itemId', field: '_id' },
+          { name: 'ordinal', field: 'ordinal' },
+          { name: 'media', field: 'assetId' },
+        ],
+        parentDeletion: 'hide-orphans.v1',
+      },
+      standardPattern: { helper: 'assetCollection', profile: 'asset-collection.v1' },
+    };
+    for (const plan of sharing.ceiling.filter(({ kind }) => kind === 'derived')) {
+      const source = tables[plan.table];
+      definitions[plan.function] = {
+        __snapbackDefinitionKind: 'function',
+        __kind: 'Query',
+        auth: 'authenticated',
+        args: { parentId: v.id(def.ownerTable) },
+        plan: {
+          table: plan.table,
+          filters: [{
+            field: plan.parentField,
+            op: 'Eq',
+            value: { __expr: true, Arg: 'parentId' },
+          }],
+          order: [{ field: plan.principalField, direction: 'Asc' }],
+          // One-row overfetch turns a source fan-out beyond the declared
+          // ceiling into a typed commit refusal instead of silent truncation.
+          limit: plan.maxRecipients + 1,
+          index: null,
+          membershipFilters: [],
+          tableVisibility: structuredClone(source.visibility),
+        },
+      };
+    }
+    const bindingSpan = definitionAttributionDetails(attribution, [binding]).sourceSpan;
+    if (bindingSpan) {
+      for (const name of [
+        ...Object.values(names),
+        ...sharing.ceiling
+          .filter(({ kind }) => kind === 'derived')
+          .map((plan) => plan.function),
+      ]) {
+        sourceSpans[name] = {
+          path: bindingSpan.file,
+          line: bindingSpan.line,
+          column: bindingSpan.column,
+        };
+      }
+    }
+  }
+  return { collections, definitions, sourceSpans };
+}
+
 function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
   // @ref LLP 0055#grants — static authority-creation is best-effort, while the
   // runtime write gate remains authoritative. Declared permission-backing
@@ -10761,6 +11451,16 @@ function requiredCapabilities(fn) {
       ? ['bounded_batch_reads_v1']
       : []),
   ];
+  if (fn.runtime?.HostPlan?.Mutation?.steps?.some(
+    (step) => step.AssetCollection !== undefined,
+  )) {
+    return [
+      runtimeCapability,
+      'assets.media-collection.v1',
+      'assets.media-ref-projection.v1',
+      ...contractCapabilities,
+    ];
+  }
   if (fn.runtime?.HostPlan?.SearchQuery) {
     return fn.kind === 'LiveQuery'
       ? [
@@ -16275,7 +16975,7 @@ const TOP_LEVEL_DEFINITION_BUILDERS = new Set([
   'defineRelationalQuery', 'defineMaintainedProjection', 'defineJsLiveQuery',
   'defineJsQuery', 'defineWriteWithActivity', 'defineMutation',
   'defineJsMutation', 'defineAction', 'defineCron', 'defineRoutes',
-  'defineConfig', 'defineAssetUpload',
+  'defineConfig', 'defineAssetUpload', 'assetCollection',
   'query', 'mutation', 'action',
 ]);
 
@@ -16427,6 +17127,19 @@ function definitionAttributionDetails(attribution, definitionPath) {
 
 function inferredDefinitionEvaluationPath(message, attribution) {
   if (!attribution || typeof message !== 'string') return null;
+  const collectionField = /assetCollection\(\)(?: has unknown field)?\s*([A-Za-z_][A-Za-z0-9_]*)?/u.exec(message);
+  if (collectionField) {
+    const field = collectionField[1];
+    const candidates = attribution.definitions
+      .filter(({ exported, builder }) => exported && builder === 'assetCollection')
+      .map(({ binding }) => [binding, ...(field ? [field] : [])])
+      .filter((segments) => {
+        const key = segments.join('.');
+        return attribution.propertySpans.has(key)
+          || [...attribution.propertySpans.keys()].some((candidate) => candidate.startsWith(`${key}.`));
+      });
+    if (candidates.length === 1) return candidates[0];
+  }
   const commandAsset = /defineCommand\(\) asset ([A-Za-z_][A-Za-z0-9_]*)(?:\.([A-Za-z_][A-Za-z0-9_]*))?/u.exec(message);
   if (commandAsset) {
     const [, input, field] = commandAsset;
@@ -16966,7 +17679,7 @@ async function buildDefinitionBundle(
 function definitionFacadeSource(entryPath, definePath, resultKey, kind) {
   const entry = JSON.stringify(entryPath);
   const define = JSON.stringify(definePath);
-  const imports = `import { isAssetUploadDef, isCommandDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isSurfaceBinding, isSurfaceDef, isTableDef } from ${define};`;
+  const imports = `import { isAssetCollectionDef, isAssetUploadDef, isCommandDef, isConfigDef, isCronDef, isEphemeralCollectionDef, isEphemeralDef, isFunctionDef, isMaintainedProjectionDef, isRoutesDef, isSurfaceBinding, isSurfaceDef, isTableDef } from ${define};`;
 const normalization = String.raw`
 function __snapbackPathAppend(path, segment) {
   const next = [];
@@ -17000,6 +17713,7 @@ function __snapbackFail(code, message, path = []) {
 function __snapbackDefinitionKind(value) {
   if (isFunctionDef(value)) return 'function';
   if (isAssetUploadDef(value)) return 'asset-upload';
+  if (isAssetCollectionDef(value)) return 'asset-collection';
   if (isCommandDef(value)) return 'command';
   if (isCronDef(value)) return 'cron';
   if (isConfigDef(value)) return 'config';
@@ -17195,10 +17909,14 @@ function evaluateDefinitionBundles(
                 ),
             )
           : {};
+        const collectionRemediation = evaluationCode === 'SNAPBACK_MEDIA_COLLECTION_DECLARATION_INVALID'
+          ? 'Pass assetCollection() exactly { ownerTable, intent, maxItems, order, kinds, grants }; remove unknown fields.'
+          : null;
         diagnostics.push({
           code: DEFINITION_EVALUATION_DIAGNOSTIC_CODES.has(evaluationCode)
               || /^SNAPBACK_CODEGEN_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
               || /^SNAPBACK_DATA_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
+              || /^SNAPBACK_MEDIA_COLLECTION_[A-Z0-9_]+$/u.test(evaluationCode ?? '')
             ? evaluationCode
             : 'CODEGEN_MODULE_EVALUATION_FAILED',
           severity: 'error',
@@ -17209,6 +17927,12 @@ function evaluateDefinitionBundles(
           ...handlerDiagnosticDetails(evaluationCode),
           ...dataDiagnosticDetails(evaluationCode),
           ...attribution,
+          ...(collectionRemediation === null ? {} : {
+            details: {
+              ...(attribution.details ?? {}),
+              remediation: collectionRemediation,
+            },
+          }),
         });
         finish(null);
         return;

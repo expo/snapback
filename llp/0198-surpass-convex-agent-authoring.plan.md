@@ -390,6 +390,18 @@ Accepted; the deferred remainder is tracked under `issues/` (0245 R4 on LLP
 0146, 0246 R3–6 on LLP 0237, 0247/0248 measurement reruns, 0249 design
 tickets).
 
+## Program board — 2026-08-15 media-collection introduction (LLP 0239 R3)
+
+The LLP 0236-derived media program (LLP 0239, Accepted) landed its R3
+rollout: the generated bounded `assetCollection` relation with stable
+non-reused item identity, atomic mutation-host operations, the author-ruled
+closed D4 sharing grammar, and GC/quota/invalidation/consistent-cut custody.
+`assets.media-collection.v1` enters experimental (LLP 0134 same-commit act;
+record
+`tests/acceptance/maturity/media-collection-2026-08-15.introduction.json`).
+The remaining R4 media command, collection client hook, and guide Paths 2/4
+stay tracked in `issues/20260815-finish-media-happy-path.md`.
+
 ## Part II — The plan: parity, then past it
 
 ### II.1 What "surpass" means — a claim ladder

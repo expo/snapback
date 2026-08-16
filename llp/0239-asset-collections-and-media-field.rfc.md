@@ -13,7 +13,10 @@ origin assigned LLPs 0234–0235). 2026-08-12 (author-directed acceptance after
 Round-3 same-revision Codex GPT-5.6-sol xhigh convergence). 2026-08-12 (round-1 revision: assigned atomic commit custody to the
 ordinary mutation host through a closed binding IR; inherited LLP 0180 task,
 ambiguity, retry, and cancellation semantics; froze collection item identity).
-2026-08-12 (initial Draft synthesized from LLP 0236 P3, P7, P11, and P12)
+2026-08-12 (initial Draft synthesized from LLP 0236 P3, P7, P11, and P12).
+2026-08-15 (author rulings during the R3 rollout, recorded in D2/D4: the
+closed sharing-plan grammar ships with the collection rollout, and
+`order: "created"` collections omit `reorder` at generation)
 **Related:** LLP 0004, LLP 0007, LLP 0044, LLP 0053, LLP 0061, LLP 0110,
 LLP 0131, LLP 0180, LLP 0193, LLP 0208, LLP 0210, LLP 0211, LLP 0220,
 LLP 0235, LLP 0236, LLP 0237, LLP 0238, LLP 0240, LLP 0241, LLP 0242, LLP 0243,
@@ -182,6 +185,17 @@ plan and ids. Migration derives ids from the migration identity, parent, source
 field/ordinal, and asset id, collision-checks them, and records the derivation.
 Neither regenerated output nor content equality can revive a retired id.
 
+> **Dated ruling — `order: "created"` and the four operations (author,
+> 2026-08-15).** The v1 list above names four generated operations without
+> conditioning them on the order mode. Ruling: `created` means immutable
+> creation sequence. A created-order collection does not emit `reorder`;
+> declaring or invoking it refuses at generation with a source-attributed
+> diagnostic whose remediation names `order: "manual"`. `replace` under
+> created order keeps retained items in their original creation order and
+> places newly allocated items after all retained items, ordered by input
+> position within the replacement attempt. No second (presentation) ordinal
+> exists in v1.
+
 ### D3. One `mediaCommand` owns multi-upload plus atomic commit
 
 `mediaCommand` is a closed specialization of LLP 0180’s existing client
@@ -294,6 +308,24 @@ policy/profile tied to LLP 0240’s authority mapping and is never inferred from
 a client payload. That composition stays generation-refused until both the
 media binding and authority-profile capability are qualified, avoiding an
 activation cycle between the RFCs.
+
+> **Dated ruling — the sharing grammar ships with the collection rollout
+> (author, 2026-08-15).** This section names the admitted classes but left
+> the concrete `grants` declaration and per-operation selection shape open.
+> Ruling: the R3 rollout defines the full closed grammar rather than
+> deferring it to the command rollout. The collection descriptor declares a
+> ceiling (set of admitted classes) and a default plan; the admitted classes
+> are exactly: no grant change, owner-only attachment, active or pending
+> recipient grants (LLP 0210/0220), app-authorized recipients derived by an
+> explicitly named generated function, and `inherit-command`. Each generated
+> collection operation accepts one exact plan selection within the ceiling,
+> defaulting to the descriptor default, and can never broaden it. Declaring
+> `inherit-command` in the ceiling is legal before the media command ships;
+> selecting it outside an exact versioned command binding refuses. Recipient
+> principals are never authority by assertion; they are admitted only through
+> the declared LLP 0210/0220 grant operations or the named generated
+> derivation function, revalidated at commit time. The as-built descriptor
+> and operation surface are the normative spelling of this ruling.
 
 ### D5. One media projection handles empty, image, video, denial, and refresh
 

@@ -66,6 +66,60 @@ fn load_grants(conn: &Connection) -> SnapbackResult<BTreeMap<String, StoredGrant
     Ok(grants)
 }
 
+/// Return only grants minted by the generated collection custodian for the
+/// exact collection generation and item identities. Authored handler mutation
+/// names cannot contain the `|` separator, so they cannot alias this lineage.
+pub(super) fn collection_managed_grants(
+    conn: &Connection,
+    generation: &str,
+    item_ids: &BTreeSet<String>,
+) -> SnapbackResult<Vec<AssetGrantRecordV1>> {
+    let prefix = format!("asset-collection.v1|{generation}|");
+    Ok(load_grants(conn)?
+        .into_values()
+        .map(|stored| stored.record)
+        .filter(|record| {
+            let Some(rest) = record.provenance.mutation.strip_prefix(&prefix) else {
+                return false;
+            };
+            let Some((item_id, _)) = rest.split_once('|') else {
+                return false;
+            };
+            item_ids.contains(item_id)
+        })
+        .collect())
+}
+
+/// Framework parent teardown is itself the authority to retire grants whose
+/// lineage proves they belong to the deleted collection item. Grouping by the
+/// live asset owner lets the ordinary closed revoke machine perform every
+/// receipt, GC-clock, and state transition rather than introducing a second
+/// deletion path.
+pub(super) fn revoke_collection_managed_in_tx(
+    tx: &Transaction<'_>,
+    generation: &str,
+    item_ids: &BTreeSet<String>,
+    at_ms: u64,
+) -> SnapbackResult<BTreeSet<String>> {
+    let grants = collection_managed_grants(tx, generation, item_ids)?;
+    let mut by_owner: BTreeMap<String, Vec<BufferedAssetGrantOp>> = BTreeMap::new();
+    for grant in grants {
+        let asset = load_asset(tx, &grant.asset_id)?;
+        by_owner
+            .entry(asset.owner_principal)
+            .or_default()
+            .push(BufferedAssetGrantOp::Revoke {
+                grant_id: grant.grant_id,
+                at_ms,
+            });
+    }
+    let mut affected = BTreeSet::new();
+    for (owner, ops) in by_owner {
+        affected.extend(apply_in_tx(tx, &owner, &ops)?);
+    }
+    Ok(affected)
+}
+
 fn validate_principal(principal: &str) -> SnapbackResult<()> {
     if principal.trim().is_empty() || principal.len() > 512 {
         return Err(invalid(

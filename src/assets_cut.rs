@@ -7,9 +7,10 @@
 //! all captured in one read transaction at a pinned commit version. The cut
 //! deliberately **excludes** in-flight upload attempts, pending/rejected
 //! assets, and staging bytes (transient transfer state, the 0007 rule that a
-//! logical bundle names its exclusions), and reverse-reference edges (they
-//! derive from app rows, which belong to the app-data component; they
-//! rebuild when app rows import through the complete-cut admission).
+//! logical bundle names its exclusions). Reverse-reference edges derive from
+//! typed rows. Ordinary app-row edges rebuild with the app-data component;
+//! framework-owned media-collection rows travel here and rebuild their edges
+//! during asset-cut import.
 //!
 //! Import is refuse-partial: both components — manifest and every blob
 //! object — verify before any row lands. Application restores onto an empty
@@ -24,7 +25,9 @@ use crate::assets::{
     ASSET_DIGEST_ALGORITHM_SHA256, AssetBlobRecordV1, AssetGrantRecordV1, AssetGrantState,
     AssetRecordV1, AssetRenditionRecordV1,
 };
+use crate::contract_types::MediaKindV1;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::manifest::SchemaManifest;
 use rusqlite::Transaction;
 
 pub const ASSET_CUT_FORMAT_VERSION: &str = "snapback.asset-cut.v1";
@@ -138,10 +141,29 @@ pub struct AssetCutQuotaV1 {
     pub ready_asset_count: u64,
     #[serde(default, skip_serializing_if = "is_zero")]
     pub grant_count: u64,
+    /// Active framework-owned collection items carried with the asset cut.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub collection_item_count: u64,
 }
 
 fn is_zero(value: &u64) -> bool {
     *value == 0
+}
+
+/// One active framework-owned collection item. Parent-incarnation tokens are
+/// deliberately not portable: import rebinds the stable item id to the
+/// target parent's active incarnation after the app-data component exists.
+#[derive(Clone, Debug, serde::Deserialize, PartialEq, serde::Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct AssetCutCollectionItemV1 {
+    pub collection: String,
+    pub collection_generation: String,
+    pub item_id: String,
+    pub parent_id: String,
+    pub asset_id: String,
+    pub kind: MediaKindV1,
+    pub policy_generation: String,
+    pub ordinal: u64,
 }
 
 /// The consistent-cut manifest — the asset component of a logical export.
@@ -161,6 +183,10 @@ pub struct AssetCutManifestV1 {
     /// ready assets. Empty is omitted to preserve pre-feature cut preimages.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub grants: Vec<AssetGrantRecordV1>,
+    /// Active collection records are part of the asset component because they
+    /// are the addressable attachment/authority facts that root these assets.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub collection_items: Vec<AssetCutCollectionItemV1>,
     pub quota: AssetCutQuotaV1,
     /// Tagged SHA-256 over the canonical (JCS) manifest body with this field
     /// absent; domain `snapback:asset-cut:v1\n`.
@@ -196,6 +222,17 @@ pub fn cut_manifest_digest(manifest: &AssetCutManifestV1) -> SnapbackResult<Stri
             .expect("cut body is an object")
             .insert("grants".to_owned(), grants);
     }
+    if !manifest.collection_items.is_empty() {
+        let items = serde_json::to_value(&manifest.collection_items).map_err(|error| {
+            cut_error(
+                "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
+                format!("collection items cannot be encoded: {error}"),
+            )
+        })?;
+        body.as_object_mut()
+            .expect("cut digest body is an object")
+            .insert("collectionItems".to_owned(), items);
+    }
     let canonical = crate::rqs_contract::jcs(&body).map_err(|_| {
         cut_error(
             "SNAPBACK_ASSET_EXPORT_TARGET_INVALID",
@@ -221,6 +258,7 @@ pub struct AssetCutCapture {
 /// exactly once, digest-addressed.
 pub fn capture_cut(
     tx: &Transaction<'_>,
+    schema: &SchemaManifest,
     app_id: &str,
     cut_version: u64,
     now_ms: u64,
@@ -301,6 +339,8 @@ pub fn capture_cut(
     }
     let ready_asset_count = assets.len() as u64;
     let grant_count = grants.len() as u64;
+    let collection_items = capture_collection_items(tx, schema, &ready_ids)?;
+    let collection_item_count = collection_items.len() as u64;
     let mut manifest = AssetCutManifestV1 {
         format_version: ASSET_CUT_FORMAT_VERSION.to_owned(),
         app_id: app_id.to_owned(),
@@ -310,10 +350,12 @@ pub fn capture_cut(
         tombstones,
         blobs,
         grants,
+        collection_items,
         quota: AssetCutQuotaV1 {
             settled_logical_bytes: accounting.settled_bytes,
             ready_asset_count,
             grant_count,
+            collection_item_count,
         },
         manifest_digest: String::new(),
     };
@@ -322,6 +364,118 @@ pub fn capture_cut(
         manifest,
         blob_keys,
     })
+}
+
+// @ref LLP 0239#d2-assetcollection-is-the-zero-to-many-application-relation — collection rows
+// are a typed, addressable part of the asset cut, never an opaque JSON leaf.
+fn capture_collection_items(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    ready_assets: &std::collections::BTreeSet<&str>,
+) -> SnapbackResult<Vec<AssetCutCollectionItemV1>> {
+    let mut output = Vec::new();
+    for collection in &schema.asset_collections {
+        let table = quote_dynamic_identifier(&collection.child_table)?;
+        let sql = format!(
+            "SELECT child._id, child.parentId, child.assetId, child.kind, \
+                    child.policyGeneration, child.ordinal \
+               FROM {table} AS child \
+               JOIN _snapback_relation_incarnations_v1 AS relation \
+                 ON relation.table_name = ?1 \
+                AND relation.row_id = child.parentId \
+                AND relation.incarnation = child.parentIncarnation \
+                AND relation.active = 1 \
+              ORDER BY child.parentId, child.ordinal, child._id"
+        );
+        let mut statement = tx.prepare(&sql)?;
+        let rows = statement.query_map([&collection.owner_table], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, i64>(5)?,
+            ))
+        })?;
+        let mut per_parent =
+            std::collections::BTreeMap::<String, (u64, std::collections::BTreeSet<String>)>::new();
+        for row in rows {
+            let (item_id, parent_id, asset_id, kind, policy_generation, ordinal) = row?;
+            let ordinal = u64::try_from(ordinal).map_err(|_| {
+                cut_error(
+                    "SNAPBACK_ASSET_EXPORT_COLLECTION_INVALID",
+                    "collection item ordinal is negative",
+                )
+            })?;
+            if !ready_assets.contains(asset_id.as_str())
+                || policy_generation != collection.generation
+            {
+                return Err(cut_error(
+                    "SNAPBACK_ASSET_EXPORT_COLLECTION_INVALID",
+                    format!(
+                        "collection {} contains an item outside its active ready-asset generation",
+                        collection.name
+                    ),
+                ));
+            }
+            let state = per_parent.entry(parent_id.clone()).or_default();
+            if ordinal != state.0 || !state.1.insert(asset_id.clone()) {
+                return Err(cut_error(
+                    "SNAPBACK_ASSET_EXPORT_COLLECTION_INVALID",
+                    format!(
+                        "collection {} has non-contiguous order or duplicate assets",
+                        collection.name
+                    ),
+                ));
+            }
+            state.0 += 1;
+            if state.0 > u64::from(collection.max_items) {
+                return Err(cut_error(
+                    "SNAPBACK_ASSET_EXPORT_COLLECTION_INVALID",
+                    format!("collection {} exceeds its declared bound", collection.name),
+                ));
+            }
+            output.push(AssetCutCollectionItemV1 {
+                collection: collection.name.clone(),
+                collection_generation: collection.generation.clone(),
+                item_id,
+                parent_id,
+                asset_id,
+                kind: parse_media_kind(&kind)?,
+                policy_generation,
+                ordinal,
+            });
+        }
+    }
+    Ok(output)
+}
+
+fn quote_dynamic_identifier(identifier: &str) -> SnapbackResult<String> {
+    if identifier.is_empty()
+        || !identifier
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    {
+        return Err(cut_error(
+            "SNAPBACK_ASSET_EXPORT_COLLECTION_INVALID",
+            "collection table identifier is not portable",
+        ));
+    }
+    Ok(format!("\"{identifier}\""))
+}
+
+fn parse_media_kind(kind: &str) -> SnapbackResult<MediaKindV1> {
+    match kind {
+        "image" => Ok(MediaKindV1::Image),
+        "video" => Ok(MediaKindV1::Video),
+        "audio" => Ok(MediaKindV1::Audio),
+        "file" => Ok(MediaKindV1::File),
+        _ => Err(cut_error(
+            "SNAPBACK_ASSET_EXPORT_COLLECTION_INVALID",
+            "collection item kind is outside the closed media-kind set",
+        )),
+    }
 }
 
 fn blob_entry(record: &AssetBlobRecordV1) -> AssetCutBlobV1 {
@@ -427,6 +581,7 @@ pub fn validation_summary(manifest: &AssetCutManifestV1) -> Value {
         "tombstoneCount": manifest.tombstones.len(),
         "blobCount": manifest.blobs.len(),
         "grantCount": manifest.grants.len(),
+        "collectionItemCount": manifest.collection_items.len(),
         "manifestDigest": manifest.manifest_digest,
     })
 }
@@ -450,10 +605,12 @@ mod tests {
             }],
             blobs: Vec::new(),
             grants: Vec::new(),
+            collection_items: Vec::new(),
             quota: AssetCutQuotaV1 {
                 settled_logical_bytes: 0,
                 ready_asset_count: 0,
                 grant_count: 0,
+                collection_item_count: 0,
             },
             manifest_digest: String::new(),
         };
@@ -639,6 +796,7 @@ fn encode<T: serde::Serialize>(value: &T) -> SnapbackResult<String> {
 /// recomputes against the current generation).
 pub fn apply_cut(
     tx: &Transaction<'_>,
+    schema: &SchemaManifest,
     manifest: &AssetCutManifestV1,
     fresh_keys: &[String],
     store_kind: &str,
@@ -671,6 +829,24 @@ pub fn apply_cut(
             "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
             "grant rows do not match the cut quota snapshot or exceed the app ceiling",
         ));
+    }
+    if manifest.quota.collection_item_count != manifest.collection_items.len() as u64 {
+        return Err(cut_error(
+            "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+            "collection rows do not match the cut quota snapshot",
+        ));
+    }
+    for collection in &schema.asset_collections {
+        let table = quote_dynamic_identifier(&collection.child_table)?;
+        if count(tx, &table)? != 0 {
+            return Err(cut_error(
+                "SNAPBACK_ASSET_IMPORT_TARGET_NOT_EMPTY",
+                format!(
+                    "collection import requires empty framework table {}",
+                    collection.child_table
+                ),
+            ));
+        }
     }
     let ready_assets = manifest
         .assets
@@ -799,7 +975,140 @@ pub fn apply_cut(
         };
         insert_imported_record(tx, &record, now_ms)?;
     }
+    apply_collection_items(tx, schema, manifest, now_ms)?;
     Ok(())
+}
+
+fn apply_collection_items(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    manifest: &AssetCutManifestV1,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let mut identities = std::collections::BTreeSet::new();
+    let mut per_parent = std::collections::BTreeMap::<
+        (String, String),
+        (u64, std::collections::BTreeSet<String>),
+    >::new();
+    for item in &manifest.collection_items {
+        let collection = schema
+            .asset_collections
+            .iter()
+            .find(|collection| collection.name == item.collection)
+            .filter(|collection| collection.generation == item.collection_generation)
+            .ok_or_else(|| {
+                cut_error(
+                    "SNAPBACK_ASSET_IMPORT_COLLECTION_SCHEMA_MISMATCH",
+                    format!(
+                        "collection {} generation is absent from the target schema",
+                        item.collection
+                    ),
+                )
+            })?;
+        if item.policy_generation != collection.generation
+            || !collection.kinds.contains(&item.kind)
+            || !identities.insert((collection.child_table.clone(), item.item_id.clone()))
+        {
+            return Err(cut_error(
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+                "collection item identity, kind, or policy generation is invalid",
+            ));
+        }
+        let state = per_parent
+            .entry((collection.name.clone(), item.parent_id.clone()))
+            .or_default();
+        if item.ordinal != state.0
+            || !state.1.insert(item.asset_id.clone())
+            || state.0 >= u64::from(collection.max_items)
+        {
+            return Err(cut_error(
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+                "collection order, duplicate policy, or count bound is invalid",
+            ));
+        }
+        state.0 += 1;
+        let record = crate::assets::load_asset(tx, &item.asset_id)?.ok_or_else(|| {
+            cut_error(
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+                "collection item references an asset absent from the cut",
+            )
+        })?;
+        if record.availability != crate::assets::AssetAvailability::Ready
+            || record.intent_name != collection.intent
+            || record.media_kind != Some(item.kind)
+        {
+            return Err(cut_error(
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+                "collection item does not match a finalized admitted asset",
+            ));
+        }
+        let incarnation: String = tx
+            .query_row(
+                "SELECT incarnation FROM _snapback_relation_incarnations_v1 \
+                  WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+                rusqlite::params![collection.owner_table, item.parent_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| {
+                cut_error(
+                    "SNAPBACK_ASSET_IMPORT_COLLECTION_PARENT_MISSING",
+                    format!(
+                        "collection {} parent {} is absent from the restored app-data cut",
+                        item.collection, item.parent_id
+                    ),
+                )
+            })?;
+        let table = quote_dynamic_identifier(&collection.child_table)?;
+        let timestamp = i64::try_from(now_ms).map_err(|_| {
+            cut_error(
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+                "import timestamp exceeds SQLite's portable range",
+            )
+        })?;
+        let ordinal = i64::try_from(item.ordinal).map_err(|_| {
+            cut_error(
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID",
+                "collection ordinal exceeds SQLite's portable range",
+            )
+        })?;
+        tx.execute(
+            &format!(
+                "INSERT INTO {table} \
+                    (_id, _version, _createdAt, _updatedAt, parentId, parentIncarnation, \
+                     assetId, kind, policyGeneration, ordinal) \
+                 VALUES (?1, 0, ?2, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
+            ),
+            rusqlite::params![
+                item.item_id,
+                timestamp,
+                item.parent_id,
+                incarnation,
+                item.asset_id,
+                media_kind_name(item.kind),
+                item.policy_generation,
+                ordinal,
+            ],
+        )?;
+        crate::assets::insert_reference_edge(
+            tx,
+            &manifest.app_id,
+            &item.asset_id,
+            &collection.child_table,
+            &item.item_id,
+            "assetId",
+            now_ms,
+        )?;
+    }
+    Ok(())
+}
+
+fn media_kind_name(kind: MediaKindV1) -> &'static str {
+    match kind {
+        MediaKindV1::Image => "image",
+        MediaKindV1::Video => "video",
+        MediaKindV1::Audio => "audio",
+        MediaKindV1::File => "file",
+    }
 }
 
 fn insert_imported_record(

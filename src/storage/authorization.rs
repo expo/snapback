@@ -103,6 +103,17 @@ fn change_is_authorization_event(schema: &SchemaManifest, change: &ChangedRow) -
         // invalidation rather than silently treating the unknown as ordinary.
         return true;
     };
+    // @ref LLP 0239#d4-grants-and-authority-are-declarative-at-the-command-edge — a
+    // collection item is an addressable via-reference authority fact. Its
+    // insert/remove/replacement must invalidate already-issued authority even
+    // though the framework-owned table is not an app permission declaration.
+    if schema
+        .asset_collections
+        .iter()
+        .any(|collection| collection.child_table == change.table)
+    {
+        return true;
+    }
     if !table.is_permission_backing() {
         return false;
     }
@@ -250,6 +261,59 @@ mod tests {
             }],
             ..SchemaManifest::default()
         }
+    }
+
+    #[test]
+    fn framework_owned_collection_rows_are_authorization_events() {
+        let mut schema = schema(None);
+        schema.tables[0].name = "_snapback_asset_collection_gallery".to_owned();
+        schema.asset_collections = vec![crate::manifest::AssetCollectionManifestV1 {
+            format: "snapback.asset-collection.v1".to_owned(),
+            generation: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                .to_owned(),
+            name: "gallery".to_owned(),
+            owner_table: "posts".to_owned(),
+            owner_field: "ownerId".to_owned(),
+            intent: "media".to_owned(),
+            max_items: 8,
+            order: crate::manifest::AssetCollectionOrderV1::Manual,
+            kinds: vec![crate::contract_types::MediaKindV1::Image],
+            duplicate_policy: "refuse.v1".to_owned(),
+            sharing: crate::manifest::AssetCollectionSharingManifestV1 {
+                format: "snapback.asset-collection-sharing.v1".to_owned(),
+                ceiling: vec![crate::manifest::AssetCollectionSharingPlanManifestV1 {
+                    name: "none".to_owned(),
+                    plan: crate::manifest::AssetCollectionSharingPlanV1::None,
+                }],
+                default_plan: "none".to_owned(),
+            },
+            child_table: "_snapback_asset_collection_gallery".to_owned(),
+            fields: crate::manifest::AssetCollectionFieldsManifestV1 {
+                parent_id: "parentId".to_owned(),
+                parent_incarnation: "parentIncarnation".to_owned(),
+                asset_id: "assetId".to_owned(),
+                kind: "kind".to_owned(),
+                policy_generation: "policyGeneration".to_owned(),
+                ordinal: "ordinal".to_owned(),
+            },
+            operations: crate::manifest::AssetCollectionOperationsManifestV1 {
+                query: "gallery".to_owned(),
+                append: "galleryAppend".to_owned(),
+                replace: "galleryReplace".to_owned(),
+                remove: "galleryRemove".to_owned(),
+                reorder: Some("galleryReorder".to_owned()),
+            },
+        }];
+        assert!(change_is_authorization_event(
+            &schema,
+            &ChangedRow {
+                table: "_snapback_asset_collection_gallery".to_owned(),
+                id: "item".to_owned(),
+                op: ChangeOp::Insert,
+                row: None,
+                changed_fields: vec![],
+            }
+        ));
     }
 
     #[test]

@@ -640,6 +640,20 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
             serialized.len()
         )));
     }
+    let collection_steps = plan
+        .steps
+        .iter()
+        .filter(|step| matches!(step, MutationStep::AssetCollection(_)))
+        .count();
+    if collection_steps > 0
+        && (collection_steps != 1 || plan.steps.len() != 1 || plan.return_value.is_some())
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_MEDIA_COLLECTION_MANIFEST_INVALID",
+            "asset-collection",
+            "an asset-collection mutation must contain exactly one generated collection step and no generic return expression",
+        ));
+    }
 
     let allocation_bindings = plan
         .steps
@@ -654,6 +668,7 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
     for step in &plan.steps {
         let mut exprs: Vec<&ValueExpr> = Vec::new();
         match step {
+            MutationStep::AssetCollection(_) => {}
             MutationStep::AllocateSequence { scope, .. } => exprs.push(scope),
             MutationStep::Insert { values, .. } => exprs.extend(values.values()),
             MutationStep::Patch { id, values, .. } => {

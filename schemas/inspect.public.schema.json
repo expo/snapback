@@ -6493,6 +6493,7 @@
             "versioned_seed_reset_v1",
             "write_activity_v1",
             "asset_lifecycle_v1",
+            "assets.media-collection.v1",
             "assets.media-ref-projection.v1",
             "asset_image_finalization_v1",
             "asset_image_pipeline_v1",

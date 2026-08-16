@@ -4,7 +4,7 @@
   "authorityProfiles": [],
   "authorizationTables": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:cc4855cd597ca18e475f51855f21468b552178cbd7bc861d67768ea18501349e",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:6cbe024326cb45673933484e0fb61dbfa4ece95dc0bf6f21fcb0f94c0de2ebc4",
   "operations": [
     {
       "authRequirement": {
