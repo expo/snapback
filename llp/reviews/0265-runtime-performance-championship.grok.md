@@ -1,6 +1,6 @@
-# Review artifact: LLP 0261 — grok family
+# Review artifact: LLP 0265 — grok family
 
-Target: `llp/0261-runtime-performance-championship.spec.md`
+Target: `llp/0265-runtime-performance-championship.spec.md`
 
 ## Round 1 — 2026-08-15
 

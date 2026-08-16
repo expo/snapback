@@ -13,7 +13,7 @@ out (declared placement key at its "Divide one app by a declared placement
 key" section; the open root-choice question in its closing questions).
 
 Ask: when a workload actually demands it (a hot app outgrowing one authority,
-or the LLP 0261 championship showing the ceiling), author the Plan that
+or the LLP 0265 championship showing the ceiling), author the Plan that
 sequences: (1) Postgres as an alternative authority store behind the same
 commit/version-stream contract, (2) declared locality roots and cell
 partitioning, (3) explicit cross-cell semantics. Until then this ticket holds
@@ -24,4 +24,4 @@ Instant-like immediate/offline UX, Convex-like coherent reactive queries,
 explicit graduation path to Postgres/cells — not winning raw-Postgres
 workloads at raw Postgres.
 
-Related: LLP 0128, LLP 0198, LLP 0261 (championship contract), LLP 0209.
+Related: LLP 0128, LLP 0198, LLP 0265 (championship contract), LLP 0209.

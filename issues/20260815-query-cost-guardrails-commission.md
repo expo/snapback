@@ -2,7 +2,7 @@
 
 **Opened:** 2026-08-15 · **Severity:** P2 design commission ·
 **Source:** author performance-direction ruling 2026-08-15 (recorded in the
-lane run that also produced LLP 0261 and the G1 memoization landing)
+lane run that also produced LLP 0265 and the G1 memoization landing)
 
 Snapback should expose, per query: scanned rows, index ranges consulted,
 result bytes, evaluation time, and estimated live fan-out cost — and act on
