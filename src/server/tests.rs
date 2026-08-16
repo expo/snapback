@@ -1144,6 +1144,53 @@ async fn successful_bind_records_process_ready_exactly_once() {
     assert_eq!(after, 1, "shared readiness authority is one-shot");
 }
 
+#[tokio::test]
+async fn embedded_serving_emits_resolved_exposure_warning_once() {
+    let context = crate::admin::ServerContext::new_with_resolved_environment(
+        "127.0.0.1",
+        0,
+        true,
+        Some("dev"),
+        crate::admin::resolve_exposure(Some("fronted")),
+    );
+    let warning_witness = context.clone();
+    let state = AppState::try_from_snapback(
+        LocalSnapback::memory().expect("embedded warning test instance"),
+        context,
+    )
+    .expect("embedded warning app state");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind embedded warning listener");
+    let bound = super::app(state)
+        .bind(listener)
+        .expect("couple embedded warning app");
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+    let server = tokio::spawn(async move {
+        bound
+            .serve_with_graceful_shutdown(async move {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .expect("serve embedded warning app");
+    });
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while !warning_witness.startup_warning_was_emitted() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("embedded serving emits its resolved exposure warning");
+    assert!(
+        !warning_witness.emit_startup_warning_once(),
+        "the shared lifecycle guard suppresses a second emission"
+    );
+
+    let _ = shutdown_tx.send(());
+    server.await.expect("embedded warning server joins");
+}
+
 #[test]
 fn already_terminal_session_errors_preserve_exact_durable_disposition() {
     let cap = already_terminal_session_error(Some(RevocationReason::CapEviction));
@@ -13489,6 +13536,7 @@ async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_abs
 
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let (registry, capability) = dev_identity_capability_fixture();
+    let (_other_registry, other_capability) = dev_identity_capability_fixture();
     let warning_witness = registry.clone();
     let state = state.with_dev_identity_capabilities(registry);
     let router = super::router_from_registrations(
@@ -13527,7 +13575,7 @@ async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_abs
     );
 
     let refused = router
-        .oneshot(request(Some("sbdev_present-but-wrong")))
+        .oneshot(request(Some(&other_capability)))
         .await
         .unwrap();
     assert_eq!(refused.status(), StatusCode::FORBIDDEN);
@@ -13550,10 +13598,12 @@ async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_abs
 async fn connection_open_binds_only_a_verified_dev_identity_witness() {
     let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
     let (registry, capability) = dev_identity_capability_fixture();
+    let (_other_registry, other_capability) = dev_identity_capability_fixture();
+    let warning_witness = registry.clone();
     let state = state.with_dev_identity_capabilities(registry);
     let router = app(state.clone());
-    let request = |presented: Option<&str>| {
-        let mut request = connection_open_request(None, json!({}));
+    let request = |presented: Option<&str>, body: Value| {
+        let mut request = connection_open_request(None, body);
         request.headers_mut().remove("x-snapback-auth-client-protocol");
         request
             .headers_mut()
@@ -13569,17 +13619,24 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
 
     let refused = router
         .clone()
-        .oneshot(request(Some("sbdev_present-but-wrong")))
+        .oneshot(request(Some(&other_capability), json!({})))
         .await
         .unwrap();
     assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    let refused = response_json(refused).await;
+    assert_eq!(refused["diagnostic"]["code"], "SNAPBACK_DEV_IDENTITY_REFUSED");
     assert_eq!(
-        response_json(refused).await["diagnostic"]["code"],
-        "SNAPBACK_DEV_IDENTITY_REFUSED"
+        refused["diagnostic"]["message"],
+        "developer identity capability refused"
+    );
+    assert!(
+        !refused.to_string().contains("/operator/"),
+        "custody-path remediation remains server-local"
     );
 
     let opened = router
-        .oneshot(request(Some(&capability)))
+        .clone()
+        .oneshot(request(Some(&capability), json!({})))
         .await
         .unwrap();
     assert_eq!(opened.status(), StatusCode::OK);
@@ -13596,6 +13653,100 @@ async fn connection_open_binds_only_a_verified_dev_identity_witness() {
         )
         .unwrap();
     assert!(prepared.dev_identity_witnessed);
+
+    let connection_id = opened["connectionId"].as_str().unwrap();
+    let connection_token = opened["connectionToken"].as_str().unwrap();
+    let reopened = router
+        .clone()
+        .oneshot(request(
+            None,
+            json!({
+                "connectionId": connection_id,
+                "previousToken": connection_token,
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(reopened.status(), StatusCode::OK);
+    let reopened = response_json(reopened).await;
+    assert_eq!(reopened["connectionId"], connection_id);
+    assert_eq!(reopened["connectionToken"], connection_token);
+    let prepared = state
+        .connections
+        .prepare_act(
+            connection_id,
+            Some(connection_token),
+            state.auth_coordinator.as_deref(),
+            true,
+            super::now_millis(),
+            Instant::now(),
+        )
+        .unwrap();
+    assert!(
+        !prepared.dev_identity_witnessed,
+        "an exact-token reopen must replace the prior capability witness"
+    );
+
+    let identity_frame = json!({
+        "type": "ephemeral_subscribe",
+        "requestId": "reopen-witness",
+        "request": {
+            "collection": "missing-is-fine-for-witness-test",
+            "scope": { "room": "one" },
+            "connection_id": connection_id,
+            "auth": {
+                "principal": "asserted",
+                "session_id": null,
+                "user_id": "asserted",
+                "permissions": []
+            }
+        }
+    })
+    .to_string();
+    let _ = super::handle_live_socket_text_authorized(
+        &state.ephemeral,
+        connection_id,
+        &identity_frame,
+        PolicyAuthMode::Dev,
+        false,
+        &prepared.resolved,
+        super::LiveSocketEffectContext {
+            dev_identity_capabilities: state.dev_identity_capabilities.as_ref(),
+            dev_identity_witnessed: prepared.dev_identity_witnessed,
+            ..Default::default()
+        },
+    );
+    assert!(
+        !warning_witness.warn_unwitnessed_assertion_once(),
+        "the headerless reopen makes the stage-1 missing-capability warning reachable again"
+    );
+
+    let restored = router
+        .oneshot(request(
+            Some(&capability),
+            json!({
+                "connectionId": connection_id,
+                "previousToken": connection_token,
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(restored.status(), StatusCode::OK);
+    let prepared = state
+        .connections
+        .prepare_act(
+            connection_id,
+            Some(connection_token),
+            state.auth_coordinator.as_deref(),
+            true,
+            super::now_millis(),
+            Instant::now(),
+        )
+        .unwrap();
+    assert!(
+        prepared.dev_identity_witnessed,
+        "re-presenting the capability restores the connection witness"
+    );
 }
 
 #[tokio::test]

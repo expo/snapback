@@ -358,6 +358,30 @@ mod tests {
         let bearer = bearer.unwrap();
         assert!(bearer.starts_with("sbdev_"));
         assert!(registry.authorize(Some(&bearer)).is_ok());
+        let (_other_registry, other_operator) = DevIdentityCapabilityRegistry::generate(
+            "startup-b".to_owned(),
+            Some(PathBuf::from("/tmp/other.sqlite3.dev-identity")),
+            &OsRandom,
+        )
+        .unwrap();
+        let mut other_bearer = None;
+        other_operator
+            .emit_once_to_terminal(|value| {
+                other_bearer = Some(value.to_owned());
+                Ok(())
+            })
+            .unwrap();
+        let other_bearer = other_bearer.unwrap();
+        assert!(other_bearer.starts_with("sbdev_"));
+        assert_eq!(
+            registry
+                .authorize(Some(&other_bearer))
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_DEV_IDENTITY_REFUSED",
+            "a well-formed independently minted bearer must still compare unequal"
+        );
         for invalid in [None, Some("sbdev_malformed"), Some("sbic_wrong-class")] {
             assert_eq!(
                 registry.authorize(invalid).unwrap_err().diagnostic.code,

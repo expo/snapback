@@ -6011,7 +6011,10 @@ impl ConnectionRegistry {
                 existing.authority = bound.clone();
                 existing.managed_authority = managed_authority;
                 existing.hosted_sender = hosted_sender.clone();
-                existing.dev_identity_witnessed |= dev_identity_witnessed;
+                // @ref LLP 0262#d1-the-dev-identity-capability — reconnects
+                //   re-present; the current open attempt replaces the prior
+                //   witness instead of inheriting it from the lineage.
+                existing.dev_identity_witnessed = dev_identity_witnessed;
                 let grant_id = existing.grant_id.clone();
                 let connection_token = existing.token.clone();
                 let authorization_invalidation = existing.authorization_invalidation.clone();
@@ -17929,9 +17932,11 @@ impl SnapbackApp {
         let mut state = self.state;
         Arc::make_mut(&mut state.server).record_bound_address(address);
         state.telemetry.record_process_ready();
+        let server = state.server.clone();
         Ok(BoundSnapbackApp {
             listener,
             router: router_for_state(state),
+            server,
         })
     }
 }
@@ -17962,6 +17967,7 @@ impl Service<Request<Body>> for SnapbackApp {
 pub struct BoundSnapbackApp {
     listener: tokio::net::TcpListener,
     router: Router,
+    server: Arc<crate::admin::ServerContext>,
 }
 
 /// Disable Nagle on every connection this server accepts. Axum does not do
@@ -17995,6 +18001,7 @@ impl BoundSnapbackApp {
     }
 
     pub async fn serve(self) -> std::io::Result<()> {
+        self.server.emit_startup_warning_once();
         axum::serve(
             nodelay_listener(self.listener),
             self.router
@@ -18007,6 +18014,7 @@ impl BoundSnapbackApp {
     where
         F: Future<Output = ()> + Send + 'static,
     {
+        self.server.emit_startup_warning_once();
         axum::serve(
             nodelay_listener(self.listener),
             self.router

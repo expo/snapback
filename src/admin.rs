@@ -46,7 +46,10 @@ use std::ffi::OsString;
 use std::fmt;
 use std::net::SocketAddr;
 use std::path::{Component, Path as FsPath, PathBuf};
-use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex as StdMutex, RwLock as StdRwLock,
+};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
 use std::{
@@ -265,15 +268,6 @@ pub(crate) fn operation_profile_diagnostic(
             profile.as_str(),
         ),
     ))
-}
-
-fn env_profile(loopback: bool) -> ServerProfile {
-    let exposure = environment_exposure();
-    resolve_profile(
-        std::env::var("SNAPBACK_PROFILE").ok().as_deref(),
-        loopback,
-        exposure.fronted(),
-    )
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2142,6 +2136,10 @@ pub struct ServerContext {
     /// @ref LLP 0017#serving-model — serve a built `admin/dist` snapshot when
     /// present; the admin UI has a single Contract/Exact implementation.
     pub admin_dist: Option<PathBuf>,
+    /// Operator-only exposure warning resolved during embedded composition.
+    /// Clones share the emission guard so serving can report it exactly once.
+    startup_warning: Option<Arc<str>>,
+    startup_warning_emitted: Arc<AtomicBool>,
 }
 
 impl fmt::Debug for ServerContext {
@@ -2167,6 +2165,7 @@ impl fmt::Debug for ServerContext {
             .field("console_approvals", &self.console_approvals)
             .field("console_claims", &self.console_claims)
             .field("admin_dist_configured", &self.admin_dist.is_some())
+            .field("startup_warning_configured", &self.startup_warning.is_some())
             .finish()
     }
 }
@@ -2193,7 +2192,28 @@ impl ServerContext {
     /// caller-described form does not establish listener transport authority;
     /// network session embedders use `server::app(state).bind(listener)`.
     pub fn new(host: impl Into<String>, port: u16, loopback: bool) -> Self {
-        Self::new_with_resolved_profile(host, port, loopback, env_profile(loopback))
+        let raw_profile = std::env::var("SNAPBACK_PROFILE").ok();
+        Self::new_with_resolved_environment(
+            host,
+            port,
+            loopback,
+            raw_profile.as_deref(),
+            environment_exposure(),
+        )
+    }
+
+    pub(crate) fn new_with_resolved_environment(
+        host: impl Into<String>,
+        port: u16,
+        loopback: bool,
+        raw_profile: Option<&str>,
+        exposure: ExposureResolution,
+    ) -> Self {
+        let profile = resolve_profile(raw_profile, loopback, exposure.fronted());
+        let startup_warning = exposure.startup_warning(raw_profile).map(Arc::from);
+        let mut context = Self::new_with_resolved_profile(host, port, loopback, profile);
+        context.startup_warning = startup_warning;
+        context
     }
 
     pub(crate) fn new_with_resolved_profile(
@@ -2220,6 +2240,8 @@ impl ServerContext {
             console_approvals: ConsoleApprovalRegistry::default(),
             console_claims: ConsoleClaimRegistry::default(),
             admin_dist: env_admin_dist(),
+            startup_warning: None,
+            startup_warning_emitted: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -2227,25 +2249,32 @@ impl ServerContext {
     /// Legacy dev tooling retains loopback-open defaults, but the independent
     /// listener posture stays unknown and therefore cannot carry sessions.
     pub fn detached() -> Self {
-        Self {
-            host: "127.0.0.1".to_owned(),
-            port: 0,
-            loopback: true,
-            listener_transport: ListenerTransportPosture::Unknown,
-            dev_auth_origins: env_dev_auth_origins(),
-            profile: env_profile(true),
-            auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
-            pid: std::process::id(),
-            started: Instant::now(),
-            started_at_ms: now_millis(),
-            admin_token: env_admin_token(),
-            admin_token_minted: false,
-            admin_token_file: None,
-            console_credentials: ConsoleCredentialRegistry::default(),
-            console_approvals: ConsoleApprovalRegistry::default(),
-            console_claims: ConsoleClaimRegistry::default(),
-            admin_dist: env_admin_dist(),
+        Self::new("127.0.0.1", 0, true)
+    }
+
+    /// Emit the already-resolved embedded startup warning at the serving
+    /// lifecycle boundary. Every clone shares the guard.
+    ///
+    /// @ref LLP 0262#d4-declared-exposure — explicit fronted non-production
+    ///   serving and unrecognized exposure declarations warn once at startup.
+    pub(crate) fn emit_startup_warning_once(&self) -> bool {
+        let Some(warning) = self.startup_warning.as_deref() else {
+            return false;
+        };
+        if self
+            .startup_warning_emitted
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return false;
         }
+        eprintln!("{warning}");
+        true
+    }
+
+    #[cfg(test)]
+    pub(crate) fn startup_warning_was_emitted(&self) -> bool {
+        self.startup_warning_emitted.load(Ordering::Acquire)
     }
 
     /// Record the socket address returned by the listener that will serve this
