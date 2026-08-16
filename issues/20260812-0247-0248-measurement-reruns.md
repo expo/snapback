@@ -21,3 +21,11 @@ digest. Also owed from LLP 0248: rollout 5's N+1 dev diagnostic (flag
 repeated same-table get/unique loops; never rewrite), and the Cloudflare DO
 host-op twin stays a declared capability gap until it composes LLP 0231
 visibility.
+
+## Update (2026-08-15)
+
+Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):
+the messaging choreography rerun uses a **FRESH LLP 0201 rig run against the
+published 0.1.22 packages** (not the `demos/messaging-snapback` surrogate).
+Numbers land as LLP 0189 calibration evidence unless bound to a scoped
+qualification digest.

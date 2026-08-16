@@ -16,3 +16,11 @@ Do when unblocked:
 - addition-only reads/writes proposals per LLP 0245 D3 (never removal, never a
   complete-set claim);
 - extend `DeclarationSuggestionV1` evidence classes and the corpus report.
+
+## Update (2026-08-15)
+
+Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):
+0245 R4 **PROCEEDS** while LLP 0146 remains Draft, sourcing runtime-witnessed
+evidence from verify-receipt conformance, provided the evidence class records
+the registered-paths-only provenance caveat. Implementation lane dispatched
+2026-08-15.

@@ -35,3 +35,15 @@ stable home.
 An accepted decision owns one unambiguous declaration grammar and projection.
 Codegen tests prove every unsupported or misspelled effect refuses, while the
 portable action grammar remains unchanged.
+
+## Ruling (2026-08-15)
+
+Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):
+isolated actions use a **NESTED RUNTIME DECLARATION** — a namespaced
+`runtime: { ... }` block (kind, egress, secrets, crypto/entropy, result
+authority, writes) — not a top-level `effects`/`powers`/`grants` vocabulary.
+The existing mutation/ephemeral effects vocabulary stays untouched and
+authoritative for state effects; the runtime block is a separate closed
+vocabulary with its own versioning, contract emission, and unknown-key
+refusals. Detailed grammar to be specified by the implementing lane under
+LLP 0249 D1 and reviewed before authoring is enabled.

@@ -339,3 +339,17 @@ not create a commit because the execution sandbox cannot write Git metadata.
   log is the intended “evidence registered under T3” posture. If an LLP 0064
   tuple claim is desired, the orchestrator must run and retain that tuple's
   existing OS-specific acceptance rather than promoting the carrier log.
+
+## Ruling record — 2026-08-15
+
+Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):
+all four standing evidence-posture ratifications are **RATIFIED as shipped
+and documented**:
+
+1. T3's explicitly-partial `unsupported` D1 provenance posture;
+2. T1's Sessions schema with public sample CRUD;
+3. T2's public-immutable main feed with private-strict shown separately;
+4. T4's carrier config bound into D2 with screenshots in a non-claiming
+   director log.
+
+The external qualification pass is unblocked on the ratification axis.

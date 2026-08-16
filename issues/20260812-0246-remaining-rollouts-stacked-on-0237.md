@@ -22,3 +22,11 @@ test). The remaining accepted scope is stacked on work not yet on `main`:
 - **Rollout 6** — the published-package Clique/CRUD TS-only rerun.
 
 LLP 0246 stays **Accepted** (not Implemented) until these land.
+
+## Update (2026-08-15)
+
+Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):
+the generated editor `tsconfig.json` under `.snapback/typescript/` is
+**GITIGNORED** (generated on demand), consistent with the LLP 0241 Metro-watch
+exclusion posture. This resolves the committed-vs-ignored decision noted in
+rollout 3.

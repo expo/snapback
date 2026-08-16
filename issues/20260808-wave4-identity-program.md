@@ -54,3 +54,16 @@ claim-relevant gates, unrelated red gates ticketed and named. No wholly-green
 `main` commit is required. Expect to `git fetch` + rebase before every push;
 the LLP 0175 drift hook now enforces frozen-record freshness in the landing
 that causes it.
+
+## Ruling update — 2026-08-15
+
+Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):
+
+**Kickoff decision 2 is now DECIDED.** Expo WILL operate a shared,
+Expo-hosted email/SMS delivery service for generated domains (the ruling
+deferred at sittings #2 and #4). LLP 0212 wave 2d builds against the shared
+service; the indefinite operational obligation is accepted and needs a named
+owner recorded when 2d is commissioned.
+
+Note: this ticket's LLP 0198/0199 commission numbers are stale (those numbers
+were taken by unrelated docs); LLP 0212 is the program of record.

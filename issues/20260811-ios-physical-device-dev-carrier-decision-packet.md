@@ -97,3 +97,23 @@ The packet must produce:
 - Treating a QR code, stable DNS name, TLS tunnel, or loopback backend as an
   authorization proof by itself.
 - Blocking the shipped simulator/emulator and Android USB paths.
+
+## Ruling record — 2026-08-15
+
+Author ruling (Charlie, 2026-08-15, recorded by orchestrating agent session):
+
+- The packet's NOT-YET recommendation is **ACCEPTED**. iOS physical-device
+  local development stays an explicit nonclaim, the LLP 0168 successor-RFC
+  gate stays closed on A3 grounds, and topology (c) — an already-hosted
+  backend plus a separately admitted development asset carrier — is adopted.
+- **Packet §9 ruling 1: YES.** "Development bundle, hosted backend" becomes a
+  representable binding; a small LLP 0181 amendment adding that binding arm is
+  commissioned (size M).
+- **Ruling 2:** resolved per the packet's own analysis — a client pointing at
+  an already-admitted hosted target is outside the LLP 0168 gate.
+- **Ruling 3:** the LLP 0168 A1 scoping edit is accepted.
+- **Rulings 4, 5, and 6 remain OPEN** — F-A2-4 blast-radius measurement
+  scheduling, Android USB live receipt scheduling, and the private-overlay
+  carrier question are not resolved by this ruling.
+- The due non-authorizing doc-posture fixes (react-expo carrier-table row,
+  diary hedge, relay-room launcher note) may proceed.
