@@ -214,3 +214,20 @@ platform contract instead of coordinated cache and policy conventions. The
 local receipts are substantially stronger now; search, attachments,
 notifications, moderation, sessions/hosted operation, and the complete
 `STEP6.CHAT` claim remain deliberately red.
+
+## 2026-08-16 — owner-write pressure exposes the fan-out gap
+
+LLP 0264 Phase 1a made an important mismatch impossible to ignore: the inbox
+is recipient-owned, but `sendMessage` wrote rows into other principals' owner
+slices and moderator removal deleted them. The local, explicitly non-claiming
+kernel now writes only the sender's host-stamped delivery and performs no
+cross-owner inbox cleanup. Room messages and the display roster retain their
+pre-0264 runtime behavior behind visible migration-pending facts.
+
+This is intentionally a loss of demo capability, not a covert widening of the
+owner policy. Restoring bounded recipient fan-out and moderator cleanup needs
+an explicit IR sibling with cross-principal write authority; the Phase 1b
+migration ticket owns that dependency. Compared with Convex or Supabase, this
+is more ceremony, but the failure is honest: application code cannot borrow a
+recipient's read identity as write authority merely because the fan-out is
+useful.

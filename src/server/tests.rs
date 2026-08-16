@@ -2086,6 +2086,7 @@ fn auth_projection_http_fixture(
         "insertItem",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "items".to_owned(),
                 values: insert_values,
@@ -2098,6 +2099,7 @@ fn auth_projection_http_fixture(
         "deleteItem",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Delete {
                 table: "items".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -2311,6 +2313,7 @@ fn protected_room_server_fixture() -> (AppState, tempfile::TempDir) {
         "kickRoomMember",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Delete {
                 table: "roomMembers".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -3436,6 +3439,7 @@ fn activation_functions(bundle_marker: char, hide_rows: bool) -> FunctionManifes
         "queuedWrite",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "items".to_owned(),
                 values: insert_values,
@@ -8707,6 +8711,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
             .mutation_writes()
             .execute_mutation_idempotent(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: Vec::new(),
                     return_value: Some(ReturnValue::ChangedCount),
                 },
@@ -11576,6 +11581,7 @@ fn hosted_function_route_state() -> AppState {
             "appendNote",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "notes".to_owned(),
                     values: append_values,
@@ -11740,10 +11746,9 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
     // Rotates with the embedded todo demo's generated artifacts. Rotated
-    // 2026-08-12 by the `identifier: "email"` codegen seam (LLP 0227): the
-    // password identifier mode is a codegen input, so every demo's manifest
-    // hash moves even where the demo declares no password mechanism.
-    assert_eq!(details["artifactHash"], "sha256:b21da1d0f6183ec8");
+    // 2026-08-16 by the owner-write policy projection (LLP 0264): the served
+    // function manifest now authenticates its generated write disclosures.
+    assert_eq!(details["artifactHash"], "sha256:877586e79b978c00");
     assert_eq!(
         details["remediationSet"]["schemaVersion"],
         "snapback.remediation-set.v1"
@@ -21985,6 +21990,11 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_STALE_RESULT",
     "SNAPBACK_AUTH_UNDECLARABLE_RETENTION",
     "SNAPBACK_AUTH_USER_MISSING",
+    "SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED",
+    "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+    "SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED",
+    "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED",
+    "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE",
     "SNAPBACK_AUTH_SCOPED_TOKEN_TTL_INVALID",
     "SNAPBACK_BINDING_MISSING",
     "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED",
@@ -22476,6 +22486,8 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
     "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
     "SNAPBACK_AUTH_PERMISSION_DENIED",
+    "SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE",
+    "SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE",
     "SNAPBACK_CONNECTION_TOKEN_INVALID",
     "SNAPBACK_LIVE_RESUME_OWNERSHIP",
     // LLP 0056 M2 writer-class seam + transition-matrix authorization refusals.
@@ -24911,6 +24923,7 @@ fn generation_test_manifest() -> FunctionManifest {
                     "hostPlanWrite",
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                         steps: Vec::new(),
                         return_value: None,
                     })),
@@ -25035,6 +25048,7 @@ async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
         "insertCarrier",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "items".to_owned(),
                 values,

@@ -1,6 +1,6 @@
 {
   "heads": {},
-  "ledgerDigest": "sha256:9e69162bab12bdbaa95a39f3b6a934d363afa22cbda9bc51911bab240dcad688",
+  "ledgerDigest": "sha256:fa5ebb5311337a25edddda6b666ce2c319f115135bdf42516a2b66c10a7926f8",
   "nodes": [],
-  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v2"
 }

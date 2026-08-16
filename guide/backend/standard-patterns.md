@@ -47,6 +47,7 @@ export const todos = defineTable({
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
   .index('by_owner_created', ['ownerId', 'createdAt'])
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .sync();
 ```
 

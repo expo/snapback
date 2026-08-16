@@ -325,6 +325,7 @@ fn media_command_binding_is_required_and_resolved_before_mutation_execution() {
         "createPost",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: Vec::new(),
             return_value: None,
         })),
@@ -2106,6 +2107,7 @@ fn mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children() {
         "addTodo",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "todos".to_owned(),
                 values: BTreeMap::from([("title".to_owned(), ValueExpr::Arg("title".to_owned()))]),
@@ -3077,6 +3079,7 @@ fn live_search_skips_disjoint_table_commits_and_reruns_searched_table_commits() 
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: table.to_owned(),
                     values: BTreeMap::from([(field.to_owned(), ValueExpr::Arg(field.to_owned()))]),
@@ -3477,6 +3480,7 @@ fn agent_safe_app_effective_envelopes_intersect_exact_function_reachability() {
         "hostMutation",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: Vec::new(),
             return_value: None,
         })),
@@ -3553,6 +3557,7 @@ fn agent_safe_projection_rejects_marker_only_owner_artifact_and_activation_clear
         "markerOnly",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: Vec::new(),
             return_value: None,
         })),
@@ -5391,7 +5396,7 @@ fn asset_reference_schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
             TableManifest {
@@ -5469,7 +5474,7 @@ fn asset_reference_schema() -> SchemaManifest {
                     membership: "workspace_members".to_owned(),
                     roles: Some(vec!["viewer".to_owned()]),
                 }),
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
         ],
@@ -6355,6 +6360,7 @@ fn asset_attachment_authority_cross_owner_refuses_at_commit_boundary() {
     let mut snapback = asset_reference_snapback();
     let asset_id = asset_ready(&mut snapback, "user_a", b"cross-owner-bytes");
     let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: "posts".to_owned(),
             values: BTreeMap::from([("photo".to_owned(), ValueExpr::Literal(json!(asset_id)))]),
@@ -6394,6 +6400,7 @@ fn asset_attachment_authority_missing_principal_refuses_at_commit_boundary() {
     let mut snapback = asset_reference_snapback();
     let asset_id = asset_ready(&mut snapback, "user_a", b"missing-principal-bytes");
     let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: "posts".to_owned(),
             values: BTreeMap::from([("photo".to_owned(), ValueExpr::Literal(json!(asset_id)))]),
@@ -6424,6 +6431,7 @@ fn asset_host_plan_and_seed_derive_admission_from_the_restriction() {
     let mut snapback = asset_reference_snapback();
     let asset_id = asset_ready(&mut snapback, "user_a", b"plan-bytes");
     let plan_insert = |table: &str, field: &str, asset: &str| MutationPlan {
+            owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: table.to_owned(),
             values: BTreeMap::from([(field.to_owned(), ValueExpr::Literal(json!(asset)))]),
@@ -7134,7 +7142,7 @@ fn my_memberships_snapback() -> LocalSnapback {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
             crate::manifest::TableManifest {
@@ -11767,6 +11775,7 @@ fn quarantined_offline_mutation_settles_through_resync_before_replay() {
         version: row["_version"].as_u64().expect("version"),
     };
     let rename_plan = MutationPlan {
+            owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Patch {
             table: "authors".to_owned(),
             id: ValueExpr::Arg("id".to_owned()),
@@ -13062,6 +13071,7 @@ fn retained_service_live_revalidates_only_its_matched_grant_entry() {
         .mutation_writes()
         .execute_mutation(
             &MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "items".to_owned(),
                     values: inserted,
@@ -15195,6 +15205,7 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: table.to_owned(),
                     values: fields
@@ -15746,6 +15757,7 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
         "addChild",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "children".to_owned(),
                 values: BTreeMap::from([
@@ -15768,6 +15780,7 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Patch {
                     table: table.to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
@@ -15785,6 +15798,7 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Delete {
                     table: table.to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
@@ -16543,6 +16557,7 @@ fn snapshot_batch_v2_relational_root_change_delivers_live_replace() {
         "addBook",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "books".to_owned(),
                 values: [
@@ -19031,6 +19046,7 @@ fn projection_fixture(
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: table.to_owned(),
                     values: fields
@@ -19069,6 +19085,7 @@ fn projection_fixture(
                 "renameAuthor",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "authors".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -19084,6 +19101,7 @@ fn projection_fixture(
                 "moveBookSlug",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "books".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -19099,6 +19117,7 @@ fn projection_fixture(
                 "deleteBook",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Delete {
                         table: "books".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -19794,6 +19813,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
         .mutation_writes()
         .execute_mutation(
             &MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Delete {
                     table: "books".to_owned(),
                     id: ValueExpr::Literal(json!(beta_id)),
@@ -20321,6 +20341,7 @@ fn maintained_projection_activation_refusals() {
         "forgeSummary",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "bookSummaries".to_owned(),
                 values: BTreeMap::new(),
@@ -21514,6 +21535,7 @@ fn standard_pattern_live_is_conservative_and_recorded() {
         "addTodo",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "todos".to_owned(),
                 values: BTreeMap::from([
@@ -22665,6 +22687,7 @@ fn guarded_functions() -> FunctionManifest {
                 "hostInsert",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "items".to_owned(),
                         values,
@@ -22816,6 +22839,7 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
     match &mut refused_staged {
         StagedRecordedMutation::Ready(staged) => {
             staged.execution = StagedMutationExecution::HostPlan(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "missing_after_stage".to_owned(),
                     values: BTreeMap::new(),
@@ -23476,6 +23500,7 @@ fn lane_settlement_snapback() -> LocalSnapback {
         "writeClockAndId",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "items".to_owned(),
                 values: BTreeMap::from([
@@ -23499,6 +23524,7 @@ fn lane_settlement_snapback() -> LocalSnapback {
         "writeBranchId",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "items".to_owned(),
                 values: BTreeMap::from([
@@ -24240,6 +24266,7 @@ fn llp0133_sketch_10_stale_reservation_rolls_back_then_retry_rederives() {
                 .clone()
                 .expect("first server sample");
             staged.execution = super::StagedMutationExecution::HostPlan(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "permissions".to_owned(),
                     values: BTreeMap::from([
@@ -24535,6 +24562,7 @@ fn split_vector_argument_contract_commits_valid_and_refuses_invalid_nested_paylo
         "recordExpense",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "expenses".to_owned(),
                 values: BTreeMap::from([
@@ -25177,6 +25205,7 @@ fn live_limit_snapback() -> LocalSnapback {
         "insertItem",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "items".to_owned(),
                 values: insert_values,
@@ -25189,6 +25218,7 @@ fn live_limit_snapback() -> LocalSnapback {
         "deleteItem",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Delete {
                 table: "items".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -25690,6 +25720,7 @@ fn relational_shrinking_replacement_is_obligation_backed_and_recovered() {
         "deleteBook",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Delete {
                 table: "books".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -27962,6 +27993,7 @@ fn service_principal_host_plan_permission_backing_write_is_refused_without_prove
         "seatAcl",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "custom_acl".to_owned(),
                 values,
@@ -30059,6 +30091,7 @@ fn rqs_functions() -> FunctionManifest {
         "createTodo",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "todos".to_owned(),
                 values: BTreeMap::from([
@@ -30114,6 +30147,7 @@ fn rqs_functions() -> FunctionManifest {
         "setRank",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Patch {
                 table: "todos".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -30126,6 +30160,7 @@ fn rqs_functions() -> FunctionManifest {
         "setTitle",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Patch {
                 table: "todos".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -32631,6 +32666,7 @@ fn managed_branch_carrier_fixture() -> LocalSnapback {
         "createOwned",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "records".to_owned(),
                 values: BTreeMap::from([
@@ -32647,6 +32683,7 @@ fn managed_branch_carrier_fixture() -> LocalSnapback {
         "mutateAdminOnly",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Get {
                     table: "records".to_owned(),

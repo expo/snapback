@@ -6379,6 +6379,7 @@ mod tests {
 
         // Mutation lane refuses.
         let mutation = crate::manifest::MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![crate::manifest::MutationStep::Insert {
                 table: "items".to_owned(),
                 values: BTreeMap::from([("title".to_owned(), ValueExpr::Literal(json!("three")))]),

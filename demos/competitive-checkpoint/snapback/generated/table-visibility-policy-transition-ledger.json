@@ -5,7 +5,7 @@
     "messages": "messages-g1-20260816-v1",
     "models": "models-g1-20260816-v1"
   },
-  "ledgerDigest": "sha256:827b872284b7919e4e28ed47355488b336ee5960be2619116cc00a4586210fb8",
+  "ledgerDigest": "sha256:8e7003c4e7533c61e24fa2587554de535130208d4d5b52c53a1cbb5f8f674c59",
   "nodes": [
     {
       "admissionKind": "g1-migration",
@@ -17,7 +17,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -26,9 +26,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "successorPolicyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "tableId": "conversationCards"
     },
     {
@@ -41,7 +54,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -50,9 +63,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "successorPolicyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "tableId": "conversations"
     },
     {
@@ -65,7 +91,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -74,9 +100,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "successorPolicyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "tableId": "messages"
     },
     {
@@ -89,7 +128,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -97,11 +136,24 @@
         "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
         "policy": {
           "kind": "public-read"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "successorPolicyDigest": "sha256:cc9fe68171764a808cd97f07bb8a192d266e993c26382a258b92ba3fe32f4489",
       "tableId": "models"
     }
   ],
-  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v2"
 }

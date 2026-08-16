@@ -222,7 +222,7 @@
         "maskedFieldUses": { "const": "snapback.authorization-review.masked-field-uses.reserved.v1" },
         "tablePolicyTransitions": { "const": "snapback.authorization-review.table-policy-transitions.v1" },
         "visibilityOverrides": { "const": "snapback.authorization-review.visibility-overrides.v1" },
-        "writePolicyChecks": { "const": "snapback.authorization-review.write-policy-checks.reserved.v1" }
+        "writePolicyChecks": { "const": "snapback.authorization-review.write-policy-checks.v2" }
       },
       "additionalProperties": false
     },
@@ -251,9 +251,74 @@
         "additionalProperties": false
       }
     },
-    "writePolicyChecks": { "type": "array", "maxItems": 0 }
+    "writePolicyChecks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/writePolicyCheck" }
+    }
   },
   "$defs": {
+    "writePolicyCheck": {
+      "type": "object",
+      "required": [
+        "id", "siteId", "siteResolution", "operation", "runtimeClass", "surface",
+        "writeForm", "writeFormCeiling", "table", "tableResolution",
+        "declaredTableCeiling", "policyKind", "policyDigest", "declarationOrigin",
+        "ownerField", "ownerFieldResolution", "genericWriteDisposition",
+        "principalSource", "ownerInputDisposition", "preflightChecks",
+        "authoritativeChecks", "absentDisposition", "absentDispositionDigest",
+        "uniqueConflictDisposition", "authorityTableClass", "writeElevation",
+        "resultEgress", "sourceEvidence"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "siteId": { "type": ["string", "null"] },
+        "siteResolution": { "enum": ["exact-static", "exact-plan-step", "runtime-ceiling-member", "opaque-module", "migration-pending-declared-write-set"] },
+        "operation": { "type": "string", "minLength": 1 },
+        "runtimeClass": { "enum": ["javascript-handler", "host-plan"] },
+        "surface": { "enum": ["ctx-db", "host-plan"] },
+        "writeForm": { "enum": ["insert", "insert-each", "patch", "delete", "delete-where", "opaque"] },
+        "writeFormCeiling": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "enum": ["insert", "patch", "delete"] }, "uniqueItems": true }
+          ]
+        },
+        "table": { "type": ["string", "null"] },
+        "tableResolution": { "enum": ["exact", "runtime-ceiling-member", "opaque-module"] },
+        "declaredTableCeiling": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          ]
+        },
+        "policyKind": { "enum": ["owner", "public-read", "membership", "any-of", "undeclared", "runtime-resolved"] },
+        "policyDigest": { "type": ["string", "null"] },
+        "declarationOrigin": { "enum": ["declared", "legacy-default", "runtime-resolved"] },
+        "ownerField": { "type": ["string", "null"] },
+        "ownerFieldResolution": { "enum": ["exact", "not-applicable", "runtime-resolved"] },
+        "genericWriteDisposition": { "enum": ["owner-policy", "generic-refused", "migration-pending", "legacy-undeclared", "runtime-resolved"] },
+        "principalSource": { "enum": ["auth.userId", "none", "not-applicable", "runtime-resolved"] },
+        "ownerInputDisposition": { "enum": ["host-stamped", "sealed-auth-user-id-marker", "refused", "not-applicable", "runtime-resolved"] },
+        "preflightChecks": { "type": "array", "items": { "type": "string" } },
+        "authoritativeChecks": { "type": "array", "items": { "type": "string" } },
+        "absentDisposition": { "enum": ["ctx-db-false", "host-plan-no-effect", "declared-refusal", "not-applicable", "runtime-resolved"] },
+        "absentDispositionDigest": { "type": ["string", "null"] },
+        "uniqueConflictDisposition": {
+          "type": "object",
+          "required": ["kind", "constraints"],
+          "properties": {
+            "kind": { "enum": ["owner-partitioned", "declared-disclosure", "not-applicable", "runtime-resolved"] },
+            "constraints": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          },
+          "additionalProperties": false
+        },
+        "authorityTableClass": { "enum": ["ordinary", "membership", "permission-backing", "runtime-resolved"] },
+        "writeElevation": { "const": "unavailable" },
+        "resultEgress": { "const": "separate-phase-not-covered" },
+        "sourceEvidence": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
     "profileIdentity": {
       "type": "object",
       "required": ["id", "generation"],

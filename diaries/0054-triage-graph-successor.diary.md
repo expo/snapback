@@ -146,3 +146,12 @@ every address exists and which one may own bytes. The ergonomic miss was that
 an acceptance workload could previously observe whichever queued maintenance
 callbacks happened to run. The injected clock/scheduler seam fixed that cleanly
 and belongs in future custody-oriented demo harnesses from the beginning.
+
+## 2026-08-16 — owner provenance moves out of the handler
+
+The four Triage mutations now omit owner fields on inserts and rely on LLP
+0264's host stamp. That removed repeated `ctx.auth.userId` plumbing without
+changing the owner slice. Because authored source identity changed, the
+demo-local trusted composition activation was re-prepared through the existing
+server-owned ceremony and regenerated; this is maintenance evidence only, not
+a renewed capability claim.

@@ -143,6 +143,42 @@ impl KickFixture {
         snapback
             .synchronize_auth_mode_admission(&settled)
             .expect("bind local admission to settled sessions mode");
+        let session_created_at_ms = now_millis();
+        for (user_id, identity_id, session_id, authority_instance_id, address, token_byte) in [
+            (
+                USER_A,
+                "identity-a",
+                SESSION_A,
+                AUTHORITY_A,
+                "a@example.test",
+                0xa1,
+            ),
+            (
+                USER_B,
+                "identity-b",
+                SESSION_B,
+                AUTHORITY_B,
+                "b@example.test",
+                0xb2,
+            ),
+        ] {
+            snapback
+                .auth_database_mut()
+                .auth_catalog()
+                .insert_email_session_for_test(
+                    user_id,
+                    identity_id,
+                    session_id,
+                    authority_instance_id,
+                    address,
+                    &[token_byte; 32],
+                    session_created_at_ms,
+                    session_created_at_ms,
+                    9_007_199_254_740_991,
+                    9_007_199_254_740_991,
+                )
+                .expect("install the durable acceptance session");
+        }
         snapback
             .ephemeral
             .replace_collections(schema.ephemeral_collections)
@@ -1153,6 +1189,7 @@ fn game_functions() -> FunctionManifest {
         "kickMember",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(crate::manifest::MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Delete {
                 table: "gameMembers".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),

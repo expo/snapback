@@ -7,13 +7,26 @@
         "policy": {
           "field": "principal",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "principal",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:0005acd1411fae5afb50a80e6e5a8d0d97d5c89874befd4ccc1f1a7625bb5baa",
+      "policyDigest": "sha256:f603eebaa00f2dde955f745d64e3ce15c5cefdba1c96350ab27e88dc8536f2ce",
       "provenanceHeadId": "appMembers-g1-20260816-v1",
       "tableId": "appMembers"
     }
   ],
-  "exactSetDigest": "sha256:4f54efa96eb68df8cdce26d366817bb0267f0dd2c5a1d12dedd459c07d48fc18",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:145e5c7f2c64f37aee22fe5e6626e6dee585b03f1c12ef04d4c634b9448451c1",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

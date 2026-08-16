@@ -2,7 +2,7 @@
   "heads": {
     "appMembers": "appMembers-g1-20260816-v1"
   },
-  "ledgerDigest": "sha256:a0928adbd5e8efb43a1dda7b75549534b7edffa2c4383804ee0712b75fe38512",
+  "ledgerDigest": "sha256:afe802323187fcde2001033b47b25e0756f02eb352694c7d0ada40b5ec34b1ab",
   "nodes": [
     {
       "admissionKind": "g1-migration",
@@ -14,7 +14,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -23,11 +23,24 @@
         "policy": {
           "field": "principal",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "principal",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:0005acd1411fae5afb50a80e6e5a8d0d97d5c89874befd4ccc1f1a7625bb5baa",
+      "successorPolicyDigest": "sha256:f603eebaa00f2dde955f745d64e3ce15c5cefdba1c96350ab27e88dc8536f2ce",
       "tableId": "appMembers"
     }
   ],
-  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v2"
 }

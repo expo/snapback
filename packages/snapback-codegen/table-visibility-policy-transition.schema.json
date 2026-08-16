@@ -1,18 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.snapback.dev/table-visibility-policy-transition.v1.json",
-  "title": "Snapback table visibility policy transition v1",
+  "$id": "https://schemas.snapback.dev/table-visibility-policy-transition.v2.json",
+  "title": "Snapback table read/write policy transition v2",
   "type": "object",
   "required": ["schemaVersion", "id", "tableId", "predecessorHeadId", "predecessorHeadDigest", "predecessorNormalizedPolicyBody", "predecessorPolicyDigest", "successorNormalizedPolicyBody", "successorPolicyDigest", "admissionKind", "approvalPath", "approvalClosureDigest", "serverSeparationReceipt", "serverSeparationReceiptDigest", "quarantineVerdict"],
   "properties": {
-    "schemaVersion": { "const": "snapback.table-visibility-policy-transition.v1" },
+    "schemaVersion": { "const": "snapback.table-visibility-policy-transition.v2" },
     "id": { "type": "string", "minLength": 1 },
     "tableId": { "type": "string", "minLength": 1 },
     "predecessorHeadId": { "type": ["string", "null"] },
     "predecessorHeadDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
-    "predecessorNormalizedPolicyBody": { "type": ["object", "null"] },
+    "predecessorNormalizedPolicyBody": {
+      "oneOf": [{ "type": "null" }, { "$ref": "table-visibility-policy-baseline.v2.json#/$defs/normalizedPolicyBody" }]
+    },
     "predecessorPolicyDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
-    "successorNormalizedPolicyBody": { "type": "object" },
+    "successorNormalizedPolicyBody": { "$ref": "table-visibility-policy-baseline.v2.json#/$defs/normalizedPolicyBody" },
     "successorPolicyDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "admissionKind": { "enum": ["g1-migration", "new-restricted", "approved-transition", "narrowing", "quarantined-reversal"] },
     "approvalPath": { "type": ["string", "null"] },

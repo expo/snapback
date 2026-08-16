@@ -26,9 +26,22 @@
             "member",
             "owner"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:13c5647925a4ceb7ec0c7f7095f8400314ca5f0f85c63cc3314cbc1f7b17b8e8",
+      "policyDigest": "sha256:19c0587cf660eac3c92bf059b702d00dfedd2bde10dcf6ee692ae72dd68585b6",
       "provenanceHeadId": "notes-g1-20260816-v1",
       "tableId": "notes"
     },
@@ -39,9 +52,22 @@
         "policy": {
           "field": "userId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "policyDigest": "sha256:fd2d77be96b2c6fd9f6a3ad906727ea7ee0fe3a5a7993a32f4254f9524168e0c",
       "provenanceHeadId": "workspaceMembers-g1-20260816-v1",
       "tableId": "workspaceMembers"
     },
@@ -71,13 +97,26 @@
             "member",
             "owner"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:ab8fb1fc32db4ec2460da898828c77796ce7d2eba742bfaa1912b9b8f93f22ef",
+      "policyDigest": "sha256:5e86f0a7f2e73ed481b3a55c909403bbed86b5075b98412951bd2a5d0a3a10da",
       "provenanceHeadId": "workspaces-g1-20260816-v1",
       "tableId": "workspaces"
     }
   ],
-  "exactSetDigest": "sha256:9dd80bd100faeab59578022541b7c66f0658a2747ecc7969a39088190015ec13",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:f830358a89330c0c998500c0c7918eaf9a0d0addbbc6a4bb8b12cfacb7bdda06",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

@@ -384,6 +384,7 @@ fn get_reads_are_captured_server_side() {
         .expect("seed");
 
     let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
         steps: vec![
             MutationStep::Get {
                 table: "rows".to_owned(),

@@ -337,6 +337,7 @@ fn zero_change_mutation_does_not_fan_out_or_count_delivery_attempts() {
         "noOp",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: Vec::new(),
             return_value: Some(ReturnValue::ChangedCount),
         })),
@@ -790,6 +791,7 @@ fn permission_epoch_resync_suppresses_stale_live_replace() {
         "touchPermissions",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Patch {
                 table: "todos".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -890,6 +892,7 @@ fn permission_epoch_scope_failure_rejects_before_any_write() {
         "createWithEpochBump",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "todos".to_owned(),
                 values: BTreeMap::from([
@@ -979,6 +982,7 @@ fn live_resume_resnapshots_when_recorded_permission_epoch_is_stale() {
         "touchPermissions",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Patch {
                 table: "todos".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -3183,6 +3187,7 @@ fn todo_functions() -> FunctionManifest {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([
@@ -3202,6 +3207,7 @@ fn todo_functions() -> FunctionManifest {
                 "setCompleted",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "todos".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -3316,6 +3322,7 @@ fn system_todo_mutation() -> FunctionDefinition {
         "createSystemTodo",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "todos".to_owned(),
                 values: BTreeMap::from([

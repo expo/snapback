@@ -3,7 +3,7 @@
     "reservations": "reservations-g1-20260816-v1",
     "resources": "resources-g1-20260816-v1"
   },
-  "ledgerDigest": "sha256:b92806108d3fc299d85524f8bfa4cccb3be83280f7626a7c23a73cf01be5512d",
+  "ledgerDigest": "sha256:f3f1b0e749473009ec4300898937b3cc53777983c815e6ba3cfda6288f5b43ce",
   "nodes": [
     {
       "admissionKind": "g1-migration",
@@ -15,7 +15,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -23,9 +23,22 @@
         "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
         "policy": {
           "kind": "public-read"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "successorPolicyDigest": "sha256:cc9fe68171764a808cd97f07bb8a192d266e993c26382a258b92ba3fe32f4489",
       "tableId": "reservations"
     },
     {
@@ -38,7 +51,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -46,11 +59,24 @@
         "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
         "policy": {
           "kind": "public-read"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "successorPolicyDigest": "sha256:cc9fe68171764a808cd97f07bb8a192d266e993c26382a258b92ba3fe32f4489",
       "tableId": "resources"
     }
   ],
-  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v2"
 }

@@ -4,7 +4,7 @@
     "workspaceMembers": "workspaceMembers-g1-20260816-v1",
     "workspaces": "workspaces-g1-20260816-v1"
   },
-  "ledgerDigest": "sha256:c1e0ded0972091b9ecfa77538029ba05bad6ac8d8226e658e114c4c4705491ed",
+  "ledgerDigest": "sha256:636b0ab7aac686b9de31422d4f1c942e73c7044fd1725d9b1350df4833a09e90",
   "nodes": [
     {
       "admissionKind": "g1-migration",
@@ -16,7 +16,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -44,9 +44,22 @@
             "member",
             "owner"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:13c5647925a4ceb7ec0c7f7095f8400314ca5f0f85c63cc3314cbc1f7b17b8e8",
+      "successorPolicyDigest": "sha256:19c0587cf660eac3c92bf059b702d00dfedd2bde10dcf6ee692ae72dd68585b6",
       "tableId": "notes"
     },
     {
@@ -59,7 +72,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -68,9 +81,22 @@
         "policy": {
           "field": "userId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "successorPolicyDigest": "sha256:fd2d77be96b2c6fd9f6a3ad906727ea7ee0fe3a5a7993a32f4254f9524168e0c",
       "tableId": "workspaceMembers"
     },
     {
@@ -83,7 +109,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -111,11 +137,24 @@
             "member",
             "owner"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:ab8fb1fc32db4ec2460da898828c77796ce7d2eba742bfaa1912b9b8f93f22ef",
+      "successorPolicyDigest": "sha256:5e86f0a7f2e73ed481b3a55c909403bbed86b5075b98412951bd2a5d0a3a10da",
       "tableId": "workspaces"
     }
   ],
-  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v2"
 }

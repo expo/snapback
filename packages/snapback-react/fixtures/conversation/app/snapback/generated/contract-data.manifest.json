@@ -1,7 +1,7 @@
 {
   "artifactKind": "contractDataManifest",
   "authoredSourceHash": "sha256:656c5cb3c7bc0a1e725adf7800d428aad4b2ca42b43d1727a47f34d4579e9a38",
-  "bundleHash": "snapback.v1:sessions:function:sha256:f555d3d0c13e60f946ef443425ab52e17286293e3944d44621dec87bbeb6772c",
+  "bundleHash": "snapback.v1:sessions:function:sha256:a6d66c2436da0f523694f28b5caee7db5cf43747f48009ca60895fbf162cd43d",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -39,7 +39,7 @@
       "withdrawalVisibilityDeadlineMs": 2000
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:119cfd08470b5d3a79b444fe6d65bf72634c1db9085ca68c75d2831e1dc74b47",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:b6b90dcef46b18e26a86546a5a36f458eb75dd84f314b4ff244c4b33759c1fe1",
   "manifestVersion": 2,
   "mutations": {
     "addReaction": {
@@ -68,7 +68,7 @@
         }
       },
       "argsHash": "sha256:e5e4ca558367ce9b5a750b56c0acba1d32bb84cd61a8adbb63218dff610ae64f",
-      "implementationHash": "sha256:2039cdeb04176a35f847017ca442277eeb250a7ec6195f2898c815027f459b6d",
+      "implementationHash": "sha256:323a1de0e654e8ce54fab644fffa7ca687ab1e283ecd74e156a559fde03a20a8",
       "invalidates": [
         "reactions"
       ],
@@ -169,7 +169,7 @@
         }
       },
       "argsHash": "sha256:b02b3386c8665a44c548917d96af34087a9223cebfc0fd67ee765ee2c04eb1c3",
-      "implementationHash": "sha256:f0cac0d1e5f676aa8e68b264104ba7ee688aa66cc1af4a6316c92f714078052c",
+      "implementationHash": "sha256:ba5516f3e56b40b225c17730b722f1639925e1593b9b4d1ad384dfd5768d3379",
       "invalidates": [
         "conversations"
       ],
@@ -198,7 +198,7 @@
         }
       },
       "argsHash": "sha256:becb982369c805fb6ea59820ec5b1bac9bb5dc5b81fdbf58822f1a42f0ae9d7b",
-      "implementationHash": "sha256:5ddc4e99f172fc5d9e0308b225bc5dc1dc92b48abdded9b14ef19db776bd0940",
+      "implementationHash": "sha256:060d24a383aa52555d59ec6870627bed8b803b35e098aef6c5738998ef9fc71e",
       "invalidates": [
         "reactions"
       ],
@@ -277,7 +277,7 @@
         }
       },
       "argsHash": "sha256:f34565efd075fb25b761192b4849a04663d985f2c42dcd8c9f5cf823af29d05b",
-      "implementationHash": "sha256:5b1ed06db03c86b5eb73cb678b322d95df4803e581fb7b559463f76506df4c8e",
+      "implementationHash": "sha256:d1b5a63fbe3096a711bf4d6027ccd1a2f8f5be020f9d198d76dbf75f9bab8488",
       "invalidates": [
         "messages"
       ],
@@ -365,7 +365,7 @@
         }
       },
       "argsHash": "sha256:87d8172d0434653aa93e8e273875a3a99ced4399c230232215985d05425e31b9",
-      "implementationHash": "sha256:de37bb531e2509630d9782b6538b92a7ad380218418655f45859c6a49c8a9115",
+      "implementationHash": "sha256:eb06057b4876b7fd487780c84f07617627bd81ca8c1f9fe85e9bf335253a8aaa",
       "invalidates": [
         "messages",
         "conversations"
@@ -470,7 +470,7 @@
         }
       },
       "argsHash": "sha256:19bac8e4db31ac89ae4453649c7aeab7805f73ae7815630a8cc2fdea08df18c2",
-      "implementationHash": "sha256:1ce0979433c0624457113a383211bf2cfb327c896ea3fb23c1ffd8fb744b543d",
+      "implementationHash": "sha256:97dba4c9de545c3e1d4d6ecf8039460921ef8e47a892dd3704ca18444a57431d",
       "invalidates": [
         "messages",
         "conversations"
@@ -1393,6 +1393,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:040c2bfba2018d559bf27a27b842afb459a18edb92e5769e252f89b1da44d46c",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:3eeeb5b49e172bd353c0f16321254ae4adcb998a82813cb874433809be11740a",
   "schemaVersion": "snapback.v1"
 }

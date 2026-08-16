@@ -6,7 +6,7 @@
     "roomParticipants": "roomParticipants-g1-20260816-v1",
     "rooms": "rooms-g1-20260816-v1"
   },
-  "ledgerDigest": "sha256:5899684c8629f953b08ad1714accbb2b48deb2780774f211432a0edb4e7dfe7f",
+  "ledgerDigest": "sha256:221e7fff6f762afe5720bd4bb7cced452ad03a268ba034ed0762a6b1ae04d025",
   "nodes": [
     {
       "admissionKind": "g1-migration",
@@ -18,7 +18,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -27,9 +27,22 @@
         "policy": {
           "field": "recipientId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "recipientId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:f4f5f5ef2a1a76c32b75fe50e0caad0146dca6d8c68a8ccf6bd8e1fb1db5ba9d",
+      "successorPolicyDigest": "sha256:66914df291700549259e10adab229ae41d3ae139433777c910b196b5310eceb7",
       "tableId": "deliveries"
     },
     {
@@ -42,7 +55,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -70,9 +83,22 @@
             "member",
             "owner"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:624038bdbaa82e5ace29ffc70cc7e34c28e8f146a3fb6446583f98864463146e",
+      "successorPolicyDigest": "sha256:884e180da5bc0ff0e80e8ce97f18076f47fc6044e0e228df1500707b708b1d10",
       "tableId": "messages"
     },
     {
@@ -85,7 +111,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -94,9 +120,22 @@
         "policy": {
           "field": "userId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "successorPolicyDigest": "sha256:fd2d77be96b2c6fd9f6a3ad906727ea7ee0fe3a5a7993a32f4254f9524168e0c",
       "tableId": "roomMembers"
     },
     {
@@ -109,7 +148,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -146,9 +185,22 @@
             }
           ],
           "kind": "any-of"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:c83c5af72eb2196c73e343a2437bd240ca26a4749d119d0bc7e396418db42be7",
+      "successorPolicyDigest": "sha256:ebb1175563736604617feb9f13dd2bf7e8f95799682baf5c4bcf838b8941dc84",
       "tableId": "roomParticipants"
     },
     {
@@ -161,7 +213,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -189,11 +241,24 @@
             "member",
             "owner"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:fb9fbc9b180cffd6253836468e7131e3fc3fe587415227b9dac3baf176cce2db",
+      "successorPolicyDigest": "sha256:dff3a372938f0abd2dd03ecf65b72e50e4dd3c7acc40c0ba756c3624e4c028c5",
       "tableId": "rooms"
     }
   ],
-  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v2"
 }

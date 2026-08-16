@@ -20,7 +20,6 @@ globalThis.__snapbackHandlers = {
     return await ctx.db.insert('todos', {
       title,
       completed: false,
-      userId: ctx.auth.userId,
     });
   },
 

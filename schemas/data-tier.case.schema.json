@@ -161,6 +161,23 @@
         }
       ]
     },
+    "AuthRequirement": {
+      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0058#closed-function-requirement — closed values fail at manifest parse.",
+      "enum": [
+        "public",
+        "optional-user",
+        "authenticated"
+      ],
+      "type": "string"
+    },
+    "AuthorityProfileHookV1": {
+      "enum": [
+        "useSnapbackQuery",
+        "useSnapbackMutation",
+        "useSnapbackOutbox.mutationStatus"
+      ],
+      "type": "string"
+    },
     "AuthorityProfileMembershipReferenceV1": {
       "additionalProperties": false,
       "properties": {
@@ -178,6 +195,54 @@
         "declaration",
         "manifestPath",
         "predicateIdentity"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileOperationNameV1": {
+      "description": "One generated rollout-2 operation. The operation vocabulary is closed by\ncodegen; transition ops name the LLP 0056 planner rows (or the dedicated\ntransfer planner) that remain the server-side authority boundary.",
+      "enum": [
+        "list",
+        "myRole",
+        "invite",
+        "join",
+        "leave",
+        "changeRole",
+        "transferOwner",
+        "remove"
+      ],
+      "type": "string"
+    },
+    "AuthorityProfileOperationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authRequirement": {
+          "$ref": "#/$defs/AuthRequirement"
+        },
+        "hooks": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileHookV1"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/FunctionKind"
+        },
+        "name": {
+          "$ref": "#/$defs/AuthorityProfileOperationNameV1"
+        },
+        "transitionOps": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileTransitionOpV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "authRequirement",
+        "hooks",
+        "transitionOps"
       ],
       "type": "object"
     },
@@ -346,6 +411,15 @@
       ],
       "type": "object"
     },
+    "AuthorityProfileTransitionOpV1": {
+      "enum": [
+        "insert",
+        "setRole",
+        "remove",
+        "transferOwner"
+      ],
+      "type": "string"
+    },
     "AuthorityProfileTransitionPreconditionsV1": {
       "additionalProperties": false,
       "properties": {
@@ -364,7 +438,7 @@
     },
     "AuthorityProfileV1": {
       "additionalProperties": false,
-      "description": "The closed rollout-1 authority profile projection. Canonical membership\nremains in [`TableManifest::membership`] and table policy remains in\n[`TableManifest::visibility`]; reference fields below make that ownership\nexplicit while carrying the profile-only lattice, identity, and\nqualification facts codegen needs to explain.\n\n@ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —\n  one generated projection feeds the already-shipped policy vocabulary.\n@ref LLP 0225#1-ownership-map — this cross-owner value shape lives in the\n  manifest leaf; storage/evaluators consume only their existing carriers.",
+      "description": "The closed rollout-2 authority profile projection. Canonical membership\nremains in [`TableManifest::membership`] and table policy remains in\n[`TableManifest::visibility`]; reference fields below make that ownership\nexplicit while carrying the profile-only lattice, identity, and\nqualification facts codegen needs to explain.\n\n@ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —\n  one generated projection feeds the already-shipped policy vocabulary.\n@ref LLP 0225#1-ownership-map — this cross-owner value shape lives in the\n  manifest leaf; storage/evaluators consume only their existing carriers.",
       "properties": {
         "authorizationEventFields": {
           "items": {
@@ -384,6 +458,12 @@
         "notYetQualifiedCompositionClasses": {
           "items": {
             "type": "string"
+          },
+          "type": "array"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileOperationV1"
           },
           "type": "array"
         },
@@ -449,7 +529,8 @@
         "requiredIndexes",
         "permittedCompositionClasses",
         "notYetQualifiedCompositionClasses",
-        "roster"
+        "roster",
+        "operations"
       ],
       "type": "object"
     },
@@ -787,6 +868,15 @@
         "Lte",
         "Gt",
         "Gte"
+      ],
+      "type": "string"
+    },
+    "FunctionKind": {
+      "enum": [
+        "Query",
+        "Mutation",
+        "LiveQuery",
+        "Action"
       ],
       "type": "string"
     },
@@ -1248,6 +1338,13 @@
     },
     "MutationPlan": {
       "properties": {
+        "ownerWriteChecks": {
+          "description": "Sealed, host-consumed absent dispositions for owner-policy point\nwrites. The carrier is plan-level so the executor can validate the\ncomplete operation before executing its first step; `step_index`\nstill binds each fact to exactly one `Patch` or `Delete` site.\n\n@ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally",
+          "items": {
+            "$ref": "#/$defs/OwnerWriteCheckV1"
+          },
+          "type": "array"
+        },
         "return_value": {
           "anyOf": [
             {
@@ -1625,6 +1722,69 @@
           "type": "object"
         }
       ]
+    },
+    "OwnerWriteAbsentDispositionV1": {
+      "description": "The complete public outcome used for every missing-principal, missing-row,\nmalformed-owner, and different-owner leg of one HostPlan point write.\n`digest` binds the canonical `{code,message,details}` bytes and is checked\nbefore the transaction executes any plan step.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "no-effect",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "digest": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "refuse",
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "code",
+            "message",
+            "details",
+            "digest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "OwnerWriteCheckV1": {
+      "additionalProperties": false,
+      "properties": {
+        "absent": {
+          "$ref": "#/$defs/OwnerWriteAbsentDispositionV1"
+        },
+        "stepIndex": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "stepIndex",
+        "absent"
+      ],
+      "type": "object"
     },
     "ResultObjectFieldContract": {
       "additionalProperties": false,

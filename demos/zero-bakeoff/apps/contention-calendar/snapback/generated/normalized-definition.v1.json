@@ -221,6 +221,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "reservations",
@@ -436,6 +440,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -604,6 +609,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "mutationPlan",
           "primaryTable": "reservations",
@@ -746,6 +755,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -931,6 +941,7 @@
         "stream": false,
         "syncabilityClass": "syncable-live",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -945,7 +956,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:1175cf00db4f6ba348606d5cf63e661bae17f2180223bb0ec5dbae4230bd8700",
+  "normalizedContractId": "sha256:813ab8ff1bbcbc623c3f9cfb7277f9f1540baae5065fad35aeae525547e3cd89",
   "normalizedSchemaId": "sha256:a97f9378798206e6494ab9122b60ee7d8a2835f88ed0b08af58f6776b9cfafdf",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

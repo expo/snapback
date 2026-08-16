@@ -463,12 +463,29 @@ export interface HostPlanMutationSpec extends AuthorityCreatingAuthOptions {
   /** Lane-L only: accept the captured runtimeNow() value for one direct
    * integer field when its settlement-clock skew is within the bound. */
   boundedSkew?: { field: string; maxSkewMs: number };
+  /** Admit only the value-free success/conflict bit for the exact operation,
+   * write form, table, and non-owner-partitioned unique constraint. */
+  discloseUniqueConflicts?: readonly WriteConflictDisclosureV1[];
+}
+
+export interface WriteConflictDisclosureV1 {
+  table: string;
+  writeForm: 'insert' | 'insert-each' | 'patch' | 'delete' | 'delete-where';
+  constraint: string;
+  operations: readonly string[];
 }
 
 interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
   reads?: string[];
   writes: string[];
+  discloseUniqueConflicts?: readonly WriteConflictDisclosureV1[];
+  /** Phase-1-only conservative admission for a module whose stable generic
+   * write sites/forms cannot be enumerated. It never grants write authority. */
+  opaqueWritePosture?: 'conservative-v1';
+  /** Closed generic-write target ceiling; for opaque admission it must equal
+   * `writes`, and exact runtime-table sites project one row per member. */
+  declaredTableCeiling?: readonly string[];
   /** Closed elevated host-call capabilities for an opaque module handler. */
   elevatedReads?: readonly {
     form: 'get' | 'getMany' | 'uniqueMany' | 'query';

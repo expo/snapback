@@ -378,6 +378,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'vector-authoring.test.mjs',
       'visibility-governance.test.mjs',
       'vector-distance-profile.test.mjs',
+      'write-policy.test.mjs',
     ],
   },
   {
@@ -529,7 +530,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 298,
+  expectedTotal = 299,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -960,6 +961,9 @@ export function checkPackageTestInventories(options = {}) {
 // 296 -> 298 (2026-08-16, LLP 0258 Phase 2 item 1): the new first-party
 // @expo/snapback-expo-custody package registers its native-CAS and mandatory
 // Android backup-exclusion suites.
+// 298 -> 299 (2026-08-16, LLP 0264 Phase 1): @expo/snapback-codegen gains the
+// owner-write posture, site-census, uniqueness-disclosure, authority-table,
+// opaque-ceiling, runtime-table-ceiling, and no-write-elevation suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

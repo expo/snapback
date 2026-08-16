@@ -5,8 +5,8 @@
 **Systems:** Auth, Security/authorization, Background work, Code generation, Generated artifacts, Testing, LLP governance
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-12
-**Revised:** 2026-08-15 (round-6 targeted delta-review response)
-**Related:** LLP 0000, LLP 0011, LLP 0053, LLP 0056, LLP 0070, LLP 0170, LLP 0172, LLP 0173, LLP 0189, LLP 0225, LLP 0230, LLP 0231
+**Revised:** 2026-08-16 (LLP 0264 reciprocal write-axis amendment)
+**Related:** LLP 0000, LLP 0011, LLP 0053, LLP 0056, LLP 0070, LLP 0170, LLP 0172, LLP 0173, LLP 0189, LLP 0225, LLP 0230, LLP 0231, LLP 0264
 
 ## Summary
 
@@ -908,8 +908,15 @@ separation receipt; counts are not authority
 ```
 
 The second baseline contains every table's normalized ordinary visibility
-policy, policy digest, and immutable admission-provenance head. Normalization
-does not stop at the table expression. For every referenced membership
+policy, versioned write posture, shared policy digest, and immutable
+admission-provenance head. LLP 0264 D1 extends this one normalized body rather
+than creating a parallel write ledger: `writePosture` contains the semantic
+version, the disposition of every closed generic write form, owner field,
+authority-table class, and canonical global-unique disclosures. Each disclosure
+binds `{ table, writeForm, constraint, operations[] }`; its sorted exact
+operation set is identity, so adding an operation is write growth and cannot
+borrow another operation's disclosure. Normalization does not stop at the table
+expression. For every referenced membership
 declaration it includes the stable declaration id, membership and resource
 tables, principal/resource/role field bindings, `resourceField`, and the
 effective closed role vocabulary when `roles` is omitted. The normalized
@@ -918,10 +925,17 @@ referenced declaration so a table or override admits a broader or incomparable
 audience is therefore policy/override growth even when the local policy text is
 byte-identical.
 
-The structural partial order uses the same closed policy IR: fewer admitted
-principals/rows is narrower, `public-read` is the maximum, and anything the
-comparator cannot prove narrower or equal is incomparable. A broader or
-incomparable transition—including restricted to `public-read`—requires an
+The structural partial order is the product of the read order and LLP 0264's
+write order. Fewer admitted principals/rows is read-narrower and `public-read`
+is the read maximum. On the write axis, refused-to-owner, a new generic form,
+a new global-conflict disclosure, or growth of a disclosure's `operations[]`
+is growth; removal is narrowing only when the other axis does not grow;
+owner-field, semantic-version, identity rebinds, and unproved changes are
+incomparable. A transition narrows only when neither axis grows. Opposite-axis
+growth and narrowing is incomparable, so `public-read -> owner` and
+`owner -> public-read` are both governed. Anything the comparator cannot prove
+narrower or equal is incomparable. A broader or incomparable transition
+requires an
 immutable transition approval at:
 
 ```text
@@ -969,8 +983,19 @@ serverSeparationReceiptDigest
 quarantineVerdict
 ```
 
-The normalized policy body includes the full canonical policy IR and every
-resolved membership-audience declaration body, not only references or digests.
+The normalized policy body includes the full canonical read policy IR,
+LLP 0264's complete `writePosture`, and every resolved membership-audience
+declaration body, not only references or digests. Its versioned digest, the
+baseline, every predecessor/successor ledger body, transition approval,
+approval closure, both admission comparators, and activation carrier bind that
+same two-axis identity. Old schema readers refuse rather than silently drop the
+write axis. Declared-policy removal is not a transition to a legacy default:
+the protected migration root makes it a generation/activation refusal in every
+migration state.
+The 2026-08-16 predecessor-compatibility clarification is narrower: the current
+admission reader validates retained v1 and v2 artifacts under their respective
+rules and recognizes only LLP 0264 Migration's exact D2-derived v1 -> v2
+representation lift; it never permits a v2 -> v1 downgrade.
 Only a G1 root or new-table root has a null predecessor body. The append-only
 ledger forms a per-table digest chain and retains every superseded head.
 Codegen, without Git, walks to the root, recomputes both body digests at every
@@ -1066,6 +1091,16 @@ into `generated/authorization-review.json` without retiring the severable input
 until a versioned migration proves byte-equivalent custody. No enforcement,
 expiry, activation, approval, or ratchet locus reads either projection; delay
 or redesign of LLP 0173 degrades one-page review convenience, not soundness.
+
+LLP 0264 Phase 1 also populates LLP 0173's versioned
+`writePolicyChecks[]`. Those fact-only rows form the exact per-site HostPlan and
+classifiable-JavaScript census, expand runtime-table ceilings per member, and
+use one explicit conservative operation-level opaque row only where LLP 0264
+D3 permits it. The rows project policy identity, owner input and authoritative
+checks, absent disposition, unique-conflict disposition, unavailable write
+elevation, and the result-egress residual. They are review evidence only: the
+runtime consumes the installed two-axis policy carrier, not this projection.
+Malformed, stale, unbounded-opaque, or verdict-bearing output fails custody.
 
 Every `visibilityOverrides[]` entry renders:
 
@@ -1957,6 +1992,13 @@ of the following:
 
 ## Revision history
 
+- 2026-08-16 — reciprocal LLP 0264 D5/D6 amendment. Extended the ordinary
+  policy body, digest, baseline, ledger, approval closure, both comparators, and
+  activation carrier with the versioned write posture and its
+  operation-set-bound global-conflict disclosures. Defined the read × write
+  product order, made disclosure operation-set growth governed, recorded
+  rooted policy-removal refusal, and connected D6 to LLP 0264 D9's populated
+  `writePolicyChecks[]`. Status remains Accepted.
 - 2026-08-12 — initial Draft.
 - 2026-08-12 — round-2 adversarial review response. M1 splits
   history-independent codegen validation from remote merge-base pre-push

@@ -34,7 +34,6 @@ async function startReply(ctx, args) {
   const now = ctx.runtime.now();
   const attemptId = ctx.runtime.id();
   await ctx.db.insert('messages', {
-    ownerId: ctx.auth.userId,
     conversationId: args.conversationId,
     role: 'user',
     content: args.content,
@@ -46,7 +45,6 @@ async function startReply(ctx, args) {
     pageKey: ctx.runtime.id(),
   });
   const assistantMessageId = await ctx.db.insert('messages', {
-    ownerId: ctx.auth.userId,
     conversationId: args.conversationId,
     role: 'assistant',
     content: '',

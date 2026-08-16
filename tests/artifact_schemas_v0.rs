@@ -2320,6 +2320,7 @@ fn dk7_representative_values_validate_against_committed_schemas() {
             schema: DataTierCaseSchema { tables: Vec::new() },
             seed: Default::default(),
             plan: MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: Vec::new(),
                 return_value: None,
             },

@@ -1251,6 +1251,45 @@
       ],
       "type": "object"
     },
+    "ElevatedReadCapabilityV1": {
+      "additionalProperties": false,
+      "description": "Closed host-call capability emitted for every admitted D7 elevated read.\nThe runtime dispatch fence is owned by the separate provenance lane; this\nmanifest carrier gives that fence an alias-independent operation/form/table\nceiling instead of asking it to recover JavaScript source behavior.\n\n@ref LLP 0234#d1--an-override-is-an-alternate-invocation-bound-table-policy",
+      "properties": {
+        "form": {
+          "$ref": "#/$defs/ElevatedReadFormV1"
+        },
+        "tables": {
+          "$ref": "#/$defs/ElevatedReadTableCeilingV1"
+        }
+      },
+      "required": [
+        "form",
+        "tables"
+      ],
+      "type": "object"
+    },
+    "ElevatedReadFormV1": {
+      "enum": [
+        "get",
+        "getMany",
+        "uniqueMany",
+        "query"
+      ],
+      "type": "string"
+    },
+    "ElevatedReadTableCeilingV1": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    },
     "FieldBoundaryDeclaration": {
       "additionalProperties": false,
       "description": "Interim declaration for field masking that remains inside an opaque\nJavaScript query handler. It is review evidence only: the runtime does not\ninterpret the free-text condition or prove noninterference.\n\n@ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model —\n  field-level boundaries stay declared and visibly handler-enforced until\n  the class-M sibling replaces this residual with an enforced grammar.",
@@ -1410,6 +1449,12 @@
           ],
           "default": null,
           "description": "The versioned conservative effect ceiling. Codegen computes it by a\ntotal default-deny traversal of the closed plan vocabulary for\nHostPlans (`basis: \"static\"`) and records author declarations for\nopaque handlers (`basis: \"declared\"`). Optional so pre-ceiling\nmanifests keep loading; enforcement remains the runtime subset check."
+        },
+        "elevatedDbCapabilities": {
+          "items": {
+            "$ref": "#/$defs/ElevatedReadCapabilityV1"
+          },
+          "type": "array"
         },
         "exportedName": {
           "default": null,
@@ -1576,6 +1621,17 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "writePolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunctionWritePolicyV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Operation-bound write disclosures and the bounded opaque-census facts.\nThe storage seam never trusts these for row authority; activation and\nunique-oracle admission bind them into the operation identity.\n\n@ref LLP 0264#d1-one-table-policy-is-the-read-and-write-locus"
         },
         "writeSetSummary": {
           "$ref": "#/$defs/DependencySummary",
@@ -1750,6 +1806,39 @@
           "type": "object"
         }
       ]
+    },
+    "FunctionWritePolicyV1": {
+      "additionalProperties": false,
+      "properties": {
+        "declaredTableCeiling": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "disclosures": {
+          "items": {
+            "$ref": "#/$defs/TableWriteConflictDisclosureV1"
+          },
+          "type": "array"
+        },
+        "opaqueWritePosture": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "semanticVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "semanticVersion"
+      ],
+      "type": "object"
     },
     "HandlerPlan": {
       "oneOf": [
@@ -2384,6 +2473,13 @@
     },
     "MutationPlan": {
       "properties": {
+        "ownerWriteChecks": {
+          "description": "Sealed, host-consumed absent dispositions for owner-policy point\nwrites. The carrier is plan-level so the executor can validate the\ncomplete operation before executing its first step; `step_index`\nstill binds each fact to exactly one `Patch` or `Delete` site.\n\n@ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally",
+          "items": {
+            "$ref": "#/$defs/OwnerWriteCheckV1"
+          },
+          "type": "array"
+        },
         "return_value": {
           "anyOf": [
             {
@@ -2790,6 +2886,69 @@
       "required": [
         "field",
         "direction"
+      ],
+      "type": "object"
+    },
+    "OwnerWriteAbsentDispositionV1": {
+      "description": "The complete public outcome used for every missing-principal, missing-row,\nmalformed-owner, and different-owner leg of one HostPlan point write.\n`digest` binds the canonical `{code,message,details}` bytes and is checked\nbefore the transaction executes any plan step.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "no-effect",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "details": true,
+            "digest": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "refuse",
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "code",
+            "message",
+            "details",
+            "digest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "OwnerWriteCheckV1": {
+      "additionalProperties": false,
+      "properties": {
+        "absent": {
+          "$ref": "#/$defs/OwnerWriteAbsentDispositionV1"
+        },
+        "stepIndex": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "stepIndex",
+        "absent"
       ],
       "type": "object"
     },
@@ -4030,6 +4189,33 @@
         }
       ]
     },
+    "TableWriteConflictDisclosureV1": {
+      "additionalProperties": false,
+      "properties": {
+        "constraint": {
+          "type": "string"
+        },
+        "operations": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "table": {
+          "type": "string"
+        },
+        "writeForm": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "writeForm",
+        "constraint",
+        "operations"
+      ],
+      "type": "object"
+    },
     "UnaryOp": {
       "enum": [
         "Not",
@@ -4629,11 +4815,6 @@
       "items": {
         "$ref": "#/$defs/CronJobDefinition"
       },
-      "type": "array"
-    },
-    "dataQueryCatalog": {
-      "description": "Static DataQueryV1 route catalogue. Pair activation reconstructs its\nexact-key, hash, plan, policy, contract, and route bindings before a\ngeneration can become active.",
-      "items": true,
       "type": "array"
     },
     "functions": {

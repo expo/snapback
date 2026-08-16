@@ -441,10 +441,12 @@ globalThis.__snapbackHandlers = {
     return await ctx.db.insert('todos', {
       title,
       completed: false,
-      userId: ctx.auth.userId,
     });
   },
 ```
+
+Because `todos` is owner-scoped, `createTodo` omits `userId`; the host stamps
+the effective principal and refuses application-authored owner input.
 
 The `{ source, exportName }` lane reads exactly one closed script. It supports
 top-level helper functions in that same file; it does not load imported helpers

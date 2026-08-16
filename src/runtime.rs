@@ -21,8 +21,9 @@ use crate::manifest::{
 };
 use crate::storage::{
     BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
-    KeysetAfter, LocalDatabase, MembershipWriter, MutationCommit, SEQUENCE_MAX_SAFE_INTEGER,
-    SequenceAllocationFact, validate_sequence_allocation_fact,
+    GenericTableWriteFormV1, KeysetAfter, LocalDatabase, MembershipWriter, MutationCommit,
+    SEQUENCE_MAX_SAFE_INTEGER, SequenceAllocationFact, generic_owner_write_field,
+    validate_sequence_allocation_fact,
 };
 use crate::warm_vm::WarmVmPool;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -3470,7 +3471,39 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 self.ensure_permission_backing_write(&table)?;
+                let owner_field = self.installed_owner_write_field(
+                    &table,
+                    GenericTableWriteFormV1::Insert,
+                )?;
                 let values = required_object(&args, "values")?;
+                // @ref LLP 0264#d3-owner-inserts-are-host-stamped — owner
+                // provenance is host-only: even a caller value equal to the
+                // principal is refused before a write is buffered.
+                if let Some(owner_field) = owner_field {
+                    if values.contains_key(&owner_field) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED",
+                            "auth",
+                            "ctx.db.insert values cannot contain the installed owner field",
+                        )
+                        .with_details(json!({
+                            "table": table,
+                            "writeForm": "insert",
+                            "ownerField": owner_field,
+                        })));
+                    }
+                    if self.input.auth.user_id.is_none() {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_AUTH_USER_MISSING",
+                            "auth",
+                            "an owner-policy insert requires an effective principal",
+                        )
+                        .with_details(json!({
+                            "table": table,
+                            "writeForm": "insert",
+                        })));
+                    }
+                }
                 // Row ids are host-generated entropy: they answer through the
                 // ctx-answer ledger like `runtime.id` (LLP 0051 D1).
                 let id = self.next_host_id()?;
@@ -3486,8 +3519,26 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 self.ensure_permission_backing_write(&table)?;
+                let owner_field = self.installed_owner_write_field(
+                    &table,
+                    GenericTableWriteFormV1::Patch,
+                )?;
                 let id = required_string(&args, "id")?;
                 let values = required_object(&args, "values")?;
+                if let Some(owner_field) = owner_field
+                    && values.contains_key(&owner_field)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE",
+                        "auth",
+                        "generic patches cannot change owner identity",
+                    )
+                    .with_details(json!({
+                        "table": table,
+                        "writeForm": "patch",
+                        "ownerField": owner_field,
+                    })));
+                }
                 let (stored, visibility, storage_visible) =
                     self.read_table_visibility_point(&table, &id)?;
                 let existed_in_storage = stored.is_some();
@@ -3502,10 +3553,12 @@ impl<'a> IbexHostContext<'a> {
                     storage_visible,
                     effective.as_ref(),
                 )?;
-                // This is a read-gated write, not the LLP 0231 D6 write-policy
-                // slice: a row the caller cannot read is treated as absent, so
-                // patch is a no-op and its `existed: false` result agrees with
-                // the eventual commit. D6 may add write-policy checks on top.
+                // The handler's early result is the same absent/no-effect
+                // contract the authoritative transaction rechecks against the
+                // old row. It is an optimization and public-result seam, not
+                // the authority locus.
+                //
+                // @ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally
                 if existed {
                     self.writes.push(BufferedWrite::Patch { table, id, values });
                 }
@@ -3516,6 +3569,7 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
                 self.ensure_permission_backing_write(&table)?;
+                self.installed_owner_write_field(&table, GenericTableWriteFormV1::Delete)?;
                 let id = required_string(&args, "id")?;
                 let (stored, visibility, storage_visible) =
                     self.read_table_visibility_point(&table, &id)?;
@@ -3527,9 +3581,10 @@ impl<'a> IbexHostContext<'a> {
                     storage_visible,
                     effective.as_ref(),
                 )?;
-                // Like patch, this is only the read gate: invisible means
-                // absent, so delete is a no-op. It does not implement or claim
-                // the separate LLP 0231 D6 write-policy slice.
+                // Like patch, this is the early read gate: invisible means
+                // absent, so delete is a no-op at the handler boundary. The
+                // authoritative commit transaction independently rechecks the
+                // old owner before applying the buffered delete.
                 if existed {
                     self.writes.push(BufferedWrite::Delete { table, id });
                 }
@@ -5028,6 +5083,26 @@ impl<'a> IbexHostContext<'a> {
         })))
     }
 
+    /// Resolve the installed policy before every JavaScript generic write.
+    /// The storage transaction repeats this check, so this is an early
+    /// diagnostic/side-effect fence rather than trusted authority.
+    ///
+    /// @ref LLP 0264#d5-the-policy-check-is-central-and-exhaustive
+    fn installed_owner_write_field(
+        &self,
+        table_name: &str,
+        form: GenericTableWriteFormV1,
+    ) -> SnapbackResult<Option<String>> {
+        let table = self.db().schema().table(table_name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_UNKNOWN_TABLE",
+                "schema",
+                format!("unknown table {table_name}"),
+            )
+        })?;
+        generic_owner_write_field(table, form).map(|field| field.map(str::to_owned))
+    }
+
     /// v1 has full host-filled provenance only for LLP 0056 membership tables.
     /// A service principal may therefore never write a different
     /// `permissionBacking` table, even when its entry-point scope was marked.
@@ -5087,7 +5162,14 @@ impl<'a> IbexHostContext<'a> {
             }
             match write {
                 BufferedWrite::Insert { values, .. } => {
-                    current = Some(self.materialize_insert(id, values));
+                    let mut values = values.clone();
+                    if let Some(table) = self.db().schema().table(table)
+                        && let Some(TableVisibilityV1::Owner { field }) = &table.visibility
+                        && let Some(principal) = self.input.auth.user_id.as_deref()
+                    {
+                        values.insert(field.clone(), Value::String(principal.to_owned()));
+                    }
+                    current = Some(self.materialize_insert(id, &values));
                 }
                 BufferedWrite::Patch { values, .. } => {
                     // A patch against a row that does not exist yet is a no-op at
@@ -7548,6 +7630,13 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_BATCH_READ_KEY_INVALID"
         | "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT"
         | "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH"
+        // @ref LLP 0264#d10-diagnostics-and-refusal-vocabulary — host-owned
+        // ordinary-write refusals survive the handler envelope unchanged.
+        | "SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED"
+        | "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE"
+        | "SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE"
+        | "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED"
+        | "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE"
         | "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION"
         // A claimed application refusal survives the fold only far enough to
         // reach `admit_declared_refusal`, which drops it unless the function
@@ -9946,7 +10035,7 @@ globalThis.__snapbackHandlers = {
 
     #[test]
     fn table_visibility_ctx_db_buffered_overlay_cannot_bypass_policy() {
-        let db = ready_db();
+        let mut db = ready_db();
         let mut ctx = context(&db, Some("alice"), true);
         assert_eq!(
             ctx.handle_host_call(
@@ -9954,7 +10043,7 @@ globalThis.__snapbackHandlers = {
                 json!({
                     "table": "owner_docs",
                     "id": "owner-bob",
-                    "values": { "ownerId": "alice" },
+                    "values": { "body": "must-not-change" },
                 }),
             )
             .expect("read-gate hidden ownership patch"),
@@ -9984,25 +10073,28 @@ globalThis.__snapbackHandlers = {
                 "db.insert",
                 json!({
                     "table": "owner_docs",
-                    "values": { "ownerId": "alice", "body": "buffered-visible" },
+                    "values": { "body": "buffered-visible" },
                 }),
             )
             .expect("buffer visible owner insert")
             .as_str()
             .unwrap()
             .to_owned();
-        let hidden_insert = ctx
-            .handle_host_call(
-                "db.insert",
-                json!({
-                    "table": "owner_docs",
-                    "values": { "ownerId": "bob", "body": "buffered-hidden" },
-                }),
-            )
-            .expect("buffer hidden owner insert")
-            .as_str()
-            .unwrap()
-            .to_owned();
+        for supplied_owner in ["alice", "bob"] {
+            let error = ctx
+                .handle_host_call(
+                    "db.insert",
+                    json!({
+                        "table": "owner_docs",
+                        "values": { "ownerId": supplied_owner, "body": "forged" },
+                    }),
+                )
+                .expect_err("caller-provided owner is refused even when equal");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED"
+            );
+        }
         assert_eq!(
             ctx.handle_host_call(
                 "db.get",
@@ -10011,18 +10103,10 @@ globalThis.__snapbackHandlers = {
             .unwrap()["body"],
             "buffered-visible",
         );
-        assert_eq!(
-            ctx.handle_host_call(
-                "db.get",
-                json!({ "table": "owner_docs", "id": hidden_insert }),
-            )
-            .unwrap(),
-            Value::Null,
-        );
         let batch = ctx
             .handle_host_call(
                 "db.getMany",
-                json!({ "table": "owner_docs", "ids": [hidden_insert.clone(), visible_insert.clone(), visible_insert.clone()] }),
+                json!({ "table": "owner_docs", "ids": ["owner-bob", visible_insert.clone(), visible_insert.clone()] }),
             )
             .expect("batch overlays buffered inserts");
         assert_eq!(batch[0], Value::Null);
@@ -10048,7 +10132,7 @@ globalThis.__snapbackHandlers = {
             )
             .unwrap()["body"],
             "buffered-member",
-            "membership overlay evaluation must be exact rather than conservatively denying",
+            "Phase 1a does not add generic write enforcement to membership-visible ordinary tables",
         );
 
         let output = ctx
@@ -10074,7 +10158,17 @@ globalThis.__snapbackHandlers = {
         assert!(ids.contains(&"owner-alice"));
         assert!(ids.contains(&visible_insert.as_str()));
         assert!(!ids.contains(&"owner-bob"));
-        assert!(!ids.contains(&hidden_insert.as_str()));
+        let writes = std::mem::take(&mut ctx.writes);
+        let reads = std::mem::take(&mut ctx.reads);
+        drop(ctx);
+        db.mutation_writes()
+            .commit_buffered_writes(&input(Some("alice")), writes, reads, Value::Null)
+            .expect("commit centrally stamps the installed owner field");
+        let stamped = DbRead::Live(&db)
+            .get("owner_docs", &visible_insert)
+            .expect("read stamped insert")
+            .expect("stamped insert exists");
+        assert_eq!(stamped["ownerId"], "alice");
 
         let mut delete_ctx = context(&db, Some("alice"), true);
         assert_eq!(
@@ -10100,7 +10194,7 @@ globalThis.__snapbackHandlers = {
                 json!({
                     "table": "owner_docs",
                     "id": "owner-bob",
-                    "values": { "ownerId": 42 },
+                    "values": { "body": "must-not-change" },
                 }),
             )
             .expect("hidden malformed patch is indistinguishable from a miss");
@@ -10110,7 +10204,7 @@ globalThis.__snapbackHandlers = {
                 json!({
                     "table": "owner_docs",
                     "id": "missing",
-                    "values": { "ownerId": 42 },
+                    "values": { "body": "must-not-change" },
                 }),
             )
             .expect("missing malformed patch remains a miss");
@@ -10138,6 +10232,32 @@ globalThis.__snapbackHandlers = {
         assert!(
             ctx.writes.is_empty(),
             "invisible and absent targets must not enqueue a write"
+        );
+
+        let hidden_immutable = ctx
+            .handle_host_call(
+                "db.patch",
+                json!({
+                    "table": "owner_docs",
+                    "id": "owner-bob",
+                    "values": { "ownerId": "alice" },
+                }),
+            )
+            .expect_err("owner identity is immutable before old-row access");
+        let missing_immutable = ctx
+            .handle_host_call(
+                "db.patch",
+                json!({
+                    "table": "owner_docs",
+                    "id": "missing",
+                    "values": { "ownerId": "alice" },
+                }),
+            )
+            .expect_err("owner immutability does not disclose row existence");
+        assert_eq!(hidden_immutable.diagnostic, missing_immutable.diagnostic);
+        assert_eq!(
+            hidden_immutable.diagnostic.code,
+            "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE"
         );
 
         let writes = std::mem::take(&mut ctx.writes);
@@ -10179,13 +10299,18 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH"
         );
 
-        let exact_public = ctx
+        let exact_membership = ctx
             .handle_host_call(
                 "db.query",
                 json!({
                     "plan": {
                         "table": "resources",
-                        "tableVisibility": { "kind": "public-read" },
+                        "tableVisibility": {
+                            "kind": "membership",
+                            "declaration": "resourceMembers",
+                            "resourceField": "_id",
+                            "roles": ["reader"],
+                        },
                         "filters": [],
                         "order": [],
                         "limit": 10,
@@ -10193,8 +10318,8 @@ globalThis.__snapbackHandlers = {
                     },
                 }),
             )
-            .expect("an exact public-read duplicate agrees with the schema");
-        assert_eq!(exact_public["rows"].as_array().unwrap().len(), 2);
+            .expect("an exact membership duplicate agrees with the schema");
+        assert_eq!(exact_membership["rows"].as_array().unwrap().len(), 1);
     }
 
     #[test]
@@ -10402,7 +10527,7 @@ mod membership_bridge_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                     history: None,
                 },
                 TableManifest {

@@ -29,3 +29,12 @@ reference and validates generated calls before network I/O with
 `SNAPBACK_ARGUMENT_VALIDATION_FAILED`. Server validation remains authoritative.
 The explicit unsubscribe identity stays visible in the test rather than being
 inferred by the helper.
+
+## 2026-08-16 — one host-stamped owner for both atomic rows
+
+The incident and audit inserts no longer author `ownerId`; Phase 1a stamps the
+effective principal at the host and rechecks it at commit. The mutation remains
+atomic and still shares its trusted timestamp, but application code no longer
+duplicates authorization provenance in two row objects. This is a small
+authoring improvement and a stronger boundary, with no new Dispatch Board
+claim.

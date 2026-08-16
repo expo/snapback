@@ -39,15 +39,3 @@ export const postAnnouncement = defineJsMutation({
   writes: ['announcements'],
   result: results.value(v.id('announcements')),
 });
-
-// Deliberately hostile acceptance fixture. The central write seam, not handler
-// convention, must refuse this raw membership write.
-export const rawJoin = defineJsMutation({
-  auth: 'authenticated',
-  authorityCreating: true,
-  args: { appId: v.id('applications') },
-  source: 'handlers.mjs',
-  exportName: 'rawJoin',
-  writes: ['appMembers'],
-  result: results.value(v.id('appMembers')),
-});

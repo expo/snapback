@@ -10,12 +10,4 @@ globalThis.__snapbackHandlers = {
       message: args.message,
     });
   },
-
-  async rawJoin(ctx, args) {
-    return await ctx.db.insert('appMembers', {
-      appId: args.appId,
-      userId: ctx.auth.userId,
-      role: 'member',
-    });
-  },
 };

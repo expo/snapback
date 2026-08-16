@@ -58,7 +58,7 @@ const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).hre
       visibility: { kind: 'owner', field: 'ownerId' },
       updateDefaults: { ownerId: 'id' },
     }),
-    /SNAPBACK_STANDARD_PATTERN_INVALID: trusted defaults cannot set owner visibility field ownerId/,
+    /SNAPBACK_TABLE_WRITE_OWNER_DEFAULT_REFUSED: trusted defaults cannot set owner visibility field ownerId/,
     'a trusted default must not bypass the transactional owner guard by transferring ownership',
   );
   assert.throws(
@@ -251,6 +251,7 @@ export const todos = defineTable({
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
   .index('by_owner_created', ['ownerId', 'createdAt'])
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .sync();
 export default defineSchema({ todos }, { auth: { mode: 'sessions' } });
 `);
@@ -308,6 +309,25 @@ export const getTodoByHand = defineLiveQuery({
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
   const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
   const byName = new Map(manifest.functions.map((fn) => [fn.name, fn]));
+  const authorizationReview = JSON.parse(
+    readFileSync(join(dir, 'generated', 'authorization-review.json'), 'utf8'),
+  );
+  const writeChecks = authorizationReview.writePolicyChecks;
+  assert.equal(writeChecks.length, 3, 'one D9 row per generic CRUD write site');
+  assert.deepEqual(
+    writeChecks.map(({ operation }) => operation).sort(),
+    ['createTodo', 'deleteTodo', 'updateTodo'],
+  );
+  assert(writeChecks.every(({ siteResolution }) => siteResolution === 'exact-plan-step'));
+  assert(writeChecks.every(({ genericWriteDisposition }) => genericWriteDisposition === 'owner-policy'));
+  assert.equal(
+    writeChecks.find(({ operation }) => operation === 'createTodo').ownerInputDisposition,
+    'sealed-auth-user-id-marker',
+  );
+  assert.equal(
+    writeChecks.find(({ operation }) => operation === 'updateTodo').absentDisposition,
+    'declared-refusal',
+  );
   assert.deepEqual([...byName.keys()].sort(), [
     'createTodo', 'deleteTodo', 'firstTodoPage', 'getTodo', 'getTodoByHand',
     'listTodos', 'nextTodoPage', 'todoBySlug', 'updateTodo',
@@ -410,15 +430,25 @@ export const getTodoByHand = defineLiveQuery({
 
   const update = byName.get('updateTodo');
   const updateSteps = update.runtime.HostPlan.Mutation.steps;
-  assert.equal(updateSteps[0].Get.table, 'todos');
-  assert.equal(
-    updateSteps[1].Guard.else_error,
-    'SNAPBACK_ROW_NOT_FOUND',
-    'missing and invisible collapse to one public refusal',
+  assert.equal(updateSteps.length, 1, 'the central checked-write carrier replaces the local guard');
+  assert.equal(updateSteps[0].Patch.values.updatedAt, 'RuntimeNow');
+  assert.deepEqual(
+    update.runtime.HostPlan.Mutation.ownerWriteChecks[0],
+    {
+      stepIndex: 0,
+      absent: {
+        kind: 'refuse',
+        code: 'SNAPBACK_ROW_NOT_FOUND',
+        message: 'owner-policy row is unavailable',
+        details: { table: 'todos', writeForm: 'patch' },
+        digest: update.runtime.HostPlan.Mutation.ownerWriteChecks[0].absent.digest,
+      },
+    },
   );
-  assert.equal(updateSteps[0].Get.else_error, 'SNAPBACK_ROW_NOT_FOUND');
-  assert.equal(updateSteps[1].Guard.cond.Binary.right, 'AuthUserId');
-  assert.equal(updateSteps[2].Patch.values.updatedAt, 'RuntimeNow');
+  assert.match(
+    update.runtime.HostPlan.Mutation.ownerWriteChecks[0].absent.digest,
+    /^sha256:[0-9a-f]{64}$/,
+  );
 
   const create = byName.get('createTodo');
   assert.equal(create.runtime.HostPlan.Mutation.steps[0].Insert.values.ownerId, 'AuthUserId');
@@ -674,7 +704,8 @@ export const getTodoByHand = defineLiveQuery({
   try {
     writeFileSync(join(dir2, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export const rooms = defineTable({ name: v.string() });
+export const rooms = defineTable({ name: v.string() })
+  .visibility({ kind: 'public-read' });
 export const roomMembers = defineTable({
   roomId: v.id('rooms'),
   userId: v.principal(),
@@ -690,13 +721,20 @@ export const roomMembers = defineTable({
       { op: 'insert', target: 'other', by: ['owner'], to: ['member'] },
       { op: 'remove', target: 'self', by: ['self'] },
     ],
-  });
+  })
+  .visibility({ kind: 'public-read' });
 export const messages = defineTable({
   roomId: v.id('rooms'),
   pageKey: v.string(),
   body: v.string(),
 })
   .index('by_room_page_key', ['roomId', 'pageKey'], { unique: true })
+  .visibility({
+    kind: 'membership',
+    declaration: 'roomMembers',
+    resourceField: 'roomId',
+    roles: ['owner', 'member'],
+  })
   .sync();
 export default defineSchema(
   { rooms, roomMembers, messages },

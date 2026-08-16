@@ -5,9 +5,9 @@
   ],
   "appId": "todo",
   "artifactKind": "functionManifest",
-  "authoredSourceHash": "sha256:82e93ba483297aa12b4db240d70a02a7f68866e2d473c7bd3b8b87c358937355",
+  "authoredSourceHash": "sha256:0801314370e973a41e5b8e2e966a190d1a41a9ab98538975b77900b06822b8ad",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:4cc7c15fed9c2b15",
+  "bundleHash": "sha256:877586e79b978c00",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -45,7 +45,7 @@
       "exportedName": "createTodo",
       "handlerForm": "module",
       "id": "todo:createTodo",
-      "implementationHash": "sha256:1bfa8ac9c60cd2aec99ac45f8856b7efc513927829c210e0f43b06a73cf455ca",
+      "implementationHash": "sha256:322ad16cb013c451c97da621a895a1652d82074ce5f1c0e202e92825a814fa57",
       "kind": "Mutation",
       "name": "createTodo",
       "readSetSummary": {
@@ -67,12 +67,16 @@
       "runtime": {
         "IbexModule": {
           "export": "createTodo",
-          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n      userId: ctx.auth.userId,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
+          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
         }
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "todos",
@@ -120,7 +124,7 @@
       "exportedName": "deleteTodo",
       "handlerForm": "module",
       "id": "todo:deleteTodo",
-      "implementationHash": "sha256:f482453670e2275a03c6823de7befcc0ec6814008f41f24b4e42a0a4471e4eee",
+      "implementationHash": "sha256:12fe4a4c36a00511df804fdefc87a2d0ea4576c2c4445b2d8a9259eeaaf59db4",
       "kind": "Mutation",
       "name": "deleteTodo",
       "readSetSummary": {
@@ -144,12 +148,16 @@
       "runtime": {
         "IbexModule": {
           "export": "deleteTodo",
-          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n      userId: ctx.auth.userId,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
+          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
         }
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "todos",
@@ -183,7 +191,9 @@
       "authRequirement": "optional-user",
       "bundleEntrypoint": "editTitle",
       "effectCeiling": {
-        "authorizationInputs": [],
+        "authorizationInputs": [
+          "authUserId"
+        ],
         "basis": "static",
         "hostOperations": [],
         "reads": [
@@ -205,7 +215,7 @@
       "exportedName": "editTitle",
       "handlerForm": "plan",
       "id": "todo:editTitle",
-      "implementationHash": "sha256:59d377ecbb39defd6ec7091943898a37df92e71f87285bea593dc9255d426240",
+      "implementationHash": "sha256:a164473f858ea0135b3ff21dd7e66464c1f476989b7b086c7d77984a3ecdfcb2",
       "kind": "Mutation",
       "name": "editTitle",
       "readSetSummary": {
@@ -229,6 +239,14 @@
       "runtime": {
         "HostPlan": {
           "Mutation": {
+            "ownerWriteChecks": [
+              {
+                "absent": {
+                  "kind": "no-effect"
+                },
+                "stepIndex": 0
+              }
+            ],
             "return_value": "ChangedCount",
             "steps": [
               {
@@ -251,6 +269,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -287,7 +309,7 @@
       "exportedName": "listTodos",
       "handlerForm": "module",
       "id": "todo:listTodos",
-      "implementationHash": "sha256:8855fb328dc7484419e221f237a6f95024d580afe580eadd2b83d2354a62ecaf",
+      "implementationHash": "sha256:730552aad46d939ba2272c9523f03a1d366b2063e8639a577f7fe00e5b0a6a24",
       "kind": "LiveQuery",
       "name": "listTodos",
       "readSetSummary": {
@@ -375,7 +397,7 @@
       "runtime": {
         "IbexModule": {
           "export": "listTodos",
-          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n      userId: ctx.auth.userId,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
+          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
         }
       },
       "sourceSpan": null,
@@ -583,7 +605,7 @@
       "exportedName": "setCompleted",
       "handlerForm": "module",
       "id": "todo:setCompleted",
-      "implementationHash": "sha256:695983b39670601a978c8821474026a128392d70caeaffca31af1b93128c57da",
+      "implementationHash": "sha256:10b6d9a78c836a9e9b622753485960227585ef2392853a2f9e6f06f42718bc7f",
       "kind": "Mutation",
       "name": "setCompleted",
       "readSetSummary": {
@@ -607,12 +629,16 @@
       "runtime": {
         "IbexModule": {
           "export": "setCompleted",
-          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n      userId: ctx.auth.userId,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
+          "source": "// Todo demo JavaScript handlers for the LLP 0020 Phase 2 ctx.db bridge.\n//\n// This file is bundled as source into the function manifest. It deliberately\n// avoids imports, process/env access, timers, network, and direct storage access;\n// the only backend power is the ctx surface passed by Snapback.\n\nglobalThis.__snapbackHandlers = {\n  async listTodos(ctx) {\n    return await ctx.db\n      .query('todos')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .order('_createdAt', 'asc')\n      .collect();\n  },\n\n  async createTodo(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('todo title is required');\n    return await ctx.db.insert('todos', {\n      title,\n      completed: false,\n    });\n  },\n\n  async setCompleted(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.patch('todos', args.id, {\n      completed: args.completed,\n    })) ? 1 : 0;\n  },\n\n  async deleteTodo(ctx, args) {\n    const todo = await ctx.db.get('todos', args.id);\n    if (!todo) return 0;\n    return (await ctx.db.delete('todos', args.id)) ? 1 : 0;\n  },\n};\n"
         }
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "todos",
@@ -623,7 +649,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "74ffd698e58cc918c5b0a6f08c832e1ebe0e22511dbb2291eedaf6a51001d0d4",
+  "inputsHash": "7904f7f6678de6128cf0ca1b2f32e22088426f829b0d74727231e24b24b72c17",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

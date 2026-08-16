@@ -2995,6 +2995,89 @@ impl FunctionManifest {
         let mut sequence_declarations = BTreeMap::<String, SequenceDeclaration>::new();
         for (function_index, function) in self.functions.iter().enumerate() {
             validate_media_command_binding_shape(function)?;
+            if let Some(write_policy) = &function.write_policy {
+                if function.kind != FunctionKind::Mutation
+                    || write_policy.semantic_version != "snapback.owner-write.v1"
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+                        "auth",
+                        "writePolicy requires a mutation and the supported semantic version",
+                    )
+                    .with_details(serde_json::json!({ "function": function.name })));
+                }
+                let mut disclosures = BTreeSet::new();
+                for disclosure in &write_policy.disclosures {
+                    let sorted_operations = disclosure
+                        .operations
+                        .iter()
+                        .cloned()
+                        .collect::<BTreeSet<_>>()
+                        .into_iter()
+                        .collect::<Vec<_>>();
+                    if !matches!(
+                        disclosure.write_form.as_str(),
+                        "insert" | "insert-each" | "patch" | "delete" | "delete-where"
+                    ) || !disclosure
+                        .operations
+                        .iter()
+                        .any(|operation| operation == &function.name)
+                        || disclosure.operations.is_empty()
+                        || disclosure.table.trim().is_empty()
+                        || disclosure.constraint.trim().is_empty()
+                        || sorted_operations != disclosure.operations
+                    {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED",
+                            "auth",
+                            "writePolicy disclosure does not bind its operation and generic write form",
+                        )
+                        .with_details(serde_json::json!({
+                            "function": function.name,
+                            "table": disclosure.table,
+                            "writeForm": disclosure.write_form,
+                            "constraint": disclosure.constraint,
+                        })));
+                    }
+                    let identity = (
+                        disclosure.table.clone(),
+                        disclosure.write_form.clone(),
+                        disclosure.constraint.clone(),
+                        disclosure.operations.clone(),
+                    );
+                    if !disclosures.insert(identity) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED",
+                            "auth",
+                            "writePolicy repeats a conflict disclosure identity",
+                        ));
+                    }
+                }
+                match (
+                    write_policy.opaque_write_posture.as_deref(),
+                    write_policy.declared_table_ceiling.as_ref(),
+                ) {
+                    (None, None) => {}
+                    (None, Some(tables)) | (Some("conservative-v1"), Some(tables))
+                        if !tables.is_empty()
+                            && tables
+                                == &tables
+                                    .iter()
+                                    .cloned()
+                                    .collect::<BTreeSet<_>>()
+                                    .into_iter()
+                                    .collect::<Vec<_>>() =>
+                    {}
+                    _ => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+                            "auth",
+                            "opaque writePolicy requires conservative-v1 and a non-empty table ceiling",
+                        )
+                        .with_details(serde_json::json!({ "function": function.name })));
+                    }
+                }
+            }
             if function.stream && function.kind != FunctionKind::Action {
                 return Err(SnapbackError::error(
                     "SNAPBACK_FUNCTION_STREAM_KIND_INVALID",
@@ -8895,6 +8978,28 @@ pub enum ElevatedReadTableCeilingV1 {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+pub struct TableWriteConflictDisclosureV1 {
+    pub table: String,
+    #[serde(rename = "writeForm", alias = "write_form")]
+    pub write_form: String,
+    pub constraint: String,
+    pub operations: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct FunctionWritePolicyV1 {
+    pub semantic_version: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub disclosures: Vec<TableWriteConflictDisclosureV1>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opaque_write_posture: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declared_table_ceiling: Option<Vec<String>>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct FunctionDefinition {
     /// Required stable identity for grants and consent. Deserialization
     /// tolerates an absent field (empty string) so the refusal is a typed
@@ -9124,6 +9229,18 @@ pub struct FunctionDefinition {
     /// @ref LLP 0065#3-common-pattern-contracts — versioned identifiers.
     #[serde(default, rename = "standardPattern", alias = "standard_pattern")]
     pub standard_pattern: Option<StandardPatternIdentity>,
+    /// Operation-bound write disclosures and the bounded opaque-census facts.
+    /// The storage seam never trusts these for row authority; activation and
+    /// unique-oracle admission bind them into the operation identity.
+    ///
+    /// @ref LLP 0264#d1-one-table-policy-is-the-read-and-write-locus
+    #[serde(
+        default,
+        rename = "writePolicy",
+        alias = "write_policy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub write_policy: Option<FunctionWritePolicyV1>,
     #[serde(
         default,
         rename = "permissionEpochBumps",
@@ -9184,6 +9301,7 @@ impl FunctionDefinition {
             write_set_summary: DependencySummary::default(),
             effect_ceiling: None,
             standard_pattern: None,
+            write_policy: None,
             permission_epoch_bumps: Vec::new(),
             bundle_entrypoint: Some(name),
             uses: Vec::new(),
@@ -9974,6 +10092,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             write_set_summary,
             effect_ceiling: _,
             standard_pattern: _,
+            write_policy: _,
             permission_epoch_bumps,
             bundle_entrypoint,
             uses,
@@ -10635,7 +10754,43 @@ pub enum OrderDirection {
 pub struct MutationPlan {
     #[serde(default)]
     pub steps: Vec<MutationStep>,
+    /// Sealed, host-consumed absent dispositions for owner-policy point
+    /// writes. The carrier is plan-level so the executor can validate the
+    /// complete operation before executing its first step; `step_index`
+    /// still binds each fact to exactly one `Patch` or `Delete` site.
+    ///
+    /// @ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally
+    #[serde(
+        default,
+        rename = "ownerWriteChecks",
+        alias = "owner_write_checks",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub owner_write_checks: Vec<OwnerWriteCheckV1>,
     pub return_value: Option<ReturnValue>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OwnerWriteCheckV1 {
+    pub step_index: usize,
+    pub absent: OwnerWriteAbsentDispositionV1,
+}
+
+/// The complete public outcome used for every missing-principal, missing-row,
+/// malformed-owner, and different-owner leg of one HostPlan point write.
+/// `digest` binds the canonical `{code,message,details}` bytes and is checked
+/// before the transaction executes any plan step.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum OwnerWriteAbsentDispositionV1 {
+    NoEffect,
+    Refuse {
+        code: String,
+        message: String,
+        details: Value,
+        digest: String,
+    },
 }
 
 /// The data-tier v1 mutation step set (LLP 0051 D2). Two families:
@@ -10836,6 +10991,45 @@ pub enum ValueExpr {
 }
 
 impl ValueExpr {
+    /// A D4 owner-write carrier runs before any plan binding or mutable host
+    /// answer exists. Expressions outside this subset would let an earlier
+    /// observer decide which row is authorized and therefore refuse
+    /// composition rather than becoming an implicit carrier.
+    pub(crate) fn owner_write_check_preflight_safe(&self) -> bool {
+        match self {
+            Self::Binding(_) | Self::RuntimeId | Self::MembershipExists(_) => false,
+            Self::Field { base, .. } => base.owner_write_check_preflight_safe(),
+            Self::Binary { left, right, .. } => {
+                left.owner_write_check_preflight_safe()
+                    && right.owner_write_check_preflight_safe()
+            }
+            Self::Unary { expr, .. } => expr.owner_write_check_preflight_safe(),
+            Self::If { cond, then, r#else } => {
+                cond.owner_write_check_preflight_safe()
+                    && then.owner_write_check_preflight_safe()
+                    && r#else.owner_write_check_preflight_safe()
+            }
+            Self::Concat(values) | Self::Call { args: values, .. } => {
+                values.iter().all(Self::owner_write_check_preflight_safe)
+            }
+            Self::Record { fields } => {
+                fields.values().all(Self::owner_write_check_preflight_safe)
+            }
+            Self::Arg(_)
+            | Self::Args
+            | Self::AuthUserId
+            | Self::AuthKind
+            | Self::AuthActorKind
+            | Self::AuthActivityActorKind
+            | Self::AuthActorUserId
+            | Self::AuthGrantId
+            | Self::ClientMutationDigest
+            | Self::AuthIsDelegated
+            | Self::Literal(_)
+            | Self::RuntimeNow => true,
+        }
+    }
+
     fn uses_runtime_id(&self) -> bool {
         match self {
             Self::RuntimeId => true,
@@ -16310,6 +16504,7 @@ mod approval_manifest_tests {
             name,
             kind,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: Vec::new(),
                 return_value: None,
             })),
@@ -19356,6 +19551,7 @@ mod membership_manifest_grammar_tests {
                 maximum_application_writes: 2,
             },
             mutation: MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![
                     MutationStep::Get {
                         table: "incidents".to_owned(),
@@ -19686,6 +19882,7 @@ mod membership_manifest_grammar_tests {
             "genericAllocation",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::AllocateSequence {
                     counter: "taskPositions".to_owned(),
                     scope: ValueExpr::Arg("incidentId".to_owned()),

@@ -3,7 +3,7 @@
     "auditEntries": "auditEntries-g1-20260816-v1",
     "incidents": "incidents-g1-20260816-v1"
   },
-  "ledgerDigest": "sha256:12fcce63afc8d8eff5ddcfebdf7a4bf86a0caa50767a5f4814a343bc7bbd1e6d",
+  "ledgerDigest": "sha256:734bdc0295736dd5cc407edb1fd41d8a7960e87093267a33c38f122f45c65ceb",
   "nodes": [
     {
       "admissionKind": "g1-migration",
@@ -15,7 +15,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -24,9 +24,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "successorPolicyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "tableId": "auditEntries"
     },
     {
@@ -39,7 +52,7 @@
       "predecessorNormalizedPolicyBody": null,
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -48,11 +61,24 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "successorPolicyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "tableId": "incidents"
     }
   ],
-  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v1"
+  "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v2"
 }

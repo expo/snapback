@@ -714,6 +714,7 @@ mod tests {
             "recordSplit",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: Vec::new(),
                 return_value: None,
             })),

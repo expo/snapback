@@ -7,9 +7,22 @@
         "policy": {
           "field": "userId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "policyDigest": "sha256:fd2d77be96b2c6fd9f6a3ad906727ea7ee0fe3a5a7993a32f4254f9524168e0c",
       "provenanceHeadId": "eventMembers-g1-20260816-v1",
       "tableId": "eventMembers"
     },
@@ -39,9 +52,22 @@
             "guest",
             "host"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:f9200721929380ee4b869948193de4a81deedd23dc23a1ec613110cd595b696b",
+      "policyDigest": "sha256:de9eec082aa640de85190a7beb2fe37ce5f4c7b9f4615f0161032445f81b8a1e",
       "provenanceHeadId": "events-g1-20260816-v1",
       "tableId": "events"
     },
@@ -71,13 +97,26 @@
             "guest",
             "host"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:765dffb9a1efea8cdddb96861af95d2b5d73b3df4a213e14a07decc648981b43",
+      "policyDigest": "sha256:0b5c18f523e4fcefdc82acac814baeba386b2f16be3175ed16fb91f43fea1f3b",
       "provenanceHeadId": "posts-g1-20260816-v1",
       "tableId": "posts"
     }
   ],
-  "exactSetDigest": "sha256:0433ec0bc1b7d3873add7a2001f24d35b9971fa663ec6ed16b0aa872ea13fe39",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:58c2a67eb539bcc30dfdce17c3465e6c5c8ca13d4125e10a2e89adfaf06b1538",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

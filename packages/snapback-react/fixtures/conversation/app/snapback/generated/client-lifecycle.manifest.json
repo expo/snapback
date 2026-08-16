@@ -8,7 +8,7 @@
       "correctVerb": "commandClient.start",
       "freshness": "task snapshot is process-local; mutation settlement remains durable",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:5b1ed06db03c86b5eb73cb678b322d95df4803e581fb7b559463f76506df4c8e",
+      "implementationHash": "sha256:d1b5a63fbe3096a711bf4d6027ccd1a2f8f5be020f9d198d76dbf75f9bab8488",
       "kind": "Command",
       "legalVerbs": [
         "commandClient.start",
@@ -117,7 +117,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:119cfd08470b5d3a79b444fe6d65bf72634c1db9085ca68c75d2831e1dc74b47",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:b6b90dcef46b18e26a86546a5a36f458eb75dd84f314b4ff244c4b33759c1fe1",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -150,7 +150,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:2039cdeb04176a35f847017ca442277eeb250a7ec6195f2898c815027f459b6d",
+      "implementationHash": "sha256:323a1de0e654e8ce54fab644fffa7ca687ab1e283ecd74e156a559fde03a20a8",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -187,7 +187,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:f0cac0d1e5f676aa8e68b264104ba7ee688aa66cc1af4a6316c92f714078052c",
+      "implementationHash": "sha256:ba5516f3e56b40b225c17730b722f1639925e1593b9b4d1ad384dfd5768d3379",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -365,7 +365,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:5ddc4e99f172fc5d9e0308b225bc5dc1dc92b48abdded9b14ef19db776bd0940",
+      "implementationHash": "sha256:060d24a383aa52555d59ec6870627bed8b803b35e098aef6c5738998ef9fc71e",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -402,7 +402,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:5b1ed06db03c86b5eb73cb678b322d95df4803e581fb7b559463f76506df4c8e",
+      "implementationHash": "sha256:d1b5a63fbe3096a711bf4d6027ccd1a2f8f5be020f9d198d76dbf75f9bab8488",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -439,7 +439,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:de37bb531e2509630d9782b6538b92a7ad380218418655f45859c6a49c8a9115",
+      "implementationHash": "sha256:eb06057b4876b7fd487780c84f07617627bd81ca8c1f9fe85e9bf335253a8aaa",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -476,7 +476,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:1ce0979433c0624457113a383211bf2cfb327c896ea3fb23c1ffd8fb744b543d",
+      "implementationHash": "sha256:97dba4c9de545c3e1d4d6ecf8039460921ef8e47a892dd3704ca18444a57431d",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",

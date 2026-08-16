@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:4f6ab7c81eda04ddea9b3b053bfb8f46475be10a5008abe3575d788af688026f",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:fb4d6d6c2d833f0e6d7bb15bb9a6567cb7f30a153bb6dfc16e563ee936efb890",
+  "bundleHash": "snapback.v1:sessions:function:sha256:f0b57b282e12296aae7ba6e7e1c38548f8136e984b0f5f73e4223008aca924a9",
   "config": [
     {
       "description": "Optional Expo enhanced-push-security access token.",
@@ -49,7 +49,7 @@
       "exportedName": "joinAsHost",
       "handlerForm": "module",
       "id": "app:joinAsHost",
-      "implementationHash": "sha256:c941c6b01420d9f2242002fa5fc6b7e0b6924a6636b7b4f0d02cb2796322835a",
+      "implementationHash": "sha256:fbdfc163957e9a4e62f3ecd567cb4e7a348617088cf6dc182276e250e26acbc0",
       "kind": "Mutation",
       "name": "joinAsHost",
       "readSetSummary": {
@@ -80,6 +80,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "appMembers",
@@ -114,7 +118,7 @@
       "exportedName": "leaveHost",
       "handlerForm": "module",
       "id": "app:leaveHost",
-      "implementationHash": "sha256:1b4d278c1c99afd7afa229440d2fc98ce3382ae4af37974696a32acf4955e9b1",
+      "implementationHash": "sha256:ae3d20d8e8229342dfe9d899a7291630e6cbd80f2c857d3f074a92f1e6c8e619",
       "kind": "Mutation",
       "name": "leaveHost",
       "readSetSummary": {
@@ -145,6 +149,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "appMembers",
@@ -795,7 +803,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:61e89b334ebc11a8fe7a9d443585c473e3945161322287bd88da67d2fba90213",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:29a21f5ee765769143964df91e2e30f79a772d440b9df9562a93f1b81ef973f6",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

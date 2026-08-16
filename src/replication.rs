@@ -2556,6 +2556,7 @@ mod tests {
             .await
             .unwrap();
         let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "replication_rows".to_owned(),
                 values: BTreeMap::from([(

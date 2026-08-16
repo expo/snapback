@@ -7,6 +7,7 @@
 import { createHash } from 'node:crypto';
 
 import { stableArtifactJson } from './review-surface.mjs';
+import { WRITE_POLICY_CHECKS_SCHEMA_VERSION } from './write-policy.mjs';
 
 export const AUTHORIZATION_REVIEW_FILE = 'authorization-review.json';
 export const AUTHORIZATION_REVIEW_SCHEMA_VERSION = 'snapback.authorization-review.v2';
@@ -18,7 +19,7 @@ const RESERVED_SECTION_SCHEMAS = Object.freeze({
   maskedFieldUses: 'snapback.authorization-review.masked-field-uses.reserved.v1',
   tablePolicyTransitions: 'snapback.authorization-review.table-policy-transitions.v1',
   visibilityOverrides: 'snapback.authorization-review.visibility-overrides.v1',
-  writePolicyChecks: 'snapback.authorization-review.write-policy-checks.reserved.v1',
+  writePolicyChecks: WRITE_POLICY_CHECKS_SCHEMA_VERSION,
 });
 
 const compareText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
@@ -280,6 +281,7 @@ export function createAuthorizationReview({
   uncomposedReadSurfaceDiagnostics = [],
   summary,
   visibilityGovernance = null,
+  writePolicyChecks = [],
 }) {
   const tablePolicies = tablePolicyFacts(tables, summary);
   const policiesByTable = new Map(tablePolicies.map((policy) => [policy.table, policy]));
@@ -356,7 +358,7 @@ export function createAuthorizationReview({
   )).sort((left, right) => compareText(left.capabilityId, right.capabilityId));
 
   // @ref LLP 0173#2-top-level-shape — G0 fills the already-reserved override
-  // and transition sections. The unrelated field/write siblings stay empty,
+  // and transition sections. The unrelated field sibling stays empty,
   // and this emitter remains usable without any other LLP 0173 fact source.
   return {
     schemaVersion: AUTHORIZATION_REVIEW_SCHEMA_VERSION,
@@ -373,7 +375,7 @@ export function createAuthorizationReview({
     tablePolicyTransitions: clone(visibilityGovernance?.tablePolicyTransitions ?? []),
     quarantines: clone(visibilityGovernance?.quarantine.records.map(({ verdict }) => verdict) ?? []),
     elevatedReadSites,
-    writePolicyChecks: [],
+    writePolicyChecks: clone(writePolicyChecks),
   };
 }
 
@@ -406,11 +408,25 @@ export function validateAuthorizationReview(value) {
   ]) {
     if (!Array.isArray(value[field])) problems.push(`${field} must be an array`);
   }
-  for (const field of ['fieldPolicies', 'writePolicyChecks']) {
-    if (Array.isArray(value[field]) && value[field].length !== 0) problems.push(`${field} must be empty in v1`);
+  if (Array.isArray(value.fieldPolicies) && value.fieldPolicies.length !== 0) {
+    problems.push('fieldPolicies must be empty in v1');
+  }
+  if (Array.isArray(value.writePolicyChecks)) {
+    const ids = new Set();
+    for (const [index, row] of value.writePolicyChecks.entries()) {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) {
+        problems.push(`writePolicyChecks[${index}] must be an object`);
+      } else if (typeof row.id !== 'string' || row.id === '') {
+        problems.push(`writePolicyChecks[${index}].id must be a non-empty string`);
+      } else if (ids.has(row.id)) {
+        problems.push(`writePolicyChecks repeats id ${row.id}`);
+      } else {
+        ids.add(row.id);
+      }
+    }
   }
   if (canonicalKey(value.sectionSchemas) !== canonicalKey(RESERVED_SECTION_SCHEMAS)) {
-    problems.push('sectionSchemas must contain the v1 reserved section authorities');
+    problems.push('sectionSchemas must contain the current section authorities');
   }
   for (const operation of value.operations ?? []) {
     if (!Array.isArray(operation.maskedFieldUses) || operation.maskedFieldUses.length !== 0) {

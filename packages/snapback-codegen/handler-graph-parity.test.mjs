@@ -61,21 +61,25 @@ const parityFixtures = [
 
 const demoGoldens = {
   'demos/todo/snapback': {
-    createTodo: ['sha256:1bfa8ac9c60cd2aec99ac45f8856b7efc513927829c210e0f43b06a73cf455ca', 'sha256:a60fa3abcdf9d3d6e6ab2915df1431c8d8f7302b8e03ed20a66fd59bdc06e47c'],
-    deleteTodo: ['sha256:f482453670e2275a03c6823de7befcc0ec6814008f41f24b4e42a0a4471e4eee', 'sha256:a60fa3abcdf9d3d6e6ab2915df1431c8d8f7302b8e03ed20a66fd59bdc06e47c'],
-    editTitle: ['sha256:59d377ecbb39defd6ec7091943898a37df92e71f87285bea593dc9255d426240', null],
-    listTodos: ['sha256:8855fb328dc7484419e221f237a6f95024d580afe580eadd2b83d2354a62ecaf', 'sha256:a60fa3abcdf9d3d6e6ab2915df1431c8d8f7302b8e03ed20a66fd59bdc06e47c'],
-    listTodosOnce: ['sha256:98d2fbeff6ac16421c7ccae7f8eb6a3d29c4a00f4922aabaac32b9abac6dd2f7', null],
-    setCompleted: ['sha256:695983b39670601a978c8821474026a128392d70caeaffca31af1b93128c57da', 'sha256:a60fa3abcdf9d3d6e6ab2915df1431c8d8f7302b8e03ed20a66fd59bdc06e47c'],
+    createTodo: ['sha256:322ad16cb013c451c97da621a895a1652d82074ce5f1c0e202e92825a814fa57', 'sha256:b9a3c9eb89828254384ec0025e61bdc2313e006640cb8338ed35eba84b8f825c'],
+    deleteTodo: ['sha256:12fe4a4c36a00511df804fdefc87a2d0ea4576c2c4445b2d8a9259eeaaf59db4', 'sha256:b9a3c9eb89828254384ec0025e61bdc2313e006640cb8338ed35eba84b8f825c'],
+    editTitle: ['sha256:a164473f858ea0135b3ff21dd7e66464c1f476989b7b086c7d77984a3ecdfcb2', null],
+    listTodos: ['sha256:730552aad46d939ba2272c9523f03a1d366b2063e8639a577f7fe00e5b0a6a24', 'sha256:b9a3c9eb89828254384ec0025e61bdc2313e006640cb8338ed35eba84b8f825c'],
+    listTodosOnce: ['sha256:e024f99fb163691da8d87e06547cdb474ad351854cf904cc6172210f5f4c2b84', null],
+    setCompleted: ['sha256:10b6d9a78c836a9e9b622753485960227585ef2392853a2f9e6f06f42718bc7f', 'sha256:b9a3c9eb89828254384ec0025e61bdc2313e006640cb8338ed35eba84b8f825c'],
   },
   'demos/rbac/snapback': {
-    acceptInvite: ['sha256:8550c42039c28b9358da8d50118e6267eeca3d9440adf3436aa01b2642bcf28a', 'sha256:1038d05cc5d104bb7fe4d11c4b0c2c89624d7a6edcdc123db83825ff88211b84'],
-    inviteApp: ['sha256:cbdb537c9d4470a931b7bb32bc6b17481c07382f478b397535240f537e024199', 'sha256:1038d05cc5d104bb7fe4d11c4b0c2c89624d7a6edcdc123db83825ff88211b84'],
-    joinApp: ['sha256:ec8b6db869b3f7b33d0d5364ed8b2eca94186d19d36125ac7ca2629782811747', 'sha256:1038d05cc5d104bb7fe4d11c4b0c2c89624d7a6edcdc123db83825ff88211b84'],
-    leaveApp: ['sha256:b08e9be8a3ed1a1524e6b261979ab0b5bd72f747d760fa3b2ed32b51a626ae29', 'sha256:1038d05cc5d104bb7fe4d11c4b0c2c89624d7a6edcdc123db83825ff88211b84'],
-    listAnnouncements: ['sha256:128ab6754410775de19c4de4dc8c4be7362c5f08755c07fb271839bd9a0ddce7', null],
-    postAnnouncement: ['sha256:2967e42b32c42915c189152ec40ae24b021171a3459b706dbf4d7eacf8ebf0ea', 'sha256:1038d05cc5d104bb7fe4d11c4b0c2c89624d7a6edcdc123db83825ff88211b84'],
-    rawJoin: ['sha256:c34a49c144afa897d6bf4309e26aec4d2c748416a219fd9c7fd799ca78553f82', 'sha256:1038d05cc5d104bb7fe4d11c4b0c2c89624d7a6edcdc123db83825ff88211b84'],
+    createApp: ['sha256:13d9dee202bd1e8c1edbc0ce784717d23b0cbec40a5a1bf612c09e4e79a7d6af', 'sha256:0dde744f4decbe5aa7d146ecb64c2fa65c85456d7fe789d4a93f1d4ed31b5c90'],
+    listAnnouncements: ['sha256:e6c4c64237a0ec96f8da196b351f5dc3c52517358ca15ea3f16af8969b0a9569', null],
+    postAnnouncement: ['sha256:28db57ee13c70daeccfcd1803757ed7c6e6b008facb6ab1ec31f35ee57a8c227', 'sha256:6090fe79870d25224e107bd924ef02fa301c2486f78ac8eabc401c5e6d7d3b9c'],
+    'appAccess.list': ['sha256:89d2ac27c31d98e737024421b091b3a08112695b6f31dc8d044c31562ded536d', 'sha256:c725401309d0ecec4c5b8bf6d1cb441b70c8b04bd477af2b8ec36766d8d76cf4'],
+    'appAccess.myRole': ['sha256:2c4d28bf1f12083393c455937c1fb567fd05a11fa75fc37d03437a8c7af94a69', 'sha256:a61fe1c65a6a280b459839d9b6e2f5f8366c09ee5ecf5446965ac9ad7a191a7a'],
+    'appAccess.invite': ['sha256:26e5d416f4711bf53f5f13270907f33ccfc96067d6a2ef1c3e7cebb0cfd22da1', 'sha256:d75a33801b2da6d05b354513f7ab4c648d95677a036514eceebd9c08ef2ff91f'],
+    'appAccess.join': ['sha256:1ece5ab32cb37d5becba81d9ea3da579557fe1af99d3d1ab61f7a9c058b7e7e5', 'sha256:8da12272e52f2428f1de80c609042499811e3b1d63f5f0c985f37ea9aa6fe4f2'],
+    'appAccess.leave': ['sha256:68662511d76ce50520be4691f28d7712f10a7dd3a34a793c07ff9d96e5966a6a', 'sha256:eb934f4848130c6c98400b67339f361c3097d4942330017a643a9e80214b72ac'],
+    'appAccess.changeRole': ['sha256:4a8802d74b85b3d58246cdadbe2de5b646ad095a31571c5f100c361c4b6d0066', 'sha256:717d062b15d095169cffc9a8399dac05af56bf0f905b41678f1e5cc33936c287'],
+    'appAccess.transferOwner': ['sha256:a27bcfbb0b804d0ad6a643ca5e9d156dcc567db1f2e72e258ddbff25368edb31', 'sha256:a4839d7d7fa0264882bf689f6b2be2ed77f6e039bd448f0d9c2889c736a2c147'],
+    'appAccess.remove': ['sha256:0263774eb610f7f960cd9d935c256b417c3d8b2560cc76767bed9ddcc92badab', 'sha256:888f99a99d37cf3cc9cd4b8b1f0ef0d228f5a3734f13409703914d0b9c8cf8f7'],
   },
 };
 
@@ -143,7 +147,11 @@ test('helper comments and formatting alter only raw graph evidence, not executab
   roots.push(root);
   writeFileSync(join(root, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+export default defineSchema({
+  todos: defineTable({ title: v.string() })
+    .visibility({ kind: 'public-read' })
+    .sync(),
+});
 `);
   const functions = (comment) => `
 import { defineJsQuery, results, v } from '${defineUrl}';

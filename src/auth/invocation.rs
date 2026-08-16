@@ -3145,6 +3145,7 @@ mod tests {
             "exposedMutation",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(crate::manifest::MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: Vec::new(),
                 return_value: None,
             })),

@@ -6,10 +6,11 @@ use crate::manifest::{
     CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MembershipManifest,
     MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
     MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
+    OwnerWriteAbsentDispositionV1, OwnerWriteCheckV1,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
     ResultValueContract, SeedData, SettlementMintObservation, SettlementTimeObservation,
-    TableManifest, ValueExpr,
+    TableManifest, TableVisibilityV1, ValueExpr,
     auth_fingerprint, effective_query_limit, is_user_identifier, replay_opaque_id_is_valid,
     validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
 };
@@ -3007,7 +3008,8 @@ impl LocalDatabase {
         //   This path also serves dry-run (apply=false) and nested
         //   action->mutation, so the refusal covers both by construction.
         let mut touched_tables = BTreeSet::new();
-        for step in &plan.steps {
+        let mut seen_owner_checks = BTreeSet::new();
+        for (step_index, step) in plan.steps.iter().enumerate() {
             let target = match step {
                 MutationStep::AssetCollection(plan) => Some(plan.child_table.as_str()),
                 MutationStep::Insert { table, .. }
@@ -3055,16 +3057,152 @@ impl LocalDatabase {
                     ));
                 }
                 touched_tables.insert(target.to_owned());
-                if !matches!(
-                    step,
-                    MutationStep::Get { .. }
-                        | MutationStep::AssertCurrentRelation { .. }
-                        | MutationStep::AssertSourceChanged { .. }
-                ) && schema.table(target).is_some_and(|t| t.membership.is_some())
-                {
-                    return Err(membership_hostplan_write_denied(target));
+                let generic_form = match step {
+                    MutationStep::Insert { .. } => Some(GenericTableWriteFormV1::Insert),
+                    MutationStep::InsertEach { .. } => Some(GenericTableWriteFormV1::InsertEach),
+                    MutationStep::Patch { .. } => Some(GenericTableWriteFormV1::Patch),
+                    MutationStep::Delete { .. } => Some(GenericTableWriteFormV1::Delete),
+                    MutationStep::DeleteWhere { .. } => {
+                        Some(GenericTableWriteFormV1::DeleteWhere)
+                    }
+                    MutationStep::AssetCollection(_)
+                    | MutationStep::AllocateSequence { .. }
+                    | MutationStep::Get { .. }
+                    | MutationStep::Guard { .. }
+                    | MutationStep::AssertCurrentRelation { .. }
+                    | MutationStep::Let { .. }
+                    | MutationStep::AssertSourceChanged { .. } => None,
+                };
+                if let Some(form) = generic_form {
+                    let table = schema_table(&schema, target)?;
+                    // The generic owner dispatcher deliberately yields no
+                    // field for authority tables. Preserve the declaration-
+                    // owned HostPlan refusal before entering ordinary-table
+                    // policy enforcement.
+                    //
+                    // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
+                    // @ref LLP 0264#d6-authority-tables-and-membershiprole-writes-stay-specialized
+                    if table.membership.is_some() {
+                        return Err(membership_hostplan_write_denied(target));
+                    }
+                    if let Some(owner_field) = generic_owner_write_field(table, form)? {
+                        match step {
+                            MutationStep::Insert { values, .. }
+                            | MutationStep::InsertEach { values, .. } => {
+                                if let Some(owner) = values.get(owner_field)
+                                    && !matches!(owner, ValueExpr::AuthUserId)
+                                {
+                                    return Err(SnapbackError::error(
+                                        "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED",
+                                        "auth",
+                                        "HostPlan owner input must be omitted or use the sealed AuthUserId marker",
+                                    )
+                                    .with_details(json!({
+                                        "table": table.name,
+                                        "writeForm": form.as_str(),
+                                        "ownerField": owner_field,
+                                        "stepIndex": step_index,
+                                    })));
+                                }
+                            }
+                            MutationStep::Patch { values, .. } => {
+                                if values.contains_key(owner_field) {
+                                    return Err(SnapbackError::error(
+                                        "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE",
+                                        "auth",
+                                        "generic patches cannot change owner identity",
+                                    )
+                                    .with_details(json!({
+                                        "table": table.name,
+                                        "writeForm": form.as_str(),
+                                        "ownerField": owner_field,
+                                        "stepIndex": step_index,
+                                    })));
+                                }
+                                let MutationStep::Patch { id, .. } = step else {
+                                    unreachable!()
+                                };
+                                if !id.owner_write_check_preflight_safe() {
+                                    return Err(SnapbackError::error(
+                                        "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+                                        "auth",
+                                        "ownerWriteCheck target must be resolvable before plan bindings and observations",
+                                    )
+                                    .with_details(json!({
+                                        "table": table.name,
+                                        "writeForm": form.as_str(),
+                                        "stepIndex": step_index,
+                                    })));
+                                }
+                                seen_owner_checks.insert(step_index);
+                            }
+                            MutationStep::Delete { id, .. } => {
+                                if !id.owner_write_check_preflight_safe() {
+                                    return Err(SnapbackError::error(
+                                        "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+                                        "auth",
+                                        "ownerWriteCheck target must be resolvable before plan bindings and observations",
+                                    )
+                                    .with_details(json!({
+                                        "table": table.name,
+                                        "writeForm": form.as_str(),
+                                        "stepIndex": step_index,
+                                    })));
+                                }
+                                seen_owner_checks.insert(step_index);
+                            }
+                            MutationStep::DeleteWhere { .. }
+                            | MutationStep::AssetCollection(_)
+                            | MutationStep::AllocateSequence { .. }
+                            | MutationStep::Get { .. }
+                            | MutationStep::Guard { .. }
+                            | MutationStep::AssertCurrentRelation { .. }
+                            | MutationStep::Let { .. }
+                            | MutationStep::AssertSourceChanged { .. } => {}
+                        }
+                    }
                 }
             }
+        }
+        let mut declared_owner_checks = BTreeSet::new();
+        for check in &plan.owner_write_checks {
+            if !declared_owner_checks.insert(check.step_index)
+                || !seen_owner_checks.contains(&check.step_index)
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+                    "auth",
+                    "ownerWriteChecks must bind exactly one owner-policy Patch or Delete step",
+                )
+                .with_details(json!({ "stepIndex": check.step_index })));
+            }
+            if let OwnerWriteAbsentDispositionV1::Refuse {
+                code,
+                message,
+                details,
+                digest,
+            } = &check.absent
+                && (code.is_empty()
+                    || owner_write_disposition_digest(code, message, details)? != *digest)
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+                    "auth",
+                    "ownerWriteChecks refusal bytes do not match their digest",
+                )
+                .with_details(json!({ "stepIndex": check.step_index })));
+            }
+        }
+        if declared_owner_checks != seen_owner_checks {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+                "auth",
+                "every owner-policy Patch and Delete needs one sealed ownerWriteCheck",
+            )
+            .with_details(json!({
+                "expectedStepIndexes": seen_owner_checks,
+                "declaredStepIndexes": declared_owner_checks,
+            })));
         }
         if let Some(media) = media_command {
             touched_tables.insert(media.binding.collection.owner_table.clone());
@@ -3090,6 +3228,13 @@ impl LocalDatabase {
         });
         let mut direct_bindings = direct_input.as_ref().map(|_| BTreeMap::new());
         let mut changes = Vec::new();
+        // A no-effect owner check installs an identical-absent view for the
+        // remainder of the plan. Every same-target observer consults this set
+        // before storage, so a present foreign row cannot reappear after the
+        // checked write normalized it to absence.
+        //
+        // @ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally
+        let mut owner_absent_targets = BTreeSet::<(String, String)>::new();
         let mut sequence_allocation_facts = Vec::new();
         let mut read_dependencies: Vec<CapturedReadDependency> = Vec::new();
         // Every host-generated id in answer order — the IR half of the
@@ -3103,6 +3248,63 @@ impl LocalDatabase {
             |site: &str, table: &str| plan_ids.borrow_mut().next_for(site, Some(table));
         let mut collection_result = None;
         let mut asset_changes = BTreeSet::new();
+
+        // Resolve every sealed point-write carrier before any plan step can
+        // bind or observe its target. This is the plan-wide identical-absent
+        // cut: a later Get/Guard/assertion/return sees the marker instead of a
+        // present foreign row, while a declared refusal terminates with the
+        // same bytes for missing and not-owned.
+        //
+        // @ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally
+        for check in &plan.owner_write_checks {
+            check_live()?;
+            let (table_name, id_expr, write_form) = match &plan.steps[check.step_index] {
+                MutationStep::Patch { table, id, .. } => (
+                    table.as_str(),
+                    id,
+                    GenericTableWriteFormV1::Patch,
+                ),
+                MutationStep::Delete { table, id } => (
+                    table.as_str(),
+                    id,
+                    GenericTableWriteFormV1::Delete,
+                ),
+                _ => unreachable!("owner-write preflight already bound carrier to point write"),
+            };
+            let table = schema_table(&schema, table_name)?;
+            let Some(owner_field) = generic_owner_write_field(table, write_form)? else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+                    "auth",
+                    "ownerWriteChecks cannot bind a migration-pending non-owner table",
+                )
+                .with_details(json!({
+                    "table": table.name,
+                    "writeForm": write_form.as_str(),
+                    "stepIndex": check.step_index,
+                })));
+            };
+            let id = expect_string(
+                eval_expr(
+                    id_expr,
+                    input,
+                    &bindings,
+                    now_ms,
+                    Some(&next_id),
+                    &format!("plan/owner-write-checks/{}/id", check.step_index),
+                )?,
+                "owner write check id",
+            )?;
+            let old_row = get_document_from_tx(&tx, table, &id, next_version)?;
+            if !owner_row_matches(
+                old_row.as_ref(),
+                owner_field,
+                input.auth.user_id.as_deref(),
+            ) {
+                owner_write_refusal(&check.absent)?;
+                owner_absent_targets.insert((table.name.clone(), id));
+            }
+        }
 
         for (step_index, step) in plan.steps.iter().enumerate() {
             check_live()?;
@@ -3184,6 +3386,11 @@ impl LocalDatabase {
                 } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
+                    let owner_field = generic_owner_write_field(
+                        table,
+                        GenericTableWriteFormV1::Insert,
+                    )?
+                    .map(str::to_owned);
                     // @ref LLP 0056 — a protected resource may not be created
                     //   without seating its bootstrap holder (bootstrap path
                     //   only); a HostPlan generic insert cannot do that.
@@ -3197,7 +3404,7 @@ impl LocalDatabase {
                         }
                     }
 
-                    let row = eval_value_map(
+                    let mut row = eval_value_map(
                         values,
                         input,
                         &bindings,
@@ -3208,6 +3415,22 @@ impl LocalDatabase {
                         settlement_time_within_bound,
                         &settlement_time_sink_reached,
                     )?;
+                    if let Some(owner_field) = owner_field {
+                        let principal = input.auth.user_id.as_deref().ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_AUTH_USER_MISSING",
+                                "auth",
+                                "an owner-policy insert requires an effective principal",
+                            )
+                            .with_details(json!({
+                                "table": table.name,
+                                "writeForm": "insert",
+                            }))
+                        })?;
+                        // The AuthUserId expression is only a compatibility
+                        // marker. The transaction owns the authoritative stamp.
+                        row.insert(owner_field, Value::String(principal.to_owned()));
+                    }
                     let changed_fields = changed_field_names(&row);
                     if projection_sources.contains(&table.name) {
                         projection_pre_images
@@ -3243,6 +3466,10 @@ impl LocalDatabase {
                 MutationStep::Patch { table, id, values } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
+                    let owner_field = generic_owner_write_field(
+                        table,
+                        GenericTableWriteFormV1::Patch,
+                    )?;
                     if values.is_empty() {
                         continue;
                     }
@@ -3257,6 +3484,26 @@ impl LocalDatabase {
                         )?,
                         "patch id",
                     )?;
+                    if owner_absent_targets.contains(&(table.name.clone(), id.clone())) {
+                        continue;
+                    }
+                    if let Some(owner_field) = owner_field {
+                        let old_row = get_document_from_tx(&tx, table, &id, next_version)?;
+                        if !owner_row_matches(
+                            old_row.as_ref(),
+                            owner_field,
+                            input.auth.user_id.as_deref(),
+                        ) {
+                            let check = owner_write_check_for_step(
+                                &plan.owner_write_checks,
+                                step_index,
+                            )
+                            .expect("preflight proved the owner check carrier");
+                            owner_write_refusal(&check.absent)?;
+                            owner_absent_targets.insert((table.name.clone(), id));
+                            continue;
+                        }
+                    }
                     let row = eval_value_map(
                         values,
                         input,
@@ -3307,6 +3554,10 @@ impl LocalDatabase {
                 MutationStep::Delete { table, id } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
+                    let owner_field = generic_owner_write_field(
+                        table,
+                        GenericTableWriteFormV1::Delete,
+                    )?;
                     let id = expect_string(
                         eval_expr(
                             id,
@@ -3318,6 +3569,26 @@ impl LocalDatabase {
                         )?,
                         "delete id",
                     )?;
+                    if owner_absent_targets.contains(&(table.name.clone(), id.clone())) {
+                        continue;
+                    }
+                    if let Some(owner_field) = owner_field {
+                        let old_row = get_document_from_tx(&tx, table, &id, next_version)?;
+                        if !owner_row_matches(
+                            old_row.as_ref(),
+                            owner_field,
+                            input.auth.user_id.as_deref(),
+                        ) {
+                            let check = owner_write_check_for_step(
+                                &plan.owner_write_checks,
+                                step_index,
+                            )
+                            .expect("preflight proved the owner check carrier");
+                            owner_write_refusal(&check.absent)?;
+                            owner_absent_targets.insert((table.name.clone(), id));
+                            continue;
+                        }
+                    }
                     // @ref LLP 0056 — deleting a resource row does not silently
                     //   orphan its memberships; refuse while any remain (teardown
                     //   via clearForResource is the only path, and it is
@@ -3377,7 +3648,13 @@ impl LocalDatabase {
                         )?,
                         "get id",
                     )?;
-                    let document = get_document_from_tx(&tx, table, &id, next_version)?;
+                    let document = if owner_absent_targets
+                        .contains(&(table.name.clone(), id.clone()))
+                    {
+                        None
+                    } else {
+                        get_document_from_tx(&tx, table, &id, next_version)?
+                    };
                     let dependency = match &document {
                         Some(_) => CapturedReadDependency {
                             kind: CapturedReadKind::Row,
@@ -3477,6 +3754,14 @@ impl LocalDatabase {
                         )?,
                         "current relation scope id",
                     )?;
+                    if owner_absent_targets.contains(&(table.name.clone(), id.clone())) {
+                        return Err(SnapbackError::error(
+                            else_error.clone(),
+                            "handler",
+                            "current relation assertion failed",
+                        )
+                        .with_details(json!({ "step": "AssertCurrentRelation" })));
+                    }
                     let row = get_document_from_tx(&tx, table, &id, next_version)?;
                     let active_incarnation: Option<String> = tx
                         .query_row(
@@ -3611,10 +3896,16 @@ impl LocalDatabase {
                 MutationStep::DeleteWhere { table, filter } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
+                    let owner_field = generic_owner_write_field(
+                        table,
+                        GenericTableWriteFormV1::DeleteWhere,
+                    )?
+                    .map(str::to_owned);
                     // Reuse the query WHERE builder so DeleteWhere filters share
                     // matcher/SQL semantics with reads (empty filter = clear).
                     let scan_plan = QueryPlan {
-                        table_visibility: None,
+                        table_visibility: owner_field
+                            .map(|field| TableVisibilityV1::Owner { field }),
                         table: table.name.clone(),
                         filters: filter.clone(),
                         membership_filters: Vec::new(),
@@ -3702,6 +3993,26 @@ impl LocalDatabase {
                 } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
+                    let owner_field = generic_owner_write_field(
+                        table,
+                        GenericTableWriteFormV1::InsertEach,
+                    )?
+                    .map(str::to_owned);
+                    let principal = if owner_field.is_some() {
+                        Some(input.auth.user_id.as_deref().ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_AUTH_USER_MISSING",
+                                "auth",
+                                "an owner-policy insert requires an effective principal",
+                            )
+                            .with_details(json!({
+                                "table": table.name,
+                                "writeForm": "insert-each",
+                            }))
+                        })?)
+                    } else {
+                        None
+                    };
                     enforce_protected_resource_insert_guard(&schema, &table.name)?;
                     let source_value = eval_expr(
                         source,
@@ -3742,7 +4053,7 @@ impl LocalDatabase {
                                 .entry((table.name.clone(), id.clone()))
                                 .or_insert(None);
                         }
-                        let row = eval_value_map(
+                        let mut row = eval_value_map(
                             values,
                             input,
                             &item_bindings,
@@ -3753,6 +4064,11 @@ impl LocalDatabase {
                             settlement_time_within_bound,
                             &settlement_time_sink_reached,
                         )?;
+                        if let (Some(owner_field), Some(principal)) =
+                            (owner_field.as_ref(), principal)
+                        {
+                            row.insert(owner_field.clone(), Value::String(principal.to_owned()));
+                        }
                         let changed_fields = changed_field_names(&row);
                         let document = insert_document(
                             &tx,
@@ -3806,8 +4122,14 @@ impl LocalDatabase {
                             )?,
                             "document id",
                         )?;
-                        let mut document = get_document_from_tx(&tx, table, &id, next_version)?
-                            .unwrap_or(Value::Null);
+                        let mut document = if owner_absent_targets
+                            .contains(&(table.name.clone(), id.clone()))
+                        {
+                            Value::Null
+                        } else {
+                            get_document_from_tx(&tx, table, &id, next_version)?
+                                .unwrap_or(Value::Null)
+                        };
                         if !document.is_null() {
                             project_media_fields_on(&tx, table, &mut document)?;
                         }
@@ -3919,8 +4241,14 @@ impl LocalDatabase {
                         )?,
                         "document id",
                     )?;
-                    let mut document =
-                        get_document_from_tx(&tx, table, &id, next_version)?.unwrap_or(Value::Null);
+                    let mut document = if owner_absent_targets
+                        .contains(&(table.name.clone(), id.clone()))
+                    {
+                        Value::Null
+                    } else {
+                        get_document_from_tx(&tx, table, &id, next_version)?
+                            .unwrap_or(Value::Null)
+                    };
                     if !document.is_null() {
                         project_media_fields_on(&tx, table, &mut document)?;
                     }
@@ -4368,7 +4696,7 @@ impl LocalDatabase {
 
         let mut changes = Vec::new();
         let mut authority_transition_drafts = Vec::new();
-        for (write, write_gate, write_writer) in carried_writes {
+        for (mut write, write_gate, write_writer) in carried_writes {
             check_live()?;
             enforce_identity_binding_write_seal(&schema, write.table())?;
             if schema
@@ -4387,6 +4715,63 @@ impl LocalDatabase {
             }
             if write_gate == MembershipWriteGate::Sanctioned {
                 revalidate_sanctioned_membership_write(&schema, &tx, &write, next_version)?;
+            } else {
+                // @ref LLP 0264#d5-the-policy-check-is-central-and-exhaustive
+                // — re-resolve the installed table policy below every
+                // buffered producer, inside the transaction that commits.
+                let table = schema_table(&schema, write.table())?;
+                let form = match &write {
+                    BufferedWrite::Insert { .. } => GenericTableWriteFormV1::Insert,
+                    BufferedWrite::Patch { .. } => GenericTableWriteFormV1::Patch,
+                    BufferedWrite::Delete { .. } => GenericTableWriteFormV1::Delete,
+                };
+                if let Some(owner_field) =
+                    generic_owner_write_field(table, form)?.map(str::to_owned)
+                {
+                    match &mut write {
+                        BufferedWrite::Insert { values, .. } => {
+                            let principal = input.auth.user_id.as_deref().ok_or_else(|| {
+                                SnapbackError::error(
+                                    "SNAPBACK_AUTH_USER_MISSING",
+                                    "auth",
+                                    "an owner-policy insert requires an effective principal",
+                                )
+                                .with_details(json!({
+                                    "table": table.name,
+                                    "writeForm": "insert",
+                                }))
+                            })?;
+                            if values.contains_key(&owner_field) {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED",
+                                    "auth",
+                                    "a buffered insert carried a non-authoritative owner value",
+                                )
+                                .with_details(json!({
+                                    "table": table.name,
+                                    "writeForm": "insert",
+                                    "ownerField": owner_field,
+                                })));
+                            }
+                            values.insert(owner_field, Value::String(principal.to_owned()));
+                        }
+                        BufferedWrite::Patch { values, .. } => {
+                            if values.contains_key(&owner_field) {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE",
+                                    "auth",
+                                    "generic patches cannot change owner identity",
+                                )
+                                .with_details(json!({
+                                    "table": table.name,
+                                    "writeForm": "patch",
+                                    "ownerField": owner_field,
+                                })));
+                            }
+                        }
+                        BufferedWrite::Delete { .. } => {}
+                    }
+                }
             }
             // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
             //   the writer-class seam. A raw `ctx.db` membership-table write, and
@@ -4464,6 +4849,20 @@ impl LocalDatabase {
                         continue;
                     }
                     let before = get_document_from_tx(&tx, table, &id, next_version)?;
+                    if write_gate == MembershipWriteGate::Deny {
+                        if let Some(owner_field) = generic_owner_write_field(
+                            table,
+                            GenericTableWriteFormV1::Patch,
+                        )? {
+                            if !owner_row_matches(
+                                before.as_ref(),
+                                owner_field,
+                                input.auth.user_id.as_deref(),
+                            ) {
+                                continue;
+                            }
+                        }
+                    }
                     if projection_sources.contains(&table.name) {
                         projection_pre_images
                             .entry((table.name.clone(), id.clone()))
@@ -4520,6 +4919,20 @@ impl LocalDatabase {
                 BufferedWrite::Delete { table, id } => {
                     let table = schema_table(&schema, &table)?;
                     let document = get_document_from_tx(&tx, table, &id, next_version)?;
+                    if write_gate == MembershipWriteGate::Deny {
+                        if let Some(owner_field) = generic_owner_write_field(
+                            table,
+                            GenericTableWriteFormV1::Delete,
+                        )? {
+                            if !owner_row_matches(
+                                document.as_ref(),
+                                owner_field,
+                                input.auth.user_id.as_deref(),
+                            ) {
+                                continue;
+                            }
+                        }
+                    }
                     if projection_sources.contains(&table.name)
                         && !projection_pre_images.contains_key(&(table.name.clone(), id.clone()))
                     {
@@ -17652,6 +18065,121 @@ fn schema_table<'a>(schema: &'a SchemaManifest, table: &str) -> SnapbackResult<&
             format!("unknown table {table}"),
         )
     })
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum GenericTableWriteFormV1 {
+    Insert,
+    InsertEach,
+    Patch,
+    Delete,
+    DeleteWhere,
+}
+
+impl GenericTableWriteFormV1 {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Insert => "insert",
+            Self::InsertEach => "insert-each",
+            Self::Patch => "patch",
+            Self::Delete => "delete",
+            Self::DeleteWhere => "delete-where",
+        }
+    }
+}
+
+/// Resolve the one installed table-policy locus for a generic write. This is
+/// deliberately below both generated guards and handler-declared write sets.
+/// Phase 1a returns `None` only for the declared-non-owner migration window;
+/// authority tables and omission still refuse here, while `Some(field)` enters
+/// the complete owner enforcement path.
+///
+/// @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind
+/// @ref LLP 0264#d6-authority-tables-and-membershiprole-writes-stay-specialized
+/// @ref LLP 0264#migration-and-rollout
+pub(crate) fn generic_owner_write_field<'a>(
+    table: &'a TableManifest,
+    form: GenericTableWriteFormV1,
+) -> SnapbackResult<Option<&'a str>> {
+    // Authority tables never enter owner enforcement, and their runtime
+    // refusal belongs to the pre-existing specialized membership/permission
+    // seam (SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED /
+    // SNAPBACK_MEMBERSHIP_HOSTPLAN_WRITE_DENIED and the permission-backing
+    // guard), which covers every generic path. Codegen still refuses declared
+    // writes statically with SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE.
+    //
+    // @ref LLP 0264#d6-authority-tables-and-membershiprole-writes-stay-specialized
+    if table.membership.is_some() || table.permission_backing {
+        let _ = form;
+        return Ok(None);
+    }
+    match table.visibility.as_ref() {
+        Some(TableVisibilityV1::Owner { field }) => Ok(Some(field)),
+        // LLP 0264 Phase 1a stages declared non-owner tables at codegen. They
+        // retain the exact pre-0264 runtime path until the corpus closure
+        // permits Phase 1b to flip this arm to a refusal.
+        Some(
+            TableVisibilityV1::PublicRead
+            | TableVisibilityV1::Membership { .. }
+            | TableVisibilityV1::AnyOf { .. },
+        ) => Ok(None),
+        None => Err(SnapbackError::error(
+            "SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED",
+            "auth",
+            "generic writes require an installed table policy",
+        )
+        .with_details(json!({
+            "table": table.name,
+            "writeForm": form.as_str(),
+        }))),
+    }
+}
+
+fn owner_row_matches(row: Option<&Value>, owner_field: &str, principal: Option<&str>) -> bool {
+    row.and_then(Value::as_object)
+        .and_then(|row| row.get(owner_field))
+        .and_then(Value::as_str)
+        .zip(principal)
+        .is_some_and(|(owner, principal)| owner == principal)
+}
+
+fn owner_write_refusal(disposition: &OwnerWriteAbsentDispositionV1) -> SnapbackResult<()> {
+    match disposition {
+        OwnerWriteAbsentDispositionV1::NoEffect => Ok(()),
+        OwnerWriteAbsentDispositionV1::Refuse {
+            code,
+            message,
+            details,
+            ..
+        } => Err(SnapbackError::error(code, "handler", message).with_details(details.clone())),
+    }
+}
+
+fn owner_write_disposition_digest(
+    code: &str,
+    message: &str,
+    details: &Value,
+) -> SnapbackResult<String> {
+    let bytes = crate::rqs_contract::jcs(&json!({
+        "code": code,
+        "message": message,
+        "details": details,
+    }))
+    .map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
+            "auth",
+            "owner-write refusal bytes are not canonically serializable",
+        )
+    })?;
+    Ok(format!("sha256:{:x}", Sha256::digest(bytes)))
+}
+
+fn owner_write_check_for_step<'a>(
+    checks: &'a [OwnerWriteCheckV1],
+    step_index: usize,
+) -> Option<&'a OwnerWriteCheckV1> {
+    checks.iter().find(|check| check.step_index == step_index)
 }
 
 fn ensure_field<'a>(table: &'a TableManifest, field: &str) -> SnapbackResult<&'a FieldManifest> {

@@ -56,9 +56,9 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "b961cce0181654a535ab9b3457a00cc723a940c733615d967fd822164dbefd38",
+  "inputsHash": "aadd8485f5459fc980e3676d68166da5c7a2c48a18df5dee8c306a5bbc18de45",
   "portabilityFlags": [],
-  "schemaHash": "sha256:74c90c3ca4ceb08d",
+  "schemaHash": "sha256:ce94864d963471cb",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -125,13 +125,13 @@
   "targetProfile": "local-dev-sqlite-ibex",
   "visibilityGovernance": {
     "fixtureProfiles": [],
-    "generationInputsHash": "sha256:fb75fb9cf1f084ee6f6d30e03ecdd5bc0d62c21fbcb6d0ce96c0dcd8f63e7d38",
+    "generationInputsHash": "sha256:e87babad857118bb604555d41dcc8411910d066354d67f254381667afb8674f9",
     "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
     "productionWindows": [],
     "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
     "required": false,
     "schemaVersion": "snapback.visibility-governance-activation.v1",
-    "tablePolicyBaselineDigest": "sha256:296faedec21e4ec252f0b7290671214cad2dc5f6cb0e4ee355a0fd5cbaeea2f5",
-    "visibilityAuthorizationProgramDigest": "sha256:ae49d7ecc5fedc1a4152eb37a0b832fef301acadd0117a2746781bb1b0834e95"
+    "tablePolicyBaselineDigest": "sha256:4c23b3d9f8b63491d0b799a6f3c2284c771f1113faa03e0a41f1f5d36b5c5a6d",
+    "visibilityAuthorizationProgramDigest": "sha256:8e1d46095f37f8a9100eb812ad567835e11d949bf3f43d8a96b726a9107622a4"
   }
 }

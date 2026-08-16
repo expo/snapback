@@ -59,3 +59,14 @@ hydration number was invented. An orchestrator with loopback access must run
 the harness once, then run its qualified `--check`; that rerun replaces this
 blocked checkpoint with the authoritative measurements and activation/binary
 bindings.
+
+## 2026-08-16 — owner stamps and conflict-oracle disclosures
+
+Fleet views, rollups, and vehicle facts now omit application-authored owner
+fields and receive their effective principal from the host. The two globally
+unique batch inserts also declare their exact value-free conflict disclosures,
+bound to `seedRollupBatch` and `ingestVehicleBatch`; that makes the existence
+oracle explicit instead of silently inheriting it from a generic insert. The
+demo-local trusted activation was re-prepared after the authored-source change.
+The ordinary events writes remain pre-0264 at runtime and are visibly marked
+migration-pending; no workload or capability claim was promoted.

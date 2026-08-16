@@ -142,13 +142,11 @@ export const createBoard = defineJsMutation({
       .first();
     if (!existing) {
       await ctx.db.insert('projectDirectory', {
-        ownerId,
         projectKey: args.projectKey,
         projectName: args.projectName,
       });
     }
     return ctx.db.insert('triageBoards', {
-      ownerId,
       name: args.name,
       workloadRevision: 1,
     });
@@ -174,7 +172,6 @@ export const appendBaselineEvents = defineJsMutation({
     for (const event of args.events) {
       await ctx.db.insert('triageEvents', {
         boardId: args.boardId,
-        ownerId: ctx.auth.userId,
         issueKey: event.issueKey,
         sequence: event.sequence,
         kind: 'baseline',
@@ -205,7 +202,6 @@ export const applyUpdateBurst = defineJsMutation({
     for (const update of args.updates) {
       await ctx.db.insert('triageEvents', {
         boardId: args.boardId,
-        ownerId: ctx.auth.userId,
         issueKey: update.issueKey,
         sequence: update.sequence,
         kind: 'update',
@@ -213,7 +209,6 @@ export const applyUpdateBurst = defineJsMutation({
       if (update.activeRank !== null && update.activeRank !== undefined) {
         await ctx.db.insert('activeIssues', {
           boardId: args.boardId,
-          ownerId: ctx.auth.userId,
           issueKey: update.issueKey,
           projectKey: 'P3',
           title: update.title,
@@ -225,7 +220,6 @@ export const applyUpdateBurst = defineJsMutation({
       if (update.sequence >= 249980) {
         await ctx.db.insert('transitionSummaries', {
           boardId: args.boardId,
-          ownerId: ctx.auth.userId,
           issueKey: update.issueKey,
           sequence: update.sequence,
           summary: `update ${update.sequence} evaluated`,
@@ -249,7 +243,6 @@ export const seedSwitchIssue = defineJsMutation({
     await ownedBoard(ctx, args.boardId);
     await ctx.db.insert('activeIssues', {
       boardId: args.boardId,
-      ownerId: ctx.auth.userId,
       issueKey: `SWITCH-${args.ordinal}`,
       projectKey: 'P3',
       title: `query switch ${args.ordinal}`,

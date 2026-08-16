@@ -19,11 +19,7 @@ import {
   del,
   desc,
   eq,
-  eqv,
-  field,
-  get,
   gtFilter,
-  guard,
   insert,
   ltFilter,
   membershipResource,
@@ -168,23 +164,6 @@ function argsAndValues(table, excluded, defaults = {}) {
   return { args, values };
 }
 
-// The public boundary collapses missing and invisible: both legs refuse with
-// SNAPBACK_ROW_NOT_FOUND and an identical body, so a caller probing another
-// owner's id learns nothing an absent id would not teach. The distinguishing
-// record belongs to the separately authorized audit channel, never a public
-// code.
-// @ref LLP 0065#2-the-v1-visibility-floor — existence secrecy collapses at
-//   the public boundary by default.
-function ownedRowGuard(tableName, idArg, ownerField, bindAs) {
-  return [
-    get(tableName, arg(idArg), bindAs, { elseError: 'SNAPBACK_ROW_NOT_FOUND' }),
-    guard(
-      eqv(field(bindingRef(bindAs), ownerField), authUserId()),
-      'SNAPBACK_ROW_NOT_FOUND',
-    ),
-  ];
-}
-
 function requireDistinctNames(names, fields, where) {
   const values = fields.map((field) => names[field]);
   if (new Set(values).size !== values.length) {
@@ -238,7 +217,7 @@ export function defineOwnedCrud(options) {
   const updateDefaultMap = normalizeDefaults(facts, updateDefaults, 'updateDefaults');
   if (Object.hasOwn(createDefaultMap, ownerField) || Object.hasOwn(updateDefaultMap, ownerField)) {
     fail(
-      'SNAPBACK_STANDARD_PATTERN_INVALID',
+      'SNAPBACK_TABLE_WRITE_OWNER_DEFAULT_REFUSED',
       `trusted defaults cannot set owner visibility field ${ownerField}`,
     );
   }
@@ -310,8 +289,15 @@ export function defineOwnedCrud(options) {
   for (const [field, kind] of Object.entries(updateDefaultMap)) update.values[field] = defaultExpr(kind);
 
   const getArgs = { [idArg]: v.id(facts.name) };
-  const rowBind = '__standardOwnedRow';
   const createIdBind = '__standardCreatedId';
+  const uniqueDisclosure = (writeForm, operation) => discloseUniqueConflicts.map(
+    (constraint) => ({
+      table: facts.name,
+      writeForm,
+      constraint,
+      operations: [operation],
+    }),
+  );
   const definitions = {
     [names.list]: defineLiveQuery({
       table: facts.name,
@@ -336,6 +322,7 @@ export function defineOwnedCrud(options) {
       args: create.args,
       auth: 'authenticated',
       standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
+      discloseUniqueConflicts: uniqueDisclosure('insert', names.create),
       plan: insert(facts.name, create.values, { bindIdAs: createIdBind }),
       returns: returnDocument(facts.name, bindingRef(createIdBind)),
     }),
@@ -343,20 +330,18 @@ export function defineOwnedCrud(options) {
       args: { ...getArgs, ...update.args },
       auth: 'authenticated',
       standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
-      plan: [
-        ...ownedRowGuard(facts.name, idArg, ownerField, rowBind),
-        patch(facts.name, arg(idArg), update.values),
-      ],
+      discloseUniqueConflicts: uniqueDisclosure('patch', names.update),
+      // @ref LLP 0264#d4-update-and-delete-check-the-old-row-transactionally
+      // — the sealed ownerWriteCheck emitted for Patch is the carrier; a
+      // nearby Get/Guard must not be the authorization mechanism.
+      plan: patch(facts.name, arg(idArg), update.values),
       returns: returnDocument(facts.name, arg(idArg)),
     }),
     [names.delete]: defineMutation({
       args: getArgs,
       auth: 'authenticated',
       standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
-      plan: [
-        ...ownedRowGuard(facts.name, idArg, ownerField, rowBind),
-        del(facts.name, arg(idArg)),
-      ],
+      plan: del(facts.name, arg(idArg)),
     }),
   };
   return Object.freeze(definitions);

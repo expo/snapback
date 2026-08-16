@@ -7,9 +7,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "policyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "provenanceHeadId": "activeIssues-g1-20260816-v1",
       "tableId": "activeIssues"
     },
@@ -20,9 +33,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "policyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "provenanceHeadId": "projectDirectory-g1-20260816-v1",
       "tableId": "projectDirectory"
     },
@@ -33,9 +59,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "policyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "provenanceHeadId": "transitionSummaries-g1-20260816-v1",
       "tableId": "transitionSummaries"
     },
@@ -46,9 +85,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "policyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "provenanceHeadId": "triageBoards-g1-20260816-v1",
       "tableId": "triageBoards"
     },
@@ -59,13 +111,26 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "policyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "provenanceHeadId": "triageEvents-g1-20260816-v1",
       "tableId": "triageEvents"
     }
   ],
-  "exactSetDigest": "sha256:4a0599ada3e569dc225d253162ca7b900f672907d61383d6cf4b9f608b8ab95d",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:289af46e740645f9110546c618e90c64991693eb73664b5d4db905141762747e",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

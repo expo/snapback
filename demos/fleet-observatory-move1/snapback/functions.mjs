@@ -113,7 +113,6 @@ export const createFleetView = defineJsMutation({
   writes: ['fleetViews'],
   result: results.value(v.id('fleetViews')),
   handler: async (ctx, args) => ctx.db.insert('fleetViews', {
-    ownerId: ctx.auth.userId,
     fleetKey: args.fleetKey,
     filterKey: args.filterKey,
     label: args.label,
@@ -137,12 +136,17 @@ export const seedRollupBatch = defineJsMutation({
   },
   reads: ['fleetViews'],
   writes: ['fleetRollups'],
+  discloseUniqueConflicts: [{
+    table: 'fleetRollups',
+    writeForm: 'insert',
+    constraint: 'by_event_key',
+    operations: ['seedRollupBatch'],
+  }],
   result: results.value(v.integer()),
   handler: async (ctx, args) => {
     await ownedView(ctx, args.viewId);
     for (const row of args.rows) {
       await ctx.db.insert('fleetRollups', {
-        ownerId: ctx.auth.userId,
         viewId: args.viewId,
         eventKey: row.eventKey,
         deviceKey: row.deviceKey,
@@ -170,11 +174,16 @@ export const ingestVehicleBatch = defineJsMutation({
   auth: 'authenticated',
   args: { rows: v.array(vehicleInput, { maxItems: 900 }) },
   writes: ['vehicleFacts'],
+  discloseUniqueConflicts: [{
+    table: 'vehicleFacts',
+    writeForm: 'insert',
+    constraint: 'by_device_key',
+    operations: ['ingestVehicleBatch'],
+  }],
   result: results.value(v.integer()),
   handler: async (ctx, args) => {
     for (const row of args.rows) {
       await ctx.db.insert('vehicleFacts', {
-        fixtureOwnerId: ctx.auth.userId,
         deviceKey: row.deviceKey,
         fleetKey: row.fleetKey,
         ownerKey: row.ownerKey,

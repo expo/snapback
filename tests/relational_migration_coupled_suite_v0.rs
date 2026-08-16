@@ -158,6 +158,7 @@ fn functions() -> FunctionManifest {
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps,
                 return_value: None,
             })),

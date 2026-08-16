@@ -16,9 +16,22 @@
             }
           ],
           "kind": "any-of"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:fdfe6b3484b9247cb9a8044b871b39c7f57da55d6650fc107d43d7458fb5331a",
+      "policyDigest": "sha256:453d7488a8f884c02277f7291a4c63d4219b1df34195be84fd3641ac37294afd",
       "provenanceHeadId": "events-g1-20260816-v1",
       "tableId": "events"
     },
@@ -29,9 +42,31 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [
+            {
+              "constraint": "by_event_key",
+              "operations": [
+                "seedRollupBatch"
+              ],
+              "table": "fleetRollups",
+              "writeForm": "insert"
+            }
+          ],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "policyDigest": "sha256:543ed45e1ed203158c4da6083bdd2958c7ffd36b4f68c9e1b25e3187ff167d63",
       "provenanceHeadId": "fleetRollups-g1-20260816-v1",
       "tableId": "fleetRollups"
     },
@@ -42,9 +77,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "policyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "provenanceHeadId": "fleetViews-g1-20260816-v1",
       "tableId": "fleetViews"
     },
@@ -55,13 +103,35 @@
         "policy": {
           "field": "fixtureOwnerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [
+            {
+              "constraint": "by_device_key",
+              "operations": [
+                "ingestVehicleBatch"
+              ],
+              "table": "vehicleFacts",
+              "writeForm": "insert"
+            }
+          ],
+          "ownerField": "fixtureOwnerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:4590ce0ec83469c6d41fa386776cfcea61848fd4ef50d85ff831329ea7ef4ae7",
+      "policyDigest": "sha256:67615c164e8c462cf8d520d338a480fad1d6d6b1781addfb9aa5362f95c35966",
       "provenanceHeadId": "vehicleFacts-g1-20260816-v1",
       "tableId": "vehicleFacts"
     }
   ],
-  "exactSetDigest": "sha256:c01c6e20e4e38cf61378fbfeda86ec13a96f45fe368c9244d82f79efe114c536",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:3613a1c55ff0fb889fd7179d4a7042eb555b064d09403578949488cb85fe5934",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

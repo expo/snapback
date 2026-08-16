@@ -142,6 +142,7 @@ fn bundle_functions() -> FunctionManifest {
                 "createPost",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "posts".to_owned(),
                         values: BTreeMap::from([(
@@ -157,6 +158,7 @@ fn bundle_functions() -> FunctionManifest {
                 "createTodo",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "todos".to_owned(),
                         values: BTreeMap::from([

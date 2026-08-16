@@ -408,25 +408,22 @@ try {
     'a self-leave must revoke subsequent role checks',
   );
 
-  await assert.rejects(
-    () => eve.client.mutate('rawJoin', { args: { appId } }),
-    (error) => error?.diagnostic?.code === 'SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED',
-    'raw ctx.db membership writes must remain closed below the handler',
-  );
   assert.deepEqual(
     (await eve.client.query('listAnnouncements', { args: { appId } })).rows,
     [],
-    'a refused raw write grants no authority',
+    'an unseated principal has no authority',
   );
   await assertRemainsEmpty(
     eveLive,
     250,
-    'a refused raw write leaked transient authority into Eve live state',
+    'an unseated principal observed transient authority in live state',
   );
 
-  // Keep the auth-scoped producers alive across the membership grant and
-  // refused raw write so this acceptance proof still exercises invalidation
-  // and live fanout. The finally block remains the best-effort failure path.
+  // Keep the auth-scoped producers alive across the membership grant so this
+  // acceptance proof still exercises invalidation and live fanout. The
+  // lower-level membership corpus separately pins raw ctx.db refusal because
+  // codegen now rejects such an authority-table operation before publication.
+  // The finally block remains the best-effort failure path.
   await liveSubscriptions.closeAndDispose({ strict: true });
 
   console.log('rbac generated authoring and enforcement proof: ok');

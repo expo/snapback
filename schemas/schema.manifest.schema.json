@@ -826,6 +826,23 @@
       ],
       "type": "string"
     },
+    "AuthRequirement": {
+      "description": "Function-level requirement applied after caller authority has been resolved.\nAbsence in a legacy function is represented by\n[`FunctionDefinition::effective_auth_requirement`] as `optional-user`.\n\n@ref LLP 0058#closed-function-requirement — closed values fail at manifest parse.",
+      "enum": [
+        "public",
+        "optional-user",
+        "authenticated"
+      ],
+      "type": "string"
+    },
+    "AuthorityProfileHookV1": {
+      "enum": [
+        "useSnapbackQuery",
+        "useSnapbackMutation",
+        "useSnapbackOutbox.mutationStatus"
+      ],
+      "type": "string"
+    },
     "AuthorityProfileMembershipReferenceV1": {
       "additionalProperties": false,
       "properties": {
@@ -843,6 +860,54 @@
         "declaration",
         "manifestPath",
         "predicateIdentity"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileOperationNameV1": {
+      "description": "One generated rollout-2 operation. The operation vocabulary is closed by\ncodegen; transition ops name the LLP 0056 planner rows (or the dedicated\ntransfer planner) that remain the server-side authority boundary.",
+      "enum": [
+        "list",
+        "myRole",
+        "invite",
+        "join",
+        "leave",
+        "changeRole",
+        "transferOwner",
+        "remove"
+      ],
+      "type": "string"
+    },
+    "AuthorityProfileOperationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authRequirement": {
+          "$ref": "#/$defs/AuthRequirement"
+        },
+        "hooks": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileHookV1"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/FunctionKind"
+        },
+        "name": {
+          "$ref": "#/$defs/AuthorityProfileOperationNameV1"
+        },
+        "transitionOps": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileTransitionOpV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "authRequirement",
+        "hooks",
+        "transitionOps"
       ],
       "type": "object"
     },
@@ -1011,6 +1076,15 @@
       ],
       "type": "object"
     },
+    "AuthorityProfileTransitionOpV1": {
+      "enum": [
+        "insert",
+        "setRole",
+        "remove",
+        "transferOwner"
+      ],
+      "type": "string"
+    },
     "AuthorityProfileTransitionPreconditionsV1": {
       "additionalProperties": false,
       "properties": {
@@ -1029,7 +1103,7 @@
     },
     "AuthorityProfileV1": {
       "additionalProperties": false,
-      "description": "The closed rollout-1 authority profile projection. Canonical membership\nremains in [`TableManifest::membership`] and table policy remains in\n[`TableManifest::visibility`]; reference fields below make that ownership\nexplicit while carrying the profile-only lattice, identity, and\nqualification facts codegen needs to explain.\n\n@ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —\n  one generated projection feeds the already-shipped policy vocabulary.\n@ref LLP 0225#1-ownership-map — this cross-owner value shape lives in the\n  manifest leaf; storage/evaluators consume only their existing carriers.",
+      "description": "The closed rollout-2 authority profile projection. Canonical membership\nremains in [`TableManifest::membership`] and table policy remains in\n[`TableManifest::visibility`]; reference fields below make that ownership\nexplicit while carrying the profile-only lattice, identity, and\nqualification facts codegen needs to explain.\n\n@ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —\n  one generated projection feeds the already-shipped policy vocabulary.\n@ref LLP 0225#1-ownership-map — this cross-owner value shape lives in the\n  manifest leaf; storage/evaluators consume only their existing carriers.",
       "properties": {
         "authorizationEventFields": {
           "items": {
@@ -1049,6 +1123,12 @@
         "notYetQualifiedCompositionClasses": {
           "items": {
             "type": "string"
+          },
+          "type": "array"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileOperationV1"
           },
           "type": "array"
         },
@@ -1114,7 +1194,8 @@
         "requiredIndexes",
         "permittedCompositionClasses",
         "notYetQualifiedCompositionClasses",
-        "roster"
+        "roster",
+        "operations"
       ],
       "type": "object"
     },
@@ -1442,6 +1523,15 @@
         }
       ]
     },
+    "FunctionKind": {
+      "enum": [
+        "Query",
+        "Mutation",
+        "LiveQuery",
+        "Action"
+      ],
+      "type": "string"
+    },
     "HistoryRetentionManifestV1": {
       "additionalProperties": false,
       "description": "Finite product-history retention declared beside the table it governs.\nThis is authoring authority; storage projects it into the durable policy\ntable in the same transaction that publishes the schema manifest.",
@@ -1462,6 +1552,27 @@
       "required": [
         "retainMs",
         "maxVersionsPerRecord"
+      ],
+      "type": "object"
+    },
+    "IdentityBindingTableManifestV1": {
+      "additionalProperties": false,
+      "description": "One app-owned table sealed against every ordinary write path and reserved\nfor authorized migration plus the still-open verified-provisioning writer.",
+      "properties": {
+        "identityField": {
+          "type": "string"
+        },
+        "principalField": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "principalField",
+        "identityField"
       ],
       "type": "object"
     },
@@ -3298,6 +3409,109 @@
           "type": "object"
         }
       ]
+    },
+    "VisibilityFixtureProfileV1": {
+      "additionalProperties": false,
+      "properties": {
+        "dataClassification": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "overrideId": {
+          "type": "string"
+        },
+        "principalClass": {
+          "type": "string"
+        },
+        "targetClassCeiling": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "overrideId",
+        "id",
+        "digest",
+        "targetClassCeiling",
+        "principalClass",
+        "dataClassification"
+      ],
+      "type": "object"
+    },
+    "VisibilityGovernanceActivationV1": {
+      "additionalProperties": false,
+      "description": "Compact executable governance carrier. Digests bind the complete generated\nbaselines/program; the larger review projection has no activation role.",
+      "properties": {
+        "fixtureProfiles": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VisibilityFixtureProfileV1"
+          },
+          "type": "array"
+        },
+        "generationInputsHash": {
+          "type": "string"
+        },
+        "overrideBaselineDigest": {
+          "type": "string"
+        },
+        "productionWindows": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VisibilityProductionWindowV1"
+          },
+          "type": "array"
+        },
+        "quarantineHeadDigest": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "tablePolicyBaselineDigest": {
+          "type": "string"
+        },
+        "visibilityAuthorizationProgramDigest": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "required",
+        "generationInputsHash",
+        "visibilityAuthorizationProgramDigest",
+        "overrideBaselineDigest",
+        "tablePolicyBaselineDigest",
+        "quarantineHeadDigest"
+      ],
+      "type": "object"
+    },
+    "VisibilityProductionWindowV1": {
+      "additionalProperties": false,
+      "properties": {
+        "expiresOn": {
+          "type": "string"
+        },
+        "issuedOn": {
+          "type": "string"
+        },
+        "overrideId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "overrideId",
+        "issuedOn",
+        "expiresOn"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/schema.manifest.schema.json",
@@ -3374,11 +3588,6 @@
         "null"
       ]
     },
-    "dataResources": {
-      "description": "Generated DataResourceV1 witnesses. The generic manifest layer keeps\nthe versioned records opaque; pair activation validates their closed\nshape and hashes together with the function-side query catalogue.",
-      "items": true,
-      "type": "array"
-    },
     "ephemeralCollections": {
       "default": [],
       "items": {
@@ -3394,6 +3603,13 @@
         "integer",
         "null"
       ]
+    },
+    "identityBindingTables": {
+      "description": "@ref LLP 0214#53-sealed-invocation-authority — ordinary buffered\nwriters are denied for these codegen-validated tables.",
+      "items": {
+        "$ref": "#/$defs/IdentityBindingTableManifestV1"
+      },
+      "type": "array"
     },
     "inputsHash": {
       "default": null,
@@ -3460,6 +3676,17 @@
         "string",
         "null"
       ]
+    },
+    "visibilityGovernance": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VisibilityGovernanceActivationV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Executable LLP 0234 governance identity. Review-only projection facts\nremain outside the manifest; activation deep-matches these digests to\na target-owned protected observer verdict."
     }
   },
   "required": [

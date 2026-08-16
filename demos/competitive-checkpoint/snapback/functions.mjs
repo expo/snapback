@@ -98,6 +98,8 @@ export const startReply = defineJsMutation({
   exportName: 'startReply',
   reads: ['conversations', 'messages'],
   writes: ['messages'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['messages'],
   auth: 'authenticated',
 });
 
@@ -107,6 +109,8 @@ export const applyReplyProgress = defineJsMutation({
   exportName: 'applyReplyProgress',
   reads: ['messages'],
   writes: ['messages'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['messages'],
   auth: 'authenticated',
 });
 
@@ -116,6 +120,8 @@ export const completeReply = defineJsMutation({
   exportName: 'completeReply',
   reads: ['messages'],
   writes: ['messages'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['messages'],
   auth: 'authenticated',
 });
 
@@ -125,6 +131,8 @@ export const settleReply = defineJsMutation({
   exportName: 'settleReply',
   reads: ['messages'],
   writes: ['messages'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['messages'],
   auth: 'authenticated',
 });
 
@@ -134,6 +142,8 @@ export const cancelReply = defineJsMutation({
   exportName: 'cancelReply',
   reads: ['messages'],
   writes: ['messages'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['messages'],
   auth: 'authenticated',
 });
 

@@ -8,7 +8,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:159dc0370cbe2d0c181eba76d817066fd0fb56b356083e4e574c328eec77659d",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "snapback.v1:sessions:function:sha256:2c9206af50d0cb8b67c5a1ae84ceed35f1636e8f30c302077f9fb55bf2636b3f",
+  "bundleHash": "snapback.v1:sessions:function:sha256:8707195be8ac2656651628738d543307ecd78730fca8331ec07ee2db3c965d6a",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -92,7 +92,7 @@
       "exportedName": "castVote",
       "handlerForm": "inline",
       "id": "pointing-room:castVote",
-      "implementationHash": "sha256:858e36ce3e808611de58d20d5ee308e7e5d12a961e7bd84a87d0b31b7f5f3b4c",
+      "implementationHash": "sha256:3fe3d2dbf7e0b73daabff56c5e8a8c6a626db785f992254a806efe413c5869e2",
       "kind": "Mutation",
       "name": "castVote",
       "readSetSummary": {
@@ -136,6 +136,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "votes",
@@ -472,7 +476,7 @@
       "exportedName": "revealRound",
       "handlerForm": "inline",
       "id": "pointing-room:revealRound",
-      "implementationHash": "sha256:247c60cc3c1f10c07430af8fdd4e8e5ba953735c03b050b3cf4409bfe5bb8419",
+      "implementationHash": "sha256:4a12c3e7040cb123a81f3eb9ace22b0dc7f4a8bd783a58fb47942ef3f8376039",
       "kind": "Mutation",
       "name": "revealRound",
       "readSetSummary": {
@@ -513,6 +517,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "rounds",
@@ -572,7 +580,7 @@
       "exportedName": "startRound",
       "handlerForm": "inline",
       "id": "pointing-room:startRound",
-      "implementationHash": "sha256:234c5f913b28e7d9104375a5f2fe9bacb21e8ee187e11ee1176b82a5c1b19627",
+      "implementationHash": "sha256:829fb892d3253f2903c62b0b565c5ab9aa7fee6505c1eac33089115afc99de68",
       "kind": "Mutation",
       "name": "startRound",
       "readSetSummary": {
@@ -616,6 +624,10 @@
       },
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "rounds",
@@ -626,7 +638,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:e1d3edd0143ef3b116139d50ea3b6e1a04a66a0b5cf24e5285c9531593bfade8",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:c10f296f5f20eda3b659ed9573a8c376ab438e37de7e6e9e62ca1b828d8a3d9e",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

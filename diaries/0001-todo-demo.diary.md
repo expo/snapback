@@ -541,3 +541,12 @@ sourcemaps without touching minified output by hand. The dependency upgrade was
 less work than carrying demo-specific sourcemap surgery and aligns Todo with the
 same published Contract toolchain used by newer surfaces. No Snapback Guide gap
 was involved.
+
+## 2026-08-16 — owner-stamped generic writes
+
+LLP 0264 Phase 1a made the Todo insert stop echoing `ctx.auth.userId` into
+its owner field. Omitting the field is both shorter and more trustworthy: the
+host now stamps it, and authored owner input refuses even when equal to the
+caller. This is a cleaner boundary than the common Convex/Supabase convention
+of copying the session id in application code. No product behavior or
+capability claim changed; the migration closure tracks the corpus-wide flip.

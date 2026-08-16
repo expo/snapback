@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:74d9a88573fa8ba3c64051cc1d2b5cdfa99601561bbb856d9602255ae0a31919",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:d386c226dd56023c",
+  "bundleHash": "sha256:79c97f711c78217c",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -390,7 +390,7 @@
       "exportedName": "publishLiveRow",
       "handlerForm": "module",
       "id": "app:publishLiveRow",
-      "implementationHash": "sha256:71030e268b602f757c2c3dc460c220e74561c44449cb95e37725b4309bbe5a70",
+      "implementationHash": "sha256:6a48714a52c134e0c8a5de55a7557d0c4c33eee4a02d1f2295202700eb77a0d1",
       "kind": "Mutation",
       "name": "publishLiveRow",
       "readSetSummary": {
@@ -418,6 +418,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "liveRows",
@@ -460,7 +464,7 @@
       "exportedName": "rejectInvalidWrite",
       "handlerForm": "module",
       "id": "app:rejectInvalidWrite",
-      "implementationHash": "sha256:d6cefd418a2044649475b419e3b34bc62a7f2575f8cab6c04269205574723649",
+      "implementationHash": "sha256:f24a572321ac46027a98b970d35ff5d7c0b73f8f28e52a00641014cfaf9c64b0",
       "kind": "Mutation",
       "name": "rejectInvalidWrite",
       "readSetSummary": {
@@ -488,6 +492,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "rejectionRows",
@@ -659,7 +667,7 @@
       "exportedName": "writePrimaryAndActivity",
       "handlerForm": "module",
       "id": "app:writePrimaryAndActivity",
-      "implementationHash": "sha256:0a8b92e2161be3eccca0c255a01ac8461b6c6391f6d4bd127f80058e8095af1a",
+      "implementationHash": "sha256:a43d6e9967673295c3210b4590d794573f3097e0de7f5938003108f356f413d7",
       "kind": "Mutation",
       "name": "writePrimaryAndActivity",
       "readSetSummary": {
@@ -687,6 +695,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "handlerDeclared",
         "primaryTable": "primaryRows",
@@ -698,7 +710,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "b961cce0181654a535ab9b3457a00cc723a940c733615d967fd822164dbefd38",
+  "inputsHash": "aadd8485f5459fc980e3676d68166da5c7a2c48a18df5dee8c306a5bbc18de45",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

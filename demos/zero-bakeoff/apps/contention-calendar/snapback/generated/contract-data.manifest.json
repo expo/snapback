@@ -1,7 +1,7 @@
 {
   "artifactKind": "contractDataManifest",
   "authoredSourceHash": "sha256:069b6676e668d2abdb1f779035847638c00b5567166cfe1b5d3224e9e2a3a91f",
-  "bundleHash": "sha256:4a9d085cbfea657b",
+  "bundleHash": "sha256:0d058aeffe2d959d",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -16,14 +16,14 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "8524d9b6a312e26e7da3c3c9261d4e0e0afb54cefbad2208d6c6291bb4d33900",
+  "inputsHash": "39753df323c76a6a8a029ee78ae8ee8133b5e1917c78182b4a592507fa1908a6",
   "manifestVersion": 2,
   "mutations": {
     "clearReservations": {
       "argOrder": [],
       "args": {},
       "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
-      "implementationHash": "sha256:6f06052369b6d325b48d53291855bc7e75921206b736edc652f46d9d2788ba29",
+      "implementationHash": "sha256:ec4c9b5539fb1486440bfa79ed00520b89667fa22bf2d5c78a6ef49a7f73bdfa",
       "invalidates": [
         "reservations"
       ],
@@ -79,7 +79,7 @@
         }
       },
       "argsHash": "sha256:cb710277debe850d8fb6785162929db30f826c4a5d8ecada88411db05fcfcc81",
-      "implementationHash": "sha256:f1b9530e4bf51e34e95c941fc68431d8d0fae6ef8b020d70e979ee51dca8f11f",
+      "implementationHash": "sha256:e786030975c48dc64a2e1a31b032b1d6389b8539bdcf50ced37b885509f63b52",
       "invalidates": [
         "reservations"
       ],
@@ -625,6 +625,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:4ce6a0cf63d887fb",
+  "schemaHash": "sha256:69dd8d8a4e94b664",
   "schemaVersion": "snapback.v0"
 }

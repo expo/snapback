@@ -47,6 +47,7 @@ import {
   validateVisibilityGovernance,
   visibilityOverrideBaselineEntry,
 } from './visibility-governance.mjs';
+import { deriveWritePosture } from './write-policy.mjs';
 import {
   runMissingEventReconciler,
   runPrePushAdmission,
@@ -128,7 +129,11 @@ function ownerArtifacts(root, entries = []) {
 }
 
 function policyArtifacts(root) {
-  const successorNormalizedPolicyBody = normalizePolicyBody(tables.records.visibility, tables);
+  const successorNormalizedPolicyBody = normalizePolicyBody(
+    tables.records.visibility,
+    tables,
+    deriveWritePosture('records', tables.records),
+  );
   const node = {
     schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.transitionRecord,
     id: 'records-root-v1',
@@ -139,7 +144,7 @@ function policyArtifacts(root) {
     predecessorPolicyDigest: null,
     successorNormalizedPolicyBody,
     successorPolicyDigest: governanceDigest(
-      'snapback:table-visibility-policy-body:v1',
+      'snapback:table-visibility-policy-body:v2',
       successorNormalizedPolicyBody,
     ),
     admissionKind: 'new-restricted',
@@ -165,6 +170,138 @@ function policyArtifacts(root) {
     headDigest: governanceDigest('snapback:visibility-quarantine-head:v1', []),
   });
   return transitionLedger;
+}
+
+// Frozen from origin/main:demos/todo/snapback/generated/* at 7c3669081.
+// Keeping the committed digests here makes the predecessor-version test use a
+// real G1 corpus shape rather than a helper regenerated under current code.
+const REAL_TODO_V1_POLICY_BASELINE = Object.freeze({
+  entries: [{
+    normalizedPolicyBody: {
+      audienceDeclarationClosure: [],
+      audienceDeclarationClosureDigest:
+        'sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3',
+      policy: { field: 'userId', kind: 'owner' },
+    },
+    policyDigest: 'sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d',
+    provenanceHeadId: 'todos-g1-20260816-v1',
+    tableId: 'todos',
+  }],
+  exactSetDigest: 'sha256:90a541457d056464c40c19c3c27bfe0cec46b0cd3feba5aeea7a9e807e4c7362',
+  schemaVersion: 'snapback.table-visibility-policy-baseline.v1',
+});
+
+const REAL_TODO_V1_TRANSITION_LEDGER = Object.freeze({
+  heads: { todos: 'todos-g1-20260816-v1' },
+  ledgerDigest: 'sha256:8eb97a7c6f67b5a9894548211f687ef3eedf881275a91c633ff0b26996a2dd61',
+  nodes: [{
+    admissionKind: 'g1-migration',
+    approvalClosureDigest: null,
+    approvalPath: null,
+    id: 'todos-g1-20260816-v1',
+    predecessorHeadDigest: null,
+    predecessorHeadId: null,
+    predecessorNormalizedPolicyBody: null,
+    predecessorPolicyDigest: null,
+    quarantineVerdict: null,
+    schemaVersion: 'snapback.table-visibility-policy-transition.v1',
+    serverSeparationReceipt: null,
+    serverSeparationReceiptDigest: null,
+    successorNormalizedPolicyBody: {
+      audienceDeclarationClosure: [],
+      audienceDeclarationClosureDigest:
+        'sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3',
+      policy: { field: 'userId', kind: 'owner' },
+    },
+    successorPolicyDigest:
+      'sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d',
+    tableId: 'todos',
+  }],
+  schemaVersion: 'snapback.table-visibility-policy-transition-ledger.v1',
+});
+
+function realTodoV2PolicyArtifacts(writePosture = undefined) {
+  const table = {
+    visibility: { kind: 'owner', field: 'userId' },
+    fields: [],
+  };
+  const normalizedPolicyBody = normalizePolicyBody(
+    table.visibility,
+    { todos: table },
+    writePosture ?? deriveWritePosture('todos', table),
+  );
+  const node = {
+    ...structuredClone(REAL_TODO_V1_TRANSITION_LEDGER.nodes[0]),
+    schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.transitionRecord,
+    successorNormalizedPolicyBody: normalizedPolicyBody,
+    successorPolicyDigest: governanceDigest(
+      'snapback:table-visibility-policy-body:v2',
+      normalizedPolicyBody,
+    ),
+  };
+  const ledger = {
+    schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.transitionLedger,
+    nodes: [node],
+    heads: structuredClone(REAL_TODO_V1_TRANSITION_LEDGER.heads),
+    ledgerDigest: transitionLedgerDigest(
+      [node],
+      REAL_TODO_V1_TRANSITION_LEDGER.heads,
+    ),
+  };
+  const baseline = exactSetBaseline([{
+    tableId: 'todos',
+    normalizedPolicyBody,
+    policyDigest: node.successorPolicyDigest,
+    provenanceHeadId: node.id,
+  }], GOVERNANCE_SCHEMA_VERSIONS.policyBaseline);
+  return { baseline, ledger };
+}
+
+function installRealTodoGovernanceFixture(root) {
+  const backendPath = 'demos/todo/snapback';
+  const backendRoot = join(root, backendPath);
+  ownerArtifacts(backendRoot);
+  writeJson(backendRoot, GOVERNANCE_FILES.overrideBaseline,
+    exactSetBaseline([], GOVERNANCE_SCHEMA_VERSIONS.overrideBaseline));
+  writeJson(backendRoot, GOVERNANCE_FILES.quarantineLedger, {
+    schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.quarantineLedger,
+    records: [],
+    retiredIds: [],
+    headDigest: governanceDigest('snapback:visibility-quarantine-head:v1', []),
+  });
+  writeJson(backendRoot, 'generated/normalized-definition.v1.json', {
+    definition: {
+      application: {
+        schema: {
+          tables: [{
+            name: 'todos',
+            visibility: { field: 'userId', kind: 'owner' },
+          }],
+        },
+      },
+      operations: [],
+    },
+  });
+  writeJson(backendRoot, 'generated/authorization-review.json', {
+    writePolicyChecks: [],
+  });
+  writeJson(backendRoot, GOVERNANCE_FILES.policyBaseline,
+    REAL_TODO_V1_POLICY_BASELINE);
+  writeJson(backendRoot, GOVERNANCE_FILES.transitionLedger,
+    REAL_TODO_V1_TRANSITION_LEDGER);
+  return { backendPath, backendRoot };
+}
+
+function initializeRealTodoGovernanceHistory(root) {
+  git(root, 'init', '-q');
+  git(root, 'branch', '-M', 'main');
+  const fixture = installRealTodoGovernanceFixture(root);
+  return { ...fixture, beforeOid: commitAll(root, 'real todo v1 predecessor') };
+}
+
+function writePolicyArtifacts(root, { baseline, ledger }) {
+  writeJson(root, GOVERNANCE_FILES.policyBaseline, baseline);
+  writeJson(root, GOVERNANCE_FILES.transitionLedger, ledger);
 }
 
 function fixtureDeclaration() {
@@ -742,6 +879,7 @@ test('ordinary-policy growth needs one exact content-bound transition closure', 
     const successorNormalizedPolicyBody = normalizePolicyBody(
       widenedTables.records.visibility,
       widenedTables,
+      deriveWritePosture('records', widenedTables.records),
     );
     const approvalPath = 'table-visibility-policy-approvals/records-public-v1.json';
     const receiptPath = 'table-visibility-policy-receipts/records-public-v1.json';
@@ -755,7 +893,7 @@ test('ordinary-policy growth needs one exact content-bound transition closure', 
       predecessorPolicyDigest: predecessor.successorPolicyDigest,
       successorNormalizedPolicyBody,
       successorPolicyDigest: governanceDigest(
-        'snapback:table-visibility-policy-body:v1',
+        'snapback:table-visibility-policy-body:v2',
         successorNormalizedPolicyBody,
       ),
       admissionKind: 'approved-transition',
@@ -826,7 +964,7 @@ test('ordinary-policy growth needs one exact content-bound transition closure', 
       scopeDigest: approval.scopeDigest,
       approvalClosureDigest: node.approvalClosureDigest,
       predecessorOwnerMapDigest: approval.ownerMapDigest,
-      comparatorVersion: 'snapback.visibility-governance-comparator.v1',
+      comparatorVersion: 'snapback.visibility-governance-comparator.v2',
       approvalOnly: true,
       observerKeyEpoch: 'policy-epoch-1',
       observerKeyDigest,
@@ -871,6 +1009,28 @@ test('ordinary-policy growth needs one exact content-bound transition closure', 
         tables: widenedTables,
       }),
       ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('an installed policy cannot be removed or laundered back into omission', () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-policy-removal-'));
+  try {
+    ownerArtifacts(root);
+    policyArtifacts(root);
+    writeJson(root, GOVERNANCE_FILES.overrideBaseline,
+      exactSetBaseline([], GOVERNANCE_SCHEMA_VERSIONS.overrideBaseline));
+    assert.throws(
+      () => validateVisibilityGovernance({
+        root,
+        backendRoot: root,
+        schemaDef: { visibilityOverrides: [] },
+        tables: { records: { ...tables.records, visibility: undefined } },
+      }),
+      ({ code, details }) => code === 'SNAPBACK_TABLE_WRITE_POLICY_REMOVAL_REFUSED'
+        && details.tables[0] === 'records',
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -957,6 +1117,94 @@ function commitAll(root, message) {
   return git(root, 'rev-parse', 'HEAD');
 }
 
+test('history comparator admits the real todo v1-to-derived-v2 governance upgrade', () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-visibility-v1-v2-'));
+  try {
+    const { backendPath, backendRoot, beforeOid } = initializeRealTodoGovernanceHistory(root);
+    const upgraded = realTodoV2PolicyArtifacts();
+    assert.equal(upgraded.baseline.exactSetDigest,
+      'sha256:e57dd6e9059676703805c18edae25bc8d8f50e7a658a660b369b5ebae0212c30');
+    assert.equal(upgraded.ledger.ledgerDigest,
+      'sha256:c79fa831b3aca6a7eba143e3c821c3fb82f532b34d7a130b98c6bc674be818a8');
+    writePolicyArtifacts(backendRoot, upgraded);
+    const afterOid = commitAll(root, 'derived v2 upgrade');
+    assert.deepEqual(compareGovernanceSnapshots({
+      root,
+      beforeOid,
+      afterOid,
+      backendPaths: [backendPath],
+    }).policyGrowth, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('history comparator always refuses a table-policy governance v2-to-v1 downgrade', () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-visibility-v2-v1-'));
+  try {
+    const { backendPath, backendRoot } = initializeRealTodoGovernanceHistory(root);
+    writePolicyArtifacts(backendRoot, realTodoV2PolicyArtifacts());
+    const beforeOid = commitAll(root, 'v2 predecessor');
+    writePolicyArtifacts(backendRoot, {
+      baseline: REAL_TODO_V1_POLICY_BASELINE,
+      ledger: REAL_TODO_V1_TRANSITION_LEDGER,
+    });
+    const afterOid = commitAll(root, 'attempt v1 downgrade');
+    assert.throws(
+      () => compareGovernanceSnapshots({
+        root,
+        beforeOid,
+        afterOid,
+        backendPaths: [backendPath],
+      }),
+      ({ code, message }) => code === 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID'
+        && message.includes('downgrades ordinary table-policy governance from v2 to v1'),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('history comparator refuses a v1-to-v2 posture altered beyond its derived default', () => {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-visibility-v1-altered-v2-'));
+  try {
+    const { backendPath, backendRoot, beforeOid } = initializeRealTodoGovernanceHistory(root);
+    const table = { visibility: { kind: 'owner', field: 'userId' } };
+    const alteredPosture = deriveWritePosture('todos', table);
+    alteredPosture.dispositions.insert = 'refused';
+    writePolicyArtifacts(backendRoot, realTodoV2PolicyArtifacts(alteredPosture));
+    const assertRefused = (afterOid) => assert.throws(
+      () => compareGovernanceSnapshots({
+        root,
+        beforeOid,
+        afterOid,
+        backendPaths: [backendPath],
+      }),
+      ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+    );
+    assertRefused(commitAll(root, 'altered v2 disposition'));
+
+    const disclosurePosture = deriveWritePosture('todos', table);
+    disclosurePosture.globalUniqueDisclosures.push({
+      table: 'todos',
+      writeForm: 'insert',
+      constraint: 'by_external_key',
+      operations: ['createTodo'],
+    });
+    writePolicyArtifacts(backendRoot, realTodoV2PolicyArtifacts(disclosurePosture));
+    assertRefused(commitAll(root, 'altered v2 disclosure'));
+
+    const authorityClassPosture = deriveWritePosture('todos', {
+      ...table,
+      membership: {},
+    });
+    writePolicyArtifacts(backendRoot, realTodoV2PolicyArtifacts(authorityClassPosture));
+    assertRefused(commitAll(root, 'altered v2 authority class'));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('G1 closure admits only the exact initial public-policy corpus once', () => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-visibility-g1-'));
   const backendPath = 'app/snapback';
@@ -977,6 +1225,7 @@ test('G1 closure admits only the exact initial public-policy corpus once', () =>
     const successorNormalizedPolicyBody = normalizePolicyBody(
       migrationTables.records.visibility,
       migrationTables,
+      deriveWritePosture('records', migrationTables.records),
     );
     const node = {
       schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.transitionRecord,
@@ -988,7 +1237,7 @@ test('G1 closure admits only the exact initial public-policy corpus once', () =>
       predecessorPolicyDigest: null,
       successorNormalizedPolicyBody,
       successorPolicyDigest: governanceDigest(
-        'snapback:table-visibility-policy-body:v1',
+        'snapback:table-visibility-policy-body:v2',
         successorNormalizedPolicyBody,
       ),
       admissionKind: 'g1-migration',

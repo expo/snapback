@@ -26,15 +26,6 @@ async function myRoomDeliveries(ctx, roomId) {
     .collect();
 }
 
-async function principalRoomDeliveries(ctx, roomId, principal) {
-  return await ctx.db
-    .query('deliveries')
-    .withIndex('by_recipient_room')
-    .eq('recipientId', principal)
-    .eq('roomId', roomId)
-    .collect();
-}
-
 globalThis.__snapbackHandlers = {
   async createRoom(ctx, args) {
     const title = requiredText(args.title, 'room title');
@@ -139,17 +130,9 @@ globalThis.__snapbackHandlers = {
       .eq('roomId', args.roomId)
       .collect())
       .find((row) => row.userId === args.targetPrincipal);
-    const deliveries = await principalRoomDeliveries(
-      ctx,
-      args.roomId,
-      args.targetPrincipal,
-    );
-    if (deliveries.length > MAX_ROOM_DELIVERIES_PER_MUTATION) {
-      throw new Error('room inbox exceeds the bounded owner-removal mutation');
-    }
-    for (const delivery of deliveries) {
-      await ctx.db.delete('deliveries', delivery._id);
-    }
+    // @ref LLP 0264#migration-and-rollout — Phase 1a cannot let an owner
+    // mutate another principal's owner slice. Cross-principal inbox cleanup
+    // remains an explicit IR-extension dependency for Phase 1b closure.
     if (participant !== undefined && participant.status !== 'removed') {
       await ctx.db.patch('roomParticipants', participant._id, {
         status: 'removed',
@@ -190,20 +173,20 @@ globalThis.__snapbackHandlers = {
       pageKey: ctx.runtime.id(),
       createdAt: now,
     });
-    for (const participant of participants) {
-      await ctx.db.insert('deliveries', {
-        recipientId: participant.userId,
-        roomId: args.roomId,
-        messageId,
-        authorId: ctx.auth.userId,
-        authorName: author.displayName,
-        body,
-        pageKey: ctx.runtime.id(),
-        createdAt: now,
-        unread: participant.userId !== ctx.auth.userId,
-      });
-    }
-    return { messageId, recipients: participants.length };
+    // @ref LLP 0264#migration-and-rollout — the owner slice admits only the
+    // sender's delivery until an explicit cross-principal fan-out write model
+    // exists. The local pressure kernel makes no production chat claim.
+    await ctx.db.insert('deliveries', {
+      roomId: args.roomId,
+      messageId,
+      authorId: ctx.auth.userId,
+      authorName: author.displayName,
+      body,
+      pageKey: ctx.runtime.id(),
+      createdAt: now,
+      unread: false,
+    });
+    return { messageId, recipients: 1 };
   },
 
   async markRoomRead(ctx, args) {

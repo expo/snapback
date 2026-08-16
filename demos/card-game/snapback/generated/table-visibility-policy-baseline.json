@@ -7,9 +7,22 @@
         "policy": {
           "field": "ownerId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "ownerId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:69ff69633d8d79a643466840efbc4ea78d4ec552e69bccacd605266546efb69d",
+      "policyDigest": "sha256:3ab68d00f21a05cc709bc9d8d339e74c49ee513b252026a3feb89e9497bfe530",
       "provenanceHeadId": "hands-g1-20260816-v1",
       "tableId": "hands"
     },
@@ -20,13 +33,26 @@
         "policy": {
           "field": "userId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "policyDigest": "sha256:855c89af12373249b39cca8410368da842403104f007e8a5e1d5cc98b007df00",
       "provenanceHeadId": "readySignals-g1-20260816-v1",
       "tableId": "readySignals"
     }
   ],
-  "exactSetDigest": "sha256:b466c589120d8bcb2450a07b0619d69596fa288a28ba83bcb7111fdec9311a06",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:434a3dd3c337bc8988ac7b22af489d3a83e8c60eb53ccb7e248d6da63d34314d",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

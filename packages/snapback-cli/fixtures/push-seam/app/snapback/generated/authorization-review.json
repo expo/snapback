@@ -42,7 +42,7 @@
   ],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:61e89b334ebc11a8fe7a9d443585c473e3945161322287bd88da67d2fba90213",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:29a21f5ee765769143964df91e2e30f79a772d440b9df9562a93f1b81ef973f6",
   "operations": [
     {
       "authRequirement": {
@@ -253,7 +253,7 @@
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
     "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
     "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
-    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.v2"
   },
   "tablePolicies": [
     {
@@ -277,7 +277,7 @@
       "predecessorPolicyDigest": null,
       "quarantineVerdict": null,
       "recomputedClassification": "new-restricted",
-      "schemaVersion": "snapback.table-visibility-policy-transition.v1",
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
       "serverSeparationReceipt": null,
       "serverSeparationReceiptDigest": null,
       "successorNormalizedPolicyBody": {
@@ -286,9 +286,22 @@
         "policy": {
           "field": "principal",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "principal",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "successorPolicyDigest": "sha256:0005acd1411fae5afb50a80e6e5a8d0d97d5c89874befd4ccc1f1a7625bb5baa",
+      "successorPolicyDigest": "sha256:f603eebaa00f2dde955f745d64e3ce15c5cefdba1c96350ab27e88dc8536f2ce",
       "tableId": "appMembers"
     }
   ],

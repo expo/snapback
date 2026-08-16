@@ -250,6 +250,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 .mutation_writes()
                 .execute_mutation(
                     &MutationPlan {
+            owner_write_checks: Vec::new(),
                         steps: vec![MutationStep::Insert {
                             table: corpus.schema.table.clone(),
                             values: literal_values(&case.values),
@@ -264,6 +265,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 .mutation_writes()
                 .execute_mutation(
                     &MutationPlan {
+            owner_write_checks: Vec::new(),
                         steps: vec![MutationStep::Patch {
                             table: corpus.schema.table.clone(),
                             id: ValueExpr::Literal(Value::String(
@@ -292,6 +294,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 db.mutation_writes()
                     .execute_mutation(
                         &MutationPlan {
+            owner_write_checks: Vec::new(),
                             steps: vec![MutationStep::Insert {
                                 table: corpus.schema.table.clone(),
                                 values,
@@ -311,6 +314,7 @@ fn local_sqlite_consumes_the_shared_structural_validation_corpus() {
                 db.mutation_writes()
                     .execute_mutation(
                         &MutationPlan {
+            owner_write_checks: Vec::new(),
                             steps: vec![MutationStep::Patch {
                                 table: corpus.schema.table.clone(),
                                 id: ValueExpr::Literal(Value::String(
@@ -376,6 +380,7 @@ fn local_missing_rows_still_validate_the_shared_patch_corpus() {
         };
         let outcome = db.mutation_writes().execute_mutation(
             &MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Patch {
                     table: corpus.schema.table.clone(),
                     id: ValueExpr::Literal(Value::String(
@@ -445,6 +450,7 @@ fn local_declared_field_types_consume_the_shared_boundary_corpus() {
             .expect("apply type-case schema");
         let outcome = db.mutation_writes().execute_mutation(
             &MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "typeRecords".to_owned(),
                     values: BTreeMap::from([(
@@ -521,6 +527,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
             .mutation_writes()
             .execute_mutation(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "edgeRecords".to_owned(),
                         id: ValueExpr::Literal(Value::String(id.to_owned())),
@@ -542,6 +549,7 @@ fn local_required_json_and_prototype_named_fields_match_the_cloud_boundary() {
         .mutation_writes()
         .execute_mutation(
             &MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "edgeRecords".to_owned(),
                     values: BTreeMap::from([(

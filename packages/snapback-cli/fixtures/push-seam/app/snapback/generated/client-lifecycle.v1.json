@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:61e89b334ebc11a8fe7a9d443585c473e3945161322287bd88da67d2fba90213",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:29a21f5ee765769143964df91e2e30f79a772d440b9df9562a93f1b81ef973f6",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -117,7 +117,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:c941c6b01420d9f2242002fa5fc6b7e0b6924a6636b7b4f0d02cb2796322835a",
+      "implementationHash": "sha256:fbdfc163957e9a4e62f3ecd567cb4e7a348617088cf6dc182276e250e26acbc0",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",
@@ -154,7 +154,7 @@
       "delivery": "mutation",
       "freshness": "dispatch result is not durable settlement",
       "guideAnchor": "/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs",
-      "implementationHash": "sha256:1b4d278c1c99afd7afa229440d2fc98ce3382ae4af37974696a32acf4955e9b1",
+      "implementationHash": "sha256:ae3d20d8e8229342dfe9d899a7291630e6cbd80f2c857d3f074a92f1e6c8e619",
       "kind": "Mutation",
       "legalVerbs": [
         "mutate",

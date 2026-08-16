@@ -6,13 +6,26 @@
         "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
         "policy": {
           "kind": "public-read"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:f2871b9ad5955bd79353136ff70b19eaebcf1dbcf9ade860beefb4e086b23a11",
+      "policyDigest": "sha256:cc9fe68171764a808cd97f07bb8a192d266e993c26382a258b92ba3fe32f4489",
       "provenanceHeadId": "cells-g1-20260816-v1",
       "tableId": "cells"
     }
   ],
-  "exactSetDigest": "sha256:1d918c3438b93d854dae7f043b8e507fa86e62f2c4aca1660282f799274e2110",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:fdae90d8047a208adc1e11233c4ab26ddd10b4f137f41bf046157292735c448c",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

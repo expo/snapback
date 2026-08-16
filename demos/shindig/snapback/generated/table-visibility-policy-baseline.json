@@ -7,9 +7,22 @@
         "policy": {
           "field": "userId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "policyDigest": "sha256:fd2d77be96b2c6fd9f6a3ad906727ea7ee0fe3a5a7993a32f4254f9524168e0c",
       "provenanceHeadId": "eventMembers-g1-20260816-v1",
       "tableId": "eventMembers"
     },
@@ -39,9 +52,22 @@
             "guest",
             "host"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:f9200721929380ee4b869948193de4a81deedd23dc23a1ec613110cd595b696b",
+      "policyDigest": "sha256:de9eec082aa640de85190a7beb2fe37ce5f4c7b9f4615f0161032445f81b8a1e",
       "provenanceHeadId": "events-g1-20260816-v1",
       "tableId": "events"
     },
@@ -80,9 +106,22 @@
             }
           ],
           "kind": "any-of"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:aba3e248a234266ec4e7762b35a4afda581d7008c04e2dd0c4d547b141182804",
+      "policyDigest": "sha256:ac0344c115d898e8aeeb937ca9b34d8c34e8047d13ae9ebd26273402e8457b3c",
       "provenanceHeadId": "invites-g1-20260816-v1",
       "tableId": "invites"
     },
@@ -112,13 +151,26 @@
             "guest",
             "host"
           ]
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": null,
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:765dffb9a1efea8cdddb96861af95d2b5d73b3df4a213e14a07decc648981b43",
+      "policyDigest": "sha256:0b5c18f523e4fcefdc82acac814baeba386b2f16be3175ed16fb91f43fea1f3b",
       "provenanceHeadId": "posts-g1-20260816-v1",
       "tableId": "posts"
     }
   ],
-  "exactSetDigest": "sha256:b7aeac08f685195c85cf33427c5747e59b7c126e539f46dfa78e395d78087012",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:13908aea5b7a659d3af533029ec6558c652cbdc4f19e59ed9b955867594df5f3",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

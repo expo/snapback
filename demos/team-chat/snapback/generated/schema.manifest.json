@@ -6,13 +6,13 @@
   "appId": "team-chat",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:1801a69ae1ee4c4b55ebe6f8c4e7bce1666872894fa6813d74b84844c3cd74fc",
+  "authoredSourceHash": "sha256:e406df20dbf832fa489a3ed0ebc1d04648a32e989f9cb2b3adb159e586b74153",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "9e405a1f959b0e57503c303b7b68279f89547c1ce771d1aed46b0d1a6382b60c",
+  "inputsHash": "6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb",
   "portabilityFlags": [],
-  "schemaHash": "sha256:6f065c936064df33",
+  "schemaHash": "sha256:2da8af982084b847",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -368,13 +368,13 @@
   "targetProfile": "local-dev-sqlite-ibex",
   "visibilityGovernance": {
     "fixtureProfiles": [],
-    "generationInputsHash": "sha256:20828f0af216c391d46b759017f5f4cd667fba25cac87b47751f59f469562168",
+    "generationInputsHash": "sha256:e816370984888364dd4f13c3ad87dde88bdc1912e6cc5839eef0124319ec5b03",
     "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
     "productionWindows": [],
     "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
     "required": false,
     "schemaVersion": "snapback.visibility-governance-activation.v1",
-    "tablePolicyBaselineDigest": "sha256:15bd13495ed5174f5f45c8be2889e9ed62483a0dd8619b4a7ac10c4360aa136f",
-    "visibilityAuthorizationProgramDigest": "sha256:f0449c0b79182bcbf6602cad7c007be77e04a764222ff1d5ad4bd7bafd802118"
+    "tablePolicyBaselineDigest": "sha256:775ebeee01af9a8b04fa827e8c650e230e8185df1d200b2e4e1af1d133694d2e",
+    "visibilityAuthorizationProgramDigest": "sha256:c0bf918a8fba8f6f5685e09d4e9b84a70cceef71c972050511eb5d6a74ab336c"
   }
 }

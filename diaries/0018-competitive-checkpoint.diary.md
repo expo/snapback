@@ -682,3 +682,13 @@ counters, corpus ceilings, and ANN/hosted nonclaims are all executable and
 portable. That is unusually strong evidence for local-first behavior, but it
 also makes the v1 boundary clear: an ANN successor or hosted target needs its
 own capability and qualification instead of quietly replacing this result.
+
+## 2026-08-16 — owner stamping and a declared opaque ceiling
+
+The Phase 1a pass removed application-authored owner ids from message inserts;
+the host now stamps that slice. Five module mutations also had to state their
+existing closed conservative write ceiling because their patch shapes cannot
+be enumerated statically. That declaration grants nothing—the runtime owner
+checks remain authoritative—but it makes the uncertainty reviewable instead
+of pretending codegen saw exact sites. The remaining public model write is
+projected as migration-pending and carries no capability claim.

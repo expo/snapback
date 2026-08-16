@@ -1748,6 +1748,14 @@
       ],
       "type": "string"
     },
+    "AuthorityProfileHookV1": {
+      "enum": [
+        "useSnapbackQuery",
+        "useSnapbackMutation",
+        "useSnapbackOutbox.mutationStatus"
+      ],
+      "type": "string"
+    },
     "AuthorityProfileIdentityV1": {
       "additionalProperties": false,
       "description": "Stable identity of one authority-profile generation. Function manifests\ncarry this beside their ordinary authorization dimensions so a role-field\nor transition edit is visible to dependent artifact review without\nchanging the evaluator's existing membership predicate shape.",
@@ -1782,6 +1790,54 @@
         "declaration",
         "manifestPath",
         "predicateIdentity"
+      ],
+      "type": "object"
+    },
+    "AuthorityProfileOperationNameV1": {
+      "description": "One generated rollout-2 operation. The operation vocabulary is closed by\ncodegen; transition ops name the LLP 0056 planner rows (or the dedicated\ntransfer planner) that remain the server-side authority boundary.",
+      "enum": [
+        "list",
+        "myRole",
+        "invite",
+        "join",
+        "leave",
+        "changeRole",
+        "transferOwner",
+        "remove"
+      ],
+      "type": "string"
+    },
+    "AuthorityProfileOperationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authRequirement": {
+          "$ref": "#/$defs/AuthRequirement"
+        },
+        "hooks": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileHookV1"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "$ref": "#/$defs/FunctionKind"
+        },
+        "name": {
+          "$ref": "#/$defs/AuthorityProfileOperationNameV1"
+        },
+        "transitionOps": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileTransitionOpV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "authRequirement",
+        "hooks",
+        "transitionOps"
       ],
       "type": "object"
     },
@@ -1950,6 +2006,15 @@
       ],
       "type": "object"
     },
+    "AuthorityProfileTransitionOpV1": {
+      "enum": [
+        "insert",
+        "setRole",
+        "remove",
+        "transferOwner"
+      ],
+      "type": "string"
+    },
     "AuthorityProfileTransitionPreconditionsV1": {
       "additionalProperties": false,
       "properties": {
@@ -1968,7 +2033,7 @@
     },
     "AuthorityProfileV1": {
       "additionalProperties": false,
-      "description": "The closed rollout-1 authority profile projection. Canonical membership\nremains in [`TableManifest::membership`] and table policy remains in\n[`TableManifest::visibility`]; reference fields below make that ownership\nexplicit while carrying the profile-only lattice, identity, and\nqualification facts codegen needs to explain.\n\n@ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —\n  one generated projection feeds the already-shipped policy vocabulary.\n@ref LLP 0225#1-ownership-map — this cross-owner value shape lives in the\n  manifest leaf; storage/evaluators consume only their existing carriers.",
+      "description": "The closed rollout-2 authority profile projection. Canonical membership\nremains in [`TableManifest::membership`] and table policy remains in\n[`TableManifest::visibility`]; reference fields below make that ownership\nexplicit while carrying the profile-only lattice, identity, and\nqualification facts codegen needs to explain.\n\n@ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —\n  one generated projection feeds the already-shipped policy vocabulary.\n@ref LLP 0225#1-ownership-map — this cross-owner value shape lives in the\n  manifest leaf; storage/evaluators consume only their existing carriers.",
       "properties": {
         "authorizationEventFields": {
           "items": {
@@ -1988,6 +2053,12 @@
         "notYetQualifiedCompositionClasses": {
           "items": {
             "type": "string"
+          },
+          "type": "array"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/AuthorityProfileOperationV1"
           },
           "type": "array"
         },
@@ -2053,7 +2124,8 @@
         "requiredIndexes",
         "permittedCompositionClasses",
         "notYetQualifiedCompositionClasses",
-        "roster"
+        "roster",
+        "operations"
       ],
       "type": "object"
     },
@@ -3495,6 +3567,27 @@
       ],
       "type": "object"
     },
+    "IdentityBindingTableManifestV1": {
+      "additionalProperties": false,
+      "description": "One app-owned table sealed against every ordinary write path and reserved\nfor authorized migration plus the still-open verified-provisioning writer.",
+      "properties": {
+        "identityField": {
+          "type": "string"
+        },
+        "principalField": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "principalField",
+        "identityField"
+      ],
+      "type": "object"
+    },
     "IndexManifest": {
       "properties": {
         "fields": {
@@ -4867,10 +4960,6 @@
           },
           "type": "array"
         },
-        "dataQueryCatalog": {
-          "items": true,
-          "type": "array"
-        },
         "functions": {
           "items": {
             "$ref": "#/$defs/PublicFunctionDefinition"
@@ -4906,7 +4995,6 @@
         "schemaVersion",
         "appId",
         "unsupportedDependencyDiagnostics",
-        "dataQueryCatalog",
         "functions",
         "cronJobs",
         "config"
@@ -5107,10 +5195,6 @@
             "null"
           ]
         },
-        "dataResources": {
-          "items": true,
-          "type": "array"
-        },
         "ephemeralCollections": {
           "items": {
             "$ref": "#/$defs/EphemeralCollection"
@@ -5124,6 +5208,12 @@
             "integer",
             "null"
           ]
+        },
+        "identityBindingTables": {
+          "items": {
+            "$ref": "#/$defs/IdentityBindingTableManifestV1"
+          },
+          "type": "array"
         },
         "inputsHash": {
           "type": [
@@ -5185,8 +5275,8 @@
         "artifactKind",
         "schemaVersion",
         "appId",
-        "dataResources",
         "requiredCapabilities",
+        "identityBindingTables",
         "artifactDiagnostics",
         "portabilityFlags",
         "ephemeralCollections",

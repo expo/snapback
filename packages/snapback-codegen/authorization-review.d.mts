@@ -12,6 +12,7 @@ export function createAuthorizationReview(input: Readonly<{
   uncomposedReadSurfaceDiagnostics?: readonly Readonly<Record<string, unknown>>[];
   summary: Readonly<Record<string, unknown>>;
   visibilityGovernance?: Readonly<Record<string, any>> | null;
+  writePolicyChecks?: readonly Readonly<Record<string, unknown>>[];
 }>): Readonly<Record<string, unknown>>;
 
 export function serializeAuthorizationReview(value: unknown): string;

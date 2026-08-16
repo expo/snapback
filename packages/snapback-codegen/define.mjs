@@ -97,6 +97,14 @@ export const QUERY_SPEC_FIELDS = new Set([
 export const MUTATION_SPEC_FIELDS = new Set([
   'args', 'plan', 'result', 'returns', 'stream', 'boundedSkew', 'standardPattern',
   'auth', 'authorityCreating', 'refusals', 'trackedRefusals', 'requires',
+  'discloseUniqueConflicts', 'writeElevation',
+]);
+export const JS_MUTATION_SPEC_FIELDS = new Set([
+  'args', 'source', 'exportName', 'handler', 'reads', 'writes', 'result', 'auth',
+  'authorityCreating', 'refusals', 'trackedRefusals', 'authorizationDependence',
+  'requires', 'membership', 'elevatedReads', 'sequences', 'outgrewIr',
+  'discloseUniqueConflicts', 'opaqueWritePosture', 'declaredTableCeiling',
+  'writeElevation', 'stream',
 ]);
 export const ACTION_SPEC_FIELDS = new Set([
   'args', 'plan', 'js', 'handler', 'result', 'returns', 'stream', 'uses', 'writes',
@@ -4571,12 +4579,65 @@ function normalizeBoundedSkew(declaration, steps) {
   };
 }
 
+const GENERIC_WRITE_FORMS = new Set(['insert', 'insert-each', 'patch', 'delete', 'delete-where']);
+
+function normalizeUniqueConflictDisclosures(value, where) {
+  if (value === undefined) return [];
+  assert(Array.isArray(value), `${where} discloseUniqueConflicts must be an array`);
+  const seen = new Set();
+  return value.map((entry, index) => {
+    const label = `${where} discloseUniqueConflicts[${index}]`;
+    exactObject(entry, label, new Set(['table', 'writeForm', 'constraint', 'operations']));
+    assert(isUserIdentifier(entry.table), `${label}.table must be a user table identifier`);
+    assert(GENERIC_WRITE_FORMS.has(entry.writeForm), `${label}.writeForm is not a generic write form`);
+    assert(isUserIdentifier(entry.constraint), `${label}.constraint must be an index identifier`);
+    assert(
+      Array.isArray(entry.operations)
+        && entry.operations.length > 0
+        && entry.operations.every((operation) => isUserIdentifier(operation)),
+      `${label}.operations must be a non-empty operation-identifier array`,
+    );
+    const operations = [...entry.operations].sort();
+    assert(new Set(operations).size === operations.length, `${label}.operations must not repeat an operation`);
+    const normalized = {
+      table: entry.table,
+      writeForm: entry.writeForm,
+      constraint: entry.constraint,
+      operations,
+    };
+    const key = JSON.stringify(normalized);
+    assert(!seen.has(key), `${where} discloseUniqueConflicts repeats an identical declaration`);
+    seen.add(key);
+    return normalized;
+  }).sort((left, right) => {
+    const a = JSON.stringify(left);
+    const b = JSON.stringify(right);
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+}
+
+function normalizeTableCeiling(value, where) {
+  if (value === undefined) return undefined;
+  assert(
+    Array.isArray(value) && value.length > 0 && value.every((table) => isUserIdentifier(table)),
+    `${where} declaredTableCeiling must be a non-empty table-identifier array`,
+  );
+  const tables = [...value].sort();
+  assert(new Set(tables).size === tables.length, `${where} declaredTableCeiling must not repeat a table`);
+  return tables;
+}
+
 export function defineMutation(spec) {
   // @ref LLP 0010#generated-artifacts — function declarations are closed:
   // a typo or not-yet-implemented proposal must refuse, never disappear from
   // the generated function manifest.
   assertKnownSpecFields(spec, 'Mutation', MUTATION_SPEC_FIELDS, 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN');
   assert(spec.stream !== true, 'stream: true is available only on defineAction');
+  assert(
+    spec.writeElevation === undefined,
+    'generic write elevation is unavailable',
+    'SNAPBACK_TABLE_WRITE_ELEVATION_UNAVAILABLE',
+  );
   const steps = Array.isArray(spec.plan) ? spec.plan : [spec.plan];
   assert(steps.length > 0, 'defineMutation requires at least one plan step');
   if (spec.result !== undefined) {
@@ -4594,6 +4655,7 @@ export function defineMutation(spec) {
     ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     ...normalizeBoundedSkew(spec.boundedSkew, steps),
     ...normalizeStandardPattern(spec, 'Mutation'),
+    discloseUniqueConflicts: normalizeUniqueConflictDisclosures(spec.discloseUniqueConflicts, 'defineMutation'),
     plan: { steps, return_value: spec.returns ?? null },
   };
 }
@@ -4650,7 +4712,13 @@ function normalizeSequences(sequences) {
 }
 
 export function defineJsMutation(spec) {
+  assertKnownSpecFields(spec, 'JsMutation', JS_MUTATION_SPEC_FIELDS, 'SNAPBACK_FUNCTION_SPEC_FIELD_UNKNOWN');
   assert(spec.stream !== true, 'stream: true is available only on defineAction');
+  assert(
+    spec.writeElevation === undefined,
+    'generic write elevation is unavailable',
+    'SNAPBACK_TABLE_WRITE_ELEVATION_UNAVAILABLE',
+  );
   const inline = spec.handler !== undefined;
   const legacy = spec.source !== undefined || spec.exportName !== undefined;
   assert(inline !== legacy, 'defineJsMutation requires exactly one handler form: handler or source + exportName');
@@ -4688,6 +4756,10 @@ export function defineJsMutation(spec) {
       `defineJsMutation outgrewIr must be one of: ${Object.keys(OUTGREW_IR_CLASSES).join(', ')}`,
     );
   }
+  const declaredTableCeiling = normalizeTableCeiling(
+    spec.declaredTableCeiling,
+    'defineJsMutation',
+  );
   return {
     [FN]: true,
     __kind: 'Mutation',
@@ -4696,6 +4768,14 @@ export function defineJsMutation(spec) {
     ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     ...(spec.outgrewIr !== undefined ? { outgrewIr: spec.outgrewIr } : {}),
     ...(spec.membership === undefined ? {} : { membership: [...spec.membership] }),
+    discloseUniqueConflicts: normalizeUniqueConflictDisclosures(
+      spec.discloseUniqueConflicts,
+      'defineJsMutation',
+    ),
+    ...(spec.opaqueWritePosture === undefined
+      ? {}
+      : { opaqueWritePosture: spec.opaqueWritePosture }),
+    ...(declaredTableCeiling === undefined ? {} : { declaredTableCeiling }),
     // @ref LLP 0135#12-allocation-surfaces — admission-visible declaration;
     // imperative calls remain runtime checked because generation cannot see
     // through handler control flow.

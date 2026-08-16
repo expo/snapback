@@ -4714,7 +4714,6 @@ each call:
   const now = ctx.runtime.now();
   const attemptId = ctx.runtime.id();
   await ctx.db.insert('messages', {
-    ownerId: ctx.auth.userId,
     conversationId: args.conversationId,
     role: 'user',
     content: args.content,
@@ -4726,6 +4725,10 @@ each call:
     pageKey: ctx.runtime.id(),
   });
 ```
+
+The owner-policy field is also intentionally absent: Snapback stamps the
+effective principal at the host. Supplying it from handler values is refused,
+even when it equals `ctx.auth.userId`.
 
 The host records these answers and reuses them if it replays the invocation.
 That is why ambient clock and randomness APIs are not interchangeable with the
@@ -4886,6 +4889,7 @@ export const todos = defineTable({
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
   .index('by_owner_created', ['ownerId', 'createdAt'])
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .sync();
 ```
 

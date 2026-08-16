@@ -9,14 +9,12 @@ globalThis.__snapbackHandlers = {
     const occurredAt = ctx.runtime.now();
     const eventId = ctx.runtime.id();
     const incidentId = await ctx.db.insert('incidents', {
-      ownerId: ctx.auth.userId,
       title,
       status: 'open',
       eventId,
       reportedAt: occurredAt,
     });
     await ctx.db.insert('auditEntries', {
-      ownerId: ctx.auth.userId,
       incidentId,
       eventId: ctx.runtime.id(),
       kind: 'incident.reported',

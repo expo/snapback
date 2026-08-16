@@ -7,13 +7,26 @@
         "policy": {
           "field": "userId",
           "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userId",
+          "semanticVersion": "snapback.owner-write.v1"
         }
       },
-      "policyDigest": "sha256:a6318806aa090a5cb645e0afd23bb42c16e11f3b7cc98f7967d18c7b6a0b5b9d",
+      "policyDigest": "sha256:855c89af12373249b39cca8410368da842403104f007e8a5e1d5cc98b007df00",
       "provenanceHeadId": "todos-g1-20260816-v1",
       "tableId": "todos"
     }
   ],
-  "exactSetDigest": "sha256:90a541457d056464c40c19c3c27bfe0cec46b0cd3feba5aeea7a9e807e4c7362",
-  "schemaVersion": "snapback.table-visibility-policy-baseline.v1"
+  "exactSetDigest": "sha256:e57dd6e9059676703805c18edae25bc8d8f50e7a658a660b369b5ebae0212c30",
+  "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

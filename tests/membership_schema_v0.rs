@@ -146,6 +146,7 @@ fn insert_row(db: &mut LocalDatabase, table: &str, values: &[(&str, Value)]) {
     db.mutation_writes()
         .execute_mutation(
             &MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: table.to_owned(),
                     values,

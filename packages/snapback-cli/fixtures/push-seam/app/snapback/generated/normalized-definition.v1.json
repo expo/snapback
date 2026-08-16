@@ -234,6 +234,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "appMembers",
@@ -306,6 +310,10 @@
         "stream": false,
         "syncabilityClass": "mutation",
         "trackedRefusals": [],
+        "writePolicy": {
+          "disclosures": [],
+          "semanticVersion": "snapback.owner-write.v1"
+        },
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": "appMembers",
@@ -805,6 +813,7 @@
         "stream": false,
         "syncabilityClass": "online-only",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "none",
           "primaryTable": null,
@@ -966,6 +975,7 @@
         "stream": false,
         "syncabilityClass": "action",
         "trackedRefusals": [],
+        "writePolicy": null,
         "writes": {
           "mode": "handlerDeclared",
           "primaryTable": null,
@@ -980,7 +990,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:47efd66833bae48985e5aff2d40ae19b99e072467ca627e0724689b79c6d2bc2",
+  "normalizedContractId": "sha256:d9e7c84267ef4998a195a10348ecfb5416c532e598415c9271c1b9bd98e938a0",
   "normalizedSchemaId": "sha256:2afb642cff9f5bd79a55f48e5a7c1b78bc24fbb74804cec2ced532ddbc516bc7",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

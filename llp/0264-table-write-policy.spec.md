@@ -5,7 +5,7 @@
 **Systems:** Auth, Security/authorization, Storage, Code generation, Application data API, Generated artifacts, Diagnostics, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-15
-**Revised:** 2026-08-15 (round-3 targeted response)
+**Revised:** 2026-08-16 (Phase 1a migration window and Phase 1b flip gate)
 **Related:** LLP 0231, LLP 0234, LLP 0255, LLP 0173, LLP 0240, LLP 0056, LLP 0065, LLP 0135, LLP 0239
 
 ## Summary
@@ -32,9 +32,12 @@ V1 has four central rules:
 4. There is no write elevation. LLP 0231 D7 and LLP 0234 authorize bounded
    read alternatives only.
 
-This is a specification, not an implementation or capability claim. The
-shipped standard-pattern lowerers already emit the desired owner-shaped plans,
-but that codegen structure is evidence and a compatibility wedge, not a
+This is the governing specification, not by itself a capability claim. The
+2026-08-16 Phase 1a implementation and staged write-migration gap are recorded
+in Migration and the revision history. Phase 1a claims only the owner-policy
+slice: its declared non-owner gap is warning-backed and projected, never
+described as permission or enforcement. The shipped standard-pattern lowerer emits the desired owner-shaped
+plans, but that codegen structure is evidence and a compatibility wedge, not a
 security boundary. Result egress after a write is also not solved here; §D8
 names the separate phase and the risk that remains.
 
@@ -50,10 +53,9 @@ table write-policy enforcement.
   defaults, and refuses membership or permission-backing tables. Its private
   `ownedRowGuard` performs an in-plan `Get` plus owner `Guard` and collapses
   missing and other-owner rows to `SNAPBACK_ROW_NOT_FOUND`.
-- `lowerDataResourceV1` reuses `defineOwnedCrud` for owner resources. Its
-  `public-read.v1` branch emits only list/get queries and no mutations. These
-  are the landed LLP 0255 S2 semantics. They protect only operations that
-  retain this exact generated plan structure.
+- On 2026-08-16 the experimental `.data()` / `lowerDataResourceV1` doorway was
+  withdrawn by commit `7b40f3caa`; `defineOwnedCrud` remains the shipped
+  compatibility wedge and positive owner-write fixture.
 - `IbexHostContext::handle_host_call` in `src/runtime.rs` buffers `db.insert`
   after schema/value validation without resolving table visibility or
   stamping an owner. Its `db.patch` and `db.delete` arms call
@@ -187,15 +189,17 @@ declared-policy removal in every migration phase.
 | Installed table policy | Generic write posture in v1 |
 | --- | --- |
 | `owner { field }` | Insert is host-stamped to the effective principal. Update/delete affect only an old row whose owner field equals that principal. The owner field is immutable. |
-| `membership { ... }` | Generic writes are refused. A read membership is not a write role. Future membership-scoped ordinary-data writes must extend this same policy IR. |
-| `any-of { ... }` | Generic writes are refused, including a group containing an owner arm. A read disjunction is not an unambiguous write principal. |
-| `public-read` | Generic writes are refused. Public disclosure never means anonymous, authenticated, system, or public mutation authority. |
+| `membership { ... }` | Phase 1a warns and preserves pre-0264 runtime behavior while projecting `migration-pending`; Phase 1b refuses. A read membership is not a write role. Future membership-scoped ordinary-data writes must extend this same policy IR. |
+| `any-of { ... }` | Phase 1a warns and preserves pre-0264 runtime behavior while projecting `migration-pending`; Phase 1b refuses, including a group containing an owner arm. A read disjunction is not an unambiguous write principal. |
+| `public-read` | Phase 1a warns and preserves pre-0264 runtime behavior while projecting `migration-pending`; Phase 1b refuses. Public disclosure never means anonymous, authenticated, system, or public mutation authority. |
 | exact pre-cut undeclared table named by the D2 migration root | Before G2, Phase 1 may preserve existing behavior only as an explicitly projected `legacy-undeclared` gap with the existing missing-policy diagnostic. No enforcement or capability claim is permitted. G2 changes omission to a generation failure. |
 | undeclared table absent from that root, including a new table or one whose declaration was removed | Generic writes refuse during every phase. At G2 the shared missing-policy generation failure applies as well. It never acquires `legacy-undeclared`. |
 
-This table is a default-closed derivation, not a second policy. V1 implements
-only the exact owner slice; every other current declared kind has a generic
-write disposition of `refused`. An application needing another write model
+This table is a default-closed derivation, not a second policy. The normalized
+`writePosture` consumed by LLP 0234 remains `refused` for every current
+declared non-owner kind throughout the migration window; Phase 1a changes only
+codegen severity and the review projection. Runtime neither gains enforcement
+nor permission for those tables. An application needing another write model
 uses an already-governed specialized operation or waits for a sibling that
 extends the shared IR.
 
@@ -243,10 +247,11 @@ plan; it cannot insert a prefix.
 
 A trusted default may not set `F`. Codegen refuses that declaration rather
 than ordering the default before or after stamping. The existing
-`defineOwnedCrud` and `lowerDataResourceV1` lowerings already satisfy this
-rule: create arguments omit the owner, their canonical plan uses
-`authUserId()`, and owner defaults are rejected. They remain compatibility and
-positive-test fixtures after central enforcement lands.
+`defineOwnedCrud` lowering already satisfies this rule: create arguments omit
+the owner, its canonical plan uses `authUserId()`, and owner defaults are
+rejected. It remains a compatibility and positive-test fixture after central
+enforcement lands. The former `lowerDataResourceV1` doorway is not part of the
+live surface after the 2026-08-16 withdrawal recorded in S0.
 
 V1 does not provide owner delegation, owner transfer, caller-selected service
 owners, or system stamping. Those are different authority operations, not
@@ -271,7 +276,7 @@ become authority.
 
 The gate is evaluated per statically classified write form. A JavaScript
 operation whose write call sites cannot be enumerated or whose form cannot be
-classified refuses generation in Phase 1 unless its operation metadata declares
+classified refuses generation in Phase 1a unless its operation metadata declares
 the exact versioned posture `opaqueWritePosture: conservative-v1` and a closed
 table ceiling. That posture means every ceiling member is treated as reachable
 through all JavaScript generic forms (`insert`, `patch`, and `delete`), every
@@ -280,7 +285,7 @@ every unique constraint may be reached by patch. D1's operation-bound conflict
 disclosures must independently cover the resulting insert and patch facts. It
 is conservative admission input, not runtime write authority; the central
 dispatcher still enforces the exact call. A missing or opaque table ceiling
-always refuses in Phase 1.
+always refuses in Phase 1a.
 
 For exact and conservatively opaque censuses alike, any reachable
 non-owner-partitioned constraint without the operation-bound declaration makes
@@ -488,21 +493,33 @@ closed table ceiling is a Phase-1 generation refusal, whose structured
 diagnostic carries this candidate entry. No generated artifact is published
 for the refusal.
 
-The phase boundary is explicit: Phase 1 admits an opaque JavaScript site only
+Phase 1a has one deliberately non-admitting exception to that owner-slice
+gate. When an operation's exact declared write set contains only ordinary
+tables whose installed policies are `public-read`, `membership`, or `any-of`,
+codegen may emit one table-specific
+`migration-pending-declared-write-set` row rather than fabricate call sites.
+That row has `siteId: null`, `writeForm: opaque`, the exact declared table set,
+and `authoritativeChecks: ["pre-0264-runtime-behavior"]`. It exists only to
+expose the gap. Any owner, authority-table, undeclared, mixed, or unbounded
+target still enters the ordinary opaque-form gate and refuses when it cannot
+be classified.
+
+The phase boundary is explicit: Phase 1a admits an opaque owner JavaScript site only
 through D3's conservative posture above, while an unbounded target refuses even
-then. Phase 2 refuses every remaining `siteResolution: opaque-module` entry,
-including one that satisfied the Phase-1 conservative gate; exact-site
-completeness is a Phase-2 closure requirement. Fields are:
+then. The write-migration closure refuses every remaining
+`siteResolution: opaque-module` entry, including one that satisfied the Phase
+1a conservative gate; exact-site completeness is a Phase 1b closure
+requirement. Fields are:
 
 | Fact | Contents |
 | --- | --- |
-| `id`, `siteId`, `siteResolution` | `id` covers operation/site/form/table/policy, or operation plus the opaque capability identity; exact/member `siteId` stays stable across policy edits. `siteId` is null only for `siteResolution: opaque-module`. |
+| `id`, `siteId`, `siteResolution` | `id` covers operation/site/form/table/policy, or operation plus the opaque capability identity; exact/member `siteId` stays stable across policy edits. `siteId` is null only for `siteResolution: opaque-module` or Phase 1a's honest `migration-pending-declared-write-set`. |
 | `operation`, `runtimeClass` | Generated operation name and `javascript-handler` or `host-plan`. |
 | `surface`, `writeForm`, `writeFormCeiling` | `ctx-db` or `host-plan`; exact rows use one of `insert`, `insert-each`, `patch`, `delete`, `delete-where` and a null ceiling. The opaque JavaScript entry uses `opaque` and the closed v1 JavaScript ceiling. |
 | `table`, `tableResolution`, `declaredTableCeiling` | Exact/member table or opaque null; canonical ceiling or null. |
 | `policyKind`, `policyDigest`, `declarationOrigin` | Exact installed/member facts (`legacy-default` only for a root member); opaque uses `runtime-resolved`, null, `runtime-resolved`. |
 | `ownerField` | Exact field for owner policy, null for an exact non-owner policy, and null plus `ownerFieldResolution: runtime-resolved` for opaque. |
-| `genericWriteDisposition` | `owner-policy`, `generic-refused`, `legacy-undeclared`, or `runtime-resolved`. This is a fact, not a verdict. |
+| `genericWriteDisposition` | `owner-policy`, `migration-pending`, `generic-refused`, `legacy-undeclared`, or `runtime-resolved`. `migration-pending` means Phase 1a preserved pre-0264 runtime behavior for a declared non-owner table; it is a projected gap, not permission. This is a fact, not a verdict. |
 | `principalSource` | `auth.userId`, `none`, `not-applicable`, or `runtime-resolved`; never a caller argument. |
 | `ownerInputDisposition` | `host-stamped`, `sealed-auth-user-id-marker`, `refused`, `not-applicable`, or `runtime-resolved`. |
 | `preflightChecks[]` | Ordered early target/class/input/immutability/unique-disclosure checks. |
@@ -539,7 +556,8 @@ the chosen spellings in generated schemas and negative fixtures.
 | `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED` | generation/activation error before G2; shared missing-policy error at G2 | A new/unknown undeclared table is not in the retained legacy root and a generic write targets it. |
 | `SNAPBACK_TABLE_WRITE_POLICY_REMOVAL_REFUSED` | generation/activation error in every phase | A table with a declared predecessor removed its policy. Removal never restores legacy writes. |
 | `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE` | generation/activation error | A generic write form lacks the central policy dispatcher or target implementation. No outputs/steps are published. |
-| `SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE` | generation/activation and runtime error | A generic write targets `public-read`, `membership`, or `any-of`. Details contain table, policy kind, and write form only. |
+| `SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING` | Phase 1a codegen warning | A generic write reaches a declared ordinary `public-read`, `membership`, or `any-of` table. The matching projection row has `genericWriteDisposition: migration-pending`; runtime remains pre-0264 and no permission or enforcement is claimed. This code is codegen-only. |
+| `SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE` | Phase 1b generation/activation and runtime error | A generic write targets `public-read`, `membership`, or `any-of` after the write-migration closure. Details contain table, policy kind, and write form only. |
 | `SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED` | generation/activation error | A reachable unique constraint omits owner and the insert/patch operation lacks its exact conflict-disclosure declaration. |
 | `SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED` | generation or runtime error before buffering/execution | Caller/plan data attempts to set the owner field. The exact sealed HostPlan `AuthUserId` compatibility marker is not caller input. |
 | `SNAPBACK_TABLE_WRITE_OWNER_DEFAULT_REFUSED` | generation error | A trusted default targets the owner field. |
@@ -560,29 +578,43 @@ fall back to handler checks or post-filtered writes.
 Policy-refusal precedence is: uncomposed surface; authority-table class;
 removal/unrooted omission; ineligible policy kind; unique-disclosure gate;
 owner input/default/immutability; missing principal/row. Thus a membership or
-permission-backing table returns
-`SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE` even when its row policy is
-also ineligible. Owning parse/schema failures remain earlier.
+permission-backing table refuses on the authority-table class even when its
+row policy is also ineligible. Owning parse/schema failures remain earlier.
+
+**Refusal-vocabulary note (2026-08-16, Phase-1a integration).** At GENERATION
+time the authority-table class refuses with
+`SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE`. At RUNTIME the
+pre-existing specialized membership/permission seam owns the refusal and its
+established typed codes (`SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED`,
+`SNAPBACK_MEMBERSHIP_HOSTPLAN_WRITE_DENIED`, and the permission-backing
+guard) take precedence: the generic dispatcher yields no owner-enforcement
+field for authority tables and never shadows the seam's codes. This
+integrates the concurrently landed LLP 0240 roster seam without changing the
+precedence ORDER above — the authority-table class still refuses first; only
+the emitting locus and code family are the seam's.
 
 ## Migration and rollout
 
 ### Cross-document obligation
 
-- **Pending reciprocal LLP 0234 amendment.** Before Phase-1 implementation
-  activates, LLP 0234 D5/D6 must be amended to name this Spec's versioned
+- **Reciprocal LLP 0234 amendment completed 2026-08-16.** LLP 0234 D5/D6 now
+  names this Spec's versioned
   `writePosture` as part of the shared ordinary-policy body, digest, baseline,
   ledger, approval closure, and read × write comparators; it must include the
   operation-set identity and set-growth rule for conflict disclosures and point
   its projection contract at D9. That amendment must land with the Phase-1
-  implementation. LLP 0264 records the obligation but does not amend or claim
-  acceptance on behalf of LLP 0234.
+  implementation. The amendment preserves LLP 0234's Accepted status and
+  records the reciprocal write-axis contract in the same change as Phase 1a.
 
-### Phase 1 — declared-owner enforcement
+### Phase 1a — declared-owner enforcement and write-migration window
 
 Land central enforcement for every generic form on tables with an explicit
 `owner` policy. In the same phase:
 
-- declared `public-read`, `membership`, and `any-of` generic writes refuse;
+- declared ordinary `public-read`, `membership`, and `any-of` generic writes
+  emit `SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING`, retain their exact
+  pre-0264 runtime behavior, and project `genericWriteDisposition:
+  migration-pending` rather than failing generation;
 - membership/permission-backing generic writes refuse regardless of row
   policy;
 - only exact members of the frozen D2 pre-cut root retain current behavior
@@ -591,18 +623,49 @@ Land central enforcement for every generic form on tables with an explicit
 - the shared normalized policy body/digest and comparator include D1's write
   posture from the first activation, even if remote transition authority is
   not yet available;
-- opaque JavaScript write forms refuse unless their operation declares D3's
-  conservative posture over a closed table ceiling; any remaining opaque site
-  is projected honestly and cannot survive Phase 2;
+- opaque JavaScript owner/mixed/unbounded write forms refuse unless their
+  operation declares D3's conservative posture over a closed table ceiling;
+  the non-admitting D9 declared-write-set migration row may expose an
+  all-declared-non-owner gap without pretending to enumerate sites;
 - `writePolicyChecks[]` becomes populated and deterministic;
 - no write elevation is added; and
 - the guide may document the experimental boundary but may not mark a generic
   table-write capability shipped until the phase's target-specific acceptance
   evidence exists.
 
-Phase 1 may precede G1 because exact legacy-root-to-owner migration narrows.
-The protected root and product comparator still distinguish later omission
-pre-G0; broader/incomparable edits refuse without remote authority.
+The original sequence expected Phase 1 to precede LLP 0234 G1 because exact
+legacy-root-to-owner migration narrows. G1 landed first on 2026-08-16 and
+declared every registered table, emptying the intended `legacy-undeclared`
+relief class while 30 of 34 registered backend jobs still carried ordinary
+generic writes against those declarations. Landing the original refusal would
+therefore have made the corpus red. Phase 1 is split into 1a/1b using the
+repository's migrate-then-flip pattern; the protected root, removal refusals,
+and read × write comparator are unchanged, and the G1 closure receipt is not
+rewritten or repurposed.
+
+**Implementation note (2026-08-16).** Phase 1a now has one installed-policy
+dispatcher for all generic handler and HostPlan write forms, transaction-local
+owner stamping/checking, the sealed plan-wide identical-absent carrier,
+operation-bound unique-conflict disclosure admission, the read × write
+governance comparator, deterministic `writePolicyChecks[]` projection, and the
+warning-backed declared-non-owner migration gap above.
+The implementation deliberately does not add result-egress protection,
+membership/role write IR, Class M, or write elevation. Demo/package-consumer
+migration remains the Phase 1b closure below, so this note is an implementation
+record and owner-slice claim only, not a generic-write capability claim.
+
+**Predecessor-version compatibility note (2026-08-16, round 4).** History
+admission validates a committed v1 baseline/ledger/node/body with the exact v1
+shape and digest domains at any revision, and validates v2 with the v2 rules.
+Across the one v1 -> v2 edge, it treats a retained table as unchanged only when
+the v2 body is the validated v1 body plus the mechanically derived D2 posture
+for that policy kind and its closed table-class/disclosure inputs; the retained
+node rewrite and v2 baseline exact-set digest must independently equal that
+same lift. That representation-only upgrade needs no approval and no additional
+ledger node. Any posture deviation or other broader/incomparable change enters
+the ordinary transition-authority path, while a later v2 -> v1 edge always
+refuses as a downgrade. This compatibility rule does not edit or borrow the G1
+closure receipt.
 
 Phase-1 acceptance is structural and executable:
 
@@ -636,34 +699,42 @@ Phase-1 acceptance is structural and executable:
    test shapes reach the same owner predicate before deletion.
 5. Every attempt to patch the owner field refuses before row access. No
    generic operation can transfer a row.
-6. Public-read, membership, `any-of`, membership-table, and
-   permission-backing fixtures refuse every generic form before effects. LLP
-   0240/0056 roster operations continue to pass through their own writer seam.
+6. Public-read, membership, and `any-of` ordinary-table fixtures emit the
+   Phase 1a warning and migration-pending fact while exercising unchanged
+   pre-0264 runtime behavior. Synthetic Phase 1b fixtures refuse every generic
+   form. Membership-table and permission-backing fixtures remain hard
+   refusals, and LLP 0240/0056 roster operations continue through their own
+   writer seam.
 7. Direct caller mutations, nested mutations, action/system roots, governed
    read overrides, captured grants, and `ctx.db.elevated` read use all produce
    the same ordinary write posture. No test can select write elevation.
-8. The landed `defineOwnedCrud`/`lowerDataResourceV1` fixtures continue to
-   generate and execute, but deleting their explicit plan guard does not remove
-   central enforcement.
+8. The landed `defineOwnedCrud` fixture continues to generate and execute, but
+   deleting its explicit plan guard does not remove central enforcement. The
+   withdrawn `lowerDataResourceV1` doorway is not treated as a live fixture.
 9. Published `writePolicyChecks[]` has exact golden rows for every successful
    positive, legacy, multi-site, exact, and runtime-ceiling-member class,
-   including D9 sentinels. Opaque JavaScript goldens cover statically
+   including D9 sentinels and `migration-pending`. Opaque JavaScript goldens cover statically
    classifiable per-site entries and the one operation-level `opaque` entry
    under `conservative-v1`; structured-diagnostic candidate-row goldens cover
-   Phase-1 refusal without that declaration and Phase-2 refusal even with it.
+   Phase 1a refusal without that declaration and closure refusal even with it.
    Stale/malformed output fails custody; renderings lack verdicts.
 10. Comparator fixtures cover `public-read -> owner`, each other refused kind
     `-> owner`, semantic-version change, `owner -> omitted`, and new omission
     before/after G0/G1. Only the pre-cut root yields `legacy-undeclared`;
     widening needs receipts, while removal/new omission refuse.
 
-### Phase 2 — LLP 0234 G1 write migration closure
+### Write-migration corpus closure receipt
 
-Close the required demo/package-consumer corpus alongside LLP 0234 G1:
+Phase 1b requires a new write-migration corpus closure receipt analogous in
+shape to LLP 0234 G1's receipt but independent from it. It inventories every
+registered backend and binds the write-policy semantic version, exact corpus
+membership, generation inputs, and the resolved model for every declared write:
 
 - every table has an explicit policy;
-- every generic write target is either exact owner policy or migrated to its
-  declaration-owned specialized writer;
+- every write is represented by one of: an exact owner-policy generic write;
+  a declaration-owned generated roster/authority operation; or an accepted,
+  implemented, and independently qualified sibling extension of the shared
+  write-policy IR for a model v1 cannot express;
 - zero public-read, membership, `any-of`, membership-table, or
   permission-backing targets remain behind generic write declarations;
 - zero generic write surfaces are uncomposed;
@@ -673,11 +744,31 @@ Close the required demo/package-consumer corpus alongside LLP 0234 G1:
 - all broader/incomparable transitions are receipted under LLP 0234 rather
   than grandfathered by this migration.
 
-Phase-2 acceptance runs a corpus inventory over generated write reach and the
+Closure acceptance runs a corpus inventory over generated write reach and the
 authorization projection. It fails on any implicit target, ineligible generic
 target, remaining opaque site, runtime table target without a closed ceiling,
-missing transition provenance, or policy/check digest disagreement. The retained G1 closure
-receipt names the write-policy semantic version and the exact corpus result.
+missing transition provenance, policy/check digest disagreement, or remaining
+`migration-pending` fact. The new receipt names owner `LLP 0264 Phase 1b` and
+cross-references the D-6 battery used; it does not edit, supersede, or borrow
+authority from `visibility-governance-g1-closure.json`.
+
+### Phase 1b — declared-non-owner refusal flip
+
+Only after the write-migration corpus closure receipt above is committed and
+qualified may codegen change
+`SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING` to the existing
+`SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE` refusal for declared ordinary
+`public-read`, `membership`, and `any-of` generic writes. The runtime dispatcher
+flips the matching pre-0264 pass-through arm in the same change. The synthetic
+flip fixtures must pass before the receipt is minted; live corpus fixtures must
+contain no target that exercises them.
+
+The flip makes no new capability claim. Owner enforcement, authority-table
+refusals, omission/removal refusals, the opaque owner-form gate, lack of write
+elevation, the normalized `writePosture`, and LLP 0234's two-axis comparators
+are byte/semantically unchanged across 1a and 1b. Only generation severity,
+the migration projection disposition, and the matching legacy runtime arm
+close.
 
 ### Phase 3 — LLP 0234 G2 omission failure and completion proof
 
@@ -738,12 +829,39 @@ phase qualifies independently.
 Accepted (2026-08-15, author-directed after dual-family same-revision READY
 convergence; run journal at `llp/reviews/0264-table-write-policy.run.md`).
 Acceptance authorizes the Phase-1 owner-write implementation. This document
-still specifies the owner-policy slice for generic writes. It
-claims no current enforcement, no current `writePolicyChecks[]` population, no
-generic membership/public write authority, and no result-egress protection.
+still specifies the owner-policy slice for generic writes. The 2026-08-16
+implementation supplies central owner enforcement and `writePolicyChecks[]`
+population. Phase 1a projects declared-non-owner generic writes as
+`migration-pending` and preserves their pre-0264 runtime behavior; it makes no
+generic membership/public write-authority or result-egress-protection claim.
+The independent Phase 1b write-migration closure remains outstanding.
 
 ## Revision history
 
+- 2026-08-16 — round 4 made history admission predecessor-version aware: exact
+  v1 and v2 artifacts validate under their own rules, the D2-derived v1 -> v2
+  representation lift preserves retained nodes and exact-set identity without
+  inventing a transition, posture deviations remain governed, and v2 -> v1
+  always refuses. The G1 closure receipt remains untouched.
+- 2026-08-16 — recorded the G1-first sequencing collision and split Phase 1
+  into 1a/1b. Phase 1a keeps the complete owner-policy and authority-table
+  enforcement slice, stages declared ordinary `public-read`, `membership`, and
+  `any-of` generic writes behind codegen warning
+  `SNAPBACK_TABLE_WRITE_POSTURE_MIGRATION_PENDING`, and projects the gap as
+  `genericWriteDisposition: migration-pending` while preserving pre-0264
+  runtime behavior. Phase 1b may flip only after an independent
+  write-migration corpus closure receipt resolves every backend to owner
+  writes, generated roster operations, or an implemented IR-extension
+  sibling. LLP 0234's writePosture identity/comparators and the retained G1
+  receipt are unchanged. Status remains Accepted; no capability claim added.
+- 2026-08-16 — recorded Phase-1 implementation: central generic-write owner
+  enforcement, plan-wide identical-absent carriers, uniqueness disclosure
+  admission, shared read × write governance identity/comparator, and populated
+  `writePolicyChecks[]`. Updated the S0/D3/acceptance baseline after commit
+  `7b40f3caa` withdrew `.data()` / `lowerDataResourceV1`; `defineOwnedCrud`
+  remains the wedge. Recorded the reciprocal LLP 0234 D5/D6 amendment and kept
+  result egress, membership/role write IR, Class M, elevation, and Phase-2
+  corpus migration out of scope. Status remains Accepted.
 - 2026-08-15 — Status Draft → Accepted, author-directed (Class R
   row-authorization completion program, sequence step 5). Three review rounds
   (full, delta, confirming), six artifacts under `llp/reviews/0264-*`, both

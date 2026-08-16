@@ -6,13 +6,13 @@
   "appId": "todo",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
-  "authoredSourceHash": "sha256:82e93ba483297aa12b4db240d70a02a7f68866e2d473c7bd3b8b87c358937355",
+  "authoredSourceHash": "sha256:0801314370e973a41e5b8e2e966a190d1a41a9ab98538975b77900b06822b8ad",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "74ffd698e58cc918c5b0a6f08c832e1ebe0e22511dbb2291eedaf6a51001d0d4",
+  "inputsHash": "7904f7f6678de6128cf0ca1b2f32e22088426f829b0d74727231e24b24b72c17",
   "portabilityFlags": [],
-  "schemaHash": "sha256:459a89270a9cbc68",
+  "schemaHash": "sha256:bac1a3145f2a8faf",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -52,13 +52,13 @@
   "targetProfile": "local-dev-sqlite-ibex",
   "visibilityGovernance": {
     "fixtureProfiles": [],
-    "generationInputsHash": "sha256:839ef1c66182713dcd08e171df099277ea164954e5ffd3ec0e94d40d1d7e1fc1",
+    "generationInputsHash": "sha256:ddfc26386d3814d6b6e06f6e317e25c66651c5ae81b3b3d647d383a5c57232c1",
     "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
     "productionWindows": [],
     "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
     "required": false,
     "schemaVersion": "snapback.visibility-governance-activation.v1",
-    "tablePolicyBaselineDigest": "sha256:90a541457d056464c40c19c3c27bfe0cec46b0cd3feba5aeea7a9e807e4c7362",
-    "visibilityAuthorizationProgramDigest": "sha256:db64af59828bf1ae81160dbc5e4f16d029670351e66423abb8ed9dbac14dd502"
+    "tablePolicyBaselineDigest": "sha256:e57dd6e9059676703805c18edae25bc8d8f50e7a658a660b369b5ebae0212c30",
+    "visibilityAuthorizationProgramDigest": "sha256:b410dd27a68bea1fe0b30bc97dd0941077e105195b4df13ba50a1e0dbaf1d79c"
   }
 }

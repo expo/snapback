@@ -36,6 +36,538 @@ mod authoring_suggestion_tests {
 }
 
 #[cfg(test)]
+mod owner_write_policy_tests {
+    use super::*;
+    use crate::manifest::{BinaryOp, OwnerWriteAbsentDispositionV1, OwnerWriteCheckV1};
+
+    fn owner_schema() -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "documents".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "label".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: Some(TableVisibilityV1::Owner {
+                    field: "ownerId".to_owned(),
+                }),
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn database() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("owner-write memory database");
+        db.schema_seed()
+            .apply_schema(owner_schema())
+            .expect("owner-write schema");
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "documents".to_owned(),
+                    vec![
+                        Map::from_iter([
+                            ("_id".to_owned(), json!("alice-row")),
+                            ("ownerId".to_owned(), json!("alice")),
+                            ("label".to_owned(), json!("alice-original")),
+                        ]),
+                        Map::from_iter([
+                            ("_id".to_owned(), json!("bob-row")),
+                            ("ownerId".to_owned(), json!("bob")),
+                            ("label".to_owned(), json!("bob-original")),
+                        ]),
+                    ],
+                )]),
+            })
+            .expect("owner-write seed");
+        db
+    }
+
+    fn principal(user: Option<&str>, target: Option<&str>) -> HandlerInput {
+        HandlerInput {
+            args: target
+                .map(|target| json!({ "target": target }))
+                .unwrap_or_else(|| json!({})),
+            auth: AuthInput {
+                principal: user.map(str::to_owned),
+                user_id: user.map(str::to_owned),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    fn checked_patch(absent: OwnerWriteAbsentDispositionV1) -> MutationPlan {
+        MutationPlan {
+            owner_write_checks: vec![OwnerWriteCheckV1 {
+                step_index: 0,
+                absent,
+            }],
+            steps: vec![MutationStep::Patch {
+                table: "documents".to_owned(),
+                id: ValueExpr::Arg("target".to_owned()),
+                values: BTreeMap::from([(
+                    "label".to_owned(),
+                    ValueExpr::Literal(json!("changed")),
+                )]),
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        }
+    }
+
+    #[test]
+    fn owner_write_insert_is_host_stamped_and_authored_owner_is_refused_atomically() {
+        let mut db = database();
+        let insert = MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Insert {
+                table: "documents".to_owned(),
+                values: BTreeMap::from([(
+                    "label".to_owned(),
+                    ValueExpr::Literal(json!("created")),
+                )]),
+                bind_id_as: Some("createdId".to_owned()),
+            }],
+            return_value: Some(ReturnValue::Binding("createdId".to_owned())),
+        };
+        let result = db
+            .mutation_writes()
+            .execute_mutation(&insert, &principal(Some("alice"), None))
+            .expect("owner insert");
+        let id = result.output.result.as_str().expect("created id");
+        let row = DbRead::Live(&db)
+            .get("documents", id)
+            .expect("read insert")
+            .expect("insert exists");
+        assert_eq!(row["ownerId"], "alice");
+
+        let forged = MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::Insert {
+                table: "documents".to_owned(),
+                values: BTreeMap::from([
+                    (
+                        "ownerId".to_owned(),
+                        ValueExpr::Literal(json!("alice")),
+                    ),
+                    ("label".to_owned(), ValueExpr::Literal(json!("forged"))),
+                ]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        };
+        let error = db
+            .mutation_writes()
+            .execute_mutation(&forged, &principal(Some("alice"), None))
+            .expect_err("caller/plan data cannot author the owner outside the sealed marker");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED"
+        );
+        assert_eq!(db.query_reads_read().scan_table("documents", 10, 0).unwrap().total, 3);
+
+        let insert_each = MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::InsertEach {
+                table: "documents".to_owned(),
+                source: ValueExpr::Literal(json!([
+                    { "label": "first" },
+                    { "label": "second" }
+                ])),
+                item_as: "item".to_owned(),
+                values: BTreeMap::from([(
+                    "label".to_owned(),
+                    ValueExpr::Field {
+                        base: Box::new(ValueExpr::Binding("item".to_owned())),
+                        key: "label".to_owned(),
+                    },
+                )]),
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        };
+        let missing_principal = db
+            .mutation_writes()
+            .execute_mutation(&insert_each, &principal(None, None))
+            .expect_err("InsertEach refuses atomically before its first owner stamp");
+        assert_eq!(missing_principal.diagnostic.code, "SNAPBACK_AUTH_USER_MISSING");
+        assert_eq!(db.query_reads_read().scan_table("documents", 10, 0).unwrap().total, 3);
+        let inserted = db
+            .mutation_writes()
+            .execute_mutation(&insert_each, &principal(Some("alice"), None))
+            .expect("InsertEach host-stamps every row");
+        assert_eq!(inserted.output.result, json!(2));
+        let rows = db.query_reads_read().scan_table("documents", 10, 0).unwrap();
+        assert_eq!(rows.total, 5);
+        for row in rows.rows.iter().filter(|row| {
+            matches!(row["label"].as_str(), Some("first" | "second"))
+        }) {
+            assert_eq!(row["ownerId"], "alice");
+        }
+    }
+
+    #[test]
+    fn owner_write_point_absence_is_identical_and_owner_is_immutable() {
+        let refusal = {
+            let code = "SNAPBACK_ROW_NOT_FOUND";
+            let message = "owner-policy row is unavailable";
+            let details = json!({ "operation": "checkedPatch" });
+            OwnerWriteAbsentDispositionV1::Refuse {
+                code: code.to_owned(),
+                message: message.to_owned(),
+                digest: owner_write_disposition_digest(code, message, &details)
+                    .expect("refusal digest"),
+                details,
+            }
+        };
+        let mut missing_db = database();
+        let missing = missing_db
+            .mutation_writes()
+            .execute_mutation(
+                &checked_patch(refusal.clone()),
+                &principal(Some("alice"), Some("missing")),
+            )
+            .expect_err("missing target refuses");
+        let mut foreign_db = database();
+        let foreign = foreign_db
+            .mutation_writes()
+            .execute_mutation(
+                &checked_patch(refusal),
+                &principal(Some("alice"), Some("bob-row")),
+            )
+            .expect_err("foreign target refuses identically");
+        assert_eq!(missing.diagnostic, foreign.diagnostic);
+
+        let delete_refusal = {
+            let code = "SNAPBACK_ROW_NOT_FOUND";
+            let message = "owner-policy row is unavailable";
+            let details = json!({ "operation": "checkedDelete" });
+            OwnerWriteAbsentDispositionV1::Refuse {
+                code: code.to_owned(),
+                message: message.to_owned(),
+                digest: owner_write_disposition_digest(code, message, &details)
+                    .expect("delete refusal digest"),
+                details,
+            }
+        };
+        let checked_delete = |absent| MutationPlan {
+            owner_write_checks: vec![OwnerWriteCheckV1 {
+                step_index: 0,
+                absent,
+            }],
+            steps: vec![MutationStep::Delete {
+                table: "documents".to_owned(),
+                id: ValueExpr::Arg("target".to_owned()),
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        };
+        let mut missing_delete_db = database();
+        let missing_delete = missing_delete_db
+            .mutation_writes()
+            .execute_mutation(
+                &checked_delete(delete_refusal.clone()),
+                &principal(Some("alice"), Some("missing")),
+            )
+            .expect_err("missing delete target refuses");
+        let foreign_delete = foreign_db
+            .mutation_writes()
+            .execute_mutation(
+                &checked_delete(delete_refusal),
+                &principal(Some("alice"), Some("bob-row")),
+            )
+            .expect_err("foreign delete target refuses identically");
+        assert_eq!(missing_delete.diagnostic, foreign_delete.diagnostic);
+
+        let immutable = MutationPlan {
+            owner_write_checks: vec![OwnerWriteCheckV1 {
+                step_index: 0,
+                absent: OwnerWriteAbsentDispositionV1::NoEffect,
+            }],
+            steps: vec![MutationStep::Patch {
+                table: "documents".to_owned(),
+                id: ValueExpr::Arg("target".to_owned()),
+                values: BTreeMap::from([("ownerId".to_owned(), ValueExpr::AuthUserId)]),
+            }],
+            return_value: None,
+        };
+        let error = foreign_db
+            .mutation_writes()
+            .execute_mutation(
+                &immutable,
+                &principal(Some("alice"), Some("missing")),
+            )
+            .expect_err("immutability refuses before target existence is observed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE");
+    }
+
+    #[test]
+    fn owner_write_marker_precedes_intermediate_observers_and_companion_effects() {
+        fn plan() -> MutationPlan {
+            MutationPlan {
+                owner_write_checks: vec![OwnerWriteCheckV1 {
+                    step_index: 2,
+                    absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                }],
+                steps: vec![
+                    MutationStep::Get {
+                        table: "documents".to_owned(),
+                        id: ValueExpr::Arg("target".to_owned()),
+                        bind_as: "observed".to_owned(),
+                        else_error: None,
+                    },
+                    MutationStep::Guard {
+                        cond: ValueExpr::Binary {
+                            op: BinaryOp::Or,
+                            left: Box::new(ValueExpr::Binary {
+                                op: BinaryOp::Eq,
+                                left: Box::new(ValueExpr::Binding("observed".to_owned())),
+                                right: Box::new(ValueExpr::Literal(Value::Null)),
+                            }),
+                            right: Box::new(ValueExpr::Binary {
+                                op: BinaryOp::Eq,
+                                left: Box::new(ValueExpr::Field {
+                                    base: Box::new(ValueExpr::Binding("observed".to_owned())),
+                                    key: "_id".to_owned(),
+                                }),
+                                right: Box::new(ValueExpr::Arg("target".to_owned())),
+                            }),
+                        },
+                        else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+                    },
+                    MutationStep::Patch {
+                        table: "documents".to_owned(),
+                        id: ValueExpr::Arg("target".to_owned()),
+                        values: BTreeMap::from([(
+                            "label".to_owned(),
+                            ValueExpr::Literal(json!("not-applied")),
+                        )]),
+                    },
+                    MutationStep::Insert {
+                        table: "documents".to_owned(),
+                        values: BTreeMap::from([(
+                            "label".to_owned(),
+                            ValueExpr::Literal(json!("companion")),
+                        )]),
+                        bind_id_as: None,
+                    },
+                ],
+                return_value: Some(ReturnValue::Document {
+                    table: "documents".to_owned(),
+                    id: ValueExpr::Arg("target".to_owned()),
+                }),
+            }
+        }
+
+        for target in ["missing", "bob-row"] {
+            let mut db = database();
+            let result = db
+                .mutation_writes()
+                .execute_mutation(&plan(), &principal(Some("alice"), Some(target)))
+                .expect("missing and foreign targets normalize through the complete plan");
+            assert_eq!(result.output.result, Value::Null);
+            let rows = db.query_reads_read().scan_table("documents", 10, 0).unwrap();
+            assert_eq!(rows.total, 3, "only the companion insert applies");
+            let companion = rows
+                .rows
+                .iter()
+                .find(|row| row["label"] == "companion")
+                .expect("companion row");
+            assert_eq!(companion["ownerId"], "alice");
+            assert_eq!(
+                rows.rows.iter().find(|row| row["_id"] == "bob-row").unwrap()["label"],
+                "bob-original"
+            );
+        }
+
+        let mut owned_db = database();
+        let owned = owned_db
+            .mutation_writes()
+            .execute_mutation(
+                &plan(),
+                &principal(Some("alice"), Some("alice-row")),
+            )
+            .expect("an owned target succeeds through the same compound plan");
+        assert_eq!(owned.output.result["_id"], "alice-row");
+        assert_eq!(owned.output.result["label"], "not-applied");
+
+        let uncertain = MutationPlan {
+            owner_write_checks: vec![OwnerWriteCheckV1 {
+                step_index: 1,
+                absent: OwnerWriteAbsentDispositionV1::NoEffect,
+            }],
+            steps: vec![
+                MutationStep::Get {
+                    table: "documents".to_owned(),
+                    id: ValueExpr::Arg("target".to_owned()),
+                    bind_as: "row".to_owned(),
+                    else_error: None,
+                },
+                MutationStep::Delete {
+                    table: "documents".to_owned(),
+                    id: ValueExpr::Field {
+                        base: Box::new(ValueExpr::Binding("row".to_owned())),
+                        key: "_id".to_owned(),
+                    },
+                },
+            ],
+            return_value: None,
+        };
+        let mut db = database();
+        let error = db
+            .mutation_writes()
+            .execute_mutation(
+                &uncertain,
+                &principal(Some("alice"), Some("alice-row")),
+            )
+            .expect_err("binding-dependent checked target refuses preflight");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE");
+    }
+
+    #[test]
+    fn owner_write_marker_normalizes_host_owned_observer_steps() {
+        let observer_plans = [
+            MutationStep::AssertCurrentRelation {
+                table: "documents".to_owned(),
+                id: ValueExpr::Arg("target".to_owned()),
+                scope_table: "documents".to_owned(),
+                scope_id: ValueExpr::Arg("target".to_owned()),
+                foreign_key_field: "ownerId".to_owned(),
+                incarnation_field: "ownerId".to_owned(),
+                else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+            },
+            MutationStep::AssertSourceChanged {
+                table: "documents".to_owned(),
+                id: ValueExpr::Arg("target".to_owned()),
+                operation: crate::manifest::WriteWithActivitySourceOperation::Patch,
+            },
+        ];
+        for observer in observer_plans {
+            let plan = MutationPlan {
+                owner_write_checks: vec![OwnerWriteCheckV1 {
+                    step_index: 0,
+                    absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                }],
+                steps: vec![
+                    MutationStep::Patch {
+                        table: "documents".to_owned(),
+                        id: ValueExpr::Arg("target".to_owned()),
+                        values: BTreeMap::from([(
+                            "label".to_owned(),
+                            ValueExpr::Literal(json!("not-applied")),
+                        )]),
+                    },
+                    observer,
+                ],
+                return_value: None,
+            };
+            let mut missing_db = database();
+            missing_db
+                .conn
+                .execute("DELETE FROM documents WHERE _id = ?1", params!["bob-row"])
+                .expect("model the same caller id as absent");
+            let missing = missing_db
+                .mutation_writes()
+                .execute_mutation(&plan, &principal(Some("alice"), Some("bob-row")))
+                .expect_err("the observer sees the canonical absent effect");
+            let mut foreign_db = database();
+            let foreign = foreign_db
+                .mutation_writes()
+                .execute_mutation(&plan, &principal(Some("alice"), Some("bob-row")))
+                .expect_err("the observer cannot recover the foreign row");
+            assert_eq!(missing.diagnostic, foreign.diagnostic);
+        }
+    }
+
+    #[test]
+    fn owner_write_delete_where_filters_by_effective_principal() {
+        let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
+            steps: vec![MutationStep::DeleteWhere {
+                table: "documents".to_owned(),
+                filter: Vec::new(),
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        };
+        let mut db = database();
+        let alice = db
+            .mutation_writes()
+            .execute_mutation(&plan, &principal(Some("alice"), None))
+            .expect("owner-filtered delete-where");
+        assert_eq!(alice.output.result, json!(1));
+        let rows = db.query_reads_read().scan_table("documents", 10, 0).unwrap();
+        assert_eq!(rows.total, 1);
+        assert_eq!(rows.rows[0]["_id"], "bob-row");
+
+        let anonymous = db
+            .mutation_writes()
+            .execute_mutation(&plan, &principal(None, None))
+            .expect("anonymous owner-filtered delete-where is a no-op");
+        assert_eq!(anonymous.output.result, json!(0));
+        assert_eq!(db.query_reads_read().scan_table("documents", 10, 0).unwrap().total, 1);
+    }
+
+    #[test]
+    fn every_generic_form_uses_the_phase_1a_policy_dispatch() {
+        let forms = [
+            GenericTableWriteFormV1::Insert,
+            GenericTableWriteFormV1::InsertEach,
+            GenericTableWriteFormV1::Patch,
+            GenericTableWriteFormV1::Delete,
+            GenericTableWriteFormV1::DeleteWhere,
+        ];
+        let owner = owner_schema().tables.remove(0);
+        for form in forms {
+            assert_eq!(generic_owner_write_field(&owner, form).unwrap(), Some("ownerId"));
+
+            let mut public = owner.clone();
+            public.visibility = Some(TableVisibilityV1::PublicRead);
+            assert_eq!(
+                generic_owner_write_field(&public, form).unwrap(),
+                None,
+                "Phase 1a preserves pre-0264 runtime behavior for declared non-owner tables"
+            );
+
+            let mut undeclared = owner.clone();
+            undeclared.visibility = None;
+            assert_eq!(
+                generic_owner_write_field(&undeclared, form)
+                    .expect_err("omission refuses")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED"
+            );
+
+            let mut authority = owner.clone();
+            authority.permission_backing = true;
+            assert_eq!(
+                generic_owner_write_field(&authority, form)
+                    .expect("authority tables bypass owner enforcement; the specialized seam refuses"),
+                None,
+                "authority tables never yield an owner enforcement field"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
 mod asset_infra_tests {
     use super::*;
 
@@ -889,6 +1421,7 @@ mod stored_structured_value_tests {
         db.mutation_writes()
             .execute_mutation(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "items".to_owned(),
                         values: BTreeMap::from([(
@@ -923,6 +1456,7 @@ mod stored_structured_value_tests {
         db.mutation_writes()
             .execute_mutation(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "items".to_owned(),
                         id: ValueExpr::Literal(json!(inserted_id.clone())),
@@ -2689,6 +3223,7 @@ mod guarded_commit_tests {
         let scope = ValueExpr::Arg("parentId".to_owned());
         let source_id = ValueExpr::Binding("sourceId".to_owned());
         MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Get {
                     table: "parents".to_owned(),
@@ -2844,6 +3379,7 @@ mod guarded_commit_tests {
         assert_eq!(sequence_next(&db, &incarnation), Some(3));
 
         let failing = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::AllocateSequence {
                     counter: "jobs".to_owned(),
@@ -3369,6 +3905,7 @@ mod guarded_commit_tests {
             crate::manifest::FunctionKind::Mutation,
             crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Mutation(
                 crate::manifest::MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: Vec::new(),
                     return_value: None,
                 },
@@ -3869,6 +4406,7 @@ mod guarded_commit_tests {
             .expect("the exact active generation may recover its missing marker on restart");
 
         let allocate = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::AllocateSequence {
                 counter: "positions".to_owned(),
                 scope: ValueExpr::Literal(json!("scope")),
@@ -4028,6 +4566,7 @@ mod guarded_commit_tests {
             .unwrap();
 
         let allocate = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::AllocateSequence {
                 counter: "positions".to_owned(),
                 scope: ValueExpr::Literal(json!("scope")),
@@ -4277,6 +4816,7 @@ mod guarded_commit_tests {
             },
         ] {
             let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![stale_relation_assertion(), terminal],
                 return_value: None,
             };
@@ -4561,6 +5101,7 @@ mod guarded_commit_tests {
 
         let source_id = ValueExpr::Binding("sourceId".to_owned());
         let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Insert {
                     table: "children".to_owned(),
@@ -4650,6 +5191,7 @@ mod guarded_commit_tests {
         assert_eq!(counts, (1, 1), "replay appends no duplicate activity");
 
         let no_op = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Patch {
                     table: "children".to_owned(),
@@ -4711,6 +5253,7 @@ mod guarded_commit_tests {
             ..HandlerInput::default()
         };
         let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "items".to_owned(),
                 values: BTreeMap::from([
@@ -4758,6 +5301,7 @@ mod guarded_commit_tests {
     fn activity_insert_plan(return_value: ReturnValue) -> MutationPlan {
         let source_id = ValueExpr::Binding("sourceId".to_owned());
         MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Insert {
                     table: "children".to_owned(),
@@ -5123,6 +5667,7 @@ mod guarded_commit_tests {
         db.mutation_writes()
             .execute_mutation_idempotent(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "items".to_owned(),
                         values: BTreeMap::from([(
@@ -6281,6 +6826,7 @@ mod guarded_commit_tests {
             let mut patch_values = BTreeMap::new();
             patch_values.insert("rank".to_owned(), ValueExpr::Literal(json!(5)));
             MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![
                     MutationStep::Get {
                         table: "items".to_owned(),
@@ -6676,6 +7222,7 @@ mod guarded_commit_tests {
         ] {
             let mut db = database();
             let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Guard {
                     cond,
                     else_error: "TEST_AUTH_RULE_DENIED".to_owned(),
@@ -6691,6 +7238,7 @@ mod guarded_commit_tests {
 
         let mut db = database();
         let aliased_actor_rule = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Let {
                     bind_as: "delegated".to_owned(),
@@ -7173,6 +7721,7 @@ mod guarded_commit_tests {
             }
         };
         MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![insert("one"), insert("two")],
             return_value: Some(ReturnValue::ChangedCount),
         }
@@ -10753,6 +11302,7 @@ mod guarded_commit_tests {
         let before_version = db.current_version().expect("pre-refusal version");
         let before_changes = db.change_journal_len().expect("pre-refusal journal size");
         let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::DeleteWhere {
                 table: "items".to_owned(),
                 filter: vec![crate::manifest::FilterExpr {
@@ -11926,6 +12476,7 @@ mod guarded_commit_tests {
         let input = HandlerInput::default();
         let identity = ClientMutationIdentity::new("cm_exact_zero", "hostPlan", &input);
         let no_op = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: Vec::new(),
             return_value: Some(ReturnValue::ChangedCount),
         };
@@ -13110,7 +13661,7 @@ mod membership_write_tests {
                     membership: None,
                     authority_profile: None,
                     asset_sharing: None,
-                    visibility: None,
+                    visibility: Some(TableVisibilityV1::PublicRead),
                     history: None,
                 },
                 TableManifest {
@@ -16047,7 +16598,7 @@ mod membership_write_tests {
                 }),
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..SchemaManifest::default()
@@ -16193,6 +16744,7 @@ mod membership_write_tests {
         db.mutation_writes()
             .execute_mutation(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "app_roles".to_owned(),
                         values: BTreeMap::from([
@@ -16279,6 +16831,7 @@ mod membership_write_tests {
         values.insert("eventId".to_owned(), ValueExpr::Literal(json!("e1")));
         values.insert("role".to_owned(), ValueExpr::Literal(json!("host")));
         let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "event_members".to_owned(),
                 values,
@@ -18245,6 +18798,7 @@ mod media_ref_projection_acceptance_tests {
 
     fn insert_profile(image: Value, return_document: bool) -> MutationPlan {
         MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "profiles".to_owned(),
                 values: BTreeMap::from([
@@ -18485,6 +19039,7 @@ mod media_ref_projection_acceptance_tests {
     fn settlement_epoch_watermarks_predecessors_and_never_reopens_legacy_admission() {
         let mut db = media_database();
         let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: Vec::new(),
             return_value: Some(ReturnValue::Literal(json!({ "plain": true }))),
         };
@@ -18838,6 +19393,7 @@ mod media_ref_projection_acceptance_tests {
         );
         let input = principal("asset-owner");
         let plain_plan = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: Vec::new(),
             return_value: Some(ReturnValue::Literal(json!({ "plain": true }))),
         };
@@ -19319,6 +19875,7 @@ mod media_collection_acceptance_tests {
             AssetCollectionOperationV1::Remove | AssetCollectionOperationV1::Reorder => "itemIds",
         };
         MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::AssetCollection(
                 AssetCollectionMutationPlanV1 {
                     collection: "gallery".to_owned(),
@@ -19534,6 +20091,7 @@ mod media_collection_acceptance_tests {
 
     fn media_parent_plan(owner_replacement: Option<&str>) -> MutationPlan {
         MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: owner_replacement
                 .map(|owner| MutationStep::Patch {
                     table: "posts".to_owned(),
@@ -20229,6 +20787,7 @@ mod media_collection_acceptance_tests {
         db.mutation_writes()
             .execute_mutation(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "posts".to_owned(),
                         id: ValueExpr::Literal(json!("post-1")),
@@ -20297,6 +20856,7 @@ mod media_collection_acceptance_tests {
         db.mutation_writes()
             .execute_mutation(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "posts".to_owned(),
                         id: ValueExpr::Literal(json!("post-1")),
@@ -20585,6 +21145,7 @@ mod media_collection_acceptance_tests {
         db.mutation_writes()
             .execute_mutation(
                 &MutationPlan {
+            owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Delete {
                         table: "posts".to_owned(),
                         id: ValueExpr::Literal(json!("post-1")),

@@ -112,6 +112,10 @@ import {
   validateVisibilityGovernance,
 } from './visibility-governance.mjs';
 import {
+  WRITE_POLICY_SEMANTIC_VERSION,
+  buildWritePolicyChecks,
+} from './write-policy.mjs';
+import {
   buildSeedAssetFixturesV1,
   canonicalSeedAssetFixturesJson,
   canonicalSeedArtifactJson,
@@ -1994,6 +1998,13 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
     ...handlerDiagnosticDetails(code),
     ...extra,
   });
+  const warn = (code, subsystem, message, extra = {}) => diagnostics.push({
+    code,
+    severity: 'warning',
+    subsystem,
+    message,
+    ...extra,
+  });
 
   const targetProfile = options?.targetProfile ?? TARGET_PROFILE_LOCAL;
   // @ref LLP 0237#d5-preflight-is-available-before-generation — both normal
@@ -2028,6 +2039,7 @@ export async function generateInProcess(backendDir, options = {}, testHooks = un
         diagnostics,
         infoDiagnostics,
         err,
+        warn,
         checkOnly,
         testHooks,
       }),
@@ -2046,6 +2058,7 @@ async function generateInProcessLocked({
   diagnostics,
   infoDiagnostics,
   err,
+  warn,
   checkOnly,
   testHooks,
 }) {
@@ -5509,8 +5522,31 @@ async function generateInProcessLocked({
         elevatedDbCapabilities: resolvedHandler?.elevatedDbCapabilities ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
+        // Internal D9 evidence only; decorateFunctions intentionally omits it
+        // from the runtime manifest while write-policy projection retains the
+        // authored module identity.
+        // @ref LLP 0264#d9-authorization-review-projection
+        writePolicySourcePath:
+          resolvedHandler?.analysisSourceSpan?.file ?? 'functions.mjs',
+        // Internal D9 evidence only. Generated authority-profile mutations
+        // execute on the specialized roster seam, so the owner-write review
+        // pass must not reinterpret their declared authority-table effects as
+        // generic ctx.db writes. decorateFunctions intentionally omits this.
+        ...(def.authorityProfileOperation === undefined
+          ? {}
+          : { authorityProfileOperation: structuredClone(def.authorityProfileOperation) }),
         declaredReads: reads,
         declaredWrites: writes,
+        writePolicy: {
+          semanticVersion: WRITE_POLICY_SEMANTIC_VERSION,
+          disclosures: def.discloseUniqueConflicts ?? [],
+          ...(def.opaqueWritePosture === undefined
+            ? {}
+            : { opaqueWritePosture: def.opaqueWritePosture }),
+          ...(def.declaredTableCeiling === undefined
+            ? {}
+            : { declaredTableCeiling: def.declaredTableCeiling }),
+        },
         sequences: def.sequences ?? [],
         syncabilityClass: 'mutation',
       });
@@ -5737,7 +5773,9 @@ async function generateInProcessLocked({
       } else if (def.plan.return_value && 'Expr' in def.plan.return_value) {
         checkExpr(def.plan.return_value.Expr, 'return expression');
       }
-      const serializedPlan = serializeMutationPlan(def.plan, name, err);
+      const serializedPlan = serializeMutationPlan(def.plan, name, err, tables, {
+        standardPattern: def.standardPattern ?? null,
+      });
       functions.push({
         name,
         kind: 'Mutation',
@@ -5757,6 +5795,10 @@ async function generateInProcessLocked({
         },
         declaredReads: mutationReadTables(def.plan),
         declaredWrites: [...writes],
+        writePolicy: {
+          semanticVersion: WRITE_POLICY_SEMANTIC_VERSION,
+          disclosures: def.discloseUniqueConflicts ?? [],
+        },
         sequences: def.sequences ?? [],
         syncabilityClass: 'mutation',
         ...(def.standardPattern ? { standardPattern: def.standardPattern } : {}),
@@ -6118,6 +6160,13 @@ async function generateInProcessLocked({
     functions,
     functionDefinitionSourceSpans,
   );
+  const writePolicy = buildWritePolicyChecks({
+    tables,
+    functions: decoratedFunctionDefinitions,
+    sourceFunctions: functions,
+    err,
+    warn,
+  });
   for (const fn of decoratedFunctionDefinitions) {
     if (fn.kind === 'Action' && resultContractContainsMedia(fn.resultContract)) {
       err(
@@ -6612,6 +6661,7 @@ async function generateInProcessLocked({
       backendRoot,
       schemaDef,
       tables,
+      writeDisclosures: writePolicy.disclosures,
       now: governanceNow,
       targetObserverPin: testHooks?.visibilityGovernance?.targetObserverPin ?? null,
     });
@@ -7593,6 +7643,7 @@ async function generateInProcessLocked({
       ),
       summary: authorizationSummary,
       visibilityGovernance,
+      writePolicyChecks: writePolicy.rows,
     });
     const authorizationReviewProblems = validateAuthorizationReview(authorizationReview);
     if (authorizationReviewProblems.length > 0) {
@@ -8697,7 +8748,7 @@ function planExprs(serialized) {
   return exprs;
 }
 
-export function serializeMutationPlan(plan, functionName, err) {
+export function serializeMutationPlan(plan, functionName, err, tables = null, options = {}) {
   const steps = plan.steps.map((step) => {
     const kind = Object.keys(step)[0];
     const body = step[kind];
@@ -8776,7 +8827,33 @@ export function serializeMutationPlan(plan, functionName, err) {
     else if ('Document' in rv) return_value = { Document: { table: rv.Document.table, id: serializeExpr(rv.Document.id) } };
     else if ('Expr' in rv) return_value = { Expr: serializeExpr(rv.Expr) };
   }
-  const serialized = { steps, return_value };
+  const ownerWriteChecks = tables === null ? [] : steps.flatMap((step, stepIndex) => {
+    const [kind, body] = Object.entries(step)[0] ?? [];
+    if (!['Patch', 'Delete'].includes(kind)) return [];
+    if (tables[body.table]?.visibility?.kind !== 'owner') return [];
+    if (options.standardPattern?.helper === 'owned-crud.v1') {
+      const writeForm = kind === 'Patch' ? 'patch' : 'delete';
+      const refusal = {
+        code: 'SNAPBACK_ROW_NOT_FOUND',
+        message: 'owner-policy row is unavailable',
+        details: { table: body.table, writeForm },
+      };
+      return [{
+        stepIndex,
+        absent: {
+          kind: 'refuse',
+          ...refusal,
+          digest: `sha256:${sha256(canonicalResultJson(refusal))}`,
+        },
+      }];
+    }
+    return [{ stepIndex, absent: { kind: 'no-effect' } }];
+  });
+  const serialized = {
+    steps,
+    return_value,
+    ...(ownerWriteChecks.length === 0 ? {} : { ownerWriteChecks }),
+  };
   if (functionName && err) {
     if (steps.length > MAX_PLAN_STEPS) {
       err('MUTATION_PLAN_BOUNDS', 'function', `${functionName}: plan has ${steps.length} steps; the declared bound is ${MAX_PLAN_STEPS}`, { function: functionName });
@@ -11533,6 +11610,7 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       ...(sequences.length > 0 ? { sequences } : {}),
       ...(fn.boundedSkew !== undefined ? { boundedSkew: fn.boundedSkew } : {}),
       ...(elevatedDbCapabilities.length > 0 ? { elevatedDbCapabilities } : {}),
+      ...(fn.writePolicy !== undefined ? { writePolicy: fn.writePolicy } : {}),
     };
     return {
       id: functionId(appId, fn.name),
@@ -11572,6 +11650,9 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
         : {}),
       ...(fn.fieldBoundary !== undefined ? { fieldBoundary: fn.fieldBoundary } : {}),
       ...(elevatedDbCapabilities.length > 0 ? { elevatedDbCapabilities } : {}),
+      ...(fn.writePolicy !== undefined
+        ? { writePolicy: structuredClone(fn.writePolicy) }
+        : {}),
       syncabilityClass: syncabilityClass(fn),
       readSetSummary: reads,
       writeSetSummary: writes,

@@ -11,17 +11,20 @@ import { createHash, createPublicKey, verify as verifySignature } from 'node:cry
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 
+import { parse as parseJavaScript } from 'acorn';
+
 import { stableArtifactJson } from './review-surface.mjs';
+import { collectWriteDisclosures, deriveWritePosture } from './write-policy.mjs';
 
 export const GOVERNANCE_SCHEMA_VERSIONS = Object.freeze({
   overrideDeclaration: 'snapback.visibility-override-declaration.v1',
   approvalRecord: 'snapback.visibility-override-approval.v1',
-  transitionRecord: 'snapback.table-visibility-policy-transition.v1',
+  transitionRecord: 'snapback.table-visibility-policy-transition.v2',
   ownerMap: 'snapback.visibility-override-owner-map.v1',
   ownerBaseline: 'snapback.visibility-override-owner-baseline.v1',
   overrideBaseline: 'snapback.visibility-override-baseline.v1',
-  policyBaseline: 'snapback.table-visibility-policy-baseline.v1',
-  transitionLedger: 'snapback.table-visibility-policy-transition-ledger.v1',
+  policyBaseline: 'snapback.table-visibility-policy-baseline.v2',
+  transitionLedger: 'snapback.table-visibility-policy-transition-ledger.v2',
   quarantineLedger: 'snapback.visibility-governance-quarantine-ledger.v1',
   quarantineVerdict: 'snapback.visibility-governance-quarantine-verdict.v1',
   observerKeys: 'snapback.visibility-governance-observer-keys.v1',
@@ -45,9 +48,33 @@ export const GOVERNANCE_FILES = Object.freeze({
 });
 
 export const GOVERNED_REFS_DEFAULT = Object.freeze(['refs/heads/main']);
-export const GOVERNANCE_COMPARATOR_VERSION = 'snapback.visibility-governance-comparator.v1';
+export const GOVERNANCE_COMPARATOR_VERSION = 'snapback.visibility-governance-comparator.v2';
+const LEGACY_READ_ONLY_COMPARATOR_VERSION = 'snapback.visibility-governance-comparator.v1';
 export const GOVERNANCE_SCOPE_DIGEST_VERSION = 'snapback.visibility-scope.v1';
 export const GOVERNANCE_DIGEST_ALGORITHM = 'sha256';
+
+const POLICY_GOVERNANCE_VERSIONS = Object.freeze({
+  v1: Object.freeze({
+    baseline: 'snapback.table-visibility-policy-baseline.v1',
+    ledger: 'snapback.table-visibility-policy-transition-ledger.v1',
+    record: 'snapback.table-visibility-policy-transition.v1',
+    bodyDigestDomain: 'snapback:table-visibility-policy-body:v1',
+    nodeDigestDomain: 'snapback:table-visibility-transition-node:v1',
+    ledgerDigestDomain: 'snapback:table-visibility-transition-ledger:v1',
+    approvalScopeDigestDomain: 'snapback:table-visibility-policy-transition-scope:v1',
+    comparatorVersion: LEGACY_READ_ONLY_COMPARATOR_VERSION,
+  }),
+  v2: Object.freeze({
+    baseline: GOVERNANCE_SCHEMA_VERSIONS.policyBaseline,
+    ledger: GOVERNANCE_SCHEMA_VERSIONS.transitionLedger,
+    record: GOVERNANCE_SCHEMA_VERSIONS.transitionRecord,
+    bodyDigestDomain: 'snapback:table-visibility-policy-body:v2',
+    nodeDigestDomain: 'snapback:table-visibility-transition-node:v2',
+    ledgerDigestDomain: 'snapback:table-visibility-transition-ledger:v2',
+    approvalScopeDigestDomain: 'snapback:table-visibility-policy-transition-scope:v2',
+    comparatorVersion: GOVERNANCE_COMPARATOR_VERSION,
+  }),
+});
 
 const SHA256 = /^sha256:[0-9a-f]{64}$/u;
 const OID = /^[0-9a-f]{40}$/u;
@@ -222,7 +249,66 @@ function membershipDeclarationClosure(policy, tables, code) {
   return [...declarations.values()].sort((a, b) => compareText(a.id, b.id));
 }
 
-export function normalizePolicyBody(policy, tables = {}) {
+function canonicalWritePosture(writePosture) {
+  const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
+  exactKeys(writePosture, [
+    'semanticVersion', 'dispositions', 'ownerField', 'authorityTableClass',
+    'globalUniqueDisclosures',
+  ], 'writePosture', code, [
+    'semanticVersion', 'dispositions', 'ownerField', 'authorityTableClass',
+    'globalUniqueDisclosures',
+  ]);
+  if (writePosture.semanticVersion !== 'snapback.owner-write.v1') {
+    refuse(code, 'writePosture semanticVersion is unsupported');
+  }
+  const forms = ['insert', 'insert-each', 'patch', 'delete', 'delete-where'];
+  exactKeys(writePosture.dispositions, forms, 'writePosture.dispositions', code, forms);
+  const dispositionValues = new Set([
+    'refused', 'owner-host-stamped', 'owner-old-row-checked', 'owner-filtered',
+  ]);
+  for (const [form, disposition] of Object.entries(writePosture.dispositions)) {
+    if (!dispositionValues.has(disposition)) {
+      refuse(code, `writePosture disposition ${form} is unsupported`);
+    }
+  }
+  if (writePosture.ownerField !== null) {
+    fieldIdentifier(writePosture.ownerField, 'writePosture.ownerField', code);
+  }
+  if (!['ordinary', 'membership', 'permission-backing']
+    .includes(writePosture.authorityTableClass)) {
+    refuse(code, 'writePosture authorityTableClass is unsupported');
+  }
+  const disclosures = exactArray(
+    writePosture.globalUniqueDisclosures,
+    'writePosture.globalUniqueDisclosures',
+    code,
+  ).map((entry, index) => {
+    const label = `writePosture.globalUniqueDisclosures.${index}`;
+    exactKeys(entry, ['table', 'writeForm', 'constraint', 'operations'], label, code,
+      ['table', 'writeForm', 'constraint', 'operations']);
+    identifier(entry.table, `${label}.table`, code);
+    if (!forms.includes(entry.writeForm)) refuse(code, `${label}.writeForm is unsupported`);
+    identifier(entry.constraint, `${label}.constraint`, code);
+    return {
+      table: entry.table,
+      writeForm: entry.writeForm,
+      constraint: entry.constraint,
+      operations: sortedUniqueStrings(entry.operations, `${label}.operations`, code, { min: 1 }),
+    };
+  }).sort((left, right) => compareText(canonicalGovernanceJson(left), canonicalGovernanceJson(right)));
+  if (new Set(disclosures.map(canonicalGovernanceJson)).size !== disclosures.length) {
+    refuse(code, 'writePosture repeats a global unique disclosure');
+  }
+  return {
+    semanticVersion: writePosture.semanticVersion,
+    dispositions: Object.fromEntries(forms.map((form) => [form, writePosture.dispositions[form]])),
+    ownerField: writePosture.ownerField,
+    authorityTableClass: writePosture.authorityTableClass,
+    globalUniqueDisclosures: disclosures,
+  };
+}
+
+export function normalizePolicyBody(policy, tables = {}, writePosture = undefined) {
   const normalizedPolicy = canonicalVisibilityPolicy(policy);
   const audienceDeclarationClosure = membershipDeclarationClosure(
     normalizedPolicy,
@@ -236,6 +322,7 @@ export function normalizePolicyBody(policy, tables = {}) {
       'snapback:visibility-audience-closure:v1',
       audienceDeclarationClosure,
     ),
+    ...(writePosture === undefined ? {} : { writePosture: canonicalWritePosture(writePosture) }),
   };
 }
 
@@ -246,12 +333,15 @@ function policyLeafSet(policy) {
 
 // A deliberately conservative structural partial order. Anything not proved
 // equal or set-subset is incomparable and therefore governed as growth.
-export function compareVisibilityPolicies(predecessorBody, successorBody) {
+function compareReadPolicies(predecessorBody, successorBody) {
   if (predecessorBody === null) {
     return successorBody.policy.kind === 'public-read' ? 'growth' : 'new-restricted';
   }
-  const predecessor = canonicalGovernanceJson(predecessorBody);
-  const successor = canonicalGovernanceJson(successorBody);
+  const readView = ({ policy, audienceDeclarationClosure, audienceDeclarationClosureDigest }) => ({
+    policy, audienceDeclarationClosure, audienceDeclarationClosureDigest,
+  });
+  const predecessor = canonicalGovernanceJson(readView(predecessorBody));
+  const successor = canonicalGovernanceJson(readView(successorBody));
   if (predecessor === successor) return 'equal';
   if (predecessorBody.policy.kind === 'public-read') return 'narrowing';
   if (successorBody.policy.kind === 'public-read') return 'growth';
@@ -261,6 +351,66 @@ export function compareVisibilityPolicies(predecessorBody, successorBody) {
     && successorBody.audienceDeclarationClosureDigest
       === predecessorBody.audienceDeclarationClosureDigest) return 'narrowing';
   return 'growth';
+}
+
+function combineRelations(relations) {
+  if (relations.includes('incomparable')) return 'incomparable';
+  const growth = relations.includes('growth');
+  const narrowing = relations.includes('narrowing');
+  if (growth && narrowing) return 'incomparable';
+  if (growth) return 'growth';
+  if (narrowing) return 'narrowing';
+  return 'equal';
+}
+
+function compareWritePostures(before, after) {
+  if (before === undefined && after === undefined) return 'equal';
+  if (before === undefined || after === undefined) return 'incomparable';
+  if (before.semanticVersion !== after.semanticVersion
+    || before.ownerField !== after.ownerField
+    || before.authorityTableClass !== after.authorityTableClass) return 'incomparable';
+  const dispositionRelation = [];
+  for (const form of ['insert', 'insert-each', 'patch', 'delete', 'delete-where']) {
+    const prior = before.dispositions?.[form];
+    const next = after.dispositions?.[form];
+    if (prior === next) dispositionRelation.push('equal');
+    else if (prior === 'refused') dispositionRelation.push('growth');
+    else if (next === 'refused') dispositionRelation.push('narrowing');
+    else dispositionRelation.push('incomparable');
+  }
+  const key = ({ table, writeForm, constraint }) => `${table}\0${writeForm}\0${constraint}`;
+  const priorDisclosures = new Map((before.globalUniqueDisclosures ?? [])
+    .map((entry) => [key(entry), entry]));
+  const nextDisclosures = new Map((after.globalUniqueDisclosures ?? [])
+    .map((entry) => [key(entry), entry]));
+  const disclosureRelations = [];
+  for (const disclosureKey of new Set([...priorDisclosures.keys(), ...nextDisclosures.keys()])) {
+    const prior = priorDisclosures.get(disclosureKey);
+    const next = nextDisclosures.get(disclosureKey);
+    if (!prior) disclosureRelations.push('growth');
+    else if (!next) disclosureRelations.push('narrowing');
+    else {
+      const beforeOps = new Set(prior.operations);
+      const afterOps = new Set(next.operations);
+      const added = [...afterOps].some((operation) => !beforeOps.has(operation));
+      const removed = [...beforeOps].some((operation) => !afterOps.has(operation));
+      disclosureRelations.push(added && removed ? 'incomparable'
+        : added ? 'growth' : removed ? 'narrowing' : 'equal');
+    }
+  }
+  return combineRelations([...dispositionRelation, ...disclosureRelations]);
+}
+
+// @ref LLP 0264#d1-one-table-policy-is-the-read-and-write-locus — the
+// ordinary-policy comparator is the product of the existing read order and
+// the versioned write order. Cross-axis laundering is incomparable/governed.
+export function compareVisibilityPolicies(predecessorBody, successorBody) {
+  const read = compareReadPolicies(predecessorBody, successorBody);
+  if (predecessorBody === null || read === 'new-restricted') return read;
+  return combineRelations([
+    read,
+    compareWritePostures(predecessorBody.writePosture, successorBody.writePosture),
+  ]);
 }
 
 function canonicalAuthority(authority, label, code) {
@@ -947,7 +1097,10 @@ function validateSeparationReceipt(receipt, {
     || !nonEmpty(receipt.eventId, 'separation receipt.eventId', code)
     || !SHA256.test(receipt.eventInputDigest ?? '')
     || !nonEmpty(receipt.governedRef, 'separation receipt.governedRef', code).startsWith('refs/')
-    || receipt.comparatorVersion !== GOVERNANCE_COMPARATOR_VERSION
+    || (policy
+      ? receipt.comparatorVersion !== GOVERNANCE_COMPARATOR_VERSION
+      : ![LEGACY_READ_ONLY_COMPARATOR_VERSION, GOVERNANCE_COMPARATOR_VERSION]
+          .includes(receipt.comparatorVersion))
     || !UTC_INSTANT.test(receipt.observedAt ?? '')) {
     refuse(code, `separation receipt does not bind approval ${approval.id}`);
   }
@@ -1082,16 +1235,24 @@ function requireExactBaseline(committed, expected, code, label) {
   }
 }
 
-export function transitionNodeDigest(node) {
+function transitionNodeDigestForVersion(node, version) {
   const { recomputedClassification: _classification, ...canonical } = node;
-  return governanceDigest('snapback:table-visibility-transition-node:v1', canonical);
+  return governanceDigest(version.nodeDigestDomain, canonical);
 }
 
-export function transitionLedgerDigest(nodes, heads) {
-  return governanceDigest('snapback:table-visibility-transition-ledger:v1', {
+function transitionLedgerDigestForVersion(nodes, heads, version) {
+  return governanceDigest(version.ledgerDigestDomain, {
     nodes: nodes.map(({ recomputedClassification: _classification, ...node }) => node),
     heads,
   });
+}
+
+export function transitionNodeDigest(node) {
+  return transitionNodeDigestForVersion(node, POLICY_GOVERNANCE_VERSIONS.v2);
+}
+
+export function transitionLedgerDigest(nodes, heads) {
+  return transitionLedgerDigestForVersion(nodes, heads, POLICY_GOVERNANCE_VERSIONS.v2);
 }
 
 const APPROVAL_RECORD_KEYS = Object.freeze([
@@ -1117,9 +1278,9 @@ const APPROVAL_RECORD_REQUIRED_KEYS = Object.freeze([
   'delegationRuling', 'delegationRecord',
 ]);
 
-export function transitionApprovalScopeDigest(node, approval) {
+function transitionApprovalScopeDigestForVersion(node, approval, version) {
   const { scopeDigest: _scopeDigest, ...approvalContent } = approval;
-  return governanceDigest('snapback:table-visibility-policy-transition-scope:v1', {
+  return governanceDigest(version.approvalScopeDigestDomain, {
     transition: {
       id: node.id,
       tableId: node.tableId,
@@ -1133,6 +1294,14 @@ export function transitionApprovalScopeDigest(node, approval) {
     },
     approval: approvalContent,
   });
+}
+
+export function transitionApprovalScopeDigest(node, approval) {
+  return transitionApprovalScopeDigestForVersion(
+    node,
+    approval,
+    POLICY_GOVERNANCE_VERSIONS.v2,
+  );
 }
 
 function validateTransitionApproval(approval, node, ownerMap, backendRoot, code) {
@@ -1178,9 +1347,82 @@ function validateTransitionApproval(approval, node, ownerMap, backendRoot, code)
   return closure;
 }
 
-function validateTransitionLedger(ledger, tables, backendRoot, quarantine = null) {
+function legacyTransitionNodeDigest(node) {
+  return transitionNodeDigestForVersion(node, POLICY_GOVERNANCE_VERSIONS.v1);
+}
+
+function legacyTransitionLedgerDigest(nodes, heads) {
+  return transitionLedgerDigestForVersion(nodes, heads, POLICY_GOVERNANCE_VERSIONS.v1);
+}
+
+// Phase 1 is the one bounded schema migration from the landed G1 read-only
+// roots. Only root-only `g1-migration` ledgers can be upgraded without
+// inventing historical write authority; any real predecessor chain refuses.
+function upgradeLegacyTransitionLedger(ledger, tables, writeDisclosures) {
+  if (ledger?.schemaVersion !== 'snapback.table-visibility-policy-transition-ledger.v1') {
+    return ledger;
+  }
+  const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
+  if (!Array.isArray(ledger.nodes)
+    || ledger.nodes.some((node) => (
+      node.schemaVersion !== 'snapback.table-visibility-policy-transition.v1'
+      || node.predecessorHeadId !== null
+      || node.predecessorHeadDigest !== null
+      || node.predecessorNormalizedPolicyBody !== null
+      || node.predecessorPolicyDigest !== null
+      || node.admissionKind !== 'g1-migration'
+    ))) {
+    refuse(code, 'the read-only policy ledger cannot be migrated after a predecessor chain exists');
+  }
+  if (legacyTransitionLedgerDigest(ledger.nodes, ledger.heads) !== ledger.ledgerDigest) {
+    refuse(code, 'the read-only policy ledger digest is stale or rebound');
+  }
+  const nodes = ledger.nodes.map((node) => {
+    const table = tables[node.tableId];
+    if (!table) {
+      refuse('SNAPBACK_TABLE_WRITE_POLICY_REMOVAL_REFUSED',
+        `declared table policy ${node.tableId} was removed`, { table: node.tableId });
+    }
+    const legacyBody = normalizePolicyBody(node.successorNormalizedPolicyBody.policy, tables);
+    if (canonicalGovernanceJson(legacyBody)
+        !== canonicalGovernanceJson(node.successorNormalizedPolicyBody)
+      || governanceDigest('snapback:table-visibility-policy-body:v1', legacyBody)
+        !== node.successorPolicyDigest) {
+      refuse(code, `legacy transition ${node.id} has a rebound policy body`);
+    }
+    const successorNormalizedPolicyBody = normalizePolicyBody(
+      table.visibility,
+      tables,
+      deriveWritePosture(node.tableId, table, writeDisclosures),
+    );
+    return {
+      ...node,
+      schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.transitionRecord,
+      successorNormalizedPolicyBody,
+      successorPolicyDigest: governanceDigest(
+        'snapback:table-visibility-policy-body:v2',
+        successorNormalizedPolicyBody,
+      ),
+    };
+  });
+  return {
+    schemaVersion: GOVERNANCE_SCHEMA_VERSIONS.transitionLedger,
+    nodes,
+    heads: structuredClone(ledger.heads),
+    ledgerDigest: transitionLedgerDigest(nodes, ledger.heads),
+  };
+}
+
+function validateTransitionLedger(
+  ledger,
+  tables,
+  backendRoot,
+  quarantine = null,
+  writeDisclosures = [],
+) {
   const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
   if (ledger === null) return { nodes: [], heads: {}, artifact: null };
+  ledger = upgradeLegacyTransitionLedger(ledger, tables, writeDisclosures);
   exactKeys(ledger, ['schemaVersion', 'nodes', 'heads', 'ledgerDigest'], 'transition ledger', code,
     ['schemaVersion', 'nodes', 'heads', 'ledgerDigest']);
   if (ledger.schemaVersion !== GOVERNANCE_SCHEMA_VERSIONS.transitionLedger) refuse(code, 'transition ledger schemaVersion is unsupported');
@@ -1208,15 +1450,23 @@ function validateTransitionLedger(ledger, tables, backendRoot, quarantine = null
     if (nodes.has(node.id)) refuse(code, `transition ledger reuses node id ${node.id}`);
     const predecessorBody = node.predecessorNormalizedPolicyBody === null
       ? null
-      : normalizePolicyBody(node.predecessorNormalizedPolicyBody.policy, tables);
-    const successorBody = normalizePolicyBody(node.successorNormalizedPolicyBody.policy, tables);
+      : normalizePolicyBody(
+          node.predecessorNormalizedPolicyBody.policy,
+          tables,
+          node.predecessorNormalizedPolicyBody.writePosture,
+        );
+    const successorBody = normalizePolicyBody(
+      node.successorNormalizedPolicyBody.policy,
+      tables,
+      node.successorNormalizedPolicyBody.writePosture,
+    );
     if (canonicalGovernanceJson(predecessorBody) !== canonicalGovernanceJson(node.predecessorNormalizedPolicyBody)
       || canonicalGovernanceJson(successorBody) !== canonicalGovernanceJson(node.successorNormalizedPolicyBody)) {
       refuse(code, `transition ${node.id} carries a non-canonical policy body`);
     }
     if (predecessorBody !== null) {
       verifyDigest(
-        governanceDigest('snapback:table-visibility-policy-body:v1', predecessorBody),
+        governanceDigest('snapback:table-visibility-policy-body:v2', predecessorBody),
         node.predecessorPolicyDigest,
         `transition ${node.id} predecessor`,
         code,
@@ -1225,7 +1475,7 @@ function validateTransitionLedger(ledger, tables, backendRoot, quarantine = null
       refuse(code, `transition root ${node.id} carries a predecessor policy digest`);
     }
     verifyDigest(
-      governanceDigest('snapback:table-visibility-policy-body:v1', successorBody),
+      governanceDigest('snapback:table-visibility-policy-body:v2', successorBody),
       node.successorPolicyDigest,
       `transition ${node.id} successor`,
       code,
@@ -1432,13 +1682,21 @@ function validateQuarantineLedger(ledger, backendRoot) {
   return { records, retiredIds: retired, headDigest: predecessorHead, artifact: structuredClone(ledger) };
 }
 
-export function currentTablePolicyBaseline(tables, transitionLedger) {
+export function currentTablePolicyBaseline(tables, transitionLedger, writeDisclosures = []) {
   const entries = Object.entries(tables).map(([tableId, definition]) => {
-    const normalizedPolicyBody = normalizePolicyBody(definition.visibility ?? { kind: 'public-read' }, tables);
+    if (!definition.visibility) {
+      refuse('SNAPBACK_TABLE_WRITE_POLICY_REMOVAL_REFUSED',
+        `table ${tableId} has no installed policy`, { table: tableId });
+    }
+    const normalizedPolicyBody = normalizePolicyBody(
+      definition.visibility,
+      tables,
+      deriveWritePosture(tableId, definition, writeDisclosures),
+    );
     return {
       tableId,
       normalizedPolicyBody,
-      policyDigest: governanceDigest('snapback:table-visibility-policy-body:v1', normalizedPolicyBody),
+      policyDigest: governanceDigest('snapback:table-visibility-policy-body:v2', normalizedPolicyBody),
       provenanceHeadId: transitionLedger.heads[tableId] ?? null,
     };
   }).sort((a, b) => compareText(a.tableId, b.tableId));
@@ -1481,6 +1739,7 @@ export function validateVisibilityGovernance({
   backendRoot,
   schemaDef,
   tables,
+  writeDisclosures = [],
   now = Date.now(),
   targetObserverPin = null,
 }) {
@@ -1642,34 +1901,87 @@ export function validateVisibilityGovernance({
     'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_RATCHET_GROWTH',
     'visibility override exact-set baseline',
   );
+  const committedTransitionLedger = readOptional(
+    join(backendRoot, GOVERNANCE_FILES.transitionLedger),
+  );
+  const installedPolicyTables = new Set(
+    (committedTransitionLedger?.nodes ?? []).map(({ tableId }) => tableId),
+  );
+  const removedPolicies = [...installedPolicyTables].filter(
+    (tableId) => !tables[tableId]?.visibility,
+  );
+  if (removedPolicies.length > 0) {
+    refuse('SNAPBACK_TABLE_WRITE_POLICY_REMOVAL_REFUSED',
+      'an installed table policy was removed from the successor schema', {
+        tables: removedPolicies.sort(compareText),
+      });
+  }
   const transitionLedger = validateTransitionLedger(
-    readOptional(join(backendRoot, GOVERNANCE_FILES.transitionLedger)),
+    committedTransitionLedger,
     tables,
     backendRoot,
     quarantine,
+    writeDisclosures,
   );
-  const policyBaseline = currentTablePolicyBaseline(tables, transitionLedger);
+  const policyBaseline = currentTablePolicyBaseline(tables, transitionLedger, writeDisclosures);
   const committedPolicyBaseline = readOptional(join(backendRoot, GOVERNANCE_FILES.policyBaseline));
-  if (committedPolicyBaseline !== null
+  const legacyPolicyBaseline = committedPolicyBaseline?.schemaVersion
+      === 'snapback.table-visibility-policy-baseline.v1'
+    && baselineExactSetValid(committedPolicyBaseline)
+    && canonicalGovernanceJson((committedPolicyBaseline.entries ?? []).map((entry) => ({
+      tableId: entry.tableId,
+      normalizedPolicyBody: entry.normalizedPolicyBody,
+      policyDigest: entry.policyDigest,
+      provenanceHeadId: entry.provenanceHeadId,
+    }))) === canonicalGovernanceJson(policyBaseline.entries.map((entry) => {
+      const normalizedPolicyBody = {
+        policy: entry.normalizedPolicyBody.policy,
+        audienceDeclarationClosure: entry.normalizedPolicyBody.audienceDeclarationClosure,
+        audienceDeclarationClosureDigest:
+          entry.normalizedPolicyBody.audienceDeclarationClosureDigest,
+      };
+      return {
+        tableId: entry.tableId,
+        normalizedPolicyBody,
+        policyDigest: governanceDigest(
+          'snapback:table-visibility-policy-body:v1',
+          normalizedPolicyBody,
+        ),
+        provenanceHeadId: entry.provenanceHeadId,
+      };
+    }));
+  if (committedPolicyBaseline !== null && !legacyPolicyBaseline
     && canonicalGovernanceJson(committedPolicyBaseline) !== canonicalGovernanceJson(policyBaseline)) {
     const prior = new Map((committedPolicyBaseline.entries ?? [])
       .map((entry) => [entry.tableId, entry]));
+    const removed = [...prior.keys()].filter((tableId) => (
+      !policyBaseline.entries.some((entry) => entry.tableId === tableId)
+    ));
+    if (removed.length > 0) {
+      refuse('SNAPBACK_TABLE_WRITE_POLICY_REMOVAL_REFUSED',
+        'an installed table policy was removed from the successor schema', {
+          tables: removed.sort(compareText),
+        });
+    }
     const widens = policyBaseline.entries.some((entry) => {
       const predecessor = prior.get(entry.tableId);
       if (!predecessor) return entry.normalizedPolicyBody.policy.kind === 'public-read';
-      return compareVisibilityPolicies(
+      const relation = compareVisibilityPolicies(
         predecessor.normalizedPolicyBody,
         entry.normalizedPolicyBody,
-      ) === 'growth';
+      );
+      return relation === 'growth' || relation === 'incomparable';
     });
     if (widens) {
       refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_RATCHET_GROWTH',
         'ordinary table visibility policy widens without its admitted transition record');
     }
   }
-  requireExactBaseline(committedPolicyBaseline, policyBaseline,
-    'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
-    'ordinary table-policy exact-set baseline');
+  if (!legacyPolicyBaseline) {
+    requireExactBaseline(committedPolicyBaseline, policyBaseline,
+      'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+      'ordinary table-policy exact-set baseline');
+  }
   for (const entry of policyBaseline.entries) {
     if (entry.provenanceHeadId === null) {
       refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
@@ -1923,6 +2235,7 @@ function separationReceiptAtRevision({
   receiptPath,
   closure,
   policy = false,
+  policyComparatorVersion = GOVERNANCE_COMPARATOR_VERSION,
 }) {
   const code = policy
     ? 'SNAPBACK_TABLE_VISIBILITY_POLICY_REMOTE_SEPARATION_REQUIRED'
@@ -1954,7 +2267,10 @@ function separationReceiptAtRevision({
     || !['github-push-v1', 'atomic-push-envelope-v1'].includes(receipt.providerProfile)
     || !SHA256.test(receipt.eventInputDigest ?? '')
     || !UTC_INSTANT.test(receipt.observedAt ?? '')
-    || receipt.comparatorVersion !== GOVERNANCE_COMPARATOR_VERSION) {
+    || (policy
+      ? receipt.comparatorVersion !== policyComparatorVersion
+      : ![LEGACY_READ_ONLY_COMPARATOR_VERSION, GOVERNANCE_COMPARATOR_VERSION]
+          .includes(receipt.comparatorVersion))) {
     refuse(code, `separation receipt ${repositoryPath} does not bind approval ${approval.id}`);
   }
   const registryPath = backendGovernancePath(backendPath, GOVERNANCE_FILES.observerKeys);
@@ -2117,15 +2433,32 @@ function normalizedPatternInstanceIsWithin(declaration, ceiling, approval) {
   });
 }
 
-function validateStoredPolicyBody(body, label) {
+function policyGovernanceVersionForArtifacts(baseline, ledger) {
   const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
-  exactKeys(body, [
+  const version = Object.values(POLICY_GOVERNANCE_VERSIONS).find((candidate) => (
+    candidate.baseline === baseline?.schemaVersion
+    && candidate.ledger === ledger?.schemaVersion
+  ));
+  if (!version) {
+    refuse(code, 'ordinary table-policy baseline and transition ledger versions are unsupported or mismatched');
+  }
+  return version;
+}
+
+function validateStoredPolicyBody(body, label, version) {
+  const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
+  const keys = [
     'policy', 'audienceDeclarationClosure', 'audienceDeclarationClosureDigest',
-  ], label, code, [
-    'policy', 'audienceDeclarationClosure', 'audienceDeclarationClosureDigest',
-  ]);
+    ...(version === POLICY_GOVERNANCE_VERSIONS.v2 ? ['writePosture'] : []),
+  ];
+  exactKeys(body, keys, label, code, keys);
   const policy = canonicalVisibilityPolicy(body.policy, `${label}.policy`, code);
+  const writePosture = version === POLICY_GOVERNANCE_VERSIONS.v2
+    ? canonicalWritePosture(body.writePosture)
+    : undefined;
   if (canonicalGovernanceJson(policy) !== canonicalGovernanceJson(body.policy)
+    || (version === POLICY_GOVERNANCE_VERSIONS.v2
+      && canonicalGovernanceJson(writePosture) !== canonicalGovernanceJson(body.writePosture))
     || !Array.isArray(body.audienceDeclarationClosure)
     || governanceDigest(
       'snapback:visibility-audience-closure:v1',
@@ -2138,13 +2471,13 @@ function validateStoredPolicyBody(body, label) {
 
 function validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, baseline }) {
   const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
+  const version = policyGovernanceVersionForArtifacts(baseline, ledger);
   if (!baselineExactSetValid(baseline)) {
     refuse(code, 'ordinary table-policy exact-set baseline digest is stale or rebound');
   }
   exactKeys(ledger, ['schemaVersion', 'nodes', 'heads', 'ledgerDigest'],
     'transition ledger', code, ['schemaVersion', 'nodes', 'heads', 'ledgerDigest']);
-  if (ledger.schemaVersion !== GOVERNANCE_SCHEMA_VERSIONS.transitionLedger
-    || !Array.isArray(ledger.nodes) || !ledger.heads || typeof ledger.heads !== 'object'
+  if (!Array.isArray(ledger.nodes) || !ledger.heads || typeof ledger.heads !== 'object'
     || Array.isArray(ledger.heads)) {
     refuse(code, 'ordinary table-policy transition ledger is malformed');
   }
@@ -2163,25 +2496,27 @@ function validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, b
       'approvalPath', 'approvalClosureDigest', 'serverSeparationReceipt',
       'serverSeparationReceiptDigest', 'quarantineVerdict',
     ]);
-    if (node.schemaVersion !== GOVERNANCE_SCHEMA_VERSIONS.transitionRecord
+    if (node.schemaVersion !== version.record
       || nodes.has(node.id)) refuse(code, `transition ledger reuses or malforms node ${node.id}`);
     const predecessorBody = node.predecessorNormalizedPolicyBody === null
       ? null
       : validateStoredPolicyBody(
           node.predecessorNormalizedPolicyBody,
           `transition ${node.id} predecessor`,
+          version,
         );
     const successorBody = validateStoredPolicyBody(
       node.successorNormalizedPolicyBody,
       `transition ${node.id} successor`,
+      version,
     );
     if ((predecessorBody === null && node.predecessorPolicyDigest !== null)
       || (predecessorBody !== null && governanceDigest(
-        'snapback:table-visibility-policy-body:v1',
+        version.bodyDigestDomain,
         predecessorBody,
       ) !== node.predecessorPolicyDigest)
       || governanceDigest(
-        'snapback:table-visibility-policy-body:v1',
+        version.bodyDigestDomain,
         successorBody,
       ) !== node.successorPolicyDigest) {
       refuse(code, `transition ${node.id} carries a rebound policy body`);
@@ -2202,7 +2537,11 @@ function validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, b
       if (closure.approval.approvalKind !== 'table-policy-transition'
         || closure.approval.lifecycleClass !== 'durable-policy'
         || closure.approval.id !== node.id
-        || closure.approval.scopeDigest !== transitionApprovalScopeDigest(node, closure.approval)
+        || closure.approval.scopeDigest !== transitionApprovalScopeDigestForVersion(
+          node,
+          closure.approval,
+          version,
+        )
         || closure.approvalClosureDigest !== node.approvalClosureDigest) {
         refuse(code, `transition ${node.id} does not bind its remotely approved closure`);
       }
@@ -2213,6 +2552,7 @@ function validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, b
         receiptPath: node.serverSeparationReceipt,
         closure,
         policy: true,
+        policyComparatorVersion: version.comparatorVersion,
       });
       if (separation.receiptDigest !== node.serverSeparationReceiptDigest) {
         refuse(code, `transition ${node.id} has a rebound separation receipt`);
@@ -2271,7 +2611,7 @@ function validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, b
     }
     const predecessor = nodes.get(node.predecessorHeadId);
     if (!predecessor || predecessor.tableId !== node.tableId
-      || node.predecessorHeadDigest !== transitionNodeDigest(predecessor)
+      || node.predecessorHeadDigest !== transitionNodeDigestForVersion(predecessor, version)
       || canonicalGovernanceJson(node.predecessorNormalizedPolicyBody)
         !== canonicalGovernanceJson(predecessor.successorNormalizedPolicyBody)) {
       refuse(code, `transition ${id} has a stale or rebound predecessor`);
@@ -2292,7 +2632,8 @@ function validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, b
     }
   }
   if (reachable.size !== nodes.size
-    || transitionLedgerDigest(ledger.nodes, ledger.heads) !== ledger.ledgerDigest) {
+    || transitionLedgerDigestForVersion(ledger.nodes, ledger.heads, version)
+      !== ledger.ledgerDigest) {
     refuse(code, 'transition ledger is forked, orphaned, or rebound');
   }
   for (const entry of baseline.entries) {
@@ -2304,6 +2645,236 @@ function validatePolicyLedgerAtRevision({ root, revision, backendPath, ledger, b
       refuse(code, `table ${entry.tableId} names a stale or rebound policy head`);
     }
   }
+  return version;
+}
+
+// @ref LLP 0264#migration-and-rollout — predecessor validation remains
+// version-dispatched, and the v1 -> v2 edge is representational only when the
+// retained body gains exactly its mechanically derived D2 write posture.
+function staticSourceValue(node) {
+  if (node?.type === 'Literal') return { known: true, value: node.value };
+  if (node?.type === 'ArrayExpression') {
+    const values = node.elements.map(staticSourceValue);
+    return values.every(({ known }) => known)
+      ? { known: true, value: values.map(({ value }) => value) }
+      : { known: false };
+  }
+  if (node?.type === 'ObjectExpression') {
+    const entries = [];
+    for (const property of node.properties) {
+      if (property?.type !== 'Property' || property.computed || property.kind !== 'init') {
+        return { known: false };
+      }
+      const key = property.key.type === 'Identifier'
+        ? property.key.name
+        : property.key.type === 'Literal' && typeof property.key.value === 'string'
+          ? property.key.value
+          : null;
+      const value = staticSourceValue(property.value);
+      if (key === null || !value.known) return { known: false };
+      entries.push([key, value.value]);
+    }
+    return { known: true, value: Object.fromEntries(entries) };
+  }
+  return { known: false };
+}
+
+function writeDisclosuresAtRevision({
+  root,
+  revision,
+  backendPath,
+  successorBaseline,
+}) {
+  const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
+  const hasDisclosures = successorBaseline.entries.some((entry) => (
+    entry.normalizedPolicyBody.writePosture.globalUniqueDisclosures.length > 0
+  ));
+  if (!hasDisclosures) return [];
+  const sourcePath = backendGovernancePath(backendPath, 'functions.mjs');
+  const source = artifactAtRevision(root, revision, sourcePath);
+  if (source === null) {
+    refuse(code, `v1-to-v2 policy upgrade cannot derive write disclosures from ${sourcePath}`);
+  }
+  let program;
+  try {
+    program = parseJavaScript(source, { ecmaVersion: 'latest', sourceType: 'module' });
+  } catch {
+    refuse(code, `v1-to-v2 policy upgrade cannot parse write disclosures from ${sourcePath}`);
+  }
+  const authored = [];
+  let incomplete = false;
+  const walk = (node) => {
+    if (!node || typeof node.type !== 'string') return;
+    if (node.type === 'Property' && !node.computed) {
+      const key = node.key?.type === 'Identifier'
+        ? node.key.name
+        : node.key?.type === 'Literal' ? node.key.value : null;
+      if (key === 'discloseUniqueConflicts') {
+        const value = staticSourceValue(node.value);
+        if (!value.known || !Array.isArray(value.value)) incomplete = true;
+        else authored.push(...value.value);
+      }
+    }
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) {
+        for (const child of value) walk(child);
+      } else {
+        walk(value);
+      }
+    }
+  };
+  walk(program);
+  if (incomplete) {
+    refuse(code, `v1-to-v2 policy upgrade has non-static write disclosures in ${sourcePath}`);
+  }
+  try {
+    return collectWriteDisclosures([{ discloseUniqueConflicts: authored }]);
+  } catch {
+    refuse(code, `v1-to-v2 policy upgrade has malformed write disclosures in ${sourcePath}`);
+  }
+}
+
+function policyUpgradeInputs({ root, revision, backendPath, baseline, successorBaseline }) {
+  const code = 'SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID';
+  const authorityTableClasses = new Map();
+  for (const entry of baseline.entries) {
+    for (const closure of entry.normalizedPolicyBody.audienceDeclarationClosure) {
+      if (typeof closure?.membershipTable === 'string') {
+        const prior = authorityTableClasses.get(closure.membershipTable);
+        if (prior !== undefined && prior !== 'membership') {
+          refuse(code, `v1-to-v2 policy upgrade has conflicting authority-table facts for ${closure.membershipTable}`);
+        }
+        authorityTableClasses.set(closure.membershipTable, 'membership');
+      }
+    }
+  }
+  const normalizedDefinition = parseRevisionJson(
+    root,
+    revision,
+    backendGovernancePath(backendPath, 'generated/normalized-definition.v1.json'),
+  );
+  const tableEntries = normalizedDefinition?.definition?.application?.schema?.tables;
+  if (Array.isArray(tableEntries)) {
+    for (const table of tableEntries) {
+      if (typeof table?.name !== 'string') continue;
+      const authorityClass = table.membership
+        ? 'membership'
+        : table.permissionBacking === true
+          ? 'permission-backing'
+          : 'ordinary';
+      const prior = authorityTableClasses.get(table.name);
+      if (prior !== undefined && prior !== authorityClass) {
+        refuse(code, `v1-to-v2 policy upgrade has conflicting authority-table facts for ${table.name}`);
+      }
+      authorityTableClasses.set(table.name, authorityClass);
+    }
+  }
+  return {
+    authorityTableClasses,
+    disclosures: writeDisclosuresAtRevision({
+      root,
+      revision,
+      backendPath,
+      successorBaseline,
+    }),
+  };
+}
+
+function legacyPolicyBodyWithDerivedWritePosture(body, tableId, upgradeInputs) {
+  const authorityTableClass = upgradeInputs.authorityTableClasses.get(tableId) ?? 'ordinary';
+  const table = {
+    visibility: body.policy,
+    ...(authorityTableClass === 'membership' ? { membership: {} } : {}),
+    ...(authorityTableClass === 'permission-backing' ? { permissionBacking: true } : {}),
+  };
+  const writePosture = deriveWritePosture(
+    tableId,
+    { ...table, visibility: body.policy },
+    upgradeInputs.disclosures,
+  );
+  return {
+    ...structuredClone(body),
+    writePosture: canonicalWritePosture(writePosture),
+  };
+}
+
+function upgradedLegacyPolicyEntry(entry, upgradeInputs) {
+  const normalizedPolicyBody = legacyPolicyBodyWithDerivedWritePosture(
+    entry.normalizedPolicyBody,
+    entry.tableId,
+    upgradeInputs,
+  );
+  return {
+    ...structuredClone(entry),
+    normalizedPolicyBody,
+    policyDigest: governanceDigest(
+      POLICY_GOVERNANCE_VERSIONS.v2.bodyDigestDomain,
+      normalizedPolicyBody,
+    ),
+  };
+}
+
+function expectedLegacyBaselineUpgrade(baseline, upgradeInputs) {
+  return exactSetBaseline(
+    baseline.entries.map((entry) => upgradedLegacyPolicyEntry(entry, upgradeInputs)),
+    POLICY_GOVERNANCE_VERSIONS.v2.baseline,
+  );
+}
+
+function expectedLegacyLedgerUpgrade(ledger, upgradeInputs) {
+  const legacyNodes = new Map(ledger.nodes.map((node) => [node.id, node]));
+  const upgradedNodes = new Map();
+  const upgradeNode = (node) => {
+    if (upgradedNodes.has(node.id)) return upgradedNodes.get(node.id);
+    const predecessor = node.predecessorHeadId === null
+      ? null
+      : upgradeNode(legacyNodes.get(node.predecessorHeadId));
+    const predecessorNormalizedPolicyBody = node.predecessorNormalizedPolicyBody === null
+      ? null
+      : legacyPolicyBodyWithDerivedWritePosture(
+          node.predecessorNormalizedPolicyBody,
+          node.tableId,
+          upgradeInputs,
+        );
+    const successorNormalizedPolicyBody = legacyPolicyBodyWithDerivedWritePosture(
+      node.successorNormalizedPolicyBody,
+      node.tableId,
+      upgradeInputs,
+    );
+    const upgraded = {
+      ...structuredClone(node),
+      schemaVersion: POLICY_GOVERNANCE_VERSIONS.v2.record,
+      predecessorHeadDigest: predecessor === null
+        ? null
+        : transitionNodeDigestForVersion(predecessor, POLICY_GOVERNANCE_VERSIONS.v2),
+      predecessorNormalizedPolicyBody,
+      predecessorPolicyDigest: predecessorNormalizedPolicyBody === null
+        ? null
+        : governanceDigest(
+            POLICY_GOVERNANCE_VERSIONS.v2.bodyDigestDomain,
+            predecessorNormalizedPolicyBody,
+          ),
+      successorNormalizedPolicyBody,
+      successorPolicyDigest: governanceDigest(
+        POLICY_GOVERNANCE_VERSIONS.v2.bodyDigestDomain,
+        successorNormalizedPolicyBody,
+      ),
+    };
+    upgradedNodes.set(node.id, upgraded);
+    return upgraded;
+  };
+  const nodes = ledger.nodes.map(upgradeNode);
+  const heads = structuredClone(ledger.heads);
+  return {
+    schemaVersion: POLICY_GOVERNANCE_VERSIONS.v2.ledger,
+    nodes,
+    heads,
+    ledgerDigest: transitionLedgerDigestForVersion(
+      nodes,
+      heads,
+      POLICY_GOVERNANCE_VERSIONS.v2,
+    ),
+  };
 }
 
 function validateQuarantineLedgerAtRevision({ root, revision, backendPath, ledger }) {
@@ -2755,25 +3326,56 @@ function compareGovernanceBackend({ root, beforeOid, afterOid, backendPath, g1In
   }
   const beforePolicy = beforePolicyArtifact ?? { entries: [] };
   const afterPolicy = afterPolicyArtifact ?? { entries: [] };
-  if (beforePolicyArtifact) validatePolicyLedgerAtRevision({
-    root,
-    revision: beforeOid,
-    backendPath,
-    ledger: beforeLedgerArtifact,
-    baseline: beforePolicyArtifact,
-  });
-  if (afterPolicyArtifact) validatePolicyLedgerAtRevision({
-    root,
-    revision: afterOid,
-    backendPath,
-    ledger: afterLedgerArtifact,
-    baseline: afterPolicyArtifact,
-  });
+  const beforePolicyVersion = beforePolicyArtifact
+    ? validatePolicyLedgerAtRevision({
+        root,
+        revision: beforeOid,
+        backendPath,
+        ledger: beforeLedgerArtifact,
+        baseline: beforePolicyArtifact,
+      })
+    : null;
+  const afterPolicyVersion = afterPolicyArtifact
+    ? validatePolicyLedgerAtRevision({
+        root,
+        revision: afterOid,
+        backendPath,
+        ledger: afterLedgerArtifact,
+        baseline: afterPolicyArtifact,
+      })
+    : null;
+  if (beforePolicyVersion === POLICY_GOVERNANCE_VERSIONS.v2
+    && afterPolicyVersion === POLICY_GOVERNANCE_VERSIONS.v1) {
+    refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
+      `backend ${backendPath} downgrades ordinary table-policy governance from v2 to v1`);
+  }
+  const upgradesV1ToV2 = beforePolicyVersion === POLICY_GOVERNANCE_VERSIONS.v1
+    && afterPolicyVersion === POLICY_GOVERNANCE_VERSIONS.v2;
+  const upgradeInputs = upgradesV1ToV2
+    ? policyUpgradeInputs({
+        root,
+        revision: afterOid,
+        backendPath,
+        baseline: beforePolicy,
+        successorBaseline: afterPolicy,
+      })
+    : null;
+  const expectedUpgradedBaseline = upgradesV1ToV2
+    ? expectedLegacyBaselineUpgrade(beforePolicy, upgradeInputs)
+    : null;
+  const exactDerivedBaselineUpgrade = expectedUpgradedBaseline !== null
+    && canonicalGovernanceJson(expectedUpgradedBaseline)
+      === canonicalGovernanceJson(afterPolicy);
   const beforePolicies = new Map(beforePolicy.entries.map((entry) => [entry.tableId, entry]));
   const beforeLedger = beforeLedgerArtifact ?? { nodes: [] };
   const afterLedger = afterLedgerArtifact ?? { nodes: [] };
-  const beforeNodes = new Map(beforeLedger.nodes.map((node) => [node.id, canonicalGovernanceJson(node)]));
-  for (const node of beforeLedger.nodes) {
+  const retainedLedger = upgradesV1ToV2
+    ? expectedLegacyLedgerUpgrade(beforeLedger, upgradeInputs)
+    : beforeLedger;
+  const beforeNodes = new Map(
+    retainedLedger.nodes.map((node) => [node.id, canonicalGovernanceJson(node)]),
+  );
+  for (const node of retainedLedger.nodes) {
     const after = afterLedger.nodes.find(({ id }) => id === node.id);
     if (!after || canonicalGovernanceJson(after) !== beforeNodes.get(node.id)) {
       refuse('SNAPBACK_TABLE_VISIBILITY_POLICY_PROVENANCE_INVALID',
@@ -2795,7 +3397,18 @@ function compareGovernanceBackend({ root, beforeOid, afterOid, backendPath, g1In
       if (entry.normalizedPolicyBody.policy.kind === 'public-read') policyGrowth.push(entry);
       continue;
     }
-    if (compareVisibilityPolicies(before.normalizedPolicyBody, entry.normalizedPolicyBody) === 'growth') {
+    if (exactDerivedBaselineUpgrade) continue;
+    const comparableBefore = upgradesV1ToV2
+      ? upgradedLegacyPolicyEntry(before, upgradeInputs)
+      : before;
+    const relation = compareVisibilityPolicies(
+      comparableBefore.normalizedPolicyBody,
+      entry.normalizedPolicyBody,
+    );
+    const changesDerivedPosture = upgradesV1ToV2
+      && canonicalGovernanceJson(comparableBefore.normalizedPolicyBody.writePosture)
+        !== canonicalGovernanceJson(entry.normalizedPolicyBody.writePosture);
+    if (changesDerivedPosture || relation === 'growth' || relation === 'incomparable') {
       policyGrowth.push(entry);
     }
   }

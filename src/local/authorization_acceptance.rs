@@ -275,6 +275,7 @@ fn insert_function(name: &str, table: &str, fields: &[&str]) -> FunctionDefiniti
         name,
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: table.to_owned(),
                 values: fields
@@ -293,6 +294,7 @@ fn patch_function(name: &str, table: &str, field: &str) -> FunctionDefinition {
         name,
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Patch {
                 table: table.to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -308,6 +310,7 @@ fn delete_function(name: &str, table: &str) -> FunctionDefinition {
         name,
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Delete {
                 table: table.to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),

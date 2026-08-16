@@ -5,16 +5,16 @@
   "auth": {
     "mode": "dev"
   },
-  "authoredSourceHash": "sha256:c5fdf680ff646e8a6b95b737ea9864980d51665b3e31bb60a701bb5c79fa7eb2",
+  "authoredSourceHash": "sha256:ae022cf5e372070874f099d4915753b843d02914541ddafdfa4226c1c4bb9430",
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "765063799fbab42275414be0faad2f4cc0f1493e972995233b42ad4d03bb766e",
+  "inputsHash": "8fac2ae0d3ddae10ae3b5ad89a516fbefae156d3082104aaf4d7908274b80923",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "relational_query_v1"
   ],
-  "schemaHash": "sha256:913726aad567bdd3",
+  "schemaHash": "sha256:a48ed0a5da293237",
   "schemaVersion": "snapback.v0",
   "tables": [
     {
@@ -257,13 +257,13 @@
   "targetProfile": "local-dev-sqlite-ibex",
   "visibilityGovernance": {
     "fixtureProfiles": [],
-    "generationInputsHash": "sha256:9157348f7618631ed31d0149ea2d2e77ee44d5badd50c170d44a8d25947e1443",
+    "generationInputsHash": "sha256:7fbe5de8727fdb572a74385a980123142dc8788eb2a8678761fed65f010a258b",
     "overrideBaselineDigest": "sha256:0702a2f87c0471ebf8f947ef05678998c9531141feafc1a7ce0a60103fdb1209",
     "productionWindows": [],
     "quarantineHeadDigest": "sha256:0b44808bafbf70b6ba53bf563347eb0c7e34f59afe9fa375c1d9cceceee6f444",
     "required": false,
     "schemaVersion": "snapback.visibility-governance-activation.v1",
-    "tablePolicyBaselineDigest": "sha256:5c3a54e9ffa1da4ba78a9b884c2196228bc39698c50ebcf580a67df2b4fb6b8f",
-    "visibilityAuthorizationProgramDigest": "sha256:0592ec42da47423085945d7c1c9f3a601424ce08207c9d9af281707b6b9aa31c"
+    "tablePolicyBaselineDigest": "sha256:f8bb5b4b748d73a9cfe08f9299158c2a067f1fbdf0e2c90b4f3fac16629b7e4d",
+    "visibilityAuthorizationProgramDigest": "sha256:a089f23834c389264256e99d371be889aa7345a614267b15689ac85b1fa17d00"
   }
 }

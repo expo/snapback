@@ -789,6 +789,7 @@ fn functions() -> FunctionManifest {
         "createTodo",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: "todos".to_owned(),
                 values: BTreeMap::from([
@@ -805,6 +806,7 @@ fn functions() -> FunctionManifest {
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Patch {
                     table: "todos".to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
@@ -818,6 +820,7 @@ fn functions() -> FunctionManifest {
         "deleteTodo",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Delete {
                 table: "todos".to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -829,6 +832,7 @@ fn functions() -> FunctionManifest {
         "createThenDelete",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Insert {
                     table: "todos".to_owned(),

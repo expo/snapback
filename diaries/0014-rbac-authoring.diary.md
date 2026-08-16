@@ -155,3 +155,16 @@ Membership-visible search and asset sharing remain intentionally refused, and
 the demo does not work around either with a mirrored roster. That keeps this
 entry scoped to rollout steps 2–3; the later Clique rebuild must wait for those
 independent qualifications.
+
+## 2026-08-16 — authority writes stay specialized
+
+The owner-write rollout exposed a hostile `rawJoin` probe that reached the
+private membership table through generic `ctx.db.insert`. That path predates
+LLP 0264's ordinary-table policy and correctly remains a hard refusal during
+the warning window. The merged authoring contract catches that probe even
+earlier: codegen refuses a generic authority-table writer, while the lower-level
+membership corpus retains the runtime refusal proof for direct artifacts. The
+published demo therefore contains only declaration-owned `ctx.membership`
+operations and keeps Eve's unseated read/live probes.
+This is more explicit than app-authored RLS mutation code and avoids turning a
+read membership declaration into generic write authority.

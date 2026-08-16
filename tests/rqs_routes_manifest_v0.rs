@@ -140,6 +140,7 @@ fn paint_cell() -> FunctionDefinition {
         "paintCell",
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(snapback::manifest::MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![snapback::manifest::MutationStep::Insert {
                 table: "cells".to_owned(),
                 values: std::collections::BTreeMap::from([

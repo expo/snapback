@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.snapback.dev/table-visibility-policy-baseline.v1.json",
-  "title": "Snapback exact-set ordinary table visibility policy baseline v1",
+  "$id": "https://schemas.snapback.dev/table-visibility-policy-baseline.v2.json",
+  "title": "Snapback exact-set ordinary table read/write policy baseline v2",
   "type": "object",
   "required": ["schemaVersion", "entries", "exactSetDigest"],
   "properties": {
-    "schemaVersion": { "const": "snapback.table-visibility-policy-baseline.v1" },
+    "schemaVersion": { "const": "snapback.table-visibility-policy-baseline.v2" },
     "entries": {
       "type": "array",
       "items": {
@@ -13,16 +13,7 @@
         "required": ["tableId", "normalizedPolicyBody", "policyDigest", "provenanceHeadId"],
         "properties": {
           "tableId": { "type": "string", "minLength": 1 },
-          "normalizedPolicyBody": {
-            "type": "object",
-            "required": ["policy", "audienceDeclarationClosure", "audienceDeclarationClosureDigest"],
-            "properties": {
-              "policy": { "type": "object" },
-              "audienceDeclarationClosure": { "type": "array", "items": { "type": "object" } },
-              "audienceDeclarationClosureDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
-            },
-            "additionalProperties": false
-          },
+          "normalizedPolicyBody": { "$ref": "#/$defs/normalizedPolicyBody" },
           "policyDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
           "provenanceHeadId": { "type": ["string", "null"] }
         },
@@ -30,6 +21,55 @@
       }
     },
     "exactSetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  },
+  "$defs": {
+    "normalizedPolicyBody": {
+      "type": "object",
+      "required": ["policy", "audienceDeclarationClosure", "audienceDeclarationClosureDigest", "writePosture"],
+      "properties": {
+        "policy": { "type": "object" },
+        "audienceDeclarationClosure": { "type": "array", "items": { "type": "object" } },
+        "audienceDeclarationClosureDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "writePosture": { "$ref": "#/$defs/writePosture" }
+      },
+      "additionalProperties": false
+    },
+    "writePosture": {
+      "type": "object",
+      "required": ["semanticVersion", "dispositions", "ownerField", "authorityTableClass", "globalUniqueDisclosures"],
+      "properties": {
+        "semanticVersion": { "const": "snapback.owner-write.v1" },
+        "dispositions": {
+          "type": "object",
+          "required": ["insert", "insert-each", "patch", "delete", "delete-where"],
+          "properties": {
+            "insert": { "enum": ["refused", "owner-host-stamped", "owner-old-row-checked", "owner-filtered"] },
+            "insert-each": { "enum": ["refused", "owner-host-stamped", "owner-old-row-checked", "owner-filtered"] },
+            "patch": { "enum": ["refused", "owner-host-stamped", "owner-old-row-checked", "owner-filtered"] },
+            "delete": { "enum": ["refused", "owner-host-stamped", "owner-old-row-checked", "owner-filtered"] },
+            "delete-where": { "enum": ["refused", "owner-host-stamped", "owner-old-row-checked", "owner-filtered"] }
+          },
+          "additionalProperties": false
+        },
+        "ownerField": { "type": ["string", "null"] },
+        "authorityTableClass": { "enum": ["ordinary", "membership", "permission-backing"] },
+        "globalUniqueDisclosures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["table", "writeForm", "constraint", "operations"],
+            "properties": {
+              "table": { "type": "string", "minLength": 1 },
+              "writeForm": { "enum": ["insert", "insert-each", "patch", "delete", "delete-where"] },
+              "constraint": { "type": "string", "minLength": 1 },
+              "operations": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

@@ -7,7 +7,7 @@
   "artifactKind": "functionManifest",
   "authoredSourceHash": "sha256:85b5642896badd009a948f23249de1309e047675b34f6054bfb0f32a8f8fa1e4",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:e368a73a3859acec",
+  "bundleHash": "sha256:35d4002ffaf14721",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -55,7 +55,7 @@
       "exportedName": "createTodo",
       "handlerForm": "plan",
       "id": "todo-v2:createTodo",
-      "implementationHash": "sha256:8b83e0f2a1509c5a9f23cd4dce5ecdf6ed38cb7a3a11ba0a7a5ff76b568f80d4",
+      "implementationHash": "sha256:53da19d345ceb83da9e3912dc38f957fb9c44bcd1e73dd585e5c26ae8aeebf0f",
       "kind": "Mutation",
       "name": "createTodo",
       "readSetSummary": {
@@ -106,6 +106,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -131,7 +135,9 @@
       "authRequirement": "optional-user",
       "bundleEntrypoint": "deleteTodo",
       "effectCeiling": {
-        "authorizationInputs": [],
+        "authorizationInputs": [
+          "authUserId"
+        ],
         "basis": "static",
         "hostOperations": [],
         "reads": [
@@ -153,7 +159,7 @@
       "exportedName": "deleteTodo",
       "handlerForm": "plan",
       "id": "todo-v2:deleteTodo",
-      "implementationHash": "sha256:f630cea5c2d4ea4ff469bbd2aefabbd00edf96a407caaf2afc8ac4f638837e70",
+      "implementationHash": "sha256:097e0cf8c77f54565f29c575ee972140f62c983784fef0a81711124d9000fa4f",
       "kind": "Mutation",
       "name": "deleteTodo",
       "readSetSummary": {
@@ -177,6 +183,14 @@
       "runtime": {
         "HostPlan": {
           "Mutation": {
+            "ownerWriteChecks": [
+              {
+                "absent": {
+                  "kind": "no-effect"
+                },
+                "stepIndex": 0
+              }
+            ],
             "return_value": "ChangedCount",
             "steps": [
               {
@@ -194,6 +208,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -227,7 +245,9 @@
       "authRequirement": "optional-user",
       "bundleEntrypoint": "editTitle",
       "effectCeiling": {
-        "authorizationInputs": [],
+        "authorizationInputs": [
+          "authUserId"
+        ],
         "basis": "static",
         "hostOperations": [],
         "reads": [
@@ -249,7 +269,7 @@
       "exportedName": "editTitle",
       "handlerForm": "plan",
       "id": "todo-v2:editTitle",
-      "implementationHash": "sha256:55b89ec2d4ce0f511d7fe19acb4b4fefa17cade689b61b5d54c29524abc0c3cb",
+      "implementationHash": "sha256:73c1413ec719ee73449b0f3b13ff2517b19bd4b0b756d1241ed68cb2a8f764a0",
       "kind": "Mutation",
       "name": "editTitle",
       "readSetSummary": {
@@ -273,6 +293,14 @@
       "runtime": {
         "HostPlan": {
           "Mutation": {
+            "ownerWriteChecks": [
+              {
+                "absent": {
+                  "kind": "no-effect"
+                },
+                "stepIndex": 0
+              }
+            ],
             "return_value": "ChangedCount",
             "steps": [
               {
@@ -295,6 +323,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -819,7 +851,9 @@
       "authRequirement": "optional-user",
       "bundleEntrypoint": "setCompleted",
       "effectCeiling": {
-        "authorizationInputs": [],
+        "authorizationInputs": [
+          "authUserId"
+        ],
         "basis": "static",
         "hostOperations": [],
         "reads": [
@@ -841,7 +875,7 @@
       "exportedName": "setCompleted",
       "handlerForm": "plan",
       "id": "todo-v2:setCompleted",
-      "implementationHash": "sha256:a73da78ce773c5454dba82b84f6e0e97ac3a29c329e00f1aca8daadd20fbbb46",
+      "implementationHash": "sha256:3c561c74a06f41a1f8d28978726c1befbc3d7f8757dd7b7eff67431e1acfd115",
       "kind": "Mutation",
       "name": "setCompleted",
       "readSetSummary": {
@@ -865,6 +899,14 @@
       "runtime": {
         "HostPlan": {
           "Mutation": {
+            "ownerWriteChecks": [
+              {
+                "absent": {
+                  "kind": "no-effect"
+                },
+                "stepIndex": 0
+              }
+            ],
             "return_value": "ChangedCount",
             "steps": [
               {
@@ -887,6 +929,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -920,7 +966,9 @@
       "authRequirement": "optional-user",
       "bundleEntrypoint": "setPriority",
       "effectCeiling": {
-        "authorizationInputs": [],
+        "authorizationInputs": [
+          "authUserId"
+        ],
         "basis": "static",
         "hostOperations": [],
         "reads": [
@@ -942,7 +990,7 @@
       "exportedName": "setPriority",
       "handlerForm": "plan",
       "id": "todo-v2:setPriority",
-      "implementationHash": "sha256:91ddb2955667797b6c1bf2aeaabdf4cd1ac076af2655ee1485f48acb3b3742fc",
+      "implementationHash": "sha256:c18e3e6f19303fbde927ac993f934f88356d5987f95f81e454de4cc5f1a31995",
       "kind": "Mutation",
       "name": "setPriority",
       "readSetSummary": {
@@ -966,6 +1014,14 @@
       "runtime": {
         "HostPlan": {
           "Mutation": {
+            "ownerWriteChecks": [
+              {
+                "absent": {
+                  "kind": "no-effect"
+                },
+                "stepIndex": 0
+              }
+            ],
             "return_value": "ChangedCount",
             "steps": [
               {
@@ -988,6 +1044,10 @@
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
       "writeSetSummary": {
         "mode": "mutationPlan",
         "primaryTable": "todos",
@@ -998,7 +1058,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "3da2cb3de99cb4556432fd70ac224fe0ecca53a7b14a3d309d4bb35307096518",
+  "inputsHash": "4c935859db481f44bc5552c92f6dd56959b305fd4c56938f77646739dadb365a",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

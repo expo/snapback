@@ -60,6 +60,7 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
     db.mutation_writes()
         .execute_mutation(
             &MutationPlan {
+            owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "notes".to_owned(),
                     values: BTreeMap::from([(

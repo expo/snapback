@@ -984,6 +984,7 @@ mod tests {
     #[test]
     fn legacy_mutation_bindings_keep_shadowing_and_spelling_compatibility() {
         let plan = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Let {
                     bind_as: "legacy-shadow-with-dashes".to_owned(),
@@ -1005,6 +1006,7 @@ mod tests {
     #[test]
     fn allocation_bindings_reject_collision_and_use_before_allocation() {
         let collision = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Let {
                     bind_as: "position".to_owned(),
@@ -1024,6 +1026,7 @@ mod tests {
         assert_eq!(error.diagnostic.details["reason"], "duplicate");
 
         let use_before = MutationPlan {
+            owner_write_checks: Vec::new(),
             steps: vec![
                 MutationStep::Guard {
                     cond: ValueExpr::Binding("position".to_owned()),
