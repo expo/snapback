@@ -20,6 +20,7 @@
         "SNAPBACK_AUTHORING_ARRAY_BOUND_UNRESOLVED",
         "SNAPBACK_AUTHORING_CLASS_INSTANCE_UNSUPPORTED",
         "SNAPBACK_AUTHORING_COMPILER_CONTEXT_MISSING",
+        "SNAPBACK_AUTHORING_DEPENDENCY_DECLARATION_UNSUPPORTED",
         "SNAPBACK_AUTHORING_DEFINITION_INVALID",
         "SNAPBACK_AUTHORING_HANDLER_NOT_FOUND",
         "SNAPBACK_AUTHORING_INDEX_SIGNATURE_UNSUPPORTED",
@@ -30,6 +31,8 @@
         "SNAPBACK_AUTHORING_RESULT_SHAPE_UNSUPPORTED",
         "SNAPBACK_AUTHORING_RETURN_ANY_UNRESOLVED",
         "SNAPBACK_AUTHORING_RETURN_UNKNOWN_UNRESOLVED",
+        "SNAPBACK_AUTHORING_RUNTIME_EVIDENCE_INVALID",
+        "SNAPBACK_AUTHORING_RUNTIME_EVIDENCE_SKIPPED",
         "SNAPBACK_AUTHORING_STRING_BOUND_UNRESOLVED",
         "SNAPBACK_AUTHORING_SUGGESTION_INPUT_INVALID",
         "SNAPBACK_AUTHORING_UNION_UNSUPPORTED"
@@ -82,6 +85,87 @@
         "contractExpression": { "type": ["string", "null"] },
         "confidence": { "enum": ["exact", "schema-derived", "widened", "unresolved"] },
         "basis": { "enum": ["typescript", "schema-reference", "contract-normalization"] }
+      }
+    },
+    "runtimeEvidenceAggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "disposition", "scope", "limitationReason", "complete", "expectedPaths", "observedPaths"],
+      "properties": {
+        "status": { "enum": ["passed", "partial", "failed", "not-claimed", "blocked"] },
+        "disposition": { "type": "string", "minLength": 1 },
+        "scope": { "const": "explicitly-registered-paths-only" },
+        "limitationReason": { "type": "string", "minLength": 1 },
+        "complete": { "type": "boolean" },
+        "expectedPaths": { "type": "integer", "minimum": 0 },
+        "observedPaths": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "runtimeEvidenceReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "evidenceClass", "path", "digest", "receiptSchemaVersion", "aggregate"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-runtime-receipt.v1" },
+        "evidenceClass": { "const": "runtime-witnessed" },
+        "path": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "#/$defs/digest" },
+        "receiptSchemaVersion": { "const": "snapback.verify-receipt.v1" },
+        "aggregate": { "$ref": "#/$defs/runtimeEvidenceAggregate" }
+      }
+    },
+    "dependencyPathEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion", "evidenceClass", "receiptDigest", "receiptPath", "profileId", "pathId",
+        "pathKind", "targetProfileId", "functionId", "dependencyClass", "provenance", "scope",
+        "aggregateStatus", "limitationReason"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-dependency-evidence.v1" },
+        "evidenceClass": { "const": "runtime-witnessed" },
+        "receiptDigest": { "$ref": "#/$defs/digest" },
+        "receiptPath": { "type": "string", "minLength": 1 },
+        "profileId": { "type": "string", "minLength": 1 },
+        "pathId": { "type": "string", "minLength": 1 },
+        "pathKind": { "enum": ["success", "failure", "action", "relational", "search", "snapshot-bundle"] },
+        "targetProfileId": { "type": "string", "minLength": 1 },
+        "functionId": { "type": "string", "minLength": 1 },
+        "dependencyClass": { "enum": ["read", "write"] },
+        "provenance": { "const": "complete" },
+        "scope": { "const": "explicitly-registered-paths-only" },
+        "aggregateStatus": { "enum": ["passed", "partial", "failed", "not-claimed", "blocked"] },
+        "limitationReason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "dependencyAddition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "field", "table", "evidence"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-dependency-addition.v1" },
+        "field": { "enum": ["reads", "writes"] },
+        "table": { "type": "string", "minLength": 1 },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dependencyPathEvidence" }
+        }
+      }
+    },
+    "dependencyChanges": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "mode", "completeSetClaim", "additions"],
+      "properties": {
+        "schemaVersion": { "const": "snapback.declaration-suggestion-dependency-changes.v1" },
+        "mode": { "const": "addition-only" },
+        "completeSetClaim": { "const": false },
+        "additions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/dependencyAddition" }
+        }
       }
     },
     "confidence": {
@@ -149,6 +233,8 @@
         "schemaVersion": { "const": "snapback.declaration-semantic-summary.v1" },
         "runtimeValidation": { "type": "string", "minLength": 1 },
         "generatedClientTypes": { "type": "string", "minLength": 1 },
+        "dependencyAdditions": { "type": "integer", "minimum": 0 },
+        "dependencyCompleteSetClaim": { "const": false },
         "unresolvedHoles": { "type": "integer", "minimum": 0 },
         "checksAfterAcceptance": {
           "type": "array",
@@ -214,13 +300,14 @@
           "properties": {
             "schemaVersion": { "const": "snapback.declaration-suggestion-analyzer.v1" },
             "id": { "const": "snapback-declaration-suggestion" },
-            "version": { "const": 1 },
+            "version": { "enum": [1, 2] },
             "reasonTableDigest": { "$ref": "#/$defs/digest" }
           }
         },
         "analysisInputId": { "$ref": "#/$defs/digest" },
         "analysisInputs": { "type": "array", "items": { "$ref": "#/$defs/identityInput" } },
-        "runtimeEvidenceReceipts": { "type": "array", "maxItems": 0 },
+        "runtimeEvidenceReceipts": { "type": "array", "items": { "$ref": "#/$defs/runtimeEvidenceReceipt" } },
+        "dependencyChanges": { "$ref": "#/$defs/dependencyChanges" },
         "declaration": { "$ref": "#/$defs/declaration" },
         "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
         "confidence": { "$ref": "#/$defs/confidence" },
@@ -228,7 +315,42 @@
         "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
         "patch": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/patch" }] },
         "semanticSummary": { "$ref": "#/$defs/semanticSummary" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "analyzer": {
+                "properties": { "version": { "const": 2 } },
+                "required": ["version"]
+              }
+            },
+            "required": ["analyzer"]
+          },
+          "then": {
+            "required": ["dependencyChanges"],
+            "properties": {
+              "semanticSummary": {
+                "required": ["dependencyAdditions", "dependencyCompleteSetClaim"]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "runtimeEvidenceReceipts": { "maxItems": 0 },
+              "dependencyChanges": false,
+              "semanticSummary": {
+                "not": {
+                  "anyOf": [
+                    { "required": ["dependencyAdditions"] },
+                    { "required": ["dependencyCompleteSetClaim"] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "suggestResult": {
       "type": "object",

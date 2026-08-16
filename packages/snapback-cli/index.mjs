@@ -3769,7 +3769,7 @@ function declarationSuggestionCliFailure(message, details = {}) {
 export const PACKAGED_CLI_COMMANDS = Object.freeze([
   {
     name: 'author', usage: 'snapback author suggest <operation-or-file> <--format patch|--json> | snapback author suggestion apply <suggestion.json> --json',
-    description: 'Derive reviewable result declarations and apply one identity-bound suggestion with stale-safe compare-and-write.', lifecycle: 'one-shot (suggest is read-only; apply writes one exact source patch)',
+    description: 'Derive reviewable result and addition-only dependency declarations, then apply one identity-bound suggestion with stale-safe compare-and-write.', lifecycle: 'one-shot (suggest is read-only; apply writes one exact source patch)',
     output: 'snapback.declaration-suggestion-result.v1 or snapback.declaration-suggestion-apply.v1; unified source patch with --format patch', exits: '0 analysis/application completed (including explicit holes/refused candidate classes); 1 invalid input or stale/refused write',
     recovery: 'Resolve every evidence hole before manual authoring, or regenerate the suggestion after any stale-input refusal.',
   },
@@ -3929,9 +3929,10 @@ export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
   nestedCliHelp(
     ['author', 'suggest'],
     'snapback author suggest <operation-or-file> <--format patch|--json>',
-    'Read a stable backend snapshot and derive result-only DeclarationSuggestionV1 records without editing source.',
+    'Read a stable backend snapshot and derive result plus receipt-witnessed addition-only dependency DeclarationSuggestionV1 records without editing source.',
     [
       'Use <file>#<operation> for one operation, a definition file for all operations in it, or an operation name from inside a backend directory.',
+      'When the conventional .snapback/verify-receipt.json exists, only underDeclarations on explicitly registered paths can propose read/write additions; overDeclarations never propose removals.',
       '--format patch includes semantic consequences, unresolved holes, exact post-acceptance checks, and an ordinary unified source diff.',
     ],
   ),

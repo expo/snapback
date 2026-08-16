@@ -864,7 +864,8 @@ function intersection(sets) {
 }
 
 export function aggregateConformance(profiles, results) {
-  if (profiles.length === 0) {
+  const registeredPathCount = profiles.reduce((count, profile) => count + profile.paths.length, 0);
+  if (registeredPathCount === 0) {
     return Object.freeze({
       status: 'not-claimed',
       disposition: 'no-registered-acceptance-paths',
@@ -1174,6 +1175,7 @@ export async function runVerify(config, options = {}) {
   const profileResults = canRunProfiles
     ? await runProfiles(config, { artifact, identityContext }, options)
     : Object.freeze([]);
+  const registeredPathCount = config.profiles.reduce((count, profile) => count + profile.paths.length, 0);
   let conformance;
   if (canRunProfiles) {
     try {
@@ -1183,7 +1185,7 @@ export async function runVerify(config, options = {}) {
         status: 'failed', disposition: 'invalid-profile-conformance', complete: false,
         scope: 'explicitly-registered-paths-only',
         limitationReason: 'one or more acceptance profiles returned malformed conformance evidence',
-        expectedPaths: config.profiles.reduce((count, profile) => count + profile.paths.length, 0),
+        expectedPaths: registeredPathCount,
         observedPaths: 0, authoritativePaths: 0, partialPaths: 0,
         pathEvidence: [], underDeclarations: [], overDeclarations: [],
         diagnostics: [diagnostic(
@@ -1196,12 +1198,17 @@ export async function runVerify(config, options = {}) {
         )],
       });
     }
+  } else if (registeredPathCount === 0) {
+    // @ref LLP 0245#rollout-4-implementation-note--2026-08-15 — an upstream
+    // verify failure cannot turn an empty registered path set into coverage.
+    // Preserve the same zero-path nonclaim shape the aggregate producer emits.
+    conformance = aggregateConformance(config.profiles, profileResults);
   } else {
     conformance = Object.freeze({
       status: 'blocked', disposition: 'upstream-stage-failed', complete: false,
       scope: 'explicitly-registered-paths-only',
       limitationReason: 'repository acceptance suites have no universal D1 path-evidence registry in v0',
-      expectedPaths: config.profiles.reduce((count, profile) => count + profile.paths.length, 0), observedPaths: 0,
+      expectedPaths: registeredPathCount, observedPaths: 0,
       pathEvidence: [], underDeclarations: [], overDeclarations: [], diagnostics: [],
     });
   }

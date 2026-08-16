@@ -24,6 +24,7 @@ import {
 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import Ajv2020 from 'ajv/dist/2020.js';
 import ts from 'typescript';
 
 import {
@@ -41,18 +42,24 @@ import {
 const PACKAGE_ROOT = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(PACKAGE_ROOT, '../..');
 const SCHEMA_PATH = join(PACKAGE_ROOT, 'declaration-suggestion.schema.json');
+const VERIFY_RECEIPT_SCHEMA_PATH = resolve(PACKAGE_ROOT, '../snapback-cli/verify-receipt.schema.json');
 const PROTOCOL_SCHEMA = JSON.parse(readFileSync(SCHEMA_PATH, 'utf8'));
 const REASON_CODE_LIST = Object.freeze([...PROTOCOL_SCHEMA.$defs.reasonCode.enum]);
 const REASON_CODE_SET = new Set(REASON_CODE_LIST);
 const STALE_SUGGESTION_CODE = 'SNAPBACK_DECLARATION_SUGGESTION_STALE';
 const DIAGNOSTIC_CODE_SET = new Set([...REASON_CODE_LIST, STALE_SUGGESTION_CODE]);
 const ANALYZER_ID = 'snapback-declaration-suggestion';
-const ANALYZER_VERSION = 1;
+const ANALYZER_VERSION = 2;
 const SUGGESTION_SCHEMA_VERSION = 'snapback.declaration-suggestion.v1';
 const SUGGEST_RESULT_SCHEMA_VERSION = 'snapback.declaration-suggestion-result.v1';
 const APPLY_RESULT_SCHEMA_VERSION = 'snapback.declaration-suggestion-apply.v1';
 const ANALYSIS_DOMAIN = 'snapback-codegen/declaration-suggestion-analysis-input/v1';
 const APPLY_LOCK_FILE = '.declaration-suggestion.apply.lock';
+const VERIFY_RECEIPT_SCHEMA_VERSION = 'snapback.verify-receipt.v1';
+const REGISTERED_PATH_SCOPE = 'explicitly-registered-paths-only';
+const CONFORMANCE_STATUSES = new Set(['passed', 'partial', 'failed', 'not-claimed', 'blocked']);
+const VERIFY_PATH_KINDS = new Set(['success', 'failure', 'action', 'relational', 'search', 'snapshot-bundle']);
+let validateVerifyReceiptSchema = null;
 const RESULT_BUILDERS = new Map([
   ['defineJsQuery', { kind: 'Query', familiar: false }],
   ['defineJsLiveQuery', { kind: 'LiveQuery', familiar: false }],
@@ -231,6 +238,24 @@ function literalString(member) {
   return ts.isStringLiteralLike(value) ? value.text : null;
 }
 
+function plainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function literalStringArray(member) {
+  if (!member) return { supported: true, values: [], member: null, initializer: null };
+  if (!ts.isPropertyAssignment(member)) return { supported: false, values: [], member, initializer: null };
+  const initializer = unwrap(member.initializer);
+  if (!ts.isArrayLiteralExpression(initializer)) return { supported: false, values: [], member, initializer };
+  const values = [];
+  for (const element of initializer.elements) {
+    const value = unwrap(element);
+    if (!ts.isStringLiteralLike(value)) return { supported: false, values: [], member, initializer };
+    values.push(value.text);
+  }
+  return { supported: true, values, member, initializer };
+}
+
 function parseOperations(source, definitionPath) {
   const file = ts.createSourceFile(
     definitionPath,
@@ -266,6 +291,8 @@ function parseOperations(source, definitionPath) {
         declaration,
         spec,
         result: objectMember(spec, builder.familiar ? 'returns' : 'result'),
+        reads: objectMember(spec, 'reads'),
+        writes: objectMember(spec, 'writes'),
         handler: objectMember(spec, 'handler'),
         source: literalString(objectMember(spec, 'source'))
           ?? (jsSpec && ts.isObjectLiteralExpression(jsSpec) ? literalString(objectMember(jsSpec, 'source')) : null),
@@ -276,6 +303,429 @@ function parseOperations(source, definitionPath) {
     }
   }
   return { file, operations };
+}
+
+function conventionalRuntimeEvidenceReceiptPaths(backendRoot) {
+  const candidates = [
+    join(dirname(backendRoot), '.snapback', 'verify-receipt.json'),
+    join(backendRoot, '.snapback', 'verify-receipt.json'),
+  ];
+  return candidates.filter((candidate, index) => (
+    candidates.indexOf(candidate) === index
+    && existsSync(candidate)
+    && lstatSync(candidate).isFile()
+    && !lstatSync(candidate).isSymbolicLink()
+  ));
+}
+
+function verifyReceiptSchemaValidator() {
+  if (validateVerifyReceiptSchema === null) {
+    const schema = JSON.parse(readFileSync(VERIFY_RECEIPT_SCHEMA_PATH, 'utf8'));
+    validateVerifyReceiptSchema = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
+  }
+  return validateVerifyReceiptSchema;
+}
+
+function assertVerifyReceiptSchema(receipt) {
+  const validate = verifyReceiptSchemaValidator();
+  if (validate(receipt)) return;
+  const problems = (validate.errors ?? []).slice(0, 8).map(({ instancePath, message }) => (
+    `${instancePath || '/'} ${message}`
+  ));
+  throw new TypeError(`runtime evidence does not satisfy ${VERIFY_RECEIPT_SCHEMA_VERSION}: ${problems.join('; ')}`);
+}
+
+function intersectionOf(sets) {
+  if (sets.length === 0) return [];
+  return [...sets.slice(1).reduce(
+    (common, entries) => new Set([...common].filter((entry) => entries.has(entry))),
+    new Set(sets[0]),
+  )].sort();
+}
+
+function assertReceiptEnvelopeConsistency(receipt) {
+  const allStagesPassed = receipt.stages.every(({ status }) => status === 'passed');
+  const expectedReceiptStatus = allStagesPassed
+    ? receipt.profileSet.ids.length > 0 ? 'passed' : 'passed-without-acceptance'
+    : 'failed';
+  if (receipt.ok !== allStagesPassed || receipt.status !== expectedReceiptStatus) {
+    throw new TypeError('verify receipt status contradicts its ordered stage results');
+  }
+  const registeredProfiles = new Set(receipt.profileSet.ids);
+  const acceptanceProfileIds = receipt.acceptanceProfiles.map(({ profileId }) => profileId);
+  if (
+    new Set(acceptanceProfileIds).size !== acceptanceProfileIds.length
+    || acceptanceProfileIds.some((profileId) => !registeredProfiles.has(profileId))
+  ) throw new TypeError('verify receipt acceptance profiles do not match the registered profile set');
+  const acceptanceStage = receipt.stages[4];
+  if (stableJson(acceptanceStage.evidence?.profiles) !== stableJson(receipt.acceptanceProfiles)) {
+    throw new TypeError('verify receipt acceptance stage evidence contradicts acceptanceProfiles');
+  }
+  if (
+    acceptanceStage.status !== 'blocked'
+    && stableJson([...acceptanceProfileIds].sort()) !== stableJson([...registeredProfiles].sort())
+  ) throw new TypeError('verify receipt omits a registered acceptance profile result');
+}
+
+function assertConformanceConsistency(receipt, aggregate) {
+  assertReceiptEnvelopeConsistency(receipt);
+  const registeredProfiles = new Set(receipt.profileSet.ids);
+
+  if (aggregate.pathEvidence.length !== aggregate.expectedPaths) {
+    throw new TypeError('verify receipt expectedPaths does not equal pathEvidence length');
+  }
+  const pathKeys = new Set();
+  for (const path of aggregate.pathEvidence) {
+    const key = `${path.profileId}\0${path.id}`;
+    if (pathKeys.has(key)) throw new TypeError(`verify receipt repeats registered path ${path.profileId}/${path.id}`);
+    pathKeys.add(key);
+    if (!registeredProfiles.has(path.profileId)) {
+      throw new TypeError(`verify receipt path ${path.profileId}/${path.id} belongs to an unregistered profile`);
+    }
+    const expectedStatus = path.report === null
+      ? path.status
+      : path.report.readProvenance === 'unsupported' && path.report.writeProvenance === 'unsupported'
+        ? 'unsupported'
+        : path.report.readProvenance === 'complete' && path.report.writeProvenance === 'complete'
+          ? 'authoritative'
+          : 'incomplete';
+    if (
+      (path.report === null && !['incomplete', 'unsupported'].includes(path.status))
+      || (path.report !== null && path.status !== expectedStatus)
+    ) throw new TypeError(`verify receipt path ${path.profileId}/${path.id} status contradicts its report`);
+  }
+
+  const observed = aggregate.pathEvidence.filter(({ report }) => report !== null);
+  const authoritative = aggregate.pathEvidence.filter(({ status }) => status === 'authoritative');
+  const partial = aggregate.pathEvidence.filter(({ status }) => status === 'incomplete' || status === 'unsupported');
+  if (aggregate.observedPaths !== observed.length) {
+    throw new TypeError('verify receipt observedPaths does not equal observed path evidence');
+  }
+  if (aggregate.expectedPaths > 0) {
+    if (aggregate.authoritativePaths !== authoritative.length || aggregate.partialPaths !== partial.length) {
+      throw new TypeError('verify receipt conformance counts do not equal their evidence arrays');
+    }
+  }
+  if (aggregate.complete !== (authoritative.length === aggregate.pathEvidence.length && aggregate.pathEvidence.length > 0)) {
+    throw new TypeError('verify receipt complete flag contradicts authoritative path evidence');
+  }
+
+  const expectedUnderDeclarations = observed.flatMap((entry) => {
+    const missingReads = entry.report.readProvenance === 'complete' ? entry.report.missingReads : [];
+    const missingWrites = entry.report.writeProvenance === 'complete' ? entry.report.missingWrites : [];
+    return missingReads.length === 0 && missingWrites.length === 0 ? [] : [{
+      profileId: entry.profileId,
+      pathId: entry.id,
+      functionId: entry.functionId,
+      missingReads,
+      missingWrites,
+    }];
+  });
+  if (stableJson(aggregate.underDeclarations) !== stableJson(expectedUnderDeclarations)) {
+    throw new TypeError('verify receipt underDeclarations are not derived from pathEvidence');
+  }
+
+  const byFunction = new Map();
+  for (const entry of observed) {
+    if (entry.functionId === null) continue;
+    const entries = byFunction.get(entry.functionId) ?? [];
+    entries.push(entry);
+    byFunction.set(entry.functionId, entries);
+  }
+  const expectedOverDeclarations = [...byFunction.entries()].flatMap(([functionId, entries]) => {
+    const readEntries = entries.filter(({ report }) => report.readProvenance === 'complete');
+    const writeEntries = entries.filter(({ report }) => report.writeProvenance === 'complete');
+    const extraReads = intersectionOf(readEntries.map(({ report }) => new Set(report.extraReads)));
+    const extraWrites = intersectionOf(writeEntries.map(({ report }) => new Set(report.extraWrites)));
+    return extraReads.length === 0 && extraWrites.length === 0 ? [] : [{
+      functionId,
+      completeObservedPaths: { reads: readEntries.length, writes: writeEntries.length },
+      extraReads,
+      extraWrites,
+      severity: 'warning',
+    }];
+  }).sort((left, right) => left.functionId.localeCompare(right.functionId));
+  if (stableJson(aggregate.overDeclarations) !== stableJson(expectedOverDeclarations)) {
+    throw new TypeError('verify receipt overDeclarations are not derived from pathEvidence');
+  }
+
+  if (aggregate.expectedPaths === 0) {
+    if (
+      aggregate.status !== 'not-claimed'
+      || aggregate.complete !== false
+      || aggregate.observedPaths !== 0
+      || aggregate.underDeclarations.length !== 0
+      || aggregate.overDeclarations.length !== 0
+    ) throw new TypeError('zero registered acceptance paths must be an empty not-claimed aggregate');
+    return;
+  }
+  const missingEvidence = aggregate.pathEvidence.filter(({ report }) => report === null);
+  const expectedStatus = missingEvidence.length === 0 && expectedUnderDeclarations.length === 0
+    ? aggregate.complete ? 'passed' : 'partial'
+    : 'failed';
+  if (aggregate.status !== expectedStatus) {
+    throw new TypeError(`verify receipt aggregate status ${aggregate.status} contradicts its path evidence`);
+  }
+}
+
+function runtimeEvidenceAggregate(receipt) {
+  assertVerifyReceiptSchema(receipt);
+  const artifactStage = receipt.stages[0];
+  const conformanceStage = receipt.stages[2];
+  const aggregate = conformanceStage.evidence?.conformance;
+  if (
+    !plainObject(aggregate)
+    || aggregate.scope !== REGISTERED_PATH_SCOPE
+    || !CONFORMANCE_STATUSES.has(aggregate.status)
+  ) throw new TypeError('verify receipt has no registered-path conformance aggregate');
+  return { artifactStage, conformanceStage, aggregate };
+}
+
+function currentArtifactIdentity(schemaManifest, functionsManifest) {
+  return {
+    appId: functionsManifest.appId ?? null,
+    schemaVersion: functionsManifest.schemaVersion ?? null,
+    schemaHash: schemaManifest.schemaHash ?? null,
+    bundleHash: functionsManifest.bundleHash ?? null,
+    inputsHash: functionsManifest.inputsHash ?? null,
+  };
+}
+
+function canonicalIdentity(value) {
+  return String(value).normalize('NFKC').replace(/[^a-z0-9]/giu, '').toLowerCase();
+}
+
+function resolvedFunctionIds(aggregate, functionsManifest) {
+  const functions = (functionsManifest.functions ?? []).map((entry) => ({
+    id: entry.id,
+    aliases: new Set([
+      entry.id,
+      entry.name,
+      entry.exportedName,
+      entry.id?.split(':').at(-1),
+    ].filter((value) => typeof value === 'string').map(canonicalIdentity)),
+  }));
+  const resolved = new Map();
+  for (const path of aggregate.pathEvidence) {
+    const key = `${path.profileId}\0${path.id}`;
+    if (typeof path.functionId === 'string') {
+      resolved.set(key, path.functionId);
+      continue;
+    }
+    const pathIdentity = canonicalIdentity(path.id);
+    const matches = functions.filter(({ aliases }) => aliases.has(pathIdentity));
+    if (matches.length === 1) resolved.set(key, matches[0].id);
+  }
+  return resolved;
+}
+
+function runtimeEvidenceSkipped(path, reason, details = {}) {
+  return diagnostic(
+    'SNAPBACK_AUTHORING_RUNTIME_EVIDENCE_SKIPPED',
+    `conventional verify receipt was not used (${reason})`,
+    { path, reason, ...details },
+    'warning',
+  );
+}
+
+// @ref LLP 0245#rollout-4-implementation-note--2026-08-15 — conventional
+// auto-discovery is advisory: every failure to admit that file becomes a
+// warning-bearing skip. Explicit paths, including apply's evidence reread,
+// remain fail-closed and rethrow the same admission failure.
+function loadRuntimeEvidenceReceipts(paths, backendRoot, inputs, artifactIdentity, functionsManifest, {
+  skipUnusable = false,
+} = {}) {
+  const receipts = [];
+  const diagnostics = [];
+  for (const path of [...new Set(paths.map((entry) => resolve(entry)))].sort()) {
+    let admitted;
+    try {
+      const loaded = snapshot(
+        path,
+        [backendRoot, dirname(backendRoot), dirname(path)],
+        'SUGGESTION_RUNTIME_EVIDENCE',
+        'runtime-evidence',
+        backendRoot,
+        null,
+      );
+      let receipt;
+      try {
+        receipt = JSON.parse(decodeUtf8Source(loaded.bytes, loaded.path, 'SUGGESTION_RUNTIME_EVIDENCE'));
+      } catch (cause) {
+        throw new TypeError(`runtime evidence receipt ${loaded.path} is not valid UTF-8 JSON: ${cause.message}`);
+      }
+      const { artifactStage, conformanceStage, aggregate } = runtimeEvidenceAggregate(receipt);
+      assertReceiptEnvelopeConsistency(receipt);
+      if (
+        artifactStage.status !== 'passed'
+        || conformanceStage.status === 'blocked'
+        || aggregate.status === 'blocked'
+      ) {
+        if (!skipUnusable) throw new TypeError(`runtime evidence receipt ${loaded.path} is blocked and cannot bind an apply`);
+        diagnostics.push(runtimeEvidenceSkipped(loaded.path, 'blocked', {
+          artifactStageStatus: artifactStage.status,
+          conformanceStageStatus: conformanceStage.status,
+          aggregateStatus: aggregate.status,
+        }));
+        continue;
+      }
+      if (!plainObject(artifactStage.evidence?.identity)) {
+        throw new TypeError(`runtime evidence receipt ${loaded.path} has no generated-artifact identity`);
+      }
+      assertConformanceConsistency(receipt, aggregate);
+      const observedIdentity = artifactStage.evidence.identity;
+      const mismatches = Object.keys(artifactIdentity).filter((key) => observedIdentity[key] !== artifactIdentity[key]);
+      if (mismatches.length > 0) {
+        if (!skipUnusable) {
+          throw new TypeError(`runtime evidence receipt ${loaded.path} describes stale generated artifacts (${mismatches.join(', ')})`);
+        }
+        diagnostics.push(runtimeEvidenceSkipped(loaded.path, 'artifact-identity-mismatch', { mismatches }));
+        continue;
+      }
+      admitted = {
+        loaded,
+        aggregate,
+        resolvedFunctionIds: resolvedFunctionIds(aggregate, functionsManifest),
+      };
+    } catch (cause) {
+      if (!skipUnusable) throw cause;
+      diagnostics.push(runtimeEvidenceSkipped(path, 'admission-failed', {
+        cause: cause?.message ?? String(cause),
+      }));
+      continue;
+    }
+    const { loaded, aggregate, resolvedFunctionIds: admittedFunctionIds } = admitted;
+    if (!inputs.has(loaded.label)) {
+      inputs.set(loaded.label, {
+        label: loaded.label,
+        bytes: loaded.bytes,
+        kind: 'runtime-evidence',
+        path: loaded.path,
+      });
+    }
+    const receiptDigest = digest(loaded.bytes);
+    receipts.push({
+      record: {
+        schemaVersion: 'snapback.declaration-suggestion-runtime-receipt.v1',
+        evidenceClass: 'runtime-witnessed',
+        path: loaded.path,
+        digest: receiptDigest,
+        receiptSchemaVersion: VERIFY_RECEIPT_SCHEMA_VERSION,
+        aggregate: {
+          status: aggregate.status,
+          disposition: aggregate.disposition,
+          scope: aggregate.scope,
+          limitationReason: aggregate.limitationReason,
+          complete: aggregate.complete,
+          expectedPaths: aggregate.expectedPaths,
+          observedPaths: aggregate.observedPaths,
+        },
+      },
+      aggregate,
+      resolvedFunctionIds: admittedFunctionIds,
+    });
+  }
+  return { receipts, diagnostics };
+}
+
+// @ref LLP 0245#d3-dependency-suggestions-only-widen — the protocol has one
+// addition collection and a literal false complete-set claim; overDeclarations
+// are intentionally never read here, so no receipt can manufacture a removal.
+// @ref LLP 0146#d1-declarationobservation-conformance — each addition retains
+// its registered path plus class-specific complete provenance.
+function dependencyChangesForOperation(operation, operationId, runtimeReceipts, definitionSource) {
+  const witnessed = new Map();
+  for (const { record, aggregate, resolvedFunctionIds: receiptFunctionIds } of runtimeReceipts) {
+    if (aggregate.expectedPaths === 0 || aggregate.status === 'not-claimed' || aggregate.status === 'blocked') continue;
+    for (const under of aggregate.underDeclarations) {
+      if (!plainObject(under)) continue;
+      const path = aggregate.pathEvidence.find((entry) => (
+        entry?.profileId === under.profileId
+        && entry?.id === under.pathId
+      ));
+      if (
+        !plainObject(path)
+        || typeof path.profileId !== 'string'
+        || typeof path.id !== 'string'
+        || !VERIFY_PATH_KINDS.has(path.kind)
+        || typeof path.targetProfileId !== 'string'
+        || !plainObject(path.report)
+      ) throw new TypeError(`under-declaration ${under.profileId}/${under.pathId} has no path-specific provenance`);
+      const witnessedFunctionId = receiptFunctionIds.get(`${path.profileId}\0${path.id}`) ?? null;
+      if (witnessedFunctionId !== operationId) continue;
+      for (const [field, dependencyClass, tables, provenance] of [
+        ['reads', 'read', under.missingReads, path.report.readProvenance],
+        ['writes', 'write', under.missingWrites, path.report.writeProvenance],
+      ]) {
+        if (!Array.isArray(tables)) throw new TypeError(`under-declaration ${under.profileId}/${under.pathId}.${field} is not an array`);
+        if (tables.length > 0 && provenance !== 'complete') {
+          throw new TypeError(`under-declaration ${under.profileId}/${under.pathId}.${field} lacks complete provenance`);
+        }
+        for (const table of tables) {
+          if (typeof table !== 'string' || table.length === 0) throw new TypeError('under-declaration table names must be non-empty strings');
+          const key = `${field}\0${table}`;
+          const evidence = witnessed.get(key) ?? { field, table, evidence: [] };
+          evidence.evidence.push({
+            schemaVersion: 'snapback.declaration-suggestion-dependency-evidence.v1',
+            evidenceClass: 'runtime-witnessed',
+            receiptDigest: record.digest,
+            receiptPath: record.path,
+            profileId: path.profileId,
+            pathId: path.id,
+            pathKind: path.kind,
+            targetProfileId: path.targetProfileId,
+            functionId: operationId,
+            dependencyClass,
+            provenance: 'complete',
+            scope: record.aggregate.scope,
+            aggregateStatus: record.aggregate.status,
+            limitationReason: record.aggregate.limitationReason,
+          });
+          witnessed.set(key, evidence);
+        }
+      }
+    }
+  }
+
+  const declarations = {
+    reads: literalStringArray(operation.reads),
+    writes: literalStringArray(operation.writes),
+  };
+  const diagnostics = [];
+  const additions = [];
+  for (const entry of [...witnessed.values()].sort((left, right) => `${left.field}\0${left.table}`.localeCompare(`${right.field}\0${right.table}`))) {
+    const declaration = declarations[entry.field];
+    if (!declaration.supported) {
+      if (!diagnostics.some(({ details }) => details.field === entry.field)) {
+        diagnostics.push(diagnostic(
+          'SNAPBACK_AUTHORING_DEPENDENCY_DECLARATION_UNSUPPORTED',
+          `${entry.field} is not a closed string-literal array; the runtime witness is retained without guessing a source rewrite`,
+          { field: entry.field, sourceExpression: definitionSource.slice(declaration.member.getStart(operation.file), declaration.member.end) },
+          'warning',
+        ));
+      }
+      continue;
+    }
+    if (declaration.values.includes(entry.table)) continue;
+    additions.push({
+      schemaVersion: 'snapback.declaration-suggestion-dependency-addition.v1',
+      field: entry.field,
+      table: entry.table,
+      evidence: entry.evidence.sort((left, right) => (
+        `${left.receiptDigest}\0${left.profileId}\0${left.pathId}`.localeCompare(`${right.receiptDigest}\0${right.profileId}\0${right.pathId}`)
+      )),
+    });
+  }
+  return {
+    changes: {
+      schemaVersion: 'snapback.declaration-suggestion-dependency-changes.v1',
+      mode: 'addition-only',
+      completeSetClaim: false,
+      additions,
+    },
+    declarations,
+    diagnostics,
+  };
 }
 
 function localModuleSpecifiers(file) {
@@ -1046,6 +1496,10 @@ function resultDeclarationSource(expression, operation) {
   return `${operation.familiar ? 'returns' : 'result'}: ${expression}`;
 }
 
+function dependencyDeclarationSource(field, tables) {
+  return `${field}: [${tables.map((table) => JSON.stringify(table)).join(', ')}]`;
+}
+
 function ensureResultContractImports(source, operation, expression) {
   const required = operation.familiar
     ? ['v']
@@ -1078,45 +1532,65 @@ function ensureResultContractImports(source, operation, expression) {
   return source.slice(0, closeBrace) + prefix + missing.join(', ') + source.slice(closeBrace);
 }
 
-function patchTarget(source, operation, expression, file) {
-  const afterDeclaration = resultDeclarationSource(expression, operation);
-  let startOffset;
-  let endOffset;
-  let beforeText;
-  let afterText;
-  if (operation.result) {
-    startOffset = operation.result.getStart(operation.file);
-    endOffset = operation.result.end;
-    beforeText = source.slice(startOffset, endOffset);
-    afterText = afterDeclaration;
-  } else {
+function patchTarget(source, operation, expression, dependency, file) {
+  const edits = [];
+  const insertions = [];
+  if (expression !== null) {
+    const afterDeclaration = resultDeclarationSource(expression, operation);
+    if (operation.result) {
+      edits.push({
+        start: operation.result.getStart(operation.file),
+        end: operation.result.end,
+        text: afterDeclaration,
+      });
+    } else {
+      insertions.push(afterDeclaration);
+    }
+  }
+  for (const field of ['reads', 'writes']) {
+    const tables = dependency.changes.additions
+      .filter((entry) => entry.field === field)
+      .map(({ table }) => table);
+    if (tables.length === 0) continue;
+    const declaration = dependency.declarations[field];
+    const afterDeclaration = dependencyDeclarationSource(field, [...declaration.values, ...tables]);
+    if (declaration.member) {
+      edits.push({
+        start: declaration.member.getStart(operation.file),
+        end: declaration.member.end,
+        text: afterDeclaration,
+      });
+    } else {
+      insertions.push(afterDeclaration);
+    }
+  }
+  if (insertions.length > 0) {
     const open = operation.spec.getStart(operation.file) + 1;
     const next = source[open] ?? '';
     const statementStart = source.lastIndexOf('\n', operation.declaration.getStart(operation.file)) + 1;
     const statementIndent = source.slice(statementStart, operation.declaration.getStart(operation.file)).match(/^\s*/u)?.[0] ?? '';
     const indent = `${statementIndent}  `;
-    startOffset = next === '\n' ? open + 1 : open;
-    endOffset = startOffset;
-    beforeText = '';
-    afterText = next === '\n'
-      ? `${indent}${afterDeclaration},\n`
-      : ` ${afterDeclaration},`;
+    edits.push({
+      start: next === '\n' ? open + 1 : open,
+      end: next === '\n' ? open + 1 : open,
+      text: next === '\n'
+        ? `${insertions.map((entry) => `${indent}${entry},`).join('\n')}\n`
+        : ` ${insertions.join(', ')},`,
+    });
   }
-  let changed = source.slice(0, startOffset) + afterText + source.slice(endOffset);
-  changed = ensureResultContractImports(changed, operation, expression);
-  if (changed.slice(0, startOffset) !== source.slice(0, startOffset)) {
-    startOffset = 0;
-    endOffset = source.length;
-    beforeText = source;
-    afterText = changed;
+  let changed = source;
+  for (const edit of edits.sort((left, right) => right.start - left.start)) {
+    changed = changed.slice(0, edit.start) + edit.text + changed.slice(edit.end);
   }
+  if (expression !== null) changed = ensureResultContractImports(changed, operation, expression);
+  if (changed === source) return null;
   return {
     schemaVersion: 'snapback.declaration-source-patch.v1',
     file,
-    startOffset,
-    endOffset,
-    beforeText,
-    afterText,
+    startOffset: 0,
+    endOffset: source.length,
+    beforeText: source,
+    afterText: changed,
     unifiedDiff: unifiedDiff(source, changed, file),
   };
 }
@@ -1174,12 +1648,14 @@ function analysisIdentity(operationId, inputs) {
   };
 }
 
-function semanticSummary(operation, expression, holes) {
+function semanticSummary(operation, expression, holes, dependencyChanges) {
   const resultType = expression ?? 'an explicit author-selected validator after resolving the reported holes';
   return {
     schemaVersion: 'snapback.declaration-semantic-summary.v1',
     runtimeValidation: `${operation.kind} egress will be validated by the frozen ${resultType} contract after normal generation.`,
     generatedClientTypes: 'Generated clients will project the same frozen result contract; the suggestion receipt is not consulted.',
+    dependencyAdditions: dependencyChanges.additions.length,
+    dependencyCompleteSetClaim: false,
     unresolvedHoles: holes.length,
     checksAfterAcceptance: [
       'snapback generate --check',
@@ -1202,9 +1678,13 @@ function finishSuggestion(operation, candidate, base) {
   const before = operation.result
     ? base.definitionSource.slice(operation.result.getStart(operation.file), operation.result.end)
     : null;
-  const patch = expression && before !== after
-    ? patchTarget(base.definitionSource, operation, expression, base.definitionFile)
-    : null;
+  const patch = patchTarget(
+    base.definitionSource,
+    operation,
+    expression && before !== after ? expression : null,
+    base.dependency,
+    base.definitionFile,
+  );
   const identity = analysisIdentity(base.operationId, base.inputs);
   return {
     schemaVersion: SUGGESTION_SCHEMA_VERSION,
@@ -1230,7 +1710,8 @@ function finishSuggestion(operation, candidate, base) {
     analyzer: analyzerIdentity,
     analysisInputId: identity.id,
     analysisInputs: identity.records,
-    runtimeEvidenceReceipts: [],
+    runtimeEvidenceReceipts: base.runtimeEvidenceReceipts,
+    dependencyChanges: base.dependency.changes,
     declaration: {
       schemaVersion: 'snapback.declaration-freeze.v1',
       before,
@@ -1239,9 +1720,13 @@ function finishSuggestion(operation, candidate, base) {
     evidence: candidate.evidence,
     confidence: confidenceSummary(candidate.evidence),
     holes: candidate.holes,
-    diagnostics: candidate.refusal ? [candidate.refusal] : [],
+    diagnostics: [
+      ...(candidate.refusal ? [candidate.refusal] : []),
+      ...base.dependency.diagnostics,
+      ...base.runtimeEvidenceDiagnostics,
+    ],
     patch,
-    semanticSummary: semanticSummary(operation, expression, candidate.holes),
+    semanticSummary: semanticSummary(operation, expression, candidate.holes, base.dependency.changes),
   };
 }
 
@@ -1292,13 +1777,15 @@ export function resolveDeclarationSuggestionTarget(target, { cwd = process.cwd()
 }
 
 /**
- * Derive result-only DeclarationSuggestionV1 records from a backend's stable
- * definition/schema/generated-type snapshot. This function is read-only.
+ * Derive DeclarationSuggestionV1 records from a backend's stable definition,
+ * schema/generated-type, and optional verify-receipt snapshot. This function
+ * is read-only.
  */
 export function suggestDeclarations({
   backendDir,
   definitionFile = 'functions.mjs',
   operation = null,
+  runtimeEvidenceReceiptPaths = undefined,
 } = {}) {
   let backendRoot;
   try {
@@ -1351,10 +1838,11 @@ export function suggestDeclarations({
   }
   let definitionSource;
   let functionsManifest;
+  let schemaManifest;
   try {
     definitionSource = decodeUtf8Source(definitionSnapshot.bytes, definitionPath, 'SUGGESTION_DEFINITION');
     functionsManifest = JSON.parse(decodeUtf8Source(functionsManifestSnapshot.bytes, functionsManifestPath, 'SUGGESTION_GENERATED_FUNCTIONS'));
-    JSON.parse(decodeUtf8Source(schemaManifestSnapshot.bytes, schemaManifestPath, 'SUGGESTION_GENERATED_SCHEMA'));
+    schemaManifest = JSON.parse(decodeUtf8Source(schemaManifestSnapshot.bytes, schemaManifestPath, 'SUGGESTION_GENERATED_SCHEMA'));
   } catch (cause) {
     return commandFailure(
       'SNAPBACK_AUTHORING_DEFINITION_INVALID',
@@ -1386,7 +1874,42 @@ export function suggestDeclarations({
   const moduleFormat = moduleFormatFor(definitionPath, backendRoot, inputs);
   addSyntheticInput(inputs, 'compiler:effective-config', suggestionCompilerIdentity, 'compiler-config');
   addSyntheticInput(inputs, 'analyzer:identity', analyzerIdentity, 'analyzer');
-  addSyntheticInput(inputs, 'runtime-evidence:empty-set', [], 'runtime-evidence');
+  const conventionalReceiptDiscovery = runtimeEvidenceReceiptPaths === undefined;
+  const selectedReceiptPaths = conventionalReceiptDiscovery
+    ? conventionalRuntimeEvidenceReceiptPaths(backendRoot)
+    : runtimeEvidenceReceiptPaths;
+  if (!Array.isArray(selectedReceiptPaths) || selectedReceiptPaths.some((path) => typeof path !== 'string' || path.length === 0)) {
+    return commandFailure(
+      'SNAPBACK_AUTHORING_RUNTIME_EVIDENCE_INVALID',
+      'runtime evidence receipt paths must be an array of non-empty paths',
+    );
+  }
+  let runtimeReceipts;
+  let runtimeEvidenceDiagnostics;
+  try {
+    const loadedRuntimeEvidence = loadRuntimeEvidenceReceipts(
+      selectedReceiptPaths,
+      backendRoot,
+      inputs,
+      currentArtifactIdentity(schemaManifest, functionsManifest),
+      functionsManifest,
+      { skipUnusable: conventionalReceiptDiscovery },
+    );
+    runtimeReceipts = loadedRuntimeEvidence.receipts;
+    runtimeEvidenceDiagnostics = loadedRuntimeEvidence.diagnostics;
+  } catch (cause) {
+    return commandFailure(
+      'SNAPBACK_AUTHORING_RUNTIME_EVIDENCE_INVALID',
+      'verify-receipt runtime evidence could not be admitted for this source generation',
+      { cause: cause.message },
+    );
+  }
+  addSyntheticInput(
+    inputs,
+    'runtime-evidence:receipt-set',
+    runtimeReceipts.map(({ record }) => ({ path: record.path, digest: record.digest })),
+    'runtime-evidence',
+  );
   addSyntheticInput(inputs, 'module-format:facts', [...moduleFacts.entries()].sort(), 'module-format');
   const schemaInputs = [...inputs.values()].filter((entry) => entry.kind === 'schema' || entry.label.includes('schema.mjs'));
   const schemaDigest = framedDigest(
@@ -1400,6 +1923,16 @@ export function suggestDeclarations({
     const perOperationModuleFacts = new Map(moduleFacts);
     const manifest = manifestByName.get(entry.name);
     const operationId = manifest?.id ?? `${functionsManifest.appId ?? 'app'}:${entry.name}`;
+    let dependency;
+    try {
+      dependency = dependencyChangesForOperation(entry, operationId, runtimeReceipts, definitionSource);
+    } catch (cause) {
+      return commandFailure(
+        'SNAPBACK_AUTHORING_RUNTIME_EVIDENCE_INVALID',
+        `verify-receipt dependency evidence for ${operationId} is malformed`,
+        { operationId, cause: cause.message },
+      );
+    }
     let handler;
     try {
       handler = handlerExpression(entry, definitionSource, backendRoot, perOperationInputs);
@@ -1416,6 +1949,9 @@ export function suggestDeclarations({
       moduleFormat,
       operationId,
       inputs: perOperationInputs,
+      dependency,
+      runtimeEvidenceReceipts: runtimeReceipts.map(({ record }) => record),
+      runtimeEvidenceDiagnostics,
     };
     if (!handler) {
       suggestions.push(refusedCandidate(
@@ -1484,9 +2020,15 @@ export function formatDeclarationSuggestionPatch(result) {
       `# Runtime validation: ${suggestion.semanticSummary.runtimeValidation}`,
       `# Generated-client types: ${suggestion.semanticSummary.generatedClientTypes}`,
       `# Unresolved holes: ${suggestion.semanticSummary.unresolvedHoles}`,
+      `# Dependency proposal mode: addition-only; complete-set claim: false`,
+      ...(suggestion.dependencyChanges?.additions ?? []).map((entry) => (
+        `# ${entry.field} += ${JSON.stringify(entry.table)} (${entry.evidence.map((item) => (
+          `runtime-witnessed ${item.profileId}/${item.pathId}; ${item.scope}`
+        )).join(', ')})`
+      )),
       `# Checks after acceptance: ${suggestion.semanticSummary.checksAfterAcceptance.join('; ')}`,
       ...(suggestion.holes ?? []).map((entry) => `# HOLE ${entry.code} ${entry.path}: ${entry.sourceExpression} -> ${entry.availableChoices.join(' | ')}`),
-      ...(suggestion.diagnostics ?? []).map((entry) => `# REFUSED ${entry.code}: ${entry.message}`),
+      ...(suggestion.diagnostics ?? []).map((entry) => `# ${entry.severity.toUpperCase()} ${entry.code}: ${entry.message}`),
       ...(suggestion.patch ? [suggestion.patch.unifiedDiff.trimEnd()] : ['# No source patch is available.']),
     ].join('\n'));
   }
@@ -1509,6 +2051,8 @@ function sameFrozenSuggestion(left, right) {
   return left.analysisInputId === right.analysisInputId
     && stableJson(left.compiler) === stableJson(right.compiler)
     && stableJson(left.analyzer) === stableJson(right.analyzer)
+    && stableJson(left.runtimeEvidenceReceipts) === stableJson(right.runtimeEvidenceReceipts)
+    && stableJson(left.dependencyChanges) === stableJson(right.dependencyChanges)
     && stableJson(left.declaration) === stableJson(right.declaration)
     && stableJson(left.patch) === stableJson(right.patch);
 }
@@ -1539,7 +2083,7 @@ function releaseApplyLock(lock) {
 // plus atomic rename; every stale/refused path changes no source byte.
 export function applyDeclarationSuggestion(input, { testHooks = undefined } = {}) {
   const suggestion = suggestionFromInput(input);
-  if (!suggestion || suggestion.ok !== true || !suggestion.patch || suggestion.declaration?.after === null) {
+  if (!suggestion || suggestion.ok !== true || !suggestion.patch) {
     return applyFailure(
       'SNAPBACK_AUTHORING_SUGGESTION_INPUT_INVALID',
       'apply requires exactly one patch-bearing DeclarationSuggestionV1 record',
@@ -1581,6 +2125,9 @@ export function applyDeclarationSuggestion(input, { testHooks = undefined } = {}
       backendDir: backendRoot,
       definitionFile: suggestion.source.definitionFile,
       operation: suggestion.operation.name,
+      ...(suggestion.runtimeEvidenceReceipts?.length > 0
+        ? { runtimeEvidenceReceiptPaths: suggestion.runtimeEvidenceReceipts.map(({ path }) => path) }
+        : {}),
     });
     const fresh = freshResult.ok ? freshResult.suggestions[0] : null;
     if (!fresh || !sameFrozenSuggestion(suggestion, fresh)) {
@@ -1639,6 +2186,9 @@ export function applyDeclarationSuggestion(input, { testHooks = undefined } = {}
       backendDir: backendRoot,
       definitionFile: suggestion.source.definitionFile,
       operation: suggestion.operation.name,
+      ...(suggestion.runtimeEvidenceReceipts?.length > 0
+        ? { runtimeEvidenceReceiptPaths: suggestion.runtimeEvidenceReceipts.map(({ path }) => path) }
+        : {}),
     });
     const boundary = boundaryResult.ok ? boundaryResult.suggestions[0] : null;
     if (!boundary || boundary.analysisInputId !== suggestion.analysisInputId) {

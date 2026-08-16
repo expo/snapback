@@ -6,7 +6,25 @@
 Diagnostics, Developer experience, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
+**Revised:** 2026-08-15 (Rollout 4 runtime-witnessed implementation and
+adversarial fix round: Charlie Cheever ruled that R4 may consume
+`snapback.verify-receipt.v1` conformance while LLP 0146 remains Draft, provided
+the evidence class itself carries the registered-paths-only caveat.
+`DeclarationSuggestionV1` analyzer v2 now schema- and consistency-validates
+matching receipts, binds their exact bytes, resolves a null receipt
+`functionId` only through an unambiguous registered-path/generated-function
+identity, emits path-specific `runtime-witnessed` evidence, and exposes only
+addition-only `reads`/`writes` changes with `completeSetClaim: false`;
+`overDeclarations`, zero-path aggregates, and `not-claimed` aggregates have no
+suggestion projection. Every admission failure for the auto-discovered
+conventional receipt—including legacy/schema-invalid, inconsistent, blocked,
+and identity-mismatched shapes—is a fail-open warning-bearing skip with no
+runtime evidence, so result-only suggestions remain available; explicitly
+passed receipt paths and apply evidence remain fail-closed. A 33-backend
+measurement preserved the prior 106 result candidates (20 exact, 37
+schema-derived, 36 holed, 13 refused, 0 widened) and reported zero
+runtime-witnessed receipts/additions because the source-only corpus retains no
+verify receipts; source bytes did not change.) 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
 the exact revision bound by the final GPT-5.6 Sol round-3 READY artifacts,
 SHA-256 `06aee0324c71e22e9de1a863e0af16a6f65e891c1c1824c528450155cda3cec4`; see
 `llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-1 revision: gave single-suggestion application a
@@ -191,6 +209,51 @@ contract; it composes through this RFC when proposing one.
    semantic correction/false-acceptance rates by confidence and evidence class.
 6. Consider bulk or multi-operation application only in a successor RFC after
    measured review behavior; v1 remains single-suggestion only.
+
+### Rollout 4 implementation note — 2026-08-15
+
+Charlie Cheever ruled that Rollout 4's `runtime-witnessed` evidence may source
+LLP 0146 D1 facts from `snapback.verify-receipt.v1` while LLP 0146 remains
+Draft, with one non-negotiable provenance boundary: the evidence class must
+say `scope: 'explicitly-registered-paths-only'`, and a receipt with no
+registered acceptance paths remains `status: 'not-claimed'` rather than a
+coverage claim.
+
+The implementation consumes the conventional `.snapback/verify-receipt.json`
+only when its artifact identity matches the current generated manifests. It
+validates the complete receipt schema and then checks profile/path membership,
+evidence counts, aggregate status, and that under/over declarations are exactly
+derived from the retained path reports. A receipt path whose `functionId` is
+null can identify a generated operation only when its normalized path id maps
+to exactly one generated function identity; ambiguous paths produce no
+addition. The analyzer binds admitted receipt bytes into `analysisInputId`,
+retains receipt/profile/path/target/function and read-or-write provenance on
+every proposed table, and projects only aggregate `underDeclarations` with a
+positive registered path set and a status other than `not-claimed` or
+`blocked`. The closed dependency-change record has `mode: 'addition-only'`,
+`completeSetClaim: false`, and an `additions` array; it has no removal member,
+and `overDeclarations` are not consumed. An already-declared table is silent.
+
+The conventional auto-discovered receipt is advisory. Any failure to read,
+parse, schema-admit, envelope/consistency-admit, or identity-admit it—including
+legacy main-era `blocked` receipts with zero registered paths—is a fail-open
+machine-readable warning and supplies no runtime evidence rather than
+suppressing result-only suggestions. Explicitly passed receipt paths remain
+fail-closed, including the explicit evidence rereads used by the compare-and-
+write seam. Changing an admitted retained receipt before that seam yields
+`SNAPBACK_DECLARATION_SUGGESTION_STALE` without changing source.
+`snapback verify` also emits the same empty `not-claimed` aggregate for zero
+registered paths when an upstream stage blocks execution, rather than a
+zero-path `blocked`/`failed` coverage shape.
+
+The Rollout 4 corpus runner now reports evidence-class counts beside the
+candidate-confidence distribution. Its 2026-08-15 source-only rerun covered 33
+backends and reproduced 106 candidates: 20 exact (18.87%), 37 schema-derived
+(34.91%), 36 holed (33.96%), 13 refused (12.26%), and 0 widened. The corpus
+retains no verify receipts, so `runtime-witnessed` reported 0 candidate
+suggestions, 0 receipts, 0 not-claimed receipts, 0 additions, and 0 path
+witnesses. That zero is a corpus-input fact, not a broader evidence claim;
+`sourceBytesChanged` remained false.
 
 ## Acceptance
 

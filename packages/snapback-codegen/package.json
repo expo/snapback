@@ -160,6 +160,7 @@
   "dependencies": {
     "@expo/snapback-contract": "workspace:*",
     "acorn": "^8.17.0",
+    "ajv": "^8.20.0",
     "esbuild": "^0.28.1",
     "typescript": "5.9.3"
   },

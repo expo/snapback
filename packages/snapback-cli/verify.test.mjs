@@ -591,6 +591,33 @@ for (const [stageId, overrides, nextCode] of failureMatrix) {
 }
 
 {
+  const registeredProfileWithoutPaths = { ...profile(), paths: [] };
+  const result = aggregateConformance([registeredProfileWithoutPaths], [{
+    profileId: registeredProfileWithoutPaths.id,
+    conformance: [],
+  }]);
+  assert.equal(result.status, 'not-claimed');
+  assert.equal(result.scope, 'explicitly-registered-paths-only');
+  assert.equal(result.expectedPaths, 0);
+  assert.equal(result.complete, false);
+  cases += 1;
+}
+
+{
+  const registeredProfileWithoutPaths = { ...profile(), paths: [] };
+  const receipt = await runVerify(config([registeredProfileWithoutPaths]), passOptions({
+    artifactProbe: async () => ({ ok: false, diagnostics: [] }),
+  }));
+  const conformanceStage = receipt.stages[2];
+  assert.equal(conformanceStage.status, 'blocked');
+  assert.equal(conformanceStage.evidence.conformance.status, 'not-claimed');
+  assert.equal(conformanceStage.evidence.conformance.expectedPaths, 0);
+  assert.deepEqual(conformanceStage.evidence.conformance.pathEvidence, []);
+  assert.equal(validateReceiptSchema(receipt), true, JSON.stringify(validateReceiptSchema.errors));
+  cases += 1;
+}
+
+{
   const incompleteIdentityConfig = Object.freeze({
     ...defaultVerifyConfig({ backendDirectory: '.' }),
     profiles: Object.freeze([profile()]),

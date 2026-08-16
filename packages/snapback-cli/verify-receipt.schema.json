@@ -152,9 +152,145 @@
         "evidence": true
       }
     },
+    "stringSet": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "conformanceReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missingReads", "missingWrites", "extraReads", "extraWrites",
+        "readProvenance", "writeProvenance"
+      ],
+      "properties": {
+        "missingReads": { "$ref": "#/$defs/stringSet" },
+        "missingWrites": { "$ref": "#/$defs/stringSet" },
+        "extraReads": { "$ref": "#/$defs/stringSet" },
+        "extraWrites": { "$ref": "#/$defs/stringSet" },
+        "readProvenance": { "enum": ["complete", "incomplete", "unsupported"] },
+        "writeProvenance": { "enum": ["complete", "incomplete", "unsupported"] }
+      }
+    },
+    "conformancePath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profileId", "id", "kind", "targetProfileId", "functionId", "status", "report"
+      ],
+      "properties": {
+        "profileId": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["success", "failure", "action", "relational", "search", "snapshot-bundle"] },
+        "targetProfileId": { "type": "string", "minLength": 1 },
+        "functionId": { "type": ["string", "null"], "minLength": 1 },
+        "status": { "enum": ["authoritative", "incomplete", "unsupported"] },
+        "report": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/conformanceReport" }
+          ]
+        }
+      }
+    },
+    "underDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileId", "pathId", "functionId", "missingReads", "missingWrites"],
+      "properties": {
+        "profileId": { "type": "string", "minLength": 1 },
+        "pathId": { "type": "string", "minLength": 1 },
+        "functionId": { "type": ["string", "null"], "minLength": 1 },
+        "missingReads": { "$ref": "#/$defs/stringSet" },
+        "missingWrites": { "$ref": "#/$defs/stringSet" }
+      }
+    },
+    "overDeclaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["functionId", "completeObservedPaths", "extraReads", "extraWrites", "severity"],
+      "properties": {
+        "functionId": { "type": "string", "minLength": 1 },
+        "completeObservedPaths": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reads", "writes"],
+          "properties": {
+            "reads": { "type": "integer", "minimum": 0 },
+            "writes": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "extraReads": { "$ref": "#/$defs/stringSet" },
+        "extraWrites": { "$ref": "#/$defs/stringSet" },
+        "severity": { "const": "warning" }
+      }
+    },
+    "conformanceAggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status", "disposition", "scope", "limitationReason", "complete",
+        "expectedPaths", "observedPaths", "pathEvidence", "underDeclarations",
+        "overDeclarations", "diagnostics"
+      ],
+      "properties": {
+        "status": { "enum": ["passed", "partial", "failed", "not-claimed", "blocked"] },
+        "disposition": { "type": "string", "minLength": 1 },
+        "scope": { "const": "explicitly-registered-paths-only" },
+        "limitationReason": { "type": "string", "minLength": 1 },
+        "complete": { "type": "boolean" },
+        "expectedPaths": { "type": "integer", "minimum": 0 },
+        "observedPaths": { "type": "integer", "minimum": 0 },
+        "authoritativePaths": { "type": "integer", "minimum": 0 },
+        "partialPaths": { "type": "integer", "minimum": 0 },
+        "pathEvidence": { "type": "array", "items": { "$ref": "#/$defs/conformancePath" } },
+        "underDeclarations": { "type": "array", "items": { "$ref": "#/$defs/underDeclaration" } },
+        "overDeclarations": { "type": "array", "items": { "$ref": "#/$defs/overDeclaration" } },
+        "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "expectedPaths": { "const": 0 } }, "required": ["expectedPaths"] },
+          "then": {
+            "properties": {
+              "status": { "const": "not-claimed" },
+              "complete": { "const": false },
+              "observedPaths": { "const": 0 },
+              "pathEvidence": { "maxItems": 0 },
+              "underDeclarations": { "maxItems": 0 },
+              "overDeclarations": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "not-claimed" } }, "required": ["status"] },
+          "then": { "properties": { "expectedPaths": { "const": 0 } } }
+        }
+      ]
+    },
+    "admissionEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["admissionMode", "conformance"],
+      "properties": {
+        "admissionMode": { "type": ["string", "null"] },
+        "conformance": { "$ref": "#/$defs/conformanceAggregate" }
+      }
+    },
     "artifactStage": { "allOf": [{ "$ref": "#/$defs/stage" }, { "properties": { "id": { "const": "artifact-freshness" } } }] },
     "runtimeStage": { "allOf": [{ "$ref": "#/$defs/stage" }, { "properties": { "id": { "const": "runtime-readiness" } } }] },
-    "admissionStage": { "allOf": [{ "$ref": "#/$defs/stage" }, { "properties": { "id": { "const": "admission-and-conformance" } } }] },
+    "admissionStage": {
+      "allOf": [
+        { "$ref": "#/$defs/stage" },
+        {
+          "properties": {
+            "id": { "const": "admission-and-conformance" },
+            "evidence": { "$ref": "#/$defs/admissionEvidence" }
+          }
+        }
+      ]
+    },
     "capabilityStage": { "allOf": [{ "$ref": "#/$defs/stage" }, { "properties": { "id": { "const": "capability-resolution" } } }] },
     "acceptanceStage": { "allOf": [{ "$ref": "#/$defs/stage" }, { "properties": { "id": { "const": "acceptance-profiles" } } }] },
     "profileResult": {

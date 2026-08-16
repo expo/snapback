@@ -21,6 +21,7 @@ import { generate } from '../index.mjs';
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(packageRoot, '../..');
 const STATUS_KEYS = Object.freeze(['exact', 'schema-derived', 'widened', 'holed', 'refused']);
+const EVIDENCE_CLASS_KEYS = Object.freeze(['runtime-witnessed']);
 const DELIBERATE_NEGATIVE_FIXTURES = Object.freeze([]);
 
 function slash(path) {
@@ -53,6 +54,44 @@ function emptyCounts() {
 function proportions(counts) {
   const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
   return Object.fromEntries(STATUS_KEYS.map((key) => [key, total === 0 ? 0 : counts[key] / total]));
+}
+
+function emptyEvidenceClassCounts() {
+  return Object.fromEntries(EVIDENCE_CLASS_KEYS.map((key) => [key, {
+    candidateSuggestions: 0,
+    receipts: 0,
+    notClaimedReceipts: 0,
+    additions: 0,
+    pathWitnesses: 0,
+  }]));
+}
+
+function countEvidenceClasses(suggestions) {
+  const counts = emptyEvidenceClassCounts();
+  const runtimeReceiptsByDigest = new Map();
+  for (const suggestion of suggestions) {
+    const additions = suggestion.dependencyChanges?.additions ?? [];
+    const runtimeAdditions = additions.filter((addition) => (
+      addition.evidence.some(({ evidenceClass }) => evidenceClass === 'runtime-witnessed')
+    ));
+    const runtimeReceipts = (suggestion.runtimeEvidenceReceipts ?? []).filter(
+      ({ evidenceClass }) => evidenceClass === 'runtime-witnessed',
+    );
+    if (runtimeAdditions.length > 0) counts['runtime-witnessed'].candidateSuggestions += 1;
+    for (const receipt of runtimeReceipts) runtimeReceiptsByDigest.set(receipt.digest, receipt);
+    counts['runtime-witnessed'].additions += runtimeAdditions.length;
+    counts['runtime-witnessed'].pathWitnesses += runtimeAdditions.reduce(
+      (sum, addition) => sum + addition.evidence.filter(
+        ({ evidenceClass }) => evidenceClass === 'runtime-witnessed',
+      ).length,
+      0,
+    );
+  }
+  counts['runtime-witnessed'].receipts = runtimeReceiptsByDigest.size;
+  counts['runtime-witnessed'].notClaimedReceipts = [...runtimeReceiptsByDigest.values()].filter(
+    ({ aggregate }) => aggregate.status === 'not-claimed',
+  ).length;
+  return counts;
 }
 
 function copyBackendSource(source, destination) {
@@ -118,7 +157,7 @@ async function prime(job, backend) {
   };
 }
 
-// Rollout 2 is a measurement-only pass. Priming writes generated caches only
+// Rollouts 2 and 4 share this measurement-only pass. Priming writes generated caches only
 // in disposable clones, the before/after inventory makes source immutability
 // an executable condition, and this runner never invokes the apply seam.
 // @ref LLP 0245#d6-rubber-stamp-resistance-is-visible-not-paternalistic — report every named
@@ -147,6 +186,7 @@ for (const job of uniqueJobs) {
     : null;
   const counts = emptyCounts();
   for (const suggestion of suggestionResult?.suggestions ?? []) counts[suggestion.status] += 1;
+  const evidenceClasses = countEvidenceClasses(suggestionResult?.suggestions ?? []);
   const after = sourceInventory(backend);
   primed.cleanup?.();
   if (JSON.stringify(before) !== JSON.stringify(after)) {
@@ -158,6 +198,7 @@ for (const job of uniqueJobs) {
     candidates: Object.values(counts).reduce((sum, value) => sum + value, 0),
     counts,
     proportions: proportions(counts),
+    evidenceClasses,
     priming: primed.priming,
     diagnostics: primed.generated.ok
       ? (suggestionResult.ok ? [] : suggestionResult.diagnostics)
@@ -167,8 +208,14 @@ for (const job of uniqueJobs) {
 }
 
 const aggregateCounts = emptyCounts();
+const aggregateEvidenceClasses = emptyEvidenceClassCounts();
 for (const result of results) {
   for (const key of STATUS_KEYS) aggregateCounts[key] += result.counts[key];
+  for (const key of EVIDENCE_CLASS_KEYS) {
+    for (const metric of Object.keys(aggregateEvidenceClasses[key])) {
+      aggregateEvidenceClasses[key][metric] += result.evidenceClasses[key][metric];
+    }
+  }
 }
 const report = {
   schemaVersion: 'snapback.declaration-suggestion-rollout.v1',
@@ -180,6 +227,7 @@ const report = {
     candidates: Object.values(aggregateCounts).reduce((sum, value) => sum + value, 0),
     counts: aggregateCounts,
     proportions: proportions(aggregateCounts),
+    evidenceClasses: aggregateEvidenceClasses,
   },
   sourceBytesChanged: false,
 };
