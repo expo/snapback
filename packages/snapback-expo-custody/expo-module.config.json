@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["SnapbackExpoCustodyModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.snapbackcustody.SnapbackExpoCustodyModule"]
+  }
+}

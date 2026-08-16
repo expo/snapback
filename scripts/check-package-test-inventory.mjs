@@ -271,6 +271,16 @@ export const PACKAGE_TEST_INVENTORIES = [
     ],
   },
   {
+    id: '@expo/snapback-expo-custody',
+    packageDir: 'packages/snapback-expo-custody',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: [
+      'config-plugin.test.mjs',
+      'native-custody.test.mjs',
+    ],
+  },
+  {
     id: '@expo/snapback-app-cli',
     packageDir: 'packages/snapback-app-cli',
     testDir: '.',
@@ -519,7 +529,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 296,
+  expectedTotal = 298,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -947,6 +957,9 @@ export function checkPackageTestInventories(options = {}) {
 // and iOS/Android launch-carrier proof.
 // 295 -> 296 (2026-08-16, LLP 0262 Stage 1 Lane B): @expo/snapback-vite gains
 // the managed/external dev-identity relay stamp and secret-fence suite.
+// 296 -> 298 (2026-08-16, LLP 0258 Phase 2 item 1): the new first-party
+// @expo/snapback-expo-custody package registers its native-CAS and mandatory
+// Android backup-exclusion suites.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
