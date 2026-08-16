@@ -26,3 +26,15 @@ Ask: author an RFC that decides
 
 Related: LLP 0209 (§2 bounds, §8 refusal parity), LLP 0183 D2, LLP 0198
 (strategic frame), `issues/20260808-live-query-reevaluation-cost-at-scale.md`.
+
+---
+
+**Resolved 2026-08-16.** Authored as `llp/0267-query-cost-guardrails.rfc.md`
+(Draft, v0.4) via the 2026-08-16 orchestration session, through a
+three-fix-round dual-family review loop (codex + grok; converged READY at
+v0.4/v0.3 respectively; artifacts in
+`llp/reviews/0267-query-cost-guardrails.*`). The RFC decides the five
+signals' measured-vs-estimated split against the shipped seams, the
+tighten-only enforcement ladder, offer-gated typed refusals with local/server
+parity, and the single-declaration unification with LLP 0209 G0 bounds.
+Acceptance is the author's call.
