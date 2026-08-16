@@ -5,6 +5,9 @@
 **Systems:** Auth, Wire Protocol, Client SDK, Native Clients, Realtime, Live Queries, HTTP surface
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
+**Revised:** 2026-08-15 (native sender-custody ownership) — Draft LLP 0260 now
+owns the off-browser sender-constraint questions enumerated in §5. The gap
+remains unchanged until that sibling Spec is accepted and implemented.
 **Revised:** 2026-07-30 (the §8.4 fixture obligations landed: every §2
 profile fixture class is seeded in the format-v3 corpus — auth/rr refusal
 surfacing and malformed-offer negatives, the auth/live open-time/subscribe
@@ -26,7 +29,7 @@ delete-before-ACK, and exact duplicate resolution identity); 2026-07-26
 resolution floor/shape validation, terminal no-reuse, and supersession witness)
 **Related:** LLP 0012, LLP 0031, LLP 0043, LLP 0053, LLP 0055, LLP 0057,
 LLP 0058, LLP 0059, LLP 0060, LLP 0064, LLP 0077, LLP 0090, LLP 0093,
-LLP 0094, LLP 0095
+LLP 0094, LLP 0095, LLP 0260
 
 ## Summary
 
@@ -591,18 +594,18 @@ authority identifiers and transition facts but never bearer material
 
 ## 5. Off-browser sender-constraint
 
-**Not defined yet.** LLP 0077 pins sender-constrained custody for
+**Specified only by a Draft follow-on.** LLP 0077 pins sender-constrained custody for
 browser-class clients: the key is a non-extractable P-256 **WebCrypto**
 key in IndexedDB, the WS carrier exists because browsers cannot set
 upgrade headers, and the in-band `sender_nonce` first frame exists
 because browser JavaScript cannot read 101-response headers. None of
 those constraints holds for a native (Swift/Kotlin) client, and no LLP
-currently defines what sender-constraint means off-browser. LLP 0077
-itself scopes its client contract as browser custody and leaves the
-closed client schema follow-on work.
+previously defined what sender-constraint means off-browser. Draft LLP 0260
+now owns that closed native follow-on; because it is neither accepted nor
+implemented, no capability claim changes here. LLP 0077 itself remains scoped
+to browser custody.
 
-A native custody story, when someone writes it (a dated LLP 0077
-amendment or a sibling Spec — not this document), must pin at minimum:
+LLP 0260 must pin at minimum:
 
 1. **Key custody equivalent**: what stands in for the non-extractable
    WebCrypto key — Secure Enclave / Android Keystore residency, its
