@@ -62,18 +62,36 @@ function projectedAvatar(value: unknown): MediaRef<'image'> | null {
   return null;
 }
 
-function Avatar({ profile, accent }: Readonly<{ profile: Profile | undefined; accent: string }>) {
+function Avatar({ profile, accent, changing }: Readonly<{
+  profile: Profile | undefined;
+  accent: string;
+  changing: boolean;
+}>) {
   const avatar = useSnapbackMedia(projectedAvatar(profile?.avatar), { widthPx: 240 });
-  if (avatar.status === 'ready' || avatar.status === 'refreshing') {
-    return <Image accessibilityLabel={`${profile?.displayName ?? 'Persona'} avatar`} source={{ uri: avatar.url }} style={styles.avatar} />;
-  }
   return (
-    <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: accent }]}>
-      {avatar.status === 'issuing' ? (
-        <ActivityIndicator color="#fff" />
+    <View style={styles.avatarFrame}>
+      {avatar.status === 'ready' || avatar.status === 'refreshing' ? (
+        <Image
+          accessibilityLabel={`${profile?.displayName ?? 'Persona'} avatar`}
+          source={{ uri: avatar.url }}
+          style={styles.avatar}
+        />
       ) : (
-        <Text style={styles.avatarInitial}>{profile?.displayName.slice(0, 1) ?? '·'}</Text>
+        <View
+          style={[styles.avatar, styles.avatarFallback, { backgroundColor: accent }]}
+        >
+          {avatar.status === 'issuing' ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.avatarInitial}>{profile?.displayName.slice(0, 1) ?? '·'}</Text>
+          )}
+        </View>
       )}
+      {changing ? (
+        <View style={styles.avatarBusy}>
+          <ActivityIndicator color="#fff" />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -232,6 +250,7 @@ export default function MediaPostScreen({ persona, onSignOut }: Readonly<{
   const [selection, setSelection] = useState<readonly ImagePicker.ImagePickerAsset[]>([]);
   const [task, setTask] = useState<MediaCommandTaskSnapshot<unknown> | null>(null);
   const [avatarStatus, setAvatarStatus] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const profile = profiles.status === 'ready' || profiles.status === 'refreshing'
@@ -247,34 +266,46 @@ export default function MediaPostScreen({ persona, onSignOut }: Readonly<{
   }, [ensureProfile, persona.displayName]);
 
   const pickAvatar = async () => {
-    if (!profile) return;
-    setError(null);
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError('Photo library access is required to change the avatar.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsMultipleSelection: false,
-      mediaTypes: ['images'],
-      quality: 0.9,
-      // iPhone libraries are HEIC-first; compatible mode transcodes to JPEG.
-      preferredAssetRepresentationMode:
-        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const command = changeAvatar({ profileId: profile._id, avatar: result.assets[0] });
-    const unsubscribe = command.subscribe(() => setAvatarStatus(command.snapshot().status));
-    setAvatarStatus(command.snapshot().status);
+    setAvatarError(null);
+    let unsubscribe: (() => void) | undefined;
     try {
+      if (!profile) {
+        setAvatarError('Your profile is still loading. Please try changing the avatar again.');
+        return;
+      }
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setAvatarError('Photo library access is required to change the avatar.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsMultipleSelection: false,
+        mediaTypes: ['images'],
+        quality: 0.9,
+        // iPhone libraries are HEIC-first; compatible mode transcodes to JPEG.
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      });
+      if (result.canceled) {
+        // Explicit picker cancellation is the only intentionally silent exit.
+        return;
+      }
+      const asset = result.assets[0];
+      if (!asset) {
+        setAvatarError('The photo picker returned no image. Please try again.');
+        return;
+      }
+      const command = changeAvatar({ profileId: profile._id, avatar: asset });
+      unsubscribe = command.subscribe(() => setAvatarStatus(command.snapshot().status));
+      setAvatarStatus(command.snapshot().status);
       const outcome = await command.done;
       if (outcome.kind !== 'committed') {
-        setError(diagnosticMessage(outcome, 'Avatar update did not commit.'));
+        setAvatarError(diagnosticMessage(outcome, 'Avatar update did not commit.'));
       }
     } catch (cause) {
-      setError(errorText(cause));
+      setAvatarError(`Avatar change failed: ${errorText(cause)}`);
     } finally {
-      unsubscribe();
+      unsubscribe?.();
       setAvatarStatus(null);
     }
   };
@@ -328,7 +359,7 @@ export default function MediaPostScreen({ persona, onSignOut }: Readonly<{
       <View style={styles.header}>
         <View style={styles.identity}>
           <Pressable accessibilityRole="button" disabled={!profile || avatarStatus !== null} onPress={() => void pickAvatar()}>
-            <Avatar accent={persona.accent} profile={profile} />
+            <Avatar accent={persona.accent} changing={avatarStatus !== null} profile={profile} />
             <View style={styles.cameraBadge}><Text style={styles.cameraBadgeText}>＋</Text></View>
           </Pressable>
           <View style={styles.identityCopy}>
@@ -337,6 +368,7 @@ export default function MediaPostScreen({ persona, onSignOut }: Readonly<{
             <Text style={styles.identityStatus}>
               {avatarStatus ? `avatar · ${avatarStatus}` : `${connection.status} · tap avatar to change`}
             </Text>
+            {avatarError ? <Text style={styles.error}>{avatarError}</Text> : null}
           </View>
         </View>
         <Pressable onPress={onSignOut} style={styles.switchButton}>
@@ -377,7 +409,7 @@ export default function MediaPostScreen({ persona, onSignOut }: Readonly<{
         <Text style={styles.feedCount}>{feed.length}</Text>
       </View>
     </View>
-  ), [avatarStatus, body, connection.status, error, feed.length, onSignOut, persona, posting, profile, selection, task]);
+  ), [avatarError, avatarStatus, body, connection.status, error, feed.length, onSignOut, persona, posting, profile, selection, task]);
 
   return (
     <FlatList
@@ -401,7 +433,9 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, marginTop: 8 },
   identity: { alignItems: 'center', flexDirection: 'row', flex: 1, gap: 12 },
   identityCopy: { flex: 1, gap: 2 },
+  avatarFrame: { height: 62, position: 'relative', width: 62 },
   avatar: { borderColor: '#fff', borderRadius: 99, borderWidth: 3, height: 62, width: 62 },
+  avatarBusy: { alignItems: 'center', backgroundColor: 'rgba(24, 22, 20, 0.58)', borderRadius: 99, bottom: 3, justifyContent: 'center', left: 3, position: 'absolute', right: 3, top: 3 },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarInitial: { color: '#fff', fontSize: 25, fontWeight: '900' },
   cameraBadge: { alignItems: 'center', backgroundColor: '#23221f', borderColor: '#fff', borderRadius: 99, borderWidth: 2, bottom: -1, height: 22, justifyContent: 'center', position: 'absolute', right: -1, width: 22 },
