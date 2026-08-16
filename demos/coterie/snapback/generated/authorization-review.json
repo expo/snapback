@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:d98baccb30204a90b40180aa7dd806317a2900bdb77abb2b2833efe05caec77b",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:9c0518df125268133c958114b1837b768330c2e8def67beed1a238d0d7232b64",
   "operations": [
     {
       "authRequirement": {
@@ -410,7 +410,7 @@
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
     "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
     "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
-    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.v2"
   },
   "tablePolicies": [
     {
@@ -423,5 +423,178 @@
   ],
   "tablePolicyTransitions": [],
   "visibilityOverrides": [],
-  "writePolicyChecks": []
+  "writePolicyChecks": [
+    {
+      "absentDisposition": "ctx-db-false",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:217f774f3aa3eafed60f0ddb6aae597c33ab86efa12a7be42173185cdf4241be",
+      "operation": "ensureMyProfile",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:27bf55bf0880e5ccad9b7ec938abeadcd0782f7c05b30ef0bca87b4a80d78682",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 13,
+        "kind": "static-inline",
+        "line": 37,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "profiles",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "patch",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "not-applicable",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:69f449c13e39c8e8318d39e30e148691c9a2e62759a93f4bdca723583ed71d83",
+      "operation": "ensureMyProfile",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:0dc7e5c709d232a7effdab2d6f878ce69298ad0f4e02325dc40bb105f50dabdc",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 20,
+        "kind": "static-inline",
+        "line": 20,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "profiles",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "insert",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "ctx-db-false",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:be96586b5f5abfb3383fcd6845fd0c78ab8f940a951de95fb3d84e042329abf2",
+      "operation": "attachMyAvatar",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:c7fc3e70125ed46850264bb608fc153c7f998c5633fb7312a23f7e935b525c3a",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 13,
+        "kind": "static-inline",
+        "line": 6,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "profiles",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "patch",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "ctx-db-false",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:f9d645957fda0b5a195c3a2987c76bd5b0f4c807c7c16f8a3289198ea958630b",
+      "operation": "editProfile",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:c3fc3720c6e5205686c2e517d649bae12875d9af9819a366a7bddac7127ac0b4",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 11,
+        "kind": "static-inline",
+        "line": 11,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "profiles",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "patch",
+      "writeFormCeiling": null
+    }
+  ]
 }
