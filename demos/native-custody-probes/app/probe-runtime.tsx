@@ -273,13 +273,23 @@ async function corruptionProbe() {
       },
     });
   }
-  await hooks.corruptCiphertext(ownerKey);
+  const corruption = await hooks.corruptCiphertext(ownerKey);
   try {
     await readRecord();
   } catch (error) {
-    return Object.freeze({ supported: true, readAccepted: false, diagnostic: publicError(error) });
+    return Object.freeze({
+      supported: true,
+      mechanism: corruption.mechanism,
+      readAccepted: false,
+      diagnostic: publicError(error),
+    });
   }
-  return Object.freeze({ supported: true, readAccepted: true, diagnostic: null });
+  return Object.freeze({
+    supported: true,
+    mechanism: corruption.mechanism,
+    readAccepted: true,
+    diagnostic: null,
+  });
 }
 
 async function refusalProbe() {
@@ -310,6 +320,11 @@ async function refusalProbe() {
       code: typeof diagnostic?.code === 'string'
         ? diagnostic.code
         : 'SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_RESULT_MISSING',
+    });
+  }
+  if (result.ioOccurred !== false) {
+    throw Object.assign(new Error('secondary process crossed the pre-I/O custody gate'), {
+      code: 'SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_IO_OCCURRED',
     });
   }
   return result;

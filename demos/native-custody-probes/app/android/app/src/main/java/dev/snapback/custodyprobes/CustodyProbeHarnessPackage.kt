@@ -39,6 +39,10 @@ class CustodyProbeHarnessModule(
           "attempted",
           !resultMissing && (resultData?.getBoolean("attempted", false) ?: false),
         )
+        map.putBoolean(
+          "ioOccurred",
+          !resultMissing && (resultData?.getBoolean("ioOccurred", false) ?: false),
+        )
         map.putString("context", "android-secondary-process")
         if (processName == null) map.putNull("processName") else map.putString("processName", processName)
         if (servicePid <= 0) map.putNull("servicePid") else map.putInt("servicePid", servicePid)
@@ -57,6 +61,9 @@ class CustodyProbeHarnessModule(
           resultData?.getString("diagnosticMessage")
             ?: "Secondary-process probe returned no diagnostic.",
         )
+        val diagnosticReason = resultData?.getString("diagnosticReason")
+        if (diagnosticReason == null) diagnostic.putNull("reason")
+        else diagnostic.putString("reason", diagnosticReason)
         map.putMap("diagnostic", diagnostic)
         promise.resolve(map)
       }

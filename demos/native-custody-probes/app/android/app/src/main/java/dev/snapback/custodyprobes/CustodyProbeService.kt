@@ -1,11 +1,16 @@
 package dev.snapback.custodyprobes
 
+import android.app.ActivityManager
+import android.app.Application
 import android.app.Service
+import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.Process
 import android.os.ResultReceiver
+import java.io.File
 
 class CustodyProbeService : Service() {
   companion object {
@@ -18,8 +23,10 @@ class CustodyProbeService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     @Suppress("DEPRECATION")
     val receiver = intent?.getParcelableExtra<ResultReceiver>(RESULT_RECEIVER)
-    val processName = Process.myProcessName()
+    val processName = resolveProcessName()
     var attempted = false
+    var ioOccurred = false
+    var reason: String? = null
     var code = "SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_TEST_HOOK_UNAVAILABLE"
     var message = "Lane A must expose NativeCustodyProbeHooks.attemptSecondaryProcessIo(Context)."
     try {
@@ -35,6 +42,12 @@ class CustodyProbeService : Service() {
       val observed = method.invoke(null, this)
       code = when (observed) {
         is String -> observed
+        is Map<*, *> -> {
+          ioOccurred = observed["ioOccurred"] as? Boolean ?: false
+          reason = observed["reason"] as? String
+          observed["code"] as? String
+            ?: "SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_UNTYPED_RESULT"
+        }
         else -> "SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_UNTYPED_RESULT"
       }
       message = "Lane A secondary-process custody I/O returned a typed result."
@@ -52,14 +65,45 @@ class CustodyProbeService : Service() {
     }
     receiver?.send(0, Bundle().apply {
       putBoolean("attempted", attempted)
+      putBoolean("ioOccurred", ioOccurred)
       putString("processName", processName)
       putInt("servicePid", Process.myPid())
       putString("diagnosticCode", code)
       putString("diagnosticMessage", message)
+      putString("diagnosticReason", reason)
     })
     // Stay alive until the host has observed both main and :probe PIDs with
     // adb shell ps. Harness cleanup force-stops the package after the proof.
     return START_NOT_STICKY
+  }
+
+  private fun resolveProcessName(): String? {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      try {
+        Application.getProcessName()?.takeIf { it.isNotBlank() }?.let { return it }
+      } catch (_: RuntimeException) {
+        // Fall through to procfs/OEM-compatible discovery.
+      }
+    }
+    try {
+      val raw = File("/proc/self/cmdline").readBytes()
+      val end = raw.indexOf(0).let { if (it < 0) raw.size else it }
+      raw.copyOfRange(0, end).toString(Charsets.UTF_8)
+        .trim()
+        .takeIf { it.isNotEmpty() }
+        ?.let { return it }
+    } catch (_: Exception) {
+      // ActivityManager is the final compatibility fallback below.
+    }
+    return try {
+      val manager = getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+      manager?.runningAppProcesses
+        ?.firstOrNull { it.pid == Process.myPid() }
+        ?.processName
+        ?.takeIf { it.isNotBlank() }
+    } catch (_: RuntimeException) {
+      null
+    }
   }
 
   private fun typedCode(error: Throwable): String? {

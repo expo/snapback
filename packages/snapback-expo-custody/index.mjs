@@ -15,6 +15,7 @@ export const SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED =
 
 const MODULE_NAME = 'SnapbackExpoCustody';
 const KEY_PREFIX = 'snapback.auth-custody.';
+const DEFAULT_OWNERSHIP_WAIT_TIMEOUT_MS = 10_000;
 const nativeLocks = new WeakMap();
 let defaultNativeModulePromise;
 
@@ -91,7 +92,12 @@ function nativeFailure(result, operation) {
     return createAuthCustodyError(
       SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED,
       'native auth custody is available only in the application main runtime',
-      { operation, platform: result.platform ?? null, process: result.process ?? null },
+      {
+        operation,
+        reason: result.reason ?? null,
+        platform: result.platform ?? null,
+        process: result.process ?? null,
+      },
     );
   }
   if (result?.status === 'corrupt') {
@@ -169,6 +175,11 @@ export function createNativeAuthCustodyStorage(options = {}) {
   if (options.onDiagnostic !== undefined && typeof options.onDiagnostic !== 'function') {
     throw new TypeError('onDiagnostic must be a function');
   }
+  const ownershipWaitTimeoutMs = options.ownershipWaitTimeoutMs
+    ?? DEFAULT_OWNERSHIP_WAIT_TIMEOUT_MS;
+  if (!Number.isFinite(ownershipWaitTimeoutMs) || ownershipWaitTimeoutMs <= 0) {
+    throw new TypeError('ownershipWaitTimeoutMs must be a positive finite number');
+  }
 
   const reportDiagnostic = (diagnostic) => {
     try {
@@ -182,12 +193,6 @@ export function createNativeAuthCustodyStorage(options = {}) {
       // custody-absent outcome into a storage wedge.
     }
   };
-
-  // This marker is deliberately adapter-instance-local. Calls made through a
-  // second adapter instance still join the shared native-module queue, while
-  // a callback that re-enters this same adapter/key refuses instead of
-  // waiting on its own unresolved tail.
-  const activeOwnershipKeys = new Set();
 
   return Object.freeze({
     ownerKeyCapability: 'owner-key-v1',
@@ -225,20 +230,40 @@ export function createNativeAuthCustodyStorage(options = {}) {
         throw new TypeError('ownership operation must be a function');
       }
       const { appId, storageKey } = nativeAddress(ownerKeyInput);
-      if (activeOwnershipKeys.has(storageKey)) {
-        throw createAuthCustodyError(
-          'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
-          'native auth custody ownership is non-reentrant for one owner key',
-          { operation: 'withOwnership', reason: 'same-key-reentrant' },
-        );
-      }
       const nativeModule = assertNativeModule(await resolveNativeModule());
       const lock = lockFor(nativeModule, storageKey);
       const prior = lock.tail;
       let releaseTail;
       lock.tail = new Promise((resolve) => { releaseTail = resolve; });
-      await prior;
-      activeOwnershipKeys.add(storageKey);
+      let waitTimer;
+      let waitTimedOut = false;
+      try {
+        await new Promise((resolve, reject) => {
+          waitTimer = setTimeout(() => {
+            waitTimedOut = true;
+            reject(createAuthCustodyError(
+              'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
+              'native auth custody ownership wait exceeded its deadlock bound',
+              { operation: 'withOwnership', reason: 'ownership-wait-timeout' },
+            ));
+          }, ownershipWaitTimeoutMs);
+          waitTimer.unref?.();
+          prior.then(() => {
+            if (waitTimedOut) {
+              // Preserve queue order even though this abandoned waiter has
+              // already refused: its successor cannot bypass the predecessor.
+              releaseTail();
+              return;
+            }
+            resolve();
+          });
+        });
+      } catch (error) {
+        if (!waitTimedOut) releaseTail();
+        throw error;
+      } finally {
+        clearTimeout(waitTimer);
+      }
 
       const readRecord = async () => {
         const result = await callNative(
@@ -309,7 +334,6 @@ export function createNativeAuthCustodyStorage(options = {}) {
         return await operation(operationOwner);
       } finally {
         owner.release();
-        activeOwnershipKeys.delete(storageKey);
         releaseTail();
       }
     },
@@ -337,6 +361,9 @@ export function createNativeAuthCustodyStorage(options = {}) {
           () => nativeModule.corruptCiphertext(appId, storageKey),
         );
         if (result?.status !== 'ok') throw nativeFailure(result, 'corruptCiphertext');
+        return Object.freeze({
+          mechanism: result.mechanism ?? 'persisted-aead-byte-flip-datastore-reopen',
+        });
       },
     }),
   });

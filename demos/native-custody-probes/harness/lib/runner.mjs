@@ -106,6 +106,7 @@ export async function runNativeCustodyHarness({
   let overallVerdict = 'FAIL';
   let terminalError = null;
   let p4IosIncomplete = false;
+  let p2MissingClasses = [];
   let successfulProbeFlow = false;
   const email = options.email ?? `custody-${Date.now()}@example.test`;
   const password = options.password ?? `Ncp-${randomUUID()}-Aa1!`;
@@ -225,14 +226,15 @@ export async function runNativeCustodyHarness({
     if (!existsSync(artifact.binaryPath)) {
       throw new Error(`P0/artifact-integrity: built artifact binary is missing at ${artifact.binaryPath}`);
     }
-    const artifactSha256 = `sha256:${sha256File(artifact.binaryPath)}`;
+    const artifactSha256 = artifact.sha256 ?? `sha256:${sha256File(artifact.binaryPath)}`;
+    const artifactBundleId = artifact.bundleId ?? options.bundleId;
     let reusedFrom = null;
     if (options.skipBuild) {
       reusedFrom = matchingPriorBuildReceipt({
         evidenceRoot,
         currentRunDirectory: writer.directory,
         platform,
-        bundleId: options.bundleId,
+        bundleId: artifactBundleId,
         artifactSha256,
       });
       if (reusedFrom === null) {
@@ -245,7 +247,7 @@ export async function runNativeCustodyHarness({
       schemaVersion: 'snapback.native-custody-build.v1',
       runId: writer.runId,
       platform,
-      bundleId: options.bundleId,
+      bundleId: artifactBundleId,
       buildMode: options.skipBuild ? 'verified-reuse' : 'built-this-run',
       artifact: Object.freeze({ ...artifact, sha256: artifactSha256 }),
       reusedFrom,
@@ -259,10 +261,10 @@ export async function runNativeCustodyHarness({
       backendOrigin: backend.ready.serverUrl,
       descriptorIdentity: backend.descriptor.identity.descriptor,
       bootstrapCapabilityOptIn: 'provider-layer (codegen has no source declaration in this revision)',
-      bundleId: options.bundleId,
+      bundleId: artifactBundleId,
       claims: platform === 'android'
-        ? ['SIGKILL mid-write', 'uninstall-clears-data']
-        : ['SIGKILL mid-write', 'keychain uninstall residue handling'],
+        ? ['P2 classified SIGKILL old-or-new restoration (coverage gated)', 'uninstall-clears-data']
+        : ['P2 classified SIGKILL old-or-new restoration (coverage gated)', 'keychain uninstall residue handling'],
       notClaimed: platform === 'android'
         ? [
             'force-stop-mid-write (LLP 0263 A-3)',
@@ -389,18 +391,22 @@ export async function runNativeCustodyHarness({
 
     let latestFacts = restored.boot.custodyFacts;
     let activeReady = restored.ready;
+    const p2Classifications = new Set();
     // @ref LLP 0263#5-probe-checklists — an entered pulse precedes native
-    // replace; a completion pulse follows it. The host arms first, kills on
-    // an unmatched entered sequence, and binds recovery to the last entered
-    // predecessor/successor pair rather than an arbitrary N/N+1.
+    // replace; a completion pulse follows it. The host arms first, skips
+    // already-completed sequences, and kills on the first unmatched entered
+    // predecessor/successor pair.
     for (let iteration = 1; iteration <= options.iterations; iteration += 1) {
       let nextReady = null;
       let nextFacts = null;
-      await step(
+      const iterationEvidence = await step(
         'P2', `kill-mid-write iteration ${iteration}`,
         {
-          signal: 'write-entered after host arm, with no matching completion at kill dispatch',
-          restoration: 'predecessor-or-successor of last entered write',
+          signal: 'first unmatched write-entered after host arm; completed sequences skipped',
+          restoration: [
+            'interrupted-before-commit (restored predecessor)',
+            'committed-before-restore (restored successor)',
+          ],
           identity: {
             bearerSha256: latestFacts.bearerSha256,
             epoch: latestFacts.epoch,
@@ -415,31 +421,60 @@ export async function runNativeCustodyHarness({
           const armedAt = new Date().toISOString();
           const activeLaunchId = activeReady.launchId;
           const loop = await command('tightWriteLoop');
-          const pulse = await director.waitEvent(
-            (event) => event.launchId === activeLaunchId
-              && event.details?.loopId === loop.loopId
-              && ['write-entered', 'tight-write-failed'].includes(event.event),
-            eventStart,
-            30_000,
-          );
-          assertProbe(
-            pulse.event === 'write-entered',
-            'P2',
-            'tight-write-failed arrived instead of a write heartbeat',
-            pulse,
-          );
-          const targetSequence = pulse.details.sequence;
-          const completedBeforeKill = director.events.slice(eventStart).filter(
+          const selectionDeadline = Date.now() + 30_000;
+          const skippedCompleted = new Set();
+          const waitForFirstUnmatched = async () => {
+            for (;;) {
+              const scoped = director.events.slice(eventStart).filter(
+                (event) => event.launchId === activeLaunchId
+                  && event.details?.loopId === loop.loopId,
+              );
+              const failures = scoped.filter((event) => event.event === 'tight-write-failed');
+              assertProbe(
+                failures.length === 0,
+                'P2',
+                'tight-write-failed arrived instead of a write heartbeat',
+                failures,
+              );
+              const completed = new Set(scoped.filter(
+                (event) => event.event === 'write-completed',
+              ).map((event) => event.details.sequence));
+              const entered = scoped.filter((event) => event.event === 'write-entered');
+              for (const event of entered) {
+                if (completed.has(event.details.sequence)) {
+                  skippedCompleted.add(event.details.sequence);
+                } else {
+                  return event;
+                }
+              }
+              const waitStart = director.events.length;
+              const remaining = selectionDeadline - Date.now();
+              assertProbe(remaining > 0, 'P2', 'write heartbeat silence after arming');
+              await director.waitEvent(
+                (event) => event.launchId === activeLaunchId
+                  && event.details?.loopId === loop.loopId
+                  && ['write-entered', 'write-completed', 'tight-write-failed'].includes(event.event),
+                waitStart,
+                remaining,
+              );
+            }
+          };
+          let pulse = await waitForFirstUnmatched();
+          let completedBeforeKill = director.events.slice(eventStart).filter(
             (event) => event.event === 'write-completed'
               && event.launchId === activeLaunchId
               && event.details?.loopId === loop.loopId,
           ).map((event) => event.details.sequence);
-          assertProbe(
-            !completedBeforeKill.includes(targetSequence),
-            'P2',
-            'the armed write completed before SIGKILL dispatch',
-            { targetSequence, completedBeforeKill },
-          );
+          while (completedBeforeKill.includes(pulse.details.sequence)) {
+            skippedCompleted.add(pulse.details.sequence);
+            pulse = await waitForFirstUnmatched();
+            completedBeforeKill = director.events.slice(eventStart).filter(
+              (event) => event.event === 'write-completed'
+                && event.launchId === activeLaunchId
+                && event.details?.loopId === loop.loopId,
+            ).map((event) => event.details.sequence);
+          }
+          const targetSequence = pulse.details.sequence;
           const killDispatchedAt = new Date().toISOString();
           const kill = await device.kill({ midWrite: true });
           await delay(200);
@@ -451,26 +486,24 @@ export async function runNativeCustodyHarness({
           assertProbe(failures.length === 0, 'P2', 'tight-write loop reported failure', failures);
           const entered = writeEvents.filter((event) => event.event === 'write-entered');
           const completed = writeEvents.filter((event) => event.event === 'write-completed');
-          const lastEntered = entered.at(-1);
-          assertProbe(lastEntered !== undefined, 'P2', 'write heartbeat silence after arming');
-          const last = lastEntered.details;
+          const target = pulse.details;
           assertProbe(
-            Number.isSafeInteger(last.sequence)
-              && Number.isSafeInteger(last.predecessorRevision)
-              && Number.isSafeInteger(last.successorRevision)
-              && last.successorRevision === last.predecessorRevision + 1,
+            Number.isSafeInteger(target.sequence)
+              && Number.isSafeInteger(target.predecessorRevision)
+              && Number.isSafeInteger(target.successorRevision)
+              && target.successorRevision === target.predecessorRevision + 1,
             'P2',
-            'last entered write did not carry an exact revision pair',
-            last,
+            'selected entered write did not carry an exact revision pair',
+            target,
           );
           assertProbe(
-            last.phase === 'settled'
-              && last.bearerSha256 === latestFacts.bearerSha256
-              && last.epoch === latestFacts.epoch
-              && last.principalId === signIn.principal.userId,
+            target.phase === 'settled'
+              && target.bearerSha256 === latestFacts.bearerSha256
+              && target.epoch === latestFacts.epoch
+              && target.principalId === signIn.principal.userId,
             'P2',
-            'last entered write changed the pre-kill custody identity',
-            { prior: latestFacts, lastEntered: last },
+            'selected entered write changed the pre-kill custody identity',
+            { prior: latestFacts, selected: target },
           );
 
           const next = await relaunchAndBootstrap();
@@ -479,11 +512,11 @@ export async function runNativeCustodyHarness({
           nextReady = next.ready;
           nextFacts = facts;
           const expectedTuple = Object.freeze({
-            revision: [last.predecessorRevision, last.successorRevision],
-            bearerSha256: last.bearerSha256,
-            epoch: last.epoch,
+            revision: [target.predecessorRevision, target.successorRevision],
+            bearerSha256: target.bearerSha256,
+            epoch: target.epoch,
             phase: 'settled',
-            custodyPrincipalId: last.principalId,
+            custodyPrincipalId: target.principalId,
             principalStatus: 'authenticated',
             userId: signIn.principal.userId,
             credentialEntryCalls: 0,
@@ -496,16 +529,23 @@ export async function runNativeCustodyHarness({
             credentialEntryCalls: next.boot.credentialEntryCalls,
             protectedRead,
           });
+          const classification = observedTuple.revision === target.predecessorRevision
+            ? 'interrupted-before-commit'
+            : observedTuple.revision === target.successorRevision
+              ? 'committed-before-restore'
+              : null;
           return Object.freeze({
             arm: { eventIndex: eventStart, armedAt, launchId: activeLaunchId, loopId: loop.loopId },
             kill: { dispatchedAt: killDispatchedAt, ...kill },
             writeWindow: {
               killTargetEnteredSequence: targetSequence,
+              skippedCompletedSequences: [...skippedCompleted],
               completedBeforeKill,
               enteredSequencesAroundKill: entered.map((event) => event.details.sequence),
               completedSequencesAroundKill: completed.map((event) => event.details.sequence),
-              lastEntered: last,
+              selectedEntered: target,
             },
+            classification,
             expectedTuple,
             observedTuple,
             bootstrapStatus: next.boot.status,
@@ -515,6 +555,7 @@ export async function runNativeCustodyHarness({
           const expected = value.expectedTuple;
           const observed = value.observedTuple;
           return value.bootstrapStatus === 'ready'
+            && value.classification !== null
             && expected.revision.includes(observed.revision)
             && observed.bearerSha256 === expected.bearerSha256
             && observed.epoch === expected.epoch
@@ -527,9 +568,29 @@ export async function runNativeCustodyHarness({
             && observed.protectedReadRowCount >= 1;
         },
       );
+      p2Classifications.add(iterationEvidence.classification);
       latestFacts = nextFacts;
       activeReady = nextReady;
     }
+    const requiredP2Classes = [
+      'interrupted-before-commit',
+      'committed-before-restore',
+    ];
+    p2MissingClasses = requiredP2Classes.filter((entry) => !p2Classifications.has(entry));
+    writer.record('P2', 'classified outcome family coverage', {
+      expected: { required: requiredP2Classes },
+      observed: {
+        observed: [...p2Classifications],
+        missing: p2MissingClasses,
+        iterations: options.iterations,
+      },
+      verdict: p2MissingClasses.length === 0 ? 'PASS' : 'INCOMPLETE',
+    });
+    writer.setMetadata({
+      p2ReceiptClaim: p2MissingClasses.length === 0
+        ? 'SIGKILL old-or-new restoration observed both interrupted-before-commit and committed-before-restore'
+        : `INCOMPLETE: P2 did not observe ${p2MissingClasses.join(', ')}`,
+    });
 
     await step(
       'P3', 'interleaved native CAS',
@@ -613,8 +674,9 @@ export async function runNativeCustodyHarness({
         'P4', 'secondary-process refusal',
         {
           attempted: true,
-          processName: `${options.bundleId}:probe`,
-          diagnostic: SINGLE_RUNTIME_REFUSAL,
+          ioOccurred: false,
+          processName: `${artifactBundleId}:probe`,
+          diagnostic: { code: SINGLE_RUNTIME_REFUSAL, reason: 'secondary-process' },
           distinctHostObservedPids: true,
         },
         async () => {
@@ -623,9 +685,11 @@ export async function runNativeCustodyHarness({
           return Object.freeze({ ...appResult, hostProcesses: processes });
         },
         (value) => value.attempted === true
-          && value.processName === `${options.bundleId}:probe`
+          && value.ioOccurred === false
+          && value.processName === `${artifactBundleId}:probe`
           && Number.isSafeInteger(value.servicePid)
           && value.diagnostic?.code === SINGLE_RUNTIME_REFUSAL
+          && value.diagnostic?.reason === 'secondary-process'
           && value.hostProcesses?.service?.pid === value.servicePid
           && value.hostProcesses?.service?.pid !== value.hostProcesses?.main?.pid,
       );
@@ -672,9 +736,15 @@ export async function runNativeCustodyHarness({
       // corruption code and claims uninstall-clears-data, not bmgr restore.
       await step(
         'P5', 'ciphertext corruption and AEAD refusal',
-        { hook: 'present', readAccepted: false, diagnosticAllowlist: [...CORRUPTION_REFUSALS] },
+        {
+          mechanism: 'persisted-aead-byte-flip-datastore-reopen',
+          decryptPath: 'AEADBadTagException-to-corrupt',
+          readAccepted: false,
+          diagnosticAllowlist: [...CORRUPTION_REFUSALS],
+        },
         () => command('corruptionProbe'),
         (value) => value.supported === true
+          && value.mechanism === 'persisted-aead-byte-flip-datastore-reopen'
           && value.readAccepted === false
           && CORRUPTION_REFUSALS.has(value.diagnostic?.code),
       );
@@ -824,11 +894,13 @@ export async function runNativeCustodyHarness({
       failureProbe = 'P6/complete-run-artifact-leakage-scan';
     }
 
-    overallVerdict = terminalError === null
-      ? p4IosIncomplete
-        ? 'PASS (P4-iOS INCOMPLETE: extension refusal not exercised)'
-        : 'PASS'
-      : 'FAIL';
+    overallVerdict = terminalError !== null
+      ? 'FAIL'
+      : p2MissingClasses.length > 0
+        ? `INCOMPLETE (P2 missing ${p2MissingClasses.join(', ')})`
+        : p4IosIncomplete
+          ? 'PASS (P4-iOS INCOMPLETE: extension refusal not exercised)'
+          : 'PASS';
     let rendered = writer.renderFinal({ overallVerdict, failure: failureProbe });
     const receiptScan = scanEvidenceForLeaks(writer.directory, {
       forbiddenLiterals,

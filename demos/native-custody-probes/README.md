@@ -52,8 +52,8 @@ omitted. iOS accepts `--derived-data` and `--app-path`; Android accepts
 resolved `.app` or APK only when an earlier per-run build receipt binds its
 current SHA-256; otherwise the runner refuses. It still generates the backend,
 installs JavaScript dependencies, starts the backend, and (for Android debug)
-starts Metro. Leakage scanning is mandatory; the retained `--leakage-scan`
-spelling is compatibility-only.
+starts Metro. Leakage scanning is mandatory and always runs; the dead
+`--leakage-scan` flag has been removed because it never changed that behavior.
 
 The iOS fresh-install precondition resets the selected simulator keychain.
 Pass `--preserve-keychain` only when the target is already known clean. The
@@ -65,6 +65,11 @@ Android P2 uses only a verified SIGKILL: the host tries debug-app `run-as`
 and plain `kill -9`, requires a successful command, observes the exact PID
 absent via `adb shell ps`, and only then uses force-stop as cleanup. The
 distinct force-stop-mid-write arm (LLP 0263 A-3) remains not claimed.
+Each iteration selects the first entered write that does not already have a
+matching completion and records either `interrupted-before-commit` (the
+predecessor restored) or `committed-before-restore` (the successor restored).
+P2 is complete only when at least one iteration demonstrates each class;
+otherwise the receipt is `INCOMPLETE` and names the missing class.
 
 ## Native custody integration
 
@@ -76,10 +81,13 @@ are applied. Ordinary provider resolution remains capability-refused until the
 per-OS Phase 2 evidence flips it.
 
 Android debug builds expose `testHooks.corruptCiphertext(ownerKey)` for the
-AEAD probe and the static
+AEAD probe. It persists a byte-flipped AES-GCM payload, discards the per-key
+DataStore instance, and requires the next read to recreate the store and reach
+the real `AEADBadTagException` corruption classification. The static
 `expo.modules.snapbackcustody.NativeCustodyProbeHooks.attemptSecondaryProcessIo(Context)`
-hook for the `android:process=":probe"` single-runtime refusal. Production
-builds refuse both hooks.
+hook covers the `android:process=":probe"` single-runtime refusal and reports
+that the guarded real-read arm performed no I/O. Production builds refuse both
+hooks.
 
 This codegen revision emits the non-secret `authBootstrap` policy but has no
 source declaration for `auth.application-bootstrap.v1`. `app/probe-app.ts`

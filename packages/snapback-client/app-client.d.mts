@@ -117,6 +117,12 @@ export type SnapbackAppClientPlatform =
        * construct this shape until the per-OS Phase 2 capability flips. */
       authCustodyStorage: SnapbackAuthCustodyStorage & Readonly<{
         ownerKeyCapability: 'owner-key-v1';
+        platformGrade(): Promise<Readonly<{
+          grade: 'single-runtime' | 'durable';
+          mechanism: unknown;
+          carrier?: string;
+          readonly [key: string]: unknown;
+        }>>;
       }>;
       cryptoObject?: unknown;
     }>;
@@ -127,7 +133,9 @@ export type PublicAuthCustodyFacts = Readonly<{
     | 'indexeddb-fenced-lease'
     | 'expo-native-injected'
     | 'memory';
-  grade: 'durable' | 'volatile';
+  grade: 'single-runtime' | 'durable' | 'volatile';
+  /** Present for injected native custody and copied from the adapter's grade report. */
+  mechanism?: unknown;
   storagePartitionIdentityHash: `sha256:${string}`;
   formatVersion: number;
   recoveryAvailable: boolean;

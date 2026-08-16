@@ -510,6 +510,10 @@ function normalizePlatform(platform) {
     !isRecord(normalized)
     || !nonEmptyString(normalized.kind)
     || Object.keys(normalized).some((key) => !allowedKeys.has(key))
+    || (normalized.kind === 'expo-native'
+      && ['indexedDB', 'lockManager', 'databaseName'].some(
+        (key) => Object.hasOwn(normalized, key),
+      ))
   ) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
@@ -668,11 +672,54 @@ async function resolveCustody(preflighted) {
   }
   if (platform.kind === 'expo-native') {
     // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — explicit advanced injection only; ordinary native admission stays refused pending per-OS Phase 2 evidence.
+    let reportedGrade;
+    try {
+      if (typeof platform.authCustodyStorage.platformGrade !== 'function') {
+        throw new TypeError('injected native custody has no platformGrade method');
+      }
+      reportedGrade = await platform.authCustodyStorage.platformGrade();
+    } catch (error) {
+      throw refusal(
+        'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
+        'The injected native custody adapter did not establish its durability grade.',
+        {
+          platform: platform.kind,
+          requiredGrade: 'single-runtime-or-durable',
+          causeCode: safeCauseCode(error),
+        },
+        [remediation(
+          'installDurableCustody',
+          'Provide an adapter whose platformGrade() reports an admitted grade and mechanism.',
+          { requiredGrade: 'single-runtime-or-durable' },
+        )],
+      );
+    }
+    if (
+      !isRecord(reportedGrade)
+      || !['single-runtime', 'durable'].includes(reportedGrade.grade)
+      || !reportedGrade.mechanism
+    ) {
+      throw refusal(
+        'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
+        'The injected native custody adapter reported a malformed or insufficient durability grade.',
+        {
+          platform: platform.kind,
+          requiredGrade: 'single-runtime-or-durable',
+          reportedGrade: isRecord(reportedGrade) ? (reportedGrade.grade ?? null) : null,
+        },
+        [remediation(
+          'installDurableCustody',
+          'Provide an adapter whose platformGrade() reports an admitted grade and mechanism.',
+          { requiredGrade: 'single-runtime-or-durable' },
+        )],
+      );
+    }
     return Object.freeze({
       storage: platform.authCustodyStorage,
       facts: Object.freeze({
         carrier: 'expo-native-injected',
-        grade: 'durable',
+        grade: reportedGrade.grade,
+        mechanism: reportedGrade.mechanism,
         storagePartitionIdentityHash,
         formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
         recoveryAvailable: true,

@@ -41,6 +41,8 @@ export interface NativeAuthCustodyStorageOptions {
   nativeModule?: SnapbackNativeAuthCustodyModule;
   /** Receives recoverable custody-absent diagnostics, including Android key loss. */
   onDiagnostic?(diagnostic: NativeAuthCustodyDiagnostic): void;
+  /** Bound for queued same-key acquisition; defaults to 10 seconds. */
+  ownershipWaitTimeoutMs?: number;
 }
 
 export function createNativeAuthCustodyStorage(
@@ -52,6 +54,6 @@ export function createNativeAuthCustodyStorage(
     corruptCiphertext(ownerKey: Readonly<{
       appId: string;
       storagePartition: string;
-    }>): Promise<void>;
+    }>): Promise<Readonly<{ mechanism: string }>>;
   }>;
 };

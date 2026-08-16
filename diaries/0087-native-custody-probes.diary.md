@@ -135,3 +135,32 @@ digest-bound into the run.
 No Guide gap ticket was filed. These are proof-host integrity rules for the
 LLP 0258/0263 qualification apparatus, not missing guidance for an ordinary
 supported app-authoring journey.
+
+## Delta-review hardening entry — 2026-08-16
+
+The third review round tightened several places where a locally plausible
+result was still weaker than the claimed native property. Injected native
+custody now has to report its own grade and mechanism before transport I/O;
+the client no longer upgrades an arbitrary adapter to durable by construction.
+That made the advanced platform seam a little more explicit, but it preserved
+the useful separation between admission facts and the carrier implementation.
+
+The native probes also moved closer to the mechanisms they name. Android
+ciphertext corruption now flips persisted AES-GCM payload bytes and reopens the
+DataStore, so the subsequent read reaches authenticated decryption instead of
+returning a cached synthetic state. Alias retirement is generation-guarded,
+and unresolved Android process identity refuses before storage access. These
+changes added lifecycle and concurrency bookkeeping that ordinary React plus
+Convex or Supabase auth tests would not need, but they are exactly the extra
+work required to turn platform assumptions into custody evidence.
+
+On the host side, iOS artifact identity is now the digest of a canonical full
+`.app` inventory and its bundle ID comes from the built Info.plist. The P2 loop
+skips already-completed write pulses, classifies every restored state as either
+interrupted-before-commit or committed-before-restore, and withholds a family
+PASS until both timing classes have been observed. This is deliberately more
+conservative than treating either old-or-new result as sufficient on its own.
+
+No Guide gap ticket was filed. The work is review-driven qualification
+hardening for LLP 0258 Phase 2, not missing author guidance for a supported
+Snapback application surface.

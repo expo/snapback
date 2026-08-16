@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { eventually, run, runToFileExclusive } from './process.mjs';
+import { iosAppBundleIdentity } from './integrity.mjs';
 
 function availableDevice(catalog, requested) {
   const devices = Object.entries(catalog.devices ?? {})
@@ -59,6 +60,8 @@ export async function createIosDevice({ appRoot, evidence, options }) {
   if (!existsSync(appPath)) {
     throw new Error(`P0/ios-artifact: app bundle not found at ${appPath}; remove --skip-build or pass --app-path`);
   }
+  const appIdentity = iosAppBundleIdentity(appPath);
+  const bundleId = appIdentity.bundleId;
   evidence.writeArtifact(
     'metro.log',
     'Metro was not spawned: the iOS Release simulator build carries its bundled JavaScript.\n',
@@ -68,7 +71,7 @@ export async function createIosDevice({ appRoot, evidence, options }) {
     const output = await run('locate iOS probe process', 'xcrun', [
       'simctl', 'spawn', device.udid, 'launchctl', 'list',
     ], { cwd: appRoot });
-    const marker = `UIKitApplication:${options.bundleId}[`;
+    const marker = `UIKitApplication:${bundleId}[`;
     const line = output.split('\n').find((entry) => entry.includes(marker));
     if (line === undefined) return null;
     const pid = Number.parseInt(line.trim().split(/\s+/u)[0], 10);
@@ -77,7 +80,7 @@ export async function createIosDevice({ appRoot, evidence, options }) {
 
   const terminate = async () => {
     try {
-      await run('terminate iOS probe app', 'xcrun', ['simctl', 'terminate', device.udid, options.bundleId], {
+      await run('terminate iOS probe app', 'xcrun', ['simctl', 'terminate', device.udid, bundleId], {
         cwd: appRoot, timeoutMs: 15_000,
       });
     } catch { /* first launch or already dead */ }
@@ -85,7 +88,7 @@ export async function createIosDevice({ appRoot, evidence, options }) {
   const install = () => run('install iOS probe app', 'xcrun', ['simctl', 'install', device.udid, appPath], { cwd: appRoot });
   const uninstall = async () => {
     try {
-      await run('uninstall iOS probe app', 'xcrun', ['simctl', 'uninstall', device.udid, options.bundleId], { cwd: appRoot });
+      await run('uninstall iOS probe app', 'xcrun', ['simctl', 'uninstall', device.udid, bundleId], { cwd: appRoot });
     } catch { /* first clean install */ }
   };
 
@@ -112,7 +115,7 @@ export async function createIosDevice({ appRoot, evidence, options }) {
     async kill({ midWrite = false } = {}) {
       const row = await processRow();
       if (row === null) {
-        throw new Error(`P${midWrite ? '2' : '1'}/ios-kill: no PID for ${options.bundleId}`);
+        throw new Error(`P${midWrite ? '2' : '1'}/ios-kill: no PID for ${bundleId}`);
       }
       let mechanism = 'xcrun simctl spawn kill -9';
       try {
@@ -152,9 +155,13 @@ export async function createIosDevice({ appRoot, evidence, options }) {
     },
     artifact() {
       return Object.freeze({
-        kind: 'app-binary',
+        kind: 'app-bundle',
         path: appPath,
         binaryPath: join(appPath, 'NativeCustodyProbes'),
+        bundleId,
+        sha256: `sha256:${appIdentity.sha256}`,
+        inventoryFormat: appIdentity.inventoryFormat,
+        inventoryFileCount: appIdentity.fileCount,
       });
     },
     async reinstallPreservingOsCustody() {
@@ -175,6 +182,7 @@ export async function createIosDevice({ appRoot, evidence, options }) {
         osVersion: runtimeVersion.trim(),
         xcode: xcode.trim().replaceAll('\n', '; '),
         appArtifact: appPath,
+        appBundleIdentifier: bundleId,
         freshInstallKeychainReset: !options.preserveKeychain,
       };
     },

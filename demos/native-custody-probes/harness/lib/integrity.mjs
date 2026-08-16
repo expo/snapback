@@ -5,11 +5,68 @@ import {
   readFileSync,
   readdirSync,
   realpathSync,
+  statSync,
 } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 
 export function sha256File(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+export function iosAppBundleIdentity(appPathInput) {
+  const appPath = resolve(appPathInput);
+  const infoPlist = join(appPath, 'Info.plist');
+  if (!existsSync(infoPlist)) {
+    throw new Error(`P0/ios-artifact: app bundle has no Info.plist at ${infoPlist}`);
+  }
+  let bundleId;
+  try {
+    bundleId = execFileSync('plutil', [
+      '-extract', 'CFBundleIdentifier', 'raw', '-o', '-', infoPlist,
+    ], { encoding: 'utf8' }).trim();
+  } catch (error) {
+    throw new Error(`P0/ios-artifact: could not read CFBundleIdentifier: ${error.message}`);
+  }
+  if (bundleId.length === 0) {
+    throw new Error('P0/ios-artifact: CFBundleIdentifier is empty');
+  }
+
+  const files = [];
+  const activeDirectories = new Set();
+  const visit = (directory) => {
+    const realDirectory = realpathSync(directory);
+    if (activeDirectories.has(realDirectory)) {
+      throw new Error(`P0/ios-artifact: recursive symlink in app bundle at ${directory}`);
+    }
+    activeDirectories.add(realDirectory);
+    try {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        const stats = statSync(path);
+        if (stats.isDirectory()) visit(path);
+        else if (stats.isFile()) {
+          files.push(Object.freeze({
+            path: relative(appPath, path).replaceAll('\\', '/'),
+            size: stats.size,
+            sha256: sha256File(path),
+          }));
+        }
+      }
+    } finally {
+      activeDirectories.delete(realDirectory);
+    }
+  };
+  visit(appPath);
+  files.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
+  const manifest = `${files.map(({ path, size, sha256 }) => (
+    JSON.stringify([path, size, sha256])
+  )).join('\n')}\n`;
+  return Object.freeze({
+    bundleId,
+    sha256: createHash('sha256').update(manifest).digest('hex'),
+    inventoryFormat: 'snapback.ios-app-bundle-inventory.v1',
+    fileCount: files.length,
+  });
 }
 
 export function resolvedInstalledVersions(appRoot, packageNames) {

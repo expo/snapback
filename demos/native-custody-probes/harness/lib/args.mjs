@@ -5,13 +5,11 @@ export function parseArgs(argv, platform, defaults) {
     ...defaults,
     help: false,
     skipBuild: false,
-    leakageScan: false,
     preserveKeychain: false,
   };
   const boolean = new Map([
     ['--help', 'help'],
     ['--skip-build', 'skipBuild'],
-    ['--leakage-scan', 'leakageScan'],
     ['--preserve-keychain', 'preserveKeychain'],
   ]);
   const named = new Map([
@@ -60,7 +58,7 @@ export function harnessUsage(platform) {
   return `${platform} native custody probe harness
 
 Options:
-  --skip-build --leakage-scan --iterations <count>
+  --skip-build --iterations <count>
   --server-port <port> --director-port <port> --metro-port <port>
   --bundle-id <id> --email <email> --password <password>
 ${targetOptions}

@@ -131,7 +131,15 @@ public final class SnapbackExpoCustodyModule: Module {
         return .corrupt(reason: "Keychain custody has duplicate service/account items")
       }
       if let synchronizable = attributes[kSecAttrSynchronizable as String] {
-        guard let value = synchronizable as? NSNumber, value.boolValue == false else {
+        let isSynchronizable: Bool?
+        if let value = synchronizable as? Bool {
+          isSynchronizable = value
+        } else if let value = synchronizable as? NSNumber {
+          isSynchronizable = value.boolValue
+        } else {
+          isSynchronizable = nil
+        }
+        guard isSynchronizable == false else {
           return .corrupt(reason: "Keychain custody is unexpectedly synchronizable")
         }
       }

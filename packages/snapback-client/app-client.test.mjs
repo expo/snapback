@@ -756,7 +756,7 @@ test('raw bootstrap refuses fabricated receipts and local, private, or unspecifi
   }
 });
 
-test('expo-native admission requires an explicitly injected owner-key-v1 custody adapter', async () => {
+test('expo-native durable admission requires an adapter-reported qualifying grade', async () => {
   const server = installServer();
   const app = makeApp({ custody: 'durable-required' });
   try {
@@ -785,19 +785,82 @@ test('expo-native admission requires an explicitly injected owner-key-v1 custody
     );
     assert.equal(server.requests.length, 0);
 
+    await assert.rejects(
+      createSnapbackAppClient({
+        app,
+        binding: makeBinding(app),
+        platform: {
+          kind: 'expo-native',
+          authCustodyStorage: createMemoryAuthCustodyStorage(),
+          cryptoObject: webcrypto,
+        },
+      }),
+      (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE'
+        && error?.bootstrapState?.status === 'unsupported',
+    );
+    assert.equal(server.requests.length, 0);
+
+    const reportedStorage = {
+      ...createMemoryAuthCustodyStorage(),
+      async platformGrade() {
+        return {
+          grade: 'single-runtime',
+          mechanism: 'test-single-runtime-queue',
+        };
+      },
+    };
     const client = await createSnapbackAppClient({
       app,
       binding: makeBinding(app),
       platform: {
         kind: 'expo-native',
-        authCustodyStorage: createMemoryAuthCustodyStorage(),
+        authCustodyStorage: reportedStorage,
         cryptoObject: webcrypto,
       },
     });
     assert.equal(client.bootstrapState().status, 'ready');
     assert.equal(client.bootstrapState().custody.carrier, 'expo-native-injected');
-    assert.equal(client.bootstrapState().custody.grade, 'durable');
+    assert.equal(client.bootstrapState().custody.grade, 'single-runtime');
+    assert.equal(
+      client.bootstrapState().custody.mechanism,
+      'test-single-runtime-queue',
+    );
     await client.dispose();
+  } finally {
+    server.restore();
+  }
+});
+
+test('expo-native platform objects reject browser-only custody options', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'durable-required' });
+  const storage = {
+    ...createMemoryAuthCustodyStorage(),
+    async platformGrade() {
+      return { grade: 'single-runtime', mechanism: 'test-single-runtime-queue' };
+    },
+  };
+  try {
+    for (const [key, value] of [
+      ['indexedDB', new IDBFactory()],
+      ['lockManager', { request: () => null }],
+      ['databaseName', 'ignored-native-database'],
+    ]) {
+      await assert.rejects(
+        createSnapbackAppClient({
+          app,
+          binding: makeBinding(app),
+          platform: {
+            kind: 'expo-native',
+            authCustodyStorage: storage,
+            cryptoObject: webcrypto,
+            [key]: value,
+          },
+        }),
+        (error) => error?.code === 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
+      );
+    }
+    assert.equal(server.requests.length, 0);
   } finally {
     server.restore();
   }

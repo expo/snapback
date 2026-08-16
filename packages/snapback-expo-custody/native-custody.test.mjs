@@ -61,6 +61,8 @@ function fakeNativeModule({ os = 'ios' } = {}) {
     readOutcome: null,
     refusal: false,
     keyAlias: 'valid',
+    keyGeneration: 0,
+    invalidatedHolderGenerations: [],
     forceNextCasStale: undefined,
     async platformGrade() {
       calls.push(['platformGrade']);
@@ -80,9 +82,26 @@ function fakeNativeModule({ os = 'ios' } = {}) {
     async read(appId, storageKey) {
       calls.push(['read', appId, storageKey]);
       if (this.refusal) {
-        return { status: 'single-runtime-refused', platform: os, process: 'test-secondary' };
+        return {
+          status: 'single-runtime-refused',
+          reason: 'secondary-process',
+          platform: os,
+          process: 'test-secondary',
+        };
       }
       if (this.readOutcome) return this.readOutcome;
+      if (this.invalidatedHolderGenerations.length > 0) {
+        const usedGeneration = this.invalidatedHolderGenerations.shift();
+        if (usedGeneration === this.keyGeneration) {
+          this.keyAlias = 'missing';
+          return {
+            status: 'absent',
+            reason: 'Android Keystore key was permanently invalidated',
+          };
+        }
+        // A stale holder observes the newer generation and retries its read
+        // with the fresh alias instead of retiring that alias.
+      }
       if (this.keyAlias === 'invalidated') {
         this.keyAlias = 'missing';
         return {
@@ -119,6 +138,7 @@ function fakeNativeModule({ os = 'ios' } = {}) {
       if (actualRevision !== expectedRevision) {
         return { status: 'cas-stale', expectedRevision, actualRevision };
       }
+      if (this.keyAlias === 'missing') this.keyGeneration += 1;
       this.keyAlias = 'valid';
       corruptedCiphertext.delete(storageKey);
       records.set(storageKey, serializedRecord);
@@ -133,7 +153,10 @@ function fakeNativeModule({ os = 'ios' } = {}) {
         return { status: 'storage-error', reason: 'ciphertext corruption target is unavailable' };
       }
       corruptedCiphertext.add(storageKey);
-      return { status: 'ok' };
+      return {
+        status: 'ok',
+        mechanism: 'persisted-aead-byte-flip-datastore-reopen',
+      };
     },
   };
   return module;
@@ -306,30 +329,77 @@ test('JS adapters retain the per-key courtesy queue around native CAS', async ()
   assert.deepEqual(order, ['first:read', 'first:replace', 'second:read']);
 });
 
-test('same-key reentrant ownership refuses promptly instead of joining its own tail', async () => {
+test('same-tick same-key ownership queues, serializes, and completes', async () => {
   const nativeModule = fakeNativeModule();
   const storage = createNativeAuthCustodyStorage({ nativeModule });
-  await storage.withOwnership(APP, async () => {
-    let timer;
-    try {
-      await assert.rejects(
-        Promise.race([
-          storage.withOwnership(APP, () => null),
-          new Promise((_, reject) => {
-            timer = setTimeout(() => {
-              reject(Object.assign(new Error('same-key ownership timed out'), {
-                code: 'TEST_REENTRANT_OWNERSHIP_TIMEOUT',
-              }));
-            }, 100);
-          }),
-        ]),
-        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED'
-          && error?.diagnostic?.details?.reason === 'same-key-reentrant',
-      );
-    } finally {
-      clearTimeout(timer);
-    }
+  let releaseFirst;
+  const firstGate = new Promise((resolve) => { releaseFirst = resolve; });
+  let markFirstEntered;
+  const firstEntered = new Promise((resolve) => { markFirstEntered = resolve; });
+  const order = [];
+  const first = storage.withOwnership(APP, async (owner) => {
+    order.push('first-entered');
+    markFirstEntered();
+    await firstGate;
+    await owner.replace(null, settled());
+    order.push('first-completed');
   });
+  const second = storage.withOwnership(APP, async (owner) => {
+    order.push('second-entered');
+    return owner.read();
+  });
+  await firstEntered;
+  assert.deepEqual(order, ['first-entered']);
+  releaseFirst();
+  await first;
+  assert.deepEqual(await second, settled());
+  assert.deepEqual(order, ['first-entered', 'first-completed', 'second-entered']);
+});
+
+test('same-key reentrant ownership refuses through the bounded wait breaker', async () => {
+  const nativeModule = fakeNativeModule();
+  const storage = createNativeAuthCustodyStorage({
+    nativeModule,
+    ownershipWaitTimeoutMs: 5,
+  });
+  await storage.withOwnership(APP, async () => {
+    await assert.rejects(
+      storage.withOwnership(APP, () => null),
+      (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED'
+        && error?.diagnostic?.details?.reason === 'ownership-wait-timeout',
+    );
+  });
+});
+
+test('normal ownership completion clears its deadlock-breaker timer', async () => {
+  const nativeModule = fakeNativeModule();
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const tracked = new Set();
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    let handle;
+    handle = originalSetTimeout(() => {
+      tracked.delete(handle);
+      callback(...args);
+    }, delay);
+    if (delay === 25) tracked.add(handle);
+    return handle;
+  };
+  globalThis.clearTimeout = (handle) => {
+    tracked.delete(handle);
+    return originalClearTimeout(handle);
+  };
+  try {
+    const storage = createNativeAuthCustodyStorage({
+      nativeModule,
+      ownershipWaitTimeoutMs: 25,
+    });
+    await storage.withOwnership(APP, (owner) => owner.read());
+    assert.equal(tracked.size, 0);
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
 });
 
 test('different-key ownership may nest on one adapter instance', async () => {
@@ -389,6 +459,41 @@ test('Android permanent key invalidation retires the alias and permits fresh cus
     await storage.withOwnership(APP, (owner) => owner.replace(null, restarted)),
     restarted,
   );
+});
+
+test('stale invalidation holder cannot retire a freshly generated Android alias', async () => {
+  const nativeModule = fakeNativeModule({ os: 'android' });
+  const diagnostics = [];
+  const storage = createNativeAuthCustodyStorage({
+    nativeModule,
+    onDiagnostic(diagnostic) { diagnostics.push(diagnostic); },
+  });
+  await storage.withOwnership(APP, (owner) => owner.replace(null, settled()));
+  const staleGeneration = nativeModule.keyGeneration;
+
+  nativeModule.invalidatedHolderGenerations.push(staleGeneration);
+  assert.equal(await storage.withOwnership(APP, (owner) => owner.read()), null);
+  assert.equal(nativeModule.keyAlias, 'missing', 'holder A retires its current alias');
+
+  const fresh = settled({
+    authority: { ...anonymous(), authorizationStreamIncarnation: SESSION },
+  });
+  assert.deepEqual(
+    await storage.withOwnership(APP, (owner) => owner.replace(null, fresh)),
+    fresh,
+  );
+  assert.equal(nativeModule.keyGeneration, staleGeneration + 1, 'holder B creates generation N+1');
+  const diagnosticsBeforeStaleRetry = diagnostics.length;
+
+  nativeModule.invalidatedHolderGenerations.push(staleGeneration);
+  assert.deepEqual(
+    await storage.withOwnership(APP, (owner) => owner.read()),
+    fresh,
+    'stale holder C retries against N+1 instead of deleting it',
+  );
+  assert.equal(nativeModule.keyAlias, 'valid');
+  assert.equal(nativeModule.keyGeneration, staleGeneration + 1);
+  assert.equal(diagnostics.length, diagnosticsBeforeStaleRetry);
 });
 
 test('recoverable absence without onDiagnostic uses the console warning path', async () => {
@@ -452,10 +557,11 @@ test('Android ciphertext corruption hook is development-only and yields typed co
   const priorDev = globalThis.__DEV__;
   globalThis.__DEV__ = true;
   try {
-    await storage.testHooks.corruptCiphertext({
+    const hook = await storage.testHooks.corruptCiphertext({
       appId: APP,
       storagePartition: 'default',
     });
+    assert.equal(hook.mechanism, 'persisted-aead-byte-flip-datastore-reopen');
   } finally {
     if (priorDev === undefined) delete globalThis.__DEV__;
     else globalThis.__DEV__ = priorDev;

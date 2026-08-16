@@ -22,6 +22,8 @@ reports the typed custody-absent diagnostic, so a later fresh write can create
 a new key. JavaScript fakes cover that restart contract; only the LLP 0263
 emulator/device probes can establish real Keystore invalidation, AEAD, backup,
 and OEM process-name behavior. A resolved Android process name different from
-the application package still fails closed as a single-runtime refusal. If the
-platform and `/proc` both fail to resolve a name, the main-process path is not
-refused merely because that diagnostic lookup was unavailable.
+the application package fails closed as a `secondary-process` single-runtime
+refusal. If every process-identity mechanism fails, custody also fails closed
+before I/O with reason `process-identity-unresolved`. This is deliberate:
+single-runtime identity is a security boundary under LLP 0258 D3, not an
+optional diagnostic.
