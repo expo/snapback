@@ -938,6 +938,12 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
     owner.client = new SnapbackClient(preflighted.binding.target.origin, {
       authCoordinator: owner.coordinator,
       authClientProtocol: 1,
+      // @ref LLP 0096#22-authlive--auth-scoped-live--invalidation-acknowledge
+      // — the first-party application owner feeds generated live-query
+      // surfaces, so it must offer both auth/live carriers rather than
+      // constructing an auth/rr-only client that every protected subscribe
+      // will correctly refuse.
+      authInvalidationProtocol: 1,
       authorityDescriptorProtocol: 1,
     });
     const restoredCapture = await awaitConstructionBoundary(

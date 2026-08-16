@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import React from 'react';
+import TestRenderer, { act } from 'react-test-renderer';
 
 import { IDBFactory } from 'fake-indexeddb';
 
@@ -10,11 +12,18 @@ import {
   adoptSupervisedBootstrapAuthority,
   createSnapbackAppClientWithBootstrapObserver,
 } from '@expo/snapback-client/app-client-internal';
+import { createMemoryAuthCustodyStorage } from '@expo/snapback-contract/auth-coordinator';
 
 import {
   APPLICATION_AUTH_BOOTSTRAP_CAPABILITY,
+  SnapbackExpoProvider,
   createSnapbackExpoBoot,
 } from './provider.mjs';
+import {
+  useSnapbackAuth,
+  useSnapbackCurrentPrincipal,
+  useSnapbackQuery,
+} from '@expo/snapback-react';
 import {
   SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV,
   SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER,
@@ -24,17 +33,25 @@ import {
   createSupervisedExpoEnvironment,
 } from './supervised-environment.mjs';
 
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
 const USER_A = '018f0d90-9c20-7a22-8c33-445566778899';
 const USER_B = '018f0d90-9c21-7a22-8c33-445566778899';
 const SESSION_A = '018f0d90-9c22-7a22-8c33-445566778899';
 const SESSION_B = '018f0d90-9c23-7a22-8c33-445566778899';
+const SESSION_C = '018f0d90-9c27-7a22-8c33-445566778899';
 const AUTHORITY_A = '018f0d90-9c24-7a22-8c33-445566778899';
 const AUTHORITY_B = '018f0d90-9c25-7a22-8c33-445566778899';
+const AUTHORITY_C = '018f0d90-9c28-7a22-8c33-445566778899';
 const INCARNATION = '018f0d90-9c26-7a22-8c33-445566778899';
 const APPLICATION_BEARER = 'sbs_expo_application_authority_secret';
+const APPLICATION_SIGNIN_BEARER = 'sbs_expo_application_signin_authority_secret';
 const SUPERVISED_BEARER = 'sbs_expo_supervised_authority_secret';
 const SUPERVISED_REMINT = 'sbs_expo_supervised_remint_secret';
 const PASSWORD = 'expo-bootstrap-password-secret';
+const RECOVERY_CODES = Object.freeze(Array.from({ length: 8 }, (_, index) => (
+  `sbrv1_${String(index).padStart(2, '0')}${'A'.repeat(25)}`
+)));
 const TEST_NOW_MS = Date.parse('2026-08-15T12:30:00.000Z');
 
 const generatedRoot = new URL(
@@ -42,6 +59,9 @@ const generatedRoot = new URL(
   import.meta.url,
 );
 const app = JSON.parse(readFileSync(new URL('app.descriptor.json', generatedRoot)));
+const functionManifest = JSON.parse(readFileSync(new URL('functions.manifest.json', generatedRoot)));
+const schemaManifest = JSON.parse(readFileSync(new URL('schema.manifest.json', generatedRoot)));
+const capabilityManifest = JSON.parse(readFileSync(new URL('capability.manifest.json', generatedRoot)));
 app.authBootstrap.entryMechanisms = ['password-v1'];
 app.authBootstrap.custody = 'durable-required';
 app.capabilities.required = [...new Set([
@@ -97,11 +117,17 @@ const availability = Object.freeze({
 function installAuthServer() {
   const originalFetch = globalThis.fetch;
   const requests = [];
+  let subscriptionSequence = 0;
   const bearers = new Map([
     [APPLICATION_BEARER, {
       userId: USER_A,
       sessionId: SESSION_A,
       authorityInstanceId: AUTHORITY_A,
+    }],
+    [APPLICATION_SIGNIN_BEARER, {
+      userId: USER_A,
+      sessionId: SESSION_C,
+      authorityInstanceId: AUTHORITY_C,
     }],
     [SUPERVISED_BEARER, {
       userId: USER_B,
@@ -114,8 +140,9 @@ function installAuthServer() {
       authorityInstanceId: AUTHORITY_B,
     }],
   ]);
-  const handshake = (bearer) => {
+  const handshake = (bearer, authInvalidationProtocol) => {
     const authenticated = bearers.get(bearer) ?? null;
+    const authLiveOffered = authInvalidationProtocol === '1';
     return {
       protocolVersion: 1,
       serverStartupNonce: 'expo-auth-bootstrap-test',
@@ -128,11 +155,20 @@ function installAuthServer() {
       quarantineCode: null,
       clientProtocols: {
         authClient: 1,
-        authInvalidation: null,
+        authInvalidation: authLiveOffered ? 1 : null,
         authorityDescriptor: 1,
         authorizedLease: null,
       },
-      availability,
+      availability: {
+        ...availability,
+        authScopedLive: authLiveOffered
+          ? {
+              available: true,
+              minimumAuthInvalidationProtocol: 1,
+              reason: null,
+            }
+          : availability.authScopedLive,
+      },
       provider: { key: 'local-password', available: true },
       transports: ['bearer'],
       authority: authenticated === null
@@ -179,17 +215,71 @@ function installAuthServer() {
   });
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
-    const authorization = new Headers(init.headers).get('authorization');
+    const headers = new Headers(init.headers);
+    const authorization = headers.get('authorization');
     const bearer = authorization?.replace(/^Bearer /u, '') ?? null;
-    requests.push({ path, bearer });
-    if (path === '/auth/session') return Response.json(handshake(bearer));
+    const authInvalidationProtocol = headers.get('x-snapback-auth-invalidation-protocol');
+    const connectionToken = headers.get('x-snapback-connection-token');
+    const body = init.body === undefined ? null : JSON.parse(init.body);
+    requests.push({ path, bearer, authInvalidationProtocol, connectionToken, body });
+    if (path === '/auth/session') {
+      return Response.json(handshake(bearer, authInvalidationProtocol));
+    }
+    if (path === '/inspect') {
+      return Response.json({
+        targetProfileId: capabilityManifest.targetProfileId,
+        target: 'local',
+        functions: protectedFunctions,
+        schema: schemaManifest,
+        capabilityManifest,
+        routeManifestHash: null,
+      });
+    }
+    if (path === '/auth/password/signup') {
+      return Response.json({
+        ...credential(
+          APPLICATION_BEARER,
+          bearers.get(APPLICATION_BEARER),
+        ),
+        recoveryCodes: [...RECOVERY_CODES],
+      });
+    }
     if (path === '/auth/password/signin') {
       return Response.json(credential(
-        APPLICATION_BEARER,
-        bearers.get(APPLICATION_BEARER),
+        APPLICATION_SIGNIN_BEARER,
+        bearers.get(APPLICATION_SIGNIN_BEARER),
       ));
     }
     if (path === '/auth/logout') return new Response(null, { status: 204 });
+    if (path === '/connection/open') {
+      if (body.authInvalidationProtocol !== 1) {
+        return Response.json({
+          code: 'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
+          message: 'connection did not negotiate authInvalidationProtocol: 1',
+        }, { status: 400 });
+      }
+      return Response.json({
+        connectionId: body.connectionId,
+        connectionToken: `connection-token-${body.connectionId}`,
+        wireVersion: body.wireVersion,
+      });
+    }
+    if (path === '/live/listTodos/subscribe') {
+      if (authInvalidationProtocol !== '1') {
+        return Response.json({
+          code: 'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
+          message: 'auth-scoped live requires x-snapback-auth-invalidation-protocol: 1',
+        }, { status: 400 });
+      }
+      subscriptionSequence += 1;
+      return Response.json({
+        subscription_id: `list-todos-${subscriptionSequence}`,
+        snapshot: { rows: [], version: subscriptionSequence },
+      });
+    }
+    if (path === '/live/listTodos/unsubscribe') {
+      return Response.json({ removed: true });
+    }
     throw new Error(`unexpected Expo auth request: ${path}`);
   };
   return {
@@ -262,6 +352,293 @@ const platform = Object.freeze({
   cryptoObject: webcrypto,
   databaseName: 'snapback-expo-auth-bootstrap-test',
 });
+
+// Regression: the first-party Expo provider must carry its application
+// client's authority transition into the canonical React query registry. This
+// uses the real AuthCoordinator barrier; a fake that exposes successor
+// authority before participant resume masks the publication-order defect.
+const protectedApp = structuredClone(app);
+protectedApp.api.queries.listTodos.authRequirement = 'authenticated';
+const protectedFunctions = structuredClone(functionManifest);
+protectedFunctions.functions.find(({ name }) => name === 'listTodos').authRequirement = 'authenticated';
+const previousLiveNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  enumerable: true,
+  value: Object.freeze({ product: 'ReactNative' }),
+});
+const liveMemoryCustody = createMemoryAuthCustodyStorage();
+const livePlatform = Object.freeze({
+  kind: 'expo-native',
+  cryptoObject: webcrypto,
+  authCustodyStorage: Object.freeze({
+    ownerKeyCapability: liveMemoryCustody.ownerKeyCapability,
+    withOwnership: liveMemoryCustody.withOwnership,
+    platformGrade: async () => Object.freeze({
+      grade: 'single-runtime',
+      mechanism: 'provider-auth-bootstrap-native-fixture',
+    }),
+  }),
+});
+const liveBinding = structuredClone(binding);
+liveBinding.provenance.issuedAt = new Date(Date.now() - 30 * 60_000).toISOString();
+liveBinding.provenance.expiresAt = new Date(Date.now() + 30 * 60_000).toISOString();
+const liveSupervisor = {
+  bearer: null,
+  binding: liveBinding,
+  events: [],
+  diagnostics: [],
+};
+const originalWebSocket = globalThis.WebSocket;
+let liveSocketAttempts = 0;
+
+class LiveQueryWebSocket {
+  constructor(url, protocols) {
+    this.url = url;
+    this.protocols = protocols;
+    this.readyState = 0;
+    this.listeners = new Map();
+    liveSocketAttempts += 1;
+    queueMicrotask(() => {
+      if (this.readyState !== 0) return;
+      this.readyState = 1;
+      this.emit('open', {});
+    });
+  }
+
+  addEventListener(type, listener, options = {}) {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push({ listener, once: options.once === true });
+    this.listeners.set(type, listeners);
+  }
+
+  emit(type, event) {
+    const listeners = [...(this.listeners.get(type) ?? [])];
+    for (const entry of listeners) {
+      entry.listener(event);
+      if (entry.once) {
+        const current = this.listeners.get(type) ?? [];
+        const index = current.indexOf(entry);
+        if (index !== -1) current.splice(index, 1);
+      }
+    }
+  }
+
+  send(encoded) {
+    const request = JSON.parse(encoded);
+    if (request.type !== 'ping') return;
+    queueMicrotask(() => this.emit('message', {
+      data: JSON.stringify({ kind: 'pong', requestId: request.requestId }),
+    }));
+  }
+
+  close(code = 1000, reason = '') {
+    if (this.readyState === 3) return;
+    this.readyState = 3;
+    this.emit('close', { code, reason });
+  }
+}
+
+globalThis.WebSocket = LiveQueryWebSocket;
+const liveEnvironment = environmentFor(livePlatform, liveSupervisor);
+const liveProjection = { auth: null, principal: null, query: null, boot: null };
+function ProtectedLiveProjection() {
+  liveProjection.query = useSnapbackQuery(protectedApp.api.queries.listTodos, {});
+  return null;
+}
+function LiveProjection({ showQuery = true }) {
+  liveProjection.auth = useSnapbackAuth();
+  liveProjection.principal = useSnapbackCurrentPrincipal();
+  if (!showQuery) liveProjection.query = null;
+  return showQuery ? React.createElement(ProtectedLiveProjection) : null;
+}
+async function settleReactUntil(predicate, message) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    if (predicate()) return;
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+  }
+  assert.fail(typeof message === 'function' ? message() : message);
+}
+const liveSubscriptions = () => server.requests.filter(
+  ({ path }) => path === '/live/listTodos/subscribe',
+);
+const liveConnectionOpens = () => server.requests.filter(
+  ({ path }) => path === '/connection/open',
+);
+const liveTree = (showQuery = true) => React.createElement(
+  SnapbackExpoProvider,
+  {
+    app: protectedApp,
+    environment: liveEnvironment,
+    outboxDrain: 'manual',
+    fallback(state) {
+      liveProjection.boot = state;
+      return null;
+    },
+  },
+  React.createElement(LiveProjection, { showQuery }),
+);
+let liveRenderer;
+await act(async () => {
+  liveRenderer = TestRenderer.create(liveTree());
+});
+await settleReactUntil(
+  () => liveProjection.auth !== null && liveProjection.query?.status === 'blocked',
+  () => `Expo provider must mount the anonymous blocked query: ${JSON.stringify({
+    boot: liveProjection.boot,
+    diagnostics: liveSupervisor.diagnostics,
+    requests: server.requests.slice(-10),
+  })}`,
+);
+assert.equal(liveProjection.query.status, 'blocked');
+assert.equal(liveSubscriptions().length, 0, 'anonymous protected query performs no stream work');
+await act(async () => {
+  await liveProjection.auth.signUpWithPassword({
+    email: 'application@example.com',
+    password: PASSWORD,
+  });
+});
+const streamsAfterSignup = liveSubscriptions().length;
+const signinRequestsBeforeRefusal = server.requests.filter(
+  ({ path }) => path === '/auth/password/signin',
+).length;
+await assert.rejects(
+  liveProjection.auth.signInWithPassword({
+    email: 'application@example.com',
+    password: PASSWORD,
+  }),
+  (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_AUTHENTICATED',
+  'signin immediately after signup requires explicit signout',
+);
+assert.equal(
+  server.requests.filter(({ path }) => path === '/auth/password/signin').length,
+  signinRequestsBeforeRefusal,
+  'signin immediately after signup is refused before transport',
+);
+assert.equal(
+  liveSubscriptions().length,
+  streamsAfterSignup,
+  'refused signin performs no additional stream work',
+);
+
+await act(async () => { await liveProjection.auth.signOut(); });
+await settleReactUntil(
+  () => liveProjection.principal?.status === 'anonymous'
+    && liveProjection.query?.status === 'blocked',
+  'signout must blank the protected query and publish anonymous principal state',
+);
+assert.equal(liveProjection.principal.status, 'anonymous');
+assert.equal(liveProjection.query.status, 'blocked');
+assert.equal(
+  liveSubscriptions().length,
+  streamsAfterSignup,
+  'signout performs no anonymous stream work',
+);
+
+const startsBeforeSecondAuthenticatedSuccessor = liveSubscriptions().length;
+const socketsBeforeSecondAuthenticatedSuccessor = liveSocketAttempts;
+await act(async () => {
+  await liveProjection.auth.signInWithPassword({
+    email: 'application@example.com',
+    password: PASSWORD,
+  });
+});
+await settleReactUntil(
+  () => liveProjection.query?.status === 'ready'
+    && liveSubscriptions().length === startsBeforeSecondAuthenticatedSuccessor + 1
+    && liveSocketAttempts === socketsBeforeSecondAuthenticatedSuccessor + 1,
+  'authenticated successor #2 must start exactly one socket-backed stream and make the query ready',
+);
+assert.equal(
+  startsBeforeSecondAuthenticatedSuccessor,
+  1,
+  'signup starts authenticated successor #1 once before the exact signout/signin sequence',
+);
+assert.equal(
+  liveSubscriptions().length - startsBeforeSecondAuthenticatedSuccessor,
+  1,
+  'signin after signup and signout starts exactly one fresh live stream',
+);
+assert.equal(
+  liveConnectionOpens().at(-1).bearer,
+  APPLICATION_SIGNIN_BEARER,
+  'signin transport admission carries authenticated successor #2 bearer',
+);
+assert.equal(
+  liveConnectionOpens().at(-1).body.authInvalidationProtocol,
+  1,
+  'signin transport admission carries successor #2 auth/live open offer',
+);
+assert.equal(
+  liveSubscriptions().at(-1).authInvalidationProtocol,
+  '1',
+  'signin subscribe carries successor #2 auth/live lifecycle offer',
+);
+assert.equal(
+  liveSocketAttempts - socketsBeforeSecondAuthenticatedSuccessor,
+  1,
+  'authenticated successor #2 reaches exactly one WebSocket attempt',
+);
+assert.equal(
+  liveProjection.query.status,
+  'ready',
+  'the protected query leaves pending after authenticated successor #2',
+);
+
+// Metro may evaluate and mount the protected route only after sign-in has
+// completely exposed its successor. Prove that this late hook registration
+// reads the current authority level and creates one new stream without
+// requiring another auth-transition edge.
+await act(async () => { liveRenderer.update(liveTree(false)); });
+await act(async () => { await new Promise((resolve) => setImmediate(resolve)); });
+await act(async () => { await liveProjection.auth.signOut(); });
+await settleReactUntil(
+  () => liveProjection.principal?.status === 'anonymous',
+  'late-mount arm must reach anonymous before signing in without the query',
+);
+const startsBeforeQuerylessSignin = liveSubscriptions().length;
+const socketsBeforeQuerylessSignin = liveSocketAttempts;
+await act(async () => {
+  await liveProjection.auth.signInWithPassword({
+    email: 'application@example.com',
+    password: PASSWORD,
+  });
+});
+assert.equal(
+  liveSubscriptions().length,
+  startsBeforeQuerylessSignin,
+  'signin with no protected store performs no speculative subscribe',
+);
+assert.equal(
+  liveSocketAttempts,
+  socketsBeforeQuerylessSignin,
+  'signin with no protected store performs no speculative socket work',
+);
+await act(async () => { liveRenderer.update(liveTree(true)); });
+await settleReactUntil(
+  () => liveProjection.query?.status === 'ready'
+    && liveSubscriptions().length === startsBeforeQuerylessSignin + 1
+    && liveSocketAttempts === socketsBeforeQuerylessSignin + 1,
+  'protected query mounted after signin confirmation must start one socket-backed stream',
+);
+assert.equal(
+  liveSubscriptions().length - startsBeforeQuerylessSignin,
+  1,
+  'post-signin protected hook registration starts exactly one stream',
+);
+assert.equal(
+  liveSocketAttempts - socketsBeforeQuerylessSignin,
+  1,
+  'post-signin protected hook registration creates exactly one socket',
+);
+await act(async () => { liveRenderer.unmount(); });
+globalThis.WebSocket = originalWebSocket;
+if (previousLiveNavigator === undefined) delete globalThis.navigator;
+else Object.defineProperty(globalThis, 'navigator', previousLiveNavigator);
+process.env.SNAPBACK_CLIENT_RQS_STORE = 'off';
 
 let seeded = await createSnapbackAppClient({
   app, binding, platform, now: () => Date.parse('2026-08-15T12:30:00.000Z'),
@@ -376,10 +753,20 @@ const carrierProtocolBoot = createSnapbackExpoBoot({
   bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
   async adoptSupervisedAuthority(appClient, input) {
     carrierProtocolAdoptionInputs.push(input);
-    return adoptSupervisedBootstrapAuthority(appClient, input);
+    // This seam test runs on expo-web, where the app client intentionally
+    // refuses raw dev-identity installation. Record the provider carrier, then
+    // use ordinary bearer adoption so the fixture tests plumbing without
+    // weakening that platform refusal.
+    const { clientOptions: _clientOptions, ...adoption } = input;
+    return adoptSupervisedBootstrapAuthority(appClient, adoption);
   },
 });
-assert.equal((await carrierProtocolBoot.start()).status, 'ready');
+const carrierProtocolReady = await carrierProtocolBoot.start();
+assert.equal(
+  carrierProtocolReady.status,
+  'ready',
+  JSON.stringify(carrierProtocolReady),
+);
 assert.deepEqual(
   carrierProtocolAdoptionInputs[0]?.clientOptions,
   { devIdentityCapability },
@@ -549,4 +936,4 @@ server.restore();
 if (priorRqs === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqs;
 
-console.log('provider-auth-bootstrap.test.mjs: default sessions lifecycle, native client-option forwarding, redeem-refusal adoption, refresh rebind-only, and signOut readmission pass');
+console.log('provider-auth-bootstrap.test.mjs: authenticated live-query re-entry, post-signin protected-hook mount, default sessions lifecycle, native client-option forwarding, redeem-refusal adoption, refresh rebind-only, and signOut readmission pass');

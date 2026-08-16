@@ -341,12 +341,15 @@ const AUTHENTICATION_REQUIRED_BLOCKED = Object.freeze({
   retention: null,
 });
 
-function generatedAuthenticatedAuthorityState(client, reference) {
+function generatedAuthenticatedAuthorityState(client, reference, authority = undefined) {
   if (
     reference?.artifactKind !== 'functionReference'
     || reference.authRequirement !== 'authenticated'
   ) return 'not-applicable';
   if (client.custody === 'anonymous-public') return 'anonymous';
+  if (authority !== undefined) {
+    return authority?.kind === 'anonymous' ? 'anonymous' : 'authenticated';
+  }
   const coordinator = client.authCoordinator;
   if (!coordinator) return 'unknown';
   try {
@@ -359,6 +362,60 @@ function generatedAuthenticatedAuthorityState(client, reference) {
       || code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
       ? 'settling'
       : 'unknown';
+  }
+}
+
+function projectedAuthorityContext(capture, authority) {
+  if (capture == null || authority == null) return null;
+  return Object.freeze({
+    capture: Object.freeze({
+      authorityEpoch: capture.authorityEpoch,
+      custodyRevision: capture.custodyRevision,
+      authorityKey: capture.authorityKey,
+    }),
+    authority: Object.freeze({ kind: authority.kind }),
+  });
+}
+
+function generatedAuthenticatedAuthorityAdmission(
+  client,
+  reference,
+  authorityContext = null,
+) {
+  if (
+    reference?.artifactKind !== 'functionReference'
+    || reference.authRequirement !== 'authenticated'
+  ) return Object.freeze({ state: 'not-applicable', authorityContext: null });
+  if (client.custody === 'anonymous-public') {
+    return Object.freeze({ state: 'anonymous', authorityContext: null });
+  }
+  if (authorityContext !== null) {
+    return Object.freeze({
+      state: authorityContext.authority?.kind === 'anonymous'
+        ? 'anonymous'
+        : 'authenticated',
+      authorityContext,
+    });
+  }
+  const coordinator = client.authCoordinator;
+  if (!coordinator) return Object.freeze({ state: 'unknown', authorityContext: null });
+  try {
+    const capture = coordinator.capture();
+    const authority = coordinator.credentialFor(capture)?.authority;
+    return Object.freeze({
+      state: authority?.kind === 'anonymous' ? 'anonymous' : 'authenticated',
+      authorityContext: projectedAuthorityContext(capture, authority),
+    });
+  } catch (error) {
+    const code = error?.diagnostic?.code ?? error?.code;
+    return Object.freeze({
+      state: code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+        || code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+        || code === 'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT'
+        ? 'settling'
+        : 'unknown',
+      authorityContext: null,
+    });
   }
 }
 
@@ -603,6 +660,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   let terminal = false;
   let custodyPaused = false;
   let hostPaused = false;
+  // The staged publication callback is a level as well as an edge: stores
+  // may register after its one synchronous registry walk but before the
+  // coordinator reopens public capture. Retain only the confirmed capture and
+  // non-secret authority kind through that synchronous cut; registration in
+  // later turns re-reads the coordinator's current exposed authority.
+  // @ref LLP 0059#cross-context-ownership — every staged effect remains
+  // fenced to the exact successor capture confirmed by the coordinator.
+  let confirmedAuthorityContext = null;
   const runtimePaused = () => custodyPaused || hostPaused;
   let leaseSequence = 0;
   let registeredConnectionAttached = false;
@@ -977,10 +1042,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     notifyConnection();
   };
 
-  const startStore = (store, supersedes = null) => {
+  const startStore = (store, supersedes = null, authorityContext = null) => {
     if (terminal || runtimePaused() || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
-    const authorityState = generatedAuthenticatedAuthorityState(client, store.reference);
+    const authorityAdmission = generatedAuthenticatedAuthorityAdmission(
+      client,
+      store.reference,
+      authorityContext ?? confirmedAuthorityContext,
+    );
+    const authorityState = authorityAdmission.state;
     if (authorityState === 'settling') return null;
     if (authorityState === 'anonymous') {
       if (store.snapshot.status !== 'blocked') {
@@ -1017,6 +1087,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       supersedes,
       ...(preparedDevUserId === null ? {} : { userId: preparedDevUserId }),
       persistResume: preparedPersistResume,
+      ...(authorityAdmission.authorityContext?.capture == null
+        ? {}
+        : { authorityCapture: authorityAdmission.authorityContext.capture }),
       ...(store.registeredSubscription?.authorizationNamespace == null
         ? {}
         : { authorizationNamespace: store.registeredSubscription.authorizationNamespace }),
@@ -2925,12 +2998,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       ...(registeredRecovery === null ? [] : [registeredRecovery]),
     ]);
   };
-  const resumeRegistry = () => {
+  const resumeRegistry = (authorityContext = null) => {
     if (terminal || runtimePaused()) return;
     manager = typeof client.liveStreamManager === 'function'
       ? client.liveStreamManager(connectionId)
       : null;
-    for (const store of stores.values()) startStore(store);
+    for (const store of stores.values()) startStore(store, null, authorityContext);
     for (const room of rooms.values()) startRoom(room);
   };
 
@@ -2938,10 +3011,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     name: `snapback-react:${providerInstanceId}`,
     async quiesce() {
       custodyPaused = true;
+      confirmedAuthorityContext = null;
       await quiesceRegistry();
     },
     blank() {
       custodyPaused = true;
+      confirmedAuthorityContext = null;
       for (const store of stores.values()) {
         if (store.optimisticCreate !== null) {
           closeOptimisticCreate(store, store.optimisticCreate, { force: true });
@@ -2978,10 +3053,42 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       invalidatePreparedRegistrations('authority-replaced');
     },
     async commitDurable() {},
-    async resume() {
+    async resume(context = {}) {
       if (terminal) return;
-      custodyPaused = false;
-      resumeRegistry();
+      const resumeConfirmedAuthority = (authorityContext = null) => {
+        custodyPaused = false;
+        resumeRegistry(authorityContext);
+      };
+      if (
+        typeof context.stagePublication === 'function'
+        && context.capture !== undefined
+      ) {
+        // @ref LLP 0059#exposure-invariant — coordinator capture() remains
+        // deliberately closed during participant resume. Stage query re-entry
+        // at the final exact confirmation and carry that successor capture into
+        // live admission; otherwise an authenticated store observes
+        // AUTHORITY_CLEARING once and never receives another start edge.
+        const stagedCapture = context.capture;
+        context.stagePublication(stagedCapture, (view = null) => {
+          const publishedAuthorityContext = projectedAuthorityContext(
+            view ?? stagedCapture,
+            view?.authority ?? context.authority,
+          );
+          confirmedAuthorityContext = publishedAuthorityContext;
+          // The real coordinator exposes publication immediately after all
+          // synchronous staged callbacks return. A later hook registration
+          // must prove the then-current level through capture(), rather than
+          // retaining this callback's once-only witness indefinitely.
+          queueMicrotask(() => {
+            if (confirmedAuthorityContext === publishedAuthorityContext) {
+              confirmedAuthorityContext = null;
+            }
+          });
+          resumeConfirmedAuthority(publishedAuthorityContext);
+        });
+        return;
+      }
+      resumeConfirmedAuthority();
     },
   };
   const unregisterBarrier = client.registerAuthBarrierParticipant(barrierParticipant);
