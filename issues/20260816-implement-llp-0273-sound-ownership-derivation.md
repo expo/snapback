@@ -71,3 +71,64 @@ Implement the Decision's algorithm in `scripts/check-module-ownership.mjs`:
 - Disclosed residual (do not attempt to close): analyzer-invisible rewrites (opaque
   helper / proc-macro / leading-`::` / self-edge inline) — no content gate closes these
   without a whole-program resolver; per-target scoped.
+
+## Update 2026-08-16 — first implementation attempt reviewed: DO NOT LAND
+
+A full first implementation was produced (branch `impl-0273-ownership`, pushed,
+NOT on main) and dual-reviewed (grok-4.6 + codex gpt-5.6-sol). Both verdicts:
+**DO NOT LAND.** The pinned-`syn` AST helper approach + the 54-fixture scaffold are
+a good starting point, but the k=0 predicate diverges from the spec and the fixtures
+pass while real laundering trees still discharge. Fix-and-reverify before any landing.
+
+**Correctness — the k=0 predicate is not faithful (must fix):**
+1. **Ticket-only / forbidden inherited edges are excluded from conservation** (the
+   backstop filters by `violationReason===null` and drops predecessor "inherited
+   unadmitted" fingerprints from `currentEdges`). Live laundering: predecessor obligated
+   `G→T` + ticket-only `U→T`; current removes `G→T`, keeps `U→T`; spec says `k=1`
+   (carry onto `U→T`), code computes `k=0` and discharges. **The backstop must scan ALL
+   `analysis.edges` to T, forbidden included** — not just allowed/same-owner.
+2. **Content-match skip reintroduced** — an obligated PRESENT host path must always be
+   scanned in `analysis.edges`; a content-match is not a skip (this is the exact husk
+   seam the Decision closed at revision f).
+3. **Unresolved host ⇒ leftover-fail the k=0 discharge.** Never take the `S=∅ ∧ L=∅`
+   genuine-removal branch when `H` is empty because hosts were unresolved.
+4. Implement the §3.10 extractor tightening (bare crate-relative `use`, in-body paths).
+5. Do not use `lineage.predecessors.length ≥ 2` to consume the PredObl pool —
+   conservation assigns, lineage only describes.
+
+**Rust helper (must fix):**
+6. **Fingerprint the original token stream** ⟨kind, byte-length, exact source bytes,
+   jointness⟩ per Decision 6 — NOT `ToTokens` (a pretty-printer that COLLIDES
+   `Foo::Bar` vs `Foo :: Bar`). **Fail closed on invalid spans** (currently silently
+   dropped, which shrinks `own(M)` and pushes trees into genuine-removal).
+7. **Content-addressed rebuild** — rebuild when helper source/manifest/lockfile change
+   (`cargo build --locked` every run, or a digest receipt over
+   source+manifest+lockfile+triple+compiler+exe). Currently only builds when the binary
+   is ABSENT → a stale binary silently runs old fingerprinting.
+8. Make the crate a **workspace member** (so CI's cargo cache applies); keep `Cargo.lock`
+   committed. Narrow the offline→online build fallback to missing-registry-cache only,
+   and wrap cargo-absent failures in the gate's stable diagnostic.
+
+**Operational — the no-Cargo blocker (must resolve before default-on):**
+9. The **self-hosted Expo CI runner has no Cargo**; the selection policy also marks
+   `module-ownership` `rustToolchain:false` when only the helper `Cargo.toml`/`.lock`
+   changed. Either provision + declare Rust for every environment that selects this gate
+   and mark `module-ownership` as Rust-requiring, **or** stage the new 0273 derivation
+   behind a **default-OFF flag** that selects new-derivation-vs-current-enforcement
+   (NEVER a JS/`maskNonCode` fingerprint fallback — grok: that reopens the Decision-6
+   literal/doc collisions). Default-off = zero blast radius on the live gate + no-Cargo
+   runner until Rust is provisioned; promotion to default-on is a separate step.
+
+**Fixtures to add (green today, must go red→green):** N14 without `Stable`, dual-husk
+(A2/A3), bare `use target::…` (A7), two-host N16 carrying `D1`, combined N17+N20.
+
+**Minors:** §3.2 persisted anti-stockpile cap not implemented (implement or amend the
+Decision); `///` vs `#[doc="…"]` fingerprint differently.
+
+**What passed (keep):** k≥1 conservation core matches spec (min(k,m) verbatim, shed
+weakest, #new computed; clone-and-mutate/fan-out/two-push-D2-shed behave; P1–P8 incl.
+P4 promotion); `own(Ti)=∅⇒S:=∅`; structured-grant path (predecessor-bytes-only,
+grantId uniqueness, null before/after rejected, same-push refused, no Linear-SHA back
+door); fingerprint construction otherwise sound + deterministic (no practical collision
+beyond the jointness case); selection-policy + drift-fixture edits necessary; baseline
+SHA-256 byte-unchanged; 54/54 fixtures + 12 legacy tests pass.
