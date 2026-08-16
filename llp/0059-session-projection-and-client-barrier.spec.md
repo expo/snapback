@@ -164,7 +164,7 @@ transition intent, phase-8 ownership release, close-code terminal latch,
 handshake app-identity/UUIDv7, final-fence handshake capture, readiness probes)
 as named defect obligations. Full triage in §Open decisions and status.)
 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0059-session-projection-and-client-barrier.codex.md` and applied its editorial correction to the public credential-classification prose; material findings remain for author triage). 2026-07-14 (ENG-24982 session-clock-floor audit: persist a durable non-decreasing `auth_session_clock_floor_ms`, seed the process clock from it at startup, and derive every wall-clock lifetime decision at `max(sample, floor)` so a backward wall move across restart cannot rebuild a slid or absolute-expired session as current). 2026-07-14 (leased-handoff reconciliation: share one bounded projection/outbox budget, preserve level-triggered projection suffixes, rank recovery markers through final HTTP/WebSocket transfer, and keep projection-only responses behind the exact outbox cut). 2026-07-14 (client poison-latch reconciliation: a connection-continuity loss permanently closes that ephemeral overlay generation, including against delayed snapshots; only a fresh subscribe may construct its successor, while room-scoped resync retains in-place snapshot recovery). 2026-07-14 (client-store version reconciliation: qualify format 3 as the historical item-5 predecessor and point the composed production format 5 and its v1–v4 migration rules to LLP 0043 without self-ratifying this Draft). 2026-07-14 (overflow containment reconciliation: bound and byte-charge exact recovery markers, collapse exhausted recovery state to one fail-closed all-authority signal, and route connection-wide clear-retained recovery across durable and ephemeral client lanes). 2026-07-14 (resume-transfer reconciliation: keep a changed-generation successor scope and effect fence unpublished until fresh authorization, retry resolution, and any newly available authenticated predecessor-retirement frontier are commit-ready; roll failed staging back to the quarantined retained predecessor). 2026-07-14 (final effect-fence reconciliation: record the exact stream/grant/session fence on retained realtime state, scoped queue overflow/purge, replacement-safe room reauthorization phases, mint-only containment, and the bounded ordinary WebSocket handoff). 2026-07-14 (final auth audit reconciliation: retain mode admission through the final HTTP body sink and make same-mode sessions activation wait for predecessor responses while projecting its exact authorization event before reopen). 2026-07-14 (implementation-evidence reconciliation: record ENG-24603/item 5's landed server/client mechanisms, distinguish its historical activation boundary from the now-composed items 6–8 posture, and remove item 8 from future decisions without self-ratifying this Draft). 2026-07-14 (final audit reconciliation: align the missing/unsupported auth-client offer with LLP 0012's registered `SNAPBACK_AUTH_POLICY_UNAVAILABLE` refusal and preserve independent surface-specific protocol negotiation); 2026-07-13 (initial implementing protocol for ENG-24603 / LLP 0039 landing item 5)
-**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058, LLP 0060
+**Related:** LLP 0000, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0052, LLP 0053, LLP 0057, LLP 0058, LLP 0060, LLP 0258 (application auth bootstrap — composition owner over this protocol; cross-reference only, no protocol change)
 
 ## Summary
 
@@ -1858,7 +1858,8 @@ partial-cleanup outcomes are typed diagnostics.
 The record is keyed by canonical app id in IndexedDB database
 `snapback-auth-custody`, version 1, object store `custody`; fallback lease rows
 use object store `leases` in the same database so one transaction can compare
-both. Native clients use an equivalently transactional credential store: the
+both. Native clients use a single-runtime credential store carrying the same
+validator/CAS invariants: the
 shipped adapter is `createSecureStoreAuthCustodyStorage`
 (`@expo/snapback-contract/auth-custody-secure-store`), which takes the Expo
 SecureStore module by injection as its string store, keys custody by
@@ -1869,7 +1870,13 @@ cross-context Web Locks analog, so `broadcastChannelFactory` and
 through the same custody validators, revision CAS, and epoch invariants as
 the canonical contract. That adapter carries ordinary bearer custody only; a
 record carrying sender-constrained key material refuses with a typed
-diagnostic. A
+diagnostic. Dated disposition (2026-08-15, non-protocol, LLP 0258): this
+shipped adapter is a process-local, app-id-keyed secret-persistence
+component. It is not the LLP 0258 D3 first-party native custody module —
+whole-record native atomic compare-and-replace, full owner-key
+(app id, storage partition) addressing, per-platform fenced capability
+grades — and LLP 0258's ordinary Expo/native path does not treat it as the
+qualifying first-party carrier. A
 localStorage mirror at the constants-table key MAY contain only
 `{formatVersion, appId, authorityEpoch, revision, phase}` as a wakeup hint; it
 is not custody authority. Malformed shapes, unsafe integers, app mismatch, a

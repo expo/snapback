@@ -6,6 +6,24 @@
 Auth, Assets, Offline, Testing, Hosted environments, Code generation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-15 (n) — Reconciles ordinary-session custody ownership
+with Accepted LLP 0258: E1/E2 adopt and rotate a bearer only for the life of
+the supervised client, and restart-persistent ordinary custody is owned by
+LLP 0258 — its D3 first-party native custody module with whole-record atomic
+compare-and-replace, integrated through the common bootstrap owner (0258
+D6) — not by an 0181-pinned injected `expo-secure-store` adapter; 0258 D3
+explicitly rules a process-local `getItemAsync`/`setItemAsync` shim
+insufficient as the transactional first-party carrier. E2C is re-scoped to
+this RFC's integration slice of that program. This revision also lands the
+LLP 0258 Phase 0 amendments to this RFC's public surfaces: `ExpoBootState`
+embeds 0258 D7's bootstrap snapshot as the construction-status source of
+truth (new `custody` stage, `blocked` status, `ready` advisories, and
+`ready` may be anonymous); a supervised mint no longer auto-adopts over
+application authority at boot or on refresh; `refreshAuthority` is not a
+bearer setter on the ordinary path; and the `adoptAuthority` success
+contract no longer treats a missing ordinary session as
+`authority-required`. Sender-constrained hardware-key custody remains owned
+by Draft LLP 0260.
 **Revised:** 2026-08-15 (m) — Generated descriptors' required
 `authoringProfile` field is part of Expo's closed admission schema and is
 contract-tested against fresh explicit and Familiar codegen output. Supervised
@@ -44,7 +62,9 @@ surface checkpoint: with ordinary authority already available, an exact
 AppDescriptor may reach `ready` from LLP 0114's persisted binding receipt
 while its query/connection projections truthfully remain retained/stale. The
 provider does not require live transport to call retained state ready, and it
-does not turn missing authority into that state. Earlier same day (g) — The real Android-emulator G1 receipt exposed
+does not turn missing authority into that state (the missing-authority half
+of this claim is superseded by revision (n)/LLP 0258 Phase 0: bootstrap now
+settles anonymous `ready` once Sessions mode is settled). Earlier same day (g) — The real Android-emulator G1 receipt exposed
 ordinary host/device clock lag at immediate cold launch. Supervised
 `local-supervised-ipc` admission now tolerates at most 60 seconds on the
 `issuedAt` lower bound only; expiry stays strict, release admission is
@@ -103,7 +123,7 @@ and moved LAN relay, physical-device pairing, and attempt grants out of the
 baseline until their security boundaries are independently accepted.
 **Related:** LLP 0017, LLP 0030, LLP 0041, LLP 0044, LLP 0055, LLP 0057, LLP
 0058, LLP 0059, LLP 0064, LLP 0103, LLP 0105, LLP 0114, LLP 0146, LLP 0168,
-LLP 0171, LLP 0176, LLP 0179, LLP 0180
+LLP 0171, LLP 0176, LLP 0179, LLP 0180, LLP 0258, LLP 0260
 
 ## Summary
 
@@ -161,7 +181,8 @@ This RFC owns:
 - the versioned, environment-specific `AppBinding`;
 - provider binding resolution/admission and Expo lifecycle projection;
 - simulator/emulator development routing;
-- Expo-native asset/storage/crypto/lifecycle adapters;
+- Expo-native asset/query-storage/crypto/lifecycle adapters (auth
+  custody excluded — LLP 0258);
 - Metro and EAS dependency/archive closure;
 - the `snapback dev --expo` supervisor profile; and
 - Expo-specific boot diagnostics and qualification.
@@ -172,6 +193,8 @@ It does not own:
 - query stores, mutation attempts, presence rooms, or cleanup (LLP 0114);
 - asset policy/tasks or command semantics (LLP 0044/0180);
 - session/principal policy;
+- restart-persistent ordinary auth custody and the bootstrap snapshot
+  (LLP 0258), or sender-constrained key custody (LLP 0260);
 - public or LAN-reachable development edges (LLP 0168);
 - hosted target semantics or OTA compatibility (LLP 0103/0105); or
 - per-OS capability standards (LLP 0064).
@@ -333,8 +356,9 @@ prepares any application stores.
 - `SnapbackExpoProvider` and Expo-safe React re-exports;
 - binding resolution and admission;
 - Expo picker/content-URI adaptation for the existing asset client;
-- Expo filesystem, credential, crypto, network, and AppState adapters, each
-  with its honest capability grade;
+- Expo filesystem, crypto, network, and AppState adapters, each with its
+  honest capability grade; and, once LLP 0258 Phase 2 lands, the first-party
+  durable custody integration with its own separate grade;
 - package/Metro/EAS closure verification; and
 - structured boot/diagnostic projections.
 
@@ -418,34 +442,76 @@ The provider:
 1. obtains one `AppBinding`;
 2. verifies its schema, source, expiry/provenance, descriptor identity, target
    identities, protocol, and capability offer;
-3. separately adopts an ordinary application session;
+3. delegates to the common LLP 0258 bootstrap owner, which resolves the
+   admitted custody adapter, synchronizes custody or establishes the
+   server-witnessed anonymous authority, and adopts a supervised session
+   only under 0258 D5's precedence (amended 2026-08-15; formerly
+   "separately adopts an ordinary application session");
 4. prepares the existing headless/React binding;
 5. installs native adapters and lifecycle signals; and
 6. exposes a structured boot state.
 
 ```ts
 type ExpoBootState =
-  | { status: "starting"; stage: "binding" | "authority" | "client" }
+  | { status: "starting";
+      stage: "binding" | "custody" | "authority" | "client" }
   | { status: "ready"; binding: PublicBindingFacts;
-      authority: PublicAuthorityFacts }
+      preparation: { source: "deployment" | "persisted-receipt" };
+      custody: PublicCustodyFacts; authoritySource: AuthoritySource;
+      advisories: readonly BootAdvisory[] }
   | { status: "authority-required"; diagnostic: SnapbackDiagnostic;
       remediations: readonly TypedRemediation[] }
-  | { status: "unsupported" | "error"; diagnostic: SnapbackDiagnostic;
+  | { status: "blocked" | "unsupported" | "error";
+      diagnostic: SnapbackDiagnostic;
       remediations: readonly TypedRemediation[] }
 ```
 
-`ready` means descriptor/binding admission, ordinary authority adoption, and
-client/provider construction have completed; it does not assert that the
-transport is currently live or that retained rows are current. If live
+Amended 2026-08-15 (LLP 0258 Phase 0): the construction-status union above is
+owned by LLP 0258 D7 (`AuthBootstrapSnapshot`), and `ExpoBootState` embeds it.
+Every previous public field is dispositioned, not dropped: the `ready` arm
+keeps this RFC's public binding facts and its deployment/persisted-receipt
+preparation fact, and its former `authority: PublicAuthorityFacts` projection
+is replaced by the LLP 0238 `currentPrincipal` surface — authority is a
+principal fact, not a boot-state field. `custody`, `authoritySource`,
+`advisories` (`BootAdvisory` is 0258 D7's diagnostic-plus-remediations row),
+the `custody` stage, and the `blocked` status take their exact meaning from
+0258 D7.
+
+`ready` means descriptor/binding admission, admitted custody
+synchronization (durable ordinarily; explicitly volatile only under a
+`volatile-explicit` policy, reported as such in custody facts),
+coordinator/client construction, and participant exposure have completed
+(LLP 0258 D2/D7); it does not assert that the principal is
+authenticated, that the transport is currently live, or that retained rows
+are current. Whether the principal is anonymous or signed in is the LLP 0238
+`currentPrincipal` surface's fact — `ready` may be anonymous. If live
 inspection is unreachable but LLP 0114 admits the exact persisted binding
 receipt, the provider may be `ready` while `useSurface` reports
 `freshness: 'retained'`, `status: 'refreshing'`, and a stale/offline
-connection fact. Authority remains a separate prerequisite: without an
-adoptable ordinary session the state is `authority-required`, never a
-receipt-backed anonymous success.
+connection fact.
 
-The provider does not turn missing authority into anonymous success. For the
-development golden path, the supervisor supplies an ordinary bounded session
+Amended authority semantics (2026-08-15, LLP 0258 Phase 0). The provider no
+longer reports a missing supervised session as failure: for a program whose
+auth mode has settled to Sessions, bootstrap always settles the
+server-witnessed anonymous state and reaches `ready`, so credential-entry
+surfaces are reachable from a cold start. `authority-required` is reserved
+for states where no authority can settle for a non-custody reason — the
+mint-precondition refusal below (auth mode not settled to Sessions) remains
+its canonical case — while `blocked` owns unsettleable custody states
+(corrupt, exhausted, LLP 0059 blocked/recovery). Supervised adoption obeys
+LLP 0258 D5's closed precedence at boot and on every later supervisor
+event: a supervised mint may bootstrap only a fresh or settled anonymous
+predecessor admitted through the supervised binding channel; a restored or
+application-entered authenticated principal is never displaced by a
+supervisor event, which then updates binding/transport facts only and
+surfaces `SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` as a `ready`-arm
+advisory with executable remediations. `refreshAuthority` is not a bearer
+setter on the ordinary path, and `adoptAuthority`'s success contract no
+longer treats a missing ordinary session as `authority-required`; ordinary
+applications stop calling `adoptAuthority` once 0258 Phase 3 lands (the
+method remains on the advanced surface).
+
+For the development golden path, the supervisor supplies an ordinary bounded session
 — by email today, by declared dev persona once that layer is accepted (see
 LLP 0176 G0) — through a transient local bootstrap exchange over the same
 `local-supervised-ipc` channel `AppBindingV1`'s `integrity` field names for
@@ -647,10 +713,14 @@ development packages. It must not silently replace one with the other.
 
 ## Native adapters
 
-The package registers the strongest available adapters once:
+The package registers the strongest available adapters once, but each adapter
+is independently discoverable and graded. The list below is the target package
+contract, not a claim that every row already ships:
 
 - picker/content-URI to the existing structural asset source;
-- secure ordinary-session custody;
+- secure ordinary-session custody — integrated through LLP 0258's
+  bootstrap owner, never registered as an independent package custody
+  path (E2C below);
 - cryptographic digest/checksum support;
 - AppState and network lifecycle;
 - retained query storage; and
@@ -664,6 +734,54 @@ cannot support.
 LLP 0180 v1 uses an ordinary session for asset transfer. This package does not
 depend on an attempt grant. A later background adapter may consume one only
 after LLP 0044 defines it.
+
+### E2C — restart-persistent ordinary-session custody (owned by LLP 0258)
+
+E1/E2 currently adopt the supervisor-issued bearer into the live
+`SnapbackClient`; provider replacement follows the normal authority barrier,
+but the bearer is not restored after the JavaScript process dies. That is
+ordinary in-process session custody, not secure restart-persistent custody.
+The package MUST NOT describe the current memory fallback as SecureStore or as
+surviving process restart.
+
+Restart-persistent ordinary custody for Expo/native is owned by Accepted
+LLP 0258, and this RFC defers to it rather than pinning its own adapter:
+
+1. The durable carrier is LLP 0258 D3's first-party native custody module —
+   the entire LLP 0059 custody record (`AuthCustodyV2`, bearer included)
+   persisted as one serialized unit in one OS-secure-storage domain, with
+   native atomic compare-and-replace conditioned on the exact expected
+   revision/epoch and fail-closed per-platform capability declarations
+   (single-runtime where cross-process fencing is unproven). An injected
+   `expo-secure-store` `getItemAsync`/`setItemAsync` adapter — including the
+   shipped process-local
+   `@expo/snapback-contract/auth-custody-secure-store` adapter — is a
+   secret-persistence component that 0258 D3 explicitly rules insufficient
+   as the transactional first-party carrier; it neither satisfies nor
+   pre-implements this slice.
+2. Selection, refusal, and grading follow 0258 D3: `durable-required` never
+   falls back to memory; a platform that cannot prove even the
+   single-runtime profile keeps `durable-required` refused; capability
+   reporting states carrier kind, durable/volatile grade, and exact
+   concurrency scope per LLP 0064.
+3. The Expo integration point is 0258 D6 and its Phase 2: the provider
+   delegates to the common bootstrap owner, which resolves the platform
+   custody adapter. This package registers no independent custody path, and
+   no second bearer copy is written to the binding cache, RQS file store,
+   `AsyncStorage`, logs, diagnostics, receipts, or generated configuration.
+4. E2C in this RFC's delivery plan is therefore the 0181-side integration
+   slice: adopting the 0258 bootstrap owner in `SnapbackExpoProvider`
+   (0258 Phases 2–3) together with the boot-state and supervised-precedence
+   amendments in §Provider. Its acceptance evidence — iOS process-kill and
+   Android force-stop restoration receipts, corruption/logout/user-switch
+   behavior, and package-closure/leakage scans — is recorded under 0258's
+   phases and is not duplicated here.
+
+Where the 0258 module uses SecureStore/Keychain/Keystore-class protection,
+that means platform-protected ordinary bearer bytes at rest. It does not
+mean hardware-bound proof, non-extractability, attestation, resistance to
+code executing as the app, or sender constraint. Draft LLP 0260 owns those
+stronger claims.
 
 ## Diagnostics
 
@@ -817,7 +935,10 @@ project metadata.
   not yet settled into Sessions auth mode boots to `authority-required`
   with a diagnostic naming the cause, never a hang or a silent anonymous
   fallback; a fixture that is settled reaches `ready` and completes a real
-  mint.
+  mint whose session is adopted under LLP 0258 D5 (amended 2026-08-15: a
+  settled fixture whose supervisor supplies no session still boots
+  anonymous `ready`; the supervised principal is asserted after adoption,
+  not as a precondition of `ready`).
 - Exercise live query, ordinary mutation, scoped presence, HMR/reconnect, and
   authority replacement.
 
@@ -825,8 +946,16 @@ project metadata.
 credential-free loopback rendezvous origin
 (`EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN`). The provider performs a runtime
 `GET /_snapback/expo/v1/bootstrap` with `cache: "no-store"`; its response pairs
-the admitted expiring `AppBinding` with either the native mint's ordinary
-session or a structured `authority-required` refusal. The exchange exists
+the admitted expiring `AppBinding` with the native mint's ordinary
+session, a binding-only arm carrying no session (the provider then boots
+anonymous `ready`; a supervised session may arrive on a later supervisor
+event), or a structured `authority-required` refusal for the
+unsettled-Sessions precondition (amended 2026-08-15, LLP 0258 Phase 0). A
+returned session is adopted only under LLP 0258 D5's precedence: over an
+application-entered or restored authenticated principal the exchange
+updates binding/transport facts only and surfaces
+`SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` as a `ready`-arm advisory.
+The exchange exists
 only for the supervisor lifetime, listens on loopback, emits no access log,
 and is reclaimed with Metro and the managed backend. This answers OQ1/OQ2 for
 the E1 simulator/emulator baseline without strengthening the security claim:
@@ -1007,7 +1136,10 @@ Review. E0/E1 are implemented as the first slice: the correctly named package, o
 `AppBinding`, no-URL provider boot, direct simulator/emulator routing, and the
 headless-proven Android USB extension. Its live receipt is pending; iOS USB is
 a typed non-capability after the concrete tool-direction probe above.
-E2 adds the ordinary-session image command. Release/external proof follows.
+E2 adds the ordinary-session image command and in-process bearer adoption; it
+does not ship restart-persistent custody. Ordinary durable custody is owned
+by Accepted LLP 0258 — E2C above is this RFC's integration slice of that
+program — and remains unimplemented. Release/external proof follows.
 LAN relay, physical-device pairing over that relay, background attempt grants,
 and offline custody are explicitly outside the baseline. A super-refine
 round-1 review found and fixed: an unestablished "no bearer anywhere"

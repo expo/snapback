@@ -6,6 +6,8 @@
 Code generation, React, Client integration, Packaging, Documentation, Testing
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-13
+**Revised:** 2026-08-15 (auth-hooks amendment, LLP 0258 Phase 0: S6.1's
+closed export list gains the ordinary auth hook re-exports — see S6.1)
 **Revised:** 2026-08-15 (r4: unified both authoring profiles on the canonical
 `snapback/generated/` artifact directory; retired `_generated/` as a hard
 diagnostic including symlinks and imports; centralized the one-segment or
@@ -650,6 +652,14 @@ owner (Phase C proof), and introduces no error type.
 object), `useQuery`, `useMutation`, `useAction`, `useQueryState`, `skip`,
 and type exports for the branded ref aliases.
 
+Dated amendment (2026-08-15, LLP 0258 Phase 0): the closed list additionally
+admits the ordinary auth hooks as re-exports — `useCurrentPrincipal` and
+`useAuth`, aliases of the canonical `useSnapbackCurrentPrincipal` and
+`useSnapbackAuth` (same objects; Familiar constructs no cache, coordinator,
+or client — LLP 0258 D6). Exact names remain subject to LLP 0258's Phase 1
+API review, and the re-exports ship only when the canonical hooks ship;
+until then the v1 export surface is unchanged.
+
 ### S6.2 `useQuery`
 
 `useQuery(ref, args | "skip" | typeof skip): Result | undefined`
@@ -903,7 +913,8 @@ disposition 4). `.history()` / `.permissionBacking()` / `.membership()` /
 `.memberOf()` / `.hasRole()` — 1 (schema authority vocabulary is shared
 verbatim; D5 keeps Snapback authority first-class). Schema-level
 `defineSchema` options (`ephemeral`, `auth`, `authProgram`,
-`requiredCapabilities`) — 1 (shared verbatim).
+`requiredCapabilities`) — 1 (shared verbatim; the LLP 0214 §22 fields
+carry the dispositions in the Auth-program paragraph below).
 
 **Auth-program fields:** `version`, `mechanisms`, `providers`,
 `assuranceRequirements`, `guestPolicy`, `secretReferences`, and

@@ -15,7 +15,8 @@ first-boot provider construction and named in policy refusals)
 **Revised:** 2026-08-15 (v0.4 — LLP 0258 amendment: `defineAuth` owns the
 application-client custody grade and explicit external-session entry seam)
 **Related:** LLP 0212, LLP 0011, LLP 0151, LLP 0057, LLP 0055, LLP 0036,
-LLP 0045, LLP 0053, LLP 0058, LLP 0215, LLP 0227, LLP 0258
+LLP 0045, LLP 0053, LLP 0058, LLP 0215, LLP 0227, LLP 0241, LLP 0252,
+LLP 0258
 
 ## Summary
 
@@ -3417,3 +3418,16 @@ the LLP 0241 semantic-identity path. They do not create another auth
 configuration, carry credentials, or alter the server's per-operation
 authorization authority. Their generated projection and refusal rules are
 owned by LLP 0258 D1.
+
+Profile disposition (LLP 0252 D1, rows in LLP 0253 Appendix A): the
+Familiar profile supplies the `durable-required` default and refuses an
+authored `volatile-explicit`; `externalSessionEntry` is shared through the
+same explicit advanced-session extension. Changing `custody` rotates the
+generated bootstrap-policy semantic identity, and a live LLP 0258
+bootstrap owner refuses to absorb that rotation by rebind (0258 D2).
+Neither field is an entry mechanism: `guestPolicy` (a claimable guest
+principal proves no control and is not anonymous access) and the passkey
+slot stay out of the generated entry-mechanism allowlist, and
+`recoveryPolicy` continues to own the recovery lifecycle — LLP 0258 D9's
+generated recovery rows derive from it, never from the mechanism/provider
+set.

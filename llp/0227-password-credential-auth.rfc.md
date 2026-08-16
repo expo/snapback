@@ -33,7 +33,8 @@ username+password sketch and the identities-vs-credentials rule), LLP 0039
 (auth vertical slice — server-derived principals), LLP 0011 (auth and
 permissions — Argon2-outside-the-writer-lock rule, non-oracular failure
 shapes), LLP 0058 (staged auth-mode protocol and the external-broker seam),
-LLP 0059 (session projection), LLP 0024 (agent operating surface — one core,
+LLP 0059 (session projection), LLP 0258 (application auth bootstrap —
+composition owner over this mechanism; cross-reference only), LLP 0024 (agent operating surface — one core,
 thin projections), LLP 0045 (mail delivery adapter — external prerequisite for
 production reset), LLP 0037 (closed DTO conventions),
 `benchmarks/records/2026-08-09-social-messenger-p2-pilot.md` (B2 = 48 vs
