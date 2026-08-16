@@ -239,7 +239,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `aadd8485f5459fc980e3676d68166da5c7a2c48a18df5dee8c306a5bbc18de45`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "activityRows": FunctionReference<"activityRows", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["activityRows"]>, "snapback-explicit-v1">;
+  "activityRows": FunctionReference<"activityRows", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"activityRows">; "_version": number; "_createdAt": number; "_updatedAt": number; "value": string }>, "snapback-explicit-v1">;
   /**
    * LiveQuery reference `app:liveRows`.
    * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
@@ -248,7 +248,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `aadd8485f5459fc980e3676d68166da5c7a2c48a18df5dee8c306a5bbc18de45`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "liveRows": FunctionReference<"liveRows", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["liveRows"]>, "snapback-explicit-v1">;
+  "liveRows": FunctionReference<"liveRows", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"liveRows">; "_version": number; "_createdAt": number; "_updatedAt": number; "body": string }>, "snapback-explicit-v1">;
   /**
    * LiveQuery reference `app:primaryRows`.
    * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
@@ -257,7 +257,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `aadd8485f5459fc980e3676d68166da5c7a2c48a18df5dee8c306a5bbc18de45`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "primaryRows": FunctionReference<"primaryRows", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["primaryRows"]>, "snapback-explicit-v1">;
+  "primaryRows": FunctionReference<"primaryRows", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"primaryRows">; "_version": number; "_createdAt": number; "_updatedAt": number; "value": string }>, "snapback-explicit-v1">;
   /**
    * Mutation reference `app:publishLiveRow`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
@@ -284,7 +284,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `aadd8485f5459fc980e3676d68166da5c7a2c48a18df5dee8c306a5bbc18de45`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "rejectionRows": FunctionReference<"rejectionRows", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["rejectionRows"]>, "snapback-explicit-v1">;
+  "rejectionRows": FunctionReference<"rejectionRows", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"rejectionRows">; "_version": number; "_createdAt": number; "_updatedAt": number; "value": string }>, "snapback-explicit-v1">;
   /**
    * Mutation reference `app:writePrimaryAndActivity`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.

@@ -496,7 +496,9 @@ try {
 
   const types = readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8');
   assert.match(types, /FunctionResult<Ref>/);
-  assert.match(types, /ReadonlyArray<GeneratedDataModel\["todos"\]>/);
+  assert.match(types, /ReadonlyArray<\{ "_id": Id<"todos">; "_version": number;/u);
+  assert.match(types, /"photo": null \| string/u);
+  assert.doesNotMatch(types, /ReadonlyArray<GeneratedDataModel\["todos"\]>/u);
 } finally {
   for (const root of roots) rmSync(root, { recursive: true, force: true });
 }

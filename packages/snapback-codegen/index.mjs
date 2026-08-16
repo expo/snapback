@@ -14083,6 +14083,9 @@ function renderMicroDeclaration(functions, functionsModule, schemaDef) {
   const lines = [
     HEADER,
     "import type { MicroActionOutput, MicroCoreRuntime, MicroMutationOutput, MicroQueryOutput, MicroRuntimeOptions } from '@expo/snapback-client/micro/core';",
+    ...(functions.some((fn) => resultContractContainsMedia(fn.resultContract))
+      ? ["import type { MediaRef } from '@expo/snapback-client/assets';"]
+      : []),
     ...(functions.some((fn) => fn.kind === 'LiveQuery')
       ? ["import type { MicroLiveHandle, MicroRuntime } from '@expo/snapback-client/micro/live';"]
       : ["type MicroRuntime = MicroCoreRuntime;"]),
@@ -14108,10 +14111,7 @@ function renderMicroDeclaration(functions, functionsModule, schemaDef) {
   for (const fn of functions) {
     const local = IDENT.test(fn.name) ? fn.name : generatedOperationLocal(fn.name);
     const args = typeForGeneratedArgs(functionsModule[fn.name]?.args ?? {});
-    const result = resultContractType(
-      fn.resultContract,
-      (table) => `MicroDataModel[${JSON.stringify(table)}]`,
-    );
+    const result = resultContractType(fn.resultContract);
     if (fn.kind === 'LiveQuery') {
       lines.push(`export function ${local}(client: MicroRuntime, args: ${args}, options?: { readonly onUpdate?: (rows: ${result}, detail: Readonly<{ kind: string; version: number }>) => void }): Promise<MicroLiveHandle<${result}>>;`);
     } else {
@@ -15627,6 +15627,9 @@ function renderApiTypes(
   const hasVectorFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.VectorQuery !== undefined,
   );
+  const hasMediaResult = functions.some(
+    (fn) => resultContractContainsMedia(fn.resultContract),
+  );
   const schemaTables = Object.entries(schemaDef.tables ?? {});
   const membershipTableNames = new Set(
     schemaTables
@@ -15678,6 +15681,9 @@ function renderApiTypes(
       : []),
     ...(hasVectorFunction
       ? ["import type { VectorPageV1 as ClientVectorPageV1 } from '@expo/snapback-client';"]
+      : []),
+    ...(hasMediaResult
+      ? ["import type { MediaRef } from '@expo/snapback-client/assets';"]
       : []),
     "export type SchemaVersion = 'snapback.v0';",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
@@ -16086,7 +16092,6 @@ function renderApiTypes(
       const argsType = typeForGeneratedArgs(def?.args ?? {});
       const resultType = resultContractType(
         fn?.resultContract ?? { kind: 'unknown' },
-        (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
       );
       const refType = `FunctionReference<'${query.function}', '${fn?.kind ?? 'Query'}', ${argsType}, ${resultType}, ${JSON.stringify(authoringProfile)}>`;
       const entryName = queryGroupEntryName(query.function, occurrences, usedNames);
@@ -16121,7 +16126,6 @@ function renderApiTypes(
         ? vectorPageResultType(fn.resultContract)
         : resultContractType(
           fn.resultContract ?? { kind: 'unknown' },
-          (table) => `GeneratedDataModel[${JSON.stringify(table)}]`,
         );
     const args = search
       ? search.resourceArg === undefined

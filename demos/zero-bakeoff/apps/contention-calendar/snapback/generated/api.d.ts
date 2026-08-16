@@ -235,7 +235,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `39753df323c76a6a8a029ee78ae8ee8133b5e1917c78182b4a592507fa1908a6`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "reservationsForSlot": FunctionReference<"reservationsForSlot", 'LiveQuery', { slotKey: string; ownerId: string }, ReadonlyArray<GeneratedDataModel["reservations"]>, "snapback-explicit-v1">;
+  "reservationsForSlot": FunctionReference<"reservationsForSlot", 'LiveQuery', { slotKey: string; ownerId: string }, ReadonlyArray<{ "_id": Id<"reservations">; "_version": number; "_createdAt": number; "_updatedAt": number; "idempotencyKey": string; "resourceKey": string; "slotKey": string; "resourceSlotKey": string; "ownerId": string; "title": string; "createdAt": number }>, "snapback-explicit-v1">;
   /**
    * Mutation reference `contention-calendar:reserve`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
@@ -253,7 +253,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `39753df323c76a6a8a029ee78ae8ee8133b5e1917c78182b4a592507fa1908a6`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "resourceList": FunctionReference<"resourceList", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["resources"]>, "snapback-explicit-v1">;
+  "resourceList": FunctionReference<"resourceList", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"resources">; "_version": number; "_createdAt": number; "_updatedAt": number; "key": string; "title": string }>, "snapback-explicit-v1">;
   /**
    * LiveQuery reference `contention-calendar:schedule`.
    * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
@@ -262,7 +262,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `39753df323c76a6a8a029ee78ae8ee8133b5e1917c78182b4a592507fa1908a6`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "schedule": FunctionReference<"schedule", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["reservations"]>, "snapback-explicit-v1">;
+  "schedule": FunctionReference<"schedule", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"reservations">; "_version": number; "_createdAt": number; "_updatedAt": number; "idempotencyKey": string; "resourceKey": string; "slotKey": string; "resourceSlotKey": string; "ownerId": string; "title": string; "createdAt": number }>, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
 }

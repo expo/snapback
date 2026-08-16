@@ -163,7 +163,8 @@ try {
   assert.match(firstTypes, /GeneratedMutationContext<Auth[^\n]+MutationContext<GeneratedHandlerSchema/u);
   assert.match(firstTypes, /JobsContext, SequenceContext, MutationIdentityContext/u);
   assert.match(firstTypes, /"listCustomers": GeneratedQueryContext<GeneratedAuthenticatedAuthContext>;/u);
-  assert.match(firstTypes, /"listCustomers": FunctionReference<[^\n]+GeneratedDataModel\["customers"\]/u);
+  assert.match(firstTypes, /"listCustomers": FunctionReference<[^\n]+ReadonlyArray<\{ "_id": Id<"customers">/u);
+  assert.doesNotMatch(firstTypes, /"listCustomers": FunctionReference<[^\n]+GeneratedDataModel\["customers"\]/u);
   assert.match(firstTypes, /"customerEnvelopes": FunctionReference<[^\n]+"createdAt": number/u);
 
   // A context-reader helper and its handler both consume the one generated

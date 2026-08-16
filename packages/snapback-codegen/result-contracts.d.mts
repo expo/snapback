@@ -46,6 +46,21 @@ export type ResultValueContract =
   | Readonly<{ kind: 'string'; maxBytes: number }>
   | Readonly<{ kind: 'principal' }>
   | Readonly<{ kind: 'assetRef' }>
+  | Readonly<{
+      kind: 'mediaRef.v1';
+      sourceTable: string;
+      sourceField: string;
+      sourceFieldGeneration: `sha256:${string}`;
+      optional: boolean;
+      classMTreatment: string;
+      uploadIntent: string;
+      policyGeneration: string;
+      kinds: readonly ('image' | 'video' | 'audio' | 'file')[];
+      delivery: string | null;
+      variants: readonly string[];
+      classificationProfile: 'detected-content-type.v1';
+      retentionClass: 'media-reference.v1';
+    }>
   | Readonly<{ kind: 'id'; table: string }>
   | Readonly<{ kind: 'integer'; min: number; max: number }>
   | Readonly<{ kind: 'finiteReal'; min: number; max: number }>
@@ -131,6 +146,7 @@ export function validatorResultValue(
     legacy?: boolean;
     args?: boolean;
     tables?: Readonly<Record<string, ResultContractTable>>;
+    mediaSource?: Readonly<{ table: string; field: string; optional?: boolean }>;
   }>,
 ): ResultValueContract;
 
@@ -200,7 +216,6 @@ export function effectiveResultContract(options: Readonly<{
 /** Renders the TypeScript result type for a contract descriptor. */
 export function resultContractType(
   contract: ResultContractDescriptor,
-  tableType?: (table: string) => string,
 ): string;
 
 /** Renders the `SearchPageV1<...>` type for a search records contract. */

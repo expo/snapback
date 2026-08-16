@@ -341,6 +341,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'media-command-authoring.test.mjs',
       'media-collection-authoring.test.mjs',
       'media-field-authoring.test.mjs',
+      'media-result-types.test.mjs',
       'membership-search-authoring.test.mjs',
       'micro-profile.test.mjs',
       'mixed-route-v2.test.mjs',
@@ -530,7 +531,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 299,
+  expectedTotal = 300,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -964,6 +965,9 @@ export function checkPackageTestInventories(options = {}) {
 // 298 -> 299 (2026-08-16, LLP 0264 Phase 1): @expo/snapback-codegen gains the
 // owner-write posture, site-census, uniqueness-disclosure, authority-table,
 // opaque-ceiling, runtime-table-ceiling, and no-write-elevation suite.
+// 299 -> 300 (2026-08-16, LLP 0244 generated-result typing):
+// @expo/snapback-codegen gains the strict generated LiveQuery MediaRef type
+// flow and physical-string negative-control suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

@@ -1,6 +1,6 @@
 # Generated query types expose the physical string for `v.media()`
 
-**Status:** Open  
+**Status:** Resolved  
 **Date:** 2026-08-16  
 **Systems:** Codegen, Media, TypeScript clients  
 **Related:** LLP 0244; `demos/media-happy-post/`
@@ -33,3 +33,17 @@ Generate operation-result document types from the result contract so a
 `mediaRef.v1` field is typed as the admitted media reference, while preserving
 the physical string type for handler-side storage models. Add a strict fixture
 that passes a generated LiveQuery media field directly to `useSnapbackMedia`.
+
+## Resolution
+
+Resolved on 2026-08-16. Generated operation-result document types now render
+the expanded result contract rather than indexing into `GeneratedDataModel`.
+A `mediaRef.v1` leaf uses the client-owned public
+`MediaRef<"image" | "video" | "audio" | "file">` type narrowed to the kinds
+admitted by the field, while `GeneratedDataModel` continues to expose the
+physical asset-reference string used by handler-side storage.
+
+`packages/snapback-codegen/media-result-types.test.mjs` generates a LiveQuery
+over an image media field and strictly typechecks that field when it is passed
+directly to `useSnapbackMedia`. Its negative control proves that a physical
+string cannot cross the same boundary as a `MediaRef`.

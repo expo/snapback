@@ -976,9 +976,14 @@ export function effectiveResultContract({
   return { kind: 'unknown' };
 }
 
-export function resultContractType(contract, tableType = (table) => `GeneratedDataModel[${JSON.stringify(table)}]`) {
-  if (contract.kind === 'documents') return `ReadonlyArray<${tableType(contract.table)}>`;
-  if (contract.kind === 'document') return tableType(contract.table);
+// @ref LLP 0244#d4-result-artifact-retention-and-rqs-identity-rotate-explicitly
+// — operation result types follow the expanded result contract. In particular,
+// a media-bearing document is not the physical string-valued storage model.
+export function resultContractType(contract) {
+  if (contract.kind === 'documents') {
+    return `ReadonlyArray<${resultValueType(contract.document)}>`;
+  }
+  if (contract.kind === 'document') return resultValueType(contract.document);
   if (contract.kind === 'records') {
     const row = resultValueType(contract.record);
     return contract.rows?.minItems === 1 && contract.rows?.maxItems === 1
@@ -1017,7 +1022,7 @@ function resultValueType(value) {
   if (value.kind === 'boolean') return 'boolean';
   if (value.kind === 'string' || value.kind === 'principal' || value.kind === 'assetRef') return 'string';
   if (value.kind === 'mediaRef.v1') {
-    return `{ readonly assetId: string; readonly kind: ${value.kinds.map(JSON.stringify).join(' | ')} }`;
+    return `MediaRef<${value.kinds.map(JSON.stringify).join(' | ')}>`;
   }
   if (value.kind === 'id') return `Id<${JSON.stringify(value.table)}>`;
   if (value.kind === 'integer' || value.kind === 'finiteReal') return 'number';

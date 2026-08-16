@@ -245,7 +245,7 @@ export interface GeneratedFunctionContexts {
 export interface GeneratedEphemeral {
 }
 export interface GeneratedQueryGroups {
-  "/": QueryGroupReference<"/", Record<string, never>, readonly [Readonly<{ name: "listMyRooms"; ref: FunctionReference<'listMyRooms', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["roomParticipants"]>, "snapback-explicit-v1">; args: Readonly<Record<string, never>> }>, Readonly<{ name: "unreadDeliveries"; ref: FunctionReference<'unreadDeliveries', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["deliveries"]>, "snapback-explicit-v1">; args: Readonly<Record<string, never>> }>]>;
+  "/": QueryGroupReference<"/", Record<string, never>, readonly [Readonly<{ name: "listMyRooms"; ref: FunctionReference<'listMyRooms', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"roomParticipants">; "_version": number; "_createdAt": number; "_updatedAt": number; "roomId": Id<"rooms">; "userId": string; "displayName": string; "status": string; "changedAt": number }>, "snapback-explicit-v1">; args: Readonly<Record<string, never>> }>, Readonly<{ name: "unreadDeliveries"; ref: FunctionReference<'unreadDeliveries', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"deliveries">; "_version": number; "_createdAt": number; "_updatedAt": number; "recipientId": string; "roomId": Id<"rooms">; "messageId": Id<"messages">; "authorId": string; "authorName": string; "body": string; "pageKey": string; "createdAt": number; "unread": boolean }>, "snapback-explicit-v1">; args: Readonly<Record<string, never>> }>]>;
 }
 export interface GeneratedApi {
   /**
@@ -274,7 +274,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "firstInboxPage": FunctionReference<"firstInboxPage", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["deliveries"]>, "snapback-explicit-v1">;
+  "firstInboxPage": FunctionReference<"firstInboxPage", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"deliveries">; "_version": number; "_createdAt": number; "_updatedAt": number; "recipientId": string; "roomId": Id<"rooms">; "messageId": Id<"messages">; "authorId": string; "authorName": string; "body": string; "pageKey": string; "createdAt": number; "unread": boolean }>, "snapback-explicit-v1">;
   /**
    * Query reference `team-chat:firstRoomMessagePage`.
    * Legal client verbs/hooks: `query`, `liveQuery`.
@@ -283,7 +283,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "firstRoomMessagePage": FunctionReference<"firstRoomMessagePage", 'Query', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["messages"]>, "snapback-explicit-v1">;
+  "firstRoomMessagePage": FunctionReference<"firstRoomMessagePage", 'Query', { roomId: Id<'rooms'> }, ReadonlyArray<{ "_id": Id<"messages">; "_version": number; "_createdAt": number; "_updatedAt": number; "roomId": Id<"rooms">; "authorId": string; "authorName": string; "body": string; "pageKey": string; "createdAt": number }>, "snapback-explicit-v1">;
   /**
    * Mutation reference `team-chat:inviteMember`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
@@ -310,7 +310,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "listMyRooms": FunctionReference<"listMyRooms", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["roomParticipants"]>, "snapback-explicit-v1">;
+  "listMyRooms": FunctionReference<"listMyRooms", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"roomParticipants">; "_version": number; "_createdAt": number; "_updatedAt": number; "roomId": Id<"rooms">; "userId": string; "displayName": string; "status": string; "changedAt": number }>, "snapback-explicit-v1">;
   /**
    * Mutation reference `team-chat:markRoomRead`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
@@ -328,7 +328,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "nextInboxPage": FunctionReference<"nextInboxPage", 'LiveQuery', { after: string }, ReadonlyArray<GeneratedDataModel["deliveries"]>, "snapback-explicit-v1">;
+  "nextInboxPage": FunctionReference<"nextInboxPage", 'LiveQuery', { after: string }, ReadonlyArray<{ "_id": Id<"deliveries">; "_version": number; "_createdAt": number; "_updatedAt": number; "recipientId": string; "roomId": Id<"rooms">; "messageId": Id<"messages">; "authorId": string; "authorName": string; "body": string; "pageKey": string; "createdAt": number; "unread": boolean }>, "snapback-explicit-v1">;
   /**
    * Query reference `team-chat:nextRoomMessagePage`.
    * Legal client verbs/hooks: `query`, `liveQuery`.
@@ -337,7 +337,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "nextRoomMessagePage": FunctionReference<"nextRoomMessagePage", 'Query', { roomId: Id<'rooms'>; after: string }, ReadonlyArray<GeneratedDataModel["messages"]>, "snapback-explicit-v1">;
+  "nextRoomMessagePage": FunctionReference<"nextRoomMessagePage", 'Query', { roomId: Id<'rooms'>; after: string }, ReadonlyArray<{ "_id": Id<"messages">; "_version": number; "_createdAt": number; "_updatedAt": number; "roomId": Id<"rooms">; "authorId": string; "authorName": string; "body": string; "pageKey": string; "createdAt": number }>, "snapback-explicit-v1">;
   /**
    * Mutation reference `team-chat:ownerRemoveMember`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
@@ -355,7 +355,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "roomDetails": FunctionReference<"roomDetails", 'LiveQuery', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["rooms"]>, "snapback-explicit-v1">;
+  "roomDetails": FunctionReference<"roomDetails", 'LiveQuery', { roomId: Id<'rooms'> }, ReadonlyArray<{ "_id": Id<"rooms">; "_version": number; "_createdAt": number; "_updatedAt": number; "title": string; "createdBy": string; "createdAt": number }>, "snapback-explicit-v1">;
   /**
    * LiveQuery reference `team-chat:roomMessages`.
    * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
@@ -364,7 +364,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "roomMessages": FunctionReference<"roomMessages", 'LiveQuery', { roomId: Id<'rooms'> }, ReadonlyArray<GeneratedDataModel["messages"]>, "snapback-explicit-v1">;
+  "roomMessages": FunctionReference<"roomMessages", 'LiveQuery', { roomId: Id<'rooms'> }, ReadonlyArray<{ "_id": Id<"messages">; "_version": number; "_createdAt": number; "_updatedAt": number; "roomId": Id<"rooms">; "authorId": string; "authorName": string; "body": string; "pageKey": string; "createdAt": number }>, "snapback-explicit-v1">;
   /**
    * Mutation reference `team-chat:sendMessage`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
@@ -382,7 +382,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `6f6a552c00e165ca7adcad2d07fa9c00cc49aad97d5bfd04167f5b272c41bfdb`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "unreadDeliveries": FunctionReference<"unreadDeliveries", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["deliveries"]>, "snapback-explicit-v1">;
+  "unreadDeliveries": FunctionReference<"unreadDeliveries", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"deliveries">; "_version": number; "_createdAt": number; "_updatedAt": number; "recipientId": string; "roomId": Id<"rooms">; "messageId": Id<"messages">; "authorId": string; "authorName": string; "body": string; "pageKey": string; "createdAt": number; "unread": boolean }>, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
 }

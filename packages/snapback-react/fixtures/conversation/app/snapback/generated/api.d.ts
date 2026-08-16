@@ -266,7 +266,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `snapback.v1:sessions:inputs:sha256:b6b90dcef46b18e26a86546a5a36f458eb75dd84f314b4ff244c4b33759c1fe1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "conversationDetails": FunctionReference<"conversationDetails", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["conversations"]>, "snapback-explicit-v1">;
+  "conversationDetails": FunctionReference<"conversationDetails", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_id": Id<"conversations">; "_version": number; "_createdAt": number; "_updatedAt": number; "kind": string; "title": string; "updatedAt": number; "lastPreview": string }>, "snapback-explicit-v1">;
   /**
    * LiveQuery reference `app:membershipsForConversation`.
    * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
@@ -275,7 +275,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `snapback.v1:sessions:inputs:sha256:b6b90dcef46b18e26a86546a5a36f458eb75dd84f314b4ff244c4b33759c1fe1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "membershipsForConversation": FunctionReference<"membershipsForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["memberships"]>, "snapback-explicit-v1">;
+  "membershipsForConversation": FunctionReference<"membershipsForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_id": Id<"memberships">; "_version": number; "_createdAt": number; "_updatedAt": number; "conversationId": Id<"conversations">; "userId": Id<"users"> }>, "snapback-explicit-v1">;
   /**
    * LiveQuery reference `app:messagesForConversation`.
    * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
@@ -284,7 +284,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `snapback.v1:sessions:inputs:sha256:b6b90dcef46b18e26a86546a5a36f458eb75dd84f314b4ff244c4b33759c1fe1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "messagesForConversation": FunctionReference<"messagesForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["messages"]>, "snapback-explicit-v1">;
+  "messagesForConversation": FunctionReference<"messagesForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_id": Id<"messages">; "_version": number; "_createdAt": number; "_updatedAt": number; "conversationId": Id<"conversations">; "senderId": Id<"users">; "kind": string; "text": null | string; "image": null | string; "replyToId": null | Id<"messages">; "sentAt": number }>, "snapback-explicit-v1">;
   /**
    * LiveQuery reference `app:reactionsForConversation`.
    * Legal client verbs/hooks: `query`, `liveQuery`, `useSnapbackQuery`, `useSnapbackQueries`.
@@ -293,7 +293,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `snapback.v1:sessions:inputs:sha256:b6b90dcef46b18e26a86546a5a36f458eb75dd84f314b4ff244c4b33759c1fe1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "reactionsForConversation": FunctionReference<"reactionsForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<GeneratedDataModel["reactions"]>, "snapback-explicit-v1">;
+  "reactionsForConversation": FunctionReference<"reactionsForConversation", 'LiveQuery', { conversationId: Id<'conversations'> }, ReadonlyArray<{ "_id": Id<"reactions">; "_version": number; "_createdAt": number; "_updatedAt": number; "conversationId": Id<"conversations">; "messageId": Id<"messages">; "userId": Id<"users">; "emoji": string }>, "snapback-explicit-v1">;
   /**
    * Mutation reference `app:removeReaction`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
@@ -338,7 +338,7 @@ export interface GeneratedApi {
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
    * Build identity: `snapback.v1:sessions:inputs:sha256:b6b90dcef46b18e26a86546a5a36f458eb75dd84f314b4ff244c4b33759c1fe1`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
-  "users": FunctionReference<"users", 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["users"]>, "snapback-explicit-v1">;
+  "users": FunctionReference<"users", 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_id": Id<"users">; "_version": number; "_createdAt": number; "_updatedAt": number; "handle": string; "name": string; "color": string }>, "snapback-explicit-v1">;
   messageImageUpload: AssetUploadReference<"messageImageUpload", Record<string, never>>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
