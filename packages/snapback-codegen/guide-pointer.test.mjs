@@ -131,6 +131,7 @@ assert.deepEqual(
     'auth.protecting-data',
     'auth.sessions-and-principals',
     'backend.mutations',
+    'backend.queries',
     'backend.relational-queries',
   ],
   'guidePointer coverage includes both policy diagnostics and the proved plain-join advisory',

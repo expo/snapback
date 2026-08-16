@@ -43,6 +43,7 @@ import {
   handlerTypeScriptCompilerOptions,
   handlerTypeScriptIdentity,
 } from './typescript-profile.mjs';
+import { nPlusOneBatchReadAdvisories } from './n-plus-one-advisory.mjs';
 import {
   mapGeneratedTypeScriptPosition,
   transformTypeScriptHandler,
@@ -3741,6 +3742,9 @@ async function generateInProcessLocked({
         : canonicalRendered;
       return {
         source: rendered.source,
+        analysisSource: extracted.expressionSource,
+        analysisDirect: true,
+        analysisSourceSpan: extracted.sourceSpan,
         exportName: name,
         handlerForm: 'inline',
         inlineAst: extracted.ast,
@@ -3756,7 +3760,20 @@ async function generateInProcessLocked({
     const exportName = def.js?.exportName ?? name;
     return {
       source: loaded?.source ?? '',
-      exportName: def.js?.exportName,
+      analysisSource: loaded?.source ?? '',
+      analysisDirect: false,
+      analysisSourceSpan: loaded
+        ? { file: loaded.identity, line: 1, column: 1 }
+        : null,
+      analysisSourcePosition: loaded?.sourceMap
+        ? (line, column) => {
+            const mapped = mapGeneratedTypeScriptPosition(loaded.sourceMap, line, column);
+            return mapped
+              ? { file: loaded.identity, line: mapped.line, column: mapped.column }
+              : null;
+          }
+        : null,
+      exportName,
       handlerForm: 'module',
       sourceSpan: null,
       typescriptIdentity: loaded?.typescriptIdentity ?? null,
@@ -4699,6 +4716,15 @@ async function generateInProcessLocked({
       const handlerSource = resolvedHandler?.source ?? '';
       const handlerExportName = resolvedHandler?.exportName ?? name;
       validateStaticUniqueManyCalls(handlerSource, name, tables, err);
+      diagnostics.push(...nPlusOneBatchReadAdvisories({
+        source: resolvedHandler?.analysisSource ?? '',
+        exportName: handlerExportName,
+        direct: resolvedHandler?.analysisDirect === true,
+        sourceSpan: resolvedHandler?.analysisSourceSpan,
+        sourcePosition: resolvedHandler?.analysisSourcePosition,
+        functionName: name,
+        tables,
+      }));
       if (handlerSource) {
         for (const problem of scanStaticallyInvalidJsQueryResults(
           handlerSource,
@@ -5116,6 +5142,15 @@ async function generateInProcessLocked({
       }
       const resolvedHandler = resolveJsHandler(def, name);
       validateStaticUniqueManyCalls(resolvedHandler?.source ?? '', name, tables, err);
+      diagnostics.push(...nPlusOneBatchReadAdvisories({
+        source: resolvedHandler?.analysisSource ?? '',
+        exportName: resolvedHandler?.exportName ?? name,
+        direct: resolvedHandler?.analysisDirect === true,
+        sourceSpan: resolvedHandler?.analysisSourceSpan,
+        sourcePosition: resolvedHandler?.analysisSourcePosition,
+        functionName: name,
+        tables,
+      }));
       functions.push({
         name,
         kind: 'Mutation',

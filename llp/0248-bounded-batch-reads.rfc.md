@@ -6,17 +6,19 @@
 generation, Handler authoring, Diagnostics, Performance, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-12 (author acceptance: Charlie Cheever accepted this RFC at
-the exact revision bound by the final GPT-5.6 Sol round-3 READY artifacts,
-SHA-256 `80bfed8960746cc53f99dd8246ea659f8a3f183a322cc3543a1f7bbcc9367022`; see
-`llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-2 revision: separated request/response overflow;
-removed public logical-key digests). 2026-08-12 (round-1
-revision: moved dynamic unique-key validation
-to the runtime boundary, canonicalized keys by manifest order, excluded
+**Revised:** 2026-08-15 (Rollout 5 implementation note: added the flag-only
+generation-time N+1 diagnostic). 2026-08-12 (author acceptance: Charlie
+Cheever accepted this RFC at the exact revision bound by the final GPT-5.6 Sol
+round-3 READY artifacts, SHA-256
+`80bfed8960746cc53f99dd8246ea659f8a3f183a322cc3543a1f7bbcc9367022`; see
+`llp/reviews/0245-0249-single-family-super-refine.md`). 2026-08-12 (round-2
+revision: separated request/response overflow; removed public logical-key
+digests). 2026-08-12 (round-1 revision: moved dynamic unique-key validation to
+the runtime boundary, canonicalized keys by manifest order, excluded
 non-participating unique-where-present keys, and bounded public size/chunk
-facts). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol
-xhigh refinement loop; initial Draft came from Clique handler-side N+1
-evidence and defined the imperative fallback beside LLP 0242)
+facts). 2026-08-12 (entered an author-invoked, single-family GPT-5.6 Sol xhigh
+refinement loop; initial Draft came from Clique handler-side N+1 evidence and
+defined the imperative fallback beside LLP 0242)
 **Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0053, LLP 0080,
 LLP 0108, LLP 0110, LLP 0120, LLP 0146, LLP 0198, LLP 0231, LLP 0237,
 LLP 0240, LLP 0242
@@ -151,7 +153,8 @@ automatic rewriting out of scope.
 2. Implement `getMany` locally with duplicate/order/snapshot/visibility tests.
 3. Add `uniqueMany` with generation-time complete-unique-index validation.
 4. Add Workerd/hosted twin or declare target capability gaps before generation.
-5. Add captured-dependency/cost inspection and N+1 diagnostics.
+5. Add captured-dependency/cost inspection and N+1 diagnostics. Implemented
+   2026-08-15; see the Rollout 5 implementation note below.
 6. Rerun the Clique feed hydration control against LLP 0242's declarative feed
    where applicable; publish round-trip/read-amplification measurements.
 
@@ -194,9 +197,9 @@ automatic rewriting out of scope.
 `local-dev-sqlite-ibex` target with this RFC's implementation landing (LLP
 0134 same-commit introduction act; record
 `tests/acceptance/maturity/bounded-batch-reads-2026-08-12.introduction.json`).
-Rollouts 1–3 plus cost/dependency evidence are implemented; the Cloudflare DO
-and remote-service targets carry explicit capability gaps; the N+1 diagnostic
-and the measurement rerun remain open
+Rollouts 1–3 plus cost/dependency evidence and the Rollout 5 N+1 diagnostic are
+implemented; the Cloudflare DO and remote-service targets carry explicit
+capability gaps; the measurement rerun remains open
 (`issues/20260812-0247-0248-measurement-reruns.md`).
 
 ## Addendum — invocation-snapshot scope (2026-08-12)
@@ -210,6 +213,31 @@ than one frozen invocation snapshot. The binding form for this RFC is the
 Acceptance criterion: all members of **one batch** resolve inside one pinned
 read snapshot on every lane, so a concurrent write cannot split a batch. This
 addendum records scope, not a design change.
+
+## Implementation note — Rollout 5 N+1 diagnostic (2026-08-15)
+
+Rollout 5's N+1 signal lives in `snapback-codegen`, where the handler source,
+schema, and declared unique-index facts already meet. It emits the advisory
+`SNAPBACK_AUTHORING_N_PLUS_ONE_BATCH_READ` when static analysis finds a
+literal same-table `ctx.db.get`, or a complete lookup through a declared
+total unique index ending in `.first()`, executed unconditionally on each loop
+iteration. Literal arrays and simple C-style loops with literal initial value,
+bound, and step carry a known cardinality; a known loop below three iterations
+is quiet, while an unknown cardinality is eligible only for an unconditional
+call site. Calls nested under an `if`, `switch`, ternary, or logical guard do
+not inherit the enclosing loop cardinality. Conditional unique indexes whose
+manifest carries `whereApplicable` are also quiet because `uniqueMany` refuses
+their absent or null components and is not behaviorally equivalent.
+
+This is deliberately a flag-only authoring diagnostic. It suggests `getMany`
+or `uniqueMany`, marks its remediation non-machine-applicable, and does not
+rewrite the handler or add logic to the request/runtime read path. Already
+batched calls, point reads outside loops, non-unique query chains, and loops
+whose table is not one static literal do not fire. This conservative
+proven-executions rule deliberately prefers missing an exotic batching shape
+to warning on a correct pattern. The captured-dependency and cost evidence was
+already shipped with Rollouts 1–3; the Rollout 6 measurement rerun remains
+separate and open.
 
 ## Open questions
 

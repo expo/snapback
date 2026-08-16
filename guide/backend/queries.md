@@ -4,13 +4,13 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics, backend.batch-reads]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/authoring-validation.test.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-harness/envelope.test.mjs, schemas/capability.manifest.local-dev-sqlite-ibex.json, src/manifest.rs, src/runtime.rs, src/storage.rs, src/result_contract.rs, tests/local_v0.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/n-plus-one-advisory.mjs, packages/snapback-codegen/n-plus-one-advisory.test.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/authoring-validation.test.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-harness/envelope.test.mjs, schemas/capability.manifest.local-dev-sqlite-ibex.json, src/manifest.rs, src/runtime.rs, src/storage.rs, src/result_contract.rs, tests/local_v0.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:d73e07d20ee44c44a46e6694e7dac32eb072847d7010065c13373cb282b61df1
+reviewed-authorities-digest: sha256:46147d74a2d26fe478b7826855e02827d9f62f3d34a9ad56ef34fa90d6458bf1
 ---
 
 # Queries
@@ -240,6 +240,31 @@ related rows or repeating a stable relationship shape, choose
 at that point: those declarative carriers can own the relationship plus live,
 cursor, retention, and whole-plan cost facts; a batch remains an imperative
 exact lookup.
+
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** The N+1 authoring diagnostic is newer than the newest
+> published Snapback closure, 0.1.22. Use it from a source checkout until the
+> next qualified closure is published.
+
+### Catch repeated point reads during generation
+
+Code generation warns with `SNAPBACK_AUTHORING_N_PLUS_ONE_BATCH_READ` when
+static handler analysis finds a literal same-table `ctx.db.get`, or a
+complete `.first()` lookup through a declared total unique index, executed
+unconditionally on every loop iteration. This proven-executions rule keeps
+calls under an `if`, `switch`, ternary, or logical guard quiet rather than
+assigning them the whole loop cardinality. Literal arrays and simple C-style
+loops with literal initial value, bound, and step carry a known cardinality;
+known loops below three iterations stay quiet, while an unknown cardinality is
+eligible only for an unconditional call site.
+
+The warning suggests `getMany` or `uniqueMany` and never rewrites the handler
+or changes how any read executes. `whereApplicable` unique indexes stay quiet:
+their optional components do not participate in uniqueness when absent, while
+`uniqueMany` requires every component to be present and non-null. Calls already
+using either batch method, point reads outside loops, guarded calls, and loops
+whose table is not one static literal also stay quiet.
 
 ## Bound every collection intentionally
 

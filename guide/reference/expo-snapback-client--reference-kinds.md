@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:f0979db7a5c93646ae48670d01401a486c5e6234a659
 # @expo/snapback-client/reference-kinds
 
 Build-bound public API projection for `@expo/snapback-client/reference-kinds`. Canonical registry identity:
-`sha256:1213f2a47ec7112c46749695b4e3795510916c4410ec42f700216caab0a264d7`.
+`sha256:37f8a9833c197a4076bbf8dba0ee477469239dcbe770be23b3d23559cfe98d94`.
 Runtime parity condition:
 `import` → `packages/snapback-client/reference-kinds.mjs`.
 

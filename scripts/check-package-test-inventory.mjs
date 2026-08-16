@@ -327,6 +327,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'membership-search-authoring.test.mjs',
       'micro-profile.test.mjs',
       'mixed-route-v2.test.mjs',
+      'n-plus-one-advisory.test.mjs',
       'omission-defaults.test.mjs',
       'operation-schemas.test.mjs',
       'plain-join-advisory.test.mjs',
@@ -510,7 +511,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 292,
+  expectedTotal = 293,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -915,6 +916,8 @@ export function checkPackageTestInventories(options = {}) {
 // assetCollection declaration/lowering/source-attributed-refusal suite.
 // 291 -> 292 (2026-08-15, LLP 0258 Phase 1 Slice 2): @expo/snapback-client
 // gains the framework-neutral application auth owner/facade conformance suite.
+// 292 -> 293 (2026-08-15, LLP 0248 Rollout 5): @expo/snapback-codegen gains
+// the flag-only N+1 batch-read advisory and threshold/negative-shape suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

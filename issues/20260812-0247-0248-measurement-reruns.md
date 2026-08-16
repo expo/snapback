@@ -17,10 +17,14 @@ record); `demos/messaging-snapback` is the closest in-repo surrogate. Either
 run the LLP 0201 benchmark rig fresh, or build the control on
 `demos/messaging-snapback` and label it a surrogate. Numbers land as
 calibration evidence per LLP 0189 unless bound to a scoped qualification
-digest. Also owed from LLP 0248: rollout 5's N+1 dev diagnostic (flag
-repeated same-table get/unique loops; never rewrite), and the Cloudflare DO
-host-op twin stays a declared capability gap until it composes LLP 0231
-visibility.
+digest.
+
+- [x] LLP 0248 rollout 5's N+1 dev diagnostic: implemented 2026-08-15 as the
+  flag-only codegen advisory `SNAPBACK_AUTHORING_N_PLUS_ONE_BATCH_READ`
+  (proven-executions rule: unconditional same-table get/complete-unique call
+  sites only); it never rewrites handler source.
+- [ ] The Cloudflare DO host-op twin stays a declared capability gap until it
+  composes LLP 0231 visibility.
 
 ## Update (2026-08-15)
 
