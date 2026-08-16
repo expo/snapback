@@ -209,7 +209,7 @@ pub(super) async fn asset_tus_head_route(
 }
 
 pub(super) async fn asset_tus_patch_route(
-    State(state): State<SharedSnapback>,
+    State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(id): Path<String>,
     headers: HeaderMap,
@@ -263,7 +263,15 @@ pub(super) async fn asset_tus_patch_route(
         .get(TUS_UPLOAD_CHECKSUM_HEADER)
         .and_then(|value| value.to_str().ok())
         .map(str::to_owned);
-    let attempt = with_snapback(&state, move |snapback| {
+    // Serialize only requests targeting the same attempt. The gate spans the
+    // unlocked append and the final CAS, preventing competing same-offset
+    // writers from overwriting the bytes that the winner acknowledges.
+    let attempt_guard = runtime.asset_tus_patch_gates.acquire(&id).await;
+    let state = runtime.snapback.clone();
+    let preflight_authority = authority.clone();
+    let preflight_id = id.clone();
+    let preflight_body = body.clone();
+    let ticket = with_snapback(&state, move |snapback| {
         let checksum = checksum_header.as_deref().map(|value| {
             let mut parts = value.splitn(2, ' ');
             (
@@ -271,7 +279,35 @@ pub(super) async fn asset_tus_patch_route(
                 parts.next().unwrap_or_default(),
             )
         });
-        snapback.asset_tus_patch(&authority, &id, offset, body.as_ref(), checksum)
+        snapback.asset_tus_patch_preflight(
+            &preflight_authority,
+            &preflight_id,
+            offset,
+            preflight_body.as_ref(),
+            checksum,
+        )
+    })
+    .await?;
+    // @ref LLP 0059#prohibited-overlap — the 8 MiB write/flush/sync owns no
+    //   LocalSnapback guard. Write-then-record preserves LLP 0044's crash
+    //   story: a crash before the CAS leaves a retryable incomplete PATCH.
+    let (ticket, _attempt_guard) = tokio::task::spawn_blocking(move || {
+        ticket.append(body.as_ref())?;
+        // Return the owned guard with the continuity ticket. If the request
+        // future is cancelled, spawn_blocking still retains the gate until
+        // this unabortable append has stopped touching the staging tail.
+        Ok::<_, SnapbackError>((ticket, attempt_guard))
+    })
+    .await
+    .map_err(|error| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+            "assets",
+            format!("asset TUS staging append task failed: {error}"),
+        ))
+    })??;
+    let attempt = with_snapback(&state, move |snapback| {
+        snapback.asset_tus_patch_commit(&authority, ticket)
     })
     .await?;
     let mut response = StatusCode::NO_CONTENT.into_response();

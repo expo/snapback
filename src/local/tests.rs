@@ -2836,6 +2836,95 @@ fn asset_attempt_lifecycle_creates_transfers_resumes_and_cancels() {
 }
 
 #[test]
+fn asset_tus_patch_commit_cas_refuses_a_moved_offset_before_acknowledging() {
+    let mut snapback = asset_test_snapback();
+    let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+    let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+    let created = snapback
+        .asset_attempt_create(&creator, asset_create_request(Some(5)))
+        .expect("attempt creates");
+    let attempt_id = created.task.attempt_id;
+
+    let stale = snapback
+        .asset_tus_patch_preflight(&transfer, &attempt_id, 0, b"first", None)
+        .expect("first same-offset request preflights");
+    stale
+        .append(b"first")
+        .expect("first request durably appends before its CAS");
+
+    let winner = snapback
+        .asset_tus_patch(&transfer, &attempt_id, 0, b"other", None)
+        .expect("competing request advances the acknowledged offset");
+    assert_eq!(winner.acknowledged_offset, 5);
+    let error = snapback
+        .asset_tus_patch_commit(&transfer, stale)
+        .expect_err("the stale durable append cannot acknowledge over the winner");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_OFFSET_CONFLICT");
+
+    let store = snapback.asset_store().expect("store");
+    let staged = std::fs::read(store.staging_path(&winner.staging_key).unwrap()).unwrap();
+    assert_eq!(staged, b"other");
+    let stale_offset = match snapback
+        .asset_tus_patch_preflight(&transfer, &attempt_id, 0, b"stale", None)
+    {
+        Err(error) => error,
+        Ok(_) => panic!("a stale Upload-Offset must refuse before another append"),
+    };
+    assert_eq!(
+        stale_offset.diagnostic.code,
+        "SNAPBACK_ASSET_OFFSET_CONFLICT"
+    );
+    assert_eq!(
+        std::fs::read(store.staging_path(&winner.staging_key).unwrap()).unwrap(),
+        b"other"
+    );
+}
+
+#[test]
+fn asset_tus_patch_commit_cas_includes_checksum_grade() {
+    let mut snapback = asset_test_snapback();
+    let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+    let transfer = asset_dev_authority(&snapback, "user_a", InvocationSource::AssetTransfer);
+    let created = snapback
+        .asset_attempt_create(&creator, asset_create_request(Some(1)))
+        .expect("attempt creates");
+    let attempt_id = created.task.attempt_id;
+    let checksum = asset_chunk_checksum(b"x");
+    let stale = snapback
+        .asset_tus_patch_preflight(
+            &transfer,
+            &attempt_id,
+            0,
+            b"x",
+            Some(("sha256", &checksum)),
+        )
+        .expect("checksummed request preflights");
+    stale
+        .append(b"x")
+        .expect("checksummed bytes become durable before acknowledgement");
+
+    let demoted = snapback
+        .asset_tus_patch(&transfer, &attempt_id, 0, b"", None)
+        .expect("an empty checksum-less PATCH demotes the grade at the same offset");
+    assert_eq!(demoted.acknowledged_offset, 0);
+    assert!(!demoted.all_chunks_checksummed);
+    let error = snapback
+        .asset_tus_patch_commit(&transfer, stale)
+        .expect_err("the checksum-grade CAS detects same-offset movement");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_OFFSET_CONFLICT");
+
+    let retried = snapback
+        .asset_tus_patch(&transfer, &attempt_id, 0, b"y", None)
+        .expect("the unacknowledged durable tail is retryable");
+    assert_eq!(retried.acknowledged_offset, 1);
+    let store = snapback.asset_store().expect("store");
+    assert_eq!(
+        std::fs::read(store.staging_path(&retried.staging_key).unwrap()).unwrap(),
+        b"y"
+    );
+}
+
+#[test]
 fn asset_attempt_refusals_are_structured() {
     let mut snapback = asset_test_snapback();
     let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);

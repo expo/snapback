@@ -595,6 +595,30 @@ pub(crate) enum FinalizePreflightV1 {
     Proceed(FinalizePrepareTicketV1),
 }
 
+/// Immutable continuity ticket between TUS PATCH validation and its durable
+/// offset acknowledgement. The byte-store handle owns no `LocalSnapback`
+/// borrow, so the potentially slow append and sync can run off the global
+/// writer before the commit half compares the exact state observed here.
+pub(crate) struct AssetTusPatchTicketV1 {
+    pub(crate) attempt_id: String,
+    pub(crate) staging_key: String,
+    pub(crate) expected_offset: u64,
+    pub(crate) expected_all_chunks_checksummed: bool,
+    pub(crate) new_offset: u64,
+    pub(crate) all_chunks_checksummed: bool,
+    pub(crate) store: std::sync::Arc<dyn crate::assets_store::AssetStore>,
+}
+
+impl AssetTusPatchTicketV1 {
+    /// Write-then-record half of the TUS crash protocol. A successful return
+    /// proves the chunk is durable, but deliberately does not claim that its
+    /// offset has been acknowledged yet.
+    pub(crate) fn append(&self, chunk: &[u8]) -> SnapbackResult<()> {
+        self.store
+            .append_staging(&self.staging_key, self.expected_offset, chunk)
+    }
+}
+
 /// Immutable continuity ticket between asset-finalize preflight and commit.
 /// The byte-store handle is config-derived while Local is available, then
 /// clone-shareable without retaining any LocalSnapback or database borrow.

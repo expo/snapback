@@ -9,6 +9,42 @@
 use crate::assets::AssetFsStore;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
+const TUS_PATCH_LOCK_STRIPES: usize = 64;
+
+/// Clone-shared, per-attempt serialization for the unlocked TUS append/CAS
+/// window. Requests for one attempt cannot overwrite each other's staging tail
+/// before the winning offset CAS; unrelated attempts normally remain parallel,
+/// with bounded hash collisions allowed to serialize conservatively. Acquired
+/// guards are owned so an unabortable blocking append retains serialization if
+/// its awaiting HTTP request is cancelled.
+#[derive(Clone)]
+pub(crate) struct AssetTusPatchGates {
+    stripes: std::sync::Arc<Vec<std::sync::Arc<tokio::sync::Mutex<()>>>>,
+}
+
+impl Default for AssetTusPatchGates {
+    fn default() -> Self {
+        Self {
+            stripes: std::sync::Arc::new(
+                (0..TUS_PATCH_LOCK_STRIPES)
+                    .map(|_| std::sync::Arc::new(tokio::sync::Mutex::new(())))
+                    .collect(),
+            ),
+        }
+    }
+}
+
+impl AssetTusPatchGates {
+    pub(crate) async fn acquire(&self, attempt_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+        use std::hash::{Hash as _, Hasher as _};
+
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        attempt_id.hash(&mut hasher);
+        let stripe = (hasher.finish() as usize) % self.stripes.len();
+        self.stripes[stripe].clone().lock_owned().await
+    }
+}
+
 /// The closed set of byte-store backends selectable for one LocalSnapback
 /// instance. Backend choice is captured at instance construction; asset paths
 /// never consult the process environment.

@@ -535,6 +535,8 @@ impl LocalDatabase {
     pub(super) fn attempt_tus_patch(
         &mut self,
         attempt_id: &str,
+        expected_offset: u64,
+        expected_all_checksummed: bool,
         new_offset: u64,
         all_checksummed: bool,
         now: u64,
@@ -547,6 +549,21 @@ impl LocalDatabase {
                     format!("unknown attempt {attempt_id}"),
                 )
             })?;
+            if !attempt.state.is_current() {
+                return Err(asset_terminal_error(&attempt));
+            }
+            if attempt.acknowledged_offset != expected_offset
+                || attempt.all_chunks_checksummed != expected_all_checksummed
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_ASSET_OFFSET_CONFLICT",
+                    "assets",
+                    format!(
+                        "upload state moved before acknowledgement (expected offset {expected_offset}, current offset {})",
+                        attempt.acknowledged_offset
+                    ),
+                ));
+            }
             if attempt.state == assets::AssetAttemptState::Open {
                 assets::transition_attempt(
                     tx,
@@ -1515,12 +1532,20 @@ impl<'a> AssetAttemptsKernel<'a> {
     pub fn attempt_tus_patch(
         &mut self,
         attempt_id: &str,
+        expected_offset: u64,
+        expected_all_checksummed: bool,
         new_offset: u64,
         all_checksummed: bool,
         now: u64,
     ) -> SnapbackResult<assets::AssetAttemptRecordV1> {
-        self.db
-            .attempt_tus_patch(attempt_id, new_offset, all_checksummed, now)
+        self.db.attempt_tus_patch(
+            attempt_id,
+            expected_offset,
+            expected_all_checksummed,
+            new_offset,
+            all_checksummed,
+            now,
+        )
     }
 
     pub fn stage_prepared_variant_plan(

@@ -2471,6 +2471,10 @@ pub struct AppState {
     /// staged write wrapper; detached and embedded callers keep legacy mutex
     /// behavior by leaving it absent.
     pub(crate) live_fanout_coalescer: Option<Arc<crate::live_coalesce::LiveFanoutCoalescer>>,
+    /// Per-attempt serialization across the TUS durable-append/offset-CAS
+    /// window. This is independent of the global Local writer, so one slow
+    /// staging sync does not stall unrelated database work.
+    pub(crate) asset_tus_patch_gates: crate::assets_store::AssetTusPatchGates,
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
@@ -2683,6 +2687,7 @@ impl AppState {
                 console_reachability: ConsoleReachabilityRegistry::default(),
                 network_profiles,
                 live_fanout_coalescer: None,
+                asset_tus_patch_gates: crate::assets_store::AssetTusPatchGates::default(),
                 connections,
                 connected_clients,
                 bundle_pending: crate::bundle::PendingBundleRegistry::default(),

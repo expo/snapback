@@ -2727,8 +2727,8 @@ pub struct LocalSnapback {
 }
 
 pub(crate) use crate::assets::{
-    FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1, FinalizePreflightV1, FinalizePreparationV1,
-    FinalizePrepareTicketV1, FinalizePutTicketV1,
+    AssetTusPatchTicketV1, FinalizeCommitTicketV1, FinalizePhaseAOutcomeV1, FinalizePreflightV1,
+    FinalizePreparationV1, FinalizePrepareTicketV1, FinalizePutTicketV1,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -9146,6 +9146,23 @@ impl LocalSnapback {
         chunk: &[u8],
         checksum: Option<(&str, &str)>,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
+        let ticket =
+            self.asset_tus_patch_preflight(authority, attempt_id, offset, chunk, checksum)?;
+        ticket.append(chunk)?;
+        self.asset_tus_patch_commit(authority, ticket)
+    }
+
+    /// Validate one TUS chunk and freeze the exact record state its durable
+    /// append is allowed to advance. The HTTP route releases Local after this
+    /// preflight and carries only this owned ticket into the byte-store lane.
+    pub(crate) fn asset_tus_patch_preflight(
+        &mut self,
+        authority: &PreparedAuthority,
+        attempt_id: &str,
+        offset: u64,
+        chunk: &[u8],
+        checksum: Option<(&str, &str)>,
+    ) -> SnapbackResult<AssetTusPatchTicketV1> {
         use crate::assets;
         use sha2::Digest as _;
 
@@ -9195,20 +9212,51 @@ impl LocalSnapback {
             None => all_checksummed = false,
         }
 
-        // Append at the verified offset. Write-then-record: bytes land in
-        // restricted staging before the acknowledged offset moves, so a
-        // crash between the two re-receives the tail chunk idempotently.
-        let store = self.asset_store_obj()?;
-        store.append_staging(&attempt.staging_key, offset, chunk)?;
-
-        let now = now_millis();
-        let attempt = self.db.asset_attempts().attempt_tus_patch(
-            attempt_id,
+        Ok(AssetTusPatchTicketV1 {
+            attempt_id: attempt_id.to_owned(),
+            staging_key: attempt.staging_key,
+            expected_offset: offset,
+            expected_all_chunks_checksummed: attempt.all_chunks_checksummed,
             new_offset,
-            all_checksummed,
+            all_chunks_checksummed: all_checksummed,
+            store: self.asset_store_obj()?,
+        })
+    }
+
+    /// Acknowledge a previously durable TUS append only when the attempt is
+    /// still at the exact offset/checksum state observed by preflight.
+    ///
+    /// @ref LLP 0044#byte-stores-and-resumable-transfer — a durable append
+    ///   without this CAS remains an incomplete, retryable PATCH; stale
+    ///   `Upload-Offset` values never advance the attempt.
+    pub(crate) fn asset_tus_patch_commit(
+        &mut self,
+        authority: &PreparedAuthority,
+        ticket: AssetTusPatchTicketV1,
+    ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
+        let attempt = self.asset_attempt_for_caller(authority, &ticket.attempt_id)?;
+        self.db.asset_attempts().attempt_require_current(&attempt)?;
+        if attempt.acknowledged_offset != ticket.expected_offset
+            || attempt.all_chunks_checksummed != ticket.expected_all_chunks_checksummed
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_OFFSET_CONFLICT",
+                "assets",
+                format!(
+                    "upload state moved before acknowledgement (expected offset {}, current offset {})",
+                    ticket.expected_offset, attempt.acknowledged_offset
+                ),
+            ));
+        }
+        let now = now_millis();
+        self.db.asset_attempts().attempt_tus_patch(
+            &ticket.attempt_id,
+            ticket.expected_offset,
+            ticket.expected_all_chunks_checksummed,
+            ticket.new_offset,
+            ticket.all_chunks_checksummed,
             now,
-        )?;
-        Ok(attempt)
+        )
     }
 
     pub(crate) fn asset_tus_terminate(
