@@ -1,0 +1,1814 @@
+{
+  "acknowledgedExperimentalCapabilities": [
+    "args_contract_v1",
+    "assets.media-collection.v1",
+    "assets.media-command.v1",
+    "assets.media-ref-projection.v1",
+    "bounded_children_v1",
+    "inline_handler_v1",
+    "result_contract_v1"
+  ],
+  "appId": "media-happy-post",
+  "artifactKind": "functionManifest",
+  "assetUploadIntents": [
+    {
+      "accept": {
+        "maxBytes": 8000000,
+        "mediaTypes": [
+          "image/jpeg",
+          "image/png"
+        ]
+      },
+      "access": {
+        "read": "via-references"
+      },
+      "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+      "authRequirement": "authenticated",
+      "declaredReads": [],
+      "delivery": {
+        "kind": "public-immutable"
+      },
+      "exportedName": "profileImageUpload",
+      "handlerForm": "inline",
+      "id": "media-happy-post:profileImageUpload",
+      "image": {
+        "location": "strip"
+      },
+      "implementationHash": "sha256:1f2025ec91c225da9e1baf83876ab3efd9ed0e83c47b6ed91d9c5435354bc19b",
+      "intentPolicyHash": "sha256:0cf00ec4cf35d1350e49e2480fa5c74ed2794d64a799d5c95e3b9f2efa84b541",
+      "name": "profileImageUpload",
+      "runtime": {
+        "IbexModule": {
+          "export": "profileImageUpload",
+          "source": "globalThis.__snapbackHandlers = { \"profileImageUpload\": (async (ctx) => ({ owner: ctx.auth.userId })) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "functions.mjs",
+        "line": 23
+      }
+    },
+    {
+      "accept": {
+        "maxBytes": 60000000,
+        "mediaTypes": [
+          "image/jpeg",
+          "image/png",
+          "video/mp4",
+          "video/quicktime"
+        ]
+      },
+      "access": {
+        "read": "via-references"
+      },
+      "argsContractHash": "sha256:32fbef7c7e86bc9f4d07b56724204c069ccbe6cf53f6b9846cdd09d50918165e",
+      "authRequirement": "authenticated",
+      "declaredReads": [],
+      "delivery": {
+        "kind": "public-immutable"
+      },
+      "exportedName": "sharedMediaUpload",
+      "handlerForm": "inline",
+      "id": "media-happy-post:sharedMediaUpload",
+      "image": {
+        "location": "strip"
+      },
+      "implementationHash": "sha256:9a4e0462257c0555972b9c1c7d2666373ebc085f5b1a35f0d2befbba2290b35c",
+      "intentPolicyHash": "sha256:b609f052be9d43ffa6b4bfec3b135e9f29b094a18b5787f0b13d95a484d41472",
+      "name": "sharedMediaUpload",
+      "runtime": {
+        "IbexModule": {
+          "export": "sharedMediaUpload",
+          "source": "globalThis.__snapbackHandlers = { \"sharedMediaUpload\": (async (ctx) => ({ owner: ctx.auth.userId })) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 14,
+        "file": "functions.mjs",
+        "line": 39
+      },
+      "video": {
+        "location": "strip"
+      }
+    }
+  ],
+  "authoredSourceHash": "sha256:ae0a77227ae1ce7898622913e436828b967ec99e76f4d8849ae30744da9d137a",
+  "authoringProfile": "snapback-explicit-v1",
+  "bundleHash": "snapback.v1:sessions:function:sha256:a141e5bc9fffb25dd9ff6e4d16d1f02417f41b237607aef7008a63d513683510",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "profileId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "profiles"
+            }
+          },
+          {
+            "name": "avatar",
+            "required": true,
+            "value": {
+              "kind": "assetRef"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:c59e7f2185153a243839497995831a6cca7314147c9ba4ba50462d0d48034dc6",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "changeAvatarMutation",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "profiles"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "profiles"
+          }
+        ]
+      },
+      "exportedName": "changeAvatarMutation",
+      "handlerForm": "inline",
+      "id": "media-happy-post:changeAvatarMutation",
+      "implementationHash": "sha256:df21d6fc90c052f3f3519e1dfcbe50c3ea4e3f1e4e901f46db292e9f87457499",
+      "kind": "Mutation",
+      "name": "changeAvatarMutation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "profiles",
+        "tables": [
+          "profiles"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "profiles"
+        }
+      },
+      "resultContractHash": "sha256:88fa60c693a9ef16cd6d909d9b3c02536cce9b594fe1cc8fcb98bcfc662132f6",
+      "runtime": {
+        "IbexModule": {
+          "export": "changeAvatarMutation",
+          "source": "globalThis.__snapbackHandlers = { \"changeAvatarMutation\": (async (ctx, args) => {\n    const profile = await ctx.db.get('profiles', args.profileId);\n    if (!profile || profile.ownerId !== ctx.auth.userId) {\n      throw new Error('Profile is unavailable for this persona.');\n    }\n    await ctx.db.patch('profiles', profile._id, {\n      avatar: await ctx.assets.attach(args.avatar, { upload: 'profileImageUpload' }),\n    });\n    return profile._id;\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 91
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "profiles",
+        "tables": [
+          "profiles"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "body",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assetIds",
+            "required": true,
+            "value": {
+              "element": {
+                "kind": "assetRef"
+              },
+              "kind": "array",
+              "maxItems": 4
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:4e0df690bda9e8cbd5f82778919e005920dda466cc8db8a57b4aa34912b48445",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createPostMutation",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "posts"
+          }
+        ]
+      },
+      "exportedName": "createPostMutation",
+      "handlerForm": "inline",
+      "id": "media-happy-post:createPostMutation",
+      "implementationHash": "sha256:e0170f7b31843c531b0088668b42f6f762ed8612f3747ce705509b22d4a9c7b2",
+      "kind": "Mutation",
+      "mediaCommandBindings": [
+        {
+          "collection": {
+            "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+            "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+            "name": "postMedia",
+            "ownerField": "ownerId",
+            "ownerTable": "posts"
+          },
+          "command": {
+            "id": "media-happy-post:createPost",
+            "name": "createPost"
+          },
+          "format": "snapback.media-command-binding.v1",
+          "identity": "sha256:d1ab4159c56ba110f62b3d1afd12f666471dfb1cdfd3b01f601d4d4ff5419ce5",
+          "itemIdentityPlan": {
+            "format": "snapback:asset-collection-item-id:v1",
+            "operation": "append",
+            "order": "input"
+          },
+          "media": {
+            "input": "media",
+            "intent": "sharedMediaUpload",
+            "intentPolicyHash": "sha256:b609f052be9d43ffa6b4bfec3b135e9f29b094a18b5787f0b13d95a484d41472",
+            "kinds": [
+              "image",
+              "video"
+            ],
+            "maxItems": 4,
+            "minItems": 0,
+            "mutationArg": "assetIds"
+          },
+          "parentResultPath": [
+            "_id"
+          ],
+          "passthroughArgs": [
+            "body"
+          ],
+          "sharing": {
+            "kind": "none",
+            "name": "none"
+          },
+          "targetMutation": {
+            "argsContractHash": "sha256:4e0df690bda9e8cbd5f82778919e005920dda466cc8db8a57b4aa34912b48445",
+            "id": "media-happy-post:createPostMutation",
+            "implementationHash": "sha256:349e5d6cf4056cb93fe7e4cb812ba860ff05f634936520175e157d0dea89c3cc",
+            "name": "createPostMutation",
+            "resultContractHash": "sha256:aae29e9209b06064547b06cbdb50f9d841d9a55159d431a254e6256553748e46"
+          },
+          "taskProfile": {
+            "concurrency": 3
+          }
+        }
+      ],
+      "name": "createPostMutation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "args_contract_v1",
+        "assets.media-collection.v1",
+        "assets.media-command.v1",
+        "assets.media-ref-projection.v1",
+        "ibex_ctx_db_host_bridge",
+        "inline_handler_v1",
+        "mutation_read_set_validation",
+        "result_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "posts"
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:aae29e9209b06064547b06cbdb50f9d841d9a55159d431a254e6256553748e46",
+      "runtime": {
+        "IbexModule": {
+          "export": "createPostMutation",
+          "source": "globalThis.__snapbackHandlers = { \"createPostMutation\": (async (ctx, args) => {\n    const body = args.body.trim();\n    if (body.length === 0 || body.length > 280) {\n      throw new Error('Post text must be between 1 and 280 characters.');\n    }\n    return {\n      _id: await ctx.db.insert('posts', { body }),\n    };\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 129
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "posts",
+        "tables": [
+          "posts"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "displayName",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:eb3707f2b2419926531b033edd13f1b41bb788869e2cb6968337a94ef24b2fe7",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "ensureProfile",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "profiles"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "profiles"
+          }
+        ]
+      },
+      "exportedName": "ensureProfile",
+      "handlerForm": "inline",
+      "id": "media-happy-post:ensureProfile",
+      "implementationHash": "sha256:fe7ee91b32d057ba6ff015f6f9890a625e15f648b5fd633b53cf11d778ba8034",
+      "kind": "Mutation",
+      "name": "ensureProfile",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "profiles",
+        "tables": [
+          "profiles"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1",
+        "inline_handler_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "id",
+          "table": "profiles"
+        }
+      },
+      "resultContractHash": "sha256:88fa60c693a9ef16cd6d909d9b3c02536cce9b594fe1cc8fcb98bcfc662132f6",
+      "runtime": {
+        "IbexModule": {
+          "export": "ensureProfile",
+          "source": "globalThis.__snapbackHandlers = { \"ensureProfile\": (async (ctx, args) => {\n    const existing = await ctx.db\n      .query('profiles')\n      .withIndex('by_owner')\n      .eq('ownerId', ctx.auth.userId)\n      .first();\n    if (existing) {\n      if (existing.displayName !== args.displayName) {\n        await ctx.db.patch('profiles', existing._id, { displayName: args.displayName });\n      }\n      return existing._id;\n    }\n    // ownerId is host-stamped on owner-policy inserts; authored owner\n    // input is refused by the ownership-composition rules.\n    return ctx.db.insert('profiles', { displayName: args.displayName });\n  }) };\n"
+        }
+      },
+      "sourceSpan": {
+        "column": 12,
+        "file": "functions.mjs",
+        "line": 64
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "profiles",
+        "tables": [
+          "profiles"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listPosts",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listPosts",
+      "handlerForm": "plan",
+      "id": "media-happy-post:listPosts",
+      "implementationHash": "sha256:884c8e9e29a7062fd9f926dad2358f3b202877cb0977019f48cebfbe66a9b3b7",
+      "kind": "LiveQuery",
+      "name": "listPosts",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "posts"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "posts"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "posts"
+      },
+      "resultContractHash": "sha256:1527fbcd9aa299f1b07941a5129e3e7491fc34bc08c1fec5cff04cd5a5e8dd77",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Desc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "posts",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listProfiles",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner",
+            "table": "profiles"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listProfiles",
+      "handlerForm": "plan",
+      "id": "media-happy-post:listProfiles",
+      "implementationHash": "sha256:8c440dcb75432d95051d6b3148071dac6306641ecac92b61d7c4a2067d4af85c",
+      "kind": "LiveQuery",
+      "name": "listProfiles",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "profiles",
+        "tables": [
+          "profiles"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1",
+        "assets.media-ref-projection.v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "profiles"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "ownerId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "displayName",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "avatar",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "classMTreatment": "class-m.none.v1",
+                    "classificationProfile": "detected-content-type.v1",
+                    "delivery": "primary",
+                    "kind": "mediaRef.v1",
+                    "kinds": [
+                      "image"
+                    ],
+                    "optional": true,
+                    "policyGeneration": "profile-image.v1",
+                    "retentionClass": "media-reference.v1",
+                    "sourceField": "avatar",
+                    "sourceFieldGeneration": "sha256:e1b54ff50c49e17cc9002929f9a8fe7a9ba3a2668f39a068cdd176d6ebafe396",
+                    "sourceTable": "profiles",
+                    "uploadIntent": "profileImageUpload",
+                    "variants": [
+                      "primary"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "profiles"
+      },
+      "resultContractHash": "sha256:d549fc4060183222fc7af18124a9990540f07ac590bfd6f4f415aac4cf70f566",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_owner",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "profiles",
+            "tableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            }
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "parentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "posts"
+            }
+          },
+          {
+            "name": "assetIds",
+            "required": true,
+            "value": {
+              "element": {
+                "kind": "assetRef"
+              },
+              "kind": "array",
+              "maxItems": 4
+            }
+          },
+          {
+            "name": "sharing",
+            "required": false,
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "plan",
+                  "required": true,
+                  "value": {
+                    "kind": "literal",
+                    "value": "none"
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:a7401457d1fded0fce5dd3357849692c4a807a66ea374fbae419aabaebc7dd58",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "postMediaAppend",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "append"
+            ],
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          }
+        ]
+      },
+      "exportedName": "postMediaAppend",
+      "handlerForm": "plan",
+      "id": "media-happy-post:postMediaAppend",
+      "implementationHash": "sha256:5276df8282416dba77d11c7ae2ea5ff5a5d92299c4b025ee5b72d7d923fefceb",
+      "kind": "Mutation",
+      "name": "postMediaAppend",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "posts",
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "parentId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "posts"
+              }
+            },
+            {
+              "name": "itemIds",
+              "required": true,
+              "value": {
+                "element": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                },
+                "kind": "array",
+                "maxItems": 4
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "AssetCollection": {
+                  "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                  "collection": "postMedia",
+                  "defaultSharingPlan": "none",
+                  "duplicatePolicy": "refuse.v1",
+                  "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                  "intent": "sharedMediaUpload",
+                  "itemsArg": "assetIds",
+                  "kinds": [
+                    "image",
+                    "video"
+                  ],
+                  "maxItems": 4,
+                  "operation": "append",
+                  "order": "manual",
+                  "ownerField": "ownerId",
+                  "ownerTable": "posts",
+                  "parentIdArg": "parentId",
+                  "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                  "sharingArg": "sharing",
+                  "sharingDerivationTables": [],
+                  "sharingGrantCapable": false
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "parentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "posts"
+            }
+          },
+          {
+            "name": "assetIds",
+            "required": true,
+            "value": {
+              "element": {
+                "kind": "assetRef"
+              },
+              "kind": "array",
+              "maxItems": 4
+            }
+          },
+          {
+            "name": "sharing",
+            "required": false,
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "plan",
+                  "required": true,
+                  "value": {
+                    "kind": "literal",
+                    "value": "none"
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:a7401457d1fded0fce5dd3357849692c4a807a66ea374fbae419aabaebc7dd58",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "postMediaReplace",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "replace"
+            ],
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          }
+        ]
+      },
+      "exportedName": "postMediaReplace",
+      "handlerForm": "plan",
+      "id": "media-happy-post:postMediaReplace",
+      "implementationHash": "sha256:872c7f72af2f94f3198150d190ab5b0c258bbe2cdf19064beb66e376f91c2107",
+      "kind": "Mutation",
+      "name": "postMediaReplace",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "posts",
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "parentId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "posts"
+              }
+            },
+            {
+              "name": "itemIds",
+              "required": true,
+              "value": {
+                "element": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                },
+                "kind": "array",
+                "maxItems": 4
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "AssetCollection": {
+                  "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                  "collection": "postMedia",
+                  "defaultSharingPlan": "none",
+                  "duplicatePolicy": "refuse.v1",
+                  "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                  "intent": "sharedMediaUpload",
+                  "itemsArg": "assetIds",
+                  "kinds": [
+                    "image",
+                    "video"
+                  ],
+                  "maxItems": 4,
+                  "operation": "replace",
+                  "order": "manual",
+                  "ownerField": "ownerId",
+                  "ownerTable": "posts",
+                  "parentIdArg": "parentId",
+                  "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                  "sharingArg": "sharing",
+                  "sharingDerivationTables": [],
+                  "sharingGrantCapable": false
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "parentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "posts"
+            }
+          },
+          {
+            "name": "itemIds",
+            "required": true,
+            "value": {
+              "element": {
+                "kind": "string",
+                "maxBytes": 1048576
+              },
+              "kind": "array",
+              "maxItems": 4
+            }
+          },
+          {
+            "name": "sharing",
+            "required": false,
+            "value": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "plan",
+                  "required": true,
+                  "value": {
+                    "kind": "literal",
+                    "value": "none"
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:677c197c0ef0e1ad1bb742eafb459bad59ff17c500fe1b6b0c4605152531e3ec",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "postMediaRemove",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "remove"
+            ],
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          }
+        ]
+      },
+      "exportedName": "postMediaRemove",
+      "handlerForm": "plan",
+      "id": "media-happy-post:postMediaRemove",
+      "implementationHash": "sha256:b93ccddc96a28da28654ef569f6e7c89f5bb85add043990ac313986f08e4a581",
+      "kind": "Mutation",
+      "name": "postMediaRemove",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "posts",
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "parentId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "posts"
+              }
+            },
+            {
+              "name": "itemIds",
+              "required": true,
+              "value": {
+                "element": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                },
+                "kind": "array",
+                "maxItems": 4
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "AssetCollection": {
+                  "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                  "collection": "postMedia",
+                  "defaultSharingPlan": "none",
+                  "duplicatePolicy": "refuse.v1",
+                  "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                  "intent": "sharedMediaUpload",
+                  "itemsArg": "itemIds",
+                  "kinds": [
+                    "image",
+                    "video"
+                  ],
+                  "maxItems": 4,
+                  "operation": "remove",
+                  "order": "manual",
+                  "ownerField": "ownerId",
+                  "ownerTable": "posts",
+                  "parentIdArg": "parentId",
+                  "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                  "sharingArg": "sharing",
+                  "sharingDerivationTables": [],
+                  "sharingGrantCapable": false
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "parentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "posts"
+            }
+          },
+          {
+            "name": "itemIds",
+            "required": true,
+            "value": {
+              "element": {
+                "kind": "string",
+                "maxBytes": 1048576
+              },
+              "kind": "array",
+              "maxItems": 4
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:5551f12b58b356fda23d4e2de1e12edd025621b0d035ff6fbe26e14efef8dbb3",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "postMediaReorder",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "resolvedAppAuthority"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "assetCollectionCommit",
+          "clientMutationSettlement"
+        ],
+        "reads": [
+          {
+            "access": "query",
+            "index": "uniqueParentAsset",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "reorder"
+            ],
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          }
+        ]
+      },
+      "exportedName": "postMediaReorder",
+      "handlerForm": "plan",
+      "id": "media-happy-post:postMediaReorder",
+      "implementationHash": "sha256:dd1bad1541eb05abcb954d1a671a1069ca47edd177ed023e3261903c394671f5",
+      "kind": "Mutation",
+      "name": "postMediaReorder",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "posts",
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "assets.media-collection.v1",
+        "assets.media-ref-projection.v1",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "parentId",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "posts"
+              }
+            },
+            {
+              "name": "itemIds",
+              "required": true,
+              "value": {
+                "element": {
+                  "kind": "string",
+                  "maxBytes": 1048576
+                },
+                "kind": "array",
+                "maxItems": 4
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultContractHash": "sha256:1abf23173826d7988f45cc5ae938bf695b0d9f109a9424493dca97ab40fe6a28",
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "AssetCollection": {
+                  "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                  "collection": "postMedia",
+                  "defaultSharingPlan": "none",
+                  "duplicatePolicy": "refuse.v1",
+                  "generation": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                  "intent": "sharedMediaUpload",
+                  "itemsArg": "itemIds",
+                  "kinds": [
+                    "image",
+                    "video"
+                  ],
+                  "maxItems": 4,
+                  "operation": "reorder",
+                  "order": "manual",
+                  "ownerField": "ownerId",
+                  "ownerTable": "posts",
+                  "parentIdArg": "parentId",
+                  "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                  "sharingArg": null,
+                  "sharingDerivationTables": [],
+                  "sharingGrantCapable": false
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "standardPattern": {
+        "helper": "assetCollection",
+        "profile": "asset-collection.v1"
+      },
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writePolicy": {
+        "disclosures": [],
+        "semanticVersion": "snapback.owner-write.v1"
+      },
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "parentId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "posts"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": false,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1024
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:4762ed00946d309828f17a457ed4bcc2efd3005df16ff3774e1ff80876fdafed",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "postMediaList",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId",
+          "parentVisibility"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "byParentOrdinal",
+            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+          },
+          {
+            "access": "point",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "postMediaList",
+      "handlerForm": "plan",
+      "id": "media-happy-post:postMediaList",
+      "implementationHash": "sha256:c243cede54a6cb1088f8001785cf14b6433f895bf849e06053aa01511544a4dc",
+      "kind": "LiveQuery",
+      "name": "postMediaList",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+          "posts"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "bounded_children_v1",
+        "result_contract_v1",
+        "args_contract_v1",
+        "assets.media-ref-projection.v1"
+      ],
+      "resultContract": {
+        "kind": "records",
+        "record": {
+          "kind": "union",
+          "variants": [
+            {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "kind",
+                  "required": true,
+                  "value": {
+                    "kind": "literal",
+                    "value": "absent"
+                  }
+                },
+                {
+                  "name": "parent",
+                  "required": true,
+                  "value": {
+                    "kind": "null"
+                  }
+                },
+                {
+                  "name": "children",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "allowExtra": false,
+                      "fields": [
+                        {
+                          "name": "itemId",
+                          "required": true,
+                          "value": {
+                            "kind": "id",
+                            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+                          }
+                        },
+                        {
+                          "name": "ordinal",
+                          "required": true,
+                          "value": {
+                            "kind": "integer",
+                            "max": 9007199254740991,
+                            "min": -9007199254740991
+                          }
+                        },
+                        {
+                          "name": "media",
+                          "required": true,
+                          "value": {
+                            "classMTreatment": "class-m.none.v1",
+                            "classificationProfile": "detected-content-type.v1",
+                            "delivery": null,
+                            "kind": "mediaRef.v1",
+                            "kinds": [
+                              "image",
+                              "video"
+                            ],
+                            "optional": false,
+                            "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                            "retentionClass": "media-reference.v1",
+                            "sourceField": "assetId",
+                            "sourceFieldGeneration": "sha256:44a4d9ead962e1e84b7e1c3390863adb5bd102d0a062235258aa951685887a3e",
+                            "sourceTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                            "uploadIntent": "sharedMediaUpload",
+                            "variants": []
+                          }
+                        }
+                      ],
+                      "kind": "object"
+                    },
+                    "kind": "array",
+                    "maxItems": 0
+                  }
+                },
+                {
+                  "name": "continuation",
+                  "required": true,
+                  "value": {
+                    "kind": "null"
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "kind",
+                  "required": true,
+                  "value": {
+                    "kind": "literal",
+                    "value": "visible"
+                  }
+                },
+                {
+                  "name": "parent",
+                  "required": true,
+                  "value": {
+                    "allowExtra": false,
+                    "fields": [
+                      {
+                        "name": "parentId",
+                        "required": true,
+                        "value": {
+                          "kind": "id",
+                          "table": "posts"
+                        }
+                      }
+                    ],
+                    "kind": "object"
+                  }
+                },
+                {
+                  "name": "children",
+                  "required": true,
+                  "value": {
+                    "element": {
+                      "allowExtra": false,
+                      "fields": [
+                        {
+                          "name": "itemId",
+                          "required": true,
+                          "value": {
+                            "kind": "id",
+                            "table": "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+                          }
+                        },
+                        {
+                          "name": "ordinal",
+                          "required": true,
+                          "value": {
+                            "kind": "integer",
+                            "max": 9007199254740991,
+                            "min": -9007199254740991
+                          }
+                        },
+                        {
+                          "name": "media",
+                          "required": true,
+                          "value": {
+                            "classMTreatment": "class-m.none.v1",
+                            "classificationProfile": "detected-content-type.v1",
+                            "delivery": null,
+                            "kind": "mediaRef.v1",
+                            "kinds": [
+                              "image",
+                              "video"
+                            ],
+                            "optional": false,
+                            "policyGeneration": "sha256:36616d92bf7ad7031dda3165795677e36d747a0a9af6ca123df165abbb5e5449",
+                            "retentionClass": "media-reference.v1",
+                            "sourceField": "assetId",
+                            "sourceFieldGeneration": "sha256:44a4d9ead962e1e84b7e1c3390863adb5bd102d0a062235258aa951685887a3e",
+                            "sourceTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+                            "uploadIntent": "sharedMediaUpload",
+                            "variants": []
+                          }
+                        }
+                      ],
+                      "kind": "object"
+                    },
+                    "kind": "array",
+                    "maxItems": 4
+                  }
+                },
+                {
+                  "name": "continuation",
+                  "required": true,
+                  "value": {
+                    "kind": "union",
+                    "variants": [
+                      {
+                        "kind": "null"
+                      },
+                      {
+                        "kind": "string",
+                        "maxBytes": 1024
+                      }
+                    ]
+                  }
+                }
+              ],
+              "kind": "object"
+            }
+          ]
+        },
+        "rows": {
+          "maxItems": 1,
+          "minItems": 1
+        }
+      },
+      "resultContractHash": "sha256:0df5cc3498426f3b3b03d143239c0989933c83f1e850b907f43485a4713bde2a",
+      "runtime": {
+        "HostPlan": {
+          "BoundedChildrenQuery": {
+            "childForeignKey": "parentId",
+            "childIndex": "byParentOrdinal",
+            "childProjection": [
+              {
+                "field": "_id",
+                "name": "itemId"
+              },
+              {
+                "field": "ordinal",
+                "name": "ordinal"
+              },
+              {
+                "field": "assetId",
+                "name": "media"
+              }
+            ],
+            "childRelationIncarnation": "parentIncarnation",
+            "childTable": "_snapback_asset_collection_65c27f4eedd8b26fcd76",
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "ordinal"
+              }
+            ],
+            "parentDeletion": "hide-orphans.v1",
+            "parentIdArg": "parentId",
+            "parentProjection": [
+              {
+                "field": "_id",
+                "name": "parentId"
+              }
+            ],
+            "parentTable": "posts",
+            "parentTableVisibility": {
+              "field": "ownerId",
+              "kind": "owner"
+            },
+            "parentVisibility": {
+              "owner": {
+                "field": "ownerId"
+              }
+            },
+            "profile": "bounded-children.v1",
+            "requiredCapability": "bounded_children_v1",
+            "take": 4
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:0ac015325672b1874599b2e3b9033c43b07c6dfed1fe1c67777d27c6b388853c",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": [
+    {
+      "code": "SNAPBACK_ASSET_SHARING_UNDECLARED",
+      "details": {
+        "intent": "sharedMediaUpload",
+        "tables": [
+          "_snapback_asset_collection_65c27f4eedd8b26fcd76"
+        ]
+      },
+      "message": "sharedMediaUpload: via-references assets reachable from tables without an assetSharing declaration confer no read authority there (owner-only fallback): _snapback_asset_collection_65c27f4eedd8b26fcd76",
+      "severity": "warning",
+      "subsystem": "asset"
+    }
+  ]
+}

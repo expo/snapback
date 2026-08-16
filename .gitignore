@@ -37,6 +37,7 @@ demos/*/snapback-sessions/generated/*
 !demos/competitive-checkpoint/snapback/generated/api.d.ts
 !demos/competitive-checkpoint/snapback/generated/api.mjs
 !demos/competitive-checkpoint/snapback/generated/functions.manifest.json
+!demos/media-happy-post/snapback/generated/functions.manifest.json
 !demos/competitive-checkpoint/snapback/generated/schema.manifest.json
 !demos/todo/snapback/generated/functions.manifest.json
 !demos/todo/snapback/generated/schema.manifest.json
