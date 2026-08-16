@@ -64,6 +64,13 @@ fn unsupported_error(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error("SNAPBACK_ASSET_VIDEO_STRIP_UNSUPPORTED", "assets", message)
 }
 
+fn escaped_box_kind(kind: &[u8; 4]) -> String {
+    kind.iter()
+        .flat_map(|byte| std::ascii::escape_default(*byte))
+        .map(char::from)
+        .collect()
+}
+
 /// Safe facts extracted from the container. Location never leaves this
 /// module: it is deliberately not represented here.
 #[derive(Clone, Debug, Default)]
@@ -145,34 +152,69 @@ impl<'a> Walk<'a> {
     fn header(&mut self, at: usize, end: usize, top_level: bool) -> SnapbackResult<BoxHeader> {
         self.step()?;
         if at + 8 > end {
-            return Err(parse_error("truncated box header"));
+            return Err(parse_error(format!(
+                "truncated box header at byte offset {at}"
+            )));
         }
         let size32 = u32::from_be_bytes(self.bytes[at..at + 4].try_into().unwrap());
         let mut kind = [0u8; 4];
         kind.copy_from_slice(&self.bytes[at + 4..at + 8]);
         let (payload_start, box_end) = match size32 {
             0 if top_level => (at + 8, end),
-            0 => return Err(parse_error("size-0 box inside a container")),
+            0 => {
+                return Err(parse_error(format!(
+                    "box {} at byte offset {at} uses size 0 inside a container",
+                    escaped_box_kind(&kind)
+                )));
+            }
             1 => {
                 if at + 16 > end {
-                    return Err(parse_error("truncated largesize header"));
+                    return Err(parse_error(format!(
+                        "box {} at byte offset {at} has a truncated largesize header",
+                        escaped_box_kind(&kind)
+                    )));
                 }
                 let large = u64::from_be_bytes(self.bytes[at + 8..at + 16].try_into().unwrap());
                 if large < 16 {
-                    return Err(parse_error("largesize smaller than its header"));
+                    return Err(parse_error(format!(
+                        "box {} at byte offset {at} has a largesize smaller than its header",
+                        escaped_box_kind(&kind)
+                    )));
                 }
                 let Some(box_end) = (at as u64).checked_add(large) else {
-                    return Err(parse_error("largesize overflows"));
+                    return Err(parse_error(format!(
+                        "box {} at byte offset {at} has a largesize that overflows",
+                        escaped_box_kind(&kind)
+                    )));
                 };
-                (at + 16, box_end as usize)
+                let Ok(box_end) = usize::try_from(box_end) else {
+                    return Err(parse_error(format!(
+                        "box {} at byte offset {at} has a largesize that exceeds this platform",
+                        escaped_box_kind(&kind)
+                    )));
+                };
+                (at + 16, box_end)
             }
-            2..=7 => return Err(parse_error("box size smaller than its header")),
-            size => (at + 8, at + size as usize),
+            2..=7 => {
+                return Err(parse_error(format!(
+                    "box {} at byte offset {at} declares a size smaller than its header",
+                    escaped_box_kind(&kind)
+                )));
+            }
+            size => {
+                let Some(box_end) = at.checked_add(size as usize) else {
+                    return Err(parse_error(format!(
+                        "box {} at byte offset {at} declares a size that overflows",
+                        escaped_box_kind(&kind)
+                    )));
+                };
+                (at + 8, box_end)
+            }
         };
         if box_end > end || box_end < payload_start {
             return Err(parse_error(format!(
-                "box {} declares a size beyond its container",
-                String::from_utf8_lossy(&kind)
+                "box {} at byte offset {at} declares a size beyond its container",
+                escaped_box_kind(&kind)
             )));
         }
         Ok(BoxHeader {
@@ -197,6 +239,12 @@ impl<'a> Walk<'a> {
         }
         let mut at = start;
         while at < end {
+            // QuickTime writers may leave an all-zero suffix after the final
+            // top-level atom. Admit only that exact, bounded padding form;
+            // any nonzero suffix still goes through ordinary box validation.
+            if depth == 0 && self.bytes[at..end].iter().all(|byte| *byte == 0) {
+                break;
+            }
             let header = self.header(at, end, depth == 0)?;
             self.visit(&header, depth, parent)?;
             at = header.end;
@@ -216,12 +264,21 @@ impl<'a> Walk<'a> {
             }
             b"meta" => {
                 self.metadata_check(payload_len)?;
-                // ISO `meta` is a fullbox: 4 bytes of version/flags precede
-                // the children. A payload too small for that is malformed.
-                if payload_len < 4 {
-                    return Err(parse_error("meta box smaller than its fullbox header"));
-                }
-                self.visit_meta(header.payload_start + 4, header.end, depth + 1)
+                // ISO `meta` is a fullbox with four version/flags bytes.
+                // QuickTime `meta` instead starts directly with its required
+                // `hdlr` child. Detect only that explicit direct-child form;
+                // everything else keeps the ISO path and its size check.
+                let direct_quicktime_children = header.payload_start + 8 <= header.end
+                    && &self.bytes[header.payload_start + 4..header.payload_start + 8] == b"hdlr";
+                let children_start = if direct_quicktime_children {
+                    header.payload_start
+                } else {
+                    if payload_len < 4 {
+                        return Err(parse_error("meta box smaller than its fullbox header"));
+                    }
+                    header.payload_start + 4
+                };
+                self.visit_meta(children_start, header.end, depth + 1)
             }
             b"mvhd" => {
                 self.facts_from_mvhd(header)?;
@@ -535,7 +592,7 @@ pub(crate) mod fixtures {
 
 #[cfg(test)]
 mod tests {
-    use super::fixtures::{GPS, boxed, ftyp, mvhd};
+    use super::fixtures::{boxed, ftyp, mvhd, tkhd, GPS};
     use super::*;
 
     fn gps_fixture() -> Vec<u8> {
@@ -546,6 +603,41 @@ mod tests {
         haystack
             .windows(needle.len())
             .any(|window| window == needle)
+    }
+
+    fn quicktime_ftyp() -> Vec<u8> {
+        let mut payload = b"qt  ".to_vec();
+        payload.extend_from_slice(&0u32.to_be_bytes());
+        payload.extend_from_slice(b"qt  ");
+        boxed(b"ftyp", &payload)
+    }
+
+    fn mdta_location_meta(direct_quicktime_children: bool) -> Vec<u8> {
+        let hdlr = boxed(b"hdlr", &[0u8; 24]);
+        let name = b"com.apple.quicktime.location.ISO6709";
+        let mut keys_payload = 0u32.to_be_bytes().to_vec();
+        keys_payload.extend_from_slice(&1u32.to_be_bytes());
+        keys_payload.extend_from_slice(&((name.len() + 8) as u32).to_be_bytes());
+        keys_payload.extend_from_slice(b"mdta");
+        keys_payload.extend_from_slice(name);
+        let keys = boxed(b"keys", &keys_payload);
+        let ilst = boxed(b"ilst", &boxed(&1u32.to_be_bytes(), GPS.as_bytes()));
+        let mut payload = Vec::new();
+        if !direct_quicktime_children {
+            payload.extend_from_slice(&0u32.to_be_bytes());
+        }
+        payload.extend_from_slice(&hdlr);
+        payload.extend_from_slice(&keys);
+        payload.extend_from_slice(&ilst);
+        boxed(b"meta", &payload)
+    }
+
+    fn largesize_box(kind: &[u8; 4], payload: &[u8]) -> Vec<u8> {
+        let mut out = 1u32.to_be_bytes().to_vec();
+        out.extend_from_slice(kind);
+        out.extend_from_slice(&((payload.len() + 16) as u64).to_be_bytes());
+        out.extend_from_slice(payload);
+        out
     }
 
     #[test]
@@ -601,6 +693,54 @@ mod tests {
     }
 
     #[test]
+    fn admits_synthesized_iphone_quicktime_layout() {
+        // Metadata-only synthesis of the Apple layout named by the device
+        // report: qt brand, exact 8-byte wide placeholder, largesize mdat,
+        // moov last with co64, direct-child QuickTime meta, and zero tail.
+        let mut co64_payload = 0u32.to_be_bytes().to_vec();
+        co64_payload.extend_from_slice(&1u32.to_be_bytes());
+        co64_payload.extend_from_slice(&64u64.to_be_bytes());
+        let co64 = boxed(b"co64", &co64_payload);
+        let stbl = boxed(b"stbl", &co64);
+        let minf = boxed(b"minf", &stbl);
+        let mdia = boxed(b"mdia", &minf);
+        let trak = boxed(b"trak", &[tkhd(1920, 1080), mdia].concat());
+        let udta = boxed(b"udta", &mdta_location_meta(true));
+        let moov = boxed(b"moov", &[mvhd(600, 1800), trak, udta].concat());
+        let mut source = quicktime_ftyp();
+        source.extend_from_slice(&boxed(b"wide", &[]));
+        source.extend_from_slice(&largesize_box(b"mdat", &[0xAA, 0xBB, 0, 0, 0, 0]));
+        source.extend_from_slice(&moov);
+        source.extend_from_slice(&[0u8; 7]);
+
+        let outcome = canonicalize_strip_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
+        assert_eq!(outcome.canonical.len(), source.len(), "in-place blanking");
+        assert!(!contains(&outcome.canonical, GPS.as_bytes()));
+        assert!(contains(&outcome.canonical, b"wide"));
+        assert!(contains(&outcome.canonical, b"co64"));
+        assert_eq!(&outcome.canonical[outcome.canonical.len() - 7..], &[0u8; 7]);
+        assert_eq!(outcome.facts.duration_ms, Some(3000));
+        assert_eq!(outcome.facts.width, Some(1920));
+        assert_eq!(outcome.facts.height, Some(1080));
+    }
+
+    #[test]
+    fn admits_top_level_size_zero_mdat_as_the_last_atom() {
+        let mut size_zero_mdat = 0u32.to_be_bytes().to_vec();
+        size_zero_mdat.extend_from_slice(b"mdat");
+        size_zero_mdat.extend_from_slice(&[0xAA, 0xBB, 0, 0]);
+        let source = [
+            quicktime_ftyp(),
+            boxed(b"wide", &[]),
+            boxed(b"moov", &mvhd(1000, 1000)),
+            size_zero_mdat,
+        ]
+        .concat();
+        let facts = inspect_video(&source, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap();
+        assert_eq!(facts.duration_ms, Some(1000));
+    }
+
+    #[test]
     fn blanks_xmp_uuid_and_refuses_unknown_uuid() {
         let mut xmp_payload = XMP_UUID.to_vec();
         xmp_payload.extend_from_slice(b"<x:xmpmeta>gps here</x:xmpmeta>");
@@ -629,12 +769,34 @@ mod tests {
         let error = canonicalize_strip_video(&lying, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_PARSE_FAILED");
 
-        // Truncated header.
+        // A nonzero tail remains a box header and still fails its declared
+        // bound. Its non-printable kind is escaped and its offset is named.
+        let mut malformed_tail = ftyp();
+        let malformed_at = malformed_tail.len();
+        malformed_tail.extend_from_slice(&16u32.to_be_bytes());
+        malformed_tail.extend_from_slice(&[0u8; 4]);
+        let error =
+            canonicalize_strip_video(&malformed_tail, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_PARSE_FAILED");
+        assert!(
+            error.diagnostic.message.contains(&format!(
+                "box \\x00\\x00\\x00\\x00 at byte offset {malformed_at}"
+            )),
+            "{}",
+            error.diagnostic.message
+        );
+        assert!(!error.diagnostic.message.as_bytes().contains(&0));
+
+        // A truncated header containing non-padding data still refuses.
         let mut truncated = ftyp();
-        truncated.extend_from_slice(&[0, 0]);
+        truncated.extend_from_slice(&[0, 1]);
         let error =
             canonicalize_strip_video(&truncated, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_PARSE_FAILED");
+        assert!(error
+            .diagnostic
+            .message
+            .contains(&format!("byte offset {}", ftyp().len())));
 
         // Nested size-0 box.
         let nested_zero = {

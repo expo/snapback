@@ -39,3 +39,17 @@ cleanup); a fixture file from the same device is being captured.
    layout only; strip the media payload down) in the video finalizer tests.
 3. While refusing, the diagnostic should render the kind bytes safely
    (`\0\0\0\0` printed raw today) and name the offset.
+
+## Progress (2026-08-16, Phase H landed)
+
+Root cause identified from the failure bytes and corroborated against
+Apple's QuickTime metadata layout and FFmpeg's parser: QuickTime `meta`
+atoms are NOT ISO fullboxes; parsing the 4-byte version/flags that are not
+there shifts the walker into garbage (`\0\0\0\0` kind, size beyond
+container). Fixed: `meta` children are distinguished by direct `hdlr`
+detection; narrow top-level zero-padding admission added without relaxing
+malformed-size fail-closed handling; refusal diagnostics now escape
+non-printable kinds and carry byte offsets. Synthetic Apple-layout tests
+cover the shapes. REMAINING before close: verify against the author's
+real device MOV (AirDrop pending) and upgrade/supplement the fixture from
+its box structure.
