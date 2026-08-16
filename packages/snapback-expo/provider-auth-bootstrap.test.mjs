@@ -34,7 +34,7 @@ const APPLICATION_BEARER = 'sbs_expo_application_authority_secret';
 const SUPERVISED_BEARER = 'sbs_expo_supervised_authority_secret';
 const SUPERVISED_REMINT = 'sbs_expo_supervised_remint_secret';
 const PASSWORD = 'expo-bootstrap-password-secret';
-const TEST_NOW_MS = Date.now();
+const TEST_NOW_MS = Date.parse('2026-08-15T12:30:00.000Z');
 
 const generatedRoot = new URL(
   '../snapback-react/fixtures/conversation/app/snapback/generated/',
@@ -43,10 +43,10 @@ const generatedRoot = new URL(
 const app = JSON.parse(readFileSync(new URL('app.descriptor.json', generatedRoot)));
 app.authBootstrap.entryMechanisms = ['password-v1'];
 app.authBootstrap.custody = 'durable-required';
-app.capabilities.required = [
+app.capabilities.required = [...new Set([
   ...app.capabilities.required,
   APPLICATION_AUTH_BOOTSTRAP_CAPABILITY,
-];
+])];
 
 const binding = Object.freeze({
   format: 'snapback.app-binding.v1',
