@@ -23,8 +23,10 @@ SNAPBACK_RUNTIME_BINARY="$PWD/../../../target/debug/snapback" node ../scripts/ru
 ```
 
 The run writes separate JSON rows for the iOS native reader, fresh-launch
-rotation replacement, Expo web isolation, tunneled raw-HTTP refusal, replay
-refusal, and refusal of an unspent checkout after backend rotation.
+rotation replacement, the narrow server-side browser-Origin redemption
+refusal, tunneled bootstrap secret isolation, replay refusal, and refusal of an
+unspent checkout after backend rotation. It does not emit the full Expo web
+isolation row described below.
 
 ## Android emulator
 
@@ -55,8 +57,12 @@ per-serial reverse route for its value-free receipt sink.
 - Android emulator native reader and rotation replacement.
 - Android physical USB native reader and rotation replacement (explicit
   nonclaim until hardware is available).
-- Expo web isolation, tunneled raw-HTTP refusal, replay refusal, and unspent
-  post-rotation refusal alongside each native run.
+- Replay refusal, unspent post-rotation refusal, the narrow server-side
+  browser-Origin redemption refusal, and tunneled bootstrap secret isolation
+  alongside each native run.
+- Full Expo web isolation remains explicitly pending: it requires the real Expo
+  web bundle running in a browser context. The Node `fetch` Origin-gate probe is
+  retained only as `browser-origin-redemption-refusal` and is not that row.
 
 ## Verification run for this implementation
 

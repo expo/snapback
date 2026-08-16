@@ -11,6 +11,7 @@ import {
   SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV,
   SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER,
   SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH,
+  SUPERVISED_EXCHANGE_PATH,
   runExpoDev,
 } from '../../../packages/snapback-cli/expo-dev.mjs';
 
@@ -134,23 +135,30 @@ const captureNativeLaunch = (binary, args, options) => {
 const nonceFor = (launch) => platform === 'ios'
   ? launch.options.env[`SIMCTL_CHILD_${SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV}`]
   : launch.args.at(-1);
-
-function openDevClient(metroOrigin) {
-  const deepLink = `${devClientScheme}://expo-development-client/?url=${encodeURIComponent(metroOrigin)}`;
-  if (platform === 'ios') {
-    runNative('xcrun', ['simctl', 'openurl', 'booted', deepLink], {
-      encoding: 'utf8',
-      timeout: 30_000,
-      env: process.env,
-    });
-    return;
+const launchSequence = (index) => {
+  const sequence = capturedLaunches.slice(index * 2, (index + 1) * 2);
+  if (sequence.length !== 2) throw new Error(`native launch sequence ${index} is incomplete`);
+  return sequence;
+};
+const runLaunchSequence = (index) => {
+  for (const command of launchSequence(index)) {
+    runNative(command.binary, command.args, command.options);
   }
-  runNative('adb', [
-    '-s', androidSerial,
-    'shell', 'am', 'start',
-    '-a', 'android.intent.action.VIEW',
-    '-d', deepLink,
-  ], { encoding: 'utf8', timeout: 30_000, env: process.env });
+};
+
+function assertBootstrapSecretIsolation(response, body, checkoutNonce) {
+  const headers = JSON.stringify(Object.fromEntries(response.headers.entries()));
+  const surfaces = [body, headers];
+  const inspection = Object.freeze({
+    nonceAbsent: surfaces.every((value) => !value.includes(checkoutNonce)),
+    capabilityPrefixAbsent: surfaces.every((value) => !value.includes('sbdev_')),
+    capabilityFieldAbsent: surfaces.every((value) => !value.includes('devIdentityCapability')),
+    checkoutFieldAbsent: surfaces.every((value) => !value.includes('checkoutNonce')),
+  });
+  if (Object.values(inspection).some((absent) => absent !== true)) {
+    throw new Error('tunneled bootstrap response exposed checkout material');
+  }
+  return inspection;
 }
 
 let supervisor = null;
@@ -176,6 +184,7 @@ try {
     platform,
     ...(platform === 'android' ? { androidSerial } : {}),
     nativeCheckout: true,
+    expoAppScheme: devClientScheme,
     ...(platform === 'ios' ? { iosBundleIdentifier } : { androidComponent }),
     nativeLaunchRun: captureNativeLaunch,
     env: {
@@ -184,11 +193,11 @@ try {
     },
     serverStdio: ['ignore', 'ignore', 'ignore'],
   });
-  await waitFor(() => capturedLaunches.length >= 1, 'initial native checkout launch');
-  const initialNonce = nonceFor(capturedLaunches[0]);
+  await waitFor(() => capturedLaunches.length >= 2, 'initial native checkout launch sequence');
+  const initialNonce = nonceFor(launchSequence(0)[0]);
   secretValues.add(initialNonce);
 
-  const webAttempt = await fetch(
+  const browserOriginAttempt = await fetch(
     `${supervisor.exchangeOrigin}${SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH}`,
     {
       method: 'POST',
@@ -198,10 +207,12 @@ try {
       },
     },
   );
-  writeReceipt('expo-web-isolation', {
-    status: webAttempt.status === 403 ? 'passed' : 'failed',
-    httpStatus: webAttempt.status,
-    corsGranted: webAttempt.headers.has('access-control-allow-origin'),
+  writeReceipt('browser-origin-redemption-refusal', {
+    status: browserOriginAttempt.status === 403 ? 'passed' : 'failed',
+    httpStatus: browserOriginAttempt.status,
+    corsGranted: browserOriginAttempt.headers.has('access-control-allow-origin'),
+    requestRuntime: 'node-global-fetch',
+    claimScope: 'server-origin-gate-only',
   });
 
   const upstream = new URL(supervisor.exchangeOrigin);
@@ -222,14 +233,23 @@ try {
     tunnel.once('error', rejectListen);
     tunnel.listen(0, '127.0.0.1', resolveListen);
   });
-  const tunneledAttempt = await fetch(
-    `http://127.0.0.1:${tunnel.address().port}${SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH}`,
-    { method: 'POST' },
+  const tunneledBootstrap = await fetch(
+    `http://127.0.0.1:${tunnel.address().port}${SUPERVISED_EXCHANGE_PATH}`,
+    { headers: { Origin: 'http://localhost:8081' } },
   );
-  writeReceipt('tunneled-raw-http-refusal', {
-    status: tunneledAttempt.status === 403 ? 'passed' : 'failed',
-    httpStatus: tunneledAttempt.status,
-    nativeLaunchDeliveryAvailable: false,
+  const tunneledBootstrapBody = await tunneledBootstrap.text();
+  const tunneledInspection = assertBootstrapSecretIsolation(
+    tunneledBootstrap,
+    tunneledBootstrapBody,
+    initialNonce,
+  );
+  writeReceipt('tunneled-raw-http-isolation', {
+    status: tunneledBootstrap.status === 200 ? 'passed' : 'failed',
+    httpStatus: tunneledBootstrap.status,
+    method: 'GET',
+    path: SUPERVISED_EXCHANGE_PATH,
+    inspectedSurfaces: ['response-body', 'response-headers'],
+    ...tunneledInspection,
   });
 
   const rotate = async (requestId) => {
@@ -252,8 +272,8 @@ try {
   };
 
   await rotate('unspent-old-nonce-refusal');
-  await waitFor(() => capturedLaunches.length >= 2, 'post-rotation native checkout launch');
-  const freshNonce = nonceFor(capturedLaunches[1]);
+  await waitFor(() => capturedLaunches.length >= 4, 'post-rotation native checkout launch sequence');
+  const freshNonce = nonceFor(launchSequence(1)[0]);
   secretValues.add(freshNonce);
   if (freshNonce === initialNonce) throw new Error('backend rotation reused checkout delivery');
   const staleAttempt = await fetch(
@@ -269,12 +289,7 @@ try {
     priorNonceWasUnspent: true,
   });
 
-  runNative(
-    capturedLaunches[1].binary,
-    capturedLaunches[1].args,
-    capturedLaunches[1].options,
-  );
-  openDevClient(supervisor.metroOrigin);
+  runLaunchSequence(1);
   const firstAppReport = await waitFor(() => appReports[0], 'native reader application receipt');
   writeReceipt(`${platform}-native-reader`, projectAppReceipt(firstAppReport));
 
@@ -292,16 +307,11 @@ try {
   });
 
   await rotate('fresh-launch-replacement');
-  await waitFor(() => capturedLaunches.length >= 3, 'replacement native checkout launch');
-  const replacementNonce = nonceFor(capturedLaunches[2]);
+  await waitFor(() => capturedLaunches.length >= 6, 'replacement native checkout launch sequence');
+  const replacementNonce = nonceFor(launchSequence(2)[0]);
   secretValues.add(replacementNonce);
   if (replacementNonce === freshNonce) throw new Error('fresh launch reused checkout delivery');
-  runNative(
-    capturedLaunches[2].binary,
-    capturedLaunches[2].args,
-    capturedLaunches[2].options,
-  );
-  openDevClient(supervisor.metroOrigin);
+  runLaunchSequence(2);
   const replacementReport = await waitFor(
     () => appReports[1],
     'native reader rotation-replacement receipt',
@@ -315,16 +325,16 @@ try {
     status: [
       firstAppReport.status,
       replacementReport.status,
-      webAttempt.status === 403 ? 'passed' : 'failed',
-      tunneledAttempt.status === 403 ? 'passed' : 'failed',
+      browserOriginAttempt.status === 403 ? 'passed' : 'failed',
+      tunneledBootstrap.status === 200 ? 'passed' : 'failed',
       staleAttempt.status === 403 ? 'passed' : 'failed',
       replayAttempt.status === 403 ? 'passed' : 'failed',
     ].every((status) => status === 'passed') ? 'passed' : 'failed',
     receiptRows: [
       `${platform}-native-reader`,
       `${platform}-rotation-replacement`,
-      'expo-web-isolation',
-      'tunneled-raw-http-refusal',
+      'browser-origin-redemption-refusal',
+      'tunneled-raw-http-isolation',
       'post-rotation-refusal',
       'replay-refusal',
     ],

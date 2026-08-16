@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import Darwin
 import Foundation
 import UIKit
 
@@ -14,19 +15,29 @@ private final class CheckoutNonceCarrier {
 
   private init() {}
 
-  func captureLaunch(_ delivered: String?) {
-    lock.lock()
-    defer { lock.unlock() }
+  private func captureEnvironmentLocked() {
     guard !captured else { return }
+    let delivered = getenv(checkoutEnvironment).map { String(cString: $0) }
+    unsetenv(checkoutEnvironment)
     captured = true
     if let delivered, !delivered.isEmpty {
       nonce = delivered
     }
   }
 
+  func captureLaunch() {
+    lock.lock()
+    defer { lock.unlock() }
+    captureEnvironmentLocked()
+  }
+
   func take() -> String? {
     lock.lock()
     defer { lock.unlock() }
+    // JavaScript may ask before the app-delegate subscriber runs. Close that
+    // race by performing the same environment read-and-unset attempt under
+    // this lock before marking the one-shot delivery consumed.
+    captureEnvironmentLocked()
     guard !consumed else { return nil }
     consumed = true
     let delivered = nonce
@@ -40,12 +51,11 @@ public final class SnapbackExpoDevIdentityAppDelegateSubscriber: ExpoAppDelegate
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // @ref LLP 0262#d2-carriers-per-shipped-topology — capture the simulator
-    // child environment into process memory before React starts. The value is
-    // neither persisted nor logged and can be consumed only once.
-    CheckoutNonceCarrier.shared.captureLaunch(
-      ProcessInfo.processInfo.environment[checkoutEnvironment]
-    )
+    // @ref LLP 0262#d2-carriers-per-shipped-topology — make a best-effort
+    // early copy of the simulator child environment and immediately remove it
+    // from the process environment. take() performs the same locked capture
+    // attempt if JavaScript reaches the module before this subscriber.
+    CheckoutNonceCarrier.shared.captureLaunch()
     return false
   }
 }

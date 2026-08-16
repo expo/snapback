@@ -80,9 +80,12 @@ The runnable witness is under `demos/expo-native-checkout-reader/`; generation,
 iOS/Android prebuild, native autolinking resolution, focused JS tests, the
 `packages/snapback-expo` suite, changed-module syntax checks, package test
 inventory, and `ref-check` pass. Live iOS simulator, Android emulator, and
-Android USB receipts remain pending orchestrator runs, including web/raw-HTTP
-isolation, replay refusal, and post-rotation refusal rows. Keep this ticket open;
-those retained live receipts close it.
+Android USB receipts remain pending orchestrator runs. The tunnel witness now
+inspects the actual bootstrap GET body and headers for absent checkout material;
+the Node Origin-gate probe is no longer described as Expo web. Full Expo web
+isolation remains pending a real web bundle in a browser context, alongside
+replay and post-rotation refusal rows. Keep this ticket open; those retained
+live receipts close it.
 
 ## Rollout constraint
 

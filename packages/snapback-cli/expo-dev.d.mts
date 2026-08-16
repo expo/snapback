@@ -243,6 +243,7 @@ export function launchExpoNativeCheckout(
     iosSimulator?: string;
     iosBundleIdentifier?: string;
     androidComponent?: string;
+    expoAppScheme?: string;
     run?: (...args: any[]) => any;
     env?: Readonly<Record<string, string | undefined>>;
   }>,
@@ -250,6 +251,7 @@ export function launchExpoNativeCheckout(
   platform: ExpoDevicePlatform;
   device: ExpoDeviceIdentity;
   carrier: 'ios-simctl-environment' | 'android-adb-activity-extra';
+  developmentClientUrl: string;
 }> | null;
 
 export function shouldLaunchExpoNativeCheckout(
@@ -261,6 +263,7 @@ export function shouldLaunchExpoNativeCheckout(
     nativeLaunchRun?: (...args: any[]) => any;
     iosBundleIdentifier?: string;
     androidComponent?: string;
+    expoAppScheme?: string;
   }>,
 ): boolean;
 
@@ -305,6 +308,8 @@ export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
   readonly iosBundleIdentifier?: string;
   /** Required own-bundle activity target when nativeCheckout selects Android. */
   readonly androidComponent?: string;
+  /** Required application development-client URL scheme. */
+  readonly expoAppScheme?: string;
   /** Test-only command runner; its presence opts protocol tests into launch. */
   readonly nativeLaunchRun?: (...args: any[]) => any;
 }

@@ -51,3 +51,28 @@ for the explicitly open LLP 0262 carrier ticket, not missing guidance for an
 already supported app-authoring path. Static generation/prebuild/autolinking
 checks pass; iOS simulator, Android emulator, and Android USB live receipts
 remain pending on the orchestrator host.
+
+## Review-fix entry — 2026-08-16
+
+Two independent reviews caught three places where the first witness pass was
+more optimistic than the implementation. First, the harness knew the
+development client needed a Metro deep link, but the supervisor itself stopped
+after the nonce-bearing own-bundle launch. Making the app scheme an explicit
+input and treating own-bundle launch plus deep-link open as one synchronous
+sequence puts the application boot back under the supervisor's readiness
+contract. The development-client URL contains only the routed Metro origin.
+
+Second, the negative receipts had to be named after observable facts. A
+headerless checkout POST returning 403 said nothing about what the tunneled
+bootstrap exposed; the replacement GET inspects the real tunneled bootstrap
+body and headers for the nonce and dev-capability vocabulary. Similarly, a
+Node `fetch` carrying `Origin` proves the server's Origin gate, not execution of
+an Expo web bundle. That row is now narrowly named, and the real browser-bundle
+web row remains pending instead of being inferred.
+
+Finally, the iOS reader's one-shot state was too eager: JavaScript could call
+`takeCheckoutNonce` before the app-delegate subscriber captured the launch
+environment and permanently consume an empty delivery. The getter now performs
+the environment capture attempt itself under the same lock when needed, and
+both capture paths unset the environment immediately. This was native launch
+ordering friction, not a missing Guide fact, so no guide-gap ticket was filed.

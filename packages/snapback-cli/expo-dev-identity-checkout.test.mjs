@@ -142,6 +142,7 @@ try {
   });
   const iosBundleIdentifier = 'dev.snapback.checkoutwitness';
   const androidComponent = 'dev.snapback.checkoutwitness/.MainActivity';
+  const expoAppScheme = 'snapback-checkout-witness';
   assert.equal(
     shouldLaunchExpoNativeCheckout(ios),
     false,
@@ -158,19 +159,22 @@ try {
     shouldLaunchExpoNativeCheckout(ios, {
       nativeCheckout: true,
       iosBundleIdentifier,
+      expoAppScheme,
       metroCommand: { command: 'custom-expo' },
     }),
     true,
     'explicit checkout opt-in is coherent with --expo-command',
   );
   assert.equal(
-    shouldLaunchExpoNativeCheckout(ios, { nativeLaunchRun: run, iosBundleIdentifier }),
+    shouldLaunchExpoNativeCheckout(ios, {
+      nativeLaunchRun: run, iosBundleIdentifier, expoAppScheme,
+    }),
     true,
     'the typed test runner remains an explicit protocol-test opt-in',
   );
   for (const options of [
     { nativeCheckout: true },
-    { nativeCheckout: true, iosBundleIdentifier: 'host.exp.Exponent' },
+    { nativeCheckout: true, iosBundleIdentifier: 'host.exp.Exponent', expoAppScheme },
   ]) {
     assert.throws(
       () => shouldLaunchExpoNativeCheckout(ios, options),
@@ -178,11 +182,16 @@ try {
       'Expo Go or an absent own bundle refuses before issuance',
     );
   }
+  assert.throws(
+    () => shouldLaunchExpoNativeCheckout(ios, { nativeCheckout: true, iosBundleIdentifier }),
+    (error) => error?.code === 'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+    'the own-bundle target still requires its development-client URL scheme',
+  );
 
   // Command construction names the witness development client's own bundle;
   // the live native reader result remains receipt-gated outside this unit test.
   const iosLaunch = launchExpoNativeCheckout(ios, nonce, {
-    run, env: {}, iosBundleIdentifier,
+    run, env: {}, iosBundleIdentifier, expoAppScheme,
   });
   assert.equal(iosLaunch.carrier, 'ios-simctl-environment');
   assert.deepEqual(launchCalls[0].args.slice(0, 3), [
@@ -192,6 +201,18 @@ try {
     launchCalls[0].options.env[`SIMCTL_CHILD_${SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV}`],
     nonce,
   );
+  assert.deepEqual(launchCalls[1], {
+    binary: 'xcrun',
+    args: [
+      'simctl',
+      'openurl',
+      'booted',
+      'snapback-checkout-witness://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A4102',
+    ],
+    options: { encoding: 'utf8', timeout: 30_000, env: {} },
+  });
+  assert.equal(launchCalls[1].args.some((arg) => arg.includes(nonce)), false);
+  assert.equal(iosLaunch.developmentClientUrl.includes(nonce), false);
 
   const android = createExpoRoutingPlan({
     platform: 'android',
@@ -202,26 +223,56 @@ try {
   });
   assert.equal(shouldLaunchExpoNativeCheckout(android), false);
   assert.equal(
-    shouldLaunchExpoNativeCheckout(android, { nativeCheckout: true, androidComponent }),
+    shouldLaunchExpoNativeCheckout(android, {
+      nativeCheckout: true, androidComponent, expoAppScheme,
+    }),
     true,
   );
   assert.throws(
     () => shouldLaunchExpoNativeCheckout(android, {
       nativeCheckout: true,
       androidComponent: 'host.exp.exponent/.experience.HomeActivity',
+      expoAppScheme,
     }),
     (error) => error?.code === 'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
   );
   const androidLaunch = launchExpoNativeCheckout(android, nonce, {
-    run, env: {}, androidComponent,
+    run, env: {}, androidComponent, expoAppScheme,
   });
   assert.equal(androidLaunch.carrier, 'android-adb-activity-extra');
-  assert.deepEqual(launchCalls[1].args.slice(0, 6), [
+  assert.deepEqual(launchCalls[2].args.slice(0, 6), [
     '-s', 'emulator-5554', 'shell', 'am', 'start', '-S',
   ]);
-  assert.deepEqual(launchCalls[1].args.slice(-3), [
+  assert.deepEqual(launchCalls[2].args.slice(-3), [
     '--es', SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV, nonce,
   ]);
+  assert.deepEqual(launchCalls[3].args, [
+    '-s', 'emulator-5554',
+    'shell', 'am', 'start',
+    '-a', 'android.intent.action.VIEW',
+    '-d', 'snapback-checkout-witness://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A4202',
+  ]);
+  assert.equal(launchCalls[3].args.some((arg) => arg.includes(nonce)), false);
+  assert.equal(androidLaunch.developmentClientUrl.includes(nonce), false);
+
+  const failedSequenceCalls = [];
+  assert.throws(
+    () => launchExpoNativeCheckout(ios, nonce, {
+      iosBundleIdentifier,
+      expoAppScheme,
+      env: {},
+      run(binary, args, options) {
+        failedSequenceCalls.push({ binary, args, options });
+        return failedSequenceCalls.length === 1
+          ? { status: 0, stdout: '', stderr: '' }
+          : { status: 1, stdout: '', stderr: 'open failed' };
+      },
+    }),
+    (error) => error?.code === 'SNAPBACK_EXPO_NATIVE_LAUNCH_FAILED'
+      && error?.diagnostic?.details?.phase === 'metro-development-client-url',
+    'the launch sequence completes only after the Metro development-client URL opens',
+  );
+  assert.equal(failedSequenceCalls.length, 2);
 
   const web = createExpoRoutingPlan({
     platform: 'web', backendPort: 4301, metroPort: 4302, bootstrapPort: 4303,
@@ -231,9 +282,9 @@ try {
     false,
   );
   assert.equal(launchExpoNativeCheckout(web, nonce, { run, env: {} }), null);
-  assert.equal(launchCalls.length, 2, 'Expo web has no native checkout launch channel');
+  assert.equal(launchCalls.length, 4, 'Expo web has no native checkout launch channel');
 
-  console.log('expo-dev-identity-checkout.test.mjs: default-off issuance, bootstrap secrecy, one-shot/rotation invalidation, web isolation, and opt-in native launch construction pass');
+  console.log('expo-dev-identity-checkout.test.mjs: default-off issuance, bootstrap secrecy, one-shot/rotation invalidation, browser-origin refusal, and complete opt-in native launch sequencing pass');
 } finally {
   await exchange.close();
   rmSync(scratch, { recursive: true, force: true });

@@ -32,6 +32,7 @@ export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = 'SNAPBACK_EXPO_DEV_IDENTITY_
 export const METRO_WATCH_BLIND_ROOTS = Object.freeze(['/private/tmp', '/tmp']);
 const EXPO_GO_IOS_BUNDLE_IDENTIFIER = 'host.exp.Exponent';
 const EXPO_GO_ANDROID_COMPONENT_PREFIX = 'host.exp.exponent/';
+const EXPO_APP_SCHEME_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*$/u;
 
 export function expoSupervisorChildEnvironment(env = process.env) {
   const childEnv = { ...(env ?? {}) };
@@ -951,18 +952,37 @@ export function installAndroidPortForwarding(plan, {
 
 // @ref LLP 0262#d2-carriers-per-shipped-topology — checkout nonces travel
 // only in native process-launch custody: simctl child environment for iOS and
-// one selected serial's Activity extras for Android. This helper has no web
-// arm and never receives the dev-identity capability itself.
+// one selected serial's Activity extras for Android. Only after that launch
+// succeeds does the supervisor open the non-secret Metro development-client
+// URL. This helper has no web arm and never receives the dev-identity
+// capability itself.
 export function launchExpoNativeCheckout(plan, nonce, {
   xcrunBinary = 'xcrun',
   adbBinary = 'adb',
   iosSimulator = 'booted',
   iosBundleIdentifier = null,
   androidComponent = null,
+  expoAppScheme = null,
   run = spawnSync,
   env = process.env,
 } = {}) {
   if (plan?.platform === 'web' || typeof nonce !== 'string' || nonce.length === 0) return null;
+  if (typeof expoAppScheme !== 'string' || !EXPO_APP_SCHEME_PATTERN.test(expoAppScheme)) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+      'native checkout requires the application development client URL scheme',
+      { platform: plan?.platform ?? null },
+    );
+  }
+  const metroPort = plan?.ports?.find((port) => port.owner === 'metro')?.devicePort;
+  if (!Number.isSafeInteger(metroPort) || metroPort < 1) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_ROUTE_INVALID',
+      'native checkout requires a valid Metro route',
+    );
+  }
+  const metroOrigin = appOrigin(plan.appHost, metroPort);
+  const developmentClientUrl = `${expoAppScheme}://expo-development-client/?url=${encodeURIComponent(metroOrigin)}`;
   let result;
   let carrier;
   if (plan?.platform === 'ios' && plan.device?.class === 'simulator') {
@@ -1035,7 +1055,39 @@ export function launchExpoNativeCheckout(plan, nonce, {
         platform: plan.platform,
         device: plan.device ?? null,
         carrier,
+        phase: 'own-bundle-checkout-launch',
         ...commandResultDetails(result),
+      },
+    );
+  }
+  const openResult = plan.platform === 'ios'
+    ? run(xcrunBinary, [
+      'simctl',
+      'openurl',
+      iosSimulator,
+      developmentClientUrl,
+    ], { encoding: 'utf8', timeout: 30_000, env })
+    : run(adbBinary, [
+      '-s',
+      plan.androidSerial,
+      'shell',
+      'am',
+      'start',
+      '-a',
+      'android.intent.action.VIEW',
+      '-d',
+      developmentClientUrl,
+    ], { encoding: 'utf8', timeout: 30_000, env });
+  if (openResult?.error || openResult?.status !== 0) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_NATIVE_LAUNCH_FAILED',
+      'the selected native Expo target could not open the supervised Metro development-client URL',
+      {
+        platform: plan.platform,
+        device: plan.device ?? null,
+        carrier,
+        phase: 'metro-development-client-url',
+        ...commandResultDetails(openResult),
       },
     );
   }
@@ -1043,6 +1095,7 @@ export function launchExpoNativeCheckout(plan, nonce, {
     platform: plan.platform,
     device: plan.device,
     carrier,
+    developmentClientUrl,
   });
 }
 
@@ -1056,6 +1109,7 @@ export function shouldLaunchExpoNativeCheckout(plan, {
   nativeLaunchRun,
   iosBundleIdentifier = null,
   androidComponent = null,
+  expoAppScheme = null,
 } = {}) {
   const nativeTarget = plan?.platform === 'ios'
     || (plan?.platform === 'android' && plan?.transport === 'adb-reverse');
@@ -1083,6 +1137,13 @@ export function shouldLaunchExpoNativeCheckout(plan, {
       'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
       'native checkout requires the application development client Android component',
       { platform: 'android' },
+    );
+  }
+  if (typeof expoAppScheme !== 'string' || !EXPO_APP_SCHEME_PATTERN.test(expoAppScheme)) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+      'native checkout requires the application development client URL scheme',
+      { platform: plan.platform },
     );
   }
   return true;
@@ -1783,6 +1844,7 @@ export async function runExpoDev(options = {}) {
                 iosSimulator: options.iosSimulator,
                 iosBundleIdentifier: options.iosBundleIdentifier,
                 androidComponent: options.androidComponent,
+                expoAppScheme: options.expoAppScheme,
                 run: options.nativeLaunchRun ?? spawnSync,
                 env: childEnv,
               });
@@ -1947,6 +2009,7 @@ export async function runExpoDev(options = {}) {
         iosSimulator: options.iosSimulator,
         iosBundleIdentifier: options.iosBundleIdentifier,
         androidComponent: options.androidComponent,
+        expoAppScheme: options.expoAppScheme,
         run: options.nativeLaunchRun ?? spawnSync,
         env: childEnv,
       });

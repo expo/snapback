@@ -16,8 +16,10 @@ import App from './App';
 registerRootComponent(App);
 ```
 
-The iOS app-delegate subscriber captures
-`ProcessInfo.processInfo.environment.SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE`.
+The iOS app-delegate subscriber makes a best-effort early capture of
+`SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE`; the native getter repeats that
+capture under the same lock if JavaScript arrives first. Both paths remove the
+value from the process environment before one-shot consumption.
 The Android activity-delegate handler captures and removes the launch Intent
 string extra with the same name before Expo enters a React load path. Native
 memory releases the delivery after one synchronous read; the prelude installs
@@ -28,8 +30,10 @@ resources, Metro modules, source maps, receipts, durable storage, or logs.
 
 This package cannot run inside Expo Go. The app config must name its own iOS
 bundle identifier and Android package, and the supervisor must explicitly opt
-into checkout while launching those identifiers. Production and web imports of
-the prelude are inert.
+into checkout with those identifiers plus the app's development-client URL
+scheme. The supervisor first launches the own bundle with the nonce and then
+opens the non-secret Metro development-client URL. Production and web imports
+of the prelude are inert.
 
 The live native witness app and orchestrator commands live under
 `demos/expo-native-checkout-reader/`.
