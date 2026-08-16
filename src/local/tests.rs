@@ -2376,6 +2376,106 @@ fn table_visibility_activation_validates_owner_field() {
 }
 
 #[test]
+fn table_visibility_activation_validates_membership_self_resource() {
+    let applications = TableManifest {
+        name: "applications".to_owned(),
+        fields: vec![FieldManifest {
+            name: "name".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        }],
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: None,
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: Some(crate::manifest::TableVisibilityV1::Membership {
+            declaration: "application-members".to_owned(),
+            resource_field: "_id".to_owned(),
+            roles: Some(vec!["member".to_owned()]),
+        }),
+        history: None,
+    };
+    let application_members = TableManifest {
+        name: "application_members".to_owned(),
+        fields: vec![
+            FieldManifest {
+                name: "userId".to_owned(),
+                field_type: FieldType::Principal,
+                optional: false,
+            },
+            FieldManifest {
+                name: "applicationId".to_owned(),
+                field_type: FieldType::Id {
+                    table: "applications".to_owned(),
+                },
+                optional: false,
+            },
+            FieldManifest {
+                name: "role".to_owned(),
+                field_type: FieldType::String,
+                optional: false,
+            },
+        ],
+        indexes: Vec::new(),
+        syncable: true,
+        permission_backing: false,
+        permission_fields: None,
+        search_indexes: Vec::new(),
+        vector_indexes: Vec::new(),
+        search_live_limits: None,
+        membership: Some(MembershipManifest {
+            id: Some("application-members".to_owned()),
+            principal: "userId".to_owned(),
+            resource: Some("applicationId".to_owned()),
+            role: "role".to_owned(),
+            roles: vec!["member".to_owned()],
+            pending_roles: None,
+            bootstrap_role: None,
+            last_holder: None,
+            expiry: None,
+            incidental: None,
+            provenance: None,
+            transitions: Vec::new(),
+            scope: MembershipScope::Resource,
+            resource_table: Some("applications".to_owned()),
+            principal_addressed_writes: None,
+        }),
+        authority_profile: None,
+        asset_sharing: None,
+        visibility: None,
+        history: None,
+    };
+    let mut schema = SchemaManifest {
+        tables: vec![applications, application_members],
+        ..SchemaManifest::default()
+    };
+
+    validate_function_schema_references(&FunctionManifest::default(), &schema)
+        .expect("membership visibility may use the resource table's server-owned _id");
+
+    for resource_field in ["missingApplication", "_createdAt"] {
+        schema.tables[0].visibility = Some(crate::manifest::TableVisibilityV1::Membership {
+            declaration: "application-members".to_owned(),
+            resource_field: resource_field.to_owned(),
+            roles: Some(vec!["member".to_owned()]),
+        });
+        let error = validate_function_schema_references(&FunctionManifest::default(), &schema)
+            .expect_err("codegen-unadmitted resource fields fail activation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
+            "{resource_field}"
+        );
+    }
+}
+
+#[test]
 fn restricted_table_plan_requires_exact_policy_and_authorization_dependence() {
     let visibility = crate::manifest::TableVisibilityV1::Owner {
         field: "ownerId".to_owned(),

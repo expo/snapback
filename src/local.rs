@@ -28483,15 +28483,25 @@ fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> Snapb
                 resource_field,
                 roles,
             } => {
-                let Some(resource) = table.field(resource_field) else {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
-                        "auth",
-                        format!(
-                            "table {} visibility membership resource field {} does not exist",
-                            table.name, resource_field
-                        ),
-                    ));
+                // @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
+                //   — a resource table may bind membership visibility to its
+                //   server-owned `_id`; every other resource field remains a
+                //   declared required nominal id.
+                let self_resource = resource_field == "_id";
+                let resource = if self_resource {
+                    None
+                } else {
+                    let Some(resource) = table.field(resource_field) else {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
+                            "auth",
+                            format!(
+                                "table {} visibility membership resource field {} does not exist",
+                                table.name, resource_field
+                            ),
+                        ));
+                    };
+                    Some(resource)
                 };
                 let Some((_membership_table, membership)) =
                     crate::manifest::find_membership_declaration(schema, declaration)
@@ -28506,11 +28516,14 @@ fn validate_table_visibility_schema_references(schema: &SchemaManifest) -> Snapb
                     ));
                 };
                 let expected_resource_table = membership.resource_table.as_deref();
-                let actual_resource_table = match &resource.field_type {
-                    crate::manifest::FieldType::Id { table } if !resource.optional => {
-                        Some(table.as_str())
-                    }
-                    _ => None,
+                let actual_resource_table = match resource {
+                    None => Some(table.name.as_str()),
+                    Some(resource) => match &resource.field_type {
+                        crate::manifest::FieldType::Id { table } if !resource.optional => {
+                            Some(table.as_str())
+                        }
+                        _ => None,
+                    },
                 };
                 if expected_resource_table.is_none()
                     || actual_resource_table != expected_resource_table
