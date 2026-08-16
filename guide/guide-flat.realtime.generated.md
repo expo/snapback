@@ -509,9 +509,7 @@ The client prunes by the server-stamped expiry deadline. Server expiry,
 explicit delete, and disconnect normally emit remove deltas, but TTL is the
 backstop when that remove is lost.
 
-<!-- since: 0.1.22 unreleased -->
-> **Unreleased.** The timestamped first-delivery budget is newer than the
-> newest published closure, 0.1.21.
+<!-- since: 0.1.22 -->
 
 ### Measure first visibility without timing the input action
 

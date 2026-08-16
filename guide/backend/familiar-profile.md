@@ -16,7 +16,7 @@ reviewed-authorities-digest: sha256:6bc6ecfd2478295ba356a56cfdeb7c854d66c9d7fc48
 
 # Familiar TypeScript profile (Experimental, non-default)
 
-> **Experimental / non-default in 0.1.21.** The familiar profile is a source
+> **Experimental / non-default in 0.1.22.** The familiar profile is a source
 > adapter over Snapback's canonical schema, function, runtime, and client
 > owners. It is not a second backend and does not make Convex compatibility a
 > target claim.
@@ -256,7 +256,7 @@ hygiene, not a workaround for stale data.
 ## Persist native session custody with SecureStore
 
 Web uses `createIndexedDbAuthCustodyStorage()`. React Native has no shipped
-SecureStore adapter in 0.1.21, so do not silently fall back to
+SecureStore adapter in 0.1.22, so do not silently fall back to
 `createMemoryAuthCustodyStorage()` for a user session that must survive a
 process restart. Install the SDK-compatible `expo-secure-store`, then adapt it
 to `AuthCoordinator`'s ownership and compare-and-swap contract. This tested
@@ -328,7 +328,7 @@ reference exercises:
    references and use memoized argument objects.
 3. Gate each protected query/mutation with active membership or admin checks.
    Keep this server-side even if Expo Router already hid the screen.
-4. For a simple private JPEG/PNG field in 0.1.21, a bare `v.assetRef()` derives
+4. For a simple private JPEG/PNG field in 0.1.22, a bare `v.assetRef()` derives
    the bounded default upload intent. Upload through the generated asset
    reference and `assets.upload(...)`, wait for its ready asset id, then attach
    the typed id in a mutation. Use the complete [asset guide](./assets.md), not

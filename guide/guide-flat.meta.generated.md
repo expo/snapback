@@ -150,7 +150,7 @@ proof command, and honest nonclaims without opening every demo.
 
 ### Backend
 - [Familiar TypeScript profile](./backend/familiar-profile.md) — the
-  Experimental/non-default 0.1.21 grammar, server-side authorization,
+  Experimental/non-default 0.1.22 grammar, server-side authorization,
   identity-stable React hooks, native SecureStore custody, and one Expo Router
   journey.
 - [Handler runtime profile and generation preflight](./backend/handler-runtime.md)
