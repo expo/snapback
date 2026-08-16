@@ -7,7 +7,7 @@
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use celld_ltx::object_store::{
-    ObjectStore, PutMode, PutOptions, PutPayload, UpdateVersion,
+    ObjectStore, ObjectStoreExt, PutMode, PutOptions, PutPayload, UpdateVersion,
     aws::{AmazonS3Builder, S3ConditionalPut},
     path::Path as ObjectPath,
 };

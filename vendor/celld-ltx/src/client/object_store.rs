@@ -35,7 +35,7 @@ use futures_util::stream::{FuturesUnordered, StreamExt, TryStreamExt};
 use object_store::aws::AmazonS3Builder;
 use object_store::path::Path as ObjPath;
 use object_store::{
-    Attribute, AttributeValue, Attributes, GetOptions, GetRange, ObjectStore, PutMultipartOpts,
+    Attribute, AttributeValue, Attributes, GetOptions, GetRange, ObjectStore, PutMultipartOptions,
     PutOptions, PutPayload,
 };
 
@@ -648,9 +648,9 @@ impl ReplicaClient for ObjectStoreClient {
 
         // Range: bytes=offset-(offset+size-1) when size>0, else bytes=offset-
         // (s3/replica_client.go:620-625).
-        let off = offset.max(0) as usize;
+        let off = offset.max(0) as u64;
         let range = if size > 0 {
-            GetRange::Bounded(off..(off + size as usize))
+            GetRange::Bounded(off..(off + size as u64))
         } else {
             GetRange::Offset(off)
         };
@@ -725,7 +725,7 @@ impl ReplicaClient for ObjectStoreClient {
                 .await
                 .map_err(|e| Error::Other(format!("s3: upload to {key}: {e}").into()))?;
         } else {
-            let opts = PutMultipartOpts {
+            let opts = PutMultipartOptions {
                 attributes,
                 ..Default::default()
             };

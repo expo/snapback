@@ -1,6 +1,6 @@
 # Replication's `quick-xml` dependency has two denial-of-service advisories
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
@@ -55,3 +55,27 @@ replication crash/retry contract.
 - The upgrade does not weaken response-size/time bounds or replication error
   classification.
 
+## Resolution (2026-08-15)
+
+`vendor/celld-ltx/Cargo.toml` now uses `object_store` 0.14.1, which resolves
+`quick-xml` 0.41.0. The root and vendored lockfiles record the qualified graph.
+The 0.14 API adaptation is limited to `ObjectStoreExt`,
+`PutMultipartOptions`, and the `u64` `GetRange` offsets in
+`vendor/celld-ltx/src/client/object_store.rs`, `vendor/celld-ltx/src/leaser.rs`,
+and `src/replication.rs`; conditional-write and crash/retry semantics are
+unchanged.
+
+Snapback replication tests passed, the complete all-features celld-ltx suite
+passed, and a native local MinIO instance exercised the real conformance,
+metadata, range-read, and multipart paths without skips. Key evidence:
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 2700 filtered out; finished in 3.46s
+test result: ok. 122 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+```
+
+`cargo audit` exits successfully with no vulnerabilities. It reports one
+allowed warning for unmaintained `smartstring` (`RUSTSEC-2026-0249`), unrelated
+to the two fixed quick-xml advisories.

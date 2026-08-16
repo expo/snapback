@@ -19,7 +19,7 @@
 //!
 //! # `object_store` mapping (see the porting brief T15.md §2/§3/§5)
 //!
-//! | Go (aws-sdk + smithy)        | Rust (`object_store` 0.11)                       |
+//! | Go (aws-sdk + smithy)        | Rust (`object_store` 0.14)                       |
 //! |------------------------------|--------------------------------------------------|
 //! | `PutObject{IfNoneMatch:"*"}` | `PutMode::Create` → `Error::AlreadyExists` on loss |
 //! | `PutObject{IfMatch:etag}`    | `PutMode::Update(UpdateVersion{e_tag})` → `Error::Precondition` |
@@ -30,7 +30,7 @@
 //! # DEVIATION from Go — conditional DELETE
 //!
 //! Go's `ReleaseLease` issues `DeleteObject` with `IfMatch:<etag>` (s3/leaser.go:180-184)
-//! so the delete is atomic. `object_store 0.11`'s `delete(&path)` takes **no**
+//! so the delete is atomic. `object_store 0.14`'s `delete(&path)` takes **no**
 //! options and has no conditional-delete variant (lib.rs:660). We therefore
 //! implement release as **read-then-delete**: read the current lock object (and
 //! its ETag), compare it to the held lease's ETag, and only then delete. The three
@@ -50,6 +50,7 @@
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime};
 
+use object_store::ObjectStoreExt;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};

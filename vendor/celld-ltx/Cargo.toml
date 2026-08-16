@@ -28,7 +28,10 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "io-util
 # Aligned to celld's rusqlite (crates/celld pins 0.31); libsqlite3-sys carries
 # links="sqlite3", so the workspace cannot hold two versions.
 rusqlite = { version = "0.31", features = ["bundled"] }
-object_store = { version = "0.11", default-features = false }
+# 0.14.1 raises quick-xml to the RUSTSEC-2026-0194/0195-fixed 0.41 line.
+# @ref LLP 0188#2-protocol — the object-store transport must preserve the
+# replication stream's conditional-write and crash/retry behavior.
+object_store = { version = "0.14.1", default-features = false }
 bytes = "1"
 thiserror = "2"
 tracing = "0.1"
