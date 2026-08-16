@@ -3,14 +3,16 @@
 // LLP 0258 Phase 1.4 standards-real browser proof runner.
 //
 // This runner reuses the repository's raw-CDP system-Chrome process machinery
-// and drives Safari through safaridriver's W3C WebDriver REST API. It has no
-// Playwright/Puppeteer dependency and serves the esbuild page bundle from the
-// same local origin that proxies the real Snapback server's public auth routes.
+// and drives Safari and Firefox through their W3C WebDriver REST APIs. It has
+// no Playwright/Puppeteer dependency and serves the esbuild page bundle from
+// the same local origin that proxies the real Snapback server's public auth
+// routes.
 //
 // @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client
 //   — StrictMode and repeated construction measure the exact owner key.
 // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
-//   — Chromium must expose real IndexedDB and Web Locks; no memory substitute.
+//   — every browser arm must expose real IndexedDB and Web Locks; no memory
+//   substitute.
 // @ref LLP 0059#cross-context-ownership — two real browser contexts share one
 //   origin and durable custody; messages are never treated as authority.
 // @ref LLP 0059#transition-barrier — hygiene assertions inspect a registered
@@ -48,7 +50,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '..', '..');
 const RUN_DATE = '2026-08-16';
 const PAGE_MODULE_PATH = join(here, 'browser-auth-bootstrap-v1-page.mjs');
-const FIXTURE_BACKEND = join(ROOT, 'demos', 'rbac', 'snapback');
+const FIXTURE_BACKEND = join(here, 'fixtures', 'browser-auth-backend');
 const GENERATED = join(FIXTURE_BACKEND, 'generated');
 const DEFAULT_WITNESS_PATH = join(
   ROOT,
@@ -57,6 +59,8 @@ const DEFAULT_WITNESS_PATH = join(
 const DEFAULT_SERVER_BINARY = join(ROOT, 'target', 'debug', 'snapback');
 const PROFILE_TEMP_ROOT = process.platform === 'darwin' ? '/tmp' : tmpdir();
 const SAFARIDRIVER_PATH = '/usr/bin/safaridriver';
+const GECKODRIVER_PATH = '/opt/homebrew/bin/geckodriver';
+const FIREFOX_BINARY_PATH = '/Applications/Firefox.app/Contents/MacOS/firefox';
 const PAGE_GLOBAL = 'snapbackBrowserAuthBootstrap';
 const PROOF_DEFINITIONS = Object.freeze([
   ['1', 'reload-restoration'],
@@ -71,6 +75,9 @@ const options = {
   browser: process.env.CHROME_PATH ?? process.env.SNAPBACK_BROWSER_EXECUTABLE ?? null,
   headed: false,
   webdriverMockCheck: false,
+  webdriverFirefoxMockDriver: false,
+  webdriverFirefoxMockState: null,
+  webdriverFirefoxMockPort: null,
   witness: DEFAULT_WITNESS_PATH,
   serverBinary: process.env.SNAPBACK_RUNTIME_BINARY ?? DEFAULT_SERVER_BINARY,
 };
@@ -87,7 +94,12 @@ for (let index = 2; index < process.argv.length; index += 1) {
   if (argument === '--browser') options.browser = resolve(process.argv[++index]);
   else if (argument === '--headed') options.headed = true;
   else if (argument === '--webdriver-mock-check') options.webdriverMockCheck = true;
-  else if (argument === '--witness') options.witness = resolve(process.argv[++index]);
+  else if (argument === '--webdriver-firefox-mock-driver') options.webdriverFirefoxMockDriver = true;
+  else if (argument === '--webdriver-firefox-mock-state') {
+    options.webdriverFirefoxMockState = resolve(process.argv[++index]);
+  } else if (argument === '--port' && options.webdriverFirefoxMockDriver) {
+    options.webdriverFirefoxMockPort = Number(process.argv[++index]);
+  } else if (argument === '--witness') options.witness = resolve(process.argv[++index]);
   else if (argument === '--server-binary') options.serverBinary = resolve(process.argv[++index]);
   else fail('SNAPBACK_BROWSER_AUTH_BOOTSTRAP_USAGE', `unknown argument: ${argument}`);
 }
@@ -189,6 +201,25 @@ const BROWSER_ENGINE_ADAPTERS = Object.freeze({
         );
       }
       return launchSafariWebDriver({ executable: SAFARIDRIVER_PATH });
+    },
+  }),
+  firefox: Object.freeze({
+    id: 'firefox',
+    async launch() {
+      if (
+        process.platform !== 'darwin'
+        || !existsSync(GECKODRIVER_PATH)
+        || !existsSync(FIREFOX_BINARY_PATH)
+      ) {
+        fail(
+          'SNAPBACK_BROWSER_AUTH_GECKODRIVER_UNAVAILABLE',
+          'the Firefox arm requires /opt/homebrew/bin/geckodriver and /Applications/Firefox.app',
+        );
+      }
+      return launchFirefoxWebDriver({
+        executable: GECKODRIVER_PATH,
+        browserExecutable: FIREFOX_BINARY_PATH,
+      });
     },
   }),
 });
@@ -512,7 +543,7 @@ async function reserveLoopbackPort() {
   const address = reservation.address();
   if (!address || typeof address === 'string') {
     await new Promise((resolveClose) => reservation.close(resolveClose));
-    fail('SNAPBACK_BROWSER_AUTH_WEBDRIVER_PORT_FAILED', 'could not reserve a safaridriver port');
+    fail('SNAPBACK_BROWSER_AUTH_WEBDRIVER_PORT_FAILED', 'could not reserve a WebDriver port');
   }
   await new Promise((resolveClose, rejectClose) => reservation.close(
     (error) => error ? rejectClose(error) : resolveClose(),
@@ -531,7 +562,10 @@ function webdriverFailure(payload, status, method, pathname) {
   return error;
 }
 
-async function createWebDriverSession(baseUrl) {
+async function createWebDriverSession(baseUrl, {
+  browserLabel = 'Safari',
+  alwaysMatch = { browserName: 'safari' },
+} = {}) {
   const request = async (method, pathname, body = undefined, timeoutMs = 70_000) => {
     let response;
     try {
@@ -563,11 +597,14 @@ async function createWebDriverSession(baseUrl) {
   };
 
   const created = await request('POST', '/session', {
-    capabilities: { alwaysMatch: { browserName: 'safari' } },
+    capabilities: { alwaysMatch },
   }, 120_000);
   const sessionId = created?.sessionId;
   if (typeof sessionId !== 'string' || sessionId.length === 0) {
-    fail('SNAPBACK_BROWSER_AUTH_WEBDRIVER_SESSION_INVALID', 'safaridriver omitted the session id');
+    fail(
+      'SNAPBACK_BROWSER_AUTH_WEBDRIVER_SESSION_INVALID',
+      `${browserLabel} WebDriver omitted the session id`,
+    );
   }
   const capabilities = created.capabilities ?? {};
   const sessionPath = `/session/${encodeURIComponent(sessionId)}`;
@@ -581,7 +618,10 @@ async function createWebDriverSession(baseUrl) {
     const handles = await request('GET', `${sessionPath}/window/handles`);
     initialHandle = Array.isArray(handles) ? handles[0] ?? null : null;
     if (initialHandle === null) {
-      fail('SNAPBACK_BROWSER_AUTH_WEBDRIVER_WINDOW_MISSING', 'Safari session opened without a window');
+      fail(
+        'SNAPBACK_BROWSER_AUTH_WEBDRIVER_WINDOW_MISSING',
+        `${browserLabel} WebDriver session opened without a window`,
+      );
     }
   } catch (error) {
     try { await request('DELETE', sessionPath); } catch { /* best-effort initialization cleanup */ }
@@ -597,7 +637,10 @@ async function createWebDriverSession(baseUrl) {
     return result;
   };
   const command = (method, pathname, body = undefined, timeoutMs = 70_000) => (
-    request(method, `${sessionPath}${pathname}`, body, timeoutMs)
+    // geckodriver refuses POST commands without a JSON body ("Failed to
+    // decode request as JSON"); safaridriver tolerates the omission. Send an
+    // empty object on body-less POSTs so both drivers accept every command.
+    request(method, `${sessionPath}${pathname}`, method === 'POST' ? (body ?? {}) : body, timeoutMs)
   );
   const switchTo = (handle) => command('POST', '/window', { handle });
   const withWindow = (handle, operation) => enqueue(async () => {
@@ -614,7 +657,7 @@ async function createWebDriverSession(baseUrl) {
       try {
         const ready = await executeSync(
           handle,
-          'return typeof globalThis[arguments[0]] === "object";',
+          'return typeof window[arguments[0]] === "object";',
           [PAGE_GLOBAL],
         );
         if (ready === true) return;
@@ -623,17 +666,24 @@ async function createWebDriverSession(baseUrl) {
       }
       await sleep(50);
     }
-    fail('SNAPBACK_BROWSER_AUTH_PAGE_NOT_READY', 'Safari page did not expose its proof API');
+    fail(
+      'SNAPBACK_BROWSER_AUTH_PAGE_NOT_READY',
+      `${browserLabel} page did not expose its proof API`,
+    );
   };
 
   const startOperationScript = `
     const [globalName, method, hasArgument, argument, operationId] = arguments;
     const registryName = '__snapbackWebDriverOperationsV1';
-    const registry = globalThis[registryName] ??= Object.create(null);
+    // Firefox/Marionette runs WebDriver scripts in a per-call sandbox where
+    // globalThis writes do not persist between calls; window expandos do (and
+    // window === globalThis in Safari), so the cross-call registry must live
+    // on window.
+    const registry = window[registryName] ??= Object.create(null);
     registry[operationId] = { done: false };
     let operation;
     try {
-      const api = globalThis[globalName];
+      const api = window[globalName];
       operation = hasArgument ? api[method](argument) : api[method]();
     } catch (error) {
       registry[operationId] = {
@@ -656,7 +706,7 @@ async function createWebDriverSession(baseUrl) {
     return true;
   `;
   const pollOperationScript = `
-    const registry = globalThis.__snapbackWebDriverOperationsV1;
+    const registry = window.__snapbackWebDriverOperationsV1;
     const entry = registry?.[arguments[0]];
     if (!entry?.done) return { done: false };
     delete registry[arguments[0]];
@@ -676,14 +726,14 @@ async function createWebDriverSession(baseUrl) {
       const result = await executeSync(handle, pollOperationScript, [operationId]);
       if (result?.done === true) {
         if (result.ok === true) return result.value;
-        throw new Error(String(result.error ?? 'Safari page evaluation failed')
+        throw new Error(String(result.error ?? `${browserLabel} page evaluation failed`)
           .replace(/sbs_[A-Za-z0-9._~-]+/gu, '[REDACTED]'));
       }
       await sleep(20);
     }
     fail(
       'SNAPBACK_BROWSER_AUTH_WEBDRIVER_SCRIPT_TIMEOUT',
-      `Safari page operation timed out: ${method}`,
+      `${browserLabel} page operation timed out: ${method}`,
     );
   };
 
@@ -700,7 +750,10 @@ async function createWebDriverSession(baseUrl) {
         handle = createdWindow?.handle;
       }
       if (typeof handle !== 'string' || handle.length === 0) {
-        fail('SNAPBACK_BROWSER_AUTH_WEBDRIVER_WINDOW_INVALID', 'Safari omitted a new window handle');
+        fail(
+          'SNAPBACK_BROWSER_AUTH_WEBDRIVER_WINDOW_INVALID',
+          `${browserLabel} WebDriver omitted a new window handle`,
+        );
       }
       openHandles.add(handle);
       await withWindow(handle, () => command('POST', '/url', { url }));
@@ -840,6 +893,243 @@ async function launchSafariWebDriver({ executable }) {
   throw new Error('unreachable safaridriver startup retry state');
 }
 
+const firefoxWebDriverSessionOptions = (browserExecutable) => ({
+  browserLabel: 'Firefox',
+  alwaysMatch: {
+    browserName: 'firefox',
+    'moz:firefoxOptions': {
+      binary: browserExecutable,
+      args: ['-headless'],
+    },
+  },
+});
+
+async function launchFirefoxWebDriverAttempt({
+  executable,
+  browserExecutable,
+  port,
+  driverArgsPrefix = [],
+  driverEnv = process.env,
+}) {
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const child = spawn(executable, [...driverArgsPrefix, '--port', String(port)], {
+    cwd: ROOT,
+    env: driverEnv,
+    detached: process.platform !== 'win32',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  const capture = (chunk) => {
+    output = `${output}${chunk}`.slice(-16_000);
+  };
+  child.stdout?.on('data', capture);
+  child.stderr?.on('data', capture);
+  const ownership = ownProcessTree(child, () => stopChild(child, { graceMs: 3_000 }));
+  let client = null;
+  try {
+    const deadline = Date.now() + 20_000;
+    let ready = false;
+    while (Date.now() < deadline) {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        fail(
+          'SNAPBACK_BROWSER_AUTH_GECKODRIVER_EXITED',
+          `geckodriver exited during startup: ${output.trim() || 'no diagnostic output'}`,
+        );
+      }
+      try {
+        const response = await fetch(`${baseUrl}/status`, { signal: AbortSignal.timeout(1_000) });
+        const payload = response.ok ? await response.json() : null;
+        if (payload?.value?.ready !== false) {
+          ready = response.ok;
+          if (ready) break;
+        }
+      } catch {
+        // The process may not have bound its socket yet.
+      }
+      await sleep(50);
+    }
+    if (!ready) {
+      fail(
+        'SNAPBACK_BROWSER_AUTH_GECKODRIVER_START_TIMEOUT',
+        `geckodriver did not become ready on its ephemeral port: ${output.trim() || 'no diagnostic output'}`,
+      );
+    }
+    client = await createWebDriverSession(
+      baseUrl,
+      firefoxWebDriverSessionOptions(browserExecutable),
+    );
+    const profilePath = client.capabilities?.['moz:profile'];
+    let profileStats = null;
+    if (typeof profilePath === 'string' && profilePath.length > 0) {
+      try {
+        profileStats = await stat(profilePath);
+      } catch {
+        // The typed validation below reports a stable lifecycle diagnostic.
+      }
+    }
+    if (profileStats?.isDirectory() !== true) {
+      fail(
+        'SNAPBACK_BROWSER_AUTH_FIREFOX_PROFILE_INVALID',
+        'geckodriver did not report a live per-session throwaway profile',
+      );
+    }
+    return {
+      client,
+      capabilities: client.capabilities,
+      profilePath,
+      profileCreated: true,
+      async closeSession() { await client.close(); },
+      async stop() { await ownership.stop(); },
+    };
+  } catch (error) {
+    const cleanupErrors = [];
+    if (client !== null) {
+      try { await client.close(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+    }
+    try { await ownership.stop(); } catch (cleanupError) { cleanupErrors.push(cleanupError); }
+    if (cleanupErrors.length > 0) {
+      const startupAndCleanupError = new AggregateError(
+        [error, ...cleanupErrors],
+        `geckodriver startup and cleanup failed: ${error.message}`,
+        { cause: error },
+      );
+      startupAndCleanupError.code = error?.code;
+      throw startupAndCleanupError;
+    }
+    throw error;
+  }
+}
+
+const GECKODRIVER_START_ATTEMPTS = 3;
+
+function retryableGeckoDriverStartup(error) {
+  return error?.code === 'SNAPBACK_BROWSER_AUTH_GECKODRIVER_EXITED'
+    || (
+      error?.code === 'SNAPBACK_BROWSER_AUTH_GECKODRIVER_START_TIMEOUT'
+      && /address(?: already)? in use|bind|EADDRINUSE/iu.test(error.message)
+    );
+}
+
+async function launchFirefoxWebDriver({
+  executable,
+  browserExecutable,
+  launchAttempt = launchFirefoxWebDriverAttempt,
+  reservePort = reserveLoopbackPort,
+  driverArgsPrefix = [],
+  driverEnv = process.env,
+}) {
+  for (let attempt = 1; attempt <= GECKODRIVER_START_ATTEMPTS; attempt += 1) {
+    const port = await reservePort();
+    try {
+      return await launchAttempt({
+        executable,
+        browserExecutable,
+        port,
+        driverArgsPrefix,
+        driverEnv,
+      });
+    } catch (error) {
+      if (!retryableGeckoDriverStartup(error)) throw error;
+      if (attempt === GECKODRIVER_START_ATTEMPTS) {
+        fail(
+          error.code,
+          `geckodriver startup failed after ${attempt} freshly reserved-port attempts: ${error.message}`,
+          { attempts: attempt, lastFailure: publicError(error) },
+        );
+      }
+    }
+  }
+  throw new Error('unreachable geckodriver startup retry state');
+}
+
+async function runFirefoxWebDriverMockDriver() {
+  const port = options.webdriverFirefoxMockPort;
+  const statePath = options.webdriverFirefoxMockState;
+  if (
+    !Number.isSafeInteger(port)
+    || port < 1
+    || port > 65_535
+    || typeof statePath !== 'string'
+  ) {
+    process.stderr.write('mock geckodriver requires --port and --webdriver-firefox-mock-state\n');
+    return 64;
+  }
+  const priorAttempts = Number.parseInt(await readFile(statePath, 'utf8'), 10) || 0;
+  const attempt = priorAttempts + 1;
+  await writeFile(statePath, `${attempt}\n`);
+  if (attempt === 1) {
+    process.stderr.write(`mock geckodriver address already in use on ${port}\n`);
+    return 1;
+  }
+
+  const sessionId = 'mock-firefox-session';
+  let profilePath = null;
+  const mockDriver = createServer(async (request, response) => {
+    const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+    const bodyBytes = ['GET', 'DELETE'].includes(request.method ?? 'GET')
+      ? Buffer.alloc(0)
+      : await readRequestBytes(request);
+    const body = bodyBytes.length === 0 ? {} : JSON.parse(bodyBytes.toString('utf8'));
+    let status = 200;
+    let value = null;
+    if (request.method === 'GET' && url.pathname === '/status') {
+      value = { ready: true, message: 'mock geckodriver ready' };
+    } else if (request.method === 'POST' && url.pathname === '/session') {
+      const alwaysMatch = body?.capabilities?.alwaysMatch;
+      if (
+        alwaysMatch?.browserName !== 'firefox'
+        || alwaysMatch?.['moz:firefoxOptions']?.binary
+          !== '/mock/Firefox.app/Contents/MacOS/firefox'
+        || stableText(alwaysMatch?.['moz:firefoxOptions']?.args) !== '["-headless"]'
+      ) {
+        status = 500;
+        value = { error: 'invalid argument', message: 'Firefox capabilities did not match' };
+      } else {
+        profilePath = await mkdtemp(join(dirname(statePath), 'firefox-profile-'));
+        value = {
+          sessionId,
+          capabilities: {
+            browserName: 'firefox',
+            browserVersion: 'mock-1',
+            platformVersion: 'mock-platform',
+            'moz:profile': profilePath,
+          },
+        };
+      }
+    } else if (
+      request.method === 'POST'
+      && url.pathname === `/session/${sessionId}/timeouts`
+    ) {
+      value = null;
+    } else if (
+      request.method === 'GET'
+      && url.pathname === `/session/${sessionId}/window/handles`
+    ) {
+      value = ['mock-firefox-window'];
+    } else if (
+      request.method === 'DELETE'
+      && url.pathname === `/session/${sessionId}`
+    ) {
+      if (profilePath !== null) await rm(profilePath, { recursive: true, force: true });
+      value = null;
+    } else {
+      status = 404;
+      value = { error: 'unknown command', message: url.pathname };
+    }
+    response.writeHead(status, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ value }));
+  });
+  return new Promise((resolveDriver, rejectDriver) => {
+    const shutdown = () => mockDriver.close((error) => (
+      error ? rejectDriver(error) : resolveDriver(0)
+    ));
+    process.once('SIGTERM', shutdown);
+    process.once('SIGINT', shutdown);
+    mockDriver.once('error', rejectDriver);
+    mockDriver.listen(port, '127.0.0.1');
+  });
+}
+
 async function runWebDriverMockCheck() {
   const sessionId = 'mock-session';
   const handles = ['mock-window-a'];
@@ -853,6 +1143,13 @@ async function runWebDriverMockCheck() {
     secondWindowClosed: false,
     sessionClosed: false,
     initializationFailureCleaned: false,
+    firefoxCapabilitiesMatched: false,
+    firefoxLaunchAttempts: 0,
+    firefoxPortRetries: 0,
+    firefoxSessionClosed: false,
+    firefoxDriverStopped: false,
+    firefoxProfileCreated: false,
+    firefoxProfileRemoved: false,
   };
   let failInitialization = false;
   let currentHandle = handles[0];
@@ -894,7 +1191,7 @@ async function runWebDriverMockCheck() {
       facts.reloadCount += 1;
       value = null;
     } else if (request.method === 'POST' && url.pathname === `/session/${sessionId}/execute/sync`) {
-      if (body.script.includes('typeof globalThis[arguments[0]]')) {
+      if (body.script.includes('typeof window[arguments[0]]')) {
         value = true;
       } else if (body.script.includes("const registryName = '__snapbackWebDriverOperationsV1'")) {
         const operationId = body.args[4];
@@ -976,6 +1273,54 @@ async function runWebDriverMockCheck() {
       (error) => error ? rejectClose(error) : resolveClose(),
     ));
   }
+
+  const mockFirefoxBinary = '/mock/Firefox.app/Contents/MacOS/firefox';
+  const firefoxSessionOptions = firefoxWebDriverSessionOptions(mockFirefoxBinary);
+  facts.firefoxCapabilitiesMatched = (
+    firefoxSessionOptions.alwaysMatch.browserName === 'firefox'
+    && firefoxSessionOptions.alwaysMatch['moz:firefoxOptions']?.binary === mockFirefoxBinary
+    && stableText(firefoxSessionOptions.alwaysMatch['moz:firefoxOptions']?.args) === '["-headless"]'
+  );
+  const mockFirefoxScratch = await mkdtemp(join(tmpdir(), 'snapback-mock-geckodriver-'));
+  const mockFirefoxState = join(mockFirefoxScratch, 'attempts.txt');
+  await writeFile(mockFirefoxState, '0\n');
+  let firefox = null;
+  try {
+    firefox = await launchFirefoxWebDriver({
+      executable: process.execPath,
+      browserExecutable: mockFirefoxBinary,
+      driverArgsPrefix: [
+        fileURLToPath(import.meta.url),
+        '--webdriver-firefox-mock-driver',
+        '--webdriver-firefox-mock-state',
+        mockFirefoxState,
+      ],
+    });
+    facts.firefoxLaunchAttempts = Number.parseInt(
+      await readFile(mockFirefoxState, 'utf8'),
+      10,
+    );
+    facts.firefoxPortRetries = facts.firefoxLaunchAttempts - 1;
+    facts.firefoxCapabilitiesMatched = facts.firefoxCapabilitiesMatched
+      && firefox.capabilities?.browserName === 'firefox'
+      && firefox.capabilities?.browserVersion === 'mock-1';
+    facts.firefoxProfileCreated = firefox.profileCreated === true
+      && existsSync(firefox.profilePath);
+    await firefox.closeSession();
+    facts.firefoxSessionClosed = firefox.client.sessionClosed;
+    await firefox.stop();
+    facts.firefoxDriverStopped = true;
+    const profileDeadline = Date.now() + 3_000;
+    while (existsSync(firefox.profilePath) && Date.now() < profileDeadline) await sleep(25);
+    facts.firefoxProfileRemoved = !existsSync(firefox.profilePath);
+  } finally {
+    if (firefox !== null) {
+      try { await firefox.closeSession(); } catch { /* best-effort mock cleanup */ }
+      try { await firefox.stop(); } catch { /* best-effort mock cleanup */ }
+    }
+    await rm(mockFirefoxScratch, { recursive: true, force: true });
+  }
+
   if (!Object.values(facts).every((value) => value === true || (typeof value === 'number' && value > 0))) {
     fail('SNAPBACK_BROWSER_AUTH_WEBDRIVER_MOCK_INCOMPLETE', 'mock WebDriver did not observe every lifecycle arm', facts);
   }
@@ -1113,6 +1458,7 @@ const snapshotEvidence = (snapshot) => ({
 const operationEvidence = (result) => ({
   ok: result?.ok === true,
   code: result?.code ?? null,
+  ...(result?.refreshOutcome ? { refreshOutcome: result.refreshOutcome } : {}),
   snapshot: snapshotEvidence(result?.snapshot),
 });
 
@@ -1181,6 +1527,10 @@ const engineSkip = (engine, code, reason, details = {}) => ({
   ...details,
 });
 
+if (options.webdriverFirefoxMockDriver) {
+  process.exit(await runFirefoxWebDriverMockDriver());
+}
+
 if (options.webdriverMockCheck) {
   const facts = await runWebDriverMockCheck();
   process.stdout.write(`${JSON.stringify({ ok: true, webdriverMock: facts })}\n`);
@@ -1199,13 +1549,35 @@ const fixtureDescriptor = await ensureFixtureArtifacts();
 const bundle = await bundlePage();
 const schema = JSON.parse(await readFile(join(GENERATED, 'schema.manifest.json'), 'utf8'));
 const functions = JSON.parse(await readFile(join(GENERATED, 'functions.manifest.json'), 'utf8'));
+// Current codegen emits a visibilityGovernance activation carrier for every
+// primed backend, and local cold-start activation then demands a signed
+// SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG that no repository tool can
+// mint yet — freshly primed servers cannot boot at all
+// (issues/20260816-governance-carrier-blocks-fresh-prime-server-boot.md).
+// This harness proves auth behavior, not governance: omit the carrier ONLY
+// when it is inert (required:false, empty closure), refuse otherwise, and
+// record the omission as a witness fact.
+let governanceCarrierOmitted = false;
+if (schema.visibilityGovernance) {
+  const carrier = schema.visibilityGovernance;
+  const inert = carrier.required === false
+    && (carrier.fixtureProfiles ?? []).length === 0
+    && (carrier.productionWindows ?? []).length === 0;
+  if (!inert) {
+    throw new Error(
+      'SNAPBACK_BROWSER_AUTH_GOVERNED_FIXTURE_UNSUPPORTED: the fixture backend carries a non-inert visibility-governance closure; this harness must not strip it',
+    );
+  }
+  delete schema.visibilityGovernance;
+  governanceCarrierOmitted = true;
+}
 const fixtureFiles = [
-  'demos/rbac/snapback/schema.mjs',
-  'demos/rbac/snapback/functions.mjs',
-  'demos/rbac/snapback/generated/artifacts.json',
-  'demos/rbac/snapback/generated/schema.manifest.json',
-  'demos/rbac/snapback/generated/functions.manifest.json',
-  'demos/rbac/snapback/generated/app.descriptor.json',
+  'tests/acceptance/fixtures/browser-auth-backend/schema.mjs',
+  'tests/acceptance/fixtures/browser-auth-backend/functions.mjs',
+  'tests/acceptance/fixtures/browser-auth-backend/generated/artifacts.json',
+  'tests/acceptance/fixtures/browser-auth-backend/generated/schema.manifest.json',
+  'tests/acceptance/fixtures/browser-auth-backend/generated/functions.manifest.json',
+  'tests/acceptance/fixtures/browser-auth-backend/generated/app.descriptor.json',
 ];
 const sourceFiles = [
   'tests/acceptance/browser-auth-bootstrap-v1.mjs',
@@ -1224,12 +1596,18 @@ const chromeVersion = execFileSync(browserExecutable, ['--version'], { encoding:
 const safariDriverVersion = existsSync(SAFARIDRIVER_PATH)
   ? execFileSync(SAFARIDRIVER_PATH, ['--version'], { encoding: 'utf8' }).trim()
   : null;
+const geckoDriverVersion = existsSync(GECKODRIVER_PATH)
+  ? execFileSync(GECKODRIVER_PATH, ['--version'], { encoding: 'utf8' }).trim()
+  : null;
+const firefoxBinaryVersion = existsSync(FIREFOX_BINARY_PATH)
+  ? execFileSync(FIREFOX_BINARY_PATH, ['--version'], { encoding: 'utf8' }).trim()
+  : null;
 const osVersion = process.platform === 'darwin'
   ? execFileSync('sw_vers', [], { encoding: 'utf8' }).trim().replaceAll('\t', ' ')
   : execFileSync('uname', ['-a'], { encoding: 'utf8' }).trim();
 const gitCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 const gitDirty = execFileSync('git', ['status', '--short'], { cwd: ROOT, encoding: 'utf8' }).trim() !== '';
-const engineInputs = Object.fromEntries(['chromium', 'webkit'].map((engine) => {
+const engineInputs = Object.fromEntries(['chromium', 'webkit', 'firefox'].map((engine) => {
   const credentialNonce = randomBytes(12).toString('hex');
   return [engine, {
     databaseName: `snapback-browser-auth-bootstrap-${engine}-${randomUUID()}`,
@@ -1255,6 +1633,7 @@ const witness = {
   source: {
     gitCommit,
     gitDirty,
+    governanceCarrierOmitted,
     note: 'Executed bytes are pinned below; this witness and its proof artifacts are committed with the landing.',
     node: process.version,
     files: await hashFiles(sourceFiles),
@@ -1273,6 +1652,7 @@ const witness = {
   },
   fixture: {
     identity: {
+      backendPath: 'tests/acceptance/fixtures/browser-auth-backend',
       appId: fixtureDescriptor.identity.app,
       schema: fixtureDescriptor.identity.schema,
       functions: fixtureDescriptor.identity.functions,
@@ -1297,7 +1677,7 @@ const witness = {
   },
   nonclaims: [
     'The StrictMode proof drives React development StrictMode and repeated real DOM mount/unmount; it does not drive a Metro/Vite Fast Refresh session and is not Fast Refresh evidence.',
-    'Chromium and WebKit evidence does not establish Firefox, native custody, hosted auth, XSS resistance, or sender-constrained credentials.',
+    'Browser evidence does not establish native custody, hosted auth, XSS resistance, or sender-constrained credentials.',
   ],
   secretScan: null,
 };
@@ -1345,17 +1725,26 @@ try {
   };
   witness.server.origin = server.baseUrl.replace(/:\d+$/u, ':<ephemeral-port>');
   harness = await startHarnessServer(bundle, server.baseUrl);
-  for (const engineId of ['chromium', 'webkit']) {
+  for (const engineId of ['chromium', 'webkit', 'firefox']) {
     const { databaseName, credentials } = engineInputs[engineId];
     const proofs = [];
     const engineCleanup = engineId === 'chromium'
       ? { transportClosed: false, browserStopped: false, profileRemoved: false, databaseDeleted: false }
-      : { sessionClosed: false, driverStopped: false, databaseDeleted: false };
+      : {
+          sessionClosed: false,
+          driverStopped: false,
+          databaseDeleted: false,
+          ...(engineId === 'firefox' ? {
+            profileSource: 'geckodriver-default-per-session',
+            profileCreated: false,
+            profileRemoved: false,
+          } : {}),
+        };
     witness.cleanup.engines[engineId] = engineCleanup;
     let profilePath = null;
     let chrome = null;
     let cdp = null;
-    let webkit = null;
+    let webdriver = null;
     let browser = null;
     let pageA = null;
     let pageB = null;
@@ -1377,11 +1766,16 @@ try {
         cdp = await connectCdp(chrome.ws);
         browser = cdp;
       } else {
-        webkit = await BROWSER_ENGINE_ADAPTERS.webkit.launch();
-        browser = webkit.client;
+        webdriver = await BROWSER_ENGINE_ADAPTERS[engineId].launch();
+        browser = webdriver.client;
+        if (engineId === 'firefox') {
+          engineCleanup.profileCreated = webdriver.profileCreated === true;
+        }
       }
       const pageUrl = `${harness.origin}/?database=${encodeURIComponent(databaseName)}`;
+      if (process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1') console.error('AUTH-DEBUG-PROGRESS', engineId, 'browser launched; opening page');
       pageA = await browser.newPage(pageUrl);
+      if (process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1') console.error('AUTH-DEBUG-PROGRESS', engineId, 'pageA open; envFacts');
       environment = await pageA.call('envFacts');
       const unavailable = [
         ...(environment.indexedDb === true ? [] : ['IndexedDB']),
@@ -1400,9 +1794,13 @@ try {
       } else {
         const initialReady = await pageA.call('ready');
         if (!initialReady.ok || environment.indexedDb !== true || environment.webLocks !== true) {
+          console.error('AUTH-DEBUG-READY', engineId, JSON.stringify(initialReady).slice(0, 800));
           fail(
             'SNAPBACK_BROWSER_AUTH_PLATFORM_CAPABILITY_MISSING',
-            `${engineId} did not expose a ready durable IndexedDB/Web Locks app client`,
+            `${engineId} did not expose a ready durable IndexedDB/Web Locks app client `
+              + `(readyOk=${initialReady.ok === true} readyCode=${initialReady.code ?? 'none'} `
+              + `readyError=${String(initialReady.message ?? initialReady.error ?? '').slice(0, 300)} `
+              + `bootstrap=${JSON.stringify(initialReady.snapshot?.bootstrap ?? null).slice(0, 300)})`,
             { initialReady, environment },
           );
         }
@@ -1630,17 +2028,41 @@ try {
     && captureMatchesCustody(snapshot)
     && sameSettledCustody(refreshStart[0], snapshot)
   ));
+  const refreshWireBefore = harness.counts()['POST /auth/refresh'] ?? { total: 0, statuses: {} };
   const refreshRace = await gatedRace(harness, '/auth/refresh', [
     () => pageA.call('refresh'),
     () => pageB.call('refresh'),
   ]);
   const refreshAuto = await observePages(pageA, pageB);
-  const successfulRefreshes = refreshRace.results.filter(({ ok }) => ok);
-  const failedRefreshes = refreshRace.results.filter(({ ok }) => !ok);
-  const refreshSuccesses = successfulRefreshes.length;
-  const refreshWinner = successfulRefreshes.length === 1 ? successfulRefreshes[0].snapshot : null;
-  const refreshLoserTyped = failedRefreshes.length === 1
-    && failedRefreshes[0].code === 'SNAPBACK_AUTH_REFRESH_SUPERSEDED';
+  // authRefresh's documented resolution contract (packages/snapback-client
+  // index.mjs): the rotation winner resolves with the rotated credential
+  // projection; a superseded caller that observes the winner's successor
+  // revision resolves { superseded: true } — with cross-context wakeups
+  // wired, the loser ordinarily RESOLVES rather than rejecting, while the
+  // wire still shows exactly one 200 and one typed 409. The proof therefore
+  // requires exactly one 'rotated' resolution, exactly one converged
+  // supersession (resolved superseded-converged OR a typed rejection), and
+  // the exact 200/409 wire pair.
+  const rotatedRefreshes = refreshRace.results.filter(
+    (result) => result.ok && result.refreshOutcome === 'rotated',
+  );
+  const supersededRefreshes = refreshRace.results.filter(
+    (result) => (result.ok && result.refreshOutcome === 'superseded-converged')
+      || (!result.ok && result.code === 'SNAPBACK_AUTH_REFRESH_SUPERSEDED'),
+  );
+  const refreshSuccesses = rotatedRefreshes.length;
+  const refreshWinner = rotatedRefreshes.length === 1 ? rotatedRefreshes[0].snapshot : null;
+  const refreshLoserTyped = supersededRefreshes.length === 1
+    && rotatedRefreshes.length + supersededRefreshes.length === refreshRace.results.length;
+  const refreshWireAfter = harness.counts()['POST /auth/refresh'] ?? { total: 0, statuses: {} };
+  const refreshWireDelta = {
+    total: refreshWireAfter.total - (refreshWireBefore.total ?? 0),
+    ok: (refreshWireAfter.statuses['200'] ?? 0) - (refreshWireBefore.statuses?.['200'] ?? 0),
+    superseded: (refreshWireAfter.statuses['409'] ?? 0) - (refreshWireBefore.statuses?.['409'] ?? 0),
+  };
+  const refreshWireExact = refreshWireDelta.total === 2
+    && refreshWireDelta.ok === 1
+    && refreshWireDelta.superseded === 1;
   const refreshWinnerRotated = refreshPrecondition
     && refreshWinner?.principal?.status === 'authenticated'
     && refreshWinner?.custody?.authorityKind === 'session'
@@ -1658,6 +2080,7 @@ try {
   const refreshConverged = refreshSuccesses === 1
     && refreshWinnerRotated
     && refreshLoserTyped
+    && refreshWireExact
     && refreshProjectionConverged
     && refreshCapturesMatch;
   const refreshFailClosedBlank = refreshSuccesses === 0 && refreshAuto.every((snapshot) => (
@@ -1670,15 +2093,21 @@ try {
     && sameSettledCustody(refreshAuto[0], snapshot)
   ));
   const refreshFailureNote = (() => {
-    if (refreshConverged) return 'one refresh won, its peer refused superseded, and both tabs converged on the same-authority rotated custody revision';
+    if (refreshConverged) return 'one refresh rotated on the wire (exactly one 200 and one typed 409), its peer converged through the documented superseded resolution, and both tabs settled on the same-authority rotated custody revision';
     if (refreshSuccesses === 0 && refreshFailClosedBlank) {
-      return 'refresh race had zero caller successes and fail-closed blanked both tabs automatically';
+      return 'refresh race had zero rotation winners and fail-closed blanked both tabs automatically';
     }
     if (refreshSuccesses !== 1) {
-      return `refresh race had ${refreshSuccesses} caller successes and did not produce exactly one winner`;
+      return `refresh race produced ${refreshSuccesses} rotation winners instead of exactly one`;
     }
-    if (!refreshWinnerRotated || !refreshLoserTyped) {
-      return 'refresh winner/loser capture contract did not prove a same-authority revision-only rotation with a typed superseded loser';
+    if (!refreshLoserTyped) {
+      return 'the non-winning caller neither resolved the documented superseded convergence nor refused typed superseded';
+    }
+    if (!refreshWireExact) {
+      return `the /auth/refresh wire pair was not exactly one 200 and one 409 (total=${refreshWireDelta.total} ok=${refreshWireDelta.ok} superseded=${refreshWireDelta.superseded})`;
+    }
+    if (!refreshWinnerRotated) {
+      return 'refresh winner capture contract did not prove a same-authority revision-only rotation';
     }
     if (!refreshProjectionConverged) {
       return 'a refresh winner existed but at least one tab retained a stale principal or custody projection';
@@ -1913,6 +2342,10 @@ try {
       && finalTwoTab[0].custody?.userId === finalTwoTab[1].custody?.userId,
     'both tabs read one final durable custody revision/epoch/principal',
   ));
+  if (process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1') {
+    for (const c of twoTabChecks) console.error('AUTH-DEBUG-P2', engineId, c.pass ? 'PASS' : 'FAIL', c.name, '::', c.note);
+    console.error('AUTH-DEBUG-P2-REFRESH', engineId, JSON.stringify(raceDetails.refresh?.results?.map((r) => ({ ok: r.ok, code: r.code })) ?? null));
+  }
   proofs.push(proofResult('2', 'two-tab-ownership', twoTabChecks, raceDetails));
 
   await pageB.call('dispose');
@@ -2033,29 +2466,49 @@ try {
   engineCleanup.databaseDeleted = databaseCleanup.databaseDeleted === true;
       }
 
-      const browserFacts = engineId === 'chromium'
-        ? {
-            executable: browserExecutable,
-            executableSha256: sha256(await readFile(browserExecutable)),
-            version: chromeVersion,
-            userAgent: environment.userAgent,
-            navigatorPlatform: environment.platform,
-            automation: 'raw-cdp-over-node-websocket',
-            profile: 'one-persistent-profile-two-real-targets',
-          }
-        : {
-            driverExecutable: SAFARIDRIVER_PATH,
-            driverExecutableSha256: sha256(await readFile(SAFARIDRIVER_PATH)),
-            driverVersion: safariDriverVersion,
-            version: webkit.capabilities?.browserVersion
-              ? `Safari ${webkit.capabilities.browserVersion}`
-              : 'Safari (version not reported)',
-            platformVersion: webkit.capabilities?.['safari:platformVersion'] ?? null,
-            userAgent: environment.userAgent,
-            navigatorPlatform: environment.platform,
-            automation: 'w3c-webdriver-rest-over-node-fetch',
-            profile: 'safaridriver-owned-session-with-two-window-handles',
-          };
+      let browserFacts;
+      if (engineId === 'chromium') {
+        browserFacts = {
+          executable: browserExecutable,
+          executableSha256: sha256(await readFile(browserExecutable)),
+          version: chromeVersion,
+          userAgent: environment.userAgent,
+          navigatorPlatform: environment.platform,
+          automation: 'raw-cdp-over-node-websocket',
+          profile: 'one-persistent-profile-two-real-targets',
+        };
+      } else if (engineId === 'webkit') {
+        browserFacts = {
+          driverExecutable: SAFARIDRIVER_PATH,
+          driverExecutableSha256: sha256(await readFile(SAFARIDRIVER_PATH)),
+          driverVersion: safariDriverVersion,
+          version: webdriver.capabilities?.browserVersion
+            ? `Safari ${webdriver.capabilities.browserVersion}`
+            : 'Safari (version not reported)',
+          platformVersion: webdriver.capabilities?.['safari:platformVersion'] ?? null,
+          userAgent: environment.userAgent,
+          navigatorPlatform: environment.platform,
+          automation: 'w3c-webdriver-rest-over-node-fetch',
+          profile: 'safaridriver-owned-session-with-two-window-handles',
+        };
+      } else {
+        browserFacts = {
+          executable: FIREFOX_BINARY_PATH,
+          executableSha256: sha256(await readFile(FIREFOX_BINARY_PATH)),
+          binaryVersion: firefoxBinaryVersion,
+          driverExecutable: GECKODRIVER_PATH,
+          driverExecutableSha256: sha256(await readFile(GECKODRIVER_PATH)),
+          driverVersion: geckoDriverVersion,
+          version: webdriver.capabilities?.browserVersion
+            ? `Firefox ${webdriver.capabilities.browserVersion}`
+            : firefoxBinaryVersion ?? 'Firefox (version not reported)',
+          platformVersion: webdriver.capabilities?.platformVersion ?? null,
+          userAgent: environment.userAgent,
+          navigatorPlatform: environment.platform,
+          automation: 'w3c-webdriver-rest-over-node-fetch',
+          profile: 'geckodriver-default-per-session-throwaway-profile',
+        };
+      }
       const carrier = {
         indexedDb: environment.indexedDb,
         webLocks: environment.webLocks,
@@ -2099,10 +2552,10 @@ try {
           engineFailure ??= error;
         }
       }
-      if (webkit !== null) {
+      if (webdriver !== null) {
         try {
-          await webkit.closeSession();
-          engineCleanup.sessionClosed = webkit.client.sessionClosed;
+          await webdriver.closeSession();
+          engineCleanup.sessionClosed = webdriver.client.sessionClosed;
         } catch (error) {
           engineFailure ??= error;
         }
@@ -2115,13 +2568,20 @@ try {
           engineFailure ??= error;
         }
       }
-      if (webkit !== null) {
+      if (webdriver !== null) {
         try {
-          await webkit.stop();
+          await webdriver.stop();
           engineCleanup.driverStopped = true;
         } catch (error) {
           engineFailure ??= error;
         }
+      }
+      if (engineId === 'firefox' && webdriver?.profilePath) {
+        const deadline = Date.now() + 3_000;
+        while (existsSync(webdriver.profilePath) && Date.now() < deadline) {
+          await sleep(25);
+        }
+        engineCleanup.profileRemoved = !existsSync(webdriver.profilePath);
       }
       if (profilePath !== null) {
         try {
@@ -2144,7 +2604,14 @@ try {
         status: 'FAIL',
         browser: engineId === 'chromium'
           ? { executable: browserExecutable, version: chromeVersion }
-          : { driverExecutable: SAFARIDRIVER_PATH, driverVersion: safariDriverVersion },
+          : engineId === 'webkit'
+            ? { driverExecutable: SAFARIDRIVER_PATH, driverVersion: safariDriverVersion }
+            : {
+                executable: FIREFOX_BINARY_PATH,
+                binaryVersion: firefoxBinaryVersion,
+                driverExecutable: GECKODRIVER_PATH,
+                driverVersion: geckoDriverVersion,
+              },
         os: { platform: process.platform, arch: process.arch, version: osVersion },
         proofs: PROOF_DEFINITIONS.map(([id, name]) => existing.get(id) ?? ({
           id,
@@ -2194,9 +2661,11 @@ try {
   }
 }
 witness.cleanup.browserStopped = witness.cleanup.engines.chromium?.browserStopped === true
-  && witness.cleanup.engines.webkit?.driverStopped === true;
-witness.cleanup.profileRemoved = witness.cleanup.engines.chromium?.profileRemoved === true;
-witness.cleanup.databaseDeleted = ['chromium', 'webkit'].every(
+  && witness.cleanup.engines.webkit?.driverStopped === true
+  && witness.cleanup.engines.firefox?.driverStopped === true;
+witness.cleanup.profileRemoved = witness.cleanup.engines.chromium?.profileRemoved === true
+  && witness.cleanup.engines.firefox?.profileRemoved === true;
+witness.cleanup.databaseDeleted = ['chromium', 'webkit', 'firefox'].every(
   (engine) => witness.cleanup.engines[engine]?.databaseDeleted === true,
 );
 witness.finishedAt = new Date().toISOString();
@@ -2205,11 +2674,16 @@ if (infrastructureFailures.length > 0) witness.infrastructureErrors = infrastruc
 
 const chromium = witness.engines.find(({ engine }) => engine === 'chromium');
 const webkit = witness.engines.find(({ engine }) => engine === 'webkit');
+const firefox = witness.engines.find(({ engine }) => engine === 'firefox');
 witness.ok = infrastructureFailure === null
   && chromium?.status === 'PASS'
   && webkit?.status === 'PASS'
+  && firefox?.status === 'PASS'
   && chromium?.cleanup?.transportClosed === true
   && webkit?.cleanup?.sessionClosed === true
+  && firefox?.cleanup?.sessionClosed === true
+  && firefox?.cleanup?.profileCreated === true
+  && firefox?.cleanup?.profileRemoved === true
   && witness.cleanup.browserStopped
   && witness.cleanup.profileRemoved
   && witness.cleanup.harnessClosed
@@ -2246,6 +2720,13 @@ const summary = {
   proofs: chromium?.proofs?.map(({ id, name, outcome }) => ({ id, name, outcome })) ?? [],
   webkit: webkit?.status ?? 'FAIL',
   webkitProofs: webkit?.proofs?.map(({ id, name, outcome, code }) => ({
+    id,
+    name,
+    outcome,
+    ...(code ? { code } : {}),
+  })) ?? [],
+  firefox: firefox?.status ?? 'FAIL',
+  firefoxProofs: firefox?.proofs?.map(({ id, name, outcome, code }) => ({
     id,
     name,
     outcome,

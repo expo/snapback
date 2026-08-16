@@ -19,7 +19,7 @@ import {
   authCustodyOwnerKeyHash,
 } from '../../packages/snapback-contract/auth-coordinator.mjs';
 import { createSnapbackAppClient } from '../../packages/snapback-client/index.mjs';
-import app from '../../demos/rbac/snapback/generated/app.mjs';
+import app from './fixtures/browser-auth-backend/generated/app.mjs';
 
 const params = new URL(globalThis.location.href).searchParams;
 const DATABASE_NAME = params.get('database');
@@ -193,7 +193,9 @@ const makeBinding = () => {
       origin: globalThis.location.origin,
       routing: 'loopback',
     }),
-    capabilities: Object.freeze({ offered: Object.freeze(['auth.passwords']) }),
+    capabilities: Object.freeze({
+      offered: Object.freeze(['auth.application-bootstrap.v1', 'auth.passwords']),
+    }),
     provenance: Object.freeze({
       supervisorGeneration: 'browser-auth-bootstrap-v1',
       issuedAt: new Date(now - 60_000).toISOString(),
@@ -404,7 +406,25 @@ const seedProtected = async (label) => {
   const owner = principal.userId
     ?? principal.authorityInstanceId
     ?? principal.authorizationStreamIncarnation;
-  state.protectedRows = [Object.freeze({ owner, label })];
+  if (principal.status === 'authenticated') {
+    await projection.client.mutate(app.api.mutations.seedProtectedNote, {
+      args: { label },
+      queue: false,
+    });
+    const result = await projection.client.query(app.api.queries.listProtectedNotes, {
+      args: { label },
+    });
+    state.protectedRows = result.rows.map(({ ownerId, label: rowLabel }) => Object.freeze({
+      owner: ownerId,
+      label: rowLabel,
+    }));
+  } else {
+    // Owner visibility deliberately admits no anonymous row. The signin-race
+    // arm still needs predecessor materialization to exercise the anonymous →
+    // session barrier, so keep that arm's sentinel in this registered
+    // participant while authenticated arms exercise the real backend policy.
+    state.protectedRows = [Object.freeze({ owner, label })];
+  }
   state.optimisticState = [Object.freeze({ owner, label: `${label}-optimistic` })];
   return currentSnapshot();
 };
@@ -656,8 +676,20 @@ const pageApi = Object.freeze({
   signOut() {
     return run((projection) => projection.auth.signOut());
   },
-  refresh() {
-    return run((projection) => projection.client.auth.authRefresh());
+  async refresh() {
+    // authRefresh's documented contract: the rotation winner resolves with
+    // the rotated public credential projection; a superseded caller that
+    // observes the winner's successor resolves { superseded: true }. Surface
+    // which resolution occurred (never credential fields) so the two-tab
+    // proof can require exactly one rotation plus one converged supersession.
+    try {
+      const projection = await boot();
+      const value = await projection.client.auth.authRefresh();
+      const refreshOutcome = value?.superseded === true ? 'superseded-converged' : 'rotated';
+      return Object.freeze({ ok: true, refreshOutcome, snapshot: await currentSnapshot() });
+    } catch (error) {
+      return Object.freeze({ ...safeError(error), snapshot: await currentSnapshot() });
+    }
   },
   switchUser({ email, password }) {
     return run(async (projection) => {

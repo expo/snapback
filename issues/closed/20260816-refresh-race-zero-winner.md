@@ -82,3 +82,35 @@ evidence) is now executing the root-cause and fix, with the harness's
 proof-2 rerun as acceptance; a Firefox (geckodriver) engine arm is being
 added to the same harness in parallel, so the closing witness covers three
 engines. Per the fleet convention this claim yields to landed code.
+
+## Resolution (2026-08-16)
+
+Root cause was server-side response admission, not the rotation itself: the
+durable CAS always selected exactly one winner, but the generic session
+publication fence requires `pending_tickets.is_empty()`, and the loser's
+still-pending refresh ticket blocked the winner's completed 200 — the
+stranded publication surfaced as `SNAPBACK_AUTH_SESSION_EXPIRED`, which the
+client's opaque-credential-route handling types as
+`SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`. Fixed with an
+operation-specific committed-refresh fence
+(`src/auth/session_projection.rs`): the coordinator mints a one-shot
+committed-refresh outcome carrying the exact finalized rotation's fence and
+only same-generation, exact-predecessor sibling `TokenSupersede` tickets;
+the specialized fence admits the winner while those already-doomed sibling
+refreshes settle, and still blocks logout/revocation tickets, expiry or
+stream mutations, later refreshes not present at the commit cut, and
+generation/terminal-state/deadline/stream-incarnation changes. Rust
+regressions pin exactly one HTTP 200 winner in the gated race and the
+prepublication-revocation boundary.
+
+One clarification against this ticket's original exit wording: "the loser
+stays typed SNAPBACK_AUTH_REFRESH_SUPERSEDED" holds on the wire (exactly
+one 200 and one 409 in the recorded runs), while the loser's CLIENT call
+resolves `{ superseded: true }` per `authRefresh`'s documented contract
+once it observes the winner's successor revision through the cross-tab
+wakeups — the caller-facing supersession is a successful convergence, not a
+rejection. The Phase 1.4 harness's concurrent-refresh check now requires
+exactly this composed contract and passes on real Chromium 151, Safari
+26.6, and Firefox 152 (witness
+`tests/acceptance/fixtures/browser-lane/browser-auth-bootstrap.2026-08-16.v1.json`,
+receipt green).
