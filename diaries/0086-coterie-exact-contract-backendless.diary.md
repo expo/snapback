@@ -142,3 +142,113 @@ route-wide reactions, topic-shaped Trending, dead attachments, static chat
 background, and inert repost/reply controls. The remaining settings options
 now use all eight pinned accents and the exact `off`/`24h`/`7d` values. This
 round still did not attach Snapback, so the earlier Snapback non-finding stands.
+
+## 2026-08-16 — M1 provider freeze and acceptance skeleton
+
+The provider seam remained the cleanest part of this slice. A single registry
+now selects `memory` or `snapback` before either web or native mounts, and both
+entries terminate at the same generated-binding configure call. The Contract
+routes did not need to learn a provider name. Web selection was a small Vite
+`envPrefix` change; native was less complete because the shared-host module
+pipeline has no documented app-environment projection, so the native entry now
+has an explicit build-time `memory` constant instead of pretending an ambient
+environment variable will exist on device.
+
+Growing the provider declaration made the M1 boundary much more concrete.
+Signup, deterministic validation errors, full profile fields, fixture-avatar
+attachment, session rotation, and logout revocation all fit behind the existing
+row-level provider without UI imports. The process-memory limitation is now
+visible in the data model: active tokens move to an in-process revocation
+ledger, but restart discards both accounts and revocations. That felt honest in
+a way that a mock "upload" or durable-session claim would not. The committed
+fixture avatar references were also a useful narrow substitute for upload
+bytes: the operation proves attachment semantics without claiming storage.
+
+Exact generation caught one surprising sharp edge. Provider-native queries
+have core `compatibilityToken` fields, while mutations currently have no such
+schema key; adding one is rejected by the closed declaration schema. I kept the
+two changed query tokens in their core fields and froze the complete M1
+operation-token set in the namespaced `coterie.m1CompatibilityTokens`
+extension. Another small generator edge appeared when a mutation named
+`logout` used a result shape named `LogoutResult`: generation produced a
+self-referential `type LogoutResult = LogoutResult`. Naming the row
+`LogoutMutationResult` avoided the collision. Neither workaround changes the
+Contract call sites, but both are details an agent has to discover rather than
+obvious paved-road behavior.
+
+The no-socket acceptance loop was pleasantly compact. Generated query bindings
+are real headless handles, so the runner could subscribe to `listProfiles`,
+invoke the generated login/edit/logout mutations, and prove that the edit
+arrived through provider invalidation. It parses the shared `CONTRACT.md` for
+the frozen `sm-*` authority and imports the shared choreography aggregator,
+which avoids a Coterie-private selector registry. I did not find a public
+in-process API that mounts this routed `.contract` module graph into an Acto
+semantic tree without the Vite/host surface, so this remains provider/binding
+acceptance rather than UI-tree interaction evidence. The later real-host lane
+still owes the two-context and native proofs from LLP 0266 D10.
+
+Compared with React plus Convex or Supabase, the declaration and regeneration
+step is more ceremony, and the mutation-token schema mismatch adds friction.
+In return, the backend swap is unusually inspectable: the same generated
+surface drives the application, tests, and acceptance script, while invalid
+provider names and the not-yet-wired Snapback entry fail before UI code runs.
+Snapback itself was still not attached in this slice, so there are no new
+Snapback ergonomics or backend-correctness claims.
+
+Review exposed a deeper issue in that first provider-selector draft: although
+both registry entries called the same generated configure function, the
+declaration and digest still identified `coterie-memory`. A declaration emitted
+from Snapback-native facts could never pass that handshake. The corrected seam
+has one provider-neutral `coterie` declaration and manifest; each adapter
+implements and reuses that exact surface, while provider-specific capability
+evidence stays with the lane. A second adapter-shaped wrapper now configures and
+queries through the generated binding in tests, making the future Snapback
+integration pattern executable instead of prose-only.
+
+The same review found that Exact generates typed declared-error `code` fields
+but its runtime serializer drops every field except name, message, and stack.
+The memory provider now throws errors with both name and code, but Coterie tests
+and docs honestly use the delivered name until Exact grows the envelope; a
+filesystem ticket records that external fix. Tightening the headless acceptance
+flow also made session evidence meaningfully stronger: it signs out first,
+requires login to mint and deliver a new token, then requires logout to revoke
+that exact token rather than accepting optional or fallback values.
+
+## 2026-08-16 — Snapback M1 backend lane (recorded separately from the Exact/Contract observations above)
+
+A parallel lane built the first real backend at `demos/coterie/snapback/`
+(M1 only: accounts, sessions, profiles, avatars — LLP 0266 D9). Snapback
+observations, distinct from the Contract client work:
+
+- **Sessions-mode auth was the big win.** `defineAuth` with email
+  identifiers supplied signup, sign-in, recovery codes, durable bearer
+  custody, and revoking logout — substantially smaller than an
+  application-owned account/session implementation would have been. The
+  server-side ownership boundary was direct to express: every mutable
+  profile operation is `auth: 'authenticated'`, takes no owner principal,
+  and compares stored ownership with `ctx.auth.userId`; unique owner and
+  normalized-handle indexes make the invariants structural.
+- **The asset path was cohesive.** One `defineAssetUpload`, one typed
+  `v.assetRef`, one `ctx.assets.attach` — admission (PNG/JPEG/WebP ≤10 MB
+  per the brief), trusted type detection, GPS stripping, renditions,
+  reference tracking, and public-immutable delivery in one declaration set.
+- **Codegen feedback was useful and specific**: the first run warned that
+  table visibility was implicit and named the exact guide anchor; declaring
+  intentional `public-read` visibility left zero warnings. Two consecutive
+  runs produced byte-identical output for all 39 generated files.
+- **Guide gap (ticketed):** there is no paved composition for installing
+  password-backed fixture accounts + profile rows + typed avatar media
+  idempotently in a sessions-mode app. The versioned-seed page correctly
+  says principal IDs cannot be seeded; the assets page does not teach a
+  seed-fixture path; Party Wall's closest analogue uses a dev-mode sibling
+  unavailable in sessions mode. Coterie built an ordinary-session installer
+  (signup on first install; on `SNAPBACK_AUTH_PASSWORD_EXISTS`, password
+  sign-in plus owner-scoped profile and fixture-source-digest verification;
+  matched repeats perform no upload or app write). See
+  `issues/20260816-guide-gap-sessions-mode-fixture-install-recipe.md`.
+- The review loop moved the backend from convention to contract: the
+  benchmark brief's exact field limits (password ≥8, handle 3–20, bio ≤200,
+  location ≤50, WebP avatars) and typed `DUPLICATE_HANDLE` /
+  `PROFILE_NOT_OWNED` refusals all came out of dual review against
+  `benchmarks/briefs/social-messenger.md` rather than the first build pass —
+  the brief is the contract, and validation written from taste drifts.
