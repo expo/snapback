@@ -1,4 +1,4 @@
-# LLP 0269: Decision — D-4 promotion stays exact-pin; range relaxation shelved
+# LLP 0271: Decision — D-4 promotion stays exact-pin; range relaxation shelved
 
 **Type:** Decision
 **Status:** Accepted
@@ -8,7 +8,9 @@ Code generation, Testing, CI
 **Date:** 2026-08-16
 **Revised:** 2026-08-16 (converted from a range-relaxation Spec to a shelving
 Decision after two dual-family super-refine rounds concluded the sound form is
-disproportionately hard for near-zero value)
+disproportionately hard for near-zero value; renumbered 0269 → 0271
+same-day — 0269 was already claimed by llp/0269-storage-graduation.plan.md,
+which landed first)
 **Related:** LLP 0134, LLP 0189, LLP 0130,
 `issues/20260816-llp0134-d4-range-relaxation-needs-sound-derivation.md`,
 `issues/20260816-capability-maturity-a5-merge-bypass.md`

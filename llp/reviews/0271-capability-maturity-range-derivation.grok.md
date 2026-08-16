@@ -1,15 +1,15 @@
-# Grok review — LLP 0269
+# Grok review — LLP 0271
 
 **Reviewer family:** Grok
 **Provider / runtime:** Grok 4.6 in Grok Build (interactive session)
 **Date:** 2026-08-16
 **Redacted:** no
 **Method:** independent adversarial design review of the cwd worktree.
-This session did not author LLP 0269 (document Author: Claude Fable 5,
+This session did not author LLP 0271 (document Author: Claude Fable 5,
 orchestrated). Not a capsule review.
 
 - **Target under review:**
-  `llp/0269-capability-maturity-range-derivation.spec.md`, 34,006 bytes,
+  `llp/0271-capability-maturity-range-derivation.spec.md`, 34,006 bytes,
   SHA-256
   `5d21679c24de5e274a752ea27834dc3d5ac99a5d0fd3af6c4b5a1b50871aca9a`.
   Status: Draft. Hash and byte count verified on disk before the verdict.
@@ -29,12 +29,12 @@ orchestrated). Not a capsule review.
   (`roots: ['src']`); `src/manifest.rs` `TargetCapabilityId` / `maturity()`;
   `src/local.rs` (~33,716 lines) and `src/bounded_children_cursor.rs`
   (~330 lines) as a concrete runtime-split for `bounded_children_v1`.
-- **Blindness disclosure:** no `llp/reviews/0269-*` artifact existed at
+- **Blindness disclosure:** no `llp/reviews/0271-*` artifact existed at
   review start; none was read.
 
 ---
 
-# Review — LLP 0269: Sound D-4 range relaxation (adversarial design)
+# Review — LLP 0271: Sound D-4 range relaxation (adversarial design)
 
 ## 1. Overall assessment
 
@@ -619,12 +619,12 @@ VERDICT: NOT READY
 **Redacted:** no
 **Method:** independent adversarial design re-review of the cwd worktree
 against the round-1 defeat set and the v0.2 mechanisms. This session
-did not author LLP 0269 (document Author: Claude Fable 5, orchestrated)
+did not author LLP 0271 (document Author: Claude Fable 5, orchestrated)
 and did not author the v0.2 revision. Not a capsule review. Same-family
 re-review: dated section, no overwrite of round 1.
 
 - **Target under review:**
-  `llp/0269-capability-maturity-range-derivation.spec.md`, 47,409 bytes,
+  `llp/0271-capability-maturity-range-derivation.spec.md`, 47,409 bytes,
   SHA-256
   `d476498781a8cb9ac2693ec6905101d3d4bedaa714286474b0ee9423226bb40c`.
   Status: Draft. Hash and byte count verified on disk before the verdict.
@@ -647,7 +647,7 @@ re-review: dated section, no overwrite of round 1.
   walks `base..HEAD`).
 - **Blindness:** round-1 Grok artifact in this file was re-read in
   order to reconstruct each named defeat against the revision (required
-  by the brief). No other family's 0269 artifact exists in-tree.
+  by the brief). No other family's 0271 artifact exists in-tree.
 
 ---
 
@@ -868,7 +868,7 @@ out of the three-path floor, then edit the helper.
    the derivation-code closure. The entrypoint is *not*.
    Rewriting the entrypoint to skip the range proof is the
    general CI-integrity problem and I do not score that as
-   a 0269-specific defeat. What *is* 0269-specific: the
+   a 0271-specific defeat. What *is* 0271-specific: the
    entrypoint already imported H's `capability-maturity.mjs`
    before any P-load happens, and §6.2 puts
    `validateD4Range` in that module. If the checkout's
@@ -1031,7 +1031,7 @@ A merge that flips `src/manifest.rs` `maturity()` *without*
 touching those JSON files is not an A5 transition today on
 a sole-parent commit either. The repair makes exact-pin
 unbypassable for **classified** transitions. I do not treat
-"unofficial manifest flip, projection untouched" as a 0269
+"unofficial manifest flip, projection untouched" as a 0271
 regression.
 
 Octopus merges are covered ("every parent"). A merge *inside*
