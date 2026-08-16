@@ -552,7 +552,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:5126ee0ebf123b379a99e10434f3568d5e5f7abfd160d555072b5b37ca9e275b
+reviewed-authorities-digest: sha256:a027ddc81cecd9e981d56f07e9366390a41b69d5c6d26b3c222b41d1c88ea239
 ---
 
 # The headless client
@@ -966,7 +966,7 @@ handle or any new client verb.
 
 `liveQuery(ref, options)` is the author-facing composite. It performs the
 snapshot-with-subscribe operation and returns a handle with `rows`,
-`version`, `connection`, `poll()`, and `dispose()`:
+`version`, `connection`, `poll()`, `dispose()`, and `settled()`:
 
 ```js source=demos/todo/tests/acceptance/headless.mjs
     const handle = await db.liveQuery(api.listTodos, { connectionId: 'client_a', userId: ADA });
@@ -989,9 +989,15 @@ server effect. The same local-only outcome applies after this query's own
 terminal authorization deletion, whose exact server subscription and fence
 have already been retired. The low-level public `unsubscribeLive` method remains strict:
 foreign ids and ownership/session mismatches are errors, not idempotent
-success. `dispose()` performs local teardown synchronously and returns an
-awaitable cleanup task. UI unmount code may safely ignore it; acceptance and
-operations code should await it when typed server cleanup failures matter.
+success. `dispose()` performs local teardown synchronously and its returned
+task is the sole server-side-retirement await for the handle. Typed ownership,
+session, and network failures surface through that task. UI unmount code may
+safely ignore it; acceptance and operations code should await it when those
+failures matter. `settled()` separately drains the fresh-subscribe tail, pause
+release, and best-effort cleanup tail. It does not await disposal; after calling
+`dispose()`, await that returned task—not `settled()`—to confirm server-side
+retirement.
+
 `subscriptionId` is a read-only view of the handle's internally owned
 generation, so application code cannot substitute a foreign id into the
 idempotent path.

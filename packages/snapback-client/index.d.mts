@@ -739,7 +739,13 @@ export interface LiveQueryHandle<Rows> {
   poll(): Promise<Rows>;
   pause(): Promise<void>;
   resume(): Promise<void>;
-  dispose(): void;
+  /** The sole server-side-retirement await for this handle. Local teardown is
+   * synchronous; typed ownership, session, and network failures reject this
+   * task. UI unmount code may ignore the returned task. */
+  dispose(): Promise<void>;
+  /** Drains the fresh-subscribe tail, pause release, and best-effort cleanup
+   * tail. Does not await disposal; await dispose() for server retirement. */
+  settled(): Promise<void>;
   flushResumeState(): Promise<void>;
 }
 

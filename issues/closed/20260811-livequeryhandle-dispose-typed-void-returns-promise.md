@@ -1,12 +1,13 @@
 # LiveQueryHandle.dispose() is typed `void` but returns the awaitable cleanup task the guide tells you to await
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Client Kit, Types, Guide, Live Queries
 **Date:** 2026-08-11
+**Resolved:** 2026-08-15
 **Governing:** LLP 0034, LLP 0012
 **Found while:** Reviewing the LLP 0034 §11 `watchQuery` draft amendment
 **Related:** `llp/reviews/0034-s11-watchquery-amendment.claude.md` (concern B3)
@@ -92,3 +93,19 @@ call awaits server-side retirement.
   is independently true whether or not §11 is ever ratified.
 - Changing disposal *behavior*, retry, or the shared-connection retirement
   question recorded in LLP 0034 §10.11.
+
+## Resolution
+
+Resolved 2026-08-15. `packages/snapback-client/index.d.mts` now publishes
+`LiveQueryHandle.dispose()` as the server-retirement `Promise<void>` and
+declares `settled()` as the separate bounded drain for the fresh-subscribe,
+pause-release, and best-effort cleanup tails. Its documentation states that
+`settled()` does not await disposal.
+
+`packages/snapback-client/exact-reference-types.fixture.ts` pins the returned
+promise, the awaited diagnostic-error route, and the rejection of a synchronous
+`void` interpretation. `guide/clients/headless.md` names the returned
+`dispose()` task as the sole server-side-retirement await and gives `settled()`
+the same precise boundary. `packages/snapback-client/index.mjs` was unchanged;
+the existing observation-only rejection handler continues to make ignored UI
+unmount cleanup safe while explicit callers retain the original failure route.

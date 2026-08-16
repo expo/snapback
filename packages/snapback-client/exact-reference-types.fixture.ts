@@ -3,9 +3,11 @@ import {
   admitSnapbackId,
   createCommandClient,
   createRqsRegisteredRegistry,
+  isSnapbackDiagnosticError,
   type ActionRef,
   type ActiveSeedIdentityV1,
   type CommandRef,
+  type LiveQueryHandle,
   type LiveQueryRef,
   type MutationRef,
   type QueryRef,
@@ -159,6 +161,22 @@ client.liveQuery(listTodos, {
     rows[0]?.title.toUpperCase();
   },
 });
+declare const disposableLiveQuery: LiveQueryHandle<readonly { _id: string; title: string }[]>;
+const liveQueryRetirementTask: Promise<void> = disposableLiveQuery.dispose();
+void liveQueryRetirementTask;
+async function awaitLiveQueryRetirement() {
+  try {
+    await disposableLiveQuery.dispose();
+  } catch (error) {
+    if (isSnapbackDiagnosticError(error)) {
+      error.diagnostic.code.toUpperCase();
+    }
+  }
+}
+void awaitLiveQueryRetirement;
+// @ts-expect-error dispose returns the retirement task, never synchronous void.
+const synchronousLiveQueryDisposal: void = disposableLiveQuery.dispose();
+void synchronousLiveQueryDisposal;
 const registeredRegistry = createRqsRegisteredRegistry({
   commitVersion: 1,
   entries: [],
