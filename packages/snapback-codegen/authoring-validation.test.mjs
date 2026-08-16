@@ -2027,6 +2027,31 @@ export const pageTodos = defineJsQuery({
   });
 }
 
+// A literal relational take beyond the shared ceiling is impossible by
+// construction, so the explicit profile refuses it before emitting artifacts.
+{
+  const diagnostics = await invalidCase({
+    functions: `
+import { defineJsQuery, results } from '${defineUrl}';
+export const impossiblePage = defineJsQuery({
+  args: {},
+  reads: ['todos'],
+  result: results.documents('todos'),
+  handler: async (ctx) => await ctx.db.query('todos').take(4096).collect(),
+});
+`,
+  });
+  const refusal = diagnostics.find(({ code }) => (
+    code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN'
+  ));
+  assert.ok(refusal, `expected a structured take-ceiling refusal: ${JSON.stringify(diagnostics)}`);
+  assert.match(refusal.message, /take\(4096\).*relational take ceiling 1024/u);
+  assert.equal(refusal.ceiling, 'relationalTake');
+  assert.equal(refusal.limit, 1_024);
+  assert.equal(refusal.observed, 4_096);
+  assert.equal(refusal.sourceSpan.file, 'functions.mjs');
+}
+
 // LLP 0162 row 11: history is an exact per-table schema declaration with two
 // finite axes. The generated manifest, not a runtime side command, is storage
 // policy authority.

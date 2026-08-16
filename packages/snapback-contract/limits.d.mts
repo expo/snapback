@@ -1,0 +1,2 @@
+export declare const RELATIONAL_TAKE_CEILING: 1024;
+export declare const SNAPSHOT_BATCH_SUMMED_TAKE_CEILING: 1024;

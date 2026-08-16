@@ -84,6 +84,17 @@ regeneration drift.
 - `artifact_schemas_v0` is rerun independently; any different root signature
   gets its own LLP 0189 D-1 ticket.
 
+## Corroboration (2026-08-15, take-limit lane)
+
+Independently reproduced on a pristine worktree at `e1835e3b3`:
+`./scripts/check-generated-artifacts` fails with ~70 modified demo files
+across the registry (sessions-profile `schemaHash` rotations in access-desk /
+all-aboard / browser-local-first, plus `inputsHash`/`bundleHash` rotation for
+`demos/todo` — its committed `functions.manifest.json` carries
+`inputsHash b947ed69…` while regeneration at the same commit produces
+`5a326f96f454…`; `authoredSourceHash` is unaffected). The take-limit landing
+deliberately excluded any regeneration, matching Lane G's call.
+
 ## Related
 
 - `issues/20260815-check-guide-masks-later-checks-without-node-modules.md` —

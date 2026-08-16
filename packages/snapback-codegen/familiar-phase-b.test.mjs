@@ -633,6 +633,32 @@ export { dotted as "todos.list", camel as todosList };
   ));
 });
 
+test('familiar generation refuses a literal take beyond the relational ceiling', async () => {
+  const root = temporaryFamiliarFixture();
+  const sourcePath = join(root, 'todos.ts');
+  writeFileSync(
+    sourcePath,
+    readFileSync(sourcePath, 'utf8').replace(
+      '    .collect(),',
+      '    .take(4096)\n    .collect(),',
+    ),
+  );
+  const generated = await generate(root);
+  assert.equal(generated.ok, false, 'an impossible Familiar query must not emit artifacts');
+  const refusal = generated.diagnostics.find(({ code }) => (
+    code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN'
+  ));
+  assert.ok(
+    refusal,
+    `expected a structured Familiar take-ceiling refusal: ${JSON.stringify(generated.diagnostics)}`,
+  );
+  assert.match(refusal.message, /take\(4096\).*relational take ceiling 1024/u);
+  assert.equal(refusal.ceiling, 'relationalTake');
+  assert.equal(refusal.limit, 1_024);
+  assert.equal(refusal.observed, 4_096);
+  assert.equal(refusal.sourceSpan.file, 'todos.ts');
+});
+
 test('LLP 0245 suggestions render familiar returns source and apply addition-only', async () => {
   const root = temporaryFamiliarFixture();
   const generated = await generate(root);

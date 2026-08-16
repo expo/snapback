@@ -1,5 +1,6 @@
 import ts from 'typescript';
 import { createHash } from 'node:crypto';
+import { RELATIONAL_TAKE_CEILING } from '@expo/snapback-contract/limits';
 import {
   HANDLER_ADMISSION_VERSION,
   HANDLER_GRAPH_EXTRACTOR_VERSION,
@@ -215,12 +216,29 @@ function elevatedDbUsesIn(node, checker, boundary, sourceFile, path, capture) {
 
 // Walk back from a call's callee to the chain root; a chain rooted at
 // `ctx.db.query(...)` may use only QUERY_BUILDER_VERBS.
-function queryChainProblem(node) {
+function queryChainProblem(node, contextName) {
   if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression)) {
     return null;
   }
   const verb = node.expression.name.text;
-  if (QUERY_BUILDER_VERBS.has(verb)) return null;
+  const takeNode = verb === 'take' && node.arguments.length === 1
+    ? unwrapParentheses(node.arguments[0])
+    : null;
+  const takeValue = takeNode && ts.isNumericLiteral(takeNode)
+    ? Number(takeNode.text.replaceAll('_', ''))
+    : null;
+  const takeCeilingProblem = takeValue !== null
+    && takeValue > RELATIONAL_TAKE_CEILING
+    ? {
+        reason: `take(${takeValue}) exceeds the relational take ceiling ${RELATIONAL_TAKE_CEILING}`,
+        details: {
+          ceiling: 'relationalTake',
+          limit: RELATIONAL_TAKE_CEILING,
+          observed: takeValue,
+        },
+      }
+    : null;
+  if (QUERY_BUILDER_VERBS.has(verb) && takeCeilingProblem === null) return null;
   let current = node.expression.expression;
   while (ts.isCallExpression(current) && ts.isPropertyAccessExpression(current.expression)) {
     const link = current.expression.name.text;
@@ -229,16 +247,19 @@ function queryChainProblem(node) {
       const rootedAtCtxDb = ts.isPropertyAccessExpression(receiver)
         && receiver.name.text === 'db'
         && ts.isIdentifier(receiver.expression)
-        && receiver.expression.text === 'ctx';
+        && receiver.expression.text === contextName;
       const rootedAtElevatedCtxDb = ts.isPropertyAccessExpression(receiver)
         && receiver.name.text === 'elevated'
         && ts.isPropertyAccessExpression(receiver.expression)
         && receiver.expression.name.text === 'db'
         && ts.isIdentifier(receiver.expression.expression)
-        && receiver.expression.expression.text === 'ctx';
+        && receiver.expression.expression.text === contextName;
       if (rootedAtCtxDb || rootedAtElevatedCtxDb) {
-        return `${verb} is not a query-builder verb in inline_handler_v1 `
-          + `(use eq, in, lt, lte, gt, gte, order, take, collect, or first)`;
+        return takeCeilingProblem ?? {
+          reason: `${verb} is not a query-builder verb in inline_handler_v1 `
+            + `(use eq, in, lt, lte, gt, gte, order, take, collect, or first)`,
+          details: {},
+        };
       }
       return null;
     }
@@ -431,6 +452,10 @@ function topLevelClassification(symbol, sourceFile) {
 }
 
 function selfContainedProblems(expression, checker, sourceFile) {
+  const contextName = expression.parameters.length > 0
+    && ts.isIdentifier(expression.parameters[0].name)
+    ? expression.parameters[0].name.text
+    : null;
   const referenced = new Set();
   const freeTopLevel = new Map();
   const helperRefs = new Map();
@@ -484,9 +509,9 @@ function selfContainedProblems(expression, checker, sourceFile) {
         });
       }
     }
-    const chainReason = queryChainProblem(node);
-    if (chainReason) {
-      forbidden.push({ node, reason: chainReason });
+    const chainProblem = contextName === null ? null : queryChainProblem(node, contextName);
+    if (chainProblem) {
+      forbidden.push({ node, ...chainProblem });
     }
     const assignmentReason = destructuringAssignmentProblem(node, checker, expression);
     if (assignmentReason) {
@@ -915,7 +940,10 @@ function plainJoinRootRead(initializer, ctxName) {
   const takeNode = unwrapParentheses(take.arguments[0]);
   if (table === null || index === null || !ts.isNumericLiteral(takeNode)) return null;
   const takeValue = Number(takeNode.text.replaceAll('_', ''));
-  if (!Number.isSafeInteger(takeValue) || takeValue < 0 || takeValue > 1_024) return null;
+  // An over-ceiling literal was already refused by queryChainProblem with an
+  // authored source span and structured bound facts. Do not silently use the
+  // plain-join classifier as a second validation lane.
+  if (!Number.isSafeInteger(takeValue) || takeValue < 0) return null;
   return { table, index, take: takeValue };
 }
 
@@ -1201,7 +1229,7 @@ export function extractInlineHandlers(source, {
         path,
         problem.node,
         sourceFile,
-        { helper: name },
+        { helper: name, ...problem.details },
       ));
     }
     if (free.length > 0) {
@@ -1381,7 +1409,7 @@ export function extractInlineHandlers(source, {
           path,
           structurallyAmbiguous,
           sourceFile,
-          { function: name },
+          { function: name, ...problem.details },
         ));
         continue;
       }
@@ -1423,7 +1451,7 @@ export function extractInlineHandlers(source, {
           path,
           problem.node,
           sourceFile,
-          { function: name },
+          { function: name, ...problem.details },
         ));
       }
       if (free.length > 0) {

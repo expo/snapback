@@ -393,6 +393,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'keyed-ephemeral-links.test.mjs',
       'keyed-provider.test.mjs',
       'lifecycle-generation-exhaustion.test.mjs',
+      'limits.test.mjs',
       'migration-quarantine.test.mjs',
       'multi-live-poll-reconcile.test.mjs',
       'mutation-reconcile-failure.test.mjs',
@@ -505,7 +506,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 287,
+  expectedTotal = 288,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -901,6 +902,8 @@ export function checkPackageTestInventories(options = {}) {
 // gains the first-party SecureStore adapter contract and restart/race suite.
 // 286 -> 287 (2026-08-15, LLP 0258 Phase 0): @expo/snapback-codegen gains the
 // generated application-auth bootstrap policy derivation and identity suite.
+// 287 -> 288 (2026-08-15, take-limit parity guard): @expo/snapback-contract
+// gains the shared JS/Rust relational and snapshot-batch ceiling proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

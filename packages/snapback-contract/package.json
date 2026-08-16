@@ -49,6 +49,8 @@
     "index.mjs",
     "keyed-provider.d.mts",
     "keyed-provider.mjs",
+    "limits.d.mts",
+    "limits.mjs",
     "mutation-output.mjs",
     "online-surface.d.mts",
     "online-surface.mjs",
@@ -123,6 +125,10 @@
       "types": "./operation-name.d.mts",
       "default": "./operation-name.mjs"
     },
+    "./limits": {
+      "types": "./limits.d.mts",
+      "default": "./limits.mjs"
+    },
     "./client-store": {
       "types": "./client-store.d.mts",
       "default": "./client-store.mjs"
@@ -154,6 +160,6 @@
   },
   "scripts": {
     "pretest": "node artifact-validation.test.mjs && node result-contract-validator.test.mjs",
-    "test": "node auth-coordinator.test.mjs && node auth-coordinator-missed-wakeup.test.mjs && node auth-custody-indexeddb.test.mjs && node auth-custody-secure-store.test.mjs && node auth-sender-custody.test.mjs && node auth-invalidation.test.mjs && node query-authorization.test.mjs && node authorized-lease.test.mjs && node authorized-retained-store.test.mjs && node client-store-authority.test.mjs && node client-store-queue-authorization.test.mjs && node auth-coordinator-contract.test.mjs && node agent-authority-contract.test.mjs && node session-queue-axis.test.mjs && node unsolicited-protocol-echo.test.mjs && node authorized-contract.test.mjs && node cold-offline-authorized-retention.test.mjs && node ids.test.mjs && node error-tracking-vectors.test.mjs && node index.test.mjs && node keyed-provider.test.mjs && node keyed-ephemeral-links.test.mjs && node online-surface.test.mjs && node build-preset.test.mjs && node exact-package.test.mjs && node exact-conformance.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs && node convergence-gating.test.mjs && node multi-live-poll-reconcile.test.mjs && node ephemeral-resubscribe-race.test.mjs && node lifecycle-generation-exhaustion.test.mjs && node render-first.test.mjs && node derived-overlay.test.mjs && node derived-overlay-duplicate-reapply.test.mjs && node derived-overlay-reconcile-failure.test.mjs && node offline-replay.test.mjs && node migration-quarantine.test.mjs && node retained-identity.test.mjs"
+    "test": "node auth-coordinator.test.mjs && node auth-coordinator-missed-wakeup.test.mjs && node auth-custody-indexeddb.test.mjs && node auth-custody-secure-store.test.mjs && node auth-sender-custody.test.mjs && node auth-invalidation.test.mjs && node query-authorization.test.mjs && node authorized-lease.test.mjs && node authorized-retained-store.test.mjs && node client-store-authority.test.mjs && node client-store-queue-authorization.test.mjs && node auth-coordinator-contract.test.mjs && node agent-authority-contract.test.mjs && node session-queue-axis.test.mjs && node unsolicited-protocol-echo.test.mjs && node authorized-contract.test.mjs && node cold-offline-authorized-retention.test.mjs && node ids.test.mjs && node limits.test.mjs && node error-tracking-vectors.test.mjs && node index.test.mjs && node keyed-provider.test.mjs && node keyed-ephemeral-links.test.mjs && node online-surface.test.mjs && node build-preset.test.mjs && node exact-package.test.mjs && node exact-conformance.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs && node convergence-gating.test.mjs && node multi-live-poll-reconcile.test.mjs && node ephemeral-resubscribe-race.test.mjs && node lifecycle-generation-exhaustion.test.mjs && node render-first.test.mjs && node derived-overlay.test.mjs && node derived-overlay-duplicate-reapply.test.mjs && node derived-overlay-reconcile-failure.test.mjs && node offline-replay.test.mjs && node migration-quarantine.test.mjs && node retained-identity.test.mjs"
   }
 }
