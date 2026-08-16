@@ -726,8 +726,9 @@ impl CredentialClass {
 }
 
 /// The complete registered credential namespace. Every entry is asserted
-/// mutually prefix-free (`credential_prefixes_are_mutually_prefix_free`), so the
-/// `starts_with` scan in [`classify_credential`] matches at most one class.
+/// mutually prefix-free (`credential_prefixes_are_mutually_prefix_free`) as a
+/// protocol invariant. Classification also chooses the longest match so a
+/// versioned extension cannot be swallowed during a staged namespace change.
 pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
     (SESSION_PREFIX, CredentialClass::Session),
     (SENDER_SESSION_PREFIX, CredentialClass::SenderSession),
@@ -763,15 +764,25 @@ pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
     (RESUME_KEY_PREFIX, CredentialClass::ResumeKeyId),
 ];
 
-/// Structurally classify a presented credential by its registered prefix. The
-/// namespace is prefix-free, so at most one class matches; an unregistered
-/// spelling returns `None` (an unknown class, which callers must still refuse —
-/// never treat as anonymous).
-pub fn classify_credential(input: &str) -> Option<CredentialClass> {
-    REGISTERED_CREDENTIAL_PREFIXES
+fn classify_credential_from(
+    input: &str,
+    prefixes: &[(&str, CredentialClass)],
+) -> Option<CredentialClass> {
+    prefixes
         .iter()
-        .find(|(prefix, _)| input.starts_with(prefix))
+        .filter(|(prefix, _)| input.starts_with(prefix))
+        .max_by_key(|(prefix, _)| prefix.len())
         .map(|(_, class)| *class)
+}
+
+/// Structurally classify a presented credential by its longest registered
+/// prefix. An unregistered spelling returns `None` (an unknown class, which
+/// callers must still refuse — never treat as anonymous).
+///
+/// @ref LLP 0077#credential-classes — v2 sender credentials retain their
+/// structurally distinct `sbs2_`/`sct2_` spellings through class dispatch.
+pub fn classify_credential(input: &str) -> Option<CredentialClass> {
+    classify_credential_from(input, REGISTERED_CREDENTIAL_PREFIXES)
 }
 
 /// The outcome of asserting a presented credential belongs to the class a
@@ -1113,10 +1124,9 @@ mod tests {
 
     // ---- LLP 0055 credential-class prefix namespace (the collision trap) ----
 
-    /// The whole registered namespace is mutually prefix-free. This is the
-    /// invariant every structural class dispatch rests on: if any prefix were a
-    /// prefix of another, `classify_credential`'s `starts_with` scan could match
-    /// two classes and a wrong-class credential could be resolved as another.
+    /// The whole registered namespace remains mutually prefix-free. Longest
+    /// matching makes dispatch robust while versioned spellings are introduced;
+    /// strict prefix-freedom remains the protocol-level collision invariant.
     #[test]
     fn credential_prefixes_are_mutually_prefix_free() {
         let prefixes: Vec<&str> = REGISTERED_CREDENTIAL_PREFIXES
@@ -1139,6 +1149,28 @@ mod tests {
         for (prefix, class) in REGISTERED_CREDENTIAL_PREFIXES {
             assert_eq!(class.prefix(), *prefix);
             assert_eq!(classify_credential(prefix), Some(*class));
+        }
+    }
+
+    #[test]
+    fn classify_credential_prefers_longest_prefix_and_pins_v1_v2_sender_classes() {
+        let overlapping = [
+            ("sct", CredentialClass::ConnectionToken),
+            ("sct2_", CredentialClass::SenderConnectionToken),
+        ];
+        assert_eq!(
+            classify_credential_from("sct2_example", &overlapping),
+            Some(CredentialClass::SenderConnectionToken),
+        );
+
+        for (value, expected) in [
+            ("sbs_example", CredentialClass::Session),
+            ("sbs2_example", CredentialClass::SenderSession),
+            ("sct_example", CredentialClass::ConnectionToken),
+            ("sct2_example", CredentialClass::SenderConnectionToken),
+        ] {
+            assert_eq!(classify_credential(value), Some(expected));
+            assert_eq!(dispatch_credential_class(value, expected), Ok(expected));
         }
     }
 

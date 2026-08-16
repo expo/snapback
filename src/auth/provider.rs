@@ -1407,6 +1407,7 @@ impl AuthProvider {
         let random = Arc::clone(&self.random);
         let verification_floor =
             Duration::from_millis(self.password_security.verification_floor_ms);
+        let password_security = self.password_security;
         tokio::task::spawn_blocking(move || {
             let _permit = permit;
             let started = Instant::now();
@@ -1415,6 +1416,7 @@ impl AuthProvider {
                 &hash_phc,
                 prepare_upgrade,
                 random.as_ref(),
+                password_security,
             );
             if let Some(remaining) = verification_floor.checked_sub(started.elapsed()) {
                 std::thread::sleep(remaining);
@@ -4762,6 +4764,16 @@ mod tests {
     fn password_provider_database_coordinator(
         now_ms: u64,
     ) -> (Arc<AuthProvider>, LocalDatabase, Arc<AuthCoordinator>) {
+        password_provider_database_coordinator_with_minimum(
+            now_ms,
+            crate::contract_types::AUTH_PASSWORD_MINIMUM_LENGTH_DEFAULT,
+        )
+    }
+
+    fn password_provider_database_coordinator_with_minimum(
+        now_ms: u64,
+        minimum_password_length: u16,
+    ) -> (Arc<AuthProvider>, LocalDatabase, Arc<AuthCoordinator>) {
         let mut database = LocalDatabase::memory().expect("memory database");
         database
             .activate_current_auth_catalog_with_password_identifier_mode(
@@ -4779,11 +4791,12 @@ mod tests {
         // after the fixture epoch. Keep provider-sampled challenge time in the
         // same deterministic epoch instead of consulting the wall clock.
         let provider = Arc::new(
-            AuthProvider::new_with_dependencies(
+            AuthProvider::new_with_dependencies_and_password_minimum(
                 AuthProviderProfile::Test,
                 keyring,
                 Arc::new(OsRandom),
                 Arc::new(ManualClock::new(now_ms + 2)),
+                minimum_password_length,
             )
             .expect("auth provider"),
         );
@@ -7615,6 +7628,84 @@ mod tests {
                 .expect("lost upgrade ledger")
                 .is_none()
         );
+    }
+
+    #[tokio::test]
+    async fn password_upgrade_uses_declared_minimum_profile() {
+        let low_now_ms = 7_100_000;
+        let (low_provider, mut low_database, low_coordinator) =
+            password_provider_database_coordinator_with_minimum(low_now_ms, 8);
+        register_password_for_test(
+            &low_provider,
+            &mut low_database,
+            &low_coordinator,
+            "minimum-eight@example.com",
+            "eight888",
+            low_now_ms,
+        )
+        .await;
+        let low_imported = bcrypt::hash("eight888", 4).expect("bcrypt fixture");
+        low_database
+            .install_imported_password_hash_for_test(
+                "minimum-eight@example.com",
+                "bcrypt",
+                &low_imported,
+            )
+            .expect("install imported hash");
+        let (low_finish, _) = password_signin_for_test(
+            &low_provider,
+            &mut low_database,
+            &low_coordinator,
+            "minimum-eight@example.com",
+            "eight888",
+            low_now_ms + 1,
+        )
+        .await;
+        assert!(matches!(low_finish, IssuanceFinish::Committed { .. }));
+        let (low_generation, _, low_phc) = low_database
+            .password_hash_facts_for_test("minimum-eight@example.com")
+            .expect("upgraded low-minimum hash");
+        assert_eq!(low_generation, 2);
+        assert!(low_phc.starts_with("$argon2id$"));
+
+        let high_now_ms = 7_200_000;
+        let (high_provider, mut high_database, high_coordinator) =
+            password_provider_database_coordinator_with_minimum(high_now_ms, 20);
+        register_password_for_test(
+            &high_provider,
+            &mut high_database,
+            &high_coordinator,
+            "minimum-twenty@example.com",
+            "a-strong-password-123",
+            high_now_ms,
+        )
+        .await;
+        let high_imported = bcrypt::hash("fifteen-char-pw", 4).expect("bcrypt fixture");
+        high_database
+            .install_imported_password_hash_for_test(
+                "minimum-twenty@example.com",
+                "bcrypt",
+                &high_imported,
+            )
+            .expect("install imported hash");
+        let (high_finish, _) = password_signin_for_test(
+            &high_provider,
+            &mut high_database,
+            &high_coordinator,
+            "minimum-twenty@example.com",
+            "fifteen-char-pw",
+            high_now_ms + 1,
+        )
+        .await;
+        assert!(matches!(high_finish, IssuanceFinish::Committed { .. }));
+        let (high_generation, _, high_phc) = high_database
+            .password_hash_facts_for_test("minimum-twenty@example.com")
+            .expect("retained high-minimum legacy hash");
+        assert_eq!(
+            high_generation, 1,
+            "a skipped upgrade must not bump generation"
+        );
+        assert_eq!(high_phc, high_imported);
     }
 
     #[tokio::test]

@@ -12186,6 +12186,11 @@ async fn hosted_sender_issuance_session_and_refresh_compose_through_the_router()
         connection_token.starts_with("sct2_"),
         "sender-bound connection grant must mint the versioned spelling",
     );
+    assert_eq!(
+        crate::auth::crypto::classify_credential(&connection_token),
+        Some(crate::auth::crypto::CredentialClass::SenderConnectionToken),
+        "the hosted sender-grant gate must classify the process-minted token on its v2 lane",
+    );
 
     let mut grant_route_matrix = super::route_registry()
         .into_iter()

@@ -882,15 +882,29 @@ fn verify_password(secret: &PasswordSecret, hash_phc: &str) -> bool {
     }
 }
 
+/// @ref LLP 0227#password-policy-declaration — an upgrade replacement is
+/// hashed under the same app-declared minimum as first-class password writes.
+/// @ref LLP 0227#migration-and-import-of-existing-hashes — foreign hashes
+/// upgrade to current argon2id only when the presented plaintext satisfies
+/// that current profile.
 pub(crate) fn verify_password_on_blocking_pool(
     secret: &PasswordSecret,
     hash_phc: &str,
     prepare_upgrade: bool,
     random: &dyn RandomSource,
+    profile: PasswordSecurityProfile,
 ) -> SnapbackResult<PreparedPasswordVerification> {
     let verified = verify_password(secret, hash_phc);
     let replacement = if verified && prepare_upgrade && password_hash_needs_upgrade(hash_phc) {
-        Some(hash_password_on_blocking_pool(secret, random)?)
+        match hash_password_on_blocking_pool_with_profile(secret, random, profile) {
+            Ok(replacement) => Some(replacement),
+            // Upgrade is opportunistic after the stored credential has
+            // already verified. A legacy plaintext outside the app's current
+            // policy remains usable, but must not be persisted as a purported
+            // current-profile replacement.
+            Err(error) if error.diagnostic.code == "SNAPBACK_AUTH_PASSWORD_POLICY" => None,
+            Err(error) => return Err(error),
+        }
     } else {
         None
     };
