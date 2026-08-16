@@ -66,3 +66,15 @@ do not fall back to memory.
   single-runtime refusals or stronger fencing claim, and nonclaims. Keep
   sender-constrained custody explicitly out of scope.
 
+## Claim (2026-08-16)
+
+A fresh orchestration session (continuing the 531ce12aa program per its
+memory handoff) is executing the Phase 2 build: the LLP 0258 D3 first-party
+native custody module shipped through `@expo/snapback-expo` (iOS Keychain
+single-item + serial-queue CAS, Android DataStore + Keystore AES-GCM, both
+declared single-runtime per LLP 0263 §1.4/§2.4), the LLP 0263 probe host,
+and the simulator/emulator (S)-probe runs. Physical-device (D) probes and
+the per-OS capability flips remain gated on their evidence and are NOT
+claimed as done by this note. Per the fleet convention this claim yields to
+landed code.
+
