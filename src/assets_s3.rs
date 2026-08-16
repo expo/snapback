@@ -112,14 +112,20 @@ pub trait S3Transport: Send + Sync {
 
 pub struct UreqTransport;
 
+fn credential_isolated_agent(timeout: std::time::Duration) -> ureq::Agent {
+    ureq::AgentBuilder::new()
+        .redirects(0)
+        .try_proxy_from_env(false)
+        .timeout_connect(timeout)
+        .timeout_read(timeout)
+        .timeout_write(timeout)
+        .build()
+}
+
 impl S3Transport for UreqTransport {
     fn execute(&self, request: S3Request) -> SnapbackResult<S3Response> {
         let timeout = std::time::Duration::from_secs(30);
-        let agent = ureq::AgentBuilder::new()
-            .timeout_connect(timeout)
-            .timeout_read(timeout)
-            .timeout_write(timeout)
-            .build();
+        let agent = credential_isolated_agent(timeout);
         let response_body_limit = if request
             .headers
             .iter()
@@ -150,6 +156,16 @@ impl S3Transport for UreqTransport {
             }
         };
         let status = response.status();
+        if (300..400).contains(&status) {
+            // Credentialed S3 requests are terminal at their authored
+            // endpoint. Following a provider or proxy redirect could replay
+            // the SigV4 Authorization header to a different authority.
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_STORE_UNAVAILABLE",
+                "assets",
+                format!("s3 transport refused redirect status {status}"),
+            ));
+        }
         let headers = response
             .headers_names()
             .into_iter()
@@ -843,6 +859,123 @@ mod tests {
     use std::collections::BTreeMap;
     use std::sync::atomic::{AtomicI64, Ordering};
     use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn ureq_transport_agent_refuses_redirects_and_ignores_environment_proxies() {
+        const CHILD_MARKER: &str = "SNAPBACK_S3_PROXY_POLICY_CHILD";
+        if std::env::var_os(CHILD_MARKER).is_some() {
+            let agent = credential_isolated_agent(std::time::Duration::from_secs(1));
+            let debug = format!("{agent:?}");
+            assert!(debug.contains("proxy: None"), "env proxy leaked: {debug}");
+            assert!(debug.contains("redirects: 0"), "redirects enabled: {debug}");
+            return;
+        }
+
+        let output = std::process::Command::new(
+            std::env::current_exe().expect("current test executable"),
+        )
+        .args([
+            "--exact",
+            "assets_s3::tests::ureq_transport_agent_refuses_redirects_and_ignores_environment_proxies",
+            "--nocapture",
+        ])
+        .env(CHILD_MARKER, "1")
+        .env("HTTP_PROXY", "http://127.0.0.1:9")
+        .env("HTTPS_PROXY", "http://127.0.0.1:9")
+        .env("ALL_PROXY", "http://127.0.0.1:9")
+        .env("NO_PROXY", "")
+        .env("no_proxy", "")
+        .output()
+        .expect("run isolated S3 proxy-policy child");
+        assert!(
+            output.status.success(),
+            "S3 proxy-policy child failed\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[test]
+    fn ureq_transport_refuses_redirect_without_replaying_sigv4() {
+        use std::io::{Read as _, Write as _};
+        use std::net::TcpListener;
+
+        let sink = TcpListener::bind("127.0.0.1:0").expect("bind redirect sink");
+        sink.set_nonblocking(true).expect("nonblocking sink");
+        let sink_url = format!("http://{}/stolen", sink.local_addr().unwrap());
+        let redirect = TcpListener::bind("127.0.0.1:0").expect("bind redirect origin");
+        let redirect_url = format!("http://{}/object", redirect.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = redirect.accept().expect("accept S3 request");
+            let mut request = [0u8; 4096];
+            let read = stream.read(&mut request).expect("read S3 request");
+            let request = String::from_utf8_lossy(&request[..read]).to_ascii_lowercase();
+            assert!(
+                request.contains("authorization: aws4-hmac-sha256 test-signature"),
+                "the authored endpoint receives the signed request"
+            );
+            write!(
+                stream,
+                "HTTP/1.1 302 Found\r\nLocation: {sink_url}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            )
+            .expect("write redirect");
+            stream.flush().expect("flush redirect");
+        });
+
+        let error = UreqTransport
+            .execute(S3Request {
+                method: "GET",
+                url: redirect_url,
+                headers: vec![(
+                    "authorization".to_owned(),
+                    "AWS4-HMAC-SHA256 test-signature".to_owned(),
+                )],
+                body: Vec::new(),
+            })
+            .expect_err("credentialed S3 redirects are terminal");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_STORE_UNAVAILABLE");
+        server.join().expect("redirect origin exits");
+        let replay = sink.accept().expect_err("redirect sink receives no replay");
+        assert_eq!(replay.kind(), std::io::ErrorKind::WouldBlock);
+    }
+
+    #[test]
+    fn ureq_transport_preserves_successful_responses() {
+        use std::io::{Read as _, Write as _};
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind S3 origin");
+        let url = format!("http://{}/object", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept S3 request");
+            let mut request = [0u8; 4096];
+            let read = stream.read(&mut request).expect("read S3 request");
+            let request = String::from_utf8_lossy(&request[..read]).to_ascii_lowercase();
+            assert!(request.contains("authorization: aws4-hmac-sha256 test-signature"));
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nX-Test: kept\r\nConnection: close\r\n\r\nok",
+                )
+                .expect("write response");
+            stream.flush().expect("flush response");
+        });
+
+        let response = UreqTransport
+            .execute(S3Request {
+                method: "GET",
+                url,
+                headers: vec![(
+                    "authorization".to_owned(),
+                    "AWS4-HMAC-SHA256 test-signature".to_owned(),
+                )],
+                body: Vec::new(),
+            })
+            .expect("ordinary 2xx S3 response remains available");
+        assert_eq!(response.status, 200);
+        assert_eq!(response.header("x-test"), Some("kept"));
+        assert_eq!(response.body, b"ok");
+        server.join().expect("S3 origin exits");
+    }
 
     #[derive(Default)]
     struct Bucket {

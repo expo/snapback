@@ -1,6 +1,6 @@
 # Credentialed HTTP clients still follow redirects (admin, assets, S3)
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 4
@@ -62,7 +62,9 @@ one webhooks already closed.
 - A 302 from the S3 endpoint does not replay SigV4.
 - Happy-path admin, TUS, and S3 put/get are unchanged.
 
-## Partial resolution (2026-08-15, JS transports)
+## Resolution (2026-08-15)
+
+### JavaScript transports
 
 `packages/snapback-admin-client/index.mjs` now uses manual redirect handling for
 credential-bearing requests, refuses redirect responses with the closed
@@ -86,5 +88,28 @@ admin client credentials: ok
 assets.test.mjs passed
 ```
 
-The Rust S3 half is pending in another lane. `src/assets_s3.rs` was
-intentionally not edited, so this ticket remains open.
+### Rust S3 transport
+
+`src/assets_s3.rs` now constructs its ureq agent with `redirects(0)` and
+`try_proxy_from_env(false)`. It classifies every 3xx response as
+`SNAPBACK_ASSET_STORE_UNAVAILABLE` before reading the response body. A
+two-listener test proves the authored S3 endpoint receives SigV4 while the
+redirect target receives no connection; a subprocess test supplies all common
+proxy environment variables and proves the built agent retains `proxy: None`
+and `redirects: 0`. A 2xx transport test preserves response status, headers,
+and body, while the existing S3 store put/get protocol coverage remains green.
+
+Focused Rust proof, with no `DYLD_FRAMEWORK_PATH` override:
+
+```text
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 2692 filtered out; finished in 0.01s
+```
+
+The full library run reached its summary:
+
+```text
+test result: FAILED. 2696 passed; 5 failed; 2 ignored; 0 measured; 0 filtered out; finished in 61.89s
+```
+
+All five failures reproduced individually against exact merge-base
+`415d56071fe2d99162972e0f3ecb9b433b8f1b51`; none exercises the S3 transport.
