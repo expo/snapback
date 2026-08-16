@@ -5,8 +5,8 @@
 **Systems:** Live queries, Relational queries, Schema, Auth, Performance, Client SDK
 **Author:** Claude Fable 5 (commissioned by the LLP 0191 author rulings, Charlie Cheever, 2026-08-08)
 **Date:** 2026-08-09
-**Revised:** 2026-08-09 (v0.1 — initial draft per the commission; one informal
-read-only review pass recorded in the revision note)
+**Revised:** 2026-08-15 (v0.2 — G1 same-principal live-evaluation memoization
+implemented; Status remains Draft)
 **Related:** LLP 0183 (D2 charter this Spec owns), LLP 0191 (evidence and the
 five-rung ladder), LLP 0200 (the D4-side sibling: scheduling/settlement;
 measured Phase-1 record in its §6a), LLP 0008 (DK-3 `live_delta` precedent,
@@ -521,6 +521,7 @@ or identities.
 
 ## Revision history
 
+- **v0.2 (2026-08-15).** G1 same-principal live-evaluation memoization landed.
 - **v0.1 (2026-08-09).** Initial draft per
   `issues/20260808-d2-d4-owner-specs-commission.md`, grounded in the OQ4
   spike disposition and LLP 0200 §6a. Before landing, one informal

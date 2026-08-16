@@ -5503,12 +5503,19 @@
           "minimum": 0,
           "type": "integer"
         },
+        "evaluationsExecuted": {
+          "description": "Query evaluations actually executed after matcher/delta/memo decisions.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "evaluationsFinished": {
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
         },
         "evaluationsStarted": {
+          "description": "Per-subscription scheduler turns, including matcher skips and memo hits.",
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
@@ -5516,12 +5523,31 @@
         "lastTurnDurationMs": {
           "format": "double",
           "type": "number"
+        },
+        "memoEvictions": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "memoHits": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "memoMisses": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
         "evaluationsStarted",
         "evaluationsFinished",
         "evaluationsAbandoned",
+        "evaluationsExecuted",
+        "memoHits",
+        "memoMisses",
+        "memoEvictions",
         "cumulativeDurationMs",
         "lastTurnDurationMs",
         "deliveredFramesByWireKind",

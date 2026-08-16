@@ -118,7 +118,18 @@ use receipt_log::ReceiptLog;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 const MAINTENANCE_DIAGNOSTIC_MIN_INTERVAL_MS: u64 = 60_000;
+/// Instance-local live evaluation results are intentionally small enough that
+/// the retained subscription registry remains the dominant scheduler bound.
+/// These are fixed implementation constants for G1, not authoring surface.
+const LIVE_EVALUATION_MEMO_MAX_ENTRIES: usize = 256;
+const LIVE_EVALUATION_MEMO_MAX_ESTIMATED_BYTES: usize = 32 * 1024 * 1024;
+const LIVE_EVALUATION_MEMO_ENTRY_OVERHEAD_BYTES: usize = 256;
+const LIVE_EVALUATION_MEMO_HOLDER_OVERHEAD_BYTES: usize = 64;
 static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
+
+fn live_evaluation_memo_disabled(value: Option<&str>) -> bool {
+    matches!(value, Some("1") | Some("true"))
+}
 
 /// Hard retained durable-live ceilings for the canonical local server. These
 /// match the hosted coordinator so changing targets cannot silently multiply
@@ -758,6 +769,7 @@ struct PendingLiveFanout {
 struct CurrentLiveEvaluation {
     subscription_id: String,
     connection_id: String,
+    cut_version: u64,
     commit_versions: Vec<u64>,
     queued_ms: Option<f64>,
     started_ms: Option<f64>,
@@ -765,15 +777,174 @@ struct CurrentLiveEvaluation {
     delivered_frames: u64,
     delivered_bytes: u64,
     wire_kind: Option<&'static str>,
+    control: Arc<crate::live_coalesce::LiveEvaluationControl>,
 }
 
-#[derive(Default)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct LiveEvaluationMemoKey {
+    function_generation: u64,
+    function: String,
+    canonical_arguments: String,
+    principal: String,
+    cut_version: u64,
+}
+
+impl LiveEvaluationMemoKey {
+    fn estimated_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            .saturating_add(self.function.len())
+            .saturating_add(self.canonical_arguments.len())
+            .saturating_add(self.principal.len())
+    }
+}
+
+struct LiveEvaluationMemoEntry {
+    result: QueryInvocation,
+    holders: BTreeSet<String>,
+    estimated_bytes: usize,
+    sequence: u64,
+}
+
+struct LiveEvaluationMemo {
+    entries: BTreeMap<LiveEvaluationMemoKey, LiveEvaluationMemoEntry>,
+    estimated_bytes: usize,
+    max_entries: usize,
+    max_bytes: usize,
+    next_sequence: u64,
+    disabled: bool,
+}
+
+impl Default for LiveEvaluationMemo {
+    fn default() -> Self {
+        Self {
+            entries: BTreeMap::new(),
+            estimated_bytes: 0,
+            max_entries: LIVE_EVALUATION_MEMO_MAX_ENTRIES,
+            max_bytes: LIVE_EVALUATION_MEMO_MAX_ESTIMATED_BYTES,
+            next_sequence: 0,
+            disabled: live_evaluation_memo_disabled(
+                std::env::var("SNAPBACK_LIVE_EVAL_MEMO_DISABLED")
+                    .ok()
+                    .as_deref(),
+            ),
+        }
+    }
+}
+
+impl LiveEvaluationMemo {
+    fn get(
+        &mut self,
+        key: &LiveEvaluationMemoKey,
+        subscription_id: &str,
+    ) -> Option<(QueryInvocation, u64)> {
+        if self.disabled {
+            return None;
+        }
+        let entry = self.entries.get_mut(key)?;
+        let result = entry.result.clone();
+        if entry.holders.insert(subscription_id.to_owned()) {
+            let added = subscription_id
+                .len()
+                .saturating_add(LIVE_EVALUATION_MEMO_HOLDER_OVERHEAD_BYTES);
+            entry.estimated_bytes = entry.estimated_bytes.saturating_add(added);
+            self.estimated_bytes = self.estimated_bytes.saturating_add(added);
+        }
+        let evictions = self.evict_over_budget();
+        Some((result, evictions))
+    }
+
+    fn insert(
+        &mut self,
+        key: LiveEvaluationMemoKey,
+        subscription_id: &str,
+        result: QueryInvocation,
+    ) -> u64 {
+        if self.disabled {
+            return 0;
+        }
+        self.next_sequence = self.next_sequence.wrapping_add(1).max(1);
+        let sequence = self.next_sequence;
+        let estimated_bytes = key
+            .estimated_bytes()
+            .saturating_add(query_invocation_estimated_bytes(&result))
+            .saturating_add(LIVE_EVALUATION_MEMO_ENTRY_OVERHEAD_BYTES)
+            .saturating_add(subscription_id.len())
+            .saturating_add(LIVE_EVALUATION_MEMO_HOLDER_OVERHEAD_BYTES);
+        let entry = LiveEvaluationMemoEntry {
+            result,
+            holders: BTreeSet::from([subscription_id.to_owned()]),
+            estimated_bytes,
+            sequence,
+        };
+        if let Some(replaced) = self.entries.insert(key.clone(), entry) {
+            self.estimated_bytes = self
+                .estimated_bytes
+                .saturating_sub(replaced.estimated_bytes);
+        }
+        self.estimated_bytes = self.estimated_bytes.saturating_add(estimated_bytes);
+        self.evict_over_budget()
+    }
+
+    fn evict_over_budget(&mut self) -> u64 {
+        let mut evictions = 0u64;
+        while self.entries.len() > self.max_entries || self.estimated_bytes > self.max_bytes {
+            let Some(key) = self
+                .entries
+                .iter()
+                .min_by_key(|(_, entry)| entry.sequence)
+                .map(|(key, _)| key.clone())
+            else {
+                break;
+            };
+            if let Some(evicted) = self.entries.remove(&key) {
+                self.estimated_bytes = self.estimated_bytes.saturating_sub(evicted.estimated_bytes);
+                evictions = evictions.saturating_add(1);
+            }
+        }
+        evictions
+    }
+
+    fn retire_subscription(&mut self, subscription_id: &str) {
+        let retired = self
+            .entries
+            .iter()
+            .filter(|(_, entry)| entry.holders.contains(subscription_id))
+            .map(|(key, _)| key.clone())
+            .collect::<Vec<_>>();
+        for key in retired {
+            if let Some(entry) = self.entries.remove(&key) {
+                self.estimated_bytes = self.estimated_bytes.saturating_sub(entry.estimated_bytes);
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn set_limits(&mut self, max_entries: usize, max_bytes: usize) {
+        self.max_entries = max_entries;
+        self.max_bytes = max_bytes;
+    }
+}
+
 struct PendingLiveScheduler {
     entries: BTreeMap<String, PendingLiveFanout>,
     authority: VecDeque<(String, u64)>,
     refresh: VecDeque<(String, u64)>,
     data: VecDeque<(String, u64)>,
     next_generation: u64,
+    evaluation_memo: LiveEvaluationMemo,
+}
+
+impl Default for PendingLiveScheduler {
+    fn default() -> Self {
+        Self {
+            entries: BTreeMap::new(),
+            authority: VecDeque::new(),
+            refresh: VecDeque::new(),
+            data: VecDeque::new(),
+            next_generation: 0,
+            evaluation_memo: LiveEvaluationMemo::default(),
+        }
+    }
 }
 
 impl PendingLiveScheduler {
@@ -912,9 +1083,15 @@ pub struct LiveMatcherDecisionStats {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveEvaluationStats {
+    /// Per-subscription scheduler turns, including matcher skips and memo hits.
     pub evaluations_started: u64,
     pub evaluations_finished: u64,
     pub evaluations_abandoned: u64,
+    /// Query evaluations actually executed after matcher/delta/memo decisions.
+    pub evaluations_executed: u64,
+    pub memo_hits: u64,
+    pub memo_misses: u64,
+    pub memo_evictions: u64,
     pub cumulative_duration_ms: f64,
     pub last_turn_duration_ms: f64,
     pub delivered_frames_by_wire_kind: BTreeMap<String, u64>,
@@ -3398,9 +3575,19 @@ fn local_live_stage_corrupt() -> SnapbackError {
     )
 }
 
+#[derive(Clone)]
 pub(crate) struct QueryInvocation {
     pub(crate) output: QueryOutput,
     pub(crate) read_dependencies: Vec<CapturedReadDependency>,
+}
+
+fn query_invocation_estimated_bytes(invocation: &QueryInvocation) -> usize {
+    serde_json::to_vec(&invocation.output)
+        .map_or(usize::MAX, |bytes| bytes.len())
+        .saturating_add(
+            serde_json::to_vec(&invocation.read_dependencies)
+                .map_or(usize::MAX, |bytes| bytes.len()),
+        )
 }
 
 /// First phase of an authorized retained snapshot. It crosses the app-lock
@@ -4172,6 +4359,113 @@ impl LocalSnapback {
         let prepared = retained.prepare_rerun(admission)?;
         self.persist_and_validate_prepared_service_authority(&prepared)?;
         Ok(prepared)
+    }
+
+    fn live_evaluation_memo_key(
+        &self,
+        subscription: &LiveSubscription,
+    ) -> Option<LiveEvaluationMemoKey> {
+        let cut_version = self
+            .current_live_evaluation
+            .as_ref()
+            .map(|evaluation| evaluation.cut_version)?;
+        let canonical_arguments = crate::watches::canonical_json(&subscription.input.args).ok()?;
+        let auth = &subscription.input.auth;
+        // `AuthInput`'s public wire serializer deliberately skips the
+        // server-owned authorization projection. Those facts are nevertheless
+        // handler-visible inputs, so spell them out in this internal identity.
+        let principal = crate::watches::canonical_json(&json!({
+            "principal": auth.principal.as_deref(),
+            "sessionId": auth.session_id.as_deref(),
+            "userId": auth.user_id.as_deref(),
+            "authorizationKind": auth.authorization_kind.as_deref(),
+            "authorizationActorKind": auth.authorization_actor_kind.as_deref(),
+            "authorizationActivityActorKind": auth.authorization_activity_actor_kind.as_deref(),
+            "authorizationActorUserId": auth.authorization_actor_user_id.as_deref(),
+            "authorizationGrantId": auth.authorization_grant_id.as_deref(),
+            "clientMutationId": auth.client_mutation_id.as_deref(),
+            "clientMutationDigest": auth.client_mutation_digest.as_deref(),
+            "authorizationIsDelegated": auth.authorization_is_delegated,
+        }))
+        .ok()?;
+        // @ref LLP 0209#6 — the pre-G0 key is deliberately no broader than
+        // exact function/plan generation + canonical args + handler-visible
+        // principal + the scheduler's atomic evaluation cut. The containing
+        // scheduler makes instance identity implicit and prevents sharing
+        // across LocalSnapback instances.
+        Some(LiveEvaluationMemoKey {
+            function_generation: self.app_generation,
+            function: subscription.function.clone(),
+            canonical_arguments,
+            principal,
+            cut_version,
+        })
+    }
+
+    fn invoke_live_subscription_query(
+        &mut self,
+        subscription: &LiveSubscription,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<QueryInvocation> {
+        // Generation admission is a per-subscription gate, not part of the
+        // evaluation turn, and therefore still runs on a memo hit.
+        self.validate_expected_generation(&authority, subscription.expected_generation.as_ref())?;
+        let key = self.live_evaluation_memo_key(subscription);
+        let memo_disabled = self.pending_live_fanout.evaluation_memo.disabled;
+        if let Some(key) = key.as_ref()
+            && let Some((cached, evictions)) = self
+                .pending_live_fanout
+                .evaluation_memo
+                .get(key, &subscription.id)
+        {
+            // @ref LLP 0209#6 — a hit skips only the query invocation. The
+            // caller continues through the subscription-specific authority
+            // gate, obligations, dependency update, serialization, and
+            // delivery path with an oracle-exact cloned QueryInvocation.
+            self.live_evaluation_stats.memo_hits =
+                self.live_evaluation_stats.memo_hits.saturating_add(1);
+            self.live_evaluation_stats.memo_evictions = self
+                .live_evaluation_stats
+                .memo_evictions
+                .saturating_add(evictions);
+            return Ok(cached);
+        }
+        if key.is_some() && !memo_disabled {
+            self.live_evaluation_stats.memo_misses =
+                self.live_evaluation_stats.memo_misses.saturating_add(1);
+        }
+        self.live_evaluation_stats.evaluations_executed = self
+            .live_evaluation_stats
+            .evaluations_executed
+            .saturating_add(1);
+
+        let result = if is_reserved_live_function(&subscription.function) {
+            self.reserved_live_invocation(&authority, &subscription.function, &subscription.input)
+        } else {
+            self.invoke_query_with_dependencies_prepared_generation(
+                &subscription.function,
+                subscription.input.clone(),
+                authority,
+                subscription.expected_generation.as_ref(),
+            )
+        }?;
+
+        let turn_is_publishable = self
+            .current_live_evaluation
+            .as_ref()
+            .is_some_and(|evaluation| !evaluation.control.is_abandoned());
+        if turn_is_publishable && let Some(key) = key {
+            let evictions = self.pending_live_fanout.evaluation_memo.insert(
+                key,
+                &subscription.id,
+                result.clone(),
+            );
+            self.live_evaluation_stats.memo_evictions = self
+                .live_evaluation_stats
+                .memo_evictions
+                .saturating_add(evictions);
+        }
+        Ok(result)
     }
 
     /// Cloneable process-local admission authority for HTTP composition.
@@ -8378,11 +8672,7 @@ impl LocalSnapback {
                     return None;
                 }
             };
-        let query = match self.reserved_live_invocation(
-            &authority,
-            &subscription.function,
-            &subscription.input,
-        ) {
+        let query = match self.invoke_live_subscription_query(subscription, authority) {
             Ok(query) => query,
             Err(error) => {
                 self.fail_subscription_fanout(
@@ -8477,11 +8767,7 @@ impl LocalSnapback {
                     return None;
                 }
             };
-        let probe = match self.reserved_live_invocation(
-            &authority,
-            &subscription.function,
-            &subscription.input,
-        ) {
+        let probe = match self.invoke_live_subscription_query(subscription, authority) {
             Ok(query) => query,
             Err(error) => {
                 self.fail_subscription_fanout(
@@ -22552,6 +22838,11 @@ impl LocalSnapback {
         &mut self,
         coalescer: Arc<crate::live_coalesce::LiveFanoutCoalescer>,
     ) {
+        self.pending_live_fanout.evaluation_memo.disabled = live_evaluation_memo_disabled(
+            std::env::var("SNAPBACK_LIVE_EVAL_MEMO_DISABLED")
+                .ok()
+                .as_deref(),
+        );
         self.live_coalescer = Some(coalescer);
     }
 
@@ -23061,6 +23352,7 @@ impl LocalSnapback {
         self.current_live_evaluation = Some(CurrentLiveEvaluation {
             subscription_id: subscription_id.to_owned(),
             connection_id,
+            cut_version: frame_version,
             commit_versions: pending.trace_commit_versions.clone(),
             queued_ms: pending.trace_queued_ms,
             started_ms: crate::spike_trace::timestamp_ms(),
@@ -23068,6 +23360,7 @@ impl LocalSnapback {
             delivered_frames: 0,
             delivered_bytes: 0,
             wire_kind: None,
+            control: control.clone(),
         });
 
         if pending.lane == PendingLiveLane::Data {
@@ -23580,30 +23873,8 @@ impl LocalSnapback {
         loop {
             match self
                 .prepare_live_rerun_authority(&subscription.authority, admission.clone())
-                .and_then(|authority| {
-                    self.validate_expected_generation(
-                        &authority,
-                        subscription.expected_generation.as_ref(),
-                    )?;
-                    if is_reserved_live_function(&subscription.function) {
-                        // Reserved projections execute natively; the
-                        // manifest lookup below can never produce them. The
-                        // retry-episode and witness machinery wrapping this
-                        // closure applies to them unchanged.
-                        self.reserved_live_invocation(
-                            &authority,
-                            &subscription.function,
-                            &subscription.input,
-                        )
-                    } else {
-                        self.invoke_query_with_dependencies_prepared_generation(
-                            &subscription.function,
-                            subscription.input.clone(),
-                            authority,
-                            subscription.expected_generation.as_ref(),
-                        )
-                    }
-                }) {
+                .and_then(|authority| self.invoke_live_subscription_query(subscription, authority))
+            {
                 Ok(query) => return Ok(query),
                 Err(error) => {
                     // Only the host-owned, non-serializable denial brand may
@@ -24253,6 +24524,12 @@ impl LocalSnapback {
             // never leave predecessor-authority delivery enabled.
             let marking_started = Instant::now();
             for subscription in &subscriptions {
+                // @ref LLP 0209#6 — an authority fence also retires every
+                // memo result held under the predecessor authority; the
+                // per-subscription delivery gate remains the safety boundary.
+                self.pending_live_fanout
+                    .evaluation_memo
+                    .retire_subscription(&subscription.id);
                 coalescer.fence_authority(&subscription.id, authorization.version.clone());
                 crate::spike_trace::fence(
                     &subscription.id,
@@ -24637,6 +24914,12 @@ impl LocalSnapback {
                 continue;
             }
             if is_reserved_live_function(&subscription.function) {
+                // @ref LLP 0209#6 — the existing matcher decision is the
+                // memo's coherence authority. A wake by any holder retires
+                // the complete shared entry before evaluation selection.
+                self.pending_live_fanout
+                    .evaluation_memo
+                    .retire_subscription(&subscription.id);
                 matcher_stats.conservative_fallback =
                     matcher_stats.conservative_fallback.saturating_add(1);
                 crate::spike_trace::matcher_decision(
@@ -24698,6 +24981,11 @@ impl LocalSnapback {
                 }
                 continue;
             }
+            // @ref LLP 0209#6 — retirement is attached directly to the
+            // matcher wake, with no TTL or parallel invalidation protocol.
+            self.pending_live_fanout
+                .evaluation_memo
+                .retire_subscription(&subscription.id);
             let delta_plan = match &function.runtime {
                 // @ref LLP 0056#what-exists-what-this-adds — membership-gated
                 // (semi-join) queries ride the conservative re-query/
@@ -24918,12 +25206,7 @@ impl LocalSnapback {
                 match self
                     .prepare_live_rerun_authority(&subscription.authority, admission.clone())
                     .and_then(|authority| {
-                        self.invoke_query_with_dependencies_prepared_generation(
-                            &subscription.function,
-                            subscription.input.clone(),
-                            authority,
-                            subscription.expected_generation.as_ref(),
-                        )
+                        self.invoke_live_subscription_query(&subscription, authority)
                     }) {
                     Ok(query) => query,
                     Err(error) => {

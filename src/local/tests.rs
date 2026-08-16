@@ -2,16 +2,17 @@ use super::{
     ASSET_RECORD_LIVE_FUNCTION, AssetFinalizeCrashPoint, AuthorizationBlastRadiusStats,
     AuthorizationInvalidationAckInput, AuthorizationInvalidationManualRetryInput,
     BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
-    BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
-    DetachedMutationRead, DiagnosticBoundary, EnsureAppMode, FAIL_NEXT_ADDITIONAL_JOB_ADMISSION,
-    FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH, FinalizePhaseAOutcomeV1,
-    FinalizePreflightV1, INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission,
-    LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback,
-    MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION,
-    MaintenanceOperation, PendingLiveFanout, PendingLiveLane, PendingLiveScheduler,
-    PendingLiveWork, PublicInspect, RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER,
-    SEARCH_CAPABILITY, SEARCH_PARSER, SearchFieldClassV1, SearchIndexManifestV1, SearchQueryPlanV1,
-    SearchTextFieldV1, SearchVisibilityV1, SnapbackError, SnapbackResult, StagedMutationExecution,
+    BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, CurrentLiveEvaluation,
+    DetachedIbexMutation, DetachedMutationRead, DiagnosticBoundary, EnsureAppMode,
+    FAIL_NEXT_ADDITIONAL_JOB_ADMISSION, FAIL_NEXT_LIVE_SCOPE_REGISTRATION,
+    FAIL_NEXT_SCOPE_RETIREMENT_AUTH, FinalizePhaseAOutcomeV1, FinalizePreflightV1,
+    INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission, LiveResumeInput,
+    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
+    MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation,
+    PendingLiveFanout, PendingLiveLane, PendingLiveScheduler, PendingLiveWork, PublicInspect,
+    RetryEpisodeKey, RetryReservationKind, SEARCH_ANALYZER, SEARCH_CAPABILITY, SEARCH_PARSER,
+    SearchFieldClassV1, SearchIndexManifestV1, SearchQueryPlanV1, SearchTextFieldV1,
+    SearchVisibilityV1, SnapbackError, SnapbackResult, StagedMutationExecution,
     StagedNestedMutation, StagedRecordedMutation, bounded_projection_result_contract,
     enforce_snapshot_batch_cursor_budget, next_secret_read_reset_generation, now_millis,
     order_field_bounds_from_functions, refuse_unprovenanced_host_plan_authority_creation,
@@ -259,6 +260,489 @@ fn pending_superseded_queued_evaluation_runs_latest_at_most_once() {
     assert!(matches!(served.work, PendingLiveWork::Refresh));
     assert!(scheduler.peek().is_none());
     assert!(scheduler.pop("sub-a").is_none());
+}
+
+fn install_live_memo_scheduler(snapback: &mut LocalSnapback) {
+    snapback
+        .install_live_fanout_coalescer(Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new()));
+    // The focused cases exercise the default-on arm even if the parent test
+    // process was launched with the production A/B switch set.
+    snapback.pending_live_fanout.evaluation_memo.disabled = false;
+}
+
+fn live_memo_input(connection_id: &str, args: Value, principal: &str) -> LiveSubscribeInput {
+    LiveSubscribeInput {
+        connection_id: connection_id.to_owned(),
+        input: HandlerInput {
+            args,
+            auth: AuthInput {
+                user_id: Some(principal.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        },
+        authorization_namespace: None,
+        supersedes: None,
+        resume_from_token: None,
+    }
+}
+
+fn queue_and_flush_live_memo_refresh(snapback: &mut LocalSnapback) {
+    snapback.notify_live_subscriptions(&[]);
+    assert!(
+        snapback.flush_pending_live_fanout(),
+        "the refresh queued scheduler work"
+    );
+}
+
+fn live_memo_frames(snapback: &mut LocalSnapback, connection_id: &str) -> Vec<Value> {
+    drain_live_stream_through_test_sink(snapback, connection_id)
+        .into_iter()
+        .map(|frame| serde_json::from_str(&frame).expect("live memo frame JSON"))
+        .collect()
+}
+
+#[test]
+fn live_evaluation_memo_six_same_principal_subscriptions_execute_once_and_deliver_six() {
+    let mut snapback = live_limit_snapback();
+    snapback
+        .invoke_mutation(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "shared" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("seed shared result");
+    install_live_memo_scheduler(&mut snapback);
+    let connections = (0..6)
+        .map(|index| format!("memo-same-{index}"))
+        .collect::<Vec<_>>();
+    for connection_id in &connections {
+        snapback
+            .subscribe_live(
+                "listItems",
+                live_memo_input(connection_id, json!({}), "principal-a"),
+            )
+            .expect("subscribe identical observer");
+    }
+    let before = snapback.live_evaluation_stats.clone();
+    let deliveries_before = snapback.live_delivery.total_deliveries;
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_started - before.evaluations_started,
+        6,
+        "delivery remains one scheduler turn per subscription"
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        1
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        1
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        5
+    );
+    assert_eq!(
+        snapback.live_delivery.total_deliveries - deliveries_before,
+        6
+    );
+
+    let result_bytes = connections
+        .iter()
+        .map(|connection_id| {
+            let frames = live_memo_frames(&mut snapback, connection_id);
+            assert_eq!(frames.len(), 1, "one delivery for {connection_id}");
+            assert_eq!(frames[0]["kind"], "live_replace");
+            serde_json::to_vec(&frames[0]["rows"]).expect("serialize delivered result rows")
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        result_bytes
+            .windows(2)
+            .all(|pair| pair[0].as_slice() == pair[1].as_slice()),
+        "every subscriber consumes byte-identical result rows"
+    );
+}
+
+#[test]
+fn live_evaluation_memo_principal_isolation_executes_twice() {
+    let mut snapback = live_limit_snapback();
+    install_live_memo_scheduler(&mut snapback);
+    for (connection_id, principal) in [("memo-user-a", "user-a"), ("memo-user-b", "user-b")] {
+        snapback
+            .subscribe_live(
+                "listItems",
+                live_memo_input(connection_id, json!({}), principal),
+            )
+            .expect("subscribe principal-isolated observer");
+    }
+    let before = snapback.live_evaluation_stats.clone();
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        2
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        2
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+}
+
+#[test]
+fn live_evaluation_memo_different_args_or_function_do_not_share() {
+    let mut snapback = live_limit_snapback();
+    install_live_memo_scheduler(&mut snapback);
+    for (function, connection_id, args) in [
+        ("listItemsByValue", "memo-args-a", json!({ "value": "a" })),
+        ("listItemsByValue", "memo-args-b", json!({ "value": "b" })),
+        ("listItems", "memo-function", json!({})),
+    ] {
+        snapback
+            .subscribe_live(
+                function,
+                live_memo_input(connection_id, args, "principal-a"),
+            )
+            .expect("subscribe distinct evaluation identity");
+    }
+    let before = snapback.live_evaluation_stats.clone();
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        3
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        3
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+}
+
+#[test]
+fn live_evaluation_memo_matcher_wake_retires_and_delivers_fresh_result() {
+    let mut snapback = live_limit_snapback();
+    install_live_memo_scheduler(&mut snapback);
+    for connection_id in ["memo-wake-a", "memo-wake-b"] {
+        snapback
+            .subscribe_live(
+                "listItems",
+                live_memo_input(connection_id, json!({}), "principal-a"),
+            )
+            .expect("subscribe matcher-wake observer");
+    }
+    queue_and_flush_live_memo_refresh(&mut snapback);
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1,
+        "matcher={:?} evaluation={:?}",
+        snapback.live_matcher_stats,
+        snapback.live_evaluation_stats,
+    );
+    for connection_id in ["memo-wake-a", "memo-wake-b"] {
+        let _ = live_memo_frames(&mut snapback, connection_id);
+    }
+    let before = snapback.live_evaluation_stats.clone();
+
+    snapback
+        .invoke_mutation(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "fresh" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("commit matcher wake");
+    assert!(snapback.flush_pending_live_fanout());
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        1
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        1
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        1
+    );
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1,
+        "the matcher retired the predecessor-cut entry before memoizing the fresh cut"
+    );
+
+    for connection_id in ["memo-wake-a", "memo-wake-b"] {
+        let frames = live_memo_frames(&mut snapback, connection_id);
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0]["kind"], "live_replace");
+        assert_eq!(frames[0]["rows"].as_array().map(Vec::len), Some(1));
+        assert_eq!(frames[0]["rows"][0]["value"], "fresh");
+    }
+}
+
+#[test]
+fn live_evaluation_memo_authority_fence_retires_predecessor_entries() {
+    let mut snapback = live_limit_snapback();
+    snapback
+        .apply_schema(SchemaManifest {
+            schema_hash: Some("memo-authority-schema".to_owned()),
+            tables: vec![TableManifest {
+                name: "items".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "value".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: vec![IndexManifest {
+                    name: "by_value".to_owned(),
+                    fields: vec!["value".to_owned()],
+                    unique: false,
+                    where_applicable: false,
+                }],
+                syncable: true,
+                permission_backing: true,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                authority_profile: None,
+                asset_sharing: None,
+                visibility: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("mark memo fixture permission-backing");
+    let connection = install_test_invalidation(&mut snapback);
+    install_live_memo_scheduler(&mut snapback);
+    snapback
+        .subscribe_live_with_invalidation(
+            "listItems",
+            LiveSubscribeInput {
+                connection_id: "memo-authority".to_owned(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(test_authorization_namespace(901)),
+                supersedes: None,
+                resume_from_token: None,
+            },
+            LiveInvalidationAdmission {
+                session_mode: true,
+                connection: Some(connection),
+                effect_fence: None,
+            },
+        )
+        .expect("subscribe authority memo holder");
+    let subscription = snapback
+        .subscriptions
+        .values()
+        .next()
+        .expect("retained authority subscription")
+        .clone();
+    let admission = test_session_admission();
+    let cut_version = snapback.durable_version().expect("memo cut version");
+    let control = Arc::new(crate::live_coalesce::LiveEvaluationControl::default());
+    snapback.current_live_evaluation = Some(CurrentLiveEvaluation {
+        subscription_id: subscription.id.clone(),
+        connection_id: subscription.connection_id.clone(),
+        cut_version,
+        commit_versions: vec![cut_version],
+        queued_ms: None,
+        started_ms: None,
+        started_at: Instant::now(),
+        delivered_frames: 0,
+        delivered_bytes: 0,
+        wire_kind: None,
+        control,
+    });
+    let authority = snapback
+        .prepare_live_rerun_authority(&subscription.authority, admission)
+        .expect("prepare authority-scoped memo query");
+    snapback
+        .invoke_live_subscription_query(&subscription, authority)
+        .expect("seed authority-scoped memo entry through the scheduler invocation seam");
+    snapback.current_live_evaluation = None;
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
+
+    invoke_test_session_mutation(
+        &mut snapback,
+        "insertItem",
+        HandlerInput {
+            args: json!({ "value": "authority-transition" }),
+            ..HandlerInput::default()
+        },
+    )
+    .expect("commit permission-backing authority transition");
+
+    assert_eq!(snapback.live_authority_stats.fences_applied, 1);
+    assert!(
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .entries
+            .is_empty(),
+        "the authority fence retires predecessor-principal memo state"
+    );
+}
+
+#[test]
+fn live_evaluation_memo_kill_switch_restores_one_execution_per_subscription() {
+    const CHILD_MARKER: &str = "SNAPBACK_TEST_LIVE_EVAL_MEMO_DISABLED_CHILD";
+    assert!(super::live_evaluation_memo_disabled(Some("1")));
+    assert!(!super::live_evaluation_memo_disabled(None));
+    if std::env::var(CHILD_MARKER).as_deref() != Ok("1") {
+        let output = std::process::Command::new(
+            std::env::current_exe().expect("resolve the current unit-test binary"),
+        )
+        .args([
+            "--exact",
+            "local::tests::live_evaluation_memo_kill_switch_restores_one_execution_per_subscription",
+            "--nocapture",
+        ])
+        .env(CHILD_MARKER, "1")
+        .env("SNAPBACK_LIVE_EVAL_MEMO_DISABLED", "1")
+        .output()
+        .expect("run isolated kill-switch child");
+        assert!(
+            output.status.success(),
+            "kill-switch child failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        return;
+    }
+
+    let mut snapback = live_limit_snapback();
+    snapback
+        .install_live_fanout_coalescer(Arc::new(crate::live_coalesce::LiveFanoutCoalescer::new()));
+    assert!(snapback.pending_live_fanout.evaluation_memo.disabled);
+    for index in 0..3 {
+        snapback
+            .subscribe_live(
+                "listItems",
+                live_memo_input(&format!("memo-disabled-{index}"), json!({}), "principal-a"),
+            )
+            .expect("subscribe kill-switch observer");
+    }
+    let before = snapback.live_evaluation_stats.clone();
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        3
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        0
+    );
+    assert!(
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .entries
+            .is_empty()
+    );
+}
+
+#[test]
+fn live_evaluation_memo_tiny_budget_evicts_oldest_and_preserves_correctness() {
+    let mut snapback = live_limit_snapback();
+    for value in ["a", "b"] {
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": value }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("seed eviction result");
+    }
+    install_live_memo_scheduler(&mut snapback);
+    snapback
+        .pending_live_fanout
+        .evaluation_memo
+        .set_limits(1, usize::MAX);
+    let subscriptions = [
+        ("memo-evict-a1", "a"),
+        ("memo-evict-b", "b"),
+        ("memo-evict-a2", "a"),
+    ]
+    .into_iter()
+    .map(|(connection_id, value)| {
+        let subscription_id = snapback
+            .subscribe_live(
+                "listItemsByValue",
+                live_memo_input(connection_id, json!({ "value": value }), "principal-a"),
+            )
+            .expect("subscribe eviction observer")
+            .subscription_id;
+        (subscription_id, connection_id)
+    })
+    .collect::<Vec<_>>();
+    snapback.notify_live_subscriptions(&[]);
+    let now = Instant::now();
+    for (index, (subscription_id, _)) in subscriptions.iter().enumerate() {
+        snapback
+            .pending_live_fanout
+            .entries
+            .get_mut(subscription_id)
+            .expect("queued eviction observer")
+            .first_deferred_at = now
+            .checked_sub(Duration::from_secs((3 - index) as u64))
+            .expect("test scheduler age");
+    }
+    let before = snapback.live_evaluation_stats.clone();
+    assert!(snapback.flush_pending_live_fanout());
+
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        3,
+        "the evicted first key pays one extra evaluation when it recurs"
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        3
+    );
+    assert!(snapback.live_evaluation_stats.memo_evictions - before.memo_evictions >= 2);
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
+
+    let first = live_memo_frames(&mut snapback, subscriptions[0].1);
+    let middle = live_memo_frames(&mut snapback, subscriptions[1].1);
+    let last = live_memo_frames(&mut snapback, subscriptions[2].1);
+    assert_eq!(first[0]["rows"], last[0]["rows"]);
+    assert_ne!(first[0]["rows"], middle[0]["rows"]);
 }
 
 // @ref LLP 0200#25-cancellation-fairness-and-bounded-staleness — an
