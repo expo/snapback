@@ -116,11 +116,12 @@ use receipt_log::ReceiptLog;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 const MAINTENANCE_DIAGNOSTIC_MIN_INTERVAL_MS: u64 = 60_000;
-/// Instance-local live evaluation results are intentionally small enough that
-/// the retained subscription registry remains the dominant scheduler bound.
-/// These are fixed implementation constants for G1, not authoring surface.
+/// The byte budget must hold at least one measured hot-shape result: LLP 0209
+/// §1 records 61–68 MB replace frames. 256 MiB leaves room for a few
+/// concurrent keys; eviction still only costs a re-evaluation. These are fixed
+/// implementation constants for G1, not authoring surface.
 const LIVE_EVALUATION_MEMO_MAX_ENTRIES: usize = 256;
-const LIVE_EVALUATION_MEMO_MAX_ESTIMATED_BYTES: usize = 32 * 1024 * 1024;
+const LIVE_EVALUATION_MEMO_MAX_ESTIMATED_BYTES: usize = 256 * 1024 * 1024;
 const LIVE_EVALUATION_MEMO_ENTRY_OVERHEAD_BYTES: usize = 256;
 const LIVE_EVALUATION_MEMO_HOLDER_OVERHEAD_BYTES: usize = 64;
 static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
@@ -873,8 +874,19 @@ impl LiveEvaluationMemo {
         key: LiveEvaluationMemoKey,
         subscription_id: &str,
         result: &QueryInvocation,
+        oversize_refusals: &mut u64,
     ) -> u64 {
         if self.disabled {
+            return 0;
+        }
+        let estimated_bytes = key
+            .estimated_bytes()
+            .saturating_add(query_invocation_estimated_bytes(result))
+            .saturating_add(LIVE_EVALUATION_MEMO_ENTRY_OVERHEAD_BYTES)
+            .saturating_add(subscription_id.len())
+            .saturating_add(LIVE_EVALUATION_MEMO_HOLDER_OVERHEAD_BYTES);
+        if estimated_bytes > self.max_bytes {
+            *oversize_refusals = oversize_refusals.saturating_add(1);
             return 0;
         }
         let result = result.clone();
@@ -884,12 +896,6 @@ impl LiveEvaluationMemo {
         }
         self.next_sequence = self.next_sequence.wrapping_add(1).max(1);
         let sequence = self.next_sequence;
-        let estimated_bytes = key
-            .estimated_bytes()
-            .saturating_add(query_invocation_estimated_bytes(&result))
-            .saturating_add(LIVE_EVALUATION_MEMO_ENTRY_OVERHEAD_BYTES)
-            .saturating_add(subscription_id.len())
-            .saturating_add(LIVE_EVALUATION_MEMO_HOLDER_OVERHEAD_BYTES);
         let entry = LiveEvaluationMemoEntry {
             result,
             holders: BTreeSet::from([subscription_id.to_owned()]),
@@ -1167,6 +1173,7 @@ pub struct LiveEvaluationStats {
     pub memo_hits: u64,
     pub memo_misses: u64,
     pub memo_evictions: u64,
+    pub memo_oversize_refusals: u64,
     pub cumulative_duration_ms: f64,
     pub last_turn_duration_ms: f64,
     pub delivered_frames_by_wire_kind: BTreeMap<String, u64>,
@@ -4709,6 +4716,7 @@ impl LocalSnapback {
                 key,
                 &subscription.id,
                 &result,
+                &mut self.live_evaluation_stats.memo_oversize_refusals,
             );
             self.live_evaluation_stats.memo_evictions = self
                 .live_evaluation_stats

@@ -1396,6 +1396,71 @@ fn live_evaluation_memo_kill_switch_restores_one_execution_per_subscription() {
 }
 
 #[test]
+fn live_evaluation_memo_oversize_result_refuses_without_clone_or_sharing() {
+    let mut snapback = live_limit_snapback();
+    snapback
+        .invoke_mutation(
+            "insertItem",
+            HandlerInput {
+                args: json!({ "value": "oversize" }),
+                ..HandlerInput::default()
+            },
+        )
+        .expect("seed oversize result");
+    install_live_memo_scheduler(&mut snapback);
+    snapback
+        .pending_live_fanout
+        .evaluation_memo
+        .set_limits(256, 1);
+    for connection_id in ["memo-oversize-a", "memo-oversize-b"] {
+        snapback
+            .subscribe_live(
+                "listItems",
+                live_memo_input(connection_id, json!({}), "principal-a"),
+            )
+            .expect("subscribe oversize observer");
+    }
+    let before = snapback.live_evaluation_stats.clone();
+
+    queue_and_flush_live_memo_refresh(&mut snapback);
+
+    assert_eq!(
+        snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
+        2,
+        "the second same-key subscription still evaluates after the first refusal"
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_oversize_refusals
+            - before.memo_oversize_refusals,
+        2,
+        "each over-budget population attempt is counted"
+    );
+    assert_eq!(snapback.live_evaluation_stats.memo_hits - before.memo_hits, 0);
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        2
+    );
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.result_clones, 0,
+        "an entry that cannot fit is refused before cloning its result"
+    );
+    assert!(
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .entries
+            .is_empty(),
+        "an over-budget result never touches the memo map"
+    );
+    for connection_id in ["memo-oversize-a", "memo-oversize-b"] {
+        let frames = live_memo_frames(&mut snapback, connection_id);
+        assert_eq!(frames.len(), 1, "one delivery for {connection_id}");
+        assert_eq!(frames[0]["kind"], "live_replace");
+        assert_eq!(frames[0]["rows"][0]["value"], "oversize");
+    }
+}
+
+#[test]
 fn live_evaluation_memo_tiny_budget_evicts_oldest_and_preserves_correctness() {
     let mut snapback = live_limit_snapback();
     for value in ["a", "b"] {

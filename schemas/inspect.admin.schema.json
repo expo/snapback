@@ -6054,6 +6054,11 @@
           "format": "uint64",
           "minimum": 0,
           "type": "integer"
+        },
+        "memoOversizeRefusals": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
         }
       },
       "required": [
@@ -6064,6 +6069,7 @@
         "memoHits",
         "memoMisses",
         "memoEvictions",
+        "memoOversizeRefusals",
         "cumulativeDurationMs",
         "lastTurnDurationMs",
         "deliveredFramesByWireKind",

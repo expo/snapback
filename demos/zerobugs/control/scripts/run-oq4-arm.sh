@@ -64,7 +64,7 @@ server_trace=$arm_dir/server-trace.jsonl
 client_trace=$arm_dir/client-trace.jsonl
 server_log=$arm_dir/server.log
 startup_artifacts=$work_dir/startup-artifacts.json
-overlay=/Users/ccheever/projects/snapback/.claude/worktrees/zerobugs-lane1/demos/zerobugs/control/.snapback/large-fixture/large-overlay-v1.json
+overlay=${OQ4_LARGE_OVERLAY:-$control_root/.snapback/large-fixture/large-overlay-v1.json}
 server_pid=
 
 mkdir -p $work_dir
