@@ -65,3 +65,114 @@ These do not block READY by themselves once the MATERIAL items are closed.
 I do not want a wholesale redesign. One first-party bootstrap owner over 0059/0227/0238/0181 is the right product. It is not ready to accept until the native carrier is chosen, D5 covers first-run *and* remint, the owner key matches 0059, and 0181 is amended instead of being declared unchanged.
 
 VERDICT: NOT READY
+
+## Round 2 (delta round) — 2026-08-15
+
+- **Reviewer:** grok CLI, model grok-4.6 (--reasoning-effort xhigh, --disable-web-search), blind.
+- **Revision under review (r2):** sha256
+  `840995cbb6e87582ca7c2fc035362da6ea11a466d85bef577af6f759900dae4a`.
+- **Capsule:** round-1-lineage clone with r2 overlaid (no 0258 review
+  artifacts present).
+- **Instructions (delta round):** sha256
+  `53306c45d9ad62ac153fec0c84b81d1e88b6ab0e2432b8e9f382e8f2ca224778`.
+- **Verdict:** NOT READY (all MATERIAL concerns classified IN-DELTA; no
+  MATERIAL concern in pre-existing text).
+- Note: the leading narration sentences are part of grok's plain-output stream and are preserved verbatim.
+### Review body (verbatim)
+
+I'll review LLP 0258 r2 as a mutually-blind delta review: first the review skill and the RFC, then the r2 changes against the cited corpus and code.The RFC is loaded. Next I’ll check LLP 0005 and the cited corpus so the r2 delta can be verified against the actual protocols.I’ll pull the governing LLPs next—0059, 0181, 0227, 0238, and the related protocol docs—so the r2 claims can be checked against the actual contracts.I’ve got the section map. Next I’ll read the load-bearing protocol text for authority keys, boot state, password contracts, and the 0238 union.D4’s “exact result contract” claim needs a code check—signup/sign-in return types and recovery-rotate look like they may not match the facade.Revision r2 is a real improvement: the owner key now matches LLP 0059, construction order matches participant registration, OQ3 is resolved conservatively, the native carrier is fail-closed, and the 0181/0253 amendments are named as protocol changes. Three r2 decisions still conflict with shipped contracts or with each other, so this revision is not ready.
+
+## Concerns
+
+### 1. MATERIAL · IN-DELTA — D1’s “derived projection, never a second configuration” is not implementable as written
+
+**D1** says `ApplicationAuthBootstrapV1` is derived from the existing normalized `defineAuth` / schema auth program, that “every” field comes from that program, and that “no bootstrap-policy field can be authored independently or disagree with the program.” Two fields break that rule.
+
+**`custody` has no source in the existing program.** LLP 0214’s closed `defineAuth` declaration has mechanisms, providers, guest policy, recovery policy, and related fields — not a durable/volatile custody grade. The shipped coordinator is constructed with an injected `storage` adapter and an `appId` only (`packages/snapback-contract/auth-coordinator.d.mts`). D1 then requires `volatile-explicit` to be “written explicitly.” Those two sentences cannot both hold: either custody is a second authored input (contradicting the r2 thesis), or it is default-only and cannot be written. Phase 0 does not name an LLP 0214 amendment that would add the field. Codegen cannot implement the derivation rule.
+
+**`anonymousPublic` from “the guest policy” is a category error.** LLP 0214 §2.8 `guestPolicy.enabled` admits *guest principals* (claimable user rows, default disabled). LLP 0238/0059 `anonymous` is *no principal*. Per-function public access is the separate Familiar/canonical enum `"public" | "optional-user" | "authenticated"` (LLP 0253 S4.2) and schema `visibility: public-read`. Mapping `guestPolicy.enabled` onto `anonymousPublic` does the wrong thing in both directions:
+
+- Platform default `guestPolicy.enabled: false` would derive `anonymousPublic: "refused"`. If that refusal is enforced at bootstrap (D2 step 8 releases public work only after confirmation; D7 `ready` is that gate), an ordinary password app cannot present a sign-in screen — 0227 signup/signin require a settled anonymous coordinator.
+- An app can enable guests and still require a guest session for every route, or disable guests and still serve public-read queries. Those are expressible programs today; D1 would mis-project them or refuse them as “unexpressible.”
+
+What would resolve this: name the real derivation (or amendment) for each `ApplicationAuthBootstrapV1` field. `custody` is a client-persistence grade and needs an explicit authoring seam or a declared default-only rule. `anonymousPublic` should follow whether the normalized program admits anonymous/public work (public operations / guest-less anonymous handshake), not 0214 guest enablement.
+
+### 2. MATERIAL · IN-DELTA — D2’s construction-time binding-conflict rule fights remint and the remount path the RFC claims to support
+
+**D2** keys the owner by `(canonical app id, storage partition)` and treats binding target as `(origin, routing, schema/functions generation identities)`. Same key + same target is reference-counted reuse (the Strict Mode / Fast Refresh fix). Same key + different target is `SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT` until dispose. In the same breath, a supervisor remint “rebinds transport facts on the same owner and cannot mint a second authority owner.”
+
+Those two rules collide on the ordinary Expo path. LLP 0181 remints the binding for a new `descriptorIdentity` while keeping supervisor generation and route; `AppBindingV1.target` includes `schema` and `functions`. A generation remint is therefore a different binding target. The common sequence is: live owner still holds B0, Fast Refresh / Strict Mode overlap mounts a second constructor with reminted B1. D2’s reuse clause does not apply (targets differ); the conflict clause does. That is the exact remount overlap Acceptance says must produce one owner, and it is the remint D2 says must rebind rather than refuse.
+
+In-place remint on an already-held owner is specified. Construction with a successor generation identity of the same authority key is not. The current Expo environment already resolves a new binding and constructs again (`packages/snapback-expo/supervised-environment.mjs`, `provider.mjs`); r2 is supposed to make that safe.
+
+What would resolve this: either drop schema/functions generation identities from the construction-conflict predicate (keep them as rebind inputs), or define construction against a live owner with a successor generation of the same app/partition/origin as a rebind, not a refuse. Conflict should remain for a genuinely different origin/routing/app.
+
+### 3. MATERIAL · IN-DELTA — D5’s “every remediation is executable through the specified API” names a partition the specified constructor cannot set
+
+**D2**’s normative constructor is `createSnapbackAppClient({ app, binding, platform })`. The authority key’s second half is storage partition; the default is a stable per-app constant, never supervisor-generation-derived. **D5** then lists three remediations for supervised conflict, all supposedly executable through the specified API, including “reconstruct with a separate storage partition.” D2 also says two targets side by side “give them explicit distinct storage partitions.”
+
+Nothing in the specified ordinary API accepts a partition. `AppBinding` is forbidden to carry authority (Constraints, LLP 0181). `platform` selects a custody adapter, not an authority-key component. `AuthCoordinator` today has no `storagePartition` option — partition is whichever storage object you inject. Names may change under API review; the ownership shape is declared normative, and that shape includes a key component with no ordinary input.
+
+Without that input, the third D5 remediation is not executable, and the multi-target escape hatch is only the advanced storage-injection path this RFC is trying to keep off the ordinary journey.
+
+What would resolve this: add an explicit ordinary construction input for storage partition (defaulting to the stable per-app constant), and write the conflict remediation as that call. Do not smuggle partition through binding or Metro environment.
+
+### 4. MATERIAL · IN-DELTA — D4’s “exact result contract, never a narrowed result” is false for the facade it specifies
+
+**D4** makes exact contract preservation the rule, then types:
+
+```ts
+signInWithPassword(...): Promise<void>
+changePassword(...): Promise<void>
+```
+
+Shipped client contracts (`packages/snapback-client/index.d.mts`, `password-auth.test.mjs`):
+
+| Method | Actual return |
+| --- | --- |
+| `authPasswordSignIn` | `Promise<AuthCredentialPublicProjectionV1>` |
+| `authPasswordChange` | `Promise<AuthCredentialPublicProjectionV1>` |
+| `authPasswordSignup` | `Promise<AuthRecoveryCredentialPublicProjectionV1>` |
+
+Signup is right. Sign-in and change are narrowed to `void`. Callers today assert `result.session.userId` after sign-in. D9 tells the remaining methods to join “under the same exact-contract mapping,” which cannot mean both “preserve `AuthCredentialPublicProjectionV1`” and “the facade returns `void`.”
+
+This is not a style detail. r2 elevated exact-contract preservation specifically so recovery codes would not be elided. The same sentence forbids the void narrowing written two lines later.
+
+What would resolve this: give each facade method the same return type as the client method it wraps (`AuthCredentialPublicProjectionV1` for sign-in/change; recovery projection for signup/consume/rotate), *or* drop the exact-contract rule for non-recovery methods and say `currentPrincipal` replaces those returns. Do not keep both.
+
+### 5. minor · IN-DELTA — D8’s “exactly one” recovery boundary omits consume, which the shipped type already names
+
+**D8** and Acceptance: one-time recovery credentials cross “exactly one deliberate boundary — the synchronous signup/rotation return value.” **D4** only highlights signup, then says recovery consumption joins via D9 with exact contracts.
+
+Shipped `AuthRecoveryCredentialPublicProjectionV1` is “returned only by signup/consume/rotate.” LLP 0214 §9 and R-04/R-06 require consume to return the replacement plaintext set once. Eliding consume to satisfy a literal reading of D8 would destroy recovery custody; including it violates “exactly one” / “signup/rotation.”
+
+Treat the admitted class as every `AuthRecoveryCredentialPublicProjectionV1` return (signup, consume, rotate), matching 0214’s one-time-response rule. Not blocking if D4’s exact-contract join is honored.
+
+### 6. minor · IN-DELTA — D2’s term “authority key” collides with LLP 0059’s loaded name
+
+**Terminology / D2** define authority key as `(canonical app id, storage partition)` and call that “exactly LLP 0059’s coordinator and custody identity.” In 0059, `CanonicalAuthorityKey` / capture `authorityKey` is `sha256:` of `{appId, kind, authMode, incarnation, ...}` — a different object. Coordinator identity is “one `AuthCoordinator` per canonical app id and storage partition.” The pair is the right owner key; the name will be misread as the capture digest. Prefer “coordinator key” / “owner key.”
+
+### 7. minor · IN-DELTA — D7 “one union, one source of truth” does not say what happens to 0181’s binding facts
+
+**D7** takes ownership of `AuthBootstrapSnapshot` and amends `ExpoBootState` to project it. The owned `ready` arm is `{ custody, authoritySource }`. Today’s 0181 `ready` is `{ binding: PublicBindingFacts, authority: PublicAuthorityFacts }`. The listed surface changes (new `custody` stage, `blocked`, redefined `ready`) do not say whether binding inspection survives. “One union” can be read as deleting it. Specify a projection that keeps 0181’s binding facts and uses this RFC’s construction-status union as the inner source of truth.
+
+### 8. minor · IN-DELTA — D5 uses `authoritySource` as a transition predicate but does not say whether it survives restore
+
+**Terminology** calls authority source “diagnostic provenance, never authorization.” **D5** uses it to decide displacement vs refuse, and whether remint/`refreshAuthority` may replace a bearer. `AuthCustodyV2` has no such field. After process death, a supervised persona restored by D5 rule 1 will look like “restored custody” unless the source is persisted. Then password entry loses the composed displacement, and remint must not replace a dead minted session. Pick one: persist source with a closed write path, or define restore as always `restored` and specify how a still-supervised developer persona is refreshed (coordinator 0057 refresh, not remint-as-bearer-setter).
+
+### 9. minor · PRE-EXISTING — `changePassword` on the facade is only the rotate arm of 0227’s closed change union
+
+**D4** adds `changePassword` and leaves set/reset/consume to D9. 0227’s change route is a closed union: rotate (`currentPassword, newPassword`) or set (`currentPassword: null` + step-up). The facade type `PasswordChangeInput` is unspecified. Fine as Phase 1 scope if D9’s exact-contract row includes `authPasswordSet`. Record it so set is not silently folded into `changePassword` and the step-up proof dropped.
+
+## Implementation-phase notes
+
+- Phase 0’s 0181 amendment must change `SnapbackExpoEnvironmentV1.adoptAuthority`: today the provider treats a missing ordinary session client as `authority-required` (`packages/snapback-expo/provider.mjs`). “`ready` may be anonymous” and “conflict never wedges” are not implementable against that success contract.
+- After `signOut()` under D5 conflict, say what triggers supervised re-admission under rule 3 (`refreshAuthority()`, next remint, or immediate). “Let supervised bootstrap re-admit” is not an API.
+- D5’s example of blocked custody as `authority-required` overlaps D7’s separate `blocked` status. Use `blocked` for 0059 corrupt/exhausted custody; reserve `authority-required` for no settleable authority (e.g. Sessions mode unset).
+- D2’s “unreleased” client should stay a bootstrap publication fence (do not return the projection until step 8), not a new `SnapbackClient` protocol. 0059 already registers the transport participant at construction and confirms before exposure.
+- D3’s whole-record native CAS is feasible as a single-runtime, read-verify blob if Phase 0 records that lease + record stay in one atomic domain (0059’s same-database `custody`/`leases` rule). OQ1 is the right remaining question.
+- Familiar S6.1 re-export names are an amendment detail; they must remain aliases over the same owner, as D6 already says.
+
+r2’s direction is right. The blocking work is to make D1’s derivation actually correspond to 0214/0253, stop treating generation remint as a construction conflict, put partition on the ordinary constructor, and stop claiming exact result contracts while typing `void`.
+
+VERDICT: NOT READY

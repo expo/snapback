@@ -44,3 +44,87 @@ Implementation-phase notes:
 - Scan bearer material and one-time recovery material under distinct rules: neither may persist in diagnostics/artifacts, but recovery codes require one deliberate application return boundary.
 
 VERDICT: NOT READY
+
+## Round 2 (delta round) — 2026-08-15
+
+- **Reviewer:** codex exec, model gpt-5.6-sol, reasoning effort xhigh, read-only sandbox, blind.
+- **Revision under review (r2):** sha256
+  `840995cbb6e87582ca7c2fc035362da6ea11a466d85bef577af6f759900dae4a`.
+- **Capsule:** round-1-lineage clone with r2 overlaid (no 0258 review
+  artifacts present).
+- **Instructions (delta round):** sha256
+  `53306c45d9ad62ac153fec0c84b81d1e88b6ab0e2432b8e9f382e8f2ca224778`.
+- **Verdict:** NOT READY (all MATERIAL concerns classified IN-DELTA; no
+  MATERIAL concern in pre-existing text).
+
+### Review body (verbatim)
+
+## Summary
+
+Revision r2 makes strong progress: the D2 construction order now fits LLP 0059’s participant closure, D3 selects a fail-closed native-custody design, and the LLP 0181/0253 changes are honestly identified as amendments. However, five MATERIAL concerns introduced by the delta remain. The most serious are an unusable password-only bootstrap derivation, contradictory facade contracts, and D5 precedence depending on provenance that is neither authoritative nor durably representable. I found no separate MATERIAL concern confined to pre-existing text.
+
+## Concerns
+
+1. **MATERIAL — IN-DELTA — D1 derives anonymous readiness from the wrong policy axis.**
+
+   D1 derives `anonymousPublic` from `guestPolicy` (§D1, lines 233–243), but LLP 0214’s guest policy controls creation, claiming, retention, and cleanup of a durable guest principal. Anonymous/public operation admission is separately controlled by each operation’s LLP 0058 `authRequirement`.
+
+   This breaks the document’s primary password path: the shipped password example has `guestPolicy.enabled: false` (`guide/auth/passwords.md`), while signup and signin are public routes whose client methods require an anonymous coordinator predecessor. Mapping that program to `anonymousPublic: "refused"` leaves an ordinary provider unable to reach `ready` anonymously and therefore unable to render or call the sign-in surface through `useSnapbackAuth()`.
+
+   Resolve this by deriving anonymous bootstrap readiness from the actual application-entry/operation posture—or by ruling that a settled anonymous authority is always a valid ready bootstrap state. Acceptance needs a password-only, guest-disabled cold-start fixture that reaches sign-in without an out-of-provider escape hatch.
+
+2. **MATERIAL — IN-DELTA — D4’s facade contradicts its exact-result-contract rule.**
+
+   The proposed interface returns `Promise<void>` from `signInWithPassword` and `changePassword`, and `Promise<void>` from `signOut` (§D4, lines 405–415). The shipped methods return:
+
+   - `authPasswordSignIn`: `Promise<AuthCredentialPublicProjectionV1>`
+   - `authPasswordChange`: `Promise<AuthCredentialPublicProjectionV1>`
+   - `authLogout`: `Promise<null>`
+
+   See `packages/snapback-client/index.d.mts:1477–1502`. This directly contradicts lines 418–430, which normatively prohibit narrowed results, and leaves D9 unable to generate one exact mapping.
+
+   Either preserve those result types in the facade or explicitly decide that the facade narrows them and revise the “exact contract” rule, D9, and compatibility claims accordingly.
+
+3. **MATERIAL — IN-DELTA — D5 makes `authoritySource` an authorization fact while declaring it non-authoritative and leaving it outside durable custody.**
+
+   Terminology calls authority source “diagnostic provenance, never authorization” (§Terminology, lines 170–173). D5 nevertheless uses it to decide whether application entry may implicitly displace a principal and whether supervisor events may replace a bearer (§D5, lines 466–486). Those are authority-changing decisions.
+
+   The distinction also cannot survive restart as specified. `AuthCustodyV2` is closed and exact; its implementation admits only app id, counters, phase, authority, bearer, refresh, and transition intent (`packages/snapback-contract/auth-coordinator.mjs:572–594`). It has no source field. A supervisor-issued ordinary session and an application-entered session under the same supervised binding are therefore indistinguishable after restoration. Binding source cannot recover the distinction because both sessions can exist under the same `source: "supervised-dev"` binding.
+
+   D5 must either make source an integrity-protected, revision-coupled durable transition-control fact—requiring a real custody/protocol amendment—or redesign precedence around facts already durably authoritative. LLP 0059 cannot remain cross-reference-only if its closed custody schema changes.
+
+4. **MATERIAL — IN-DELTA — the composed supervised displacement is not one existing LLP 0059 barrier and has unspecified race/failure semantics.**
+
+   D5 requires sign-out to settle to a server-witnessed anonymous authority before password issuance, then adopts the issued session, while calling the sequence “one” operation “all under the existing LLP 0059 barrier” (§D5, lines 466–475). LLP 0059’s existing transition barrier is one known predecessor-to-successor transition. This flow requires two transitions with a network issuance between them.
+
+   During the settled-anonymous interval, D5 rule 3 independently permits supervisor re-adoption. A bad password, duplicate signup, transport failure, remint, or `refreshAuthority` race therefore has no defined terminal authority or publication behavior. The existing coordinator would also resume participants after sign-out unless a new outer gate suppresses that exposure.
+
+   Specify the outer serialization/publication owner, whether supervisor events queue or refuse during entry, the authority restored after failed issuance, and how participant callbacks remain withheld across both transitions. Add failure and remint races to Acceptance. If the existing coordinator cannot supply that outer gate, declare the required LLP 0059 amendment.
+
+5. **MATERIAL — IN-DELTA — D5’s ready conflict diagnostic is unrepresentable, and D7 incompletely replaces the existing Expo boot protocol.**
+
+   D5 requires `ready` with the durable principal plus `SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` and remediations (§D5, lines 477–497). D6 says bootstrap diagnostics are exposed through provider boot state (§D6, lines 527–535). But D7’s `ready` arm contains only `custody` and `authoritySource`; only non-ready arms can carry a diagnostic (§D7, lines 545–553).
+
+   D7 also says this union becomes the one source of truth for `ExpoBootState`, but the existing ready arm exposes `binding`, `authority`, and `preparation` (`packages/snapback-expo/index.d.mts:137–154`). `currentPrincipal` can replace the authority projection, but D7 supplies no replacement for public binding facts or the deployment-versus-persisted-receipt preparation fact. The RFC identifies a “redefined ready” without deciding whether these existing public facts survive, move, or are intentionally removed.
+
+   Freeze an exact amended union that can represent a non-blocking ready diagnostic and explicitly dispositions every existing LLP 0181 field. Also reconcile D5’s “blocked custody” example under `authority-required` with D7’s separate `blocked` status.
+
+6. **minor — IN-DELTA — D1 does not identify an existing source for every supposedly derived field.**
+
+   Current `defineAuth` and `defineSchema(..., {auth})` are exact closed schemas. Neither can express custody grade or the advanced external-session seam, yet D1 says `volatile-explicit` must be explicitly written and `external-session-explicit-v1` appears when the existing program declares it. The syntax can remain implementation-phase material, but Phase 0 must name the governing auth-program amendment and its owner rather than claiming these facts are derivable from today’s program.
+
+7. **minor — IN-DELTA — “authority key” collides with LLP 0059’s established term.**
+
+   LLP 0258 defines it as `(app id, storage partition)`, while LLP 0059’s `CanonicalAuthorityKey`/`authorityKey` is the digest of the current anonymous or session authority and appears in captures and barriers. Rename the new pair to `bootstrapOwnerKey`, `custodyPartitionKey`, or similarly distinct vocabulary.
+
+8. **minor — IN-DELTA — the recovery-credential boundary is stated inconsistently.**
+
+   D4 calls signup the one deliberate boundary, while D8 calls it the “synchronous signup/rotation return value.” The shipped contract returns recovery codes from signup, recovery consumption, and recovery rotation (`packages/snapback-client/index.d.mts:1473–1498`), all asynchronously. State that there is one admitted *boundary class* with those three methods, and make scans enumerate all three.
+
+## Implementation-phase notes
+
+- D3’s per-OS probes should include crashes between comparison and replacement, attempted background-task/extension access, backup/restore and reinstall behavior, record-size limits, and proof that a declared single-runtime profile actually rejects every second writer.
+- D2 acceptance should cover final-reference disposal, remint on the same owner, and explicit partition selection for side-by-side targets. The exact option spelling is implementation-phase material.
+- D9 should generate the facade return types directly from the shipped client declarations so future recovery and credential methods cannot repeat the D4 drift.
+
+VERDICT: NOT READY

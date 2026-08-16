@@ -78,4 +78,36 @@ authorized transition), landed on main as `4cc971ea4`.
   `capsule-r2-{codex,grok,claude}`.
 - **Claude drop rule:** author instruction — claude is dropped from later
   rounds after its first READY.
+- **Round-1 landing:** r2 + round-1 artifacts + journal landed on main as
+  `73df29299`.
+- **Launch (2026-08-15):** delta instructions sha256
+  `53306c45d9ad62ac153fec0c84b81d1e88b6ab0e2432b8e9f382e8f2ca224778`;
+  codex pid 46210, grok pid 46211 (detached), fresh claude agent launched
+  concurrently. Identical instructions for all three.
+- **Results:** claude **READY** (6 minors, 5 in-delta / 1 pre-existing, all
+  altitude-dispositionable) → **claude dropped from later rounds per the
+  author's standing instruction**. codex NOT READY — 5 MATERIAL, all
+  IN-DELTA, "no separate MATERIAL concern confined to pre-existing text."
+  grok NOT READY — 4 MATERIAL, all IN-DELTA; 1 pre-existing minor
+  (changePassword union arm). Delta-convergence precondition (no MATERIAL in
+  pre-existing text, any family) holds; in-delta fixes get one more delta
+  round per LLP 0010 §2.
+- **Revision r3 (orchestrator):** sha256
+  `2fb1bd9f96d695e6231836a61ceba07d6a35905d0ba7dfbf9d8ccf460829895b`,
+  988 lines. **Cumulative growth +42.6% over the entering revision — the
+  ~20% budget is exhausted; disclosed here and escalated in the final
+  report.** All nine in-delta MATERIALs and the actionable minors addressed;
+  see the target's r3 Revision-history bullet. Claude's r2 minors folded in
+  (owner-key rename, custody derivation, remint-vs-conflict, recovery
+  citation, 0238 namespace pin); its pre-existing Node/headless-row minor is
+  altitude-dispositioned (no defective decision; matrix stays explicit that
+  headless is admitted-only).
+
+## Round 3 (delta round — final budgeted round)
+
+- **Revision under review (r3):** sha256 `2fb1bd9f…895b` (above).
+- **Reviewers:** codex + grok only (claude dropped after READY).
+- **Topology:** delta round on the enumerated r2→r3 delta; same
+  IN-DELTA/PRE-EXISTING classification duty; capsules cloned from round-2
+  lineage with r3 overlaid.
 - **Launch/results:** recorded below.

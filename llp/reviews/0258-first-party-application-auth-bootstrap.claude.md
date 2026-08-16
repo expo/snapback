@@ -51,3 +51,55 @@ Target: `llp/0258-first-party-application-auth-bootstrap.rfc.md`
 The central decision — one composition owner over unchanged protocols, with capability-gated custody and closed precedence — is right, the alternatives are fairly dispatched, and the security posture (D8) is appropriately modest. The three MATERIAL findings are all repairable in a revision without redesign.
 
 VERDICT: NOT READY
+
+## Round 2 (delta round) — 2026-08-15
+
+- **Reviewer:** Claude (Fable 5), fresh general-purpose agent, blind.
+- **Revision under review (r2):** sha256
+  `840995cbb6e87582ca7c2fc035362da6ea11a466d85bef577af6f759900dae4a`.
+- **Capsule:** round-1-lineage clone with r2 overlaid (no 0258 review
+  artifacts present).
+- **Instructions (delta round):** sha256
+  `53306c45d9ad62ac153fec0c84b81d1e88b6ab0e2432b8e9f382e8f2ca224778`.
+- **Verdict:** READY. Per the author's standing instruction for this loop,
+  the claude family is dropped from subsequent rounds after this READY.
+
+### Review body (verbatim)
+
+I have now verified the document and its delta claims against the corpus (LLP 0059, 0181, 0227, 0238, 0241, 0247, 0252, 0253, 0064, 0077, 0096) and the shipped code (`packages/snapback-client`, `packages/snapback-expo`, `packages/snapback-contract`, `packages/snapback-codegen`, guide pages). Here is the review.
+
+---
+
+# Review: LLP 0258 r2 — First-party application auth bootstrap (delta round)
+
+## Summary
+
+Revision r2 is a substantial and well-grounded improvement, and the delta text survives verification against the corpus and the shipped code. The load-bearing r2 claims check out: the owner key now matches LLP 0059's coordinator identity exactly (one coordinator per canonical app id + storage partition, 0059 §Client custody, line ~1658); the rewritten D2 construction order is compatible with 0059's real participant model (constructor-time transport participant registration exists at `packages/snapback-client/index.mjs:2742`, final confirmation closes the participant set, and 0059's late-registration/catch-up rules are correctly invoked rather than contradicted); `authPasswordSignup` really does return `Promise<AuthRecoveryCredentialPublicProjectionV1>` today and `authPasswordChange` exists (guide reference `expo-snapback-client.md:5498-5515`), so D4's exact-result-contract rule is anchored in shipped fact rather than aspiration; the "specified, not shipped" characterization of `client.auth`/`useSnapbackCurrentPrincipal` is accurate (neither exists in the shipped client or React/Expo packages; LLP 0238 D6 specifies both); the D3 dismissal of the guide's SecureStore recipe as a process-local queue is accurate (`guide/backend/familiar-profile.md` — an in-process `ownershipTails` map with read-then-write CAS, no cross-process fencing); the per-generation `clientStoreId` claim matches `packages/snapback-expo/supervised-environment.mjs` (`snapback-expo-${supervisorGeneration}`); the D5/Phase 0 amendments to 0181 are honestly declared as real protocol changes, and they need to be — today's supervised environment adopts via `createExternalSessionClient`/`replaceBearerToken` on `refreshAuthority`, exactly the behavior the amendment removes from the ordinary path; the LLP 0253 S6.1 amendment claim is correct (S6.1's export list is closed and contains no auth hooks); the new diagnostic codes collide with nothing in the capsule; and `replaceBearerToken`'s refusal under coordinator custody is real (`index.mjs:3071`). The remaining concerns are clarity and citation issues, none of which identifies a defective decision.
+
+## Concerns
+
+1. **minor / IN-DELTA — "Authority key" terminology collides with LLP 0059's existing `authorityKey`.** (Terminology; D2.) LLP 0059 already uses `authorityKey`/`CanonicalAuthorityKey` (`AuthorityCaptureV1`, 0059 line ~1680) for the per-authority digest over `{appId, kind, authMode, authorizationStreamIncarnation, sessionId, userId}` — a value that changes on every authority transition. 0258 now uses "authority key" for the stable pair (canonical app id, storage partition). The RFC's own definition is careful ("It is exactly LLP 0059's coordinator and custody identity"), and the concept is correct, but two adjacent normative documents now use the same term for two different identities, one stable and one transition-rotating. A distinguishing name (e.g. "custody key" or "owner key") or an explicit disambiguation sentence would prevent a real implementer confusion. Does not identify a defective decision.
+
+2. **minor / IN-DELTA — D1's derivation enumeration does not cover `custody`.** D1 states codegen "derives every `ApplicationAuthBootstrapV1` field" from the normalized `defineAuth`/schema program, then enumerates derivations for `mode`, `entryMechanisms`, and `anonymousPublic` only. Today's `defineAuth` program (`packages/snapback-codegen/define.mjs`) has no custody axis, so `custody: "durable-required" | "volatile-explicit"` requires extending the authored program — itself a semantic-identity change under LLP 0241 that D1 does not name. The later text ("must be written explicitly", "both authoring profiles spell or default these facts through their existing front ends") implies this, so the decision — one derived projection, no second configuration — is sound; the derivation source of `custody` should simply be stated. Implementation-phase material.
+
+3. **minor / IN-DELTA — D2's remint-rebind and the binding-conflict refusal need one clarifying sentence.** D2 says a supervisor generation remint "rebinds transport facts on the same owner," while "constructing for an authority key that a live owner already holds with a different binding target" refuses with `SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT`. A supervisor remint *is* a different binding target arriving while the owner is live, so these two sentences can be read as assigning both outcomes to the same event. The evident reconciliation is that remint flows through the live owner's own supervised-refresh/rebind path (0181's provider, amended in Phase 0), whereas the refusal governs *fresh construction* against a live key — but the surface that performs the owner-level rebind is never named, and the Expo provider as described in D6 "delegates to the common application-client constructor," which after a remint would present the new binding to the constructor. Worst case is a spurious fail-closed refusal, not a safety hole, and the intent is discernible; one sentence naming the rebind path would close it. Does not identify a defective decision.
+
+4. **minor / IN-DELTA — recovery-credential provenance is cited to LLP 0227, which deferred recovery codes.** D4 and D8 attribute the one-time recovery-credential projection to LLP 0227, but 0227 explicitly leaves recovery codes to LLP 0151 ("Preissued recovery codes stay with the 0151 lifecycle spec," 0227 line ~349). The normative claim — preserve the shipped `authPasswordSignup` result contract exactly — is verified true against the shipped client declaration, so nothing behavioral is wrong; the LLP citation for the recovery-code lifecycle should point at 0151 (or at the shipped surface) rather than 0227. Citation precision only.
+
+5. **minor / IN-DELTA — where the 0238 D6 namespace lands is left slightly ambiguous.** LLP 0238 D6 specifies `client.auth.currentPrincipal()` on the client itself; 0258 D2 says Phase 1 "delivers the 0238 D6 projection as part of the bootstrap owner," and the facade lives at `appClient.auth`. Whether the low-level `SnapbackClient` also gains the `auth` namespace (0238's literal spelling) or only the app-client facade carries it is not pinned. Since D9's generated mechanism→method rows and 0238's own manifest will force this to be settled once, this is implementation-phase sequencing, not a design defect.
+
+6. **minor / PRE-EXISTING — the Node/headless custody row is underspecified relative to the other rows.** D3's matrix gives Node/headless "explicit file/transactional adapter where admitted" with no design selected, while the browser and native rows now name concrete carriers. This is consistent with the RFC's phasing (no phase gates on headless custody) and is recorded as detail work, not a defective decision.
+
+## Implementation-phase notes
+
+- The D3 native module should record the OS storage-domain constraints its whole-record rule meets (Keychain item size vs. a serialized `AuthCustodyV2`; Android's secure storage being encryption-at-rest via Keystore-wrapped keys rather than Keystore-resident data). The record is small, so this is evidence work for the Phase 0 probes, not a design risk.
+- The single-runtime declaration needs a concrete detection/refusal story per platform (iOS extensions, Android multi-process manifests) — correctly deferred to the Phase 0 probes by OQ1.
+- Migration of records written by the guide's application SecureStore adapter into the first-party module falls under the Compatibility section's "explicit validated adapter/translation" rule; the guide page (`guide/backend/familiar-profile.md` §Persist native session custody) should be updated in Phase 2 so new applications stop minting the unqualified format.
+- D7's `authority-required` versus `blocked` boundary ("genuinely unsettleable" per D5) will need a per-diagnostic table in the D9 rows so the two states cannot drift apart across arms.
+- Diary 0079/0083 citations are pending a concurrent landing per the known disposition; not treated as a defect.
+
+## Verdict rationale
+
+Every delta claim I could test against the corpus and shipped code verified: the 0059 key/participant/late-registration alignment, the shipped signup/change result contracts, the not-yet-shipped status of the 0238 D6 surface, the process-local nature of the guide's SecureStore recipe, the per-generation `clientStoreId`, the current `replaceBearerToken`-based supervised refresh that the declared 0181 amendment replaces, the closed 0253 S6.1 export list, and the section anchors into 0252 D1, 0064 §7, and 0059. The r2 revisions are honest about which surfaces they amend (0181's boot union and supervised adoption; 0253's export list) versus which they merely reference (0059, 0227, 0238, 0252). All remaining concerns are terminology, citation, or clarity items that identify no defective decision and are recordable as implementation-phase material.
+
+VERDICT: READY
