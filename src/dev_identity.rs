@@ -12,6 +12,7 @@ use crate::auth::crypto::{CryptoError, DevIdentityBearer, RandomSource};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use subtle::ConstantTimeEq as _;
 use zeroize::{Zeroize as _, Zeroizing};
@@ -29,6 +30,7 @@ struct DevIdentityRegistryState {
     expected_hash: [u8; 32],
     startup_nonce: String,
     capability_file: Option<PathBuf>,
+    unwitnessed_warning_emitted: AtomicBool,
 }
 
 pub struct DevIdentityOperator {
@@ -69,6 +71,7 @@ impl DevIdentityCapabilityRegistry {
                     expected_hash,
                     startup_nonce,
                     capability_file,
+                    unwitnessed_warning_emitted: AtomicBool::new(false),
                 }),
             },
             DevIdentityOperator { bearer },
@@ -98,6 +101,47 @@ impl DevIdentityCapabilityRegistry {
             return Err(dev_identity_refused());
         }
         Ok(VerifiedDevIdentityCapability { _private: () })
+    }
+
+    /// Stage 1 compatibility posture: accept an identity-bearing assertion
+    /// without the capability, but make the migration debt visible exactly
+    /// once for this boot. No asserted identity or bearer material is logged.
+    ///
+    /// @ref LLP 0262#d5-staged-rollout-sequencing — stage 1 warns once per
+    ///   boot for absent capability instead of refusing the request.
+    pub fn warn_unwitnessed_assertion_once(&self) -> bool {
+        if self
+            .state
+            .unwitnessed_warning_emitted
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return false;
+        }
+        match self.capability_file() {
+            Some(path) => eprintln!(
+                "SNAPBACK_DEV_IDENTITY_CAPABILITY_MISSING: accepted one legacy developer identity assertion without {}; configure the client to read {}",
+                DEV_IDENTITY_CAPABILITY_HEADER,
+                path.display()
+            ),
+            None => eprintln!(
+                "SNAPBACK_DEV_IDENTITY_CAPABILITY_MISSING: accepted one legacy developer identity assertion without {}; use the capability disclosed once on the operator terminal",
+                DEV_IDENTITY_CAPABILITY_HEADER
+            ),
+        }
+        true
+    }
+
+    pub fn log_presented_refusal(&self) {
+        match self.capability_file() {
+            Some(path) => eprintln!(
+                "SNAPBACK_DEV_IDENTITY_REFUSED: presented developer identity capability did not verify; read the current capability from {}",
+                path.display()
+            ),
+            None => eprintln!(
+                "SNAPBACK_DEV_IDENTITY_REFUSED: presented developer identity capability did not verify; use the current capability disclosed on the operator terminal"
+            ),
+        }
     }
 }
 
@@ -378,5 +422,18 @@ mod tests {
             "SNAPBACK_DEV_IDENTITY_CONFIG_FORBIDDEN"
         );
         assert!(error.diagnostic.message.contains(&sidecar.display().to_string()));
+    }
+
+    #[test]
+    fn unwitnessed_assertion_warning_is_once_per_registry_boot() {
+        let (registry, _operator) = DevIdentityCapabilityRegistry::generate(
+            "startup-warning".to_owned(),
+            Some(PathBuf::from("/tmp/app.sqlite3.dev-identity")),
+            &OsRandom,
+        )
+        .unwrap();
+        assert!(registry.warn_unwitnessed_assertion_once());
+        assert!(!registry.warn_unwitnessed_assertion_once());
+        assert!(!registry.clone().warn_unwitnessed_assertion_once());
     }
 }

@@ -3598,6 +3598,9 @@ struct ConnectionGrantRecord {
     /// ordinary close still preserves the reusable grant itself.
     socket_teardown: Option<u64>,
     managed_authority: bool,
+    /// Stage-1 developer-identity witness from a verified
+    /// `x-snapback-dev-identity` carrier on `/connection/open`.
+    dev_identity_witnessed: bool,
     authority: BoundGrantAuthority,
     hosted_sender: Option<HostedSenderGrantBinding>,
     authorization_invalidation:
@@ -4043,6 +4046,7 @@ struct ConnectionOpenAttempt<'a> {
     hosted_ephemeral_authority_required: bool,
     ephemeral_expiry_protocol: Option<u32>,
     admission: Option<&'a AdmissionLease>,
+    dev_identity_witnessed: bool,
 }
 
 impl<'a> ConnectionOpenAttempt<'a> {
@@ -4069,11 +4073,17 @@ impl<'a> ConnectionOpenAttempt<'a> {
             hosted_ephemeral_authority_required: false,
             ephemeral_expiry_protocol: None,
             admission: None,
+            dev_identity_witnessed: false,
         }
     }
 
     fn with_admission(mut self, admission: &'a AdmissionLease) -> Self {
         self.admission = Some(admission);
+        self
+    }
+
+    fn with_dev_identity_witness(mut self, witnessed: bool) -> Self {
+        self.dev_identity_witnessed = witnessed;
         self
     }
 
@@ -4123,6 +4133,7 @@ struct PreparedConnectionAct {
     ephemeral_authority_protocol: Option<u32>,
     ephemeral_authority_instance: Option<String>,
     hosted_ephemeral_authority_required: bool,
+    dev_identity_witnessed: bool,
 }
 
 impl PreparedConnectionOpenAuthority {
@@ -5822,6 +5833,7 @@ impl ConnectionRegistry {
             hosted_ephemeral_authority_required,
             ephemeral_expiry_protocol,
             admission,
+            dev_identity_witnessed,
         } = attempt;
         let PreparedConnectionOpenAuthority {
             resolved: _,
@@ -5999,6 +6011,7 @@ impl ConnectionRegistry {
                 existing.authority = bound.clone();
                 existing.managed_authority = managed_authority;
                 existing.hosted_sender = hosted_sender.clone();
+                existing.dev_identity_witnessed |= dev_identity_witnessed;
                 let grant_id = existing.grant_id.clone();
                 let connection_token = existing.token.clone();
                 let authorization_invalidation = existing.authorization_invalidation.clone();
@@ -6083,6 +6096,7 @@ impl ConnectionRegistry {
                     authority: bound,
                     hosted_sender,
                     managed_authority,
+                    dev_identity_witnessed,
                     last_use_ms: now_ms,
                     used: false,
                     socket_teardown: None,
@@ -6443,6 +6457,7 @@ impl ConnectionRegistry {
             ephemeral_authority_protocol,
             ephemeral_authority_instance,
             hosted_ephemeral_authority_required,
+            dev_identity_witnessed,
         ) = {
             let grants = self.lock();
             let Some(record) = grants
@@ -6473,6 +6488,7 @@ impl ConnectionRegistry {
                 record.ephemeral_authority_protocol,
                 record.ephemeral_authority_instance.clone(),
                 record.hosted_ephemeral_authority_required,
+                record.dev_identity_witnessed,
             )
         };
         let resolved = match &bound {
@@ -6560,6 +6576,7 @@ impl ConnectionRegistry {
             ephemeral_authority_protocol,
             ephemeral_authority_instance,
             hosted_ephemeral_authority_required,
+            dev_identity_witnessed,
         })
     }
 
@@ -6637,6 +6654,7 @@ impl ConnectionRegistry {
                 ephemeral_authority_protocol: record.ephemeral_authority_protocol,
                 ephemeral_authority_instance: record.ephemeral_authority_instance.clone(),
                 hosted_ephemeral_authority_required: record.hosted_ephemeral_authority_required,
+                dev_identity_witnessed: record.dev_identity_witnessed,
             }
         };
         prepared
@@ -7244,6 +7262,11 @@ async fn open_connection(
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Json<ConnectionGrant>, ApiError> {
     let body = parse_optional_json::<OpenConnectionRequest>(&headers, body)?;
+    // @ref LLP 0262#d1-the-dev-identity-capability — a verified open carrier
+    // becomes an internal witness on the connection grant. Stage 1 records
+    // the witness but does not refuse later identity frames for its absence.
+    let dev_identity_witnessed =
+        verify_presented_dev_identity_capability(&runtime, &headers)?;
     let (
         suggested,
         previous_token,
@@ -7375,6 +7398,7 @@ async fn open_connection(
                 .with_ephemeral_authority_instance(ephemeral_authority_instance)
                 .with_hosted_ephemeral_authority_required(hosted_ephemeral_authority_required)
                 .with_ephemeral_expiry_protocol(ephemeral_expiry_protocol)
+                .with_dev_identity_witness(dev_identity_witnessed)
                 .with_admission(&admission),
             )
             .map_err(|error| {
@@ -10905,6 +10929,44 @@ fn dev_body_authority(value: Option<&Value>) -> ResolvedAppAuthority {
     ResolvedAppAuthority::dev_from_auth(&auth)
 }
 
+fn verify_presented_dev_identity_capability(
+    runtime: &AppState,
+    headers: &HeaderMap,
+) -> Result<bool, ApiError> {
+    let header_name = crate::dev_identity::DEV_IDENTITY_CAPABILITY_HEADER;
+    if headers.get_all(header_name).iter().next().is_none() {
+        return Ok(false);
+    }
+    let Some(registry) = runtime.dev_identity_capabilities.as_ref() else {
+        eprintln!(
+            "SNAPBACK_DEV_IDENTITY_REFUSED: a developer identity capability was presented to a server without a current non-production registry"
+        );
+        return Err(ApiError::from(crate::dev_identity::dev_identity_refused()));
+    };
+    match registry.authorize(single_header_value(headers, header_name)) {
+        Ok(_) => Ok(true),
+        Err(error) => {
+            registry.log_presented_refusal();
+            Err(ApiError::from(error))
+        }
+    }
+}
+
+fn verify_or_warn_client_asserted_dev_identity(
+    runtime: &AppState,
+    headers: &HeaderMap,
+    resolved: &ResolvedAppAuthority,
+) -> Result<(), ApiError> {
+    let witnessed = verify_presented_dev_identity_capability(runtime, headers)?;
+    if !witnessed
+        && matches!(resolved, ResolvedAppAuthority::DevImpersonation { .. })
+        && let Some(registry) = runtime.dev_identity_capabilities.as_ref()
+    {
+        registry.warn_unwitnessed_assertion_once();
+    }
+    Ok(())
+}
+
 fn dev_host_operation_authority(value: Option<&Value>) -> ResolvedAppAuthority {
     value
         .and_then(Value::as_object)
@@ -11005,9 +11067,22 @@ async fn prepare_registered_route_authority(
                             | InvocationSource::HostOperationMutationDryRun
                     ) {
                         (dev_host_operation_authority(handler_value), None, None)
-                    } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
-                        || source == InvocationSource::DirectAdminRunner
+                    } else if effective.invocation_authority
+                        == InvocationAuthority::ClientAsserted
+                        && source != InvocationSource::DirectAdminRunner
                     {
+                        let resolved = dev_body_authority(handler_value);
+                        // @ref LLP 0262#d1-the-dev-identity-capability — only
+                        // app-plane ClientAsserted installation is capability
+                        // witnessed; admin-token host operations retain their
+                        // existing authority contract (Ruling OQ2).
+                        verify_or_warn_client_asserted_dev_identity(
+                            runtime,
+                            headers,
+                            &resolved,
+                        )?;
+                        (resolved, None, None)
+                    } else if source == InvocationSource::DirectAdminRunner {
                         (dev_body_authority(handler_value), None, None)
                     } else {
                         (ResolvedAppAuthority::Anonymous, None, None)
@@ -28695,6 +28770,11 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                                         LiveSocketEffectContext {
                                             protected_room: room_authorization.as_ref(),
                                             effect_fence: Some(&connection_act.effect_fence()),
+                                            dev_identity_capabilities: runtime
+                                                .dev_identity_capabilities
+                                                .as_ref(),
+                                            dev_identity_witnessed: connection_act
+                                                .dev_identity_witnessed,
                                         },
                                     ))
                                 },
@@ -29891,6 +29971,20 @@ fn stamp_ephemeral_socket_response(
 struct LiveSocketEffectContext<'a> {
     protected_room: Option<&'a BoundRoomAuthorization>,
     effect_fence: Option<&'a crate::ephemeral::ConnectionEffectFence>,
+    dev_identity_capabilities:
+        Option<&'a crate::dev_identity::DevIdentityCapabilityRegistry>,
+    dev_identity_witnessed: bool,
+}
+
+fn live_socket_message_carries_dev_identity(message: &LiveSocketClientMessage) -> bool {
+    let auth = match message {
+        LiveSocketClientMessage::EphemeralSubscribe { request, .. }
+        | LiveSocketClientMessage::EphemeralUnsubscribe { request, .. } => &request.auth,
+        LiveSocketClientMessage::EphemeralPublish { request, .. } => &request.auth,
+        LiveSocketClientMessage::EphemeralDelete { request, .. } => &request.auth,
+        LiveSocketClientMessage::Ping { .. } => return false,
+    };
+    auth != &AuthContext::default()
 }
 
 impl From<String> for LiveSocketResponse {
@@ -30000,6 +30094,16 @@ fn handle_live_socket_text_authorized(
             .into();
         }
     };
+    if policy_mode == PolicyAuthMode::Dev
+        && live_socket_message_carries_dev_identity(&message)
+        && !effect_context.dev_identity_witnessed
+        && let Some(registry) = effect_context.dev_identity_capabilities
+    {
+        // @ref LLP 0262#d5-staged-rollout-sequencing — stage 1 records the
+        // connection witness and warns once, but accepts an unwitnessed dev
+        // identity frame until the explicit enforcement stage lands.
+        registry.warn_unwitnessed_assertion_once();
+    }
     if let Some(auth) = effect_context
         .protected_room
         .map(|authorization| authorization.auth.clone())

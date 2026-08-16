@@ -8618,7 +8618,7 @@ async fn run_composed(
     // @ref LLP 0262#d1-custody-model-sidecar-primary-environment-fallback —
     // one startup-nonce-bound capability is minted for every non-production
     // serve boot and handed off on the same anchor ladder as the admin token.
-    let (_dev_identity_capabilities, dev_identity_operator) = if server_context.profile
+    let (dev_identity_capabilities, dev_identity_operator) = if server_context.profile
         != crate::contract_types::ServerProfile::Prod
     {
         let (registry, operator) = crate::dev_identity::DevIdentityCapabilityRegistry::generate(
@@ -8917,6 +8917,10 @@ async fn run_composed(
     };
     let app_state = match impersonation_capabilities {
         Some(registry) => app_state.with_impersonation_capabilities(registry),
+        None => app_state,
+    };
+    let app_state = match dev_identity_capabilities {
+        Some(registry) => app_state.with_dev_identity_capabilities(registry),
         None => app_state,
     };
     let mut app_state = match agent_destroy_capabilities {

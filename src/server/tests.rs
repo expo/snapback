@@ -1659,6 +1659,27 @@ fn auth_runtime_fixture(mode: PolicyAuthMode) -> (AppState, String) {
     auth_runtime_fixture_with(mode, |_| {})
 }
 
+fn dev_identity_capability_fixture() -> (
+    crate::dev_identity::DevIdentityCapabilityRegistry,
+    String,
+) {
+    let (registry, operator) =
+        crate::dev_identity::DevIdentityCapabilityRegistry::generate(
+            "dev-identity-http-fixture".to_owned(),
+            Some(PathBuf::from("/operator/app.sqlite3.dev-identity")),
+            &OsRandom,
+        )
+        .expect("generate developer identity capability");
+    let mut capability = None;
+    operator
+        .emit_once_to_terminal(|value| {
+            capability = Some(value.to_owned());
+            Ok(())
+        })
+        .expect("capture developer identity capability");
+    (registry, capability.expect("captured developer identity capability"))
+}
+
 fn auth_runtime_fixture_with(
     mode: PolicyAuthMode,
     prepare: impl FnOnce(&mut LocalSnapback),
@@ -13461,6 +13482,123 @@ async fn dev_body_impersonation_requires_a_trusted_browser_origin_but_not_an_ori
 }
 
 #[tokio::test]
+async fn dev_client_asserted_capability_verifies_when_present_and_warns_when_absent() {
+    async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
+        Json(json!({ "userId": authority.projection().user_id() }))
+    }
+
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let (registry, capability) = dev_identity_capability_fixture();
+    let warning_witness = registry.clone();
+    let state = state.with_dev_identity_capabilities(registry);
+    let router = super::router_from_registrations(
+        vec![super::RegisteredRoute::new(
+            super::app_auth_route("POST", "/query/{name}"),
+            axum::routing::post(echo_authority),
+        )],
+        state.clone(),
+    )
+    .with_state(state);
+    let request = |presented: Option<&str>| {
+        let mut builder = Request::builder()
+            .method("POST")
+            .uri("/query/authority")
+            .header(header::CONTENT_TYPE, "application/json");
+        if let Some(presented) = presented {
+            builder = builder.header(
+                crate::dev_identity::DEV_IDENTITY_CAPABILITY_HEADER,
+                presented,
+            );
+        }
+        builder
+            .body(Body::from(r#"{"args":{},"auth":{"user_id":"user-1"}}"#))
+            .unwrap()
+    };
+
+    let valid = router.clone().oneshot(request(Some(&capability))).await.unwrap();
+    assert_eq!(valid.status(), StatusCode::OK);
+    assert_eq!(response_json(valid).await["userId"], "user-1");
+
+    let absent = router.clone().oneshot(request(None)).await.unwrap();
+    assert_eq!(absent.status(), StatusCode::OK);
+    assert!(
+        !warning_witness.warn_unwitnessed_assertion_once(),
+        "the accepted absent-capability assertion emitted the boot warning"
+    );
+
+    let refused = router
+        .oneshot(request(Some("sbdev_present-but-wrong")))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    let refused = response_json(refused).await;
+    assert_eq!(
+        refused["diagnostic"]["code"],
+        "SNAPBACK_DEV_IDENTITY_REFUSED"
+    );
+    assert_eq!(
+        refused["diagnostic"]["message"],
+        "developer identity capability refused"
+    );
+    assert!(
+        !refused.to_string().contains("/operator/"),
+        "custody-path remediation remains server-local"
+    );
+}
+
+#[tokio::test]
+async fn connection_open_binds_only_a_verified_dev_identity_witness() {
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+    let (registry, capability) = dev_identity_capability_fixture();
+    let state = state.with_dev_identity_capabilities(registry);
+    let router = app(state.clone());
+    let request = |presented: Option<&str>| {
+        let mut request = connection_open_request(None, json!({}));
+        request.headers_mut().remove("x-snapback-auth-client-protocol");
+        request
+            .headers_mut()
+            .remove(crate::auth::effective_source::FORWARDED_HEADER);
+        if let Some(presented) = presented {
+            request.headers_mut().insert(
+                crate::dev_identity::DEV_IDENTITY_CAPABILITY_HEADER,
+                HeaderValue::from_str(presented).unwrap(),
+            );
+        }
+        request
+    };
+
+    let refused = router
+        .clone()
+        .oneshot(request(Some("sbdev_present-but-wrong")))
+        .await
+        .unwrap();
+    assert_eq!(refused.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        response_json(refused).await["diagnostic"]["code"],
+        "SNAPBACK_DEV_IDENTITY_REFUSED"
+    );
+
+    let opened = router
+        .oneshot(request(Some(&capability)))
+        .await
+        .unwrap();
+    assert_eq!(opened.status(), StatusCode::OK);
+    let opened = response_json(opened).await;
+    let prepared = state
+        .connections
+        .prepare_act(
+            opened["connectionId"].as_str().unwrap(),
+            opened["connectionToken"].as_str(),
+            state.auth_coordinator.as_deref(),
+            true,
+            super::now_millis(),
+            Instant::now(),
+        )
+        .unwrap();
+    assert!(prepared.dev_identity_witnessed);
+}
+
+#[tokio::test]
 async fn session_bearer_is_resolved_for_each_online_invocation_request() {
     async fn echo_authority(Extension(authority): Extension<PreparedAuthority>) -> Json<Value> {
         Json(json!({
@@ -14976,11 +15114,18 @@ async fn host_ops_inspect_projects_recent_invocations_ring() {
     assert_eq!(load.status(), StatusCode::OK);
     assert_eq!(response_json(load).await["ok"], false);
 
+    let mut run_request =
+        host_op(json!({ "operation": "function.run", "function": "missing" }));
+    // @ref LLP 0262#rulings-author-2026-08-16 — OQ2 keeps the capability off
+    // admin-token-gated host operations; even a malformed app-plane carrier
+    // cannot alter `function.run`'s existing authority result.
+    run_request.headers_mut().insert(
+        crate::dev_identity::DEV_IDENTITY_CAPABILITY_HEADER,
+        HeaderValue::from_static("sbdev_present-but-wrong"),
+    );
     let run = router
         .clone()
-        .oneshot(host_op(
-            json!({ "operation": "function.run", "function": "missing" }),
-        ))
+        .oneshot(run_request)
         .await
         .expect("recorded function.run refusal");
     assert_eq!(run.status(), StatusCode::OK);
@@ -21500,6 +21645,7 @@ const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTH_CODE_LOCKED",
     "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID",
     "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
+    "SNAPBACK_DEV_IDENTITY_REFUSED",
     "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
     "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
     "SNAPBACK_AUTH_PERMISSION_DENIED",
@@ -31588,6 +31734,68 @@ fn live_socket_rejects_oversized_control_frames_before_json_decode() {
     assert_eq!(
         response["diagnostic"]["code"],
         "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE"
+    );
+}
+
+#[test]
+fn dev_live_identity_frames_record_connection_witness_and_warn_once_when_unwitnessed() {
+    let snapback = LocalSnapback::memory().expect("memory instance");
+    let ephemeral = snapback.ephemeral_api();
+    let frame = json!({
+        "type": "ephemeral_subscribe",
+        "requestId": "dev-identity-witness",
+        "request": {
+            "collection": "missing-is-fine-for-witness-test",
+            "scope": { "room": "one" },
+            "connection_id": "conn",
+            "auth": {
+                "principal": "asserted",
+                "session_id": null,
+                "user_id": "asserted",
+                "permissions": []
+            }
+        }
+    })
+    .to_string();
+
+    let (unwitnessed, _capability) = dev_identity_capability_fixture();
+    let warning = unwitnessed.clone();
+    let _ = super::handle_live_socket_text_authorized(
+        &ephemeral,
+        "conn",
+        &frame,
+        PolicyAuthMode::Dev,
+        false,
+        &ResolvedAppAuthority::Anonymous,
+        super::LiveSocketEffectContext {
+            dev_identity_capabilities: Some(&unwitnessed),
+            dev_identity_witnessed: false,
+            ..Default::default()
+        },
+    );
+    assert!(
+        !warning.warn_unwitnessed_assertion_once(),
+        "unwitnessed identity frame consumed the one boot warning"
+    );
+
+    let (witnessed, _capability) = dev_identity_capability_fixture();
+    let untouched = witnessed.clone();
+    let _ = super::handle_live_socket_text_authorized(
+        &ephemeral,
+        "conn",
+        &frame,
+        PolicyAuthMode::Dev,
+        false,
+        &ResolvedAppAuthority::Anonymous,
+        super::LiveSocketEffectContext {
+            dev_identity_capabilities: Some(&witnessed),
+            dev_identity_witnessed: true,
+            ..Default::default()
+        },
+    );
+    assert!(
+        untouched.warn_unwitnessed_assertion_once(),
+        "witnessed connection must not consume the compatibility warning"
     );
 }
 
