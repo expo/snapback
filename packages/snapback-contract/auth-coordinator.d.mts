@@ -110,6 +110,36 @@ export interface SnapbackAuthCustodyStorage {
   ): Promise<T>;
 }
 
+/** Typed error constructor used by first-party custody storage adapters. */
+export function createAuthCustodyError(
+  code: string,
+  message: string,
+  details?: Readonly<Record<string, unknown>>,
+): Error & {
+  code: string;
+  diagnostic: {
+    code: string;
+    message: string;
+    details: Readonly<Record<string, unknown>>;
+  };
+};
+
+/** Validate a replacement's shape plus fresh/revision/authority-epoch counters. */
+export function validateAuthCustodyReplacement(
+  previous: unknown | null,
+  next: unknown,
+  expectedAppId: string,
+): SnapbackAuthCustodyRecord;
+
+/** Build an operation-scoped owner for a serialized storage adapter. */
+export function createSerialOwner(
+  readRecord: () => SnapbackAuthCustodyRecord | null | Promise<SnapbackAuthCustodyRecord | null>,
+  replaceRecord: (
+    expectedRevision: number | null,
+    next: SnapbackAuthCustodyRecord | Readonly<Record<string, unknown>>,
+  ) => SnapbackAuthCustodyRecord | Promise<SnapbackAuthCustodyRecord>,
+): SnapbackAuthCustodyOwner & { release(): void };
+
 /** Barrier context handed to participant callbacks. */
 export interface SnapbackAuthBarrierContext {
   readonly appId: string;

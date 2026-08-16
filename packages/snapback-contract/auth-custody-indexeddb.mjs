@@ -9,7 +9,9 @@ import {
   AUTH_CUSTODY_DATABASE_VERSION,
   AUTH_CUSTODY_LEASE_MS,
   AUTH_CUSTODY_LEASE_RENEW_MS,
+  createAuthCustodyError,
   validateAuthCustody,
+  validateAuthCustodyReplacement,
   validateAuthCustodySenderKeys,
 } from './auth-coordinator.mjs';
 
@@ -41,12 +43,7 @@ const clone = (value) => {
   return JSON.parse(JSON.stringify(value));
 };
 
-function storageError(code, message, details = {}) {
-  const error = new Error(`${code}: ${message}`);
-  error.code = code;
-  error.diagnostic = { code, message, details };
-  return error;
-}
+const storageError = createAuthCustodyError;
 
 const requestResult = (request) => new Promise((resolve, reject) => {
   request.onsuccess = () => resolve(request.result);
@@ -130,36 +127,6 @@ function nonce128(cryptoObject) {
   }
   if (bits > 0) encoded += alphabet[(accumulator << (6 - bits)) & 0x3f];
   return encoded;
-}
-
-function validateReplacement(previous, next, appId) {
-  const validated = validateAuthCustody(next, appId);
-  if (previous === null) {
-    if (validated.revision !== 1 || validated.authorityEpoch !== 0) {
-      throw storageError(
-        'SNAPBACK_AUTH_CUSTODY_CORRUPT',
-        'fresh custody must begin at epoch 0 and revision 1',
-      );
-    }
-    return validated;
-  }
-  const current = validateAuthCustody(previous, appId);
-  if (current.revision === MAX_SAFE || validated.revision !== current.revision + 1) {
-    throw storageError(
-      'SNAPBACK_AUTH_CUSTODY_CORRUPT',
-      'custody replacement did not advance revision exactly once',
-    );
-  }
-  if (
-    validated.authorityEpoch < current.authorityEpoch
-    || validated.authorityEpoch > current.authorityEpoch + 1
-  ) {
-    throw storageError(
-      'SNAPBACK_AUTH_CUSTODY_CORRUPT',
-      'custody replacement regressed or skipped authority epoch',
-    );
-  }
-  return validated;
 }
 
 function openCustodyDatabase(indexedDB, name) {
@@ -277,7 +244,7 @@ export function createIndexedDbAuthCustodyStorage({
           throw storageError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'fallback custody lease was lost');
         }
       }
-      const validated = validateReplacement(current, validatedNext, appId);
+      const validated = validateAuthCustodyReplacement(current, validatedNext, appId);
       custodyStore.put(clone(validated), appId);
       await transactionDone(tx);
       return validated;

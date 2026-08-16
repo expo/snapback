@@ -13,6 +13,7 @@ import {
   SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
   validateAuthCustody,
 } from './auth-coordinator.mjs';
+import { createSecureStoreAuthCustodyStorage } from './auth-custody-secure-store.mjs';
 
 const APP = 'snapback.test/auth-coordinator';
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
@@ -77,43 +78,6 @@ const withDeadline = async (promise, label, timeoutMs = 1_000) => {
     clearTimeout(timer);
   }
 };
-
-function createSecureStoreAuthCustodyStorage(SecureStore) {
-  const ownershipTails = new Map();
-  return {
-    async withOwnership(appId, operation) {
-      const key = `snapback.auth-custody.${authAppIdHash(appId)}`;
-      const previous = ownershipTails.get(key) ?? Promise.resolve();
-      let release;
-      const next = new Promise((resolve) => { release = resolve; });
-      ownershipTails.set(key, previous.then(() => next));
-      await previous;
-      const read = async () => {
-        const encoded = await SecureStore.getItemAsync(key);
-        return encoded === null ? null : validateAuthCustody(JSON.parse(encoded), appId);
-      };
-      try {
-        return await operation({
-          read,
-          async replace(expectedRevision, record) {
-            const current = await read();
-            const actualRevision = current?.revision ?? null;
-            if (actualRevision !== expectedRevision) {
-              throw Object.assign(new Error('durable custody changed before compare-and-swap'), {
-                code: 'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
-              });
-            }
-            const validated = validateAuthCustody(record, appId);
-            await SecureStore.setItemAsync(key, JSON.stringify(validated));
-            return validated;
-          },
-        });
-      } finally {
-        release();
-      }
-    },
-  };
-}
 
 class BroadcastHub {
   channels = new Map();

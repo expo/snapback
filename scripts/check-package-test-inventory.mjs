@@ -368,6 +368,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'auth-coordinator-missed-wakeup.test.mjs',
       'auth-coordinator.test.mjs',
       'auth-custody-indexeddb.test.mjs',
+      'auth-custody-secure-store.test.mjs',
       'auth-invalidation.test.mjs',
       'auth-sender-custody.test.mjs',
       'agent-authority-contract.test.mjs',
@@ -503,7 +504,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 285,
+  expectedTotal = 286,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -895,6 +896,8 @@ export function checkPackageTestInventories(options = {}) {
 // codegen-to-dev-loop canonical generated-directory acceptance proof.
 // 284 -> 285 (2026-08-15, LLP 0173): @expo/snapback-codegen gains the
 // deterministic authorization-review projection and staleness/diff suite.
+// 285 -> 286 (2026-08-15, LLP 0059 native custody): @expo/snapback-contract
+// gains the first-party SecureStore adapter contract and restart/race suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

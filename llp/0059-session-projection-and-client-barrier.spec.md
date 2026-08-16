@@ -5,7 +5,16 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-08-15 (external local authority operations, including
+**Revised:** 2026-08-15 (shipped native custody adapter:
+`@expo/snapback-contract/auth-custody-secure-store` promotes the
+previously guide-documented Expo SecureStore adapter to first-party
+surface — dependency-injected SecureStore module, custody keyed by
+`snapback.auth-custody.<authAppIdHash(appId)>`, in-process ownership
+serialization, read/write validation, and the canonical revision-CAS and
+epoch invariants. It carries ordinary bearer custody only; records
+bearing sender-constrained key material refuse typed, and the Secure
+Enclave/Keystore proof transport remains outside the shipped native
+target). 2026-08-15 (external local authority operations, including
 transition/clear sequences used by immediate logout, join the active authority
 barrier before re-evaluating; synchronous participant reentry keeps the prompt
 self-join refusal. Terminal client close drains transport demand before it
@@ -1849,7 +1858,18 @@ partial-cleanup outcomes are typed diagnostics.
 The record is keyed by canonical app id in IndexedDB database
 `snapback-auth-custody`, version 1, object store `custody`; fallback lease rows
 use object store `leases` in the same database so one transaction can compare
-both. Native clients use an equivalently transactional credential store. A
+both. Native clients use an equivalently transactional credential store: the
+shipped adapter is `createSecureStoreAuthCustodyStorage`
+(`@expo/snapback-contract/auth-custody-secure-store`), which takes the Expo
+SecureStore module by injection as its string store, keys custody by
+`snapback.auth-custody.<authAppIdHash(appId)>`, serializes ownership
+in-process (one React Native process owns the store; there is no
+cross-context Web Locks analog, so `broadcastChannelFactory` and
+`hintStorage` are null on native), and validates every read and replacement
+through the same custody validators, revision CAS, and epoch invariants as
+the canonical contract. That adapter carries ordinary bearer custody only; a
+record carrying sender-constrained key material refuses with a typed
+diagnostic. A
 localStorage mirror at the constants-table key MAY contain only
 `{formatVersion, appId, authorityEpoch, revision, phase}` as a wakeup hint; it
 is not custody authority. Malformed shapes, unsafe integers, app mismatch, a

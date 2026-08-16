@@ -59,12 +59,15 @@ function assertExactKeys(value, expected, path) {
   }
 }
 
-function coordinatorError(code, message, details = {}) {
+/** Typed error shape shared by first-party auth-custody storage adapters. */
+export function createAuthCustodyError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
   error.code = code;
   error.diagnostic = { code, message, details };
   return error;
 }
+
+const coordinatorError = createAuthCustodyError;
 
 const corrupt = (message, details = {}) => coordinatorError(
   'SNAPBACK_AUTH_CUSTODY_CORRUPT',
@@ -789,6 +792,28 @@ export function validateAuthCustody(record, expectedAppId = null) {
   });
 }
 
+/** Validate one durable replacement against the canonical counter invariants. */
+export function validateAuthCustodyReplacement(previous, next, expectedAppId) {
+  const validated = validateAuthCustody(next, expectedAppId);
+  if (previous === null) {
+    if (validated.revision !== 1 || validated.authorityEpoch !== 0) {
+      throw corrupt('fresh custody must begin at epoch 0 and revision 1');
+    }
+    return validated;
+  }
+  const current = validateAuthCustody(previous, expectedAppId);
+  if (current.revision === MAX_SAFE || validated.revision !== current.revision + 1) {
+    throw corrupt('custody replacement did not increment revision exactly once');
+  }
+  if (
+    validated.authorityEpoch < current.authorityEpoch
+    || validated.authorityEpoch > current.authorityEpoch + 1
+  ) {
+    throw corrupt('custody replacement regressed or skipped authority epoch');
+  }
+  return validated;
+}
+
 async function normalizeSuccessor(successor) {
   const candidate = successor?.authority ? successor : { authority: successor };
   const authority = normalizeClientAuthority(candidate.authority);
@@ -850,7 +875,8 @@ function captureMatches(appId, record, capture, { revision = false } = {}) {
   return !revision || record.revision === capture.custodyRevision;
 }
 
-function createSerialOwner(readRecord, replaceRecord) {
+/** Build one operation-scoped owner view that becomes unusable after release. */
+export function createSerialOwner(readRecord, replaceRecord) {
   let active = true;
   return {
     read: async () => {
@@ -910,27 +936,17 @@ export function createMemoryAuthCustodyStorage({ state = { custody: {} } } = {})
             );
           }
           const validated = await validateAuthCustodySenderKeys(next, canonicalId);
-          if (current !== null) {
-            const previous = await validateAuthCustodySenderKeys(current, canonicalId);
-            if (validated.revision !== previous.revision + 1) {
-              throw corrupt('custody replacement did not increment revision exactly once');
-            }
-            if (
-              validated.authorityEpoch < previous.authorityEpoch
-              || validated.authorityEpoch > previous.authorityEpoch + 1
-            ) {
-              throw corrupt('custody replacement regressed or skipped authority epoch');
-            }
-          } else if (validated.revision !== 1 || validated.authorityEpoch !== 0) {
-            throw corrupt('fresh custody must begin at epoch 0 and revision 1');
-          }
+          const previous = current === null
+            ? null
+            : await validateAuthCustodySenderKeys(current, canonicalId);
+          const replacement = validateAuthCustodyReplacement(previous, validated, canonicalId);
           Object.defineProperty(state.custody, canonicalId, {
             configurable: true,
             enumerable: true,
             writable: true,
-            value: clone(validated),
+            value: clone(replacement),
           });
-          return validated;
+          return replacement;
         },
       );
       try {

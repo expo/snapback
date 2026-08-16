@@ -155,6 +155,7 @@
       "name": "@expo/snapback",
       "version": "0.1.0",
       "dependencies": {
+        "@expo/snapback-client": "workspace:*",
         "@expo/snapback-codegen": "workspace:*",
         "@expo/snapback-react": "workspace:*",
       },

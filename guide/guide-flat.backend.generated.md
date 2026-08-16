@@ -1961,14 +1961,14 @@ id: backend.familiar-profile
 order: 5
 audience: agent-first
 capabilities: [backend.familiar-profile-v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, llp/0044-asset-storage-pipeline.rfc.md]
-examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:6bc6ecfd2478295ba356a56cfdeb7c854d66c9d7fc484c68568e5b945583c973
+reviewed-authorities-digest: sha256:582e0f13f85ea58e9ed89045f4c96cae9f0036aa8627a1db77dadd134e904a01
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -2210,66 +2210,49 @@ handoffs and triggers the development diagnostic
 `SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN`. Memoization is lifecycle
 hygiene, not a workaround for stale data.
 
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** The first-party SecureStore adapter is newer than the newest
+> published Snapback closure, 0.1.22. Use it from a source checkout until the
+> next qualified closure is published.
+
 ## Persist native session custody with SecureStore
 
-Web uses `createIndexedDbAuthCustodyStorage()`. React Native has no shipped
-SecureStore adapter in 0.1.22, so do not silently fall back to
-`createMemoryAuthCustodyStorage()` for a user session that must survive a
-process restart. Install the SDK-compatible `expo-secure-store`, then adapt it
-to `AuthCoordinator`'s ownership and compare-and-swap contract. This tested
-adapter namespaces records by the canonical app-id hash and validates bytes on
-both read and write:
+Web uses `createIndexedDbAuthCustodyStorage()`. React Native now has a
+first-party, dependency-injected SecureStore adapter, so do not silently fall
+back to `createMemoryAuthCustodyStorage()` for a user session that must survive
+a process restart. Install the SDK-compatible `expo-secure-store` in the app;
+`@expo/snapback-contract` itself stays dependency-free.
 
-```js source=packages/snapback-contract/auth-coordinator.test.mjs
-function createSecureStoreAuthCustodyStorage(SecureStore) {
-  const ownershipTails = new Map();
-  return {
-    async withOwnership(appId, operation) {
-      const key = `snapback.auth-custody.${authAppIdHash(appId)}`;
-      const previous = ownershipTails.get(key) ?? Promise.resolve();
-      let release;
-      const next = new Promise((resolve) => { release = resolve; });
-      ownershipTails.set(key, previous.then(() => next));
-      await previous;
-      const read = async () => {
-        const encoded = await SecureStore.getItemAsync(key);
-        return encoded === null ? null : validateAuthCustody(JSON.parse(encoded), appId);
-      };
-      try {
-        return await operation({
-          read,
-          async replace(expectedRevision, record) {
-            const current = await read();
-            const actualRevision = current?.revision ?? null;
-            if (actualRevision !== expectedRevision) {
-              throw Object.assign(new Error('durable custody changed before compare-and-swap'), {
-                code: 'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
-              });
-            }
-            const validated = validateAuthCustody(record, appId);
-            await SecureStore.setItemAsync(key, JSON.stringify(validated));
-            return validated;
-          },
-        });
-      } finally {
-        release();
-      }
-    },
-  };
-}
+```js fragment reason="application package imports; the contract package test injects a SecureStore double instead of depending on Expo"
+import * as SecureStore from 'expo-secure-store';
+import { AuthCoordinator } from '@expo/snapback-contract/auth-coordinator';
+import { createSecureStoreAuthCustodyStorage } from '@expo/snapback-contract/auth-custody-secure-store';
 ```
 
-Import `authAppIdHash`, `AuthCoordinator`, and `validateAuthCustody` from
-`@expo/snapback-contract/auth-coordinator`, import `* as SecureStore` from
-`expo-secure-store`, construct the adapter once, and pass it as `storage` with
-`broadcastChannelFactory: null` and `hintStorage: null` on native. On web keep
-the IndexedDB adapter. Acceptance must terminate and relaunch the native
-process, then prove `synchronize()` restores the settled session without a new
+Construct the adapter once and pass it as `storage` with native wakeup seams
+disabled:
+
+```js source=packages/snapback-contract/auth-custody-secure-store.test.mjs
+  const authStorage = createSecureStoreAuthCustodyStorage(SecureStore);
+  const authCoordinator = new AuthCoordinator({
+    appId,
+    storage: authStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+```
+
+The adapter uses `snapback.auth-custody.${authAppIdHash(appId)}` internally,
+serializes ownership per app key, validates every read and write, and preserves
+the coordinator's revision-CAS and authority-epoch invariants. On web keep the
+IndexedDB adapter. Acceptance must terminate and relaunch the native process,
+then prove `synchronize()` restores the settled session without a new
 email-code exchange.
 
-This JSON carrier is for ordinary bearer custody. It does not claim native
-sender-constrained key custody; the Secure Enclave/Keystore proof transport is
-still outside the shipped native target.
+This string carrier is ordinary bearer custody only. A sender-constrained
+record refuses with `SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED`; the Secure
+Enclave/Keystore proof transport remains outside the shipped native target.
 
 ## One Expo Router journey
 
@@ -2278,10 +2261,12 @@ reference exercises:
 
 1. Scaffold the published Expo app, install `expo-router` and SDK-compatible
    `expo-secure-store`, copy the conventional `snapback/` backend when adding
-   Snapback to an existing project, and select the familiar policy above.
+   Snapback to an existing project, select the familiar policy above, and use
+   the fenced first-party custody adapter above when working from source.
 2. Author `schema.ts` plus top-level function modules. Put
    `SnapbackExpoProvider`/`SnapbackProvider` and the one long-lived client in
-   `app/_layout.tsx`; route files import generated `api.module.export`
+   `app/_layout.tsx`; construct the native `AuthCoordinator` with the
+   SecureStore adapter there. Route files import generated `api.module.export`
    references and use memoized argument objects.
 3. Gate each protected query/mutation with active membership or admin checks.
    Keep this server-side even if Expo Router already hid the screen.
