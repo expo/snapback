@@ -55,3 +55,32 @@ High. Both the production checker and its fixture reproduce under pinned Node
 
 ## Blocked (2026-08-08 review-fixes)
 Not fixable as a mechanical proof-green step: the five committed dist trees (partiful-matrix contract/react/vanilla, todo + todo-v2 contract dist/web) embed absolute checkout paths and must be REBUILT with the portable-artifact toolchain, but those demos pin Exact 0.1.6/0.1.2 while portable generation needs Exact 0.1.7+. Rebuilding requires authorizing the Exact dependency-pin upgrade + frozen installs first, then rebuilding all five surfaces. Sequence that dep upgrade before this ticket can close.
+
+## Resolution (2026-08-15)
+
+The five ignored distribution trees were regenerated from their build inputs.
+Partiful's shared Vite attribution now emits repository-relative module IDs (and
+deliberately redacts absolute external IDs), and its Contract prerender makes the
+Exact hydration manifest portable before embedding it. The Partiful Contract,
+Todo Contract, and todo-v2 Contract surfaces now use the published Exact 0.1.7
+portable-artifact suite, with refreshed frozen Bun lockfiles. All five full
+surface builds and both artifact-path hygiene checks pass.
+
+The existing `demo-and-harness` selection rule already selects both
+`artifact-path-hygiene` and `artifact-path-hygiene-fixtures` for every path under
+`demos/`; the selector fixture now proves that behavior for a representative
+committed leaf from each of these five distribution shapes.
+
+Originating landing: none — Git history contains no committed leaf in any of
+the five named `dist/` trees; the 2026-08-08 report observed ignored local build
+output rather than committed `HEAD`.
+
+The affected-scope LLP audit found no design drift, and `./ref-check --verbose`
+passed with zero errors. The ignored distributions remain local build products;
+no generated or minified artifact was hand-edited or added to Git.
+
+The only committed acceptance runner that directly executes one of these trees
+is Partitime's production-web browser matrix. It was not runnable here because
+`target/debug/snapback` is absent and this task forbids Cargo; the retained
+Step 4 report generators were not used as a substitute because they rewrite
+frozen claim records without re-executing the rebuilt browser artifact.

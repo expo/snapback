@@ -284,6 +284,21 @@ test('native, Cloudflare, seed, and carrier changes select their unique claims',
   includesAll(fleet, ['fleet-observatory-move1-receipt']);
 });
 
+test('committed demo distribution leaves select artifact path hygiene and its fixture', () => {
+  for (const path of [
+    'demos/partiful-matrix/surfaces/contract/dist/snapback/index.html',
+    'demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-HASH.js',
+    'demos/partiful-matrix/surfaces/vanilla/dist/sqlite/partitime-cost-attribution.json',
+    'demos/todo/surfaces/contract/dist/web/assets/index-HASH.js.map',
+    'demos/todo-v2/surfaces/contract/dist/web/index.html',
+  ]) {
+    const plan = select([path]);
+    assert.equal(plan.selectionClass, 'AFFECTED', path);
+    assert(plan.matchedRules.includes('demo-and-harness'), path);
+    includesAll(plan, ['artifact-path-hygiene', 'artifact-path-hygiene-fixtures']);
+  }
+});
+
 test('shared authorities and unknown paths fail closed into the complete inventory', () => {
   for (const path of [
     'Cargo.lock',

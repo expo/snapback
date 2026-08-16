@@ -531,3 +531,13 @@ is mode-scoped instead of ambient. Against Supabase local dev (docker compose
 + studio), this is dramatically lighter. What is still missing versus both:
 watch/codegen/hot-push in the same command — that is SC-2b (LLP 0030 step 9),
 deliberately gated behind this lifecycle/authority boundary proving sound.
+
+## 2026-08-15 — portable Contract output on the published Exact suite
+
+The Contract web surface moved from Exact 0.1.2 to the repository's established
+0.1.7 portable-artifact suite and rebuilt cleanly after regenerating its ignored
+Snapback codegen cache. That removed checkout-local paths from the generated
+sourcemaps without touching minified output by hand. The dependency upgrade was
+less work than carrying demo-specific sourcemap surgery and aligns Todo with the
+same published Contract toolchain used by newer surfaces. No Snapback Guide gap
+was involved.

@@ -2381,3 +2381,16 @@ Snapback limitation: Contract supplied the overlay and route ingredients, but
 the app still had to join their lifetimes. The existing Contract adapter guide
 covered the provider boundary; no missing Guide instruction caused these
 failures, so no `guide-gap` ticket was filed.
+
+## 2026-08-15 — production provenance becomes checkout-independent
+
+Rebuilding all three web surfaces exposed two separate sources of local-path
+leakage. The shared Partitime cost-attribution plugin serialized Rollup module
+IDs verbatim, while the Contract prerender path used Vite's development server
+and therefore embedded an unnormalized Exact hydration manifest even after the
+surface moved to Exact 0.1.7. The build inputs now preserve repository-relative
+provenance and deliberately redact absolute external module IDs; the prerender
+does the same before serializing hydration state. Regenerating the ignored
+codegen cache and installing the Convex surface cache were enough to make all
+three full builds runnable. This was build-pipeline friction rather than a
+Snapback authoring or Guide gap, so no `guide-gap` ticket was filed.

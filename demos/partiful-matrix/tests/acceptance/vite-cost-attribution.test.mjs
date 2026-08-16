@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { classifyPartitimeCostModule } from '../../shared/vite-cost-attribution.mjs';
+import {
+  classifyPartitimeCostModule,
+  portablePartitimeArtifactProvenance,
+  portablePartitimeCostModuleId,
+} from '../../shared/vite-cost-attribution.mjs';
 
 test('Partitime production cost modules use one stable four-layer partition', () => {
   const cases = new Map([
@@ -20,4 +24,44 @@ test('Partitime production cost modules use one stable four-layer partition', ()
   for (const [path, expected] of cases) {
     assert.equal(classifyPartitimeCostModule(path), expected, path);
   }
+});
+
+test('Partitime production cost module ids are portable', () => {
+  const repoRoot = '/private/tmp/snapback-attribution-repro';
+  assert.equal(
+    portablePartitimeCostModuleId(
+      `${repoRoot}/demos/partiful-matrix/surfaces/react/src/App.tsx`,
+      { repoRoot },
+    ),
+    'demos/partiful-matrix/surfaces/react/src/App.tsx',
+  );
+  assert.equal(
+    portablePartitimeCostModuleId('/Users/builder/exact/src/runtime.ts', { repoRoot }),
+    '[external]/runtime.ts',
+  );
+  assert.equal(
+    portablePartitimeCostModuleId('C:\\builder\\exact\\src\\runtime.ts', { repoRoot }),
+    '[external]/runtime.ts',
+  );
+  assert.equal(
+    portablePartitimeCostModuleId('\0virtual:partitime', { repoRoot }),
+    '\0virtual:partitime',
+  );
+  assert.equal(
+    portablePartitimeCostModuleId(
+      `\0${repoRoot}/demos/partiful-matrix/surfaces/react/node_modules/react/index.js?commonjs-module`,
+      { repoRoot },
+    ),
+    '\0demos/partiful-matrix/surfaces/react/node_modules/react/index.js?commonjs-module',
+  );
+  assert.deepEqual(
+    portablePartitimeArtifactProvenance({
+      sourcePath: `${repoRoot}/demos/partiful-matrix/surfaces/contract/feed.contract`,
+      route: '/events/event_sunset/',
+    }, { repoRoot }),
+    {
+      sourcePath: 'demos/partiful-matrix/surfaces/contract/feed.contract',
+      route: '/events/event_sunset/',
+    },
+  );
 });

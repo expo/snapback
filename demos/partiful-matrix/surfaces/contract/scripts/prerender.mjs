@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createServer } from 'vite';
 import { renderContractStaticDocument } from '../node_modules/@exact/devtools/src/contract-static-html.ts';
+import { portablePartitimeArtifactProvenance } from '../../../shared/vite-cost-attribution.mjs';
 
 const surfaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = new Map();
@@ -26,11 +27,12 @@ function digest(value) {
 }
 
 function pageHtml(shell, { document, routeId, title, description, canonicalPath }) {
+  const portableManifest = portablePartitimeArtifactProvenance(document.manifest);
   const staticRoot = [
     `<div id="exact-root" data-partitime-static-route="${routeId}">`,
     document.schemeCss ? `<style data-exact-contract-scheme="">${document.schemeCss}</style>` : '',
     document.html,
-    `<script id="__partitime-hydration" type="application/json" data-exact-contract-hydration="">${inlineJson(document.manifest)}</script>`,
+    `<script id="__partitime-hydration" type="application/json" data-exact-contract-hydration="">${inlineJson(portableManifest)}</script>`,
     '</div>',
   ].join('');
   const firstPaintWitness = `<script>window.__partitimeStaticWitness={routeId:${JSON.stringify(routeId)},root:document.getElementById("exact-root"),initialText:document.getElementById("exact-root").innerText,rootReplacements:0,childListMutations:0};new MutationObserver(function(records){for(const record of records){if(record.type==="childList")window.__partitimeStaticWitness.childListMutations+=1;if(!document.documentElement.contains(window.__partitimeStaticWitness.root))window.__partitimeStaticWitness.rootReplacements+=1}}).observe(document.documentElement,{childList:true,subtree:true})</script>`;
