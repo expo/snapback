@@ -104,3 +104,27 @@ ceremony. Against a Convex/Supabase baseline, the atomic
 multi-upload-plus-commit and the per-item residue honesty have no
 equivalent; the delivery-profile and transport fences cost setup time but
 each refused with an accurate, actionable message.
+
+## 2026-08-16 — public delivery-default follow-up
+
+The author subsequently ruled that ordinary public media should prefer the
+no-issuance path. Both this demo's public profile avatar intent and public feed
+media intent now declare `public-immutable`, making the policy reviewable while
+exercising exactly the path the new omitted-delivery default recommends. This
+removes signed-URL issuance and refresh from the native rendering path without
+weakening a promised revocation boundary: neither demo surface is intended to
+be private or revocable after publication.
+
+The change was pleasantly small—two declarations, regenerated descriptors,
+and a clean demo-local TypeScript check. The companion guide update now teaches
+the three-way choice before its first upload example, including the important
+contrast that recipient-grant and view-once examples must stay private. No
+server or device was restarted for this source-only follow-up, so it makes no
+new runtime or latency claim.
+
+Compared with a React plus Convex or Supabase implementation, Snapback still
+asks the author to name delivery semantics explicitly, but the chosen public
+path now removes an otherwise app-visible issuance controller and refresh
+cycle. The source-attributed omission advisory is a useful compromise: fast
+public delivery is the code default, while security-sensitive authors still
+see the decision they must review.

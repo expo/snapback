@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import {
   ActivityIndicator,
   FlatList,
@@ -128,6 +129,23 @@ function TaskProgress({ snapshot }: Readonly<{ snapshot: MediaCommandTaskSnapsho
   );
 }
 
+function VideoTile({ url, size }: Readonly<{ url: string; size: { width: number; height: number } }>) {
+  const player = useVideoPlayer(url);
+  return (
+    <View style={[styles.mediaTile, size, styles.videoTile]}>
+      <VideoView
+        player={player}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+        contentFit="cover"
+        nativeControls
+      />
+      {/* Best-effort demo playback of the delivered bytes; the platform still
+          makes no portable media.video.playable.v1 claim (LLP 0239 D5). */}
+      <Text style={styles.videoTileCopy}>best-effort playback · not a platform claim</Text>
+    </View>
+  );
+}
+
 function PostMedia({ postId }: Readonly<{ postId: Id<'posts'> }>) {
   const [gridWidth, setGridWidth] = useState<number | null>(null);
   const collection = useSnapbackQuery(api.postMediaList, { parentId: postId });
@@ -179,15 +197,14 @@ function PostMedia({ postId }: Readonly<{ postId: Id<'posts'> }>) {
           );
         }
         if (kind === 'video') {
+          if ((state.status === 'ready' || state.status === 'refreshing') && state.url) {
+            return <VideoTile key={item.itemId} url={state.url} size={tileSize} />;
+          }
           return (
             <View key={item.itemId} style={[styles.mediaTile, tileSize, styles.videoTile]}>
               <Text style={styles.videoTileMark}>▶</Text>
               <Text style={styles.videoTileTitle}>VIDEO</Text>
-              <Text style={styles.videoTileCopy}>
-                {state.status === 'ready' || state.status === 'refreshing'
-                  ? 'Delivered · playback not claimed'
-                  : 'Preparing delivery'}
-              </Text>
+              <Text style={styles.videoTileCopy}>Preparing delivery</Text>
             </View>
           );
         }

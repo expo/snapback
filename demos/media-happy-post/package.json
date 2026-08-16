@@ -11,13 +11,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@expo/snapback-client": "file:.snapback/local-source-packages/client.b613dd50517daa665c9be4422d7dbc0c11a8b36bbba4e5b1111dd53af503835a.tgz",
-    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.68aa8cbe2a586a1de3d76815c204eee19d6f38081af33f51964d386b52b224dd.tgz",
-    "@expo/snapback-react": "file:.snapback/local-source-packages/react.225f1d5ad2b31b80fc997216944b8dc73037b9d01efcf570c97d57ff28c63e9d.tgz",
+    "@expo/snapback-client": "file:.snapback/local-source-packages/client.8e31edbafd773571adeb1592133f3e469d4cb671c40689a9ded5e4fa0e7f12cb.tgz",
+    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.b2a22a4c448c2b87dd58fb6e5d1ffc11ebb8810ad4bd86a8a39890c2e9ec68b1.tgz",
+    "@expo/snapback-react": "file:.snapback/local-source-packages/react.75e62bb3fb98eb88573c6403a9271a7fec6272f1f25322858e147df1eb186531.tgz",
     "expo": "~57.0.7",
     "expo-crypto": "~57.0.1",
     "expo-file-system": "~57.0.1",
     "expo-image-picker": "~57.0.7",
+    "expo-video": "~57.0.2",
     "react": "19.2.3",
     "react-native": "0.86.2"
   },
@@ -26,9 +27,9 @@
     "typescript": "~6.0.3"
   },
   "overrides": {
-    "@expo/snapback-client": "file:.snapback/local-source-packages/client.b613dd50517daa665c9be4422d7dbc0c11a8b36bbba4e5b1111dd53af503835a.tgz",
+    "@expo/snapback-client": "file:.snapback/local-source-packages/client.8e31edbafd773571adeb1592133f3e469d4cb671c40689a9ded5e4fa0e7f12cb.tgz",
     "@expo/snapback-contract": "file:.snapback/local-source-packages/contract.aed22903b52a14bcc879a33b7f1999eb6479b527dbf278433d5b94120fc23666.tgz",
-    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.68aa8cbe2a586a1de3d76815c204eee19d6f38081af33f51964d386b52b224dd.tgz",
-    "@expo/snapback-react": "file:.snapback/local-source-packages/react.225f1d5ad2b31b80fc997216944b8dc73037b9d01efcf570c97d57ff28c63e9d.tgz"
+    "@expo/snapback-expo": "file:.snapback/local-source-packages/expo.b2a22a4c448c2b87dd58fb6e5d1ffc11ebb8810ad4bd86a8a39890c2e9ec68b1.tgz",
+    "@expo/snapback-react": "file:.snapback/local-source-packages/react.75e62bb3fb98eb88573c6403a9271a7fec6272f1f25322858e147df1eb186531.tgz"
   }
 }

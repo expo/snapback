@@ -24,7 +24,9 @@ try {
   writeFileSync(join(backend, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  items: defineTable({ room: v.string(), body: v.string() }).sync(),
+  items: defineTable({ room: v.string(), body: v.string() })
+    .visibility({ kind: 'public-read' })
+    .sync(),
 });
 `);
   writeFileSync(join(backend, 'functions.mjs'), `
@@ -32,6 +34,7 @@ import { arg, bind, defineAssetUpload, defineCommand, defineMutation, defineSurf
 export const imageUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1000 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const save = defineMutation({

@@ -28,7 +28,11 @@ function backend(functions) {
   roots.push(root);
   writeFileSync(join(root, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+export default defineSchema({
+  todos: defineTable({ title: v.string() })
+    .visibility({ kind: 'public-read' })
+    .sync(),
+});
 `);
   writeFileSync(join(root, 'functions.mjs'), functions);
   return root;
@@ -165,6 +169,7 @@ import { defineAssetUpload, defineCommand, defineMutation, insert, lit, v } from
 export const imageUpload = defineAssetUpload({
   args: {}, auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const sendMessage = defineMutation({

@@ -19,6 +19,7 @@ export default defineSchema({
     title: v.string(),
     photo: v.optional(v.assetRef({ upload: 'photoUpload' })),
   })
+    .visibility({ kind: 'public-read' })
     .assetSharing({ kind: 'public-read' })
     .sync(),
 });
@@ -27,6 +28,7 @@ const FUNCTIONS = `
 import { defineAssetUpload } from '${defineUrl}';
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 `;

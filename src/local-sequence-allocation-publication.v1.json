@@ -13,7 +13,7 @@
     "src/local/inspection.rs": "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679",
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:7bb8e025f868be4832d2c7c6c7d7383c43bc090ceecb57c0ad111f922c813581",
+    "src/local/tests.rs": "sha256:3071e0d7aa99b65833f24fe9e9724c0878aaa2030264232698e4ae9b5374ac5b",
     "src/runtime.rs": "sha256:d72b0b31382ae7557144a75cf21f557fe42445465316c5a3195bd2a049f7d61f",
     "src/storage.rs": "sha256:64bf562115078640f827ecf4b42431b229c577cebd3fc55343dc374647b20323",
     "src/storage/auth.rs": "sha256:3f6e71b3b32d7beda075b336b98aeb618a1fe0eaf54e8049540119b3dea16820",
@@ -36,11 +36,11 @@
     "src/storage/migration_scan.rs": "sha256:43bfda997ab189b4ecdfa3d6fb8442487f26c57d86c6f21cd9ba1b8fa36a412c",
     "src/storage/projection_rebuild.rs": "sha256:cdc288f51d056d284eac37337fa533f06e9c80e93085719ada2afa81b07ef0c5",
     "src/storage/schema_transition.rs": "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952",
-    "src/storage/tests.rs": "sha256:a2ed158b9beee728f650dc8e956853a1ff4e88ba1e743247ade2323036b7ab36",
+    "src/storage/tests.rs": "sha256:de33e91bf21597e439c674be2acba466bdbad21bf8d9c531d640c2b2b5fc40f5",
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:3cfbbf9ae3d9fb0a008851f62c17ab71090abc6635c0647820266dd79e132710"
+    "packages/snapback-codegen/define.mjs": "sha256:62a9364dfe21724e9d2cda9eb1d88b1c2f32d570a6e9733ee2debbf8723cf7cc"
   },
   "clientSourceSha256": {
     "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",

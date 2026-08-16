@@ -41,6 +41,7 @@ export default defineSchema({
     avatar: v.optional(v.assetRef({ upload: 'avatarUpload' })),
     attachment: v.assetRef(),
   })
+    .visibility({ kind: 'owner', field: 'ownerId' })
     .assetSharing({ kind: 'owner', field: 'ownerId' })
     .sync(),
 });
@@ -147,6 +148,53 @@ export const avatarUpload = defineAssetUpload({
   assert.equal(codes(result).includes('SNAPBACK_ASSET_SHARING_UNDECLARED'), false);
 }
 
+// --- omitted delivery takes the ruled performance default, visibly --------
+
+{
+  const schema = `
+import { defineSchema } from '${defineUrl}';
+export default defineSchema({});
+`;
+  const functions = `
+import { defineAssetUpload } from '${defineUrl}';
+export const defaultedUpload = defineAssetUpload({
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+export const explicitPublicUpload = defineAssetUpload({
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'public-immutable' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const { dir, result } = await runCase({ schema, functions });
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(
+    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+  );
+  const defaulted = manifest.assetUploadIntents.find(
+    (intent) => intent.name === 'defaultedUpload',
+  );
+  assert.deepEqual(defaulted.delivery, { kind: 'public-immutable' });
+  const advisories = result.diagnostics.filter(
+    ({ code }) => code === 'SNAPBACK_ASSET_DELIVERY_IMPLICIT_PUBLIC_IMMUTABLE',
+  );
+  assert.equal(advisories.length, 1, JSON.stringify(result.diagnostics));
+  assert.equal(advisories[0].severity, 'warning');
+  assert.equal(advisories[0].intent, 'defaultedUpload');
+  assert.deepEqual(
+    advisories[0].sourceSpan,
+    { file: 'functions.mjs', line: 3, column: 14 },
+  );
+  assert.equal(advisories[0].details.effectiveDelivery, 'public-immutable');
+  assert.match(
+    advisories[0].message,
+    /delivery omitted; defaulting to public-immutable \(performance default, author ruling 2026-08-16\)/,
+  );
+}
+
 // --- implementation identity metamorphics: root, helper closure, reads ----
 
 // --- recipient grants: explicit opt-in and presence-only policy identity --
@@ -161,6 +209,7 @@ import { defineAssetUpload } from '${defineUrl}';
 export const documentUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   ${grants ? 'grants: true,' : ''}
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -192,6 +241,7 @@ export const documentUpload = defineAssetUpload({
     () => defineAssetUpload({
       auth: 'authenticated',
       accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+      delivery: { kind: 'private-strict' },
       grants: false,
       authorize: async (ctx) => ({ owner: ctx.auth.userId }),
     }),
@@ -203,8 +253,8 @@ export const documentUpload = defineAssetUpload({
   const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  profiles: defineTable({ ownerId: v.principal() }).sync(),
-  teams: defineTable({ ownerId: v.principal() }).sync(),
+  profiles: defineTable({ ownerId: v.principal() }).visibility({ kind: 'owner', field: 'ownerId' }).sync(),
+  teams: defineTable({ ownerId: v.principal() }).visibility({ kind: 'owner', field: 'ownerId' }).sync(),
 });
 `;
   const functions = ({
@@ -218,11 +268,13 @@ export const avatarUpload = defineAssetUpload({
   auth: 'authenticated',
   reads: ${reads},
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   authorize: ${authorize},
 });
 export const unrelatedUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 `;
@@ -287,13 +339,14 @@ export default defineSchema({
   posts: defineTable({
     authorId: v.principal(),
     attachment: v.optional(v.assetRef({ upload: 'attachmentUpload' })),
-  }).sync(),
+  }).visibility({ kind: 'owner', field: 'authorId' }).sync(),
 });
 `;
   const functions = `
 import { defineAssetUpload } from '${defineUrl}';
 export const attachmentUpload = defineAssetUpload({
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   access: { read: 'via-references' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -309,7 +362,7 @@ export const attachmentUpload = defineAssetUpload({
 
 const baseSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ notes: defineTable({ body: v.string() }).sync() });
+export default defineSchema({ notes: defineTable({ body: v.string() }).visibility({ kind: 'public-read' }).sync() });
 `;
 
 async function refusalCase(functions, expectedCode) {
@@ -329,6 +382,7 @@ async function refusalCase(functions, expectedCode) {
 import { defineAssetUpload } from '${defineUrl}';
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 ` });
@@ -346,6 +400,7 @@ export const photoUpload = defineAssetUpload({
 import { defineAssetUpload } from '${defineUrl}';
 export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  delivery: { kind: 'private-strict' },
   image: { location: 'retain' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -364,6 +419,7 @@ export const clipUpload = defineAssetUpload({
 import { defineAssetUpload } from '${defineUrl}';
 export const mediaUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg', 'video/mp4'], maxBytes: 100_000_000 },
+  delivery: { kind: 'private-strict' },
   image: { location: 'retain' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -385,6 +441,8 @@ export const mediaUpload = defineAssetUpload({
 import { defineAssetUpload } from '${defineUrl}';
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  // Public display media follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   image: { location: 'strip', variants: [{ key: 'thumb', width: 128 }] },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -394,12 +452,11 @@ export const photoUpload = defineAssetUpload({
   const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
   const intent = manifest.assetUploadIntents.find((entry) => entry.name === 'photoUpload');
   // The video sibling is presence-only in the policy preimage. Pin the exact
-  // pre-ruling image hash under this fixture's explicit portable app identity
-  // so admitting it can never move existing image policy identity silently
-  // (LLP 0044, 2026-08-03 amendment).
+  // public-display policy hash under this fixture's explicit portable app
+  // identity so later authoring changes cannot move it silently.
   assert.equal(
     intent.intentPolicyHash,
-    'sha256:73595d19bd41bf5a3a72b53c4cedd302285064b644b0c2bfaab65a97cfb7db61',
+    'sha256:0175aef97cd44e507e9e2c18645d51a589e3f7ffbdd183315f94ed25bcb60c86',
   );
   assert.equal(Object.hasOwn(intent, 'video'), false);
   const descriptor = JSON.parse(
@@ -417,6 +474,7 @@ export const photoUpload = defineAssetUpload({
 import { defineAssetUpload } from '${defineUrl}';
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -436,6 +494,8 @@ export const photoUpload = defineAssetUpload({
 import { defineAssetUpload } from '${defineUrl}';
 export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  // Public display media follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   video: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -456,6 +516,7 @@ export const clipUpload = defineAssetUpload({
 import { defineAssetUpload } from '${defineUrl}';
 export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  delivery: { kind: 'private-strict' },
   video: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -471,6 +532,7 @@ await refusalCase(`
 import { defineAssetUpload } from '${defineUrl}';
 export const docUpload = defineAssetUpload({
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   image: { location: 'retain' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -480,6 +542,7 @@ await refusalCase(`
 import { defineAssetUpload } from '${defineUrl}';
 export const docUpload = defineAssetUpload({
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   video: { location: 'retain' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -492,6 +555,7 @@ export const docUpload = defineAssetUpload({
 import { defineAssetUpload } from '${defineUrl}';
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   image: { location: 'retain' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -506,7 +570,7 @@ export const photoUpload = defineAssetUpload({
   const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  notes: defineTable({ file: v.optional(v.assetRef({ upload: 'missingIntent' })) }).sync(),
+  notes: defineTable({ file: v.optional(v.assetRef({ upload: 'missingIntent' })) }).visibility({ kind: 'public-read' }).sync(),
 });
 `;
   const functions = 'export const nothing = 1;\n';
@@ -524,6 +588,7 @@ export const gallery = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   image: {
     location: 'retain',
     variants: [
@@ -552,6 +617,7 @@ export const gallery = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   image: { location: 'retain', variants: [{ key: 'thumb', width: 128, required: 'yes' }] },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -634,7 +700,7 @@ export default defineSchema({
   callback_log: defineTable({
     event: v.optional(v.string()),
     assetId: v.optional(v.string()),
-  }).sync(),
+  }).visibility({ kind: 'public-read' }).sync(),
 });
 `;
 
@@ -648,6 +714,7 @@ export const docUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   on: { ready: 'onAssetReady' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -667,6 +734,7 @@ export const docUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   on: { ready: 'noSuchMutation' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -690,6 +758,7 @@ export const docUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   on: { ready: 'onAssetReady' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -710,7 +779,7 @@ export default defineSchema({
   callback_log: defineTable({
     event: v.optional(v.string()),
     assetId: v.optional(v.string()),
-  }).sync(),
+  }).visibility({ kind: 'public-read' }).sync(),
 }, { auth: { mode: 'sessions' } });
 `;
   const functions = `
@@ -720,6 +789,7 @@ export const docUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   on: { ready: 'onAssetReady' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -739,7 +809,7 @@ export default defineSchema({
   posts: defineTable({
     photo: v.optional(v.assetRef()),
     metadata: v.optional(v.json()),
-  }).sync(),
+  }).visibility({ kind: 'public-read' }).sync(),
 }, { assets: { referenceGc: { graceMs: 3_600_000 } } });
 `;
   const functions = 'export {};\n';
@@ -760,7 +830,7 @@ export default defineSchema({
   const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  posts: defineTable({ photo: v.optional(v.assetRef()) }).sync(),
+  posts: defineTable({ photo: v.optional(v.assetRef()) }).visibility({ kind: 'public-read' }).sync(),
 }, { assets: { referenceGc: { graceMs: 10 } } });
 `;
   const { result } = await runCase({ schema, functions: 'export {};\n' });
@@ -773,7 +843,7 @@ export default defineSchema({
   const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  posts: defineTable({ photo: v.optional(v.assetRef()) }).sync(),
+  posts: defineTable({ photo: v.optional(v.assetRef()) }).visibility({ kind: 'public-read' }).sync(),
 }, { assets: { referenceGc: { graceMs: 3_600_000 } } });
 `;
   const { result } = await runCase({
@@ -827,7 +897,7 @@ export const strayUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export default defineSchema({
-  docs: defineTable({ title: v.string() }).sync(),
+  docs: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
 });
 `;
   const { result } = await runCase({ schema, functions: 'export {};\n' });
@@ -846,7 +916,7 @@ export default defineSchema({
   const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  docs: defineTable({ file: v.optional(v.assetRef({ upload: null })) }).sync(),
+  docs: defineTable({ file: v.optional(v.assetRef({ upload: null })) }).visibility({ kind: 'public-read' }).sync(),
 });
 `;
   const { dir, result } = await runCase({ schema, functions: '' });
@@ -863,7 +933,7 @@ export default defineSchema({
   const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  posts: defineTable({ photo: v.optional(v.assetRef()) }).sync(),
+  posts: defineTable({ photo: v.optional(v.assetRef()) }).visibility({ kind: 'public-read' }).sync(),
 });
 `;
   const { result } = await runCase({ schema, functions: '', targetProfile: 'remote-service-sqlite-ibex' });

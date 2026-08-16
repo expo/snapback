@@ -64,12 +64,14 @@ export const itemAttachment = defineAssetUpload({
   args: { group: v.string() },
   auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const commandAttachment = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1_000_000 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const createWithAttachment = defineMutation({
@@ -502,6 +504,7 @@ export const imageUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const sendMessage = defineMutation({
@@ -831,6 +834,7 @@ export const imageUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const sendMessage = defineMutation({
@@ -855,6 +859,7 @@ export const imageUpload = defineAssetUpload({
   args: {},
   auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const sendMessage = defineMutation({
@@ -890,11 +895,13 @@ import { arg, defineAssetUpload, defineCommand, defineMutation, insert, v } from
 export const firstUpload = defineAssetUpload({
   args: {}, auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const secondUpload = defineAssetUpload({
   args: {}, auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const sendMessage = defineMutation({
@@ -1021,6 +1028,7 @@ export const rows = defineLiveQuery({ table: 'items', args: {}, auth: 'public' }
 export const imageUpload = defineAssetUpload({
   args: {}, auth: 'authenticated',
   accept: { mediaTypes: ['application/octet-stream'], maxBytes: 1024 },
+  delivery: { kind: 'private-strict' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 export const sendMessage = defineMutation({

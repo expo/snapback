@@ -6,7 +6,10 @@
 Code generation, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-09
-**Revised:** 2026-08-09, sixth same-day entry (D5(b) implemented on the
+**Revised:** 2026-08-16 (dated author amendment: omitted
+`defineAssetUpload.delivery` now takes the `public-immutable` performance
+default with a source-attributed advisory; the three-tier choice is made
+explicit below). Prior: 2026-08-09, sixth same-day entry (D5(b) implemented on the
 local target: admission-frozen grant opt-in, `agr_` system records,
 commit-atomic lifecycle, read/invalidation/GC integration, 1,024-edge quota,
 consistent-cut custody, typed diagnostics, and the primary guide recipe).
@@ -54,7 +57,9 @@ register — G11 + G4 asset slice), LLP 0193 (refusals-as-docs posture),
 LLP 0107 (optimistic lifecycle), LLP 0114 (React projections), LLP 0012
 (headless contract), LLP 0061 (guide),
 `issues/20260809-asset-upload-dx-papercuts-g11.md`,
-`issues/20260809-asset-recipient-grant-authority-g4.md`
+`issues/20260809-asset-recipient-grant-authority-g4.md`,
+`issues/20260816-signed-delivery-cdn-posture.md`,
+`issues/20260816-media-placeholder-projection.md`
 
 ## Summary
 
@@ -82,6 +87,46 @@ Acceptance of this RFC constitutes the author ruling LLP 0044's dated
 addition leaves open (the D5 ladder); the corresponding dated
 amendments in LLP 0044/0180 record the outcome, and implementation
 proceeds under the G11 ticket.
+
+### Dated amendment: public-immutable delivery default (2026-08-16)
+
+**Author ruling (Charlie Cheever, 2026-08-16).** Most applications should take
+the fast, no-issuance path for ordinary public media. On the explicit
+`defineAssetUpload` surface, omitted `delivery` therefore defaults to
+`{ kind: 'public-immutable' }`. This supersedes the earlier
+`defineAssetUpload` omission default described by LLP 0044 while preserving
+all three profiles' existing authorization, caching, and revocation semantics.
+The separate bare-`v.assetRef()` derived intent remains private-strict; this
+amendment does not silently change that convenience's security posture.
+
+The choice is a guidance triad:
+
+- **`public-immutable` — performance default.** Immutable bytes use
+  unguessable, CDN-shaped URLs with no issuance round trip. It fits public feed
+  media, avatars, product images, and other bytes that never require
+  authorization or revocation after delivery.
+- **`private-signed` — authorized per-user issuance.** Use it when reads must
+  be authorized and a native renderer cannot attach bearer headers. Revocation
+  stops new issuance; already-issued URLs retain their bounded TTL semantics.
+- **`private-strict` — bearer-only, no signed URLs.** Every byte request
+  reauthorizes, making it the tier for next-request revocation when the client
+  can attach the bearer.
+
+Omission stays non-fatal but visible. Codegen emits the source-attributed
+`SNAPBACK_ASSET_DELIVERY_IMPLICIT_PUBLIC_IMMUTABLE` advisory with this text:
+"delivery omitted; defaulting to public-immutable (performance default,
+author ruling 2026-08-16) — declare `delivery` explicitly; use
+private-signed/private-strict when reads must be authorized and revocable."
+The closed delivery-kind assertion remains unchanged, and codegen still writes
+an explicit delivery kind into every manifest. Consequently the Rust
+`AssetUploadIntentDefinition.delivery` field remains required and has no
+omission default of its own.
+
+Two follow-ups bound what this default does not solve. Private signed delivery
+still needs a hosted CDN/edge posture before scale claims
+(`issues/20260816-signed-delivery-cdn-posture.md`), and projecting admission-time
+placeholders could hide private-tier issuance latency without weakening
+authorization (`issues/20260816-media-placeholder-projection.md`).
 
 ## Evidence
 

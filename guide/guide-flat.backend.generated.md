@@ -2152,7 +2152,12 @@ fetch, assets, jobs, realtime, or streaming.
 A bare `v.assetRef()` still derives the small private JPEG/PNG default. When
 the application needs another media type or policy, export the canonical
 `defineAssetUpload` constructor from a top-level Familiar module. The module
-and export become the same two-segment generated namespace as functions:
+and export become the same two-segment generated namespace as functions.
+Omitting delivery on that explicit constructor uses the `public-immutable`
+performance default and emits an advisory; use `private-signed` for authorized
+per-user issuance when a renderer cannot attach bearers, or `private-strict`
+for bearer-only next-request revocation. The owner-only example below keeps
+its private tier explicitly:
 
 ```ts source=tests/acceptance/fixtures/familiar-video-asset/media.ts
 import { defineAssetUpload } from './generated/server';
@@ -2912,8 +2917,8 @@ reviewed-authorities-digest: sha256:ac2cd7a89de0a56f4add93da19c9e943c1fd38470c9d
 > ThumbHash placeholders, dominant color), and video location
 > finalization (`asset_video_finalization_v1` — MP4/QuickTime location
 > atoms blanked in place, no transcoding) all ship on the local target
-> with the filesystem store, TUS resumable transfer, and
-> `private-strict` delivery. Location-bearing media require an explicit
+> with the filesystem store, TUS resumable transfer, and all three delivery
+> profiles. Location-bearing media require an explicit
 > media-specific location declaration either way: images use
 > `image: { location }`, while videos use the distinct sibling
 > `video: { location }`. A `"strip"` image or video intent admits and
@@ -2926,6 +2931,29 @@ Use an asset when your app stores a file: bytes live outside document rows
 under a Snapback-owned lifecycle — upload, trusted finalization, typed
 attachment, authorized delivery, deletion — and your tables hold only a
 typed reference.
+
+## Choose public performance or revocable reads
+
+Choose delivery before the first upload. For an explicit
+`defineAssetUpload`, omitting `delivery` uses `public-immutable` and emits a
+source-attributed advisory asking you to declare the decision explicitly:
+
+- **`public-immutable` is the performance default.** Immutable bytes live at
+  unguessable, CDN-shaped URLs with no issuance round trip. Use it for public
+  feed media, avatars, product images, and other bytes that never need access
+  revoked. Delete stops discovery and future canonical access; it cannot
+  retract an already cached public response.
+- **`private-signed` authorizes per-user URL issuance.** Use it when reads must
+  be authorized but a native renderer such as `<Image>` cannot attach bearer
+  headers. Revocation stops new issuance; an issued URL remains usable until
+  its TTL.
+- **`private-strict` is bearer-only and issues no signed URLs.** Every byte
+  request reauthorizes, so this is the tier for next-request revocation when
+  the client can send the bearer header.
+
+The bare `v.assetRef()` derived intent below is a separate convenience and
+intentionally remains private-strict. For explicit intents, do not rely on the
+omission advisory as policy review: spell the chosen tier in source.
 
 ## The minimal path: one field, one attach line
 
@@ -3023,6 +3051,7 @@ export default defineSchema({
     avatar: v.optional(v.assetRef({ upload: 'avatarUpload' })),
     attachment: v.assetRef(),
   })
+    .visibility({ kind: 'owner', field: 'ownerId' })
     .assetSharing({ kind: 'owner', field: 'ownerId' })
     .sync(),
 });
@@ -3407,31 +3436,34 @@ through the relay — is CI-verified by
 
 ## Deliver
 
-`GET /assets/records/{id}` serves authorized metadata;
-`GET /assets/records/{id}/bytes/{variant}` serves bytes (variant
-`primary` in v1) under `private-strict`: every request re-authorizes
-through the declared read-access policy, responses carry
-`Cache-Control: private, no-store`, HTTP ranges work for media playback,
-and active-content types are never served inline. Revoking access or
-deleting the asset denies the next request. Two sizing selectors ride
-the byte routes: `best?maxWidth=N` picks the largest *declared* variant
-within the bound, and `?width=N` ladder-normalizes to a bounded
-on-demand rendition (materialized once under the image ceilings, then
-immutable; refused above the declared 2048 ceiling or without the
-image-finalization fact). Signed issuance accepts `widthPx` the same
-way and signs the concrete ladder variant.
+`GET /assets/records/{id}` serves authorized metadata. The recommended
+performance tier, `delivery: { kind: 'public-immutable' }`, serves ready
+renditions on `GET /assets/public/{id}/{variant}` with year-long immutable
+cache headers and no issuance request. Omission on `defineAssetUpload` selects
+that tier, with an advisory; explicit declaration is still the documented
+spelling.
 
-Intents may instead declare `delivery: { kind: 'public-immutable' }`
-(ready renditions on `GET /assets/public/{id}/{variant}` with
-year-long immutable cache headers — public product media) or
-`{ kind: 'private-signed' }` (`POST /assets/records/{id}/signed-url`
-issues a bearer URL under per-request authorization, valid until its
-TTL). Both serve lanes are **pasteable**: the URL is the entire
+Choose `{ kind: 'private-signed' }` when issuance must authorize each user but
+the renderer cannot send a bearer. `POST /assets/records/{id}/signed-url`
+issues a bearer URL valid until its TTL. Public and signed serve lanes are
+**pasteable**: the URL is the entire
 authority, so a plain `<img src>`, a CDN pull, or a link pasted into an
 email fetches with no Snapback headers — including on sessions-mode
 servers, where every other asset route requires the auth-client
 protocol offer. Signed issuance and strict delivery keep full
 per-request authorization.
+
+Choose `private-strict` for immediate revocation. The
+`GET /assets/records/{id}/bytes/{variant}` route (variant `primary` in v1)
+reauthorizes every request through the declared read-access policy, carries
+`Cache-Control: private, no-store`, supports HTTP ranges, and never serves
+active-content types inline. Revoking access or deleting the asset denies the
+next request. Two sizing selectors ride the byte routes:
+`best?maxWidth=N` picks the largest *declared* variant within the bound, and
+`?width=N` ladder-normalizes to a bounded on-demand rendition (materialized
+once under the image ceilings, then immutable; refused above the declared
+2048 ceiling or without the image-finalization fact). Signed issuance accepts
+`widthPx` the same way and signs the concrete ladder variant.
 
 On a sessions-mode server, a plain signed-out request to a
 `private-strict` byte URL that omits the auth-client protocol offer is
@@ -3686,6 +3718,8 @@ it gates `ready`, produced atomically with the primary.
 ```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  // Public display media follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   image: { location: 'strip', variants: [{ key: 'thumb', width: 128 }] },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -3721,6 +3755,8 @@ transcoding, while `retain` publishes the received bytes unchanged.
 ```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
 export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  // Public display media follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   video: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -4093,6 +4129,16 @@ This page is the four-path map from LLP 0239. Paths 1 and 3 are in the current
 published closure. Paths 2 and 4 are implemented and tested in contributor
 source, with their publication boundary marked below.
 
+Choose the upload intent's delivery tier before following a path.
+`public-immutable` is the performance default: immutable bytes at unguessable,
+CDN-shaped URLs with no issuance round trip. Use `private-signed` for
+authorized per-user issuance when native renderers cannot attach bearers, or
+`private-strict` for bearer-only reads with no signed URLs and next-request
+revocation. Omitting `delivery` from `defineAssetUpload` selects
+`public-immutable` but emits an advisory; the examples stay explicit. A
+recipient-grant or revocation path must keep a private tier because public
+delivery would bypass the grant.
+
 ## Path 1 — store one optional profile image
 
 Declare `v.optional(v.media(...))` at the top level of a table. Name the upload
@@ -4126,7 +4172,8 @@ The named upload intent remains an ordinary asset upload declaration:
 export const profileImageUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 8_000_000 },
-  delivery: { kind: 'private-strict' },
+  // Public profile display follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
@@ -4156,6 +4203,10 @@ must be 1–32, ordering is `manual` or `created`, and every admitted item must
 already be finalized under the named intent with one of the declared coarse
 kinds. The local target can upload and deliver original video bytes, but this
 does not claim portable playback or `media.video.playable.v1`.
+
+This fixture reuses `sharedMediaUpload` in Path 4, so that intent deliberately
+keeps `private-strict`: recipient grants need revocable reads. A feed-only app
+should use a dedicated `public-immutable` intent for this collection.
 
 The framework generates the child relation and its list, append, replace,
 remove, and reorder operations. Do not add an attachment table, JSON array, or

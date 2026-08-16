@@ -108,6 +108,7 @@ export default defineSchema({
     avatar: v.optional(v.assetRef({ upload: 'avatarUpload' })),
     attachment: v.assetRef(),
   })
+    .visibility({ kind: 'owner', field: 'ownerId' })
     .assetSharing({ kind: 'owner', field: 'ownerId' })
     .sync(),
 });
@@ -471,6 +472,8 @@ it gates `ready`, produced atomically with the primary.
 ```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
+  // Public display media follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   image: { location: 'strip', variants: [{ key: 'thumb', width: 128 }] },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
@@ -506,6 +509,8 @@ transcoding, while `retain` publishes the received bytes unchanged.
 ```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
 export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  // Public display media follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   video: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });

@@ -11,14 +11,14 @@
     "triageMove1Exit": "sha256:791b493998152f717ed341bbfa1128f2aef382ad271fdd3f60987f731b4127cf"
   },
   "executorSourceSha256": {
-    "src/local.rs": "sha256:90816789d4be6e6e41d517ea580112d2b111de2d25ccf1b8b5c48bf23a498efc",
+    "src/local.rs": "sha256:4d84030c99ca430765848af268c3d3a7b28173ed3a3d2a913f989b9088ceeb99",
     "src/local/auth_room_kick_acceptance.rs": "sha256:16bce2b8708c424dd8fdd4ebb5968720a0ca290b57d930d5c6e72af06f1d4f2f",
     "src/local/authorization_acceptance.rs": "sha256:eafa4848f3b8e3c9b55f2b1fd4266212f0a6240d8488f6279eb7fa340af2f3c8",
     "src/local/config_types.rs": "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85",
     "src/local/inspection.rs": "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679",
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:7bb8e025f868be4832d2c7c6c7d7383c43bc090ceecb57c0ad111f922c813581",
+    "src/local/tests.rs": "sha256:3071e0d7aa99b65833f24fe9e9724c0878aaa2030264232698e4ae9b5374ac5b",
     "src/storage.rs": "sha256:64bf562115078640f827ecf4b42431b229c577cebd3fc55343dc374647b20323",
     "src/storage/auth.rs": "sha256:3f6e71b3b32d7beda075b336b98aeb618a1fe0eaf54e8049540119b3dea16820",
     "src/storage/auth_agent_credentials.rs": "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e",
@@ -40,11 +40,11 @@
     "src/storage/migration_scan.rs": "sha256:43bfda997ab189b4ecdfa3d6fb8442487f26c57d86c6f21cd9ba1b8fa36a412c",
     "src/storage/projection_rebuild.rs": "sha256:cdc288f51d056d284eac37337fa533f06e9c80e93085719ada2afa81b07ef0c5",
     "src/storage/schema_transition.rs": "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952",
-    "src/storage/tests.rs": "sha256:a2ed158b9beee728f650dc8e956853a1ff4e88ba1e743247ade2323036b7ab36",
+    "src/storage/tests.rs": "sha256:de33e91bf21597e439c674be2acba466bdbad21bf8d9c531d640c2b2b5fc40f5",
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/index.mjs": "sha256:8b06c8f1c7c98d746e455a087af2de6efe661a8061cf021bec009178bdc56409"
+    "packages/snapback-codegen/index.mjs": "sha256:17c2b955cb5574c5838107eb8ba3decf8d29528e69fe516c74be21f421a73980"
   },
   "clientSourceSha256": {
     "packages/snapback-client/local-read-admission.mjs": "sha256:703f293078782ab3d595d518925be5b299ed7e26e19edc8ecef8c29627cc7900",

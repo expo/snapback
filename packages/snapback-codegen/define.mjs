@@ -4987,7 +4987,11 @@ export function defineAssetUpload(spec) {
     Number.isSafeInteger(spec.accept.maxBytes) && spec.accept.maxBytes > 0,
     'AssetUpload accept.maxBytes must be a positive safe integer',
   );
-  let delivery = { kind: 'private-strict' };
+  // @ref LLP 0210#dated-amendment-public-immutable-delivery-default-2026-08-16 —
+  //   omission takes the performance default but remains visible to the
+  //   author through a source-attributed generation advisory.
+  const deliveryDefaulted = spec.delivery === undefined;
+  let delivery = { kind: 'public-immutable' };
   if (spec.delivery !== undefined) {
     exactObject(spec.delivery, 'AssetUpload delivery', new Set(['kind']));
     assert(ASSET_DELIVERY_KINDS.has(spec.delivery.kind), 'AssetUpload delivery.kind must be public-immutable, private-signed, or private-strict');
@@ -5051,6 +5055,7 @@ export function defineAssetUpload(spec) {
     reads,
     accept: { mediaTypes, maxBytes: spec.accept.maxBytes },
     delivery,
+    ...(deliveryDefaulted ? { __deliveryDefaulted: true } : {}),
     access,
     ...(spec.grants === true ? { grants: true } : {}),
     ...(image ? { image } : {}),

@@ -93,11 +93,15 @@ mkdirSync(join(backend, 'generated-remote-service'), { recursive: true });
 writeFileSync(join(rotatedRoot, 'demo.snapback.json'), JSON.stringify({ id: 'media-rotation' }));
 const schemaSource = (kinds) => `
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
-export default defineSchema({ profiles: defineTable({ image: v.optional(v.media({ intent: 'profileImageUpload', policy: 'profile-image.v1', kinds: ${JSON.stringify(kinds)} })) }).sync() });
+export default defineSchema({
+  profiles: defineTable({ image: v.optional(v.media({ intent: 'profileImageUpload', policy: 'profile-image.v1', kinds: ${JSON.stringify(kinds)} })) })
+    .visibility({ kind: 'public-read' })
+    .sync(),
+});
 `;
 writeFileSync(join(backend, 'functions.mjs'), `
 import { defineAssetUpload, defineLiveQuery } from ${JSON.stringify(defineUrl)};
-export const profileImageUpload = defineAssetUpload({ accept: { mediaTypes: ['image/jpeg'], maxBytes: 1000 }, image: { location: 'strip' }, authorize: async (ctx) => ({ owner: ctx.auth.userId }) });
+export const profileImageUpload = defineAssetUpload({ accept: { mediaTypes: ['image/jpeg'], maxBytes: 1000 }, delivery: { kind: 'private-strict' }, image: { location: 'strip' }, authorize: async (ctx) => ({ owner: ctx.auth.userId }) });
 export const listProfiles = defineLiveQuery({ table: 'profiles', args: {}, auth: 'public' });
 `);
 writeFileSync(join(backend, 'schema.mjs'), schemaSource(['image']));

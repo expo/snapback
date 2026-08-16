@@ -24,6 +24,16 @@ This page is the four-path map from LLP 0239. Paths 1 and 3 are in the current
 published closure. Paths 2 and 4 are implemented and tested in contributor
 source, with their publication boundary marked below.
 
+Choose the upload intent's delivery tier before following a path.
+`public-immutable` is the performance default: immutable bytes at unguessable,
+CDN-shaped URLs with no issuance round trip. Use `private-signed` for
+authorized per-user issuance when native renderers cannot attach bearers, or
+`private-strict` for bearer-only reads with no signed URLs and next-request
+revocation. Omitting `delivery` from `defineAssetUpload` selects
+`public-immutable` but emits an advisory; the examples stay explicit. A
+recipient-grant or revocation path must keep a private tier because public
+delivery would bypass the grant.
+
 ## Path 1 — store one optional profile image
 
 Declare `v.optional(v.media(...))` at the top level of a table. Name the upload
@@ -57,7 +67,8 @@ The named upload intent remains an ordinary asset upload declaration:
 export const profileImageUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 8_000_000 },
-  delivery: { kind: 'private-strict' },
+  // Public profile display follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
@@ -87,6 +98,10 @@ must be 1–32, ordering is `manual` or `created`, and every admitted item must
 already be finalized under the named intent with one of the declared coarse
 kinds. The local target can upload and deliver original video bytes, but this
 does not claim portable playback or `media.video.playable.v1`.
+
+This fixture reuses `sharedMediaUpload` in Path 4, so that intent deliberately
+keeps `private-strict`: recipient grants need revocable reads. A feed-only app
+should use a dedicated `public-immutable` intent for this collection.
 
 The framework generates the child relation and its list, append, replace,
 remove, and reorder operations. Do not add an attachment table, JSON array, or

@@ -16,8 +16,8 @@ import {
 export const profileImageUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 8_000_000 },
-  // private-signed: device renderers fetch via signed URLs (no bearer on <Image>).
-  delivery: { kind: 'private-signed' },
+  // 2026-08-16 author ruling: public display avatars take the no-issuance path.
+  delivery: { kind: 'public-immutable' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
@@ -31,8 +31,8 @@ export const sharedMediaUpload = defineAssetUpload({
     mediaTypes: ['image/jpeg', 'image/png', 'video/mp4', 'video/quicktime'],
     maxBytes: 60_000_000,
   },
-  // private-signed: device renderers fetch via signed URLs (no bearer on <Image>).
-  delivery: { kind: 'private-signed' },
+  // 2026-08-16 author ruling: public feed media takes the no-issuance path.
+  delivery: { kind: 'public-immutable' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
   video: { location: 'strip' },

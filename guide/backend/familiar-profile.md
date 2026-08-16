@@ -125,7 +125,12 @@ fetch, assets, jobs, realtime, or streaming.
 A bare `v.assetRef()` still derives the small private JPEG/PNG default. When
 the application needs another media type or policy, export the canonical
 `defineAssetUpload` constructor from a top-level Familiar module. The module
-and export become the same two-segment generated namespace as functions:
+and export become the same two-segment generated namespace as functions.
+Omitting delivery on that explicit constructor uses the `public-immutable`
+performance default and emits an advisory; use `private-signed` for authorized
+per-user issuance when a renderer cannot attach bearers, or `private-strict`
+for bearer-only next-request revocation. The owner-only example below keeps
+its private tier explicitly:
 
 ```ts source=tests/acceptance/fixtures/familiar-video-asset/media.ts
 import { defineAssetUpload } from './generated/server';

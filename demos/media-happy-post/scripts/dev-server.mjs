@@ -106,7 +106,12 @@ if (bindHost !== '127.0.0.1') {
   console.warn(`[snapback] WARNING: bind address ${bindHost} exposes insecure dev auth; anyone on the network can assert any identity.`);
 }
 
-const child = spawn(join(repoRoot, 'target', 'debug', 'snapback'), [
+// Debug-build media finalization is ~10s per 12MP photo; prefer the release
+// binary when present (or MEDIA_POST_SERVER_BINARY) for device sessions.
+const releaseBinary = join(repoRoot, 'target', 'release', 'snapback');
+const serverBinary = process.env.MEDIA_POST_SERVER_BINARY
+  ?? (existsSync(releaseBinary) ? releaseBinary : join(repoRoot, 'target', 'debug', 'snapback'));
+const child = spawn(serverBinary, [
   'start',
   '--host', bindHost,
   '--port', String(port),

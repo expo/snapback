@@ -228,7 +228,9 @@ intent it names, and the client flow. First the attaching field:
 
 Then the upload intent that field names — note the declared media-type
 allowlist, the size ceiling, and the image pipeline's explicit
-`location: 'strip'`:
+`location: 'strip'`. Public immutable delivery is the recommended performance
+default for this deliberately public-read fixture, and remains explicit so
+the policy is reviewable:
 
 ```js source=demos/expo-golden-path-fixture/snapback/functions.mjs
 export const messageImageUpload = defineAssetUpload({

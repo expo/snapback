@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "36b4e7cc72b43730a7a9f2f29c7bbd0544793b66c537bf2cd42492eb3a43346f",
+  "inputsHash": "ccf2813f5cbeed17516f98d6ed45735e691e62eb7c2ab5ed03a506e9b6bd8d6e",
   "operations": [
     {
       "authRequirement": {

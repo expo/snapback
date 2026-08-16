@@ -43,9 +43,12 @@ export const sendMessageMutation = defineJsMutation({
     assetIds: v.array(v.assetRef({ upload: 'messageMedia' }), { maxItems: 8 }),
   },
   writes: ['messages'],
+  opaqueWritePosture: 'conservative-v1',
+  declaredTableCeiling: ['messages'],
   result: results.value(v.object({ _id: v.id('messages') })),
   handler: async (ctx, args) => ({
-    _id: await ctx.db.insert('messages', { ownerId: ctx.auth.userId, text: args.text }),
+    // @ref LLP 0264#d3-owner-inserts-are-host-stamped
+    _id: await ctx.db.insert('messages', { text: args.text }),
   }),
 });
 export const sendMessage = defineMediaCommand({

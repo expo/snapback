@@ -6245,6 +6245,27 @@ async function generateInProcessLocked({
     const seenIntents = new Set();
     for (const { exportName, def } of assetUploadDefs) {
       const derivedDefault = typeof def.__derivedDefaultSource === 'string';
+      if (def.__deliveryDefaulted === true && !derivedDefault) {
+        const source = definitionAttributionDetails(
+          functionDefinitionAttribution,
+          [exportName],
+        );
+        warn(
+          'SNAPBACK_ASSET_DELIVERY_IMPLICIT_PUBLIC_IMMUTABLE',
+          'asset',
+          `${exportName}: delivery omitted; defaulting to public-immutable (performance default, author ruling 2026-08-16) — declare \`delivery\` explicitly; use private-signed/private-strict when reads must be authorized and revocable.`,
+          {
+            intent: exportName,
+            ...source,
+            details: {
+              ...(source.details ?? {}),
+              authoredDelivery: 'omitted',
+              effectiveDelivery: 'public-immutable',
+              privateAlternatives: ['private-signed', 'private-strict'],
+            },
+          },
+        );
+      }
       const validAuthoredName = authoringProfile === FAMILIAR_AUTHORING_PROFILE
         ? isOperationName(exportName)
           && exportName.split('.').every((segment) => !RESERVED_WORDS.has(segment))

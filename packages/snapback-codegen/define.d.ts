@@ -1002,6 +1002,14 @@ export interface AssetUploadSpec {
   auth?: 'public' | 'optional-user' | 'authenticated';
   reads?: readonly string[];
   accept: { mediaTypes: readonly string[]; maxBytes: number };
+  /** Delivery posture. Omitted defaults to `public-immutable` and produces an
+   * advisory asking the author to make the choice explicit.
+   *
+   * - `public-immutable`: performance default — immutable bytes at unguessable,
+   *   CDN-shaped URLs with no issuance round trip.
+   * - `private-signed`: authorized per-user issuance — required for native
+   *   renderers that cannot attach bearer headers.
+   * - `private-strict`: bearer-only delivery with no signed URLs. */
   delivery?: { kind: 'public-immutable' | 'private-signed' | 'private-strict' };
   access?: { read: 'owner-only' | 'via-references' };
   image?: {

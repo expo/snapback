@@ -27,7 +27,9 @@ export const messages = defineTable({
 export const publicMessages = defineTable({
   ownerId: v.principal(),
   body: v.string(),
-}).sync();
+})
+  .visibility({ kind: 'public-read' })
+  .sync();
 export const messageRecipients = defineTable({
   ownerId: v.principal(),
   messageId: v.id('messages'),

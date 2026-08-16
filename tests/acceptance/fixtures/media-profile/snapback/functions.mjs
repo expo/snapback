@@ -12,7 +12,8 @@ import {
 export const profileImageUpload = defineAssetUpload({
   auth: 'authenticated',
   accept: { mediaTypes: ['image/jpeg', 'image/png'], maxBytes: 8_000_000 },
-  delivery: { kind: 'private-strict' },
+  // Public profile display follows the 2026-08-16 performance-default ruling.
+  delivery: { kind: 'public-immutable' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
@@ -30,6 +31,7 @@ export const sharedMediaUpload = defineAssetUpload({
     mediaTypes: ['image/jpeg', 'image/png', 'video/mp4'],
     maxBytes: 20_000_000,
   },
+  // Recipient grants need revocable reads; public delivery would bypass them.
   delivery: { kind: 'private-strict' },
   access: { read: 'via-references' },
   image: { location: 'strip' },
