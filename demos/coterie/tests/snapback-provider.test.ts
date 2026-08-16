@@ -117,6 +117,16 @@ test('avatar media sniffing admits only PNG, JPEG, and WebP byte signatures', ()
   )).toThrow(expect.objectContaining({ name: 'AvatarReferenceInvalidError' }));
 });
 
+test('Snapback and memory share the eight-ref Coterie avatar vocabulary', () => {
+  for (const personaId of ['alice', 'bob', 'carol', 'dave', 'erin', 'frank', 'grace', 'henry']) {
+    expect(
+      coterieSnapbackTestInternals.coterieAvatarUrlForRef(`media/avatar-${personaId}.png`),
+    ).toBe(`/assets/fixtures/avatar-${personaId}.png`);
+  }
+  expect(coterieSnapbackTestInternals.coterieAvatarUrlForRef('https://example.com/avatar.png'))
+    .toBeNull();
+});
+
 const AUTH_INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const SESSION_A = '018f0d90-7b12-7a22-8c33-445566778899';
 const SESSION_B = '018f0d90-7b13-7a22-8c33-445566778899';

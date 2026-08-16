@@ -42,8 +42,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/index.contract",
-      "routeGraphDigest": "sha256:0ba588d6ed0397c7589c45a226fa5e30b54f8cb367f6d5808f24457d93805cbc",
-      "sourceVersion": "sha256:0ba588d6ed0397c7589c45a226fa5e30b54f8cb367f6d5808f24457d93805cbc",
+      "routeGraphDigest": "sha256:e8d035e31d5f47a528b596bd312e5144af75493f63227f614c10f72cd13f0b32",
+      "sourceVersion": "sha256:e8d035e31d5f47a528b596bd312e5144af75493f63227f614c10f72cd13f0b32",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -60,8 +60,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/media/[id].contract",
-      "routeGraphDigest": "sha256:082d49f0147b669d19d030dad683e137baa95afa32e0f30f59d9622de6d48577",
-      "sourceVersion": "sha256:082d49f0147b669d19d030dad683e137baa95afa32e0f30f59d9622de6d48577",
+      "routeGraphDigest": "sha256:df79efc75b9911488a7b7d6c535232b41d0beda9f257b495b13cb8479b00b287",
+      "sourceVersion": "sha256:df79efc75b9911488a7b7d6c535232b41d0beda9f257b495b13cb8479b00b287",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -69,8 +69,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/profile/[id].contract",
-      "routeGraphDigest": "sha256:63dde554e6aeea471921acb064ee543400700de423ce11efb70a6f1f94670bbd",
-      "sourceVersion": "sha256:63dde554e6aeea471921acb064ee543400700de423ce11efb70a6f1f94670bbd",
+      "routeGraphDigest": "sha256:d629f623c797e10571074a5e06ebf0a29dce611c0b1e8dedda9397f9411c4774",
+      "sourceVersion": "sha256:d629f623c797e10571074a5e06ebf0a29dce611c0b1e8dedda9397f9411c4774",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },

@@ -500,6 +500,21 @@ integrationTest(
 
       const onePixelPng =
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+      const avatarRef = 'media/avatar-alice.png';
+      const avatarBytes = await (await fetch(onePixelPng)).arrayBuffer();
+      const fetchBeforeAvatarFixtures = globalThis.fetch;
+      globalThis.fetch = (async (input, init) => {
+        const url = new URL(
+          typeof input === 'string' || input instanceof URL ? input.toString() : input.url,
+        );
+        if (url.pathname === '/assets/fixtures/avatar-alice.png') {
+          return new Response(avatarBytes, {
+            status: 200,
+            headers: { 'content-type': 'image/png' },
+          });
+        }
+        return fetchBeforeAvatarFixtures(input, init);
+      }) as typeof fetch;
       const avatarSelections: Array<{
         assetId: string;
         reused: boolean;
@@ -525,7 +540,7 @@ integrationTest(
         },
       });
       await loginAlice(avatarClient);
-      expect(await avatarClient.mutate('setAvatar', { avatarRef: onePixelPng })).toMatchObject({
+      expect(await avatarClient.mutate('setAvatar', { avatarRef })).toMatchObject({
         ok: false,
         error: {
           name: 'SnapbackProviderError',
@@ -533,7 +548,7 @@ integrationTest(
         },
       });
       mutationValue(
-        await avatarClient.mutate('setAvatar', { avatarRef: onePixelPng }),
+        await avatarClient.mutate('setAvatar', { avatarRef }),
         'setAvatar digest retry',
       );
       expect(avatarSelections).toHaveLength(2);
@@ -578,10 +593,11 @@ integrationTest(
       }
 
       const avatar = mutationValue<{ avatarUrl: string }>(
-        await authClient.mutate('setAvatar', { avatarRef: onePixelPng }),
+        await authClient.mutate('setAvatar', { avatarRef }),
         'setAvatar',
       );
       expect(avatar.avatarUrl.startsWith(`${server.baseUrl}/assets/public/`)).toBe(true);
+      globalThis.fetch = fetchBeforeAvatarFixtures;
 
       const slowStreamClient = provider({
         __testHooks: {

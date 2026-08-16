@@ -1,5 +1,5 @@
 // GENERATED binding module — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie" 5 (inputsHash df0562a779095d79).
+// Source authority: provider-native declaration "coterie" 6 (inputsHash 2b035e0c69068f02).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 
 import { createProviderLinks, type ContractDataProvider } from '@exact/contract/runtime';
@@ -29,6 +29,11 @@ export interface Chat {
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface CreatedPost {
+  id: string;
+}
+
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface FeedItem {
   authorHandle: string;
   authorId: string;
@@ -36,14 +41,20 @@ export interface FeedItem {
   avatarUrl: string | null;
   body: string;
   createdAt: string;
+  feedSortAt: string;
   id: string;
   likeCount: number;
   likedByMe: boolean;
   mediaKind: string | null;
-  mediaUrl: string | null;
-  pollQuestion: string | null;
+  mediaUrls: Array<string>;
+  nextCursor: string | null;
+  postId: string;
   replyCount: number;
   repostCount: number;
+  repostedByHandle: string | null;
+  repostedById: string | null;
+  repostedByMe: boolean;
+  repostedByName: string | null;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
@@ -96,6 +107,25 @@ export interface Profile {
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface ProfilePost {
+  authorHandle: string;
+  authorId: string;
+  authorName: string;
+  avatarUrl: string | null;
+  body: string;
+  createdAt: string;
+  id: string;
+  likeCount: number;
+  likedByMe: boolean;
+  mediaKind: string | null;
+  mediaUrls: Array<string>;
+  postId: string;
+  replyCount: number;
+  repostCount: number;
+  repostedByMe: boolean;
+}
+
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface SearchResult {
   avatarUrl: string | null;
   id: string;
@@ -114,6 +144,27 @@ export interface Session {
   userId: string;
 }
 
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface ThreadPost {
+  authorHandle: string;
+  authorId: string;
+  authorName: string;
+  avatarUrl: string | null;
+  body: string;
+  createdAt: string;
+  id: string;
+  likeCount: number;
+  likedByMe: boolean;
+  mediaKind: string | null;
+  mediaUrls: Array<string>;
+  parentId: string | null;
+  postId: string;
+  replyCount: number;
+  repostCount: number;
+  repostedByMe: boolean;
+  threadRole: string;
+}
+
 export type ListChatsParams = Record<string, never>;
 export type ListChatsResult = Array<Chat>;
 export type ListChatsError = never;
@@ -121,9 +172,20 @@ export type ListChatsReceiptsPosture = 'none';
 
 export interface ListFeedParams {
   mode: string;
+  cursor: string | null;
 }
 export type ListFeedResult = Array<FeedItem>;
-export type ListFeedError = never;
+export interface ListFeedFeedCursorInvalidError {
+  name: 'FeedCursorInvalidError';
+  code: 'feed_cursor_invalid';
+  message: string;
+}
+export interface ListFeedFeedModeInvalidError {
+  name: 'FeedModeInvalidError';
+  code: 'feed_mode_invalid';
+  message: string;
+}
+export type ListFeedError = ListFeedFeedCursorInvalidError | ListFeedFeedModeInvalidError;
 export type ListFeedReceiptsPosture = 'none';
 
 export type ListInsightsParams = Record<string, never>;
@@ -138,6 +200,18 @@ export type ListMessagesResult = Array<Message>;
 export type ListMessagesError = never;
 export type ListMessagesReceiptsPosture = 'none';
 
+export interface ListProfilePostsParams {
+  userId: string;
+}
+export type ListProfilePostsResult = Array<ProfilePost>;
+export interface ListProfilePostsProfileNotFoundError {
+  name: 'ProfileNotFoundError';
+  code: 'profile_not_found';
+  message: string;
+}
+export type ListProfilePostsError = ListProfilePostsProfileNotFoundError;
+export type ListProfilePostsReceiptsPosture = 'none';
+
 export type ListProfilesParams = Record<string, never>;
 export type ListProfilesResult = Array<Profile>;
 export type ListProfilesError = never;
@@ -148,6 +222,18 @@ export type ListSessionResult = Array<Session>;
 export type ListSessionError = never;
 export type ListSessionReceiptsPosture = 'none';
 
+export interface ListThreadParams {
+  parentId: string;
+}
+export type ListThreadResult = Array<ThreadPost>;
+export interface ListThreadParentPostNotFoundError {
+  name: 'ParentPostNotFoundError';
+  code: 'parent_post_not_found';
+  message: string;
+}
+export type ListThreadError = ListThreadParentPostNotFoundError;
+export type ListThreadReceiptsPosture = 'none';
+
 export interface SearchSocialParams {
   query: string;
 }
@@ -157,13 +243,47 @@ export type SearchSocialReceiptsPosture = 'none';
 
 export interface CreatePostParams {
   body: string;
+  imageRefs: Array<string>;
+  videoRefs: Array<string>;
+  parentId: string | null;
+}
+export type CreatePostResult = CreatedPost;
+export interface CreatePostImageCountInvalidError {
+  name: 'ImageCountInvalidError';
+  code: 'image_count_invalid';
+  message: string;
+}
+export interface CreatePostMediaMixInvalidError {
+  name: 'MediaMixInvalidError';
+  code: 'media_mix_invalid';
+  message: string;
+}
+export interface CreatePostMediaReferenceInvalidError {
+  name: 'MediaReferenceInvalidError';
+  code: 'media_reference_invalid';
+  message: string;
+}
+export interface CreatePostParentPostNotFoundError {
+  name: 'ParentPostNotFoundError';
+  code: 'parent_post_not_found';
+  message: string;
+}
+export interface CreatePostPostBodyInvalidError {
+  name: 'PostBodyInvalidError';
+  code: 'post_body_invalid';
+  message: string;
 }
 export interface CreatePostSessionRequiredError {
   name: 'SessionRequiredError';
   code: 'session_required';
   message: string;
 }
-export type CreatePostError = CreatePostSessionRequiredError;
+export interface CreatePostVideoCountInvalidError {
+  name: 'VideoCountInvalidError';
+  code: 'video_count_invalid';
+  message: string;
+}
+export type CreatePostError = CreatePostImageCountInvalidError | CreatePostMediaMixInvalidError | CreatePostMediaReferenceInvalidError | CreatePostParentPostNotFoundError | CreatePostPostBodyInvalidError | CreatePostSessionRequiredError | CreatePostVideoCountInvalidError;
 export type CreatePostReceiptsPosture = 'none';
 
 export interface EditProfileParams {
@@ -279,12 +399,22 @@ export interface SetFollowParams {
   following: boolean;
   mutationId: string;
 }
+export interface SetFollowProfileNotFoundError {
+  name: 'ProfileNotFoundError';
+  code: 'profile_not_found';
+  message: string;
+}
+export interface SetFollowSelfFollowInvalidError {
+  name: 'SelfFollowInvalidError';
+  code: 'self_follow_invalid';
+  message: string;
+}
 export interface SetFollowSessionRequiredError {
   name: 'SessionRequiredError';
   code: 'session_required';
   message: string;
 }
-export type SetFollowError = SetFollowSessionRequiredError;
+export type SetFollowError = SetFollowProfileNotFoundError | SetFollowSelfFollowInvalidError | SetFollowSessionRequiredError;
 export type SetFollowReceiptsPosture = 'none';
 
 export interface SetLikeParams {
@@ -292,13 +422,41 @@ export interface SetLikeParams {
   liked: boolean;
   mutationId: string;
 }
+export interface SetLikePostNotFoundError {
+  name: 'PostNotFoundError';
+  code: 'post_not_found';
+  message: string;
+}
 export interface SetLikeSessionRequiredError {
   name: 'SessionRequiredError';
   code: 'session_required';
   message: string;
 }
-export type SetLikeError = SetLikeSessionRequiredError;
+export type SetLikeError = SetLikePostNotFoundError | SetLikeSessionRequiredError;
 export type SetLikeReceiptsPosture = 'none';
+
+export interface SetRepostParams {
+  postId: string;
+  reposted: boolean;
+  mutationId: string;
+}
+export interface SetRepostPostNotFoundError {
+  name: 'PostNotFoundError';
+  code: 'post_not_found';
+  message: string;
+}
+export interface SetRepostReplyRepostForbiddenError {
+  name: 'ReplyRepostForbiddenError';
+  code: 'reply_repost_forbidden';
+  message: string;
+}
+export interface SetRepostSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type SetRepostError = SetRepostPostNotFoundError | SetRepostReplyRepostForbiddenError | SetRepostSessionRequiredError;
+export type SetRepostReceiptsPosture = 'none';
 
 export interface SignupParams {
   email: string;
@@ -366,8 +524,10 @@ export interface GeneratedProviderLinks {
   listFeed(args: ListFeedParams): unknown;
   listInsights(args: ListInsightsParams): unknown;
   listMessages(args: ListMessagesParams): unknown;
+  listProfilePosts(args: ListProfilePostsParams): unknown;
   listProfiles(args: ListProfilesParams): unknown;
   listSession(args: ListSessionParams): unknown;
+  listThread(args: ListThreadParams): unknown;
   searchSocial(args: SearchSocialParams): unknown;
   createPost(args: CreatePostParams): unknown;
   editProfile(args: EditProfileParams): unknown;
@@ -379,6 +539,7 @@ export interface GeneratedProviderLinks {
   setDisappearing(args: SetDisappearingParams): unknown;
   setFollow(args: SetFollowParams): unknown;
   setLike(args: SetLikeParams): unknown;
+  setRepost(args: SetRepostParams): unknown;
   signup(args: SignupParams): unknown;
 }
 
@@ -417,7 +578,7 @@ export const listFeed = (() => {
     kind: { value: 'query' },
     name: { value: 'listFeed' },
     descriptorId: { value: 'listFeed' },
-    compatibilityToken: { value: '2' },
+    compatibilityToken: { value: '3' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -447,6 +608,18 @@ export const listMessages = (() => {
   return callable as typeof callable & GeneratedQueryBinding;
 })();
 
+export const listProfilePosts = (() => {
+  const callable = (args: ListProfilePostsParams): unknown => requireGeneratedProviderLinks().listProfilePosts(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'query' },
+    name: { value: 'listProfilePosts' },
+    descriptorId: { value: 'listProfilePosts' },
+    compatibilityToken: { value: '1' },
+    resultKind: { value: 'list' },
+  });
+  return callable as typeof callable & GeneratedQueryBinding;
+})();
+
 export const listProfiles = (() => {
   const callable = (args: ListProfilesParams): unknown => requireGeneratedProviderLinks().listProfiles(args);
   Object.defineProperties(callable, {
@@ -466,6 +639,18 @@ export const listSession = (() => {
     name: { value: 'listSession' },
     descriptorId: { value: 'listSession' },
     compatibilityToken: { value: '2' },
+    resultKind: { value: 'list' },
+  });
+  return callable as typeof callable & GeneratedQueryBinding;
+})();
+
+export const listThread = (() => {
+  const callable = (args: ListThreadParams): unknown => requireGeneratedProviderLinks().listThread(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'query' },
+    name: { value: 'listThread' },
+    descriptorId: { value: 'listThread' },
+    compatibilityToken: { value: '1' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -499,7 +684,7 @@ export const editProfile = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'editProfile' },
-    writes: { value: ['accounts', 'messages', 'posts', 'profiles', 'search'] },
+    writes: { value: ['accounts', 'messages', 'profiles', 'search'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -510,7 +695,7 @@ export const login = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'login' },
-    writes: { value: ['messages', 'posts', 'profiles', 'sessionRevocations', 'sessions'] },
+    writes: { value: ['messages', 'profiles', 'sessionRevocations', 'sessions'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -543,7 +728,7 @@ export const setAvatar = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'setAvatar' },
-    writes: { value: ['posts', 'profiles', 'search'] },
+    writes: { value: ['chats', 'profiles', 'search'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -576,7 +761,7 @@ export const setFollow = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'setFollow' },
-    writes: { value: ['follows', 'posts', 'profiles'] },
+    writes: { value: ['follows', 'profiles'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -587,7 +772,18 @@ export const setLike = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'setLike' },
-    writes: { value: ['posts'] },
+    writes: { value: ['likes'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const setRepost = (() => {
+  const callable = (args: SetRepostParams): unknown => requireGeneratedProviderLinks().setRepost(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'setRepost' },
+    writes: { value: ['reposts'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -598,7 +794,7 @@ export const signup = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'signup' },
-    writes: { value: ['accounts', 'messages', 'posts', 'profiles', 'search', 'sessionRevocations', 'sessions'] },
+    writes: { value: ['accounts', 'messages', 'profiles', 'search', 'sessionRevocations', 'sessions'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -606,11 +802,11 @@ export const signup = (() => {
 
 export const bindings = {
   provider: 'coterie',
-  declarationVersion: '5',
+  declarationVersion: '6',
   /** Declaration digest as a runtime value (LLP 0391 §4.2 — the fail-closed configure handshake input). */
-  inputsHash: 'df0562a779095d79',
-  queries: { listChats, listFeed, listInsights, listMessages, listProfiles, listSession, searchSocial },
-  mutations: { createPost, editProfile, login, logout, sendMessage, setAvatar, setChatAccent, setDisappearing, setFollow, setLike, signup },
+  inputsHash: '2b035e0c69068f02',
+  queries: { listChats, listFeed, listInsights, listMessages, listProfilePosts, listProfiles, listSession, listThread, searchSocial },
+  mutations: { createPost, editProfile, login, logout, sendMessage, setAvatar, setChatAccent, setDisappearing, setFollow, setLike, setRepost, signup },
 } as const;
 
 /**

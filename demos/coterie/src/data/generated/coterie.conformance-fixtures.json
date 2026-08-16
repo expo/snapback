@@ -2,7 +2,14 @@
   "mutations": {
     "createPost": {
       "args": {
-        "body": "body-example"
+        "body": "body-example",
+        "imageRefs": [
+          "imageRefs-example"
+        ],
+        "parentId": "parentId-example",
+        "videoRefs": [
+          "videoRefs-example"
+        ]
       },
       "writes": [
         "posts"
@@ -19,7 +26,6 @@
       "writes": [
         "accounts",
         "messages",
-        "posts",
         "profiles",
         "search"
       ]
@@ -31,7 +37,6 @@
       },
       "writes": [
         "messages",
-        "posts",
         "profiles",
         "sessionRevocations",
         "sessions"
@@ -59,7 +64,7 @@
         "avatarRef": "avatarRef-example"
       },
       "writes": [
-        "posts",
+        "chats",
         "profiles",
         "search"
       ]
@@ -92,7 +97,6 @@
       },
       "writes": [
         "follows",
-        "posts",
         "profiles"
       ]
     },
@@ -103,7 +107,17 @@
         "postId": "postId-example"
       },
       "writes": [
-        "posts"
+        "likes"
+      ]
+    },
+    "setRepost": {
+      "args": {
+        "mutationId": "mutationId-example",
+        "postId": "postId-example",
+        "reposted": true
+      },
+      "writes": [
+        "reposts"
       ]
     },
     "signup": {
@@ -116,7 +130,6 @@
       "writes": [
         "accounts",
         "messages",
-        "posts",
         "profiles",
         "search",
         "sessionRevocations",
@@ -144,6 +157,7 @@
     },
     "listFeed": {
       "args": {
+        "cursor": "cursor-example",
         "mode": "mode-example"
       },
       "exampleResult": [
@@ -154,14 +168,22 @@
           "avatarUrl": "avatarUrl-example",
           "body": "body-example",
           "createdAt": "createdAt-example",
+          "feedSortAt": "feedSortAt-example",
           "id": "id-example",
           "likeCount": 1,
           "likedByMe": true,
           "mediaKind": "mediaKind-example",
-          "mediaUrl": "mediaUrl-example",
-          "pollQuestion": "pollQuestion-example",
+          "mediaUrls": [
+            "mediaUrls-example"
+          ],
+          "nextCursor": "nextCursor-example",
+          "postId": "postId-example",
           "replyCount": 1,
-          "repostCount": 1
+          "repostCount": 1,
+          "repostedByHandle": "repostedByHandle-example",
+          "repostedById": "repostedById-example",
+          "repostedByMe": true,
+          "repostedByName": "repostedByName-example"
         }
       ]
     },
@@ -202,6 +224,32 @@
         }
       ]
     },
+    "listProfilePosts": {
+      "args": {
+        "userId": "userId-example"
+      },
+      "exampleResult": [
+        {
+          "authorHandle": "authorHandle-example",
+          "authorId": "authorId-example",
+          "authorName": "authorName-example",
+          "avatarUrl": "avatarUrl-example",
+          "body": "body-example",
+          "createdAt": "createdAt-example",
+          "id": "id-example",
+          "likeCount": 1,
+          "likedByMe": true,
+          "mediaKind": "mediaKind-example",
+          "mediaUrls": [
+            "mediaUrls-example"
+          ],
+          "postId": "postId-example",
+          "replyCount": 1,
+          "repostCount": 1,
+          "repostedByMe": true
+        }
+      ]
+    },
     "listProfiles": {
       "args": {},
       "exampleResult": [
@@ -230,6 +278,34 @@
           "signedIn": true,
           "token": "token-example",
           "userId": "userId-example"
+        }
+      ]
+    },
+    "listThread": {
+      "args": {
+        "parentId": "parentId-example"
+      },
+      "exampleResult": [
+        {
+          "authorHandle": "authorHandle-example",
+          "authorId": "authorId-example",
+          "authorName": "authorName-example",
+          "avatarUrl": "avatarUrl-example",
+          "body": "body-example",
+          "createdAt": "createdAt-example",
+          "id": "id-example",
+          "likeCount": 1,
+          "likedByMe": true,
+          "mediaKind": "mediaKind-example",
+          "mediaUrls": [
+            "mediaUrls-example"
+          ],
+          "parentId": "parentId-example",
+          "postId": "postId-example",
+          "replyCount": 1,
+          "repostCount": 1,
+          "repostedByMe": true,
+          "threadRole": "threadRole-example"
         }
       ]
     },

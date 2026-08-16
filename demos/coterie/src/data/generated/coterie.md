@@ -1,6 +1,6 @@
 # coterie data provider
 
-Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt: DETERMINISTIC).
+Generated reference (declaration `6`, inputsHash `2b035e0c69068f02`, generatedAt: DETERMINISTIC).
 
 ## Capabilities
 
@@ -36,12 +36,12 @@ Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt
 
 ### `listFeed`
 
-- identity: descriptor `listFeed` @ compatibility token `2`
-- params: `mode: string`
+- identity: descriptor `listFeed` @ compatibility token `3`
+- params: `mode: string`, `cursor: string?`
 - result: list of `FeedItem` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
 - receipts: none
-- errors: (none)
+- errors: `FeedCursorInvalidError` (feed_cursor_invalid), `FeedModeInvalidError` (feed_mode_invalid)
 
 ### `listInsights`
 
@@ -61,6 +61,15 @@ Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt
 - receipts: none
 - errors: (none)
 
+### `listProfilePosts`
+
+- identity: descriptor `listProfilePosts` @ compatibility token `1`
+- params: `userId: string`
+- result: list of `ProfilePost` (excess fields: project)
+- liveness: mode `live`, push yes, initial snapshot yes
+- receipts: none
+- errors: `ProfileNotFoundError` (profile_not_found)
+
 ### `listProfiles`
 
 - identity: descriptor `listProfiles` @ compatibility token `2`
@@ -79,6 +88,15 @@ Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt
 - receipts: none
 - errors: (none)
 
+### `listThread`
+
+- identity: descriptor `listThread` @ compatibility token `1`
+- params: `parentId: string`
+- result: list of `ThreadPost` (excess fields: project)
+- liveness: mode `live`, push yes, initial snapshot yes
+- receipts: none
+- errors: `ParentPostNotFoundError` (parent_post_not_found)
+
 ### `searchSocial`
 
 - identity: descriptor `searchSocial` @ compatibility token `2`
@@ -92,7 +110,7 @@ Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt
 
 ### `createPost`
 
-- params: `body: string`
+- params: `body: string`, `imageRefs: array`, `videoRefs: array`, `parentId: string?`
 - writes: `posts`
 - optimistic: no
 - receipts: none
@@ -100,14 +118,14 @@ Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt
 ### `editProfile`
 
 - params: `displayName: string`, `bio: string`, `handle: string?`, `location: string?`, `link: string?`
-- writes: `accounts`, `messages`, `posts`, `profiles`, `search`
+- writes: `accounts`, `messages`, `profiles`, `search`
 - optimistic: no
 - receipts: none
 
 ### `login`
 
 - params: `email: string`, `password: string`
-- writes: `messages`, `posts`, `profiles`, `sessionRevocations`, `sessions`
+- writes: `messages`, `profiles`, `sessionRevocations`, `sessions`
 - optimistic: no
 - receipts: none
 
@@ -128,7 +146,7 @@ Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt
 ### `setAvatar`
 
 - params: `avatarRef: string`
-- writes: `posts`, `profiles`, `search`
+- writes: `chats`, `profiles`, `search`
 - optimistic: no
 - receipts: none
 
@@ -149,21 +167,28 @@ Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt
 ### `setFollow`
 
 - params: `userId: string`, `following: boolean`, `mutationId: string`
-- writes: `follows`, `posts`, `profiles`
+- writes: `follows`, `profiles`
 - optimistic: no
 - receipts: none
 
 ### `setLike`
 
 - params: `postId: string`, `liked: boolean`, `mutationId: string`
-- writes: `posts`
+- writes: `likes`
+- optimistic: no
+- receipts: none
+
+### `setRepost`
+
+- params: `postId: string`, `reposted: boolean`, `mutationId: string`
+- writes: `reposts`
 - optimistic: no
 - receipts: none
 
 ### `signup`
 
 - params: `email: string`, `password: string`, `handle: string`, `displayName: string`
-- writes: `accounts`, `messages`, `posts`, `profiles`, `search`, `sessionRevocations`, `sessions`
+- writes: `accounts`, `messages`, `profiles`, `search`, `sessionRevocations`, `sessions`
 - optimistic: no
 - receipts: none
 
@@ -171,5 +196,6 @@ Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt
 
 - `coterie.fixtureClock`: `"2026-01-01T00:01:30Z"`
 - `coterie.fixtureProfile`: `"social-messenger-starter-pack"`
-- `coterie.m1CompatibilityTokens`: `{"editProfile":"1","listProfiles":"2","listSession":"2","login":"1","logout":"1","setAvatar":"1","signup":"2"}`
+- `coterie.m1CompatibilityTokens`: `{"editProfile":"1","listProfiles":"2","listSession":"2","login":"1","logout":"1","setAvatar":"2","signup":"2"}`
+- `coterie.m2CompatibilityTokens`: `{"createPost":"1","listFeed":"3","listProfilePosts":"1","listProfiles":"2","listThread":"1","setFollow":"1","setLike":"1","setRepost":"2"}`
 - `coterie.surface`: `"shared Contract binding surface; provider lanes implement this declaration and report additional capabilities separately"`

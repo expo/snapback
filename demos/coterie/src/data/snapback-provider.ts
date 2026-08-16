@@ -26,6 +26,7 @@ import type {
 // their adjacent `.d.ts` declaration, so preserve that generated type here.
 // @ts-expect-error generated Snapback ESM is typed by the adjacent api.d.ts
 import { api as generatedApi } from '../../snapback/generated/api.mjs';
+import { coterieAvatarUrlForRef } from './coterie-fixtures.ts';
 import { coterieSurfaceManifest } from './memory-provider.ts';
 
 const api = generatedApi as GeneratedApi;
@@ -45,9 +46,14 @@ export const COTERIE_SNAPBACK_M1_OPERATIONS = Object.freeze({
 
 const M1_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_M1_OPERATIONS.queries);
 const M1_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_M1_OPERATIONS.mutations);
-const M2_QUERY_NAMES = new Set(['listFeed', 'listInsights']);
+const M2_QUERY_NAMES = new Set([
+  'listFeed',
+  'listInsights',
+  'listProfilePosts',
+  'listThread',
+]);
 const M3_QUERY_NAMES = new Set(['listChats', 'listMessages', 'searchSocial']);
-const M2_MUTATION_NAMES = new Set(['createPost', 'setFollow', 'setLike']);
+const M2_MUTATION_NAMES = new Set(['createPost', 'setFollow', 'setLike', 'setRepost']);
 const M3_MUTATION_NAMES = new Set([
   'sendMessage',
   'setChatAccent',
@@ -534,6 +540,7 @@ async function clearCapturedAuthorityAndReconcile(
 }
 
 export const coterieSnapbackTestInternals = Object.freeze({
+  coterieAvatarUrlForRef,
   clearCapturedAuthorityAndReconcile,
   declaredError,
   sniffAvatarMediaType,
@@ -1204,10 +1211,17 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     if (!current) {
       throw new NamedProviderError('SessionRequiredError', 'An active session is required.');
     }
+    const servedAvatarUrl = coterieAvatarUrlForRef(avatarRef);
+    if (!servedAvatarUrl) {
+      throw new NamedProviderError(
+        'AvatarReferenceInvalidError',
+        'Avatar reference is invalid or unavailable.',
+      );
+    }
     let bytes: ArrayBuffer;
     try {
       const sourceUrl = new URL(
-        avatarRef,
+        servedAvatarUrl,
         typeof globalThis.location?.href === 'string' ? globalThis.location.href : this.baseUrl,
       );
       const response = await fetch(sourceUrl);

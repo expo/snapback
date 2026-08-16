@@ -6,30 +6,35 @@ use navigate from "@exact/router/contract"
 use CoterieAppHeader from "../../ui/app-header.contract"
 use CoterieAuthForm from "../../ui/auth-form.contract"
 use CoterieComposer from "../../ui/composer.contract"
-use CoterieFeedCard from "../../ui/feed-card.contract"
+use CoterieFeedList from "../../ui/feed-list.contract"
 use CoterieFeedTabs from "../../ui/feed-tabs.contract"
+use createCoterieFeedState from "../../data/feed-pagination.ts"
+use feedNextCursor from "../../data/feed-pagination.ts"
+use reduceCoterieFeedState from "../../data/feed-pagination.ts"
+use visibleFeedRows from "../../data/feed-pagination.ts"
 use createPost from "../../data/generated/coterie.bindings.ts"
 use listFeed from "../../data/generated/coterie.bindings.ts"
 use listSession from "../../data/generated/coterie.bindings.ts"
 use login from "../../data/generated/coterie.bindings.ts"
 use logout from "../../data/generated/coterie.bindings.ts"
 use setLike from "../../data/generated/coterie.bindings.ts"
+use setRepost from "../../data/generated/coterie.bindings.ts"
 
 component CoterieFeedRoute
-  state feedTab = "following"
-  state composeText = ""
-  state composeResetFlip = false
-  state email = "alice@example.com"
-  state password = "Alice!Clique2026"
-  state authError = ""
+  state feedState = createCoterieFeedState()
+
+  derive feedMode = feedState.feedTab
+  derive olderFeedCursor = feedState.cursor
 
   query session = listSession({})
-  query feed = listFeed({ mode: feedTab })
+  query feedHead = listFeed({ mode: feedMode, cursor: null })
+  query olderFeed = listFeed({ mode: feedMode, cursor: olderFeedCursor }) once
 
   mutation loginMutation = login
   mutation logoutMutation = logout
   mutation createPostMutation = createPost
   mutation setLikeMutation = setLike
+  mutation setRepostMutation = setRepost
 
   action choosePrimary(next)
     if next == "feed"
@@ -41,20 +46,48 @@ component CoterieFeedRoute
     else
       navigate({ to: "/profile/[id]", params: { id: "alice" } })
 
-  action chooseFeed(next) writes feedTab
-    feedTab = next
+  action chooseFeed(next) writes feedState
+    let startedFeedGeneration = feedState.generation
+    feedState = reduceCoterieFeedState(feedState, { kind: "choose-feed", generation: startedFeedGeneration, feedTab: next })
 
-  action setComposeText(value) writes composeText
-    composeText = value
+  action commitLiveHead(startedFeedGeneration, posts) writes feedState
+    feedState = reduceCoterieFeedState(feedState, { kind: "live-head-delivered", generation: startedFeedGeneration, rows: posts })
 
-  action publishPost writes composeText, composeResetFlip mutates createPostMutation
-    let body = composeText.trim()
-    composeText = ""
-    composeResetFlip = !composeResetFlip
-    await createPostMutation({ body: body })
+  action requestFirstOlderPage(startedFeedGeneration, requestedCursor) writes feedState
+    feedState = reduceCoterieFeedState(feedState, { kind: "request-older-page", generation: startedFeedGeneration, requestedCursor: requestedCursor })
 
-  action likePost(postId, liked) mutates setLikeMutation
-    await setLikeMutation({ postId: postId, liked: !liked, mutationId: `coterie-like-${postId}-${now()}` })
+  action receiveOlderPage(startedFeedGeneration, requestedCursor, posts, nextCursor) writes feedState
+    feedState = reduceCoterieFeedState(feedState, { kind: "older-page-delivered", generation: startedFeedGeneration, requestedCursor: requestedCursor, rows: posts, nextCursor: nextCursor })
+
+  action commitOlderPage(startedFeedGeneration, requestedCursor) writes feedState
+    feedState = reduceCoterieFeedState(feedState, { kind: "commit-older-page", generation: startedFeedGeneration, requestedCursor: requestedCursor })
+
+  action discardOlderPage(startedFeedGeneration, requestedCursor) writes feedState
+    feedState = reduceCoterieFeedState(feedState, { kind: "discard-older-page", generation: startedFeedGeneration, requestedCursor: requestedCursor })
+
+  action setComposeText(value) writes feedState
+    let startedFeedGeneration = feedState.generation
+    feedState = reduceCoterieFeedState(feedState, { kind: "set-compose-text", generation: startedFeedGeneration, value: value })
+
+  action publishPost writes feedState mutates createPostMutation
+    let body = feedState.composeText.trim()
+    let composeGeneration = feedState.generation
+    feedState = reduceCoterieFeedState(feedState, { kind: "publish-began", generation: composeGeneration })
+    let startedFeedGeneration = feedState.generation
+    let result = await createPostMutation({ body: body, imageRefs: [], videoRefs: [], parentId: null })
+    feedState = reduceCoterieFeedState(feedState, { kind: "publish-settled", generation: startedFeedGeneration, ok: result.ok })
+
+  action likePost(postId, liked) writes feedState mutates setLikeMutation
+    let startedFeedGeneration = feedState.generation
+    let nextLiked = !liked
+    let result = await setLikeMutation({ postId: postId, liked: nextLiked, mutationId: `coterie-like-${postId}-${now()}` })
+    feedState = reduceCoterieFeedState(feedState, { kind: "like-settled", generation: startedFeedGeneration, ok: result.ok, postId: postId, liked: nextLiked })
+
+  action repostPost(viewerId, postId, reposted) writes feedState mutates setRepostMutation
+    let startedFeedGeneration = feedState.generation
+    let nextReposted = !reposted
+    let result = await setRepostMutation({ postId: postId, reposted: nextReposted, mutationId: `coterie-repost-${postId}-${now()}` })
+    feedState = reduceCoterieFeedState(feedState, { kind: "repost-settled", generation: startedFeedGeneration, ok: result.ok, postId: postId, reposted: nextReposted, viewerId: viewerId })
 
   action openProfile(userId)
     navigate({ to: "/profile/[id]", params: { id: userId } })
@@ -62,26 +95,48 @@ component CoterieFeedRoute
   action openMedia(postId)
     navigate({ to: "/media/[id]", params: { id: postId } })
 
-  action setEmail(value) writes email
-    email = value
+  action openThread(postId)
+    navigate({ to: "/media/[id]", params: { id: postId } })
 
-  action setPassword(value) writes password
-    password = value
+  action setEmail(value) writes feedState
+    let startedFeedGeneration = feedState.generation
+    feedState = reduceCoterieFeedState(feedState, { kind: "set-email", generation: startedFeedGeneration, value: value })
 
-  action signIn writes authError mutates loginMutation
-    let result = await loginMutation({ email: email, password: password })
+  action setPassword(value) writes feedState
+    let startedFeedGeneration = feedState.generation
+    feedState = reduceCoterieFeedState(feedState, { kind: "set-password", generation: startedFeedGeneration, value: value })
+
+  action signIn writes feedState mutates loginMutation
+    let startedFeedGeneration = feedState.generation
+    let liveHeadDeliverySequenceAtBegin = feedState.liveHeadDeliverySequence
+    let result = await loginMutation({ email: feedState.email, password: feedState.password })
     if result.ok
-      authError = ""
+      feedState = reduceCoterieFeedState(feedState, { kind: "sign-in-settled", generation: startedFeedGeneration, ok: true, errorMessage: "", liveHeadDeliverySequenceAtBegin: liveHeadDeliverySequenceAtBegin })
     else
-      authError = result.error.message
+      feedState = reduceCoterieFeedState(feedState, { kind: "sign-in-settled", generation: startedFeedGeneration, ok: false, errorMessage: result.error.message, liveHeadDeliverySequenceAtBegin: liveHeadDeliverySequenceAtBegin })
 
-  action signOut mutates logoutMutation
-    await logoutMutation({})
+  action signOut writes feedState mutates logoutMutation
+    let startedFeedGeneration = feedState.generation
+    let liveHeadDeliverySequenceAtBegin = feedState.liveHeadDeliverySequence
+    let result = await logoutMutation({})
+    feedState = reduceCoterieFeedState(feedState, { kind: "sign-out-settled", generation: startedFeedGeneration, ok: result.ok, liveHeadDeliverySequenceAtBegin: liveHeadDeliverySequenceAtBegin })
+
+  task feedHeadDelivery when [feedHead]
+    if feedHead.status == "ready"
+      commitLiveHead(feedState.generation, feedHead.value)
+
+  task feedHeadInitial mount
+    if feedHead.status == "ready"
+      commitLiveHead(feedState.generation, feedHead.value)
+
+  task olderFeedDelivery when [olderFeed]
+    if olderFeed.status == "ready"
+      receiveOlderPage(feedState.generation, feedState.inFlightCursor, olderFeed.value, feedNextCursor(olderFeed.value))
 
   contract
     has node testId="coterie-root"
-    when feedTab == "following" then has node testId="sm-feed-tab-following"
-    when feedTab == "global" then has node testId="sm-feed-tab-global"
+    when feedState.feedTab == "following" then has node testId="sm-feed-tab-following"
+    when feedState.feedTab == "global" then has node testId="sm-feed-tab-global"
 
   view
     main width="100%" minHeight="100%" background="#F4F5F7" testId="coterie-root"
@@ -95,24 +150,38 @@ component CoterieFeedRoute
             text `${problem}` size=13 color="#DC2626" testId="coterie-error"
         empty
           column width="100%" maxWidth=520 alignSelf="center" padding=24
-            CoterieAuthForm(email=email, password=password, errorText=authError, changeEmail=setEmail, changePassword=setPassword, submit=signIn)
+            CoterieAuthForm(email=feedState.email, password=feedState.password, errorText=feedState.authError, changeEmail=setEmail, changePassword=setPassword, submit=signIn)
         ready activeSessions
           column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" safeArea={ regions: ["container", "keyboard"] } testId="coterie-shell"
             CoterieAppHeader(selected="feed", select=choosePrimary, logout=signOut)
-            CoterieFeedTabs(selected=feedTab, select=chooseFeed)
-            CoterieComposer(variant="post", value=composeText, resetFlip=composeResetFlip, change=setComposeText, send=publishPost)
-            scroll flex=1 width="100%"
-              async feed
-                loading
-                  skeleton width="100%" height=220
-                error problem
-                  text `${problem}` size=13 color="#DC2626" padding=16
-                stale posts
-                  text "Showing saved posts while the provider reconnects" size=12 color="#D97706" padding=10
-                empty
+            CoterieFeedTabs(selected=feedState.feedTab, select=chooseFeed)
+            CoterieComposer(variant="post", value=feedState.composeText, resetFlip=feedState.composeResetFlip, change=setComposeText, send=publishPost)
+            async feedHead
+              loading
+                skeleton width="100%" height=220
+              error problem
+                text `${problem}` size=13 color="#DC2626" padding=16
+              stale posts
+                text "Showing saved posts while the provider reconnects" size=12 color="#D97706" padding=10
+              empty
+                when feedState.accumulatedRows.length > 0
+                  CoterieFeedList(posts=visibleFeedRows(feedState.liveHeadRows, feedState.accumulatedRows, [], feedState.patches), reachedEnd=requestFirstOlderPage(feedState.generation, null), pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost(activeSessions[0].userId), pressReply=openThread, pressMedia=openMedia)
+                else
                   text "No posts yet" size=13 color="#6B7280" padding=16
-                ready posts
-                  list width="100%" label="Feed posts"
-                    each post in posts key=post.id
-                      listitem width="100%"
-                        CoterieFeedCard(id=post.id, authorId=post.authorId, authorName=post.authorName, authorHandle=post.authorHandle, avatarUrl=post.avatarUrl, body=post.body, createdAt=post.createdAt, likeCount=post.likeCount, liked=post.likedByMe, mediaUrl=post.mediaUrl, mediaKind=post.mediaKind, pressAuthor=openProfile, pressLike=likePost, pressMedia=openMedia)
+              ready headPosts
+                when feedState.cursor
+                  async olderFeed
+                    loading
+                      CoterieFeedList(posts=visibleFeedRows(feedState.liveHeadRows, feedState.accumulatedRows, [], feedState.patches), reachedEnd=requestFirstOlderPage(feedState.generation, null), pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost(activeSessions[0].userId), pressReply=openThread, pressMedia=openMedia)
+                    error olderProblem
+                      column flex=1 minHeight=0
+                        text `${olderProblem}` size=13 color="#DC2626" padding=16
+                        CoterieFeedList(posts=visibleFeedRows(feedState.liveHeadRows, feedState.accumulatedRows, [], feedState.patches), reachedEnd=requestFirstOlderPage(feedState.generation, null), pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost(activeSessions[0].userId), pressReply=openThread, pressMedia=openMedia)
+                    stale olderPosts
+                      text "Showing saved older posts while the provider reconnects" size=12 color="#D97706" padding=10
+                    empty
+                      CoterieFeedList(posts=visibleFeedRows(feedState.liveHeadRows, feedState.accumulatedRows, [], feedState.patches), reachedEnd=commitOlderPage(feedState.generation, feedState.readyPageCursor), pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost(activeSessions[0].userId), pressReply=openThread, pressMedia=openMedia)
+                    ready olderPosts
+                      CoterieFeedList(posts=visibleFeedRows(feedState.liveHeadRows, feedState.accumulatedRows, olderPosts, feedState.patches), reachedEnd=commitOlderPage(feedState.generation, feedState.readyPageCursor), pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost(activeSessions[0].userId), pressReply=openThread, pressMedia=openMedia)
+                else
+                  CoterieFeedList(posts=visibleFeedRows(feedState.liveHeadRows, feedState.accumulatedRows, [], feedState.patches), reachedEnd=requestFirstOlderPage(feedState.generation, feedNextCursor(headPosts)), pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost(activeSessions[0].userId), pressReply=openThread, pressMedia=openMedia)

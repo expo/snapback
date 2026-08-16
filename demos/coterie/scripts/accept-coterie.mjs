@@ -5,11 +5,15 @@ import { dirname, resolve } from 'node:path';
 
 import { aggregateChoreography } from '../../../benchmarks/tools/social-messenger/choreography/choreography.mjs';
 import {
+  createPost,
   editProfile,
+  listFeed,
   listProfiles,
   listSession,
   login,
   logout,
+  setFollow,
+  setLike,
 } from '../src/data/generated/coterie.bindings.ts';
 import { bootCoterieProvider } from '../src/data/provider-factory.ts';
 import { resolveCoterieSnapbackUrl } from '../src/data/snapback-provider.ts';
@@ -341,6 +345,163 @@ async function runAcceptanceScenario({
       };
     });
 
+    const globalFeedHandle = requireQueryHandle(
+      listFeed({ mode: 'global', cursor: null }),
+      'listFeed(global)',
+    );
+    const followingFeedHandle = requireQueryHandle(
+      listFeed({ mode: 'following', cursor: null }),
+      'listFeed(following)',
+    );
+    const globalFeedLog = createDeliveryLog('listFeed(global)');
+    const followingFeedLog = createDeliveryLog('listFeed(following)');
+    disposals.push(
+      globalFeedHandle.subscribe((rows) => globalFeedLog.push(rows)),
+      followingFeedHandle.subscribe((rows) => followingFeedLog.push(rows)),
+    );
+    await Promise.all([globalFeedLog.waitFor(), followingFeedLog.waitFor()]);
+
+    await runStep(
+      'm2-boot-global-following-split',
+      ['sm-feed-tab-global', 'sm-feed-tab-following', 'sm-feed-item'],
+      async () => {
+        const globalRows = requireLatestRows(globalFeedLog.deliveries, 'boot Global feed');
+        const followingRows = requireLatestRows(
+          followingFeedLog.deliveries,
+          'boot Following feed',
+        );
+        const globalHasDave = globalRows.some(
+          (post) => post.authorId === 'dave' && post.repostedById === null,
+        );
+        const followingHasDave = followingRows.some(
+          (post) => post.authorId === 'dave' && post.repostedById === null,
+        );
+        if (!globalHasDave || followingHasDave) {
+          throw new Error(
+            'boot feed split did not keep an unfollowed author in Global and out of Following',
+          );
+        }
+        return {
+          unfollowedUserId: 'dave',
+          observedInGlobal: globalHasDave,
+          absentFromFollowing: !followingHasDave,
+        };
+      },
+    );
+
+    let acceptancePostId = '';
+    await runStep(
+      'm2-create-text-global',
+      ['sm-compose-input', 'sm-compose-submit', 'sm-feed-tab-global', 'sm-feed-item'],
+      async () => {
+        const deliveriesBeforeCreate = globalFeedLog.deliveries.length;
+        const value = requireObject(
+          requireMutationSuccess(
+            await createPost({
+              body: `Coterie M2 acceptance post ${scenario}`,
+              imageRefs: [],
+              videoRefs: [],
+              parentId: null,
+            }),
+            'createPost',
+          ),
+          'createPost',
+        );
+        acceptancePostId = requireNonEmptyString(value.id, 'createPost id');
+        const rows = await globalFeedLog.waitFor((delivery) =>
+          delivery.some((post) => post.postId === acceptancePostId),
+        );
+        if (globalFeedLog.deliveries.length <= deliveriesBeforeCreate) {
+          throw new Error('Global feed emitted no post-create invalidation delivery');
+        }
+        const post = rows.find((candidate) => candidate.postId === acceptancePostId);
+        if (post?.body !== `Coterie M2 acceptance post ${scenario}`) {
+          throw new Error('created text post was not observable in Global feed');
+        }
+        return {
+          postIdPresent: true,
+          observedInGlobal: true,
+          deliveryCount: globalFeedLog.deliveries.length,
+        };
+      },
+    );
+
+    await runStep(
+      'm2-follow-following-projection',
+      ['sm-profile-follow', 'sm-feed-tab-following', 'sm-feed-item'],
+      async () => {
+        requireMutationSuccess(
+          await setFollow({
+            userId: 'dave',
+            following: false,
+            mutationId: `accept-follow-clear-dave-${scenario}`,
+          }),
+          'setFollow(clear precondition)',
+        );
+        await followingFeedLog.waitFor(
+          (rows) => !rows.some((post) => post.authorId === 'dave' && post.repostedById === null),
+        );
+        const deliveriesBeforeFollow = followingFeedLog.deliveries.length;
+        requireMutationSuccess(
+          await setFollow({
+            userId: 'dave',
+            following: true,
+            mutationId: `accept-follow-set-dave-${scenario}`,
+          }),
+          'setFollow(set)',
+        );
+        const rows = await followingFeedLog.waitFor((delivery) =>
+          delivery.some((post) => post.authorId === 'dave' && post.repostedById === null),
+        );
+        if (followingFeedLog.deliveries.length <= deliveriesBeforeFollow) {
+          throw new Error('Following feed emitted no follow invalidation delivery');
+        }
+        return {
+          followedUserId: 'dave',
+          directPostCount: rows.filter(
+            (post) => post.authorId === 'dave' && post.repostedById === null,
+          ).length,
+          observedInFollowing: true,
+        };
+      },
+    );
+
+    await runStep('m2-like-toggle-observable', ['sm-post-like', 'sm-feed-item'], async () => {
+      requireNonEmptyString(acceptancePostId, 'recorded acceptance post id');
+      requireMutationSuccess(
+        await setLike({
+          postId: acceptancePostId,
+          liked: true,
+          mutationId: `accept-like-set-${scenario}`,
+        }),
+        'setLike(set)',
+      );
+      const likedRows = await globalFeedLog.waitFor((rows) =>
+        rows.some(
+          (post) =>
+            post.postId === acceptancePostId && post.likedByMe === true && post.likeCount === 1,
+        ),
+      );
+      requireMutationSuccess(
+        await setLike({
+          postId: acceptancePostId,
+          liked: false,
+          mutationId: `accept-like-clear-${scenario}`,
+        }),
+        'setLike(clear)',
+      );
+      const unlikedRows = await globalFeedLog.waitFor((rows) =>
+        rows.some(
+          (post) =>
+            post.postId === acceptancePostId && post.likedByMe === false && post.likeCount === 0,
+        ),
+      );
+      return {
+        likedObserved: likedRows.some((post) => post.postId === acceptancePostId),
+        unlikedObserved: unlikedRows.some((post) => post.postId === acceptancePostId),
+      };
+    });
+
     await runStep('logout', ['sm-settings-logout'], async () => {
       const value = requireObject(
         requireMutationSuccess(await logout({}), 'logout'),
@@ -388,11 +549,11 @@ async function main() {
   const requestedProvider = process.env.COTERIE_PROVIDER ?? 'memory';
   const artifactPath = resolve(
     process.env.COTERIE_ACCEPTANCE_ARTIFACT ??
-      `.data/acceptance/coterie-m1-${safeProviderName(requestedProvider)}.json`,
+      `.data/acceptance/coterie-m2-${safeProviderName(requestedProvider)}.json`,
   );
   const artifact = {
     schemaVersion: 'coterie.acceptance.v1',
-    milestone: 'm1',
+    milestone: 'm2',
     provider: requestedProvider,
     mechanism: 'headless-generated-bindings',
     socketRequired: requestedProvider === 'snapback',
@@ -456,7 +617,7 @@ async function main() {
       'utf8',
     );
     process.stdout.write(
-      `${artifact.pass ? 'PASS' : 'FAIL'} Coterie M1 acceptance (${requestedProvider})\n` +
+      `${artifact.pass ? 'PASS' : 'FAIL'} Coterie M2 acceptance (${requestedProvider})\n` +
         `scenarios: ${artifact.scenarios.join(', ')}\n` +
         `steps: ${artifact.steps.filter((step) => step.status === 'passed').length}/${artifact.steps.length}\n` +
         `artifact: ${artifactPath}\n`,

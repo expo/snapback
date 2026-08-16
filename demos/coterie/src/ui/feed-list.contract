@@ -1,0 +1,15 @@
+use CoterieFeedCard from "./feed-card.contract"
+
+component CoterieFeedList
+  props
+    posts: object[]
+    reachedEnd: () => void
+    pressAuthor: (userId) => void
+    pressLike: (postId, liked) => void
+    pressRepost: (postId, reposted) => void
+    pressReply: (postId) => void
+    pressMedia: (postId) => void
+
+  view
+    virtualList items=posts as="post" key=post.id estimateSize=220 viewportSize=600 overscan=220 endreached=reachedEnd() flex=1 minHeight=0 width="100%" label="Feed posts" testId="coterie-feed-list"
+      CoterieFeedCard(id=post.id, postId=post.postId, authorId=post.authorId, authorName=post.authorName, authorHandle=post.authorHandle, avatarUrl=post.avatarUrl, body=post.body, createdAt=post.createdAt, likeCount=post.likeCount, liked=post.likedByMe, repostCount=post.repostCount, reposted=post.repostedByMe, replyCount=post.replyCount, repostedByName=post.repostedByName, mediaUrls=post.mediaUrls, mediaKind=post.mediaKind, pressAuthor=pressAuthor, pressLike=pressLike, pressRepost=pressRepost, pressReply=pressReply, pressMedia=pressMedia)

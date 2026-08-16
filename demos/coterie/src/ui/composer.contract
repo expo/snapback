@@ -3,17 +3,18 @@ use FacetInput from "@exact/facet-contract/components/input.contract"
 
 component CoterieComposer
   props
-    variant: "post" | "message" = "post"
+    variant: "post" | "reply" | "message" = "post"
     value: string
     resetFlip: boolean = false
     change: (value) => void
     send: () => void
 
-  derive isPost = variant == "post"
-  derive inputId = isPost ? "sm-compose-input" : "sm-convo-input"
-  derive sendId = isPost ? "sm-compose-submit" : "sm-convo-send"
-  derive placeholder = isPost ? "What's happening?" : "Message"
-  derive sendLabel = isPost ? "Post" : "Send"
+  derive isSocialPost = variant != "message"
+  derive isReply = variant == "reply"
+  derive inputId = isSocialPost ? "sm-compose-input" : "sm-convo-input"
+  derive sendId = isSocialPost ? "sm-compose-submit" : "sm-convo-send"
+  derive placeholder = isReply ? "Write a reply" : isSocialPost ? "What's happening?" : "Message"
+  derive sendLabel = isReply ? "Reply" : isSocialPost ? "Post" : "Send"
   derive empty = value.trim() == ""
 
   contract

@@ -1,7 +1,7 @@
 {
   "schemaVersion": "provider-declaration.v1",
   "provider": "coterie",
-  "declarationVersion": "5",
+  "declarationVersion": "6",
   "capabilities": {
     "push": true,
     "pollingCadenceMs": null,
@@ -51,10 +51,11 @@
     {
       "name": "listFeed",
       "descriptorId": "listFeed",
-      "compatibilityToken": "2",
-      "reads": ["posts", "follows"],
+      "compatibilityToken": "3",
+      "reads": ["posts", "follows", "likes", "reposts", "profiles"],
       "params": [
-        { "name": "mode", "type": { "kind": "string" }, "nullable": false }
+        { "name": "mode", "type": { "kind": "string" }, "nullable": false },
+        { "name": "cursor", "type": { "kind": "string" }, "nullable": true }
       ],
       "result": {
         "kind": "list",
@@ -64,6 +65,54 @@
           "excessFields": "project",
           "fields": [
             { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "postId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorName", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorHandle", "type": { "kind": "string" }, "nullable": false },
+            { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true },
+            { "name": "body", "type": { "kind": "string" }, "nullable": false },
+            { "name": "createdAt", "type": { "kind": "string" }, "nullable": false },
+            { "name": "feedSortAt", "type": { "kind": "string" }, "nullable": false },
+            { "name": "likeCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "repostCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "replyCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "likedByMe", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "repostedByMe", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "mediaUrls", "type": { "kind": "array", "element": { "kind": "string" } }, "nullable": false },
+            { "name": "mediaKind", "type": { "kind": "string" }, "nullable": true },
+            { "name": "repostedById", "type": { "kind": "string" }, "nullable": true },
+            { "name": "repostedByName", "type": { "kind": "string" }, "nullable": true },
+            { "name": "repostedByHandle", "type": { "kind": "string" }, "nullable": true },
+            { "name": "nextCursor", "type": { "kind": "string" }, "nullable": true }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [
+        { "name": "FeedCursorInvalidError", "code": "feed_cursor_invalid", "message": "The feed cursor is invalid for this feed mode." },
+        { "name": "FeedModeInvalidError", "code": "feed_mode_invalid", "message": "Feed mode must be following or global." }
+      ],
+      "receipts": "none"
+    },
+    {
+      "name": "listThread",
+      "descriptorId": "listThread",
+      "compatibilityToken": "1",
+      "reads": ["posts", "likes", "reposts", "profiles"],
+      "params": [
+        { "name": "parentId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "ThreadPost",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "postId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "parentId", "type": { "kind": "string" }, "nullable": true },
+            { "name": "threadRole", "type": { "kind": "string" }, "nullable": false },
             { "name": "authorId", "type": { "kind": "string" }, "nullable": false },
             { "name": "authorName", "type": { "kind": "string" }, "nullable": false },
             { "name": "authorHandle", "type": { "kind": "string" }, "nullable": false },
@@ -74,14 +123,55 @@
             { "name": "repostCount", "type": { "kind": "number" }, "nullable": false },
             { "name": "replyCount", "type": { "kind": "number" }, "nullable": false },
             { "name": "likedByMe", "type": { "kind": "boolean" }, "nullable": false },
-            { "name": "mediaUrl", "type": { "kind": "string" }, "nullable": true },
-            { "name": "mediaKind", "type": { "kind": "string" }, "nullable": true },
-            { "name": "pollQuestion", "type": { "kind": "string" }, "nullable": true }
+            { "name": "repostedByMe", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "mediaUrls", "type": { "kind": "array", "element": { "kind": "string" } }, "nullable": false },
+            { "name": "mediaKind", "type": { "kind": "string" }, "nullable": true }
           ]
         }
       },
       "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
-      "errors": [],
+      "errors": [
+        { "name": "ParentPostNotFoundError", "code": "parent_post_not_found", "message": "The parent post does not exist." }
+      ],
+      "receipts": "none"
+    },
+    {
+      "name": "listProfilePosts",
+      "descriptorId": "listProfilePosts",
+      "compatibilityToken": "1",
+      "reads": ["posts", "likes", "reposts", "profiles"],
+      "params": [
+        { "name": "userId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "ProfilePost",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "postId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorName", "type": { "kind": "string" }, "nullable": false },
+            { "name": "authorHandle", "type": { "kind": "string" }, "nullable": false },
+            { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true },
+            { "name": "body", "type": { "kind": "string" }, "nullable": false },
+            { "name": "createdAt", "type": { "kind": "string" }, "nullable": false },
+            { "name": "likeCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "repostCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "replyCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "likedByMe", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "repostedByMe", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "mediaUrls", "type": { "kind": "array", "element": { "kind": "string" } }, "nullable": false },
+            { "name": "mediaKind", "type": { "kind": "string" }, "nullable": true }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
+      "errors": [
+        { "name": "ProfileNotFoundError", "code": "profile_not_found", "message": "The profile does not exist." }
+      ],
       "receipts": "none"
     },
     {
@@ -208,7 +298,7 @@
       "name": "listInsights",
       "descriptorId": "listInsights",
       "compatibilityToken": "2",
-      "reads": ["posts", "follows"],
+      "reads": ["posts", "follows", "likes", "reposts"],
       "params": [],
       "result": {
         "kind": "list",
@@ -244,7 +334,7 @@
         { "name": "handle", "type": { "kind": "string" }, "nullable": false },
         { "name": "displayName", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["accounts", "sessions", "sessionRevocations", "profiles", "posts", "messages", "search"],
+      "writes": ["accounts", "sessions", "sessionRevocations", "profiles", "messages", "search"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
@@ -275,7 +365,7 @@
         { "name": "email", "type": { "kind": "string" }, "nullable": false },
         { "name": "password", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["sessions", "sessionRevocations", "profiles", "posts", "messages"],
+      "writes": ["sessions", "sessionRevocations", "profiles", "messages"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
@@ -316,14 +406,34 @@
     {
       "name": "createPost",
       "params": [
-        { "name": "body", "type": { "kind": "string" }, "nullable": false }
+        { "name": "body", "type": { "kind": "string" }, "nullable": false },
+        { "name": "imageRefs", "type": { "kind": "array", "element": { "kind": "string" } }, "nullable": false },
+        { "name": "videoRefs", "type": { "kind": "array", "element": { "kind": "string" } }, "nullable": false },
+        { "name": "parentId", "type": { "kind": "string" }, "nullable": true }
       ],
       "writes": ["posts"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
-        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
-      ]
+        { "name": "ImageCountInvalidError", "code": "image_count_invalid", "message": "Image posts require 1-4 fixture images." },
+        { "name": "MediaMixInvalidError", "code": "media_mix_invalid", "message": "A post cannot mix images and video." },
+        { "name": "MediaReferenceInvalidError", "code": "media_reference_invalid", "message": "Post media must reference a committed fixture image or video." },
+        { "name": "ParentPostNotFoundError", "code": "parent_post_not_found", "message": "The parent post does not exist." },
+        { "name": "PostBodyInvalidError", "code": "post_body_invalid", "message": "Post text must contain at most 500 characters, and text-only posts cannot be empty." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." },
+        { "name": "VideoCountInvalidError", "code": "video_count_invalid", "message": "Video posts require exactly one fixture video." }
+      ],
+      "result": {
+        "kind": "single",
+        "row": {
+          "kind": "shape",
+          "name": "CreatedPost",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false }
+          ]
+        }
+      }
     },
     {
       "name": "setLike",
@@ -332,10 +442,11 @@
         { "name": "liked", "type": { "kind": "boolean" }, "nullable": false },
         { "name": "mutationId", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["posts"],
+      "writes": ["likes"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
+        { "name": "PostNotFoundError", "code": "post_not_found", "message": "The post does not exist." },
         { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
       ]
     },
@@ -346,10 +457,28 @@
         { "name": "following", "type": { "kind": "boolean" }, "nullable": false },
         { "name": "mutationId", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["follows", "profiles", "posts"],
+      "writes": ["follows", "profiles"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
+        { "name": "ProfileNotFoundError", "code": "profile_not_found", "message": "The profile does not exist." },
+        { "name": "SelfFollowInvalidError", "code": "self_follow_invalid", "message": "Self-follow is implicit for feeds and is not a follow edge." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
+      "name": "setRepost",
+      "params": [
+        { "name": "postId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "reposted", "type": { "kind": "boolean" }, "nullable": false },
+        { "name": "mutationId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["reposts"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "PostNotFoundError", "code": "post_not_found", "message": "The post does not exist." },
+        { "name": "ReplyRepostForbiddenError", "code": "reply_repost_forbidden", "message": "Replies cannot be reposted." },
         { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
       ]
     },
@@ -362,7 +491,7 @@
         { "name": "location", "type": { "kind": "string" }, "nullable": true },
         { "name": "link", "type": { "kind": "string" }, "nullable": true }
       ],
-      "writes": ["accounts", "profiles", "posts", "messages", "search"],
+      "writes": ["accounts", "profiles", "messages", "search"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
@@ -380,7 +509,7 @@
       "params": [
         { "name": "avatarRef", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["profiles", "posts", "search"],
+      "writes": ["profiles", "search", "chats"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
@@ -448,7 +577,17 @@
       "login": "1",
       "logout": "1",
       "editProfile": "1",
-      "setAvatar": "1"
+      "setAvatar": "2"
+    },
+    "coterie.m2CompatibilityTokens": {
+      "listFeed": "3",
+      "listThread": "1",
+      "listProfilePosts": "1",
+      "listProfiles": "2",
+      "createPost": "1",
+      "setFollow": "1",
+      "setLike": "1",
+      "setRepost": "2"
     }
   }
 }

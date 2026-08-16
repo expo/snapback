@@ -1,0 +1,16 @@
+use linkifyPostBody from "./feed-text.ts"
+
+component CoterieFeedBody
+  props
+    body: string
+
+  derive segments = linkifyPostBody(body)
+
+  view
+    row width="100%" wrap="wrap" align="center"
+      each segment in segments key=segment.id
+        when segment.href
+          link href=segment.href label=`Open ${segment.href}` testId=segment.testId
+            text segment.text size=15 color="#4F46E5"
+        else
+          text segment.text size=15 color="#17191C"

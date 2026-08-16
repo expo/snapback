@@ -10,17 +10,38 @@
     "serverRunnableQueries": false,
     "subscriptions": true
   },
-  "inputsHash": "df0562a779095d79",
+  "inputsHash": "2b035e0c69068f02",
   "manifestVersion": 2,
   "mutations": {
     "createPost": {
       "argOrder": [
-        "body"
+        "body",
+        "imageRefs",
+        "videoRefs",
+        "parentId"
       ],
       "args": {
         "body": {
           "name": "string",
           "shape": "primitive"
+        },
+        "imageRefs": {
+          "element": {
+            "name": "string",
+            "shape": "primitive"
+          },
+          "shape": "array"
+        },
+        "parentId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "videoRefs": {
+          "element": {
+            "name": "string",
+            "shape": "primitive"
+          },
+          "shape": "array"
         }
       },
       "name": "createPost",
@@ -66,7 +87,6 @@
       "writes": [
         "accounts",
         "messages",
-        "posts",
         "profiles",
         "search"
       ]
@@ -91,7 +111,6 @@
       "serverRunnable": false,
       "writes": [
         "messages",
-        "posts",
         "profiles",
         "sessionRevocations",
         "sessions"
@@ -145,7 +164,7 @@
       "optimistic": false,
       "serverRunnable": false,
       "writes": [
-        "posts",
+        "chats",
         "profiles",
         "search"
       ]
@@ -229,7 +248,6 @@
       "serverRunnable": false,
       "writes": [
         "follows",
-        "posts",
         "profiles"
       ]
     },
@@ -257,7 +275,34 @@
       "optimistic": false,
       "serverRunnable": false,
       "writes": [
-        "posts"
+        "likes"
+      ]
+    },
+    "setRepost": {
+      "argOrder": [
+        "postId",
+        "reposted",
+        "mutationId"
+      ],
+      "args": {
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "postId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "reposted": {
+          "name": "boolean",
+          "shape": "primitive"
+        }
+      },
+      "name": "setRepost",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "reposts"
       ]
     },
     "signup": {
@@ -291,7 +336,6 @@
       "writes": [
         "accounts",
         "messages",
-        "posts",
         "profiles",
         "search",
         "sessionRevocations",
@@ -363,15 +407,20 @@
     },
     "listFeed": {
       "argOrder": [
-        "mode"
+        "mode",
+        "cursor"
       ],
       "args": {
+        "cursor": {
+          "name": "string",
+          "shape": "primitive"
+        },
         "mode": {
           "name": "string",
           "shape": "primitive"
         }
       },
-      "compatibilityToken": "2",
+      "compatibilityToken": "3",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
@@ -379,7 +428,10 @@
       "name": "listFeed",
       "reads": [
         "follows",
-        "posts"
+        "likes",
+        "posts",
+        "profiles",
+        "reposts"
       ],
       "receipts": "none",
       "result": {
@@ -410,6 +462,10 @@
               "name": "string",
               "shape": "primitive"
             },
+            "feedSortAt": {
+              "name": "string",
+              "shape": "primitive"
+            },
             "id": {
               "name": "string",
               "shape": "primitive"
@@ -426,11 +482,18 @@
               "name": "string",
               "shape": "primitive"
             },
-            "mediaUrl": {
+            "mediaUrls": {
+              "element": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "nextCursor": {
               "name": "string",
               "shape": "primitive"
             },
-            "pollQuestion": {
+            "postId": {
               "name": "string",
               "shape": "primitive"
             },
@@ -440,6 +503,22 @@
             },
             "repostCount": {
               "name": "number",
+              "shape": "primitive"
+            },
+            "repostedByHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "repostedById": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "repostedByMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "repostedByName": {
+              "name": "string",
               "shape": "primitive"
             }
           },
@@ -460,7 +539,9 @@
       "name": "listInsights",
       "reads": [
         "follows",
-        "posts"
+        "likes",
+        "posts",
+        "reposts"
       ],
       "receipts": "none",
       "result": {
@@ -589,6 +670,103 @@
       "serverRunnable": false,
       "subscription": "initial-snapshot"
     },
+    "listProfilePosts": {
+      "argOrder": [
+        "userId"
+      ],
+      "args": {
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listProfilePosts",
+      "reads": [
+        "likes",
+        "posts",
+        "profiles",
+        "reposts"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "authorHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "avatarUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "likeCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "likedByMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "mediaKind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaUrls": {
+              "element": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "postId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "repostCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "repostedByMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
     "listProfiles": {
       "argOrder": [],
       "args": {},
@@ -695,6 +873,111 @@
               "shape": "primitive"
             },
             "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "listThread": {
+      "argOrder": [
+        "parentId"
+      ],
+      "args": {
+        "parentId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listThread",
+      "reads": [
+        "likes",
+        "posts",
+        "profiles",
+        "reposts"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "authorHandle": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "avatarUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "likeCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "likedByMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "mediaKind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "mediaUrls": {
+              "element": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "parentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "postId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "replyCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "repostCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "repostedByMe": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "threadRole": {
               "name": "string",
               "shape": "primitive"
             }

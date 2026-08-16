@@ -1,15 +1,51 @@
 use back from "@exact/router/contract"
+use navigate from "@exact/router/contract"
 use FacetButton from "@exact/facet-contract/components/button.contract"
-use listFeed from "../../../data/generated/coterie.bindings.ts"
+use CoterieComposer from "../../../ui/composer.contract"
+use CoterieFeedCard from "../../../ui/feed-card.contract"
+use createPost from "../../../data/generated/coterie.bindings.ts"
+use listThread from "../../../data/generated/coterie.bindings.ts"
 use listSession from "../../../data/generated/coterie.bindings.ts"
+use setLike from "../../../data/generated/coterie.bindings.ts"
+use setRepost from "../../../data/generated/coterie.bindings.ts"
 
 component CoterieMediaRoute
   props
     route: object
 
   derive postId = route.params.id
+  state replyText = ""
+  state replyResetFlip = false
+
   query session = listSession({})
-  query feed = listFeed({ mode: "global" })
+  query thread = listThread({ parentId: postId })
+  mutation createPostMutation = createPost
+  mutation setLikeMutation = setLike
+  mutation setRepostMutation = setRepost
+
+  action setReplyText(value) writes replyText
+    replyText = value
+
+  action publishReply writes replyText, replyResetFlip mutates createPostMutation
+    let body = replyText.trim()
+    replyText = ""
+    replyResetFlip = !replyResetFlip
+    await createPostMutation({ body: body, imageRefs: [], videoRefs: [], parentId: postId })
+
+  action likePost(targetPostId, liked) mutates setLikeMutation
+    await setLikeMutation({ postId: targetPostId, liked: !liked, mutationId: `coterie-like-${targetPostId}-${now()}` })
+
+  action repostPost(targetPostId, reposted) mutates setRepostMutation
+    await setRepostMutation({ postId: targetPostId, reposted: !reposted, mutationId: `coterie-repost-${targetPostId}-${now()}` })
+
+  action openProfile(userId)
+    navigate({ to: "/profile/[id]", params: { id: userId } })
+
+  action openThread(targetPostId)
+    navigate({ to: "/media/[id]", params: { id: targetPostId } })
+
+  action openMedia(targetPostId)
+    navigate({ to: "/media/[id]", params: { id: targetPostId } })
 
   action close
     back()
@@ -17,30 +53,47 @@ component CoterieMediaRoute
   contract
     has node testId="coterie-root"
     has node testId="sm-media-viewer-close"
+    has node testId="sm-compose-input"
+    has node testId="sm-compose-submit"
 
   view
-    main width="100%" minHeight="100%" background="#17191C" testId="coterie-root"
+    main width="100%" minHeight="100%" background="#F4F5F7" testId="coterie-root"
       async session
         loading
           skeleton width="100%" height=180
         error problem
-          text `${problem}` size=13 color="#FFFFFF" padding=16
+          text `${problem}` size=13 color="#DC2626" padding=16
         empty
           column width="100%" maxWidth=520 alignSelf="center" padding=24 gap=12
-            text "Your backendless session ended." size=17 weight=600 color="#FFFFFF"
+            text "Your backendless session ended." size=17 weight=600 color="#17191C"
             link href="/" label="Return to sign in" testId="coterie-return-sign-in"
-              text "Return to sign in" size=14 color="#A5B4FC"
+              text "Return to sign in" size=14 color="#4F46E5"
         ready activeSessions
-          column width="100%" flex=1 align="center" justify="center" gap=14 padding=18
-            async feed
-              loading
-                skeleton width="100%" height=320 radius=12
-              error problem
-                text `${problem}` size=13 color="#FFFFFF"
-              empty
-                text "Media unavailable" size=15 color="#FFFFFF"
-              ready posts
-                each post in posts key=post.id
-                  when post.id == postId && post.mediaUrl
-                    image src=post.mediaUrl alt=`Media from ${post.authorName}` width="100%" maxWidth=640 aspectRatio=1.6 objectFit="contain" testId="sm-media-viewer-image"
-            FacetButton(label="Close", variant="secondary", press=close, testId="sm-media-viewer-close")
+          column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" testId="coterie-shell"
+            row width="100%" align="center" justify="space-between" padding=14 borderBottomWidth=1 borderColor="#E2E4E8"
+              column gap=2
+                text "Thread" size=20 weight=700 color="#17191C"
+                text "Parent and direct replies" size=13 color="#6B7280"
+              FacetButton(label="Close", variant="secondary", press=close, testId="sm-media-viewer-close")
+            scroll flex=1 width="100%"
+              async thread
+                loading
+                  skeleton width="100%" height=320 radius=12
+                error problem
+                  text `${problem}` size=13 color="#DC2626" padding=16
+                empty
+                  text "Thread unavailable" size=15 color="#6B7280" padding=16
+                ready posts
+                  each post in posts key=post.id
+                    when post.id == postId && post.mediaKind == "images"
+                      column width="100%" padding=16 gap=10 background="#17191C"
+                        each mediaUrl in post.mediaUrls key=mediaUrl
+                          image src=mediaUrl alt=`Media from ${post.authorName}` width="100%" aspectRatio=1.6 objectFit="contain" testId="sm-media-viewer-image"
+                    when post.id == postId && post.mediaKind == "video" && post.mediaUrls.length > 0
+                      column width="100%" padding=16 background="#17191C"
+                        video src=post.mediaUrls[0] controls=true width="100%" aspectRatio=1.6 objectFit="contain" testId="sm-media-viewer-video"
+                  list width="100%" label="Thread posts"
+                    each post in posts key=post.id
+                      listitem width="100%"
+                        CoterieFeedCard(id=post.id, postId=post.postId, authorId=post.authorId, authorName=post.authorName, authorHandle=post.authorHandle, avatarUrl=post.avatarUrl, body=post.body, createdAt=post.createdAt, likeCount=post.likeCount, liked=post.likedByMe, repostCount=post.repostCount, reposted=post.repostedByMe, replyCount=post.replyCount, repostedByName=null, mediaUrls=post.mediaUrls, mediaKind=post.mediaKind, pressAuthor=openProfile, pressLike=likePost, pressRepost=repostPost, pressReply=openThread, pressMedia=openMedia)
+            CoterieComposer(variant="reply", value=replyText, resetFlip=replyResetFlip, change=setReplyText, send=publishReply)

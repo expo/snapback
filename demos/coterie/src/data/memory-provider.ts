@@ -7,14 +7,22 @@ import {
 } from '@exact/contract/runtime';
 
 import manifestJson from './generated/coterie.manifest.json';
+import {
+  COTERIE_IMAGE_URLS,
+  COTERIE_VIDEO_URLS,
+  coterieAvatarUrlForRef,
+} from './coterie-fixtures.ts';
+import { queryAcrossTables, withMultiTableQueries } from './multi-table-query-boundary.ts';
 import type {
   Chat,
   FeedItem,
   InsightDay,
   Message,
   Profile,
+  ProfilePost,
   SearchResult,
   Session,
+  ThreadPost,
 } from './generated/coterie.types.ts';
 
 export const coterieSurfaceManifest = manifestJson as unknown as ContractDataManifest;
@@ -22,10 +30,7 @@ export const coterieSurfaceManifest = manifestJson as unknown as ContractDataMan
 const VIEWER_ID = 'alice';
 const FIXTURE_NOW = '2026-01-01T00:01:30.000Z';
 const SESSION_EXPIRES_AT = '2026-01-02T00:01:30.000Z';
-const FIXTURE_AVATAR_URLS = new Map([
-  ['media/avatar-alice.png', '/assets/fixtures/avatar-alice.png'],
-  ['media/avatar-bob.png', '/assets/fixtures/avatar-bob.png'],
-]);
+const FEED_PAGE_SIZE = 20;
 const ACCENT_COLORS = new Set([
   '#4F46E5',
   '#0D9488',
@@ -45,9 +50,34 @@ interface FollowEdge {
 }
 
 interface LikeEvent {
+  postId: string;
   actorId: string;
   createdAt: string;
   mutationId: string;
+}
+
+interface RepostEvent {
+  postId: string;
+  actorId: string;
+  createdAt: string;
+  mutationId: string;
+}
+
+interface MemoryPost {
+  id: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  parentId: string | null;
+  mediaKind: 'images' | 'video' | null;
+  mediaRefs: string[];
+}
+
+interface FeedEvent {
+  id: string;
+  post: MemoryPost;
+  feedSortAt: string;
+  repost: RepostEvent | null;
 }
 
 interface MemoryAccount {
@@ -60,11 +90,6 @@ interface MemoryAccount {
 interface RevokedSession extends Session {
   revokedAt: string;
   reason: 'logout' | 'replaced';
-}
-
-interface MemoryFeedItem extends FeedItem {
-  authorFollowedByMe: boolean;
-  likeEvents: LikeEvent[];
 }
 
 const initialSession: Session[] = [
@@ -127,7 +152,7 @@ const initialProfiles: Profile[] = [
     bio: 'Ceramics student and relentless list maker.',
     location: 'San Francisco, CA',
     link: 'https://example.com/carol',
-    avatarUrl: '/assets/fixtures/avatar-alice.png',
+    avatarUrl: '/assets/fixtures/avatar-carol.png',
     followers: 1,
     following: 1,
     followedByMe: true,
@@ -140,7 +165,7 @@ const initialProfiles: Profile[] = [
     bio: 'Live music, trail maps, and spicy noodles.',
     location: 'Portland, OR',
     link: 'https://example.com/dave',
-    avatarUrl: '/assets/fixtures/avatar-bob.png',
+    avatarUrl: '/assets/fixtures/avatar-dave.png',
     followers: 1,
     following: 1,
     followedByMe: false,
@@ -153,7 +178,7 @@ const initialProfiles: Profile[] = [
     bio: 'Designing kinder interfaces and growing herbs.',
     location: 'Seattle, WA',
     link: 'https://example.com/erin',
-    avatarUrl: '/assets/fixtures/avatar-alice.png',
+    avatarUrl: '/assets/fixtures/avatar-erin.png',
     followers: 1,
     following: 2,
     followedByMe: false,
@@ -166,7 +191,7 @@ const initialProfiles: Profile[] = [
     bio: 'Weekend cook and weekday data wrangler.',
     location: 'Austin, TX',
     link: 'https://example.com/frank',
-    avatarUrl: '/assets/fixtures/avatar-bob.png',
+    avatarUrl: '/assets/fixtures/avatar-frank.png',
     followers: 1,
     following: 1,
     followedByMe: false,
@@ -179,7 +204,7 @@ const initialProfiles: Profile[] = [
     bio: 'Gardens, graphic novels, and good questions.',
     location: 'Chicago, IL',
     link: 'https://example.com/grace',
-    avatarUrl: '/assets/fixtures/avatar-alice.png',
+    avatarUrl: '/assets/fixtures/avatar-grace.png',
     followers: 2,
     following: 1,
     followedByMe: false,
@@ -192,7 +217,7 @@ const initialProfiles: Profile[] = [
     bio: 'History podcasts and pickup basketball.',
     location: 'Brooklyn, NY',
     link: 'https://example.com/henry',
-    avatarUrl: '/assets/fixtures/avatar-bob.png',
+    avatarUrl: '/assets/fixtures/avatar-henry.png',
     followers: 0,
     following: 2,
     followedByMe: false,
@@ -220,102 +245,91 @@ const initialAccounts: MemoryAccount[] = initialProfiles.map((profile) => ({
 
 const profileById = new Map(initialProfiles.map((profile) => [profile.id, profile]));
 
-const likeEventsByPost: Readonly<Record<string, readonly LikeEvent[]>> = {
-  sp0001: [
-    { actorId: 'bob', createdAt: '2026-01-01T00:00:56Z', mutationId: 'ml-bob-sp0001' },
-    { actorId: 'carol', createdAt: '2026-01-01T00:00:57Z', mutationId: 'ml-carol-sp0001' },
-  ],
-  sp0004: [
-    { actorId: 'dave', createdAt: '2026-01-01T00:00:58Z', mutationId: 'ml-dave-sp0004' },
-  ],
-  sp0007: [
-    { actorId: 'erin', createdAt: '2026-01-01T00:00:59Z', mutationId: 'ml-erin-sp0007' },
-  ],
-  sp0013: [
-    { actorId: 'frank', createdAt: '2026-01-01T00:01:00Z', mutationId: 'ml-frank-sp0013' },
-  ],
-  sp0016: [
-    { actorId: 'grace', createdAt: '2026-01-01T00:01:01Z', mutationId: 'ml-grace-sp0016' },
-  ],
-  sp0019: [
-    { actorId: 'henry', createdAt: '2026-01-01T00:01:02Z', mutationId: 'ml-henry-sp0019' },
-  ],
-  sp0022: [
-    { actorId: 'alice', createdAt: '2026-01-01T00:01:03Z', mutationId: 'ml-alice-sp0022' },
-  ],
-};
-
-const replyCounts: Readonly<Record<string, number>> = {
-  sp0001: 1,
-  sp0004: 1,
-  sp0013: 1,
-  sp0022: 1,
-};
-
-const repostCounts: Readonly<Record<string, number>> = {
-  sp0001: 1,
-  sp0004: 1,
-  sp0013: 1,
-  sp0019: 1,
-};
-
 function fixturePost(
   id: string,
   authorId: string,
   body: string,
   second: number,
-  mediaUrl: string | null = null,
-): MemoryFeedItem {
-  const profile = profileById.get(authorId);
-  if (!profile) throw new Error(`Missing fixture profile ${authorId}`);
-  const likeEvents = (likeEventsByPost[id] ?? []).map((event) => ({ ...event }));
+  options: {
+    images?: string[];
+    video?: string;
+    parentId?: string;
+  } = {},
+): MemoryPost {
+  if (!profileById.has(authorId)) throw new Error(`Missing fixture profile ${authorId}`);
+  const mediaRefs = options.images ?? (options.video ? [options.video] : []);
   return {
     id,
     authorId,
-    authorName: profile.displayName,
-    authorHandle: profile.handle,
-    avatarUrl: profile.avatarUrl,
     body,
     createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, second)).toISOString(),
-    likeCount: likeEvents.length,
-    repostCount: repostCounts[id] ?? 0,
-    replyCount: replyCounts[id] ?? 0,
-    likedByMe: likeEvents.some((event) => event.actorId === VIEWER_ID),
-    mediaUrl,
-    mediaKind: mediaUrl ? 'image' : null,
-    pollQuestion: null,
-    authorFollowedByMe: initialFollowEdges.some(
-      (edge) => edge.followerId === VIEWER_ID && edge.followedId === authorId,
-    ),
-    likeEvents,
+    parentId: options.parentId ?? null,
+    mediaKind: options.images ? 'images' : options.video ? 'video' : null,
+    mediaRefs,
   };
 }
 
-// Exact starter-log content, newest first. Video rows are staged until the
-// media component can render the pack's MP4 honestly on every Exact host.
-const initialPosts: MemoryFeedItem[] = [
-  fixturePost('sp0024', 'henry', 'Brooklyn looked silver after rain.', 51),
-  fixturePost('sp0023', 'henry', 'Pickup game moved to six.', 50),
-  fixturePost('sp0022', 'henry', 'A history episode for the train ride.', 49),
-  fixturePost('sp0021', 'grace', 'Questions for the garden club.', 48),
-  fixturePost('sp0020', 'grace', 'A graphic novel with perfect pacing.', 47, '/assets/fixtures/img-02.png'),
-  fixturePost('sp0019', 'grace', 'The tomatoes are showing off.', 46),
-  fixturePost('sp0018', 'frank', 'Sunday lunch test number four.', 45),
-  fixturePost('sp0017', 'frank', 'Data cleanup can be satisfying.', 44),
-  fixturePost('sp0016', 'frank', 'Beans, tomatoes, and too much garlic.', 43),
-  fixturePost('sp0015', 'erin', 'Three interface details I keep noticing.', 42),
-  fixturePost('sp0014', 'erin', 'Sketching a calmer settings screen.', 41, '/assets/fixtures/img-02.png'),
-  fixturePost('sp0013', 'erin', 'Basil has officially taken over.', 40),
-  fixturePost('sp0012', 'dave', 'Noodles worth crossing town for.', 39),
-  fixturePost('sp0011', 'dave', 'Trail conditions: dry and windy.', 38),
-  fixturePost('sp0010', 'dave', "Tonight's set starts at eight.", 37),
-  fixturePost('sp0008', 'carol', 'Studio shelf before cleanup.', 35, '/assets/fixtures/img-02.png'),
-  fixturePost('sp0007', 'carol', 'The blue glaze finally worked.', 34),
-  fixturePost('sp0006', 'bob', 'Small tools should have sharp edges.', 33),
-  fixturePost('sp0005', 'bob', 'Bike route notes for Saturday.', 32),
-  fixturePost('sp0004', 'bob', 'Fresh bread, still warm.', 31),
-  fixturePost('sp0002', 'alice', "Two colors from this morning's walk.", 29, '/assets/fixtures/img-02.png'),
+// Exact committed starter-m2.log content, including every image, video, and
+// reply row. Feed projection filters replies and adds the four repost events.
+const initialPosts: MemoryPost[] = [
   fixturePost('sp0001', 'alice', 'Coffee time at the corner table https://example.com/cafe', 28),
+  fixturePost('sp0002', 'alice', "Two colors from this morning's walk.", 29, {
+    images: ['media/img-02.png', 'media/img-03.png'],
+  }),
+  fixturePost('sp0003', 'alice', 'A five-second hello from the lake.', 30, {
+    video: 'media/vid-01.mp4',
+  }),
+  fixturePost('sp0004', 'bob', 'Fresh bread, still warm.', 31),
+  fixturePost('sp0005', 'bob', 'Bike route notes for Saturday.', 32),
+  fixturePost('sp0006', 'bob', 'Small tools should have sharp edges.', 33),
+  fixturePost('sp0007', 'carol', 'The blue glaze finally worked.', 34),
+  fixturePost('sp0008', 'carol', 'Studio shelf before cleanup.', 35, {
+    images: ['media/img-02.png', 'media/img-03.png'],
+  }),
+  fixturePost('sp0009', 'carol', 'A quiet clip from class.', 36, {
+    video: 'media/vid-01.mp4',
+  }),
+  fixturePost('sp0010', 'dave', "Tonight's set starts at eight.", 37),
+  fixturePost('sp0011', 'dave', 'Trail conditions: dry and windy.', 38),
+  fixturePost('sp0012', 'dave', 'Noodles worth crossing town for.', 39),
+  fixturePost('sp0013', 'erin', 'Basil has officially taken over.', 40),
+  fixturePost('sp0014', 'erin', 'Sketching a calmer settings screen.', 41, {
+    images: ['media/img-02.png', 'media/img-03.png'],
+  }),
+  fixturePost('sp0015', 'erin', 'Three interface details I keep noticing.', 42),
+  fixturePost('sp0016', 'frank', 'Beans, tomatoes, and too much garlic.', 43),
+  fixturePost('sp0017', 'frank', 'Data cleanup can be satisfying.', 44),
+  fixturePost('sp0018', 'frank', 'Sunday lunch test number four.', 45),
+  fixturePost('sp0019', 'grace', 'The tomatoes are showing off.', 46),
+  fixturePost('sp0020', 'grace', 'A graphic novel with perfect pacing.', 47, {
+    images: ['media/img-02.png', 'media/img-03.png'],
+  }),
+  fixturePost('sp0021', 'grace', 'Questions for the garden club.', 48),
+  fixturePost('sp0022', 'henry', 'A history episode for the train ride.', 49),
+  fixturePost('sp0023', 'henry', 'Pickup game moved to six.', 50),
+  fixturePost('sp0024', 'henry', 'Brooklyn looked silver after rain.', 51),
+  fixturePost('sr0001', 'bob', 'Save me a cup.', 52, { parentId: 'sp0001' }),
+  fixturePost('sr0002', 'carol', 'That crust looks perfect.', 53, { parentId: 'sp0004' }),
+  fixturePost('sr0003', 'alice', 'I need your basil secrets.', 54, { parentId: 'sp0013' }),
+  fixturePost('sr0004', 'grace', 'Adding it to my queue.', 55, { parentId: 'sp0022' }),
+];
+
+const initialLikes: LikeEvent[] = [
+  { postId: 'sp0001', actorId: 'bob', createdAt: '2026-01-01T00:00:56Z', mutationId: 'ml-bob-sp0001' },
+  { postId: 'sp0001', actorId: 'carol', createdAt: '2026-01-01T00:00:57Z', mutationId: 'ml-carol-sp0001' },
+  { postId: 'sp0004', actorId: 'dave', createdAt: '2026-01-01T00:00:58Z', mutationId: 'ml-dave-sp0004' },
+  { postId: 'sp0007', actorId: 'erin', createdAt: '2026-01-01T00:00:59Z', mutationId: 'ml-erin-sp0007' },
+  { postId: 'sp0013', actorId: 'frank', createdAt: '2026-01-01T00:01:00Z', mutationId: 'ml-frank-sp0013' },
+  { postId: 'sp0016', actorId: 'grace', createdAt: '2026-01-01T00:01:01Z', mutationId: 'ml-grace-sp0016' },
+  { postId: 'sp0019', actorId: 'henry', createdAt: '2026-01-01T00:01:02Z', mutationId: 'ml-henry-sp0019' },
+  { postId: 'sp0022', actorId: 'alice', createdAt: '2026-01-01T00:01:03Z', mutationId: 'ml-alice-sp0022' },
+];
+
+const initialReposts: RepostEvent[] = [
+  { postId: 'sp0001', actorId: 'carol', createdAt: '2026-01-01T00:01:04Z', mutationId: 'mr-carol-sp0001' },
+  { postId: 'sp0004', actorId: 'alice', createdAt: '2026-01-01T00:01:05Z', mutationId: 'mr-alice-sp0004' },
+  { postId: 'sp0013', actorId: 'henry', createdAt: '2026-01-01T00:01:06Z', mutationId: 'mr-henry-sp0013' },
+  { postId: 'sp0019', actorId: 'bob', createdAt: '2026-01-01T00:01:07Z', mutationId: 'mr-bob-sp0019' },
 ];
 
 const initialChats: Chat[] = [
@@ -405,12 +419,24 @@ const DECLARED_ERROR_CODES = {
   DuplicateEmailError: 'duplicate_email',
   DuplicateHandleError: 'duplicate_handle',
   EmailInvalidError: 'email_invalid',
+  FeedCursorInvalidError: 'feed_cursor_invalid',
+  FeedModeInvalidError: 'feed_mode_invalid',
   HandleInvalidError: 'handle_invalid',
+  ImageCountInvalidError: 'image_count_invalid',
   InvalidCredentialsError: 'invalid_credentials',
   LinkInvalidError: 'link_invalid',
   LocationInvalidError: 'location_invalid',
+  MediaMixInvalidError: 'media_mix_invalid',
+  MediaReferenceInvalidError: 'media_reference_invalid',
+  ParentPostNotFoundError: 'parent_post_not_found',
   PasswordTooShortError: 'password_too_short',
+  PostBodyInvalidError: 'post_body_invalid',
+  PostNotFoundError: 'post_not_found',
+  ProfileNotFoundError: 'profile_not_found',
+  ReplyRepostForbiddenError: 'reply_repost_forbidden',
+  SelfFollowInvalidError: 'self_follow_invalid',
   SessionRequiredError: 'session_required',
+  VideoCountInvalidError: 'video_count_invalid',
 } as const;
 
 type DeclaredErrorName = keyof typeof DECLARED_ERROR_CODES;
@@ -499,17 +525,203 @@ function matchesWordPrefix(text: string, query: string): boolean {
     .some((word) => word.startsWith(needle));
 }
 
-function insightRows(
-  posts: readonly MemoryFeedItem[],
+function mediaUrlsFor(post: MemoryPost): string[] {
+  return post.mediaRefs.map((mediaRef) => {
+    const url = COTERIE_IMAGE_URLS.get(mediaRef) ?? COTERIE_VIDEO_URLS.get(mediaRef);
+    if (!url) {
+      fail('MediaReferenceInvalidError', 'Post media must reference a committed fixture image or video.');
+    }
+    return url;
+  });
+}
+
+function commonPostProjection(
+  post: MemoryPost,
+  viewerId: string,
+  profiles: readonly Profile[],
+  posts: readonly MemoryPost[],
+  likes: readonly LikeEvent[],
+  reposts: readonly RepostEvent[],
+) {
+  const profile = profiles.find((candidate) => candidate.id === post.authorId);
+  if (!profile) throw new Error(`Missing profile projection for ${post.authorId}`);
+  const postLikes = likes.filter((event) => event.postId === post.id);
+  const postReposts = reposts.filter((event) => event.postId === post.id);
+  return {
+    postId: post.id,
+    authorId: post.authorId,
+    authorName: profile.displayName,
+    authorHandle: profile.handle,
+    avatarUrl: profile.avatarUrl,
+    body: post.body,
+    createdAt: post.createdAt,
+    likeCount: postLikes.length,
+    repostCount: postReposts.length,
+    replyCount: posts.filter((candidate) => candidate.parentId === post.id).length,
+    likedByMe: postLikes.some((event) => event.actorId === viewerId),
+    repostedByMe: postReposts.some((event) => event.actorId === viewerId),
+    mediaUrls: mediaUrlsFor(post),
+    mediaKind: post.mediaKind,
+  };
+}
+
+function compareFeedEvents(left: FeedEvent, right: FeedEvent): number {
+  const byTime = right.feedSortAt.localeCompare(left.feedSortAt);
+  return byTime !== 0 ? byTime : right.id.localeCompare(left.id);
+}
+
+interface FeedCursorPayload {
+  v: 1;
+  mode: 'following' | 'global';
+  sortAt: string;
+  eventId: string;
+}
+
+function encodeFeedCursor(mode: FeedCursorPayload['mode'], event: FeedEvent): string {
+  const json = JSON.stringify({ v: 1, mode, sortAt: event.feedSortAt, eventId: event.id });
+  return globalThis.btoa(json).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+}
+
+function decodeFeedCursor(value: unknown, mode: FeedCursorPayload['mode']): FeedCursorPayload | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') {
+    fail('FeedCursorInvalidError', 'The feed cursor is invalid for this feed mode.');
+  }
+  try {
+    const base64 = value.replaceAll('-', '+').replaceAll('_', '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const parsed = JSON.parse(globalThis.atob(padded)) as Partial<FeedCursorPayload>;
+    if (
+      parsed.v !== 1 ||
+      parsed.mode !== mode ||
+      typeof parsed.sortAt !== 'string' ||
+      typeof parsed.eventId !== 'string'
+    ) {
+      fail('FeedCursorInvalidError', 'The feed cursor is invalid for this feed mode.');
+    }
+    return parsed as FeedCursorPayload;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'FeedCursorInvalidError') throw error;
+    return fail('FeedCursorInvalidError', 'The feed cursor is invalid for this feed mode.');
+  }
+}
+
+function feedRows(
+  modeValue: unknown,
+  cursorValue: unknown,
+  viewerId: string,
+  posts: readonly MemoryPost[],
+  profiles: readonly Profile[],
   follows: readonly FollowEdge[],
+  likes: readonly LikeEvent[],
+  reposts: readonly RepostEvent[],
+): FeedItem[] {
+  if (modeValue !== 'following' && modeValue !== 'global') {
+    fail('FeedModeInvalidError', 'Feed mode must be following or global.');
+  }
+  const mode = modeValue;
+  const cursor = decodeFeedCursor(cursorValue, mode);
+  const followed = new Set(
+    follows
+      .filter((edge) => edge.followerId === viewerId)
+      .map((edge) => edge.followedId),
+  );
+  const visibleActor = (actorId: string): boolean =>
+    mode === 'global' || actorId === viewerId || followed.has(actorId);
+  const topLevelPosts = posts.filter((post) => post.parentId === null);
+  const postById = new Map(topLevelPosts.map((post) => [post.id, post]));
+  const events: FeedEvent[] = [
+    ...topLevelPosts
+      .filter((post) => visibleActor(post.authorId))
+      .map((post) => ({ id: post.id, post, feedSortAt: post.createdAt, repost: null })),
+    ...reposts
+      .filter((event) => visibleActor(event.actorId))
+      .flatMap((event) => {
+        const post = postById.get(event.postId);
+        return post
+          ? [{ id: `repost:${event.actorId}:${event.postId}`, post, feedSortAt: event.createdAt, repost: event }]
+          : [];
+      }),
+  ].sort(compareFeedEvents);
+  const afterCursor = cursor
+    ? events.filter(
+        (event) =>
+          event.feedSortAt < cursor.sortAt ||
+          (event.feedSortAt === cursor.sortAt && event.id < cursor.eventId),
+      )
+    : events;
+  const pageEvents = afterCursor.slice(0, FEED_PAGE_SIZE);
+  const nextCursor = afterCursor.length > FEED_PAGE_SIZE && pageEvents.length > 0
+    ? encodeFeedCursor(mode, pageEvents.at(-1)!)
+    : null;
+  return pageEvents.map((event) => {
+    const reposter = event.repost
+      ? profiles.find((profile) => profile.id === event.repost?.actorId)
+      : null;
+    return {
+      id: event.id,
+      ...commonPostProjection(event.post, viewerId, profiles, posts, likes, reposts),
+      feedSortAt: event.feedSortAt,
+      repostedById: reposter?.id ?? null,
+      repostedByName: reposter?.displayName ?? null,
+      repostedByHandle: reposter?.handle ?? null,
+      nextCursor,
+    };
+  });
+}
+
+function profilePostRows(
+  userId: string,
+  viewerId: string,
+  profiles: readonly Profile[],
+  posts: readonly MemoryPost[],
+  likes: readonly LikeEvent[],
+  reposts: readonly RepostEvent[],
+): ProfilePost[] {
+  if (!profiles.some((profile) => profile.id === userId)) {
+    fail('ProfileNotFoundError', 'The profile does not exist.');
+  }
+  return posts
+    .filter((post) => post.authorId === userId && post.parentId === null)
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))
+    .map((post) => ({ id: post.id, ...commonPostProjection(post, viewerId, profiles, posts, likes, reposts) }));
+}
+
+function threadRows(
+  parentId: string,
+  viewerId: string,
+  profiles: readonly Profile[],
+  posts: readonly MemoryPost[],
+  likes: readonly LikeEvent[],
+  reposts: readonly RepostEvent[],
+): ThreadPost[] {
+  const parent = posts.find((post) => post.id === parentId);
+  if (!parent) fail('ParentPostNotFoundError', 'The parent post does not exist.');
+  const replies = posts
+    .filter((post) => post.parentId === parentId)
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id));
+  return [parent, ...replies].map((post, index) => ({
+    id: post.id,
+    ...commonPostProjection(post, viewerId, profiles, posts, likes, reposts),
+    parentId: post.parentId,
+    threadRole: index === 0 ? 'parent' : 'direct-reply',
+  }));
+}
+
+function insightRows(
+  posts: readonly MemoryPost[],
+  follows: readonly FollowEdge[],
+  likes: readonly LikeEvent[],
+  reposts: readonly RepostEvent[],
   viewerId: string,
 ): InsightDay[] {
-  const viewerPosts = posts.filter((post) => post.authorId === viewerId);
+  const viewerPosts = posts.filter((post) => post.authorId === viewerId && post.parentId === null);
+  const viewerPostIds = new Set(viewerPosts.map((post) => post.id));
   const totals = {
     totalPosts: viewerPosts.length,
-    totalLikesReceived: viewerPosts.reduce((sum, post) => sum + post.likeEvents.length, 0),
-    totalRepostsReceived: viewerPosts.reduce((sum, post) => sum + post.repostCount, 0),
-    totalRepliesReceived: viewerPosts.reduce((sum, post) => sum + post.replyCount, 0),
+    totalLikesReceived: likes.filter((event) => viewerPostIds.has(event.postId)).length,
+    totalRepostsReceived: reposts.filter((event) => viewerPostIds.has(event.postId)).length,
+    totalRepliesReceived: posts.filter((post) => post.parentId !== null && viewerPostIds.has(post.parentId)).length,
     totalFollowers: follows.filter((edge) => edge.followedId === viewerId).length,
     totalFollowing: follows.filter((edge) => edge.followerId === viewerId).length,
   };
@@ -521,10 +733,9 @@ function insightRows(
       id: `insight-${day}`,
       day,
       posts: viewerPosts.filter((post) => post.createdAt.slice(0, 10) === day).length,
-      likesReceived: viewerPosts.reduce(
-        (sum, post) => sum + post.likeEvents.filter((event) => event.createdAt.slice(0, 10) === day).length,
-        0,
-      ),
+      likesReceived: likes.filter(
+        (event) => viewerPostIds.has(event.postId) && event.createdAt.slice(0, 10) === day,
+      ).length,
       ...totals,
     };
   });
@@ -546,21 +757,24 @@ export interface CoterieMemoryHarness {
  */
 export function createCoterieMemoryHarness(): CoterieMemoryHarness {
   let postSequence = 0;
+  let activitySequence = 0;
   let messageSequence = 0;
   let sessionSequence = 0;
   let revocationSequence = 0;
   let activeViewerId: string | null = VIEWER_ID;
-  const boundary = createContractMockQueryBoundary({
+  const boundary = withMultiTableQueries(createContractMockQueryBoundary({
     accounts: cloneRows(initialAccounts),
     sessions: cloneRows(initialSession),
     sessionRevocations: [],
     profiles: cloneRows(initialProfiles),
     follows: cloneRows(initialFollowEdges),
     posts: cloneRows(initialPosts),
+    likes: cloneRows(initialLikes),
+    reposts: cloneRows(initialReposts),
     chats: cloneRows(initialChats),
     messages: cloneRows(initialMessages),
     search: cloneRows(initialSearch),
-  });
+  }));
 
   const requireActiveViewer = (): string => {
     const active = boundary.snapshot('sessions') as Session[];
@@ -581,15 +795,6 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
           follows.some(
             (edge) => edge.followerId === viewerId && edge.followedId === profile.id,
           ),
-      })),
-    );
-    boundary.write<MemoryFeedItem>('posts', (rows) =>
-      rows.map((post) => ({
-        ...post,
-        likedByMe: post.likeEvents.some((event) => event.actorId === viewerId),
-        authorFollowedByMe: follows.some(
-          (edge) => edge.followerId === viewerId && edge.followedId === post.authorId,
-        ),
       })),
     );
     boundary.write<Message>('messages', (rows) =>
@@ -638,21 +843,48 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
       listSession: (_args, queryBoundary) =>
         queryBoundary.query<Session>('sessions', (rows) => rows as Session[], { key: 'session' }),
       listFeed: (args, queryBoundary) =>
-        queryBoundary.query<FeedItem>(
-          'posts',
-          (rows) => {
-            const posts = rows as MemoryFeedItem[];
-            if (args.mode !== 'following') return posts;
-            const followed = new Set(
-              (queryBoundary.snapshot('follows') as FollowEdge[])
-                .filter((edge) => edge.followerId === activeViewerId)
-                .map((edge) => edge.followedId),
-            );
-            return posts.filter(
-              (post) => post.authorId === activeViewerId || followed.has(post.authorId),
-            );
-          },
-          { key: `feed:${String(args.mode)}` },
+        queryAcrossTables<FeedItem>(
+          queryBoundary,
+          ['posts', 'profiles', 'follows', 'likes', 'reposts'],
+          () => feedRows(
+            args.mode,
+            args.cursor,
+            activeViewerId ?? VIEWER_ID,
+            queryBoundary.snapshot('posts') as MemoryPost[],
+            queryBoundary.snapshot('profiles') as Profile[],
+            queryBoundary.snapshot('follows') as FollowEdge[],
+            queryBoundary.snapshot('likes') as LikeEvent[],
+            queryBoundary.snapshot('reposts') as RepostEvent[],
+          ),
+          { key: `feed:${String(args.mode)}:${String(args.cursor ?? '')}` },
+        ),
+      listThread: (args, queryBoundary) =>
+        queryAcrossTables<ThreadPost>(
+          queryBoundary,
+          ['posts', 'profiles', 'likes', 'reposts'],
+          () => threadRows(
+            String(args.parentId),
+            activeViewerId ?? VIEWER_ID,
+            queryBoundary.snapshot('profiles') as Profile[],
+            queryBoundary.snapshot('posts') as MemoryPost[],
+            queryBoundary.snapshot('likes') as LikeEvent[],
+            queryBoundary.snapshot('reposts') as RepostEvent[],
+          ),
+          { key: `thread:${String(args.parentId)}` },
+        ),
+      listProfilePosts: (args, queryBoundary) =>
+        queryAcrossTables<ProfilePost>(
+          queryBoundary,
+          ['posts', 'profiles', 'likes', 'reposts'],
+          () => profilePostRows(
+            String(args.userId),
+            activeViewerId ?? VIEWER_ID,
+            queryBoundary.snapshot('profiles') as Profile[],
+            queryBoundary.snapshot('posts') as MemoryPost[],
+            queryBoundary.snapshot('likes') as LikeEvent[],
+            queryBoundary.snapshot('reposts') as RepostEvent[],
+          ),
+          { key: `profile-posts:${String(args.userId)}` },
         ),
       listProfiles: (_args, queryBoundary) =>
         queryBoundary.query<Profile>('profiles', (rows) => rows as Profile[], { key: 'profiles' }),
@@ -674,12 +906,15 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
           { key: `search:${String(args.query)}` },
         ),
       listInsights: (_args, queryBoundary) =>
-        queryBoundary.query<InsightDay>(
-          'posts',
-          (rows) =>
+        queryAcrossTables<InsightDay>(
+          queryBoundary,
+          ['posts', 'follows', 'likes', 'reposts'],
+          () =>
             insightRows(
-              rows as MemoryFeedItem[],
+              queryBoundary.snapshot('posts') as MemoryPost[],
               queryBoundary.snapshot('follows') as FollowEdge[],
+              queryBoundary.snapshot('likes') as LikeEvent[],
+              queryBoundary.snapshot('reposts') as RepostEvent[],
               activeViewerId ?? VIEWER_ID,
             ),
           { key: 'insights' },
@@ -748,57 +983,99 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
       },
       createPost: (args, queryBoundary) => {
         const viewerId = requireActiveViewer();
-        const body = String(args.body ?? '').trim();
-        if (!body) throw new Error('Post text cannot be empty.');
-        const profile = (queryBoundary.snapshot('profiles') as Profile[]).find(
-          (row) => row.id === viewerId,
-        );
-        const item: MemoryFeedItem = {
+        const body = String(args.body ?? '').normalize('NFC').trim();
+        const imageRefs = Array.isArray(args.imageRefs)
+          ? args.imageRefs.map((value) => String(value))
+          : [];
+        const videoRefs = Array.isArray(args.videoRefs)
+          ? args.videoRefs.map((value) => String(value))
+          : [];
+        const parentId = args.parentId === null || args.parentId === undefined
+          ? null
+          : String(args.parentId);
+        if (Array.from(body).length > 500 || (!body && imageRefs.length === 0 && videoRefs.length === 0)) {
+          fail(
+            'PostBodyInvalidError',
+            'Post text must contain at most 500 characters, and text-only posts cannot be empty.',
+          );
+        }
+        if (imageRefs.length > 0 && videoRefs.length > 0) {
+          fail('MediaMixInvalidError', 'A post cannot mix images and video.');
+        }
+        if (imageRefs.length > 4) {
+          fail('ImageCountInvalidError', 'Image posts require 1-4 fixture images.');
+        }
+        if (videoRefs.length > 1) {
+          fail('VideoCountInvalidError', 'Video posts require exactly one fixture video.');
+        }
+        if (imageRefs.some((mediaRef) => !COTERIE_IMAGE_URLS.has(mediaRef))) {
+          fail(
+            'MediaReferenceInvalidError',
+            'Post media must reference a committed fixture image or video.',
+          );
+        }
+        if (videoRefs.some((mediaRef) => !COTERIE_VIDEO_URLS.has(mediaRef))) {
+          fail(
+            'MediaReferenceInvalidError',
+            'Post media must reference a committed fixture image or video.',
+          );
+        }
+        if (
+          parentId !== null &&
+          !(queryBoundary.snapshot('posts') as MemoryPost[]).some((post) => post.id === parentId)
+        ) {
+          fail('ParentPostNotFoundError', 'The parent post does not exist.');
+        }
+        const item: MemoryPost = {
           id: `coterie-local-post-${String(++postSequence).padStart(4, '0')}`,
           authorId: viewerId,
-          authorName: profile?.displayName ?? viewerId,
-          authorHandle: profile?.handle ?? viewerId,
-          avatarUrl: profile?.avatarUrl ?? null,
           body,
           createdAt: new Date(Date.parse(FIXTURE_NOW) + postSequence * 1000).toISOString(),
-          likeCount: 0,
-          repostCount: 0,
-          replyCount: 0,
-          likedByMe: false,
-          mediaUrl: null,
-          mediaKind: null,
-          pollQuestion: null,
-          authorFollowedByMe: false,
-          likeEvents: [],
+          parentId,
+          mediaKind: imageRefs.length > 0 ? 'images' : videoRefs.length > 0 ? 'video' : null,
+          mediaRefs: imageRefs.length > 0 ? imageRefs : videoRefs,
         };
-        queryBoundary.write<MemoryFeedItem>('posts', (rows) => [item, ...rows]);
+        queryBoundary.write<MemoryPost>('posts', (rows) => [...rows, item]);
         return { id: item.id };
       },
       setLike: (args, queryBoundary) => {
         const viewerId = requireActiveViewer();
+        const postId = String(args.postId);
         const liked = Boolean(args.liked);
-        queryBoundary.write<MemoryFeedItem>('posts', (rows) =>
-          rows.map((post) => {
-            if (post.id !== args.postId || post.likedByMe === liked) return post;
-            const likeEvents = liked
-              ? [
-                  ...post.likeEvents,
-                  {
-                    actorId: viewerId,
-                    createdAt: FIXTURE_NOW,
-                    mutationId: String(args.mutationId),
-                  },
-                ]
-              : post.likeEvents.filter((event) => event.actorId !== viewerId);
-            return { ...post, likedByMe: liked, likeCount: likeEvents.length, likeEvents };
-          }),
+        if (!(queryBoundary.snapshot('posts') as MemoryPost[]).some((post) => post.id === postId)) {
+          fail('PostNotFoundError', 'The post does not exist.');
+        }
+        const existing = (queryBoundary.snapshot('likes') as LikeEvent[]).some(
+          (event) => event.postId === postId && event.actorId === viewerId,
         );
+        queryBoundary.write<LikeEvent>('likes', (rows) => {
+          if (existing === liked) return rows;
+          if (!liked) {
+            return rows.filter((event) => !(event.postId === postId && event.actorId === viewerId));
+          }
+          return [
+            ...rows,
+            {
+              postId,
+              actorId: viewerId,
+              createdAt: new Date(
+                Date.parse(FIXTURE_NOW) + ++activitySequence * 1000,
+              ).toISOString(),
+              mutationId: String(args.mutationId),
+            },
+          ];
+        });
       },
       setFollow: (args, queryBoundary) => {
         const viewerId = requireActiveViewer();
         const userId = String(args.userId);
         const following = Boolean(args.following);
-        if (userId === viewerId) throw new Error('Self-follow is implicit and cannot be changed.');
+        if (userId === viewerId) {
+          fail('SelfFollowInvalidError', 'Self-follow is implicit for feeds and is not a follow edge.');
+        }
+        if (!(queryBoundary.snapshot('profiles') as Profile[]).some((profile) => profile.id === userId)) {
+          fail('ProfileNotFoundError', 'The profile does not exist.');
+        }
         const edges = queryBoundary.snapshot('follows') as FollowEdge[];
         const wasFollowing = edges.some(
           (edge) => edge.followerId === viewerId && edge.followedId === userId,
@@ -834,13 +1111,40 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
             return profile;
           }),
         );
-        // The mock boundary is table-granular. This maintained projection is
-        // also the posts-table invalidation bridge for listFeed's graph read.
-        queryBoundary.write<MemoryFeedItem>('posts', (rows) =>
-          rows.map((post) =>
-            post.authorId === userId ? { ...post, authorFollowedByMe: following } : post,
-          ),
+      },
+      setRepost: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const postId = String(args.postId);
+        const reposted = Boolean(args.reposted);
+        const post = (queryBoundary.snapshot('posts') as MemoryPost[]).find(
+          (candidate) => candidate.id === postId,
         );
+        if (!post) {
+          fail('PostNotFoundError', 'The post does not exist.');
+        }
+        if (post.parentId !== null) {
+          fail('ReplyRepostForbiddenError', 'Replies cannot be reposted.');
+        }
+        const existing = (queryBoundary.snapshot('reposts') as RepostEvent[]).some(
+          (event) => event.postId === postId && event.actorId === viewerId,
+        );
+        queryBoundary.write<RepostEvent>('reposts', (rows) => {
+          if (existing === reposted) return rows;
+          if (!reposted) {
+            return rows.filter((event) => !(event.postId === postId && event.actorId === viewerId));
+          }
+          return [
+            ...rows,
+            {
+              postId,
+              actorId: viewerId,
+              createdAt: new Date(
+                Date.parse(FIXTURE_NOW) + 60_000 + ++activitySequence * 1000,
+              ).toISOString(),
+              mutationId: String(args.mutationId),
+            },
+          ];
+        });
       },
       editProfile: (args, queryBoundary) => {
         const viewerId = requireActiveViewer();
@@ -873,13 +1177,6 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
               : profile,
           ),
         );
-        queryBoundary.write<MemoryFeedItem>('posts', (rows) =>
-          rows.map((post) =>
-            post.authorId === viewerId
-              ? { ...post, authorName: displayName, authorHandle: handle }
-              : post,
-          ),
-        );
         queryBoundary.write<Message>('messages', (rows) =>
           rows.map((message) =>
             message.senderId === viewerId ? { ...message, senderName: displayName } : message,
@@ -896,7 +1193,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
       setAvatar: (args, queryBoundary) => {
         const viewerId = requireActiveViewer();
         const avatarRef = String(args.avatarRef ?? '');
-        const avatarUrl = FIXTURE_AVATAR_URLS.get(avatarRef);
+        const avatarUrl = coterieAvatarUrlForRef(avatarRef);
         if (!avatarUrl) {
           fail(
             'AvatarReferenceInvalidError',
@@ -908,16 +1205,16 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
             profile.id === viewerId ? { ...profile, avatarUrl } : profile,
           ),
         );
-        queryBoundary.write<MemoryFeedItem>('posts', (rows) =>
-          rows.map((post) =>
-            post.authorId === viewerId ? { ...post, avatarUrl } : post,
-          ),
-        );
         queryBoundary.write<SearchResult>('search', (rows) =>
           rows.map((result) =>
             result.kind === 'person' && result.id === viewerId
               ? { ...result, avatarUrl }
               : result,
+          ),
+        );
+        queryBoundary.write<Chat>('chats', (rows) =>
+          rows.map((chat) =>
+            !chat.isGroup && chat.id.includes(viewerId) ? { ...chat, avatarUrl } : chat,
           ),
         );
         return { avatarUrl };
@@ -985,15 +1282,23 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
     provider,
     boundary,
     appendFixturePost() {
-      const item: MemoryFeedItem = {
+      const item: MemoryPost = {
         ...initialPosts.find((post) => post.id === 'sp0001')!,
         id: `coterie-conformance-sp0001-${String(++postSequence).padStart(4, '0')}`,
-        likeEvents: [],
-        likeCount: 0,
-        likedByMe: false,
+        createdAt: new Date(Date.parse(FIXTURE_NOW) + postSequence * 1000).toISOString(),
+        mediaRefs: [],
       };
-      boundary.write<MemoryFeedItem>('posts', (rows) => [item, ...rows]);
-      return item;
+      boundary.write<MemoryPost>('posts', (rows) => [...rows, item]);
+      return feedRows(
+        'global',
+        null,
+        activeViewerId ?? VIEWER_ID,
+        boundary.snapshot('posts') as MemoryPost[],
+        boundary.snapshot('profiles') as Profile[],
+        boundary.snapshot('follows') as FollowEdge[],
+        boundary.snapshot('likes') as LikeEvent[],
+        boundary.snapshot('reposts') as RepostEvent[],
+      ).find((row) => row.postId === item.id)!;
     },
   };
 }

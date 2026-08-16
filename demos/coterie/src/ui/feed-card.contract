@@ -1,8 +1,10 @@
 use CoterieAvatar from "./avatar.contract"
+use CoterieFeedBody from "./feed-body.contract"
 
 component CoterieFeedCard
   props
     id: string
+    postId: string
     authorId: string
     authorName: string
     authorHandle: string
@@ -11,15 +13,23 @@ component CoterieFeedCard
     createdAt: string
     likeCount: number
     liked: boolean = false
-    mediaUrl: string = null
+    repostCount: number = 0
+    reposted: boolean = false
+    replyCount: number = 0
+    repostedByName: string = null
+    mediaUrls: string[] = []
     mediaKind: string = null
     pressAuthor: (userId) => void
     pressLike: (postId, liked) => void
+    pressRepost: (postId, reposted) => void
+    pressReply: (postId) => void
     pressMedia: (postId) => void
 
   contract
     has node testId="sm-feed-item"
     has node testId="sm-post-like"
+    has node testId="sm-post-repost"
+    has node testId="sm-post-reply"
 
   view
     article label=`Post by ${authorName}` width="100%" background="#FFFFFF" borderBottomWidth=1 borderColor="#E2E4E8" padding=16 testId="sm-feed-item"
@@ -27,14 +37,24 @@ component CoterieFeedCard
         button press=pressAuthor(authorId) label=`Open ${authorName}'s profile` background="transparent" padding=0 testId="sm-feed-author"
           CoterieAvatar(name=authorName, src=avatarUrl, size=40)
         column flex=1 minWidth=0 gap=6
+          when repostedByName
+            text `Reposted by ${repostedByName}` size=12 weight=600 color="#4F46E5"
           row wrap="wrap" align="center" gap=4
             text authorName size=17 weight=600 color="#17191C"
             text `@${authorHandle}` size=13 color="#6B7280"
             text `· ${createdAt}` size=13 color="#6B7280"
-          text body size=15 color="#17191C"
-          when mediaUrl
-            button press=pressMedia(id) label=mediaKind == "video" ? "Video" : "Image" width="100%" padding=0 radius=10 overflow="hidden" background="#E8EAEE" testId="sm-feed-media"
-              image src=mediaUrl alt=`Media from ${authorName}` width="100%" aspectRatio=1.6 objectFit="cover"
+          CoterieFeedBody(body=body)
+          when mediaKind == "video" && mediaUrls.length > 0
+            video src=mediaUrls[0] controls=true muted=true width="100%" aspectRatio=1.6 objectFit="cover" testId="sm-feed-media"
+          when mediaKind == "images"
+            row width="100%" wrap="wrap" gap=6
+              each mediaUrl in mediaUrls key=mediaUrl
+                button press=pressMedia(postId) label="Image" flex=1 minWidth=140 padding=0 radius=10 overflow="hidden" background="#E8EAEE" testId="sm-feed-media"
+                  image src=mediaUrl alt=`Media from ${authorName}` width="100%" aspectRatio=1.6 objectFit="cover"
           row width="100%" align="center" gap=22 paddingTop=4
-            button press=pressLike(id, liked) label=liked ? `Unlike (${likeCount})` : `Like (${likeCount})` accessibilitySelected=liked background="transparent" padding=4 testId="sm-post-like"
+            button press=pressLike(postId, liked) label=liked ? `Unlike (${likeCount})` : `Like (${likeCount})` accessibilitySelected=liked background="transparent" padding=4 testId="sm-post-like"
               text `${liked ? "Liked" : "Like"} ${likeCount}` size=13 color=liked ? "#DC2626" : "#6B7280"
+            button press=pressRepost(postId, reposted) label=reposted ? `Undo repost (${repostCount})` : `Repost (${repostCount})` accessibilitySelected=reposted background="transparent" padding=4 testId="sm-post-repost"
+              text `${reposted ? "Reposted" : "Repost"} ${repostCount}` size=13 color=reposted ? "#0D9488" : "#6B7280"
+            button press=pressReply(postId) label=`Replies (${replyCount})` background="transparent" padding=4 testId="sm-post-reply"
+              text `Reply ${replyCount}` size=13 color="#6B7280"
