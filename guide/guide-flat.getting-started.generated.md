@@ -491,13 +491,13 @@ id: getting-started.the-authoring-loop
 order: 2
 audience: agent-first
 capabilities: [backend.codegen, authoring.declaration-suggestions, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, src/cli.rs, src/dev_identity.rs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
-examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, llp/0234-visibility-override-governance.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0262-dev-identity-custody-capability.rfc.md, src/cli.rs, src/dev_identity.rs, src/visibility_governance.rs, demos/_kit/server-process.mjs, packages/create-snapback-app/cli.mjs, packages/snapback-cli/index.mjs, packages/snapback-cli/templates, packages/snapback-codegen/index.mjs, packages/snapback-codegen/visibility-governance-dev-config.mjs, packages/snapback-vite/lifecycle.mjs, packages/snapback-vite/proxy.mjs, scripts/mint-visibility-governance-dev-config.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof, scripts/visibility-governance-dev-apps.v1.json]
+examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, packages/snapback-cli/sessions-dev-loop.test.mjs, packages/snapback-cli/visibility-governance-dev-loop.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs, demos/_kit/tests/visibility-governance-dev-config.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:2e65285c7733161978cafa2fcbf8994cbd131ee45ee1f6ca92f64bf3a7a38eac
+reviewed-authorities-digest: sha256:23426581d2c63656586caa20d7c8e32a4ddf64949f2ebc8d91938eaa9fc191f7
 ---
 
 # The authoring loop
@@ -723,6 +723,45 @@ before reading the managed owner-only token. A different target fails with
 started by this command is stopped. If later generation succeeds but live load
 fails, the event state is `generated-but-not-loaded`; generation errors are
 the distinct `generation-failed` state.
+
+<!-- since: 0.1.24 unreleased -->
+
+> **Unreleased.** Automatic repository-local visibility-governance config
+> minting is newer than the newest published closure, 0.1.23.
+
+Fresh generation always carries the visibility-governance activation record.
+The local dev loop therefore mints an owner-only config at
+`.snapback/visibility-governance-dev-target-config.json` before starting or
+loading the server. It uses a new development Ed25519 key, a green verdict
+bound to the exact generated schema/functions/governance identity, and the
+explicit `repository-local` target class. Validation is not skipped: a carrier
+still requires a valid config, and a changed generated identity causes the loop
+to mint a newly bound verdict before reload. No
+`SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG` export is needed for ordinary
+`snapback dev` or repository demo-kit runs.
+
+The same source-checkout producer can be invoked directly when a lower-level
+local harness owns server lifecycle:
+
+```sh
+node scripts/mint-visibility-governance-dev-config.mjs \
+  demos/todo/snapback --out .snapback/todo-governance.json
+```
+
+The producer accepts only `repository-local`. It refuses hosted/production
+target classes and any generated override whose `lifecycleClass` is
+`production`. Fixture overrides additionally require a committed app
+registration declaring synthetic principals and fixture-owned data; the
+registered and generated exact sets of profile id, digest, target ceiling,
+principal class, and data classification must match. That registry is a
+mint-time producer fence, not the D4 host fence. The host fence is the native
+reader's independently resolved server profile: the dev provider is refused
+for production-profile activation even when the file self-declares
+`repository-local`. Do not copy this artifact into a deployment or pass it to
+an unmanaged or production `snapback start`; hosted and production targets
+must supply their separately custodied target config. Managed `snapback dev`
+and repository demo-kit launches do invoke `start` with their fresh
+per-process dev config.
 
 For a dev-auth app, the served backend rotates an owner-only `sbdev_`
 capability each boot and advertises its path as

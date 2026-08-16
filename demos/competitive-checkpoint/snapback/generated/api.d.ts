@@ -386,6 +386,15 @@ export interface GeneratedApi {
    */
   "startReply": FunctionReference<"startReply", 'Mutation', { conversationId: Id<'conversations'>; content: string; idempotencyKey: string }, unknown, "snapback-explicit-v1">;
   /**
+   * Action reference `competitive-checkpoint:streamReply`.
+   * Legal client verbs/hooks: `action`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `bounded_response_stream_v1`, `cron_action_run_mutation`, `ibex_ctx_db_host_bridge`, `result_contract_v1`.
+   * Freshness: one-shot online response Retention: none.
+   * Dispatch/task states: promise-only (no handle state table).
+   * Build identity: `8fac2ae0d3ddae10ae3b5ad89a516fbefae156d3082104aaf4d7908274b80923`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "streamReply": FunctionReference<"streamReply", 'Action', { attemptId: string; streamUrl: string; method: string; upstreamIdempotent: boolean }, unknown, "snapback-explicit-v1">;
+  /**
    * Mutation reference `competitive-checkpoint:updateConversation`.
    * Legal client verbs/hooks: `mutate`, `useSnapbackMutation`, `useSnapbackSettledMutation`.
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.

@@ -1,6 +1,6 @@
 # Freshly-primed demo backends cannot boot a server: governance carrier demands a target config nothing can mint
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 3
@@ -68,3 +68,20 @@ generated manifests can omit the `visibilityGovernance` member for
 ungoverned (`required: false`, empty-closure) backends, recording the
 omission in their witness. The Phase-1.4 browser-auth harness does this as
 of its refresh-race landing and cites this ticket.
+
+## Resolution (2026-08-16)
+
+Closed by the target-config path rather than omitting the activation carrier.
+`scripts/mint-visibility-governance-dev-config.mjs` produces the complete
+signed config, `snapback dev` refreshes it before initial load and watch
+reload, and `demos/_kit/server-process.mjs` supplies an aggregate config for
+repository-registered generated apps. A present carrier still always reaches
+`validate_activation_from_target`; the local loop now supplies valid
+repository-local custody instead of downgrading that invariant.
+
+Regression coverage is
+`freshly primed todo binds through snapback dev with an auto-minted config`,
+`freshly primed todo cold-start carrier binds through the demo kit`, and the
+Rust `primed_todo_and_rbac_dev_mints_validate_from_target_and_tampering_refuses`
+test. The last test primes both real demos, exercises the exact Rust target
+reader, and proves signature tampering is refused.

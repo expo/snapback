@@ -251,6 +251,15 @@ export interface GeneratedApi {
    * Build identity: `snapback.v1:sessions:inputs:sha256:29a21f5ee765769143964df91e2e30f79a772d440b9df9562a93f1b81ef973f6`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "pushLedger": FunctionReference<"pushLedger", 'Query', { intentId: string }, ReadonlyArray<{ "_id": string; "intentId": string; "triggerMode": "immediate" | "system" | "deferred"; "intentState": string; "attemptCount": number; "createdAtMs": number; "updatedAtMs": number; "expiresAtMs": number; "batchId": null | string; "attemptNumber": null | number; "batchIndex": null | number; "batchState": null | string; "transmittingAtMs": null | number; "settledAtMs": null | number; "httpStatus": null | number; "requestErrorCode": null | string; "previousAmbiguous": null | boolean; "messageId": null | string; "tokenId": null | string; "messageState": null | string; "ticketId": null | string; "receiptPollCount": null | number; "nextReceiptPollAtMs": null | number; "receiptWindowClosesAtMs": null | number; "handedToExpoAtMs": null | number; "expoAcceptedAtMs": null | number; "expoErrorCode": null | string; "retirementEffect": null | boolean }>, "snapback-explicit-v1">;
+  /**
+   * Action reference `app:sendSelected`.
+   * Legal client verbs/hooks: `action`.
+   * Auth: `authenticated`; required capabilities: `args_contract_v1`, `cron_action_run_mutation`, `ibex_ctx_db_host_bridge`, `result_contract_v1`.
+   * Freshness: one-shot online response Retention: none.
+   * Dispatch/task states: promise-only (no handle state table).
+   * Build identity: `snapback.v1:sessions:inputs:sha256:29a21f5ee765769143964df91e2e30f79a772d440b9df9562a93f1b81ef973f6`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   */
+  "sendSelected": FunctionReference<"sendSelected", 'Action', { principalIds: ReadonlyArray<Principal>; title: string; body: string; dedupeKey: string; redriveAmbiguous?: boolean }, { "intentId": string; "attempt": number; "targetCount": number; "batchCount": number; "state": string; "deduplicated": boolean }, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
 }
