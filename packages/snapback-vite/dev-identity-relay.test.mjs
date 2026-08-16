@@ -263,7 +263,41 @@ try {
     'managed lifecycle must not run setup when carrier custody cannot be enforced',
   );
 
-  const strictFalseOutsideEvents = [];
+  const externalCarrierStrictFalseEvents = [];
+  await assert.rejects(
+    createViteServer({
+      root: canonicalViteRoot,
+      configFile: false,
+      logLevel: 'silent',
+      plugins: [snapbackDev({
+        server: { mode: 'external', url: backendUrl },
+        projectRoot: viteRoot,
+        env: { SNAPBACK_DEV_IDENTITY_FILE: relayCapabilityFile },
+        onEvent: (event) => externalCarrierStrictFalseEvents.push(event),
+        logJson: false,
+      })],
+      server: { host: '127.0.0.1', port: 0, fs: { strict: false } },
+    }),
+    (error) => error.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED',
+  );
+  assert.equal(
+    externalCarrierStrictFalseEvents.filter((event) => (
+      event.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED'
+      && event.event === 'diagnostic'
+    )).length,
+    1,
+  );
+  const strictFalseDiagnostic = externalCarrierStrictFalseEvents.find(
+    (event) => event.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED',
+  );
+  assert.match(strictFalseDiagnostic.message, /carrier file itself may be servable via \/@fs/u);
+  assert.equal(
+    externalCarrierStrictFalseEvents.some((event) => event.event === 'server-ready'),
+    false,
+    'external lifecycle must not emit readiness when configured carrier custody cannot be enforced',
+  );
+
+  const externalNoCarrierStrictFalseEvents = [];
   viteServer = await createViteServer({
     root: canonicalViteRoot,
     configFile: false,
@@ -271,8 +305,8 @@ try {
     plugins: [snapbackDev({
       server: { mode: 'external', url: backendUrl },
       projectRoot: viteRoot,
-      env: { SNAPBACK_DEV_IDENTITY_FILE: relayCapabilityFile },
-      onEvent: (event) => strictFalseOutsideEvents.push(event),
+      env: {},
+      onEvent: (event) => externalNoCarrierStrictFalseEvents.push(event),
       logJson: false,
     })],
     server: { host: '127.0.0.1', port: 0, fs: { strict: false } },
@@ -288,16 +322,16 @@ try {
   assert.equal(strictFalseRelayResponse.status, 200);
   assert.equal(observedHttpHeaders[strictFalseHeaderIndex][DEV_IDENTITY_HEADER], undefined);
   assert.equal(
-    strictFalseOutsideEvents.filter((event) => (
+    externalNoCarrierStrictFalseEvents.some((event) => (
       event.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED'
-      && event.event === 'dev-identity-stamping-refused'
-    )).length,
-    1,
+    )),
+    false,
   );
-  const strictFalseDiagnostic = strictFalseOutsideEvents.find(
-    (event) => event.code === 'SNAPBACK_DEV_IDENTITY_FS_CHECKS_DISABLED',
+  assert.equal(
+    externalNoCarrierStrictFalseEvents.some((event) => event.event === 'server-ready'),
+    true,
+    'external lifecycle without a carrier remains permitted when filesystem checks are disabled',
   );
-  assert.match(strictFalseDiagnostic.message, /carrier file itself may be servable via \/@fs/u);
   await viteServer.close();
   viteServer = null;
 

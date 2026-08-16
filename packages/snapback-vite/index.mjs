@@ -403,9 +403,7 @@ export function snapbackDev(options = {}) {
         if (!fsChecksDisabledDiagnosticEmitted) {
           fsChecksDisabledDiagnosticEmitted = true;
           channel.emit({
-            event: mode === 'managed' || mode === 'auto'
-              ? 'diagnostic'
-              : 'dev-identity-stamping-refused',
+            event: 'diagnostic',
             code: error.code,
             severity: 'error',
             mode,
@@ -413,7 +411,7 @@ export function snapbackDev(options = {}) {
             details: error.diagnostic.details,
           });
         }
-        if (mode === 'managed' || mode === 'auto') throw error;
+        throw error;
       }
       const publicDir = config.publicDir;
       if (publicDir) {
