@@ -1,6 +1,6 @@
 # expo-chat template live acceptance broken at origin/main (supervised-connect)
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 2
 **Urgency:** 3
 **Ease:** 2
@@ -54,3 +54,26 @@ must reuse the boot's client rather than constructing a second one.
 The expo-chat template live acceptance completes its journey (the 15-check
 Phase-3 version, or origin/main's, whichever is current) against a
 current-tree runtime.
+
+## Resolution (2026-08-16)
+
+The apparent boot-versus-round-trip contention was an unintentional third
+client: `validateReadyDescriptorHealth` constructed a default durable
+`SnapbackClient` before the Expo application bootstrap. Its health-only probe
+could win the process store's writer lease, leaving the LLP 0258 bootstrap
+owner as a reader and making queued mutations refuse with
+`SNAPBACK_OUTBOX_NOT_WRITER`. The readiness probe now opts out of RQS and the
+offline queue and closes its client after inspection. The acceptance continues
+to reuse `roundTripBoot.appClient().client`; single-writer enforcement remains
+unchanged.
+
+Completing the newly expanded 15-check journey exposed two unrelated harness
+contradictions from the Phase-3 hardening: the synthetic binding omitted the
+target's `auth.passwords` offer, and the reload check expected durable recovery
+from the template's explicit `volatile-explicit` custody. The binding now names
+the password offer and the reload check proves the volatile owner returns to
+anonymous before signing in again, matching LLP 0258 D3.
+
+The live Expo acceptance passes 15/15 against the digest-qualified runtime at
+commit `799855de720d4288edcbc197745f5df1ae2ff574`; the React acceptance remains
+9/9, the Expo package suite passes, and both static template acceptances pass.

@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { IDBFactory } from 'fake-indexeddb';
 
 import { createSnapbackAppClient } from '@expo/snapback-client';
+import { createMemoryAuthCustodyStorage } from '@expo/snapback-contract/auth-coordinator';
 import {
   adoptSupervisedBootstrapAuthority,
   createSnapbackAppClientWithBootstrapObserver,
@@ -348,9 +349,19 @@ await boot.dispose();
 // coverage for the future first-party native reader without pretending that
 // the reader exists today.
 const devIdentityCapability = 'sbdev_provider_plumbing_test';
+const carrierProtocolStorage = {
+  ...createMemoryAuthCustodyStorage(),
+  async platformGrade() {
+    return {
+      grade: 'single-runtime',
+      mechanism: 'test-single-runtime-queue',
+    };
+  },
+};
 const carrierProtocolPlatform = Object.freeze({
-  ...platform,
-  databaseName: 'snapback-expo-auth-bootstrap-carrier-protocol-test',
+  kind: 'expo-native',
+  authCustodyStorage: carrierProtocolStorage,
+  cryptoObject: webcrypto,
 });
 const carrierProtocolSupervisor = {
   bearer: SUPERVISED_BEARER,

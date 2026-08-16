@@ -111,7 +111,7 @@ for (const check of [
   'zero-config-supervised-connect',
   'web-anonymous-ready',
   'password-signup-recovery',
-  'reload-restores-principal',
+  'reload-clears-volatile-principal',
   'authenticated-entry-refusal',
   'sign-out',
   'native-refusal',

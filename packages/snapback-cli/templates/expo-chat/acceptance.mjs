@@ -40,7 +40,7 @@ const EXPECTED_CHECKS = Object.freeze([
   'managed-lifecycle',
   'web-anonymous-ready',
   'password-signup-recovery',
-  'reload-restores-principal',
+  'reload-clears-volatile-principal',
   'authenticated-entry-refusal',
   'sign-out',
   'native-refusal',
@@ -222,7 +222,12 @@ const admittedBinding = (serverUrl) => {
       origin: serverUrl,
       routing: 'loopback',
     }),
-    capabilities: Object.freeze({ offered: Object.freeze([...app.capabilities.required]) }),
+    capabilities: Object.freeze({
+      offered: Object.freeze([...new Set([
+        ...app.capabilities.required,
+        'auth.passwords',
+      ])].sort()),
+    }),
     provenance: Object.freeze({
       supervisorGeneration: `expo-chat-acceptance-${app.identity.descriptor}`,
       issuedAt: issuedAt.toISOString(),
@@ -397,9 +402,18 @@ try {
 
   await appClient.dispose();
   appClient = await createSnapbackAppClient({ app, binding, platform });
-  assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+  // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+  // — this disposable starter explicitly chooses volatile custody, so a
+  // reconstructed owner must not imply persistence merely because it is web.
+  assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+  pass('reload-clears-volatile-principal', {
+    custody: app.authBootstrap.custody,
+    principal: 'anonymous',
+  });
+
+  const signin = await appClient.auth.signInWithPassword({ email: identity, password });
+  assert.equal(signin.session.userId, signedUpUserId);
   assert.equal(appClient.auth.currentPrincipal().userId, signedUpUserId);
-  pass('reload-restores-principal', { userId: signedUpUserId });
 
   await assert.rejects(
     appClient.auth.signUpWithPassword({ email: `second-${identity}`, password }),

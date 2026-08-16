@@ -3401,24 +3401,35 @@ export function validateDevTarget(descriptor, { readyFile, database }) {
 }
 
 async function validateReadyDescriptorHealth(descriptor) {
-  const health = await new SnapbackClient(descriptor.serverUrl).health();
-  if (
-    health?.ok !== true
-    || (
-      typeof descriptor.startupNonce === 'string'
-      && health?.binary?.startupNonce !== descriptor.startupNonce
-    )
-  ) {
-    throw diagnosticError(
-      'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
-      'ready-file health identity did not match the live server',
-      {
-        expectedStartupNonce: descriptor.startupNonce ?? null,
-        observedStartupNonce: health?.binary?.startupNonce ?? null,
-      },
-    );
+  // @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client
+  // — readiness inspection must not acquire the application's default local
+  // store before the bootstrap owner constructs its client.
+  const client = new SnapbackClient(descriptor.serverUrl, {
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  try {
+    const health = await client.health();
+    if (
+      health?.ok !== true
+      || (
+        typeof descriptor.startupNonce === 'string'
+        && health?.binary?.startupNonce !== descriptor.startupNonce
+      )
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_DEV_SERVER_ATTACH_FAILED',
+        'ready-file health identity did not match the live server',
+        {
+          expectedStartupNonce: descriptor.startupNonce ?? null,
+          observedStartupNonce: health?.binary?.startupNonce ?? null,
+        },
+      );
+    }
+    return health;
+  } finally {
+    await client.closeAuth();
   }
-  return health;
 }
 
 function removeManagedDatabaseState(database, readyFile = null, applicationReadyFile = null) {

@@ -89,7 +89,7 @@ if (state.status === 'starting') {
     void kind;
   } else {
     const authoritySource = state.authoritySource;
-    const custodyGrade: 'durable' | 'volatile' = state.custody.grade;
+    const custodyGrade: 'durable' | 'single-runtime' | 'volatile' = state.custody.grade;
     void authoritySource;
     void custodyGrade;
   }
