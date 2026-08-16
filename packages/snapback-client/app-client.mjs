@@ -810,8 +810,11 @@ async function enterWith(owner, operation) {
         await owner.client.__authLogoutExpectedCapture(displacedCapture);
         signedOut = true;
         owner.supervisedAdoptionCapture = null;
+        // @ref LLP 0258#d5-application-authority-wins-over-ambient-development-adoption
+        // — the intermediate anonymous state stays unpublished; bootstrap
+        // subscribers observe one predecessor->successor exposure in this
+        // context.
         owner.authoritySource = 'fresh-anonymous';
-        publishReady(owner);
         const result = await operation();
         owner.authoritySource = 'application-entry';
         publishReady(owner);
@@ -1059,6 +1062,13 @@ export async function __adoptSupervisedBootstrapAuthority(
   if (binding?.source !== 'supervised-dev' || owner.binding.source !== 'supervised-dev') {
     throw new TypeError('supervised adoption requires a supervised-source AppBinding');
   }
+  // @ref LLP 0258#d5-application-authority-wins-over-ambient-development-adoption
+  // — a supervisor event that ARRIVES while a composed entry is in flight is
+  // dropped at arrival time, never deferred behind the entry turn and then
+  // adopted; only a later supervisor event may re-admit under rule 3. The
+  // serialized re-check alone cannot see the flag (entry clears it inside its
+  // own turn), so the arrival-time check is the load-bearing one.
+  if (owner.entryInFlight) return Object.freeze({ status: 'dropped' });
   return serializeOwner(owner, async () => {
     if (owner.entryInFlight) return Object.freeze({ status: 'dropped' });
     owner.ownerTransitionInFlight = true;

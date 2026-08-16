@@ -158,3 +158,32 @@ authorized transition), landed on main as `4cc971ea4`.
      decided fail-closed, and per-platform capability flips are
      evidence-gated by Phase 0 probes.
 - **Status:** document remains **Review**. Loop complete, 2026-08-15.
+
+## Post-convergence r4 delta review (2026-08-15, author-directed)
+
+- Author asked for the optional r4 delta review after implementation landed.
+- **Target:** r4 + post-loop editorial (Accepted flip, Implementation
+  record), sha256 `bd7c5f0f…43d8`, capsule from origin/main `699b7f907`
+  (implementation included; all 0258 review artifacts excluded, including
+  other sessions' `0258-phase1-core.*`/`0258-reconciliation.*` files).
+- **Verdicts:** codex NOT READY (1 MATERIAL in-delta + 1 minor); grok NOT
+  READY (2 MATERIAL in-delta + 2 minor). No new pre-existing MATERIAL from
+  either family — the converged-loop conclusion stands.
+- **Cross-family contradiction adjudicated by the orchestrator against the
+  capsule code:** codex was right — `enterWith` clears `entryInFlight`
+  inside its own serialized turn, so the adoption path's serialized check
+  was dead code and mid-entry supervisor adoption was deferred-then-adopted;
+  grok's "verified drop" claim was wrong (its cited test covers binding
+  rebind, not concurrent adoption).
+- **Fixes landed with this record:** code — arrival-time drop in
+  `__adoptSupervisedBootstrapAuthority`, no mid-entry `ready` publication,
+  two new app-client race tests (16/16); react fixture de-rotted (static
+  binding expiry vs the boot-clock admission landed in `8c79faccd`).
+  Doc r5 — Acceptance aligned to the drop-only rule and initiating-context
+  exposure scope; authority-source union gains `external-transition`;
+  rotation predicate = any policy-semantic-identity change; Implementation
+  record list completed with the 0241 successor-proof ticket; Phase 3
+  ticket gains the missing-`recoveryPolicy` source-field gap.
+- **r5 remains unreviewed** (narrow, enumerated in its Revision-history
+  bullet); the unreviewed-r4 escalation is superseded by this reviewed
+  round plus the r5 delta.

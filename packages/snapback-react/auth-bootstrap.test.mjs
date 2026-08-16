@@ -64,8 +64,10 @@ const binding = Object.freeze({
   capabilities: Object.freeze({ offered: Object.freeze(['auth.passwords']) }),
   provenance: Object.freeze({
     supervisorGeneration: 'react-auth-bootstrap-test',
-    issuedAt: '2026-08-15T12:00:00.000Z',
-    expiresAt: '2026-08-15T13:00:00.000Z',
+    // Dynamic window: binding-expiry admission honors the boot clock, so a
+    // hard-coded window rots the fixture (it did, on 2026-08-15).
+    issuedAt: new Date(Date.now() - 60_000).toISOString(),
+    expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
   }),
   integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
 });

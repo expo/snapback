@@ -96,3 +96,11 @@ table fails closed on an unclassified auth-program/mechanism/platform/profile
 field; the guide capability GAP moves to the new journey; and both guide and
 inventory checks are green.
 
+
+## Addendum (2026-08-15, r4 delta review)
+
+- The D9 recovery-lifecycle rows derive from LLP 0214 `recoveryPolicy`, but
+  the current codegen `AuthProgramV1`/`AUTH_PROGRAM_FIELDS` omit
+  `recoveryPolicy` entirely (`packages/snapback-codegen/define.mjs`). The
+  Phase 3 D9 work must reconcile that source-field gap before generating
+  recovery rows (found by the codex r4 delta review).

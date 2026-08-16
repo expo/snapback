@@ -7,9 +7,8 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
-**Revised:** 2026-08-15 (Accepted on the author's in-session build directive
-after super-refine convergence at r3; r4 fixes are UNREVIEWED — see Revision
-history)
+**Revised:** 2026-08-15 (r5: post-convergence delta-review alignment; see
+Revision history)
 **Related:** LLP 0039, LLP 0043, LLP 0053, LLP 0057, LLP 0058, LLP 0059,
 LLP 0060, LLP 0061, LLP 0064, LLP 0077, LLP 0096, LLP 0114, LLP 0151,
 LLP 0176, LLP 0181, LLP 0214, LLP 0218, LLP 0227, LLP 0236, LLP 0238,
@@ -174,9 +173,11 @@ explicit external-session seam. Entry does not define downstream custody.
 **Authority source** records how the current settled authority entered the
 coordinator: fresh server-witnessed anonymous establishment (a cold
 bootstrap or the successor of an explicit sign-out), restored custody,
-explicit application sign-in, supervised development bootstrap, or advanced
-external adoption — so every settled state D1/D5 can produce, anonymous
-states included, has exactly one source value. It is diagnostic
+explicit application sign-in, supervised development bootstrap, advanced
+external adoption, or an external transition — a settled authority this
+owner did not perform, such as a peer context winning the intermediate
+predecessor during a composed entry (D5) — so every settled state D1/D5 can
+produce, anonymous states included, has exactly one source value. It is diagnostic
 provenance, never authorization, and it is process-lifetime only: the
 durable custody record carries no source field, so every authority that
 enters by restoration reports `restored` regardless of how it was originally
@@ -342,7 +343,9 @@ divide by role:
   a stale binding arriving after its successor is refused, not rebound.
   Ordinary same-policy codegen remints, HMR, and Strict Mode remount overlap
   therefore keep one owner and one coordinator. A remint that **rotates the
-  bootstrap policy** (custody grade, sessions posture, admitted mechanisms)
+  bootstrap policy** — any change to the policy's semantic identity: custody
+  grade, sessions posture, admitted mechanisms, anonymous-public posture, or
+  lifecycle protocol —
   is a 0241 authority rotation, and the live owner cannot absorb it by
   rebinding — its custody adapter and mechanism table were instantiated
   under the predecessor policy. Such a remint refuses with a typed
@@ -886,9 +889,13 @@ hosted or sender-constrained auth.
   all project one `currentPrincipal` state machine and one participant barrier.
 - The composed supervised displacement survives adversarial interleaving: a
   failed issuance terminates in settled anonymous with the typed diagnostic
-  (never silent supervised re-adoption), a remint or `refreshAuthority`
-  arriving mid-entry is deferred or refused, and applications observe exactly
-  one predecessor→successor exposure across the composed span.
+  (never silent supervised re-adoption); a supervisor adoption event or
+  remint arriving mid-entry is dropped at arrival (rebind facts only, no
+  rule-3 adoption — never deferred behind the entry and then adopted); the
+  initiating context's public application and `currentPrincipal` projection
+  observe exactly one predecessor→successor exposure across the composed
+  span, while participants and peer contexts follow LLP 0059's unchanged
+  recapture and broadcast sequences.
 - A password-only, guest-disabled application reaches sign-in from a cold
   start: bootstrap settles anonymous `ready` and the entry surface renders
   with no out-of-provider escape hatch.
@@ -1009,8 +1016,16 @@ custody/barrier semantics.
   field; `75da1f28a` independently shipped the SecureStore adapter.
 - Remaining closure is tracked by
   `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`,
-  `issues/20260815-llp-0258-phase-3-remainders.md`, and
-  `issues/20260815-llp-0258-phase-4-external-qualification.md`.
+  `issues/20260815-llp-0258-phase-3-remainders.md`,
+  `issues/20260815-llp-0258-phase-4-external-qualification.md`, and
+  `issues/20260815-llp-0258-rebind-0241-successor-proof.md` (today's binding
+  carries no LLP 0241 activation proof; the shipped rebind enforces only the
+  provable subset, so `b186296fd`'s D5/D2 claims are scoped by that ticket).
+- A post-convergence r4 delta review (codex + grok, 2026-08-15) found the
+  shipped mid-entry supervisor adoption deferred-then-adopted and an
+  intermediate mid-entry `ready` publication; both were fixed with the r5
+  alignment (arrival-time drop, no intermediate publication) in the same
+  landing as this note.
 
 ## Revision history
 
@@ -1079,3 +1094,13 @@ custody/barrier semantics.
   on the low-level client); `changePassword` exempted from entry refusals;
   D3 adapters required to key by the full owner key; the LLP 0214 amendment
   paired with its LLP 0252 D1 field dispositions.
+- **r5 (2026-08-15):** post-convergence r4 delta review (codex + grok, both
+  NOT READY on the delta, no new pre-existing MATERIAL). Fixes: Acceptance
+  aligned with D5's drop-only mid-entry rule and initiating-context exposure
+  scope (it still carried r3's "deferred or refused" oracle); the
+  authority-source union closed with the external-transition arm the D5
+  peer race produces; the D2 rotation predicate stated as any
+  policy-semantic-identity change; the Implementation record's remaining
+  list completed with the 0241 successor-proof ticket. Companion code fix:
+  supervisor adoption arriving mid-entry now drops at arrival time and the
+  intermediate anonymous state is never published to bootstrap subscribers.

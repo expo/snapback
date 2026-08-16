@@ -9,6 +9,7 @@ import {
   createSnapbackAppClient,
 } from './index.mjs';
 import {
+  __adoptSupervisedBootstrapAuthority,
   __bootstrapHistoryForTests,
   __recordSupervisedBootstrapAdoptionForTests,
 } from './app-client.mjs';
@@ -685,6 +686,95 @@ test('supervised displacement withholds anonymous exposure and failed issuance t
         (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_FAILED'
           && error?.diagnostic?.details?.settledAnonymous === true,
       );
+      assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+      assert.equal(appClient.bootstrapState().authoritySource, 'fresh-anonymous');
+    } finally {
+      await appClient.dispose();
+      server.restore();
+    }
+  });
+});
+
+test('supervisor adoption arriving mid-entry is dropped, never deferred-then-adopted', async (t) => {
+  await t.test('successful entry publishes no intermediate ready and drops the mid-entry adoption', async () => {
+    const server = installServer();
+    const app = makeApp();
+    const appClient = await createSnapbackAppClient(optionsFor(app));
+    try {
+      server.respond('/auth/password/signin', () => (
+        Response.json(server.credential({ token: SUPERVISED_BEARER }))
+      ));
+      await appClient.client.auth.authPasswordSignIn({
+        email: 'supervised@example.com',
+        password: PASSWORD,
+      });
+      __recordSupervisedBootstrapAdoptionForTests(appClient);
+      const readySources = [];
+      const unsubscribe = appClient.subscribeBootstrap(() => {
+        const snapshot = appClient.bootstrapState();
+        if (snapshot.status === 'ready') readySources.push(snapshot.authoritySource);
+      });
+      server.respond('/auth/logout', () => new Response(null, { status: 204 }));
+      let adoption = null;
+      server.respond('/auth/password/signin', () => {
+        adoption = __adoptSupervisedBootstrapAuthority(appClient, {
+          bearer: SUPERVISED_BEARER,
+          binding: makeBinding(app),
+        });
+        return Response.json(server.credential({ token: APPLICATION_BEARER }));
+      });
+      await appClient.auth.signInWithPassword({
+        email: 'application@example.com',
+        password: PASSWORD,
+      });
+      unsubscribe();
+      assert.deepEqual(await adoption, { status: 'dropped' });
+      // The intermediate anonymous state is never published to bootstrap
+      // subscribers: one predecessor -> successor exposure in this context.
+      assert.equal(readySources.includes('fresh-anonymous'), false);
+      assert.equal(readySources.at(-1), 'application-entry');
+      assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+    } finally {
+      await appClient.dispose();
+      server.restore();
+    }
+  });
+
+  await t.test('failed issuance drops the mid-entry adoption and stays settled anonymous', async () => {
+    const server = installServer();
+    const app = makeApp();
+    const appClient = await createSnapbackAppClient(optionsFor(app));
+    try {
+      server.respond('/auth/password/signin', () => (
+        Response.json(server.credential({ token: SUPERVISED_BEARER }))
+      ));
+      await appClient.client.auth.authPasswordSignIn({
+        email: 'supervised@example.com',
+        password: PASSWORD,
+      });
+      __recordSupervisedBootstrapAdoptionForTests(appClient);
+      server.respond('/auth/logout', () => new Response(null, { status: 204 }));
+      let adoption = null;
+      server.respond('/auth/password/signin', () => {
+        adoption = __adoptSupervisedBootstrapAuthority(appClient, {
+          bearer: SUPERVISED_BEARER,
+          binding: makeBinding(app),
+        });
+        return Response.json({
+          diagnostic: { code: 'SNAPBACK_AUTH_CREDENTIAL_INVALID', message: 'invalid credential' },
+        }, { status: 401 });
+      });
+      await assert.rejects(
+        appClient.auth.signInWithPassword({
+          email: 'application@example.com',
+          password: PASSWORD,
+        }),
+        (error) => error?.code === 'SNAPBACK_AUTH_ENTRY_FAILED'
+          && error?.diagnostic?.details?.settledAnonymous === true,
+      );
+      // Deferred-then-adopted is the forbidden path: the supervised persona
+      // must not silently return as the failure fallback.
+      assert.deepEqual(await adoption, { status: 'dropped' });
       assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
       assert.equal(appClient.bootstrapState().authoritySource, 'fresh-anonymous');
     } finally {

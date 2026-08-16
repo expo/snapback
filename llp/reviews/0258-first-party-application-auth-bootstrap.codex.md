@@ -171,3 +171,36 @@ Implementation-phase notes:
 - **minor — IN-DELTA:** Test mixed anonymous-access applications to ensure `anonymousPublic` remains a generated posture summary. Per-operation and table visibility must remain the actual authorization authority; the single boolean cannot safely widen or narrow individual operations.
 
 VERDICT: NOT READY
+
+## Post-convergence r4 delta review — 2026-08-15
+
+- **Reviewer:** codex exec, model gpt-5.6-sol, reasoning effort xhigh, read-only sandbox, blind.
+- **Revision under review (r4 + post-loop editorial):** sha256
+  `bd7c5f0fcf15a080cdd4f373266d2d1aa27afb2b2cb588f00dc283391a7b43d8` (capsule = origin/main `699b7f907` export, 0258 review
+  artifacts excluded, landed implementation included).
+- **Instructions:** sha256 `f7cb346bbd049b5bba5f9b15bd3c54cbe60586732dcc3519769873a237eabad8`.
+- **Verdict:** NOT READY — 1 MATERIAL IN-DELTA (mid-entry supervisor adoption deferred-then-adopted in the shipped owner; Acceptance oracle carries the replaced rule), 1 minor; no new PRE-EXISTING MATERIAL.
+
+### Review body (verbatim)
+
+The r4 decisions are largely coherent with LLP 0059, 0214, 0227, 0238, 0241, and 0252, and the owner-key, recovery-return, `client.auth`, and policy-projection claims are substantially corroborated by the capsule. I found no new MATERIAL defect in pre-existing text. However, the central r4 D5 race correction is contradicted by Acceptance and is not implemented despite the Implementation record claiming D5 landed.
+
+1. **MATERIAL — IN-DELTA — Mid-entry supervisor events retain the forbidden deferred-then-adopt behavior.** D5 requires supervisor adoption events during entry to be refused or dropped, and specifically says a mid-entry remint is “dropped (rebind facts only, no rule-3 adoption)” with re-admission only on a later event (`LLP 0258 D5`, lines 549–580). Acceptance instead permits a mid-entry remint or `refreshAuthority` to be “deferred or refused” (lines 887–891), which admits the behavior r4 was meant to eliminate.
+
+   The shipped code takes that forbidden path. `enterWith` holds `serializeOwner`, sets `entryInFlight`, and clears it before releasing the serialized operation (`packages/snapback-client/app-client.mjs:778–849`). `__adoptSupervisedBootstrapAuthority` queues through the same serializer and checks `entryInFlight` only after acquiring it (`app-client.mjs:1049–1086`). Consequently, a supervisor event arriving mid-entry cannot observe `entryInFlight === true`; it waits until entry finishes and may adopt over the anonymous state left by failed issuance. Expo `refreshAuthority` forwards directly into this path (`packages/snapback-expo/provider.mjs:471–500`).
+
+   The implementation also publishes an intermediate `ready` snapshot with `authoritySource: "fresh-anonymous"` (`app-client.mjs:809–810`), while the owner-only hold gates only `currentPrincipal` (`packages/snapback-client/index.mjs:3083–3105`), falling short of D5’s stated withholding of public application and `currentPrincipal` publication. The existing race test exercises binding rebind during entry, not concurrent supervised-authority adoption (`packages/snapback-client/app-client.test.mjs:697–789`).
+
+   This also makes the claim that `b186296fd` landed “LLP 0258 D5 supervised precedence” materially overbroad (`Implementation record`, lines 1005–1006; `issues/20260815-llp-0258-phase-3-remainders.md:14–23`). Resolve by aligning Acceptance with the drop-only rule and either implementing and testing the pre-queue drop/publication gate or recording this r4 behavior as unfinished work.
+
+2. **minor — IN-DELTA — The remaining-closure list omits the open D2 successor-proof gap.** D2 correctly requires an LLP 0241-backed exact successor proof (`LLP 0258 D2`, lines 334–350), matching LLP 0241 D4’s candidate/predecessor/nonce/readiness protocol. The current binding carries only timestamps and opaque supervisor generation, and the implementation explicitly says it enforces only the available subset (`packages/snapback-client/app-client.d.mts:48–54`; `app-client.mjs:661–731`). The dedicated open ticket accurately warns that this is not an LLP 0241 proof (`issues/20260815-llp-0258-rebind-0241-successor-proof.md:8–38`), but the Implementation record’s apparently exhaustive remaining-closure list names only the Phase 2–4 tickets (lines 1010–1013). Add the successor-proof ticket or qualify the list.
+
+Implementation-phase notes:
+
+- D1’s exclusion and authorization-posture claims are corroborated: codegen excludes guest/passkey from the allowlist and derives `anonymousPublic` only from operation posture/table visibility (`packages/snapback-codegen/index.mjs:1588–1625`).
+- D3’s full owner-key addressing is present in the memory, IndexedDB, and SecureStore adapters; the custody record itself remains unchanged.
+- D4’s return contracts match the shipped declarations: signup/consume/rotate return `AuthRecoveryCredentialPublicProjectionV1`, while sign-in/change return `AuthCredentialPublicProjectionV1` (`packages/snapback-client/index.d.mts:538–548, 1563–1588`).
+- D9 remains implementation work. Notably, LLP 0214 requires `recoveryPolicy`, but the current `AuthProgramV1`/`AUTH_PROGRAM_FIELDS` omit it (`packages/snapback-codegen/define.d.ts:727–753`; `define.mjs:54–57`). The Phase 3 work must reconcile that source-field gap before generating recovery rows.
+- This capsule has no Git metadata, so I verified current-tree contents and issue state, not the provenance of the listed commit hashes.
+
+VERDICT: NOT READY
