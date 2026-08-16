@@ -58,3 +58,16 @@ The Phase-1.4 orchestration session (owner of
 a fix lane for this now; the real-browser harness that found it re-runs as
 the fix's acceptance. Per the fleet convention this claim yields to landed
 code.
+
+## Resolution (2026-08-16)
+
+Fixed in this landing: browser/expo-web app-client owners preserve the
+coordinator's BroadcastChannel/localStorage wakeup defaults (injectable,
+including null-to-disable, through `platform` options); other platforms
+stay mechanism-free. Regression tests pin two-context convergence without
+peer synchronize(), explicit-null and omitted-default behavior, Node
+construction without the globals, and channel close on dispose. The
+real-browser harness re-run confirms logout, sign-in, and user-switch races
+now converge the losing tab automatically on both Chromium and WebKit. The
+remaining refresh-race defect is separately tracked in
+`issues/20260816-refresh-race-zero-winner.md`.

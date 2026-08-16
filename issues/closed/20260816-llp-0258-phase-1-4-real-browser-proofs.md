@@ -49,3 +49,20 @@ The same fresh orchestration session claiming the Phase 2 native-custody
 build (see `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`)
 is executing this ticket now in a dedicated lane. Per the fleet convention
 this claim yields to landed code.
+
+## Resolution (2026-08-16)
+
+Delivered in this landing. `tests/acceptance/browser-auth-bootstrap-v1.mjs`
+runs all six proofs in real Chromium 151 (raw CDP) and real Safari 26.6
+(safaridriver WebDriver) in one invocation with a merged witness
+(`tests/acceptance/fixtures/browser-lane/browser-auth-bootstrap.2026-08-16.v1.json`)
+and evidence (`tests/acceptance/browser-auth-bootstrap-v1.evidence.md`).
+Outcome: every proof passes on both engines except the two-tab
+concurrent-refresh check. The run found two product defects: the cross-tab
+convergence defect (fixed in this landing,
+`issues/closed/20260816-app-client-cross-tab-convergence-disabled.md`) and
+the zero-winner refresh race (open,
+`issues/20260816-refresh-race-zero-winner.md`). Firefox and Fast Refresh
+remain explicitly out of scope as recorded nonclaims. Dual review
+(codex + grok, three rounds each, artifacts under
+`llp/reviews/0258-phase-1-4-browser-proofs.*`) converged READY.

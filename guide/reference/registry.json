@@ -5601,16 +5601,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 123,
+        "line": 129,
         "column": 1,
-        "endLine": 126
+        "endLine": 132
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 123,
+          "line": 129,
           "column": 1,
-          "endLine": 126
+          "endLine": 132
         }
       ],
       "publicDeclaration": {
@@ -5645,16 +5645,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 116,
+        "line": 122,
         "column": 1,
-        "endLine": 121
+        "endLine": 127
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 116,
+          "line": 122,
           "column": 1,
-          "endLine": 121
+          "endLine": 127
         }
       ],
       "publicDeclaration": {
@@ -5689,16 +5689,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 128,
+        "line": 134,
         "column": 1,
-        "endLine": 148
+        "endLine": 154
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 128,
+          "line": 134,
           "column": 1,
-          "endLine": 148
+          "endLine": 154
         }
       ],
       "publicDeclaration": {
@@ -8962,16 +8962,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 167,
+        "line": 173,
         "column": 1,
-        "endLine": 179
+        "endLine": 185
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 167,
+          "line": 173,
           "column": 1,
-          "endLine": 179
+          "endLine": 185
         }
       ],
       "publicDeclaration": {
@@ -17795,16 +17795,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 108,
+        "line": 114,
         "column": 1,
-        "endLine": 114
+        "endLine": 120
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 108,
+          "line": 114,
           "column": 1,
-          "endLine": 114
+          "endLine": 120
         }
       ],
       "publicDeclaration": {
@@ -24879,9 +24879,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 160,
+              "line": 166,
               "column": 3,
-              "endLine": 160
+              "endLine": 166
             }
           ]
         },
@@ -24898,9 +24898,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 161,
+              "line": 167,
               "column": 3,
-              "endLine": 161
+              "endLine": 167
             }
           ]
         },
@@ -24917,9 +24917,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 162,
+              "line": 168,
               "column": 3,
-              "endLine": 162
+              "endLine": 168
             }
           ]
         },
@@ -24936,9 +24936,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 163,
+              "line": 169,
               "column": 3,
-              "endLine": 163
+              "endLine": 169
             }
           ]
         },
@@ -24955,9 +24955,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 164,
+              "line": 170,
               "column": 3,
-              "endLine": 164
+              "endLine": 170
             }
           ]
         }
@@ -24968,16 +24968,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 159,
+        "line": 165,
         "column": 1,
-        "endLine": 165
+        "endLine": 171
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 159,
+          "line": 165,
           "column": 1,
-          "endLine": 165
+          "endLine": 171
         }
       ],
       "publicDeclaration": {
@@ -25003,7 +25003,7 @@
         "exportNames": [],
         "conditions": []
       },
-      "signature": "export type SnapbackAppClientPlatform =\n  | 'browser'\n  | 'expo-web'\n  | 'memory'\n  | Readonly<{\n      kind: 'browser' | 'expo-web' | 'memory';\n      indexedDB?: unknown;\n      lockManager?: unknown;\n      cryptoObject?: unknown;\n      databaseName?: string;\n    }>;",
+      "signature": "export type SnapbackAppClientPlatform =\n  | 'browser'\n  | 'expo-web'\n  | 'memory'\n  | Readonly<{\n      kind: 'browser' | 'expo-web' | 'memory';\n      /** Cross-context auth wakeup channel. Browser/web defaults to the host\n       * BroadcastChannel; memory contexts default to disabled. */\n      broadcastChannelFactory?: ((name: string) => unknown) | null;\n      /** Secret-free auth wakeup hint storage. Browser/web defaults to the\n       * host localStorage; memory contexts default to disabled. */\n      hintStorage?: unknown;\n      indexedDB?: unknown;\n      lockManager?: unknown;\n      cryptoObject?: unknown;\n      databaseName?: string;\n    }>;",
       "overloads": [],
       "members": [],
       "documentation": {
@@ -25014,14 +25014,14 @@
         "file": "packages/snapback-client/app-client.d.mts",
         "line": 96,
         "column": 1,
-        "endLine": 106
+        "endLine": 112
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
           "line": 96,
           "column": 1,
-          "endLine": 106
+          "endLine": 112
         }
       ],
       "publicDeclaration": {
@@ -25368,9 +25368,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 151,
+              "line": 157,
               "column": 3,
-              "endLine": 151
+              "endLine": 157
             }
           ]
         },
@@ -25387,9 +25387,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 152,
+              "line": 158,
               "column": 3,
-              "endLine": 152
+              "endLine": 158
             }
           ]
         },
@@ -25406,9 +25406,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 153,
+              "line": 159,
               "column": 3,
-              "endLine": 153
+              "endLine": 159
             }
           ]
         },
@@ -25425,9 +25425,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 154,
+              "line": 160,
               "column": 3,
-              "endLine": 154
+              "endLine": 160
             }
           ]
         },
@@ -25444,9 +25444,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 155,
+              "line": 161,
               "column": 3,
-              "endLine": 155
+              "endLine": 161
             }
           ]
         },
@@ -25463,9 +25463,9 @@
           "sources": [
             {
               "file": "packages/snapback-client/app-client.d.mts",
-              "line": 156,
+              "line": 162,
               "column": 3,
-              "endLine": 156
+              "endLine": 162
             }
           ]
         }
@@ -25476,16 +25476,16 @@
       },
       "source": {
         "file": "packages/snapback-client/app-client.d.mts",
-        "line": 150,
+        "line": 156,
         "column": 1,
-        "endLine": 157
+        "endLine": 163
       },
       "sources": [
         {
           "file": "packages/snapback-client/app-client.d.mts",
-          "line": 150,
+          "line": 156,
           "column": 1,
-          "endLine": 157
+          "endLine": 163
         }
       ],
       "publicDeclaration": {
