@@ -1663,7 +1663,16 @@ test('umbrella publication metadata closes and stamps every internal dependency'
   assert.equal(manifest.private, undefined);
   assert.equal(manifest.publishConfig.access, 'public');
   assert.equal(manifest.dependencies?.['@expo/snapback-expo-custody'], undefined);
+  assert.equal(manifest.optionalDependencies?.['@expo/snapback-expo-custody'], undefined);
   assert.equal(manifest.peerDependencies?.['@expo/snapback-expo-custody'], undefined);
+  for (const section of ['bundleDependencies', 'bundledDependencies']) {
+    assert.equal(
+      Array.isArray(manifest[section])
+        && manifest[section].includes('@expo/snapback-expo-custody'),
+      false,
+      section,
+    );
+  }
   const stamped = structuredClone(manifest);
   stamped.version = '0.1.21';
   for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies']) {

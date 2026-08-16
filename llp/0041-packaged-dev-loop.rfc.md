@@ -9,7 +9,9 @@
 **Revised (0.1.24 custody publication posture):** 2026-08-16 (author ruling:
 the Experimental `@expo/snapback-expo-custody` identity joins the next
 qualified closure as its thirteenth package without a legacy alias or native
-durability claim; see §0.1.24.)
+durability claim; its brand-new-name publication remains held by the custody
+first-publish gate until the separately authorized qualified ceremony closes;
+see §0.1.24.)
 
 **Revised (0.1.23 fast-path publication):** 2026-08-16 (the twelve-package
 closure from clean revision `cc79d498537b` passed Darwin arm64 and Linux x64
@@ -1486,6 +1488,19 @@ array. The package is an optional native add-on and is not a dependency or
 re-export of the thin `@expo/snapback` umbrella (LLP 0253 S3.1). The existing
 twelve-name v4 publication records remain valid as an exact historical prefix;
 new authority issues bind the complete thirteen-name vector.
+
+Custody's first publication is held by
+`issues/20260816-custody-first-publish-gate.md`, using the same arrangement as
+the umbrella's first publication: repository-side admission does not itself
+authorize the outward-facing mutation, and the ticket stays open through a
+separately authorized qualified ceremony until all thirteen packages are
+byte-verified, selected by `latest`, and pass the post-publish smoke. No new
+npm tag cleanup/bootstrap mechanism is introduced. The existing generic
+first-publish reconciliation applies: if npm auto-assigns `latest` to custody
+under the holding tag, the exact candidate becomes an already-promoted prior
+member and its promotion row is a verified no-op. Until the complete ceremony
+closes, no qualified-publication claim may cite the candidate and the gate
+remains open for explicit reconciliation.
 
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 

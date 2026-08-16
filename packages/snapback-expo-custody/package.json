@@ -1,7 +1,7 @@
 {
   "name": "@expo/snapback-expo-custody",
   "version": "0.1.0",
-  "description": "First-party native iOS and Android auth custody for Snapback Expo applications.",
+  "description": "First-party native iOS and Android auth custody for Snapback Expo applications. Experimental; custody grades are adapter-reported.",
   "license": "MIT",
   "repository": {
     "type": "git",

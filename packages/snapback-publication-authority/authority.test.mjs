@@ -551,6 +551,75 @@ test('request builder closes candidate-ledger and observed-prior-vector inventor
   );
 });
 
+test('historical twelve-name issue exact replay survives closure widening', () => {
+  const { privateKey, publicKey, request } = fixture();
+  const historicalRequest = {
+    ...request,
+    operationId: 'release-historical-twelve-name-replay',
+    packages: request.packages.slice(0, 12),
+  };
+  const lease = signPublicationLease({
+    privateKey,
+    unsigned: {
+      schemaVersion: 'snapback.authorized-publication-lease.v4',
+      authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+      authorityOrigin: AUTHORITY_ORIGIN,
+      signingKeyId: publicationAuthoritySigningKeyId(publicKey),
+      operationId: historicalRequest.operationId,
+      publisherInstanceId: historicalRequest.publisherInstanceId,
+      publicationEpoch: 1,
+      candidateLedgerSha256: historicalRequest.candidateLedgerSha256,
+      candidateTag: historicalRequest.candidateTag,
+      defaultTag: historicalRequest.defaultTag,
+      priorDefaultClosureReceiptSha256:
+        historicalRequest.priorDefaultClosureReceiptSha256,
+      issuedAt: new Date(NOW).toISOString(),
+      expiresAt: new Date(NOW + historicalRequest.lifetimeSeconds * 1_000).toISOString(),
+      packages: structuredClone(historicalRequest.packages),
+    },
+  });
+  const context = {
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    publicKey,
+  };
+  const store = new InMemoryPublicationAuthorityStore(context, {
+    schemaVersion: 'snapback.publication-authority-state.v2',
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    signingKeyId: publicationAuthoritySigningKeyId(publicKey),
+    generation: 1,
+    publicationEpoch: 1,
+    records: [{
+      issueRequest: historicalRequest,
+      issueRequestSha256: sha256Hex(canonicalJcs(historicalRequest)),
+      lease,
+      status: 'issued',
+      acquisition: null,
+      closure: null,
+    }],
+  });
+  const authority = new PublicationLeaseAuthority({
+    store,
+    privateKey,
+    authorityInstallationId: AUTHORITY_INSTALLATION_ID,
+    authorityOrigin: AUTHORITY_ORIGIN,
+    now: () => NOW,
+  });
+
+  assert.deepEqual(authority.issue(structuredClone(historicalRequest)), lease);
+  const head = authority.head();
+  assert.throws(
+    () => authority.issue({
+      ...historicalRequest,
+      operationId: 'release-new-twelve-name-refused',
+      expectedPublicationEpoch: head.publicationEpoch,
+      expectedHeadSha256: head.headSha256,
+    }),
+    /full-closure/u,
+  );
+});
+
 test('historical eleven- and twelve-name v4 records validate; new issues bind the full closure', () => {
   const { authority, request } = fixture();
   // Epochs recorded before the @expo/snapback umbrella joined bind the

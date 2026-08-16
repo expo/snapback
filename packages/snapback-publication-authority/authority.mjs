@@ -188,13 +188,6 @@ export class PublicationLeaseAuthority {
       if (request.schemaVersion !== 'snapback.publication-lease-issue-request.v4') {
         throw new Error('standing authority only issues v4 publication leases');
       }
-      // Historical records validate at their recorded prefix width; a NEW
-      // lease must always bind the complete current closure.
-      if (request.packages.length !== PACKAGE_COUNT) {
-        throw new Error(
-          `standing authority only issues full-closure leases (${PACKAGE_COUNT} packages)`,
-        );
-      }
       if (request.signingKeyId !== this.signingKeyId) {
         throw new Error('publication authority signing key id mismatch');
       }
@@ -215,6 +208,18 @@ export class PublicationLeaseAuthority {
           );
         }
         return transactionResult(duplicate.lease);
+      }
+
+      // Historical records validate and exact-replay at their retained prefix
+      // width; only a genuinely NEW lease must bind the complete current
+      // closure. Keep this after the retained-record lookup so widening the
+      // family cannot strand a caller whose successful response was lost.
+      if (request.packages.length !== PACKAGE_COUNT) {
+        refuse(
+          'SNAPBACK_PUBLICATION_ISSUE_INVALID',
+          `standing authority only issues full-closure leases (${PACKAGE_COUNT} packages)`,
+          400,
+        );
       }
 
       const head = projectPublicationAuthorityHead(
