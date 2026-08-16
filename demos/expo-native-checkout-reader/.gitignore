@@ -1,0 +1,7 @@
+.state/
+app/.expo/
+app/.snapback/
+app/android/
+app/ios/
+app/node_modules/
+app/snapback/generated/

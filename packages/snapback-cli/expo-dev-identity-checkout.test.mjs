@@ -140,6 +140,8 @@ try {
   const ios = createExpoRoutingPlan({
     platform: 'ios', backendPort: 4101, metroPort: 4102, bootstrapPort: 4103,
   });
+  const iosBundleIdentifier = 'dev.snapback.checkoutwitness';
+  const androidComponent = 'dev.snapback.checkoutwitness/.MainActivity';
   assert.equal(
     shouldLaunchExpoNativeCheckout(ios),
     false,
@@ -155,21 +157,33 @@ try {
   assert.equal(
     shouldLaunchExpoNativeCheckout(ios, {
       nativeCheckout: true,
+      iosBundleIdentifier,
       metroCommand: { command: 'custom-expo' },
     }),
     true,
     'explicit checkout opt-in is coherent with --expo-command',
   );
   assert.equal(
-    shouldLaunchExpoNativeCheckout(ios, { nativeLaunchRun: run }),
+    shouldLaunchExpoNativeCheckout(ios, { nativeLaunchRun: run, iosBundleIdentifier }),
     true,
     'the typed test runner remains an explicit protocol-test opt-in',
   );
+  for (const options of [
+    { nativeCheckout: true },
+    { nativeCheckout: true, iosBundleIdentifier: 'host.exp.Exponent' },
+  ]) {
+    assert.throws(
+      () => shouldLaunchExpoNativeCheckout(ios, options),
+      (error) => error?.code === 'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+      'Expo Go or an absent own bundle refuses before issuance',
+    );
+  }
 
-  // Protocol-only command-construction tests. The first-party native reader
-  // that will consume these channels is tracked separately and is not claimed
-  // by this stage-1 lane.
-  const iosLaunch = launchExpoNativeCheckout(ios, nonce, { run, env: {} });
+  // Command construction names the witness development client's own bundle;
+  // the live native reader result remains receipt-gated outside this unit test.
+  const iosLaunch = launchExpoNativeCheckout(ios, nonce, {
+    run, env: {}, iosBundleIdentifier,
+  });
   assert.equal(iosLaunch.carrier, 'ios-simctl-environment');
   assert.deepEqual(launchCalls[0].args.slice(0, 3), [
     'simctl', 'launch', '--terminate-running-process',
@@ -188,10 +202,19 @@ try {
   });
   assert.equal(shouldLaunchExpoNativeCheckout(android), false);
   assert.equal(
-    shouldLaunchExpoNativeCheckout(android, { nativeCheckout: true }),
+    shouldLaunchExpoNativeCheckout(android, { nativeCheckout: true, androidComponent }),
     true,
   );
-  const androidLaunch = launchExpoNativeCheckout(android, nonce, { run, env: {} });
+  assert.throws(
+    () => shouldLaunchExpoNativeCheckout(android, {
+      nativeCheckout: true,
+      androidComponent: 'host.exp.exponent/.experience.HomeActivity',
+    }),
+    (error) => error?.code === 'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+  );
+  const androidLaunch = launchExpoNativeCheckout(android, nonce, {
+    run, env: {}, androidComponent,
+  });
   assert.equal(androidLaunch.carrier, 'android-adb-activity-extra');
   assert.deepEqual(launchCalls[1].args.slice(0, 6), [
     '-s', 'emulator-5554', 'shell', 'am', 'start', '-S',

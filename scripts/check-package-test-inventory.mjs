@@ -282,6 +282,16 @@ export const PACKAGE_TEST_INVENTORIES = [
     ],
   },
   {
+    id: '@expo/snapback-expo-dev-identity',
+    packageDir: 'packages/snapback-expo-dev-identity',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: [
+      'config-plugin.test.mjs',
+      'install.test.mjs',
+    ],
+  },
+  {
     id: '@expo/snapback-app-cli',
     packageDir: 'packages/snapback-app-cli',
     testDir: '.',
@@ -533,7 +543,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 302,
+  expectedTotal = 303,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -974,6 +984,8 @@ export function checkPackageTestInventories(options = {}) {
 // repository-local signed-config mint/fence proof; @expo/snapback-cli gains the
 // freshly-primed todo managed-bind regression (rbac mint/reader coverage lives
 // in the codegen and Rust suites; its live bind retains an unrelated grammar red).
+// 302 -> 303 (2026-08-16, LLP 0262 native reader): @expo/snapback-cli gains
+// the native checkout-reader launch-sequencing and witness-protocol suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

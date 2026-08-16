@@ -1,0 +1,50 @@
+{
+  "name": "snapback-expo-dev-identity-witness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "packageManager": "bun@1.3.12",
+  "expo": {
+    "autolinking": {
+      "searchPaths": ["../../../packages", "./node_modules"]
+    }
+  },
+  "scripts": {
+    "generate": "snapback generate snapback",
+    "prebuild:ios": "node ../scripts/build-native.mjs ios --prebuild-only",
+    "build:ios": "node ../scripts/build-native.mjs ios",
+    "prebuild:android": "node ../scripts/build-native.mjs android --prebuild-only",
+    "build:android": "node ../scripts/build-native.mjs android"
+  },
+  "dependencies": {
+    "@expo/snapback-cli": "file:../../../packages/snapback-cli",
+    "@expo/snapback-client": "file:../../../packages/snapback-client",
+    "@expo/snapback-codegen": "file:../../../packages/snapback-codegen",
+    "@expo/snapback-contract": "file:../../../packages/snapback-contract",
+    "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+    "@expo/snapback-expo-dev-identity": "file:../../../packages/snapback-expo-dev-identity",
+    "@expo/snapback-react": "file:../../../packages/snapback-react",
+    "@expo/snapback-runtime-darwin-arm64": "file:../../../packages/snapback-runtime-darwin-arm64",
+    "@expo/snapback-runtime-linux-x64": "file:../../../packages/snapback-runtime-linux-x64",
+    "expo": "~57.0.9",
+    "expo-dev-client": "~57.0.10",
+    "expo-file-system": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.2"
+  },
+  "patchedDependencies": {
+    "expo-modules-jsi@57.0.4": "patches/expo-modules-jsi@57.0.4.patch"
+  },
+  "overrides": {
+    "@expo/snapback-cli": "file:../../../packages/snapback-cli",
+    "@expo/snapback-client": "file:../../../packages/snapback-client",
+    "@expo/snapback-codegen": "file:../../../packages/snapback-codegen",
+    "@expo/snapback-contract": "file:../../../packages/snapback-contract",
+    "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+    "@expo/snapback-expo-dev-identity": "file:../../../packages/snapback-expo-dev-identity",
+    "@expo/snapback-react": "file:../../../packages/snapback-react",
+    "@expo/snapback-runtime-darwin-arm64": "file:../../../packages/snapback-runtime-darwin-arm64",
+    "@expo/snapback-runtime-linux-x64": "file:../../../packages/snapback-runtime-linux-x64"
+  }
+}

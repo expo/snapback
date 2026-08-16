@@ -344,24 +344,17 @@ assert.equal(applicationConflict.advisories[0].diagnostic.code,
   'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT');
 await boot.dispose();
 
-// Protocol-only injected client-options test. The ordinary lifecycle above
-// uses the default sessions-only environment; this focused seam test preserves
-// coverage for the future first-party native reader without pretending that
-// the reader exists today.
+// Focused injected client-options test. The ordinary lifecycle above uses the
+// default sessions-only environment; the live first-party native reader is
+// receipt-gated separately, while this memory platform isolates the internal
+// native-only client-option seam from browser custody.
 const devIdentityCapability = 'sbdev_provider_plumbing_test';
-const carrierProtocolStorage = {
-  ...createMemoryAuthCustodyStorage(),
-  async platformGrade() {
-    return {
-      grade: 'single-runtime',
-      mechanism: 'test-single-runtime-queue',
-    };
-  },
-};
+const carrierProtocolApp = structuredClone(app);
+carrierProtocolApp.authBootstrap.custody = 'volatile-explicit';
 const carrierProtocolPlatform = Object.freeze({
-  kind: 'expo-native',
-  authCustodyStorage: carrierProtocolStorage,
+  kind: 'memory',
   cryptoObject: webcrypto,
+  databaseName: 'snapback-expo-auth-bootstrap-carrier-protocol-test',
 });
 const carrierProtocolSupervisor = {
   bearer: SUPERVISED_BEARER,
@@ -371,7 +364,7 @@ const carrierProtocolSupervisor = {
 };
 const carrierProtocolAdoptionInputs = [];
 const carrierProtocolBoot = createSnapbackExpoBoot({
-  app,
+  app: carrierProtocolApp,
   environment: environmentFor(carrierProtocolPlatform, carrierProtocolSupervisor),
   now: () => Date.parse('2026-08-15T12:30:00.000Z'),
   async createApplicationClient(input, observer) {
@@ -449,7 +442,7 @@ await anonymousBoot.dispose();
 // intentionally confined to this protocol test.
 const failedCheckoutNonce = `failed-checkout-${'f'.repeat(32)}`;
 const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
-const previousNativeLaunchEnvironment = globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__;
+const previousCheckoutHook = globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__;
 const checkoutDiagnostics = [];
 let checkoutBootstraps = 0;
 let refusedRedemptions = 0;
@@ -459,9 +452,7 @@ try {
     enumerable: true,
     value: Object.freeze({ product: 'ReactNative' }),
   });
-  globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__ = Object.freeze({
-    [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: failedCheckoutNonce,
-  });
+  globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__ = failedCheckoutNonce;
   const failedCheckoutEnvironment = createSupervisedExpoEnvironment({
     exchangeOrigin: 'http://127.0.0.1:4321',
     bindingCache: null,
@@ -527,10 +518,10 @@ try {
 } finally {
   if (previousNavigator === undefined) delete globalThis.navigator;
   else Object.defineProperty(globalThis, 'navigator', previousNavigator);
-  if (previousNativeLaunchEnvironment === undefined) {
-    delete globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__;
+  if (previousCheckoutHook === undefined) {
+    delete globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__;
   } else {
-    globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__ = previousNativeLaunchEnvironment;
+    globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__ = previousCheckoutHook;
   }
 }
 
@@ -558,4 +549,4 @@ server.restore();
 if (priorRqs === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqs;
 
-console.log('provider-auth-bootstrap.test.mjs: default sessions lifecycle, protocol-only client-option forwarding, redeem-refusal adoption, refresh rebind-only, and signOut readmission pass');
+console.log('provider-auth-bootstrap.test.mjs: default sessions lifecycle, native client-option forwarding, redeem-refusal adoption, refresh rebind-only, and signOut readmission pass');

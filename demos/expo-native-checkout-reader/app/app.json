@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Snapback Checkout Witness",
+    "slug": "snapback-checkout-witness",
+    "scheme": "snapback-checkout-witness",
+    "version": "1.0.0",
+    "platforms": ["ios", "android", "web"],
+    "plugins": [
+      "expo-dev-client",
+      "@expo/snapback-expo",
+      "@expo/snapback-expo-dev-identity"
+    ],
+    "ios": {
+      "bundleIdentifier": "dev.snapback.checkoutwitness",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "dev.snapback.checkoutwitness"
+    }
+  }
+}

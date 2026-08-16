@@ -122,27 +122,18 @@ function inferredRuntimePlatform() {
 }
 
 // @ref LLP 0262#d2-carriers-per-shipped-topology — only a native runtime may
-// read the non-public launch environment/Activity-extra bridge. The hook is a
-// protocol seam today: no first-party native reader installs it yet (tracked
-// in issues/20260816-0262-expo-native-checkout-reader.md). A web runtime ignores
-// even a same-named process variable, keeping checkout unreachable from web.
+// consume the process-local hook installed by the first-party native launch
+// reader. The explicit launch-environment input remains a unit/witness seam,
+// after the actual hook, and web ignores both carriers.
 export function resolveSupervisedDevIdentityCheckoutNonce({
   runtimePlatform = inferredRuntimePlatform(),
   nativeLaunchEnvironment = null,
 } = {}) {
   if (process.env.NODE_ENV === 'production' || runtimePlatform !== 'native') return null;
-  const sources = [
-    nativeLaunchEnvironment,
-    globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__,
-    globalThis.__SNAPBACK_EXPO_ANDROID_LAUNCH_EXTRAS__,
-    typeof process !== 'undefined' ? process.env : null,
-  ];
-  for (const source of sources) {
-    const candidate = source?.[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV];
-    if (nonEmptyString(candidate)) return candidate;
-  }
   const installed = globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__;
-  return nonEmptyString(installed) ? installed : null;
+  if (nonEmptyString(installed)) return installed;
+  const explicitWitness = nativeLaunchEnvironment?.[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV];
+  return nonEmptyString(explicitWitness) ? explicitWitness : null;
 }
 
 function normalizedExchangeOrigin(explicit) {

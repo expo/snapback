@@ -30,6 +30,8 @@ export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH = '/_snapback/expo/v1/dev-ide
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER = 'x-snapback-dev-identity-checkout';
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
 export const METRO_WATCH_BLIND_ROOTS = Object.freeze(['/private/tmp', '/tmp']);
+const EXPO_GO_IOS_BUNDLE_IDENTIFIER = 'host.exp.Exponent';
+const EXPO_GO_ANDROID_COMPONENT_PREFIX = 'host.exp.exponent/';
 
 export function expoSupervisorChildEnvironment(env = process.env) {
   const childEnv = { ...(env ?? {}) };
@@ -955,8 +957,8 @@ export function launchExpoNativeCheckout(plan, nonce, {
   xcrunBinary = 'xcrun',
   adbBinary = 'adb',
   iosSimulator = 'booted',
-  iosBundleIdentifier = 'host.exp.Exponent',
-  androidComponent = 'host.exp.exponent/.experience.HomeActivity',
+  iosBundleIdentifier = null,
+  androidComponent = null,
   run = spawnSync,
   env = process.env,
 } = {}) {
@@ -964,6 +966,17 @@ export function launchExpoNativeCheckout(plan, nonce, {
   let result;
   let carrier;
   if (plan?.platform === 'ios' && plan.device?.class === 'simulator') {
+    if (
+      typeof iosBundleIdentifier !== 'string'
+      || iosBundleIdentifier.length === 0
+      || iosBundleIdentifier === EXPO_GO_IOS_BUNDLE_IDENTIFIER
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+        'native checkout requires the application development client iOS bundle identifier',
+        { platform: 'ios' },
+      );
+    }
     carrier = 'ios-simctl-environment';
     result = run(xcrunBinary, [
       'simctl',
@@ -984,6 +997,17 @@ export function launchExpoNativeCheckout(plan, nonce, {
       throw diagnosticError(
         'SNAPBACK_EXPO_ANDROID_DEVICE_REQUIRED',
         'native checkout launch requires the exact adb-reversed serial',
+      );
+    }
+    if (
+      typeof androidComponent !== 'string'
+      || !/^[A-Za-z][A-Za-z0-9_.]*\/[A-Za-z0-9_.$]+$/u.test(androidComponent)
+      || androidComponent.startsWith(EXPO_GO_ANDROID_COMPONENT_PREFIX)
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+        'native checkout requires the application development client Android component',
+        { platform: 'android' },
       );
     }
     carrier = 'android-adb-activity-extra';
@@ -1022,19 +1046,46 @@ export function launchExpoNativeCheckout(plan, nonce, {
   });
 }
 
-// The first-party native reader does not exist yet
-// (issues/20260816-0262-expo-native-checkout-reader.md). Keep ordinary
-// supervised sessions as the unconditional path: only an explicit protocol
-// opt-in, or the typed test runner hook, may issue a nonce and invoke the
-// destructive native launch commands above.
+// @ref LLP 0262#d2-carriers-per-shipped-topology — ordinary supervised
+// sessions remain unconditional. Checkout issuance requires an explicit
+// opt-in/test runner and an application-owned development-client target;
+// Expo Go cannot host the first-party native reader and therefore refuses
+// before a nonce is issued.
 export function shouldLaunchExpoNativeCheckout(plan, {
   nativeCheckout = false,
   nativeLaunchRun,
+  iosBundleIdentifier = null,
+  androidComponent = null,
 } = {}) {
   const nativeTarget = plan?.platform === 'ios'
     || (plan?.platform === 'android' && plan?.transport === 'adb-reverse');
-  return nativeTarget
-    && (nativeCheckout === true || typeof nativeLaunchRun === 'function');
+  if (!nativeTarget || (nativeCheckout !== true && typeof nativeLaunchRun !== 'function')) {
+    return false;
+  }
+  if (plan.platform === 'ios') {
+    if (
+      typeof iosBundleIdentifier !== 'string'
+      || iosBundleIdentifier.length === 0
+      || iosBundleIdentifier === EXPO_GO_IOS_BUNDLE_IDENTIFIER
+    ) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+        'native checkout requires the application development client iOS bundle identifier',
+        { platform: 'ios' },
+      );
+    }
+  } else if (
+    typeof androidComponent !== 'string'
+    || !/^[A-Za-z][A-Za-z0-9_.]*\/[A-Za-z0-9_.$]+$/u.test(androidComponent)
+    || androidComponent.startsWith(EXPO_GO_ANDROID_COMPONENT_PREFIX)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+      'native checkout requires the application development client Android component',
+      { platform: 'android' },
+    );
+  }
+  return true;
 }
 
 function processTable() {
@@ -1679,9 +1730,8 @@ export async function runExpoDev(options = {}) {
           descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
           // A backend restart rotates startupNonce and the dev-identity
           // sidecar, so both the pending delivery and every issued nonce are
-          // invalid. Re-delivery after rotation arrives with the first-party
-          // native reader tracked in
-          // issues/20260816-0262-expo-native-checkout-reader.md.
+          // invalid. The opt-in own-bundle path below issues a replacement
+          // only after the refreshed listeners and sidecar are current.
           checkoutRegistry?.invalidate();
           checkoutNonce = null;
           nativeCheckoutLaunch = null;
@@ -1721,6 +1771,30 @@ export async function runExpoDev(options = {}) {
           });
           emit({ ok: true, state: 'listeners-verified', listeners });
           mintAndSwapAuthority(options.email ?? DEFAULT_EMAIL);
+          if (shouldLaunchExpoNativeCheckout(route, options)) {
+            checkoutNonce = checkoutRegistry.issue({
+              platform: route.platform,
+              device: route.device,
+            });
+            if (checkoutNonce !== null) {
+              nativeCheckoutLaunch = launchExpoNativeCheckout(route, checkoutNonce, {
+                xcrunBinary: options.xcrunBinary,
+                adbBinary: options.adbBinary,
+                iosSimulator: options.iosSimulator,
+                iosBundleIdentifier: options.iosBundleIdentifier,
+                androidComponent: options.androidComponent,
+                run: options.nativeLaunchRun ?? spawnSync,
+                env: childEnv,
+              });
+              checkoutNonce = null;
+              emit({
+                ok: true,
+                state: 'native-checkout-launched',
+                reason: 'backend-rotation',
+                nativeCheckout: nativeCheckoutLaunch,
+              });
+            }
+          }
           return {
             statusCode: 200,
             body: {

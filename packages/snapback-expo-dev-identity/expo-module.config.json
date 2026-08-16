@@ -1,0 +1,11 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["SnapbackExpoDevIdentityModule"],
+    "appDelegateSubscribers": ["SnapbackExpoDevIdentityAppDelegateSubscriber"],
+    "podspecPath": "ios/SnapbackExpoDevIdentity.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.snapbackdevidentity.SnapbackExpoDevIdentityModule"]
+  }
+}

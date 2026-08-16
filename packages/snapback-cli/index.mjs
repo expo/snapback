@@ -5417,7 +5417,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     output: `${VERIFY_RECEIPT_SCHEMA_VERSION} receipt`, exits: '0 all required stages pass (including machine-distinct passed-without-acceptance); 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
   },
   {
-    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] [--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--native-checkout <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
     description: 'Generate, start or attach, load, watch, and optionally supervise a web or Expo client surface.', lifecycle: 'long-running unless --no-watch (Expo supervision is always long-running)',
     output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
     recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
@@ -5427,6 +5427,7 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
       'Supervised Expo iOS: snapback dev snapback --expo --expo-platform ios (ios is the default).',
       'Supervised Expo Android: snapback dev snapback --expo --expo-platform android.',
       'Supervised Expo web: snapback dev snapback --expo --expo-platform web.',
+      'Native dev-identity checkout is default-off and requires the application development client\'s own bundle/component; Expo Go is refused.',
       '--expo owns the bootstrap environment; --client-command is a generic child and does not install the supervised Expo bootstrap.',
     ]),
   },
@@ -6727,6 +6728,9 @@ export async function runCli(argv, options = {}) {
     const expoCommand = takeFlag(args, '--expo-command');
     const androidSerial = takeFlag(args, '--android-serial');
     const iosUdid = takeFlag(args, '--ios-udid');
+    const nativeCheckout = takeBooleanFlag(args, '--native-checkout');
+    const iosBundleIdentifier = takeFlag(args, '--ios-bundle-identifier');
+    const androidComponent = takeFlag(args, '--android-component');
     // A leftover flag-shaped token would silently become the backend
     // directory name (`snapback dev --help` "ran" against a directory named
     // --help and exited 1 with no output — 0137 a4-f2). Reject it loudly.
@@ -6736,7 +6740,8 @@ export async function runCli(argv, options = {}) {
         `unknown dev option ${args[0]}; usage: snapback dev [<backend-dir>] [--attach] [--no-watch] `
           + '[--ready-file <path>] [--application-ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] '
           + '[--expo] [--expo-dir <dir>] [--expo-platform ios|android|web] [--email <address>] '
-          + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] [--json]',
+          + '[--expo-command <cmd>] [--android-serial <serial>] [--ios-udid <udid>] '
+          + '[--native-checkout <--ios-bundle-identifier <id>|--android-component <component>>] [--json]',
       );
     }
     const backendDirectory = args.shift() ?? 'snapback';
@@ -6747,11 +6752,12 @@ export async function runCli(argv, options = {}) {
         { args },
       );
     }
-    if (!expo && [expoDirectory, expoPlatform, expoEmail, expoCommand, androidSerial, iosUdid]
-      .some((value) => value !== null)) {
+    if (!expo && (nativeCheckout
+      || [expoDirectory, expoPlatform, expoEmail, expoCommand, androidSerial, iosUdid,
+        iosBundleIdentifier, androidComponent].some((value) => value !== null))) {
       throw diagnosticError(
         'SNAPBACK_CLI_ARGUMENT_INVALID',
-        '--expo-dir, --expo-platform, --email, --expo-command, --android-serial, and --ios-udid require --expo',
+        '--expo-dir, --expo-platform, --email, --expo-command, --android-serial, --ios-udid, --native-checkout, --ios-bundle-identifier, and --android-component require --expo',
       );
     }
     let expoSelectedPlatform = expoPlatform ?? 'ios';
@@ -6781,6 +6787,42 @@ export async function runCli(argv, options = {}) {
           '--ios-udid requires --expo-platform ios',
         );
       }
+      if (iosBundleIdentifier !== null && expoSelectedPlatform !== 'ios') {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--ios-bundle-identifier requires --expo-platform ios',
+        );
+      }
+      if (androidComponent !== null && expoSelectedPlatform !== 'android') {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--android-component requires --expo-platform android',
+        );
+      }
+      if (!nativeCheckout && (iosBundleIdentifier !== null || androidComponent !== null)) {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--ios-bundle-identifier and --android-component require --native-checkout',
+        );
+      }
+      if (nativeCheckout && expoSelectedPlatform === 'web') {
+        throw diagnosticError(
+          'SNAPBACK_CLI_ARGUMENT_INVALID',
+          '--native-checkout is available only for native Expo targets',
+        );
+      }
+      if (nativeCheckout && expoSelectedPlatform === 'ios' && iosBundleIdentifier === null) {
+        throw diagnosticError(
+          'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+          '--native-checkout on iOS requires --ios-bundle-identifier for the application development client',
+        );
+      }
+      if (nativeCheckout && expoSelectedPlatform === 'android' && androidComponent === null) {
+        throw diagnosticError(
+          'SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED',
+          '--native-checkout on Android requires --android-component for the application development client',
+        );
+      }
     }
     // Advisory only — Metro started outside the supervisor still inherits a
     // truthy CI and serves a stale bundle. Warn before either spawn path.
@@ -6807,6 +6849,9 @@ export async function runCli(argv, options = {}) {
         ...(expoCommand ? { metroCommand: expoCommand } : {}),
         ...(androidSerial ? { androidSerial } : {}),
         ...(iosUdid ? { iosUdid } : {}),
+        ...(nativeCheckout ? { nativeCheckout: true } : {}),
+        ...(iosBundleIdentifier ? { iosBundleIdentifier } : {}),
+        ...(androidComponent ? { androidComponent } : {}),
         platform: expoSelectedPlatform,
         onEvent(event) { console.log(JSON.stringify(event)); },
         onCriticalExit(error) {

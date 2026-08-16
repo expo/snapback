@@ -255,10 +255,12 @@ export function launchExpoNativeCheckout(
 export function shouldLaunchExpoNativeCheckout(
   plan: ExpoRoutingPlan,
   options?: Readonly<{
-    /** Explicit protocol opt-in while the first-party native reader is absent. */
+    /** Explicit protocol opt-in for an application-owned development client. */
     nativeCheckout?: boolean;
     /** Test-only command runner; its presence opts protocol tests into launch. */
     nativeLaunchRun?: (...args: any[]) => any;
+    iosBundleIdentifier?: string;
+    androidComponent?: string;
   }>,
 ): boolean;
 
@@ -297,8 +299,12 @@ export interface ExpoDevSupervisor {
 }
 
 export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
-  /** Explicit protocol opt-in while the first-party native reader is absent. */
+  /** Explicit protocol opt-in for an application-owned development client. */
   readonly nativeCheckout?: boolean;
+  /** Required own-bundle target when nativeCheckout selects iOS. */
+  readonly iosBundleIdentifier?: string;
+  /** Required own-bundle activity target when nativeCheckout selects Android. */
+  readonly androidComponent?: string;
   /** Test-only command runner; its presence opts protocol tests into launch. */
   readonly nativeLaunchRun?: (...args: any[]) => any;
 }

@@ -76,6 +76,8 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
   assert.match(helpSurfaced, /Usage: snapback dev/, 'help must carry dev usage');
   assert.match(helpSurfaced, /Lifecycle: long-running/, 'help must declare lifecycle');
   assert.match(helpSurfaced, /--expo-platform ios\|android\|web/u, 'help must expose supervised Expo web');
+  assert.match(helpSurfaced, /--native-checkout/u, 'help must expose the default-off native checkout opt-in');
+  assert.match(helpSurfaced, /own bundle\/component/u, 'help must explain the development-client boundary');
   for (const platform of ['ios', 'android', 'web']) {
     assert.match(
       helpSurfaced,
@@ -92,6 +94,11 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
     [['--expo', '--no-watch'], /long-running supervisor/u],
     [['--expo', '--android-serial', 'emulator-1'], /requires --expo-platform android/u],
     [['--expo', '--expo-platform', 'android', '--ios-udid', 'ios-device-1'], /requires --expo-platform ios/u],
+    [['--native-checkout'], /require --expo/u],
+    [['--expo', '--native-checkout'], /requires --ios-bundle-identifier/u],
+    [['--expo', '--expo-platform', 'android', '--native-checkout'], /requires --android-component/u],
+    [['--expo', '--expo-platform', 'web', '--native-checkout'], /only for native Expo targets/u],
+    [['--expo', '--ios-bundle-identifier', 'dev.snapback.witness'], /require --native-checkout/u],
   ]) {
     const refused = spawnSync(process.execPath, [cli, 'dev', ...args], {
       cwd: project,

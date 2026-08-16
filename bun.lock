@@ -121,6 +121,18 @@
         "react-native",
       ],
     },
+    "packages/snapback-expo-dev-identity": {
+      "name": "@expo/snapback-expo-dev-identity",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "expo": ">=57.0.0 <58.0.0",
+        "react-native": ">=0.86.0 <0.87.0",
+      },
+      "optionalPeers": [
+        "expo",
+        "react-native",
+      ],
+    },
     "packages/snapback-harness": {
       "name": "@expo/snapback-harness",
     },
@@ -519,6 +531,8 @@
     "@expo/snapback-expo": ["@expo/snapback-expo@workspace:packages/snapback-expo"],
 
     "@expo/snapback-expo-custody": ["@expo/snapback-expo-custody@workspace:packages/snapback-expo-custody"],
+
+    "@expo/snapback-expo-dev-identity": ["@expo/snapback-expo-dev-identity@workspace:packages/snapback-expo-dev-identity"],
 
     "@expo/snapback-harness": ["@expo/snapback-harness@workspace:packages/snapback-harness"],
 

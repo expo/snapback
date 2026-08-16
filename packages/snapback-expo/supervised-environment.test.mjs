@@ -217,9 +217,7 @@ assert.equal(
   'the default non-native test environment has no checkout carrier',
 );
 
-// Protocol-only injected-environment checks: these prove the resolver's
-// native/web isolation without claiming that Expo currently installs a
-// first-party reader for either launch channel.
+// The explicit injected environment is a witness seam only. Web ignores it.
 assert.equal(resolveSupervisedDevIdentityCheckoutNonce({
   runtimePlatform: 'web',
   nativeLaunchEnvironment: { [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: checkoutNonce },
@@ -230,21 +228,25 @@ assert.equal(resolveSupervisedDevIdentityCheckoutNonce({
 }), checkoutNonce);
 
 const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
-const previousNativeLaunchEnvironment = globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__;
+const previousCheckoutHook = globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__;
 try {
   Object.defineProperty(globalThis, 'navigator', {
     configurable: true,
     enumerable: true,
     value: Object.freeze({ product: 'ReactNative' }),
   });
-  globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__ = Object.freeze({
-    [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: checkoutNonce,
-  });
+  globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__ = checkoutNonce;
   assert.equal(
     resolveSupervisedDevIdentityCheckoutNonce(),
     checkoutNonce,
-    'the environment uses the default native resolution path',
+    'the environment consumes the first-party reader hook by default',
   );
+  assert.equal(resolveSupervisedDevIdentityCheckoutNonce({
+    runtimePlatform: 'native',
+    nativeLaunchEnvironment: {
+      [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: `witness-${'x'.repeat(40)}`,
+    },
+  }), checkoutNonce, 'the installed hook outranks the explicit unit/witness seam');
 
   let checkoutRedemptions = 0;
   let checkoutBootstraps = 0;
@@ -360,10 +362,10 @@ try {
 } finally {
   if (previousNavigator === undefined) delete globalThis.navigator;
   else Object.defineProperty(globalThis, 'navigator', previousNavigator);
-  if (previousNativeLaunchEnvironment === undefined) {
-    delete globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__;
+  if (previousCheckoutHook === undefined) {
+    delete globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__;
   } else {
-    globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__ = previousNativeLaunchEnvironment;
+    globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__ = previousCheckoutHook;
   }
 }
 

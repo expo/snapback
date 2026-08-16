@@ -65,6 +65,25 @@ Simulator/emulator command-unit tests are not substitutes for these live
 witnesses. If USB hardware is unavailable, the Android USB row remains an
 explicit nonclaim rather than being inferred from emulator behavior.
 
+## Progress — 2026-08-16
+
+Implementation landed in this worktree. The first-party
+`@expo/snapback-expo-dev-identity` development-client module now captures the
+iOS process environment or Android launch Intent extra before application
+modules evaluate, consumes native delivery once, and installs the documented
+process-local hook through the first entry import. The config plugin and
+supervisor refuse Expo Go, and the default-off launcher now requires the
+application's own iOS bundle identifier or Android component. Backend rotation
+invalidates old checkout state and launches a fresh delivery.
+
+The runnable witness is under `demos/expo-native-checkout-reader/`; generation,
+iOS/Android prebuild, native autolinking resolution, focused JS tests, the
+`packages/snapback-expo` suite, changed-module syntax checks, package test
+inventory, and `ref-check` pass. Live iOS simulator, Android emulator, and
+Android USB receipts remain pending orchestrator runs, including web/raw-HTTP
+isolation, replay refusal, and post-rotation refusal rows. Keep this ticket open;
+those retained live receipts close it.
+
 ## Rollout constraint
 
 LLP 0262 D5 stage-2 enforcement cannot include the packaged Expo NATIVE row
