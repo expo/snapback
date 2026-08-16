@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:8a958396da0e73199cc91cf1a111926b63c17d3f00f69bc94cd2252b8a426577
+reviewed-authorities-digest: sha256:97ba8713efaf5213c8c01268a709db104f16f61aa95b4f1e7fc00096fcc838e3
 ---
 
 # Scoped roles and memberships
@@ -184,13 +184,59 @@ incomparable visibility edit still requires LLP 0234's remotely-prior,
 content-bound approval and exact-set ratchet—generation rotation records the
 change but does not approve it.
 
-Rollout 1 qualifies only local, app-table-owned profiles composed with ordinary
-table visibility. `roster.visible` is projection metadata: it does not create
-list, invitation, role-change, owner-transfer, or client-hook surfaces, and the
-membership table remains private under the operations table above. Profile
-composition with membership-visible search or asset sharing fails generation
-with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets
-fail with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** Handler admission and generated roster reads are newer than
+> the newest published Snapback closure, 0.1.22.
+
+The qualified local, app-table-owned profile now composes with ordinary table
+visibility, named handler admission, and two generated read references:
+`api.roomAccess.list` and `api.roomAccess.myRole`. The first returns at most 100
+rows projected to exactly `roster.visible`; the second returns zero or one
+caller row and includes the role. Both take `{ scopeId }`, return `[]` to an
+unauthorized caller, and capture the negative membership lookup so joining,
+removal, or a role change wakes the live result. The initial list is bounded,
+not paginated; applications needing more than 100 visible seats still need a
+separately designed bounded page surface.
+
+The membership table remains private under the operations table above. The
+profile does not yet create invitation, role-change, owner-transfer, or client
+hook surfaces. Composition with membership-visible search or asset sharing
+fails generation with
+`SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets fail
+with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
+
+### Admit a named handler once
+
+When a named query or mutation already receives the membership resource as a
+nominally typed argument, attach the same declaration-bound predicate to its
+definition. This is available in both the Explicit and Familiar profiles:
+
+```js fragment reason="authority-profile handler admission over a direct resource argument"
+export const messages = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: { roomId: v.id('rooms') },
+  reads: ['messages'],
+  membership: [
+    roomMembers.hasRole(membershipResource.arg('roomId'), 'member'),
+  ],
+  handler: async (ctx, args) =>
+    ctx.db.query('messages').withIndex('byRoom').eq('roomId', args.roomId).take(50).collect(),
+});
+```
+
+Codegen closes `member` through the profile hierarchy, adds the membership
+table to the captured read set, and emits the role check before the opaque
+handler. A denied query or live query returns `[]`; a denied mutation is a
+terminal `SNAPBACK_AUTH_PERMISSION_DENIED` and cannot be caught by handler
+code. Multiple predicates are an AND. Authored handlers therefore do not call
+`requireRole` for this direct-argument group pattern.
+
+The predicate must name an `authorityProfile()`, must use
+`membershipResource.arg(...)` with the declaration's exact resource-id type,
+and cannot use a row-field reference. Multi-hop authorization still uses the
+sanctioned permission-check plus bounded `ctx.db.elevated` sequence described
+in [Protecting live and retained data](./protecting-data.md).
 
 ## Gate a query with the declaration
 
@@ -535,6 +581,6 @@ coordinator transition.
   offline.** Neither has the transactional/lease proof required by v1.
 - **Do not mirror a profiled membership into a second product roster.** The
   app-owned membership table is both product roster and authority relation.
-- **Do not infer generated roster operations, hooks, search sharing, or asset
-  sharing from `authorityProfile()`.** Rollout 1 emits only the validated
-  profile projection and membership/table-visibility lowering described above.
+- **Do not infer generated transition mutations, hooks, search sharing, or
+  asset sharing from `authorityProfile()`.** The current generated surface is
+  the bounded `list`/`myRole` pair plus handler/table admission described above.

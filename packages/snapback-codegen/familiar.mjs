@@ -12,21 +12,22 @@ import {
   defineJsQuery,
   defineSchema,
   defineTable as defineCanonicalTable,
+  membershipResource,
   results,
   v,
 } from './define.mjs';
 import { FAMILIAR_DISPOSITIONS } from './familiar-dispositions.mjs';
 
-export { allow, defineAssetUpload, defineSchema, v };
+export { allow, defineAssetUpload, defineSchema, membershipResource, v };
 
 const AUTH = new Set(['public', 'optional-user', 'authenticated']);
 const QUERY_KEYS = new Set([
   'args', 'returns', 'auth', 'reads', 'delivery', 'handler',
-  'refusals', 'trackedRefusals', 'retainable', 'authScopeField',
+  'refusals', 'trackedRefusals', 'retainable', 'authScopeField', 'membership',
 ]);
 const MUTATION_KEYS = new Set([
   'args', 'returns', 'auth', 'reads', 'writes', 'handler',
-  'refusals', 'trackedRefusals',
+  'refusals', 'trackedRefusals', 'membership',
 ]);
 const ACTION_KEYS = new Set([
   'args', 'returns', 'auth', 'secrets', 'handler',
@@ -236,6 +237,7 @@ export function query(spec) {
     ...(spec.trackedRefusals === undefined ? {} : { trackedRefusals: spec.trackedRefusals }),
     ...(spec.retainable === undefined ? {} : { retainable: spec.retainable }),
     ...(spec.authScopeField === undefined ? {} : { authScopeField: spec.authScopeField }),
+    ...(spec.membership === undefined ? {} : { membership: spec.membership }),
   }), 'query');
 }
 
@@ -251,6 +253,7 @@ export function mutation(spec) {
     handler: spec.handler,
     ...(spec.refusals === undefined ? {} : { refusals: spec.refusals }),
     ...(spec.trackedRefusals === undefined ? {} : { trackedRefusals: spec.trackedRefusals }),
+    ...(spec.membership === undefined ? {} : { membership: spec.membership }),
   }), 'mutation');
 }
 

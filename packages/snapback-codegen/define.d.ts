@@ -439,6 +439,9 @@ interface JsQuerySpecBase extends QueryAuthOptions {
    * until its ctx.auth and module-state profile is mechanically proved. */
   authorizationDependence?: AuthorizationInputDimension[];
   defaultLive?: boolean;
+  /** Authority-profile predicates compiled ahead of the opaque handler.
+   * Reads blank on denial; mutations use the same rule as a terminal gate. */
+  membership?: MembershipPredicate[];
 }
 export type JsQuerySpec = JsQuerySpecBase & (
   | { source: string; exportName: string; handler?: never }
@@ -460,6 +463,8 @@ interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
   reads?: string[];
   writes: string[];
   result?: ResultContract;
+  /** Authority-profile predicates compiled as terminal pre-handler gates. */
+  membership?: MembershipPredicate[];
   /** Declares the named out-of-profile class keeping this mutation JS-tier;
    * codegen emits the class-specific "outgrew the IR" info diagnostic. */
   outgrewIr?: OutgrewIrClass;
@@ -540,10 +545,10 @@ export interface AppMembershipSpec extends Omit<ResourceMembershipSpec, 'scope' 
 
 export type MembershipSpec = ResourceMembershipSpec | AppMembershipSpec;
 
-/** The rollout-1 authority facade over one canonical membership table.
+/** The authority facade over one canonical membership table.
  * `hierarchy` lists the roles implied by each role; codegen closes it into
- * explicit membership role sets. `roster.visible` is projection metadata
- * only in v1—generated roster operations and hooks are not part of this lane.
+ * explicit membership role sets. `roster.visible` controls the generated
+ * bounded `list` and caller-scoped `myRole` projections.
  */
 export interface AuthorityProfileSpec<
   Role extends string = string,

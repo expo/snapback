@@ -3191,7 +3191,7 @@ impl<'a> IbexHostContext<'a> {
                 // Closed v1 allowlist: database reads carry captured witnesses;
                 // log has a specified constant null result and cannot affect
                 // visibility through mutable output. The membership read backing
-                // requireRole is `DatabaseCaptured` on both outcomes (its
+                // role evaluation is `DatabaseCaptured` on both outcomes (its
                 // snapshot-bound dependency joins the read summary), so it is
                 // admitted for protected queries exactly like `db.query`.
                 // @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906
@@ -3205,6 +3205,7 @@ impl<'a> IbexHostContext<'a> {
                 | "db.elevated.uniqueMany"
                 | "media.handoff"
                 | "runtime.log"
+                | "permissions.allowsRole"
                 | "permissions.requireRole" => {}
                 "runtime.now" => {
                     return Err(protected_host_input_error(
@@ -4405,15 +4406,17 @@ impl<'a> IbexHostContext<'a> {
                     .with_details(json!({ "error": error.to_string() }))
                 })
             }
-            // LLP 0056 M3 — `ctx.permissions.<decl>.requireRole(resource, ...)`.
-            // The imperative twin, decomposed so LLP 0053's one-class-per-op
+            // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+            // — declaration-bound role evaluation uses the shared authority IR.
+            // The imperative twins are decomposed so LLP 0053's one-class-per-op
             // rule holds exactly: the membership read (DatabaseCaptured, both
             // outcomes) captured into the read set, then — on a failed check —
             // the EXISTING TerminalAuthorization deny (`role_denial`), which
             // reuses the existing `SNAPBACK_AUTH_PERMISSION_DENIED` (no new
             // trusted code). It is generated sugar over that composition, not a
             // third host operation.
-            "permissions.requireRole" => {
+            "permissions.allowsRole" | "permissions.requireRole" => {
+                let terminal = op == "permissions.requireRole";
                 // `ctx.permissions` does not exist in actions — no transactional
                 // read set, so no capture. Typed refusal.
                 // @ref LLP 0056#non-goals — `ctx.permissions` in actions refused.
@@ -4456,7 +4459,7 @@ impl<'a> IbexHostContext<'a> {
                     return Err(SnapbackError::error(
                         "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE",
                         "auth",
-                        "ctx.permissions.requireRole names a role outside the declaration vocabulary",
+                        "ctx.permissions role evaluation names a role outside the declaration vocabulary",
                     )
                     .with_details(json!({ "role": role })));
                 }
@@ -4464,6 +4467,9 @@ impl<'a> IbexHostContext<'a> {
                 // invariant payload (the `optional-user` split; `authenticated`
                 // functions fail AUTH_REQUIRED before the handler runs).
                 let Some(principal) = self.input.auth.user_id.clone() else {
+                    if !terminal {
+                        return Ok(Value::Bool(false));
+                    }
                     let denial = crate::membership_rules::role_denial();
                     self.terminal_denial = Some(denial.clone());
                     return Err(denial);
@@ -4507,6 +4513,7 @@ impl<'a> IbexHostContext<'a> {
                 self.push_read_dependency(outcome.dependency);
                 match outcome.denial {
                     None => Ok(Value::Bool(true)),
+                    Some(_) if !terminal => Ok(Value::Bool(false)),
                     Some(denial) => {
                         // Record the trusted brand out-of-band; the outer
                         // result-assembly returns it regardless of handler catch.
@@ -9636,7 +9643,7 @@ mod membership_bridge_tests {
     use crate::storage::{
         BufferedCommitPayload, ClientMutationIdentity, DbRead, LocalDatabase, MembershipWriter,
     };
-    use serde_json::{Map, json};
+    use serde_json::{Map, Value, json};
     use std::collections::BTreeMap;
     use std::path::Path;
     use std::sync::{Arc, Barrier};
@@ -9677,14 +9684,24 @@ mod membership_bridge_tests {
                         expiry: None,
                         incidental: None,
                         provenance: Some(MembershipProvenance::Full),
-                        transitions: vec![MembershipTransition {
-                            op: MembershipOp::Insert,
-                            by: vec!["none".to_owned()],
-                            target: MembershipTarget::Own,
-                            from: None,
-                            to: Some(vec!["member".to_owned()]),
-                            fields: None,
-                        }],
+                        transitions: vec![
+                            MembershipTransition {
+                                op: MembershipOp::Insert,
+                                by: vec!["none".to_owned()],
+                                target: MembershipTarget::Own,
+                                from: None,
+                                to: Some(vec!["member".to_owned()]),
+                                fields: None,
+                            },
+                            MembershipTransition {
+                                op: MembershipOp::Remove,
+                                by: vec!["self".to_owned()],
+                                target: MembershipTarget::Own,
+                                from: Some(vec!["member".to_owned()]),
+                                to: None,
+                                fields: None,
+                            },
+                        ],
                         scope: MembershipScope::App,
                         resource_table: None,
                         principal_addressed_writes: None,
@@ -9910,6 +9927,45 @@ mod membership_bridge_tests {
             .apply_schema(schema())
             .expect("membership schema");
         db
+    }
+
+    fn commit_app_membership_command(db: &mut LocalDatabase, operation: serde_json::Value) {
+        let mut ctx = context(db);
+        ctx.handle_host_call("membership.write", operation)
+            .expect("generated app-membership command");
+        let commands = std::mem::take(&mut ctx.membership_commands);
+        drop(ctx);
+        let plans = db
+            .membership_plans()
+            .authorize_membership_commands(commands)
+            .expect("authorized app-membership plans");
+        db.mutation_writes()
+            .commit_buffered_writes_idempotent_guarded(
+                &input(),
+                BufferedCommitPayload {
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    writes: Vec::new(),
+                    sequence_allocations: Vec::new(),
+                    asset_admissions: Vec::new(),
+                    asset_grant_ops: Vec::new(),
+                    media_projection_proof: None,
+                    expected_media_projection_binding: None,
+                    membership_plans: plans,
+                    read_dependencies: Vec::new(),
+                    result: json!(null),
+                    ctx_ledger: crate::manifest::CtxAnswerLedger {
+                        version: crate::manifest::CTX_ANSWER_LEDGER_VERSION,
+                        ids: Vec::new(),
+                        now: 1,
+                        auth_fingerprint: None,
+                    },
+                },
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("app-membership command commits");
     }
 
     fn ready_file_db(path: &Path) -> LocalDatabase {
@@ -10664,6 +10720,82 @@ globalThis.__snapbackHandlers = {
             error.diagnostic.details["reason"],
             "permission_backing_provenance_unavailable"
         );
+    }
+
+    #[test]
+    fn allows_role_is_captured_non_terminal_and_observes_removal() {
+        let mut db = ready_db();
+        let args = json!({
+            "declaration": "app_members",
+            "resource": null,
+            "roles": ["member"],
+        });
+
+        let mut absent = context(&db);
+        let absent_baseline_reads = absent.reads.len();
+        assert_eq!(
+            absent
+                .handle_host_call("permissions.allowsRole", args.clone())
+                .expect("an absent role is an ordinary negative read"),
+            Value::Bool(false),
+        );
+        assert_eq!(
+            absent.reads.len(),
+            absent_baseline_reads + 1,
+            "the negative lookup is captured"
+        );
+        assert!(absent.take_terminal_denial().is_none());
+        drop(absent);
+
+        commit_app_membership_command(
+            &mut db,
+            json!({
+                "declaration": "app_members",
+                "operation": "insert",
+                "values": { "userId": "alice", "role": "member" }
+            }),
+        );
+        let mut present = context(&db);
+        let present_baseline_reads = present.reads.len();
+        assert_eq!(
+            present
+                .handle_host_call("permissions.allowsRole", args.clone())
+                .expect("the active seat satisfies the generated read admission"),
+            Value::Bool(true),
+        );
+        assert_eq!(present.reads.len(), present_baseline_reads + 1);
+        assert!(present.take_terminal_denial().is_none());
+        drop(present);
+
+        commit_app_membership_command(
+            &mut db,
+            json!({
+                "declaration": "app_members",
+                "operation": "removeSelf",
+                "resource": null,
+            }),
+        );
+        let mut removed = context(&db);
+        let removed_baseline_reads = removed.reads.len();
+        assert_eq!(
+            removed
+                .handle_host_call("permissions.allowsRole", args.clone())
+                .expect("removal blanks the generated read admission"),
+            Value::Bool(false),
+        );
+        assert_eq!(
+            removed.reads.len(),
+            removed_baseline_reads + 1,
+            "post-removal absence stays captured"
+        );
+        assert!(removed.take_terminal_denial().is_none());
+
+        let mut terminal = context(&db);
+        let denial = terminal
+            .handle_host_call("permissions.requireRole", args)
+            .expect_err("the write twin remains terminal after removal");
+        assert_eq!(denial.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+        assert!(terminal.take_terminal_denial().is_some());
     }
 
     #[test]

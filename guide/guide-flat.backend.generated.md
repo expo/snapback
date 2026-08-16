@@ -2034,15 +2034,15 @@ title: Familiar TypeScript profile (Experimental, non-default)
 id: backend.familiar-profile
 order: 5
 audience: agent-first
-capabilities: [backend.familiar-profile-v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
-examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
+capabilities: [backend.familiar-profile-v1, authority.profile.v1]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, llp/0252-convex-familiar-authoring-profile.rfc.md, llp/0253-familiar-profile-v1-api.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/runtime.rs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/define.mjs, packages/snapback-codegen/familiar.mjs, packages/snapback-codegen/index.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-react/familiar.mjs, packages/snapback-contract/auth-coordinator.mjs, packages/snapback-contract/auth-custody-secure-store.mjs, llp/0044-asset-storage-pipeline.rfc.md]
+examples: [tests/fixtures/familiar-todo, tests/fixtures/familiar-todo-explicit, packages/snapback-codegen/familiar-phase-b.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs, packages/snapback-react/familiar.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-contract/auth-coordinator.test.mjs, packages/snapback-contract/auth-custody-secure-store.test.mjs, packages/snapback-cli/templates/expo-chat, tests/acceptance/fixtures/familiar-video-asset, tests/acceptance/familiar-video-asset-v1.mjs]
 status: current
 targets: [local]
 maturity: partial
 since: 0.1.21
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:582e0f13f85ea58e9ed89045f4c96cae9f0036aa8627a1db77dadd134e904a01
+reviewed-authorities-digest: sha256:8d755dadfc7074bdf2071561aa83601ad521d4c7ae7d5e3b80404ca4c6bf73e0
 ---
 
 # Familiar TypeScript profile (Experimental, non-default)
@@ -2212,6 +2212,35 @@ queries and mutations. Prefer that fail-closed path whenever the governed row
 directly names the membership resource; it makes an omitted handler check hide
 the row instead of widening access.
 
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** Familiar authority-profile admission is newer than the newest
+> published Snapback closure, 0.1.22.
+
+For a handler that already receives the typed resource id, Familiar accepts
+the same authority-profile declaration as Explicit:
+
+```ts fragment reason="Familiar authority-profile admission uses the canonical membership predicate"
+export const messages = query({
+  args: { conversationId: v.id('conversations') },
+  returns: v.array(v.doc('messages'), { maxItems: 50 }),
+  auth: 'authenticated',
+  reads: ['messages'],
+  membership: [conversationMembers.hasRole(
+    membershipResource.arg('conversationId'),
+    'member',
+  )],
+  handler: async (ctx, args) => ctx.db.query('messages')
+    .withIndex('byConversation').eq('conversationId', args.conversationId)
+    .take(50).collect(),
+});
+```
+
+Codegen places the captured role check before the handler, blanks a denied
+read, and terminally denies a mutation. It also generates the bounded
+`api.<profile>.list` and caller-scoped `api.<profile>.myRole` references. The
+authored handler contains no repeated permission guard.
+
 For a multi-hop relation the grammar cannot declare, use the sanctioned
 handler sequence: prove the role with the declaration-qualified permission
 helper, elevate only the exact protected read, and validate that every resolved
@@ -2248,8 +2277,9 @@ nothing before the check succeeds.
 Repeat this sequence in **every** quote lookup, receipt mutation, live query,
 and other multi-hop handler that remains undeclarable, and add negative tests
 for both a non-member and an authorized resource id paired with a foreign row
-id. This repetition is intentional because it is where otherwise-correct
-realtime code goes subtly unsafe.
+id. Direct-resource handlers should use the authority-profile declaration
+above; repetition remains intentional only where the relation is still
+multi-hop.
 
 The full patterns are [Scoped roles and memberships](../auth/scoped-roles.md),
 [Protecting live and retained data](../auth/protecting-data.md), and

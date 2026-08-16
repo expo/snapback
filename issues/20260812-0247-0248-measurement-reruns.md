@@ -5,6 +5,11 @@
 Both RFCs close with fresh-app measurement reruns that need a reproducible
 control:
 
+- LLP 0240 / LLP 0236 open question 9: rerun both Clique authoring profiles
+  from the published package, require the declared authority-profile path for
+  member/admin handlers, and report whether any duplicated imperative
+  membership guard remains. This rerun is the evidence gate for competitive
+  effect; the repository implementation alone makes no such claim.
 - LLP 0247 rollout 6: rerun the Clique messaging/auth choreography from a
   fresh npm app over the landed normalization/recovery surface.
 - LLP 0248 rollout 6: rerun the feed-hydration control against batch reads

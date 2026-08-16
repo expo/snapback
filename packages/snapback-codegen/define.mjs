@@ -139,7 +139,7 @@ function normalizeStandardPattern(spec, kind) {
 export const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals', 'trackedRefusals',
-  'authorizationDependence', 'requires', 'fieldBoundary',
+  'authorizationDependence', 'requires', 'fieldBoundary', 'membership',
 ]);
 const TARGET_CAPABILITIES = new Set([
   'auth.sessions.v1',
@@ -3729,6 +3729,12 @@ function exactRelationalVisibilityObject(visibility) {
 
 function jsQueryDef(kind, spec) {
   assertKnownSpecFields(spec, kind, JS_QUERY_SPEC_FIELDS);
+  if (spec.membership !== undefined) {
+    assert(Array.isArray(spec.membership) && spec.membership.length > 0, `${kind} membership must be a non-empty array`);
+    for (const predicate of spec.membership) {
+      assert(predicate?.__membershipPredicate === true, `${kind} membership entries must come from a declaration-bound memberOf()/hasRole()`);
+    }
+  }
   let fieldBoundary;
   if (spec.fieldBoundary !== undefined) {
     const where = `${kind} fieldBoundary`;
@@ -3808,6 +3814,7 @@ function jsQueryDef(kind, spec) {
       ? { resultContract: spec.result }
       : (spec.result !== undefined ? { result: spec.result } : {})),
     ...(fieldBoundary === undefined ? {} : { fieldBoundary }),
+    ...(spec.membership === undefined ? {} : { membership: [...spec.membership] }),
     // LLP 0034 D3: per-definition defaultLive opt-out (see queryDef).
     ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
     js: {
@@ -4504,6 +4511,12 @@ export function defineJsMutation(spec) {
     assert(spec.exportName, 'defineJsMutation requires exportName');
   }
   const sequences = normalizeSequences(spec.sequences);
+  if (spec.membership !== undefined) {
+    assert(Array.isArray(spec.membership) && spec.membership.length > 0, 'defineJsMutation membership must be a non-empty array');
+    for (const predicate of spec.membership) {
+      assert(predicate?.__membershipPredicate === true, 'defineJsMutation membership entries must come from a declaration-bound memberOf()/hasRole()');
+    }
+  }
   assert(Array.isArray(spec.writes), 'defineJsMutation requires declared writes');
   // @ref LLP 0135#12-allocation-surfaces — a counter advance is itself a
   // mutation effect, so a sequence-only migration/bridge need not pretend to
@@ -4533,6 +4546,7 @@ export function defineJsMutation(spec) {
     args: spec.args ?? {},
     ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     ...(spec.outgrewIr !== undefined ? { outgrewIr: spec.outgrewIr } : {}),
+    ...(spec.membership === undefined ? {} : { membership: [...spec.membership] }),
     // @ref LLP 0135#12-allocation-surfaces — admission-visible declaration;
     // imperative calls remain runtime checked because generation cannot see
     // through handler control flow.

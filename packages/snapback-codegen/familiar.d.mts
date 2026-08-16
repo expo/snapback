@@ -2,10 +2,11 @@ export {
   allow,
   defineAssetUpload,
   defineSchema,
+  membershipResource,
   v,
 } from './define.js';
 
-import type { TableBuilder, Validator } from './define.js';
+import type { MembershipPredicate, TableBuilder, Validator } from './define.js';
 
 export declare function defineTable<const Fields extends Record<string, Validator>>(
   fields: Fields,
@@ -27,10 +28,12 @@ export declare function query(spec: Common & Readonly<{
   delivery?: 'live' | 'read';
   retainable?: boolean;
   authScopeField?: string;
+  membership?: readonly MembershipPredicate[];
 }>): unknown;
 export declare function mutation(spec: Common & Readonly<{
   reads: readonly string[];
   writes: readonly string[];
+  membership?: readonly MembershipPredicate[];
 }>): unknown;
 export declare function action(spec: Common & Readonly<{
   secrets?: readonly string[];

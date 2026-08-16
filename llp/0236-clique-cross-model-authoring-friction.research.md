@@ -8,7 +8,11 @@ Offline sync, Assets, Memberships, Code generation, Runtime, Packaging,
 Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-15 (records the landed take-ceiling generation-time
+**Revised:** 2026-08-15 (updates R7 after the LLP 0240 local implementation:
+Explicit and Familiar now compile one declared profile predicate ahead of
+group handlers and generate bounded roster/caller-role reads; the repository
+residual is closed while open question 9 deliberately remains an external npm
+rerun question). 2026-08-15 (records the landed take-ceiling generation-time
 refusal, `34d98f489`, in the closed-corrections table). 2026-08-15 (adds R7, the cross-lane group-authority
 expressiveness synthesis: the missing declarative membership/role rule, the
 sanctioned elevated-read and principal-array seams with their landed partial
@@ -812,10 +816,14 @@ Simplified stays outside the improvement agenda above, but its authority
 evidence concerns the shared semantic core rather than the Simplified surface,
 so it counts here. Three seams composed:
 
-1. **No declarative membership/role rule.** Computed member access is not
-   available as a declared rule, so every conversation, membership, message,
-   and receipt handler performs its own active-member or admin check. This is
-   the still-open residual.
+1. **Declarative membership/role rule (implemented locally after the
+   snapshot).** An LLP 0240 authority-profile predicate now compiles ahead of
+   Explicit and Familiar group handlers, using one captured active-role answer
+   for read blanking/invalidation and its terminal twin for writes. The same
+   profile emits bounded roster and caller-role projections. The repository
+   residual is closed; the external package rerun in open question 9 still
+   decides whether the shipped surface actually retires the duplicated guards
+   in a fresh Clique build.
 2. **No sanctioned cross-owner read for an authenticated server handler.**
    Owner visibility filtered `ctx.db` reads inside explicit named functions,
    and the Simplified lane's forced workaround migrated conversation,

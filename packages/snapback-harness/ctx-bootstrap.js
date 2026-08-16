@@ -1228,8 +1228,11 @@
           throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "stream.emit");
         }
       };
-      // LLP 0056 M3: ctx.permissions.<declaration>.requireRole(resource, ...roles).
-      // The imperative role-gate twin, available in queries and mutations only
+      // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+      // — declaration-bound role evaluation uses the shared authority IR.
+      // allowsRole is the captured non-terminal read used by generated
+      // authority-profile read admission; requireRole is its terminal write
+      // gate twin. Both are available in queries and mutations only
       // (actions carry no transactional read set — the host op refuses there
       // too). The ergonomic per-declaration spelling is LLP 0004 codegen; this
       // is the host-backed binding it lowers onto. The membership read is
@@ -1241,6 +1244,14 @@
             get: function(_target, declaration) {
               if (typeof declaration !== "string") { return undefined; }
               return {
+                allowsRole: function(resource) {
+                  var roles = Array.prototype.slice.call(arguments, 1);
+                  return host("permissions.allowsRole", {
+                    declaration: declaration,
+                    resource: resource === undefined ? null : resource,
+                    roles: roles
+                  });
+                },
                 requireRole: function(resource) {
                   var roles = Array.prototype.slice.call(arguments, 1);
                   return host("permissions.requireRole", {

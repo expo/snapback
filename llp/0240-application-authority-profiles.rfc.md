@@ -6,7 +6,12 @@
 Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-15 (D4 cross-references LLP 0231 D7 `ctx.db.elevated` as
+**Revised:** 2026-08-15 (records the shipped local handler-admission and
+bounded `list`/`myRole` slice: Explicit and Familiar handlers declare the
+canonical membership predicate, generated reads use a captured non-terminal
+evaluation, mutations use its terminal twin, and removal blanks live delivery;
+generated transitions, pagination, search/assets, and hosted profiles remain
+outside this slice). 2026-08-15 (D4 cross-references LLP 0231 D7 `ctx.db.elevated` as
 the sanctioned handler read path across Class-R visibility, keeping it distinct
 from LLP 0234 governed overrides). 2026-08-12 (entered Review for the author-directed single-family
 `llp-super-refine` loop: Codex GPT-5.6-sol xhigh only; Claude intentionally
@@ -201,6 +206,17 @@ or transition edit rotates the authority-profile generation, appears in
 semantic artifact diff, and invalidates/requalifies every dependent generated
 surface.
 
+The first local implementation exposes that identity to named handlers as a
+declaration-bound `membership` predicate. Codegen accepts only a direct,
+nominally typed resource argument, lowers the requested minimum roles through
+the profile lattice, and inserts the membership table into the captured read
+set. Queries and live queries evaluate the predicate through a non-terminal
+`permissions.allowsRole` host read and return their empty row set before the
+opaque handler on denial. Mutations evaluate the same lowered role set through
+terminal `permissions.requireRole`. App source therefore carries one policy
+declaration rather than repeating role checks; row-derived/multi-hop policy
+remains under D4's explicit handler sequence.
+
 A profile or role-lattice edit that broadens ordinary visibility, or is
 incomparable with its predecessor, remains subject to LLP 0234's remotely-prior
 content-bound approval and exact-set ratchet. D2 generation rotation records
@@ -236,6 +252,18 @@ Generated reads and refusals inherit LLP 0056’s non-enumeration contract. An
 unauthorized caller cannot distinguish an absent scope/member from one hidden
 by roster visibility; detailed existence, role, and transition traces stay on
 authenticated developer/admin inspection.
+
+The first qualified generated surface is deliberately smaller than the full
+operation sketch above. Local app-owned profiles emit live references named
+`api.<profile>.list` and `api.<profile>.myRole`, both with one `{ scopeId }`
+argument. `list` projects only `roster.visible` and takes at most 100 rows from
+the resource-leading membership index; `myRole` returns a zero-or-one row
+projection for the server-derived caller and includes the role. Both first
+perform the same captured active-role predicate and return `[]` when it fails,
+so removal and role changes reauthorize live delivery without a roster oracle.
+This is a bounded initial roster projection, not the D3 pagination or generated
+transition/hook completion. Those remaining operations stay absent rather than
+pretending to exist.
 
 ### D4. Custom function-mediated authority has an honest declaration
 
@@ -389,11 +417,13 @@ protected retention. Accepting this RFC neither accepts nor blocks either one.
 
 ## Rollout
 
-1. **Facade lowering.** Project the existing LLP 0056 membership manifest and
+1. **Facade lowering (implemented locally).** Project the existing LLP 0056 membership manifest and
    LLP 0231 policy IR into the profile identity; add no second evaluator and no
    offline retention.
-2. **Roster and role facade.** Generate common operations/hooks and migrate one
-   dual-roster demo, including owner transfer and concurrent last-owner cases.
+2. **Roster and role facade (first slice implemented locally).** Generate the
+   bounded `list`/`myRole` reads and common named-handler admission in Explicit
+   and Familiar. Pagination, transition operations/hooks, and the external
+   Clique rerun remain before this rollout step is complete.
 3. **Policy composition.** Feed table visibility, strict/coarse custom
    authorization, and search from the canonical IR; prove invalidation and
    no-warning behavior.

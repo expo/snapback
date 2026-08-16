@@ -234,6 +234,76 @@ globalThis.__snapbackHandlers = {
   return { dir, result };
 }
 
+async function runFamiliarAuthorityProfile() {
+  const dir = mkdtempSync(join(tmpdir(), 'snapback-rbac-familiar-authority-'));
+  dirs.push(dir);
+  const snapbackModules = join(dir, 'node_modules', '@expo');
+  mkdirSync(snapbackModules, { recursive: true });
+  symlinkSync(dirname(fileURLToPath(import.meta.url)), join(snapbackModules, 'snapback-codegen'), 'dir');
+  writeFileSync(join(dir, 'codegen.policy.json'), JSON.stringify({
+    schemaVersion: 'snapback.codegen-policy.v1',
+    committedProjections: [],
+    authoringProfile: 'snapback-familiar-ts-v1',
+  }));
+  writeFileSync(join(dir, 'schema.ts'), `
+import { defineSchema, defineTable, v } from './generated/server';
+
+export const roomMembers = defineTable({
+  roomId: v.id('rooms'),
+  principalId: v.principal(),
+  role: v.string(),
+  displayName: v.string(),
+}).membership({
+  id: 'roomAccess',
+  principal: 'principalId',
+  resource: 'roomId',
+  role: 'role',
+  roles: ['owner', 'admin', 'member'],
+  bootstrapRole: 'owner',
+  lastHolder: { protect: 'owner' },
+  transitions: [],
+}).authorityProfile({
+  name: 'roomAccess',
+  hierarchy: { owner: ['admin', 'member'], admin: ['member'], member: [] },
+  roster: { visible: ['principalId', 'role', 'displayName'] },
+});
+
+export default defineSchema({
+  rooms: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  roomMembers,
+  messages: defineTable({ roomId: v.id('rooms'), body: v.string() })
+    .visibility({ kind: 'membership', declaration: 'roomAccess', resourceField: 'roomId', roles: ['member'] }),
+}, { auth: { mode: 'sessions' } });
+`);
+  const authoredFunctions = `
+import { membershipResource, mutation, query, v } from './generated/server';
+import { roomMembers } from './schema';
+
+export const summary = query({
+  args: { roomId: v.id('rooms') },
+  returns: v.array(v.doc('messages')),
+  auth: 'authenticated',
+  reads: ['messages'],
+  membership: [roomMembers.hasRole(membershipResource.arg('roomId'), 'member')],
+  handler: async (ctx, args) => ctx.db.query('messages').withIndex('_id').take(20).collect(),
+});
+
+export const send = mutation({
+  args: { roomId: v.id('rooms'), body: v.string() },
+  returns: v.id('messages'),
+  auth: 'authenticated',
+  reads: [],
+  writes: ['messages'],
+  membership: [roomMembers.hasRole(membershipResource.arg('roomId'), 'member')],
+  handler: async (ctx, args) => ctx.db.insert('messages', args),
+});
+`;
+  writeFileSync(join(dir, 'rooms.ts'), authoredFunctions);
+  mkdirSync(join(dir, 'generated'));
+  const result = await generate(dir);
+  return { authoredFunctions, dir, result };
+}
+
 const authorityProfileSchema = ({
   bootstrapRole = 'owner',
   consumerVisibility = true,
@@ -329,6 +399,7 @@ export default defineSchema({
 const authorityProfileFunctions = `
 import { eventMembers } from './schema.mjs';
 import {
+  defineJsLiveQuery,
   defineJsMutation,
   defineLiveQuery,
   membershipResource,
@@ -354,6 +425,23 @@ export const writeMembers = defineJsMutation({
   source: 'bootstrap-handler.mjs',
   exportName: 'bootstrapEvent',
   writes: ['eventMembers'],
+});
+
+export const memberSummary = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: { eventId: v.id('events') },
+  reads: ['eventNotes'],
+  membership: [eventMembers.hasRole(membershipResource.arg('eventId'), 'member')],
+  handler: async () => [],
+});
+
+export const addNote = defineJsMutation({
+  auth: 'authenticated',
+  args: { eventId: v.id('events'), body: v.string() },
+  reads: [],
+  writes: ['eventNotes'],
+  membership: [eventMembers.hasRole(membershipResource.arg('eventId'), 'member')],
+  handler: async (ctx, args) => ctx.db.insert('eventNotes', args),
 });
 `;
 
@@ -430,7 +518,7 @@ try {
       "export type EventMembersRole = \"host\" | \"guest\" | \"invited\"",
       'export type EventMembersBootstrap = { title: string }',
       'export interface GeneratedPermissions',
-      "eventMembers: { requireRole(resource: Id<'events'>, role: EventMembersRole, ...roles: EventMembersRole[])",
+      "eventMembers: { allowsRole(resource: Id<'events'>, role: EventMembersRole, ...roles: EventMembersRole[]): Promise<boolean>; requireRole(resource: Id<'events'>, role: EventMembersRole, ...roles: EventMembersRole[])",
       'export interface GeneratedMembership',
       'export type EventMembersBootstrapMember = { userId: Principal; role: EventMembersRole',
       "eventMembers: { bootstrap(values: EventMembersBootstrap, initialMembers?: readonly EventMembersBootstrapMember[]): Promise<Id<'events'>>",
@@ -697,7 +785,11 @@ export const publicEvents = defineLiveQuery({
         lookup: 'protected-holders-and-scope-invalidation-range',
       },
     ]);
-    assert.deepEqual(profile.permittedCompositionClasses, ['table-visibility.membership.v1']);
+    assert.deepEqual(profile.permittedCompositionClasses, [
+      'table-visibility.membership.v1',
+      'function-admission.membership.v1',
+      'authority-roster-projection.v1',
+    ]);
     assert.deepEqual(profile.notYetQualifiedCompositionClasses, [
       'membership-visible-search.v1',
       'authority-profile-asset-sharing.v1',
@@ -717,12 +809,47 @@ export const publicEvents = defineLiveQuery({
       functionsByName.eventById.runtime.HostPlan.Query.membershipFilters[0].roles,
       ['admin', 'member', 'owner'],
     );
-    for (const name of ['eventById', 'visibleNotes', 'writeMembers']) {
+    for (const name of [
+      'eventById',
+      'visibleNotes',
+      'writeMembers',
+      'memberSummary',
+      'addNote',
+      'eventMembers.list',
+      'eventMembers.myRole',
+    ]) {
+      assert(functionsByName[name], `${name} was not generated`);
       assert.deepEqual(functionsByName[name].authorityProfileDependence, [{
         id: 'eventMembers',
         generation: profile.generation,
       }]);
     }
+    assert.deepEqual(functionsByName.memberSummary.readSetSummary.tables, [
+      'eventNotes',
+      'eventMembers',
+    ]);
+    assert.match(
+      functionsByName.memberSummary.runtime.IbexModule.source,
+      /\.allowsRole\(args\["eventId"\], "admin", "member", "owner"\)/u,
+    );
+    assert.doesNotMatch(
+      authorityProfileFunctions,
+      /permissions|requireRole|allowsRole/u,
+      'the authored Clique-shaped handlers must not repeat membership guards',
+    );
+    assert.match(
+      functionsByName.addNote.runtime.IbexModule.source,
+      /\.requireRole\(args\["eventId"\], "admin", "member", "owner"\)/u,
+    );
+    assert.equal(functionsByName['eventMembers.list'].kind, 'LiveQuery');
+    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /_membership_reverse/u);
+    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /\.take\(100\)/u);
+    assert.doesNotMatch(functionsByName['eventMembers.list'].runtime.IbexModule.source, /\["_id"\]/u);
+    assert.match(functionsByName['eventMembers.myRole'].runtime.IbexModule.source, /_membership_pk/u);
+    const explicitApi = readFileSync(join(baseline.dir, 'generated', 'api.mjs'), 'utf8');
+    const explicitApiTypes = readFileSync(join(baseline.dir, 'generated', 'api.d.ts'), 'utf8');
+    assert.match(explicitApi, /references\["eventMembers"\] = \{ list:/u);
+    assert.match(explicitApiTypes, /readonly "eventMembers": Readonly<\{ list:/u);
     assert.equal(
       Object.hasOwn(functionsByName.publicEvents, 'authorityProfileDependence'),
       false,
@@ -795,6 +922,11 @@ export const publicEvents = defineLiveQuery({
       'invalid profile id',
       { profileName: 'invalid-profile' },
       'SNAPBACK_AUTHORITY_PROFILE_ID_INVALID',
+    ],
+    [
+      'generated API namespace',
+      { consumerVisibility: false, membershipId: 'groups', profileName: 'groups' },
+      'SNAPBACK_AUTHORITY_PROFILE_OPERATION_COLLISION',
     ],
     [
       'facade owns only name hierarchy and roster',
@@ -907,6 +1039,49 @@ export const publicEvents = defineLiveQuery({
       { targetProfile: 'remote-service-sqlite-ibex' },
     );
     authorityProfileDiagnostic(result, 'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET');
+  }
+
+  {
+    const { result } = await run(
+      authorityProfileFunctions.replaceAll("'member'", "'host'"),
+      schema,
+    );
+    assert.equal(result.ok, false, 'opaque handler admission must not invent a profile');
+    assert(
+      result.diagnostics.some(({ code }) => (
+        code === 'SNAPBACK_AUTHORITY_PROFILE_FUNCTION_ADMISSION_REQUIRED'
+      )),
+      JSON.stringify(result.diagnostics),
+    );
+  }
+
+  // LLP 0240 rollout 2 / LLP 0236 OQ9: the same Clique-shaped declaration is
+  // available in the Familiar profile. The app writes no imperative role
+  // guard; generated read/write preludes and the roster namespace carry it.
+  {
+    const { authoredFunctions, dir, result } = await runFamiliarAuthorityProfile();
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    assert.doesNotMatch(authoredFunctions, /permissions|requireRole|allowsRole/u);
+    const functionsManifest = JSON.parse(readFileSync(
+      join(dir, 'generated', 'functions.manifest.json'),
+      'utf8',
+    ));
+    const functionsByName = Object.fromEntries(
+      functionsManifest.functions.map((operation) => [operation.name, operation]),
+    );
+    assert.match(functionsByName['rooms.summary'].runtime.IbexModule.source, /\.allowsRole\(/u);
+    assert.match(functionsByName['rooms.send'].runtime.IbexModule.source, /\.requireRole\(/u);
+    assert.deepEqual(functionsByName['rooms.summary'].readSetSummary.tables, [
+      'messages',
+      'roomMembers',
+    ]);
+    assert.equal(functionsByName['roomAccess.list'].kind, 'LiveQuery');
+    assert.equal(functionsByName['roomAccess.myRole'].kind, 'LiveQuery');
+    const apiModule = readFileSync(join(dir, 'generated', 'api.mjs'), 'utf8');
+    const apiTypes = readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8');
+    assert.match(apiModule, /root\["roomAccess"\]\["list"\]/u);
+    assert.match(apiModule, /root\["roomAccess"\]\["myRole"\]/u);
+    assert.match(apiTypes, /readonly "roomAccess": Readonly<\{ "list": GeneratedApi\["roomAccess\.list"\]/u);
   }
 
   // LLP 0100 §2: principalAddressedWrites — closed option, total-carrier

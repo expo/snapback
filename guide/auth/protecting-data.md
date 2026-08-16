@@ -3,14 +3,14 @@ title: Protecting live and retained data
 id: auth.protecting-data
 order: 4
 audience: agent-first
-capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/runtime.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
+capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases, authority.profile.v1]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/runtime.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/pointing-room, demos/pointing-room/snapback/functions.mjs, demos/pointing-room/tests/acceptance/disclosure-invariant.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:ef7dcef6bbb0e5d63e31e1311eebf6781c0807c0da5db8ddb945e22b2618e1c4
+reviewed-authorities-digest: sha256:3c291b748e3c46bd38618b661c1bd3ffd8c9125564eaf140621017774539867e
 ---
 
 # Protecting live and retained data
@@ -135,10 +135,39 @@ cannot carry the table policy, codegen refuses it with
 
 Named JavaScript queries and mutations are trusted server code, but ordinary
 `ctx.db` is intentionally caller-scoped. If a handler forgets an authorization
-check, owner or membership visibility still hides the row. When the handler
-must inspect protected rows on behalf of its own authorization logic, first use
-the host-owned permission declaration, then select `ctx.db.elevated` at the
-read that requires trusted authority:
+check, owner or membership visibility still hides the row.
+
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** Declarative named-handler admission is newer than the newest
+> published Snapback closure, 0.1.22.
+
+For the ordinary group case where the resource id is already a typed argument,
+put an authority-profile predicate on the definition; codegen emits the same
+captured role evaluation ahead of the handler for Explicit and Familiar code:
+
+```js fragment reason="declarative authority-profile admission for a named live handler"
+export const conversationMessages = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: { conversationId: v.id('conversations') },
+  reads: ['messages'],
+  membership: [conversationMembers.hasRole(
+    membershipResource.arg('conversationId'),
+    'member',
+  )],
+  handler: async (ctx, args) =>
+    ctx.db.query('messages').withIndex('byConversation')
+      .eq('conversationId', args.conversationId).take(50).collect(),
+});
+```
+
+Denied reads blank to `[]`; denied mutations are terminal. The negative lookup
+is captured, so membership removal reauthorizes live delivery. The predicate
+requires an LLP 0240 authority profile and a direct nominal resource argument.
+
+When a handler instead must derive the resource through protected rows for its
+authorization decision, first use the host-owned permission declaration, then
+select `ctx.db.elevated` at the read that requires trusted authority:
 
 ```js fragment reason="permission check before explicit elevated handler reads"
 export const getMessageWithQuote = defineJsQuery({
@@ -182,7 +211,7 @@ case. Multi-hop authorization is still deliberately undeclarable: for example,
 a receipt that names a message while membership is keyed by the message's
 conversation cannot express that join in the visibility grammar. Either
 denormalize the conversation id onto the receipt and maintain that invariant,
-or repeat the sanctioned handler pattern in **every** named function:
+or use the sanctioned multi-hop handler pattern in **every** named function:
 
 1. If the resource id is already an argument, call the declaration-bound
    `ctx.permissions` check first. If only a child id exists, make one bounded
@@ -196,8 +225,9 @@ or repeat the sanctioned handler pattern in **every** named function:
    resource id paired with a foreign row id are refused or hidden.
 
 Do not centralize only the happy path while leaving one live query, receipt
-mutation, or quote lookup unchecked. This repetition is intentional because it
-is where otherwise-correct realtime code goes subtly unsafe.
+mutation, or quote lookup unchecked. This repetition remains intentional for
+multi-hop relations; direct resource arguments should use the declarative
+authority-profile admission above.
 
 ## Declare field masking that still lives in a JS handler
 

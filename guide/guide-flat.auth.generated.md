@@ -1323,14 +1323,14 @@ title: Protecting live and retained data
 id: auth.protecting-data
 order: 4
 audience: agent-first
-capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/runtime.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
+capabilities: [auth.table-visibility, auth.invalidation-barrier, auth.authorized-leases, authority.profile.v1]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0240-application-authority-profiles.rfc.md, src/auth/invalidation.rs, src/auth/mode.rs, src/auth/service_fence.rs, src/local.rs, src/local/authorization_acceptance.rs, src/manifest.rs, src/runtime.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/codegen-summary.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/card-game/snapback/schema.mjs, demos/pointing-room, demos/pointing-room/snapback/functions.mjs, demos/pointing-room/tests/acceptance/disclosure-invariant.mjs, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:ef7dcef6bbb0e5d63e31e1311eebf6781c0807c0da5db8ddb945e22b2618e1c4
+reviewed-authorities-digest: sha256:3c291b748e3c46bd38618b661c1bd3ffd8c9125564eaf140621017774539867e
 ---
 
 # Protecting live and retained data
@@ -1455,10 +1455,39 @@ cannot carry the table policy, codegen refuses it with
 
 Named JavaScript queries and mutations are trusted server code, but ordinary
 `ctx.db` is intentionally caller-scoped. If a handler forgets an authorization
-check, owner or membership visibility still hides the row. When the handler
-must inspect protected rows on behalf of its own authorization logic, first use
-the host-owned permission declaration, then select `ctx.db.elevated` at the
-read that requires trusted authority:
+check, owner or membership visibility still hides the row.
+
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** Declarative named-handler admission is newer than the newest
+> published Snapback closure, 0.1.22.
+
+For the ordinary group case where the resource id is already a typed argument,
+put an authority-profile predicate on the definition; codegen emits the same
+captured role evaluation ahead of the handler for Explicit and Familiar code:
+
+```js fragment reason="declarative authority-profile admission for a named live handler"
+export const conversationMessages = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: { conversationId: v.id('conversations') },
+  reads: ['messages'],
+  membership: [conversationMembers.hasRole(
+    membershipResource.arg('conversationId'),
+    'member',
+  )],
+  handler: async (ctx, args) =>
+    ctx.db.query('messages').withIndex('byConversation')
+      .eq('conversationId', args.conversationId).take(50).collect(),
+});
+```
+
+Denied reads blank to `[]`; denied mutations are terminal. The negative lookup
+is captured, so membership removal reauthorizes live delivery. The predicate
+requires an LLP 0240 authority profile and a direct nominal resource argument.
+
+When a handler instead must derive the resource through protected rows for its
+authorization decision, first use the host-owned permission declaration, then
+select `ctx.db.elevated` at the read that requires trusted authority:
 
 ```js fragment reason="permission check before explicit elevated handler reads"
 export const getMessageWithQuote = defineJsQuery({
@@ -1502,7 +1531,7 @@ case. Multi-hop authorization is still deliberately undeclarable: for example,
 a receipt that names a message while membership is keyed by the message's
 conversation cannot express that join in the visibility grammar. Either
 denormalize the conversation id onto the receipt and maintain that invariant,
-or repeat the sanctioned handler pattern in **every** named function:
+or use the sanctioned multi-hop handler pattern in **every** named function:
 
 1. If the resource id is already an argument, call the declaration-bound
    `ctx.permissions` check first. If only a child id exists, make one bounded
@@ -1516,8 +1545,9 @@ or repeat the sanctioned handler pattern in **every** named function:
    resource id paired with a foreign row id are refused or hidden.
 
 Do not centralize only the happy path while leaving one live query, receipt
-mutation, or quote lookup unchecked. This repetition is intentional because it
-is where otherwise-correct realtime code goes subtly unsafe.
+mutation, or quote lookup unchecked. This repetition remains intentional for
+multi-hop relations; direct resource arguments should use the declarative
+authority-profile admission above.
 
 ## Declare field masking that still lives in a JS handler
 
@@ -1778,7 +1808,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:8a958396da0e73199cc91cf1a111926b63c17d3f00f69bc94cd2252b8a426577
+reviewed-authorities-digest: sha256:97ba8713efaf5213c8c01268a709db104f16f61aa95b4f1e7fc00096fcc838e3
 ---
 
 # Scoped roles and memberships
@@ -1952,13 +1982,59 @@ incomparable visibility edit still requires LLP 0234's remotely-prior,
 content-bound approval and exact-set ratchet—generation rotation records the
 change but does not approve it.
 
-Rollout 1 qualifies only local, app-table-owned profiles composed with ordinary
-table visibility. `roster.visible` is projection metadata: it does not create
-list, invitation, role-change, owner-transfer, or client-hook surfaces, and the
-membership table remains private under the operations table above. Profile
-composition with membership-visible search or asset sharing fails generation
-with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets
-fail with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
+<!-- since: 0.1.23 unreleased -->
+
+> **Unreleased.** Handler admission and generated roster reads are newer than
+> the newest published Snapback closure, 0.1.22.
+
+The qualified local, app-table-owned profile now composes with ordinary table
+visibility, named handler admission, and two generated read references:
+`api.roomAccess.list` and `api.roomAccess.myRole`. The first returns at most 100
+rows projected to exactly `roster.visible`; the second returns zero or one
+caller row and includes the role. Both take `{ scopeId }`, return `[]` to an
+unauthorized caller, and capture the negative membership lookup so joining,
+removal, or a role change wakes the live result. The initial list is bounded,
+not paginated; applications needing more than 100 visible seats still need a
+separately designed bounded page surface.
+
+The membership table remains private under the operations table above. The
+profile does not yet create invitation, role-change, owner-transfer, or client
+hook surfaces. Composition with membership-visible search or asset sharing
+fails generation with
+`SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets fail
+with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
+
+### Admit a named handler once
+
+When a named query or mutation already receives the membership resource as a
+nominally typed argument, attach the same declaration-bound predicate to its
+definition. This is available in both the Explicit and Familiar profiles:
+
+```js fragment reason="authority-profile handler admission over a direct resource argument"
+export const messages = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: { roomId: v.id('rooms') },
+  reads: ['messages'],
+  membership: [
+    roomMembers.hasRole(membershipResource.arg('roomId'), 'member'),
+  ],
+  handler: async (ctx, args) =>
+    ctx.db.query('messages').withIndex('byRoom').eq('roomId', args.roomId).take(50).collect(),
+});
+```
+
+Codegen closes `member` through the profile hierarchy, adds the membership
+table to the captured read set, and emits the role check before the opaque
+handler. A denied query or live query returns `[]`; a denied mutation is a
+terminal `SNAPBACK_AUTH_PERMISSION_DENIED` and cannot be caught by handler
+code. Multiple predicates are an AND. Authored handlers therefore do not call
+`requireRole` for this direct-argument group pattern.
+
+The predicate must name an `authorityProfile()`, must use
+`membershipResource.arg(...)` with the declaration's exact resource-id type,
+and cannot use a row-field reference. Multi-hop authorization still uses the
+sanctioned permission-check plus bounded `ctx.db.elevated` sequence described
+in [Protecting live and retained data](./protecting-data.md).
 
 ## Gate a query with the declaration
 
@@ -2303,9 +2379,9 @@ coordinator transition.
   offline.** Neither has the transactional/lease proof required by v1.
 - **Do not mirror a profiled membership into a second product roster.** The
   app-owned membership table is both product roster and authority relation.
-- **Do not infer generated roster operations, hooks, search sharing, or asset
-  sharing from `authorityProfile()`.** Rollout 1 emits only the validated
-  profile projection and membership/table-visibility lowering described above.
+- **Do not infer generated transition mutations, hooks, search sharing, or
+  asset sharing from `authorityProfile()`.** The current generated surface is
+  the bounded `list`/`myRole` pair plus handler/table admission described above.
 
 ---
 

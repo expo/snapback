@@ -49,7 +49,13 @@ import {
   transformTypeScriptHandler,
   typecheckTypeScriptHandler,
 } from './typescript-transform.mjs';
-import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS, results, v } from './define.mjs';
+import {
+  OUTGREW_IR_CLASSES,
+  PINNED_FUNCTIONS,
+  defineJsLiveQuery,
+  results,
+  v,
+} from './define.mjs';
 import {
   decodeUtf8Source,
   resolveFileReadCapability,
@@ -3356,7 +3362,7 @@ async function generateInProcessLocked({
       refuse(
         'SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID',
         'roster must contain one non-empty unique visible field list over this membership table',
-        'Set roster to { visible: [<existing membership-table field>, ...] }; generated roster operations/hooks are not available in v1.',
+        'Set roster to { visible: [<existing membership-table field>, ...] }; these fields are the exact generated list/myRole projection.',
       );
     }
     if (refused || !hierarchyClosed || !membership || !resourceTable) continue;
@@ -3435,7 +3441,11 @@ async function generateInProcessLocked({
         ],
       },
       requiredIndexes,
-      permittedCompositionClasses: ['table-visibility.membership.v1'],
+      permittedCompositionClasses: [
+        'table-visibility.membership.v1',
+        'function-admission.membership.v1',
+        'authority-roster-projection.v1',
+      ],
       notYetQualifiedCompositionClasses: [
         'membership-visible-search.v1',
         'authority-profile-asset-sharing.v1',
@@ -3507,6 +3517,78 @@ async function generateInProcessLocked({
   }
   if (diagnostics.some((diagnostic) => diagnostic.severity === 'error')) {
     return { ok: false, diagnostics };
+  }
+
+  // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —
+  // handler admission and roster projections are generated from the same
+  // closed lattice/table identity already used by table visibility.
+  // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — each
+  // profile emits a bounded, non-enumerating list plus caller-scoped role read.
+  for (const [profileName, authority] of authorityProfiles) {
+    const { profile, table } = authority;
+    const membership = table.membership;
+    const operationNames = [`${profileName}.list`, `${profileName}.myRole`];
+    if (GENERATED_API_RESERVED_EXPORTS.has(profileName)) {
+      authorityProfileError(
+        'SNAPBACK_AUTHORITY_PROFILE_OPERATION_COLLISION',
+        table.name,
+        `generated authority-profile API for ${profileName} collides with a generated API namespace`,
+        'Choose an authorityProfile name that is not api, app, artifacts, defaults, ephemeral, or groups.',
+        { declaration: profileName, namespace: profileName },
+      );
+      continue;
+    }
+    const collision = [profileName, ...operationNames].find((name) => functionsModule[name] !== undefined);
+    if (collision !== undefined) {
+      authorityProfileError(
+        'SNAPBACK_AUTHORITY_PROFILE_OPERATION_COLLISION',
+        table.name,
+        `generated authority-profile API for ${profileName} collides with function ${collision}`,
+        `Rename the authored function or choose another authorityProfile name; ${profileName}.list and ${profileName}.myRole are reserved by the profile.`,
+        { declaration: profileName, function: collision },
+      );
+      continue;
+    }
+    const resourceValidator = schemaDef.tables?.[table.name]?.fields?.[membership.resource];
+    const activeRoles = profile.roleLattice.map(({ role }) => role).sort(compareCodeUnits);
+    for (const operation of ['list', 'myRole']) {
+      const operationName = `${profileName}.${operation}`;
+      const visibleFields = operation === 'list'
+        ? [...profile.roster.visibleFields]
+        : [...new Set([...profile.roster.visibleFields, membership.role])];
+      const resultFields = Object.fromEntries(visibleFields.map((field) => [
+        field,
+        schemaDef.tables[table.name].fields[field],
+      ]));
+      const definition = defineJsLiveQuery({
+        auth: 'authenticated',
+        args: { scopeId: resourceValidator },
+        reads: [table.name],
+        result: v.object(resultFields),
+        source: '__snapback_authority_profile_generated__',
+        exportName: operationName,
+      });
+      // These definitions are synthesized after the capability-empty author
+      // evaluator, so project the same isolated-definition marker that the
+      // evaluator would have copied from defineJsLiveQuery's private symbol.
+      definition.__snapbackDefinitionKind = 'function';
+      definition.js.generatedSource = authorityProfileProjectionSource({
+        declaration: profile.id,
+        operation,
+        principalField: membership.principal,
+        profileName,
+        resourceField: membership.resource,
+        roles: activeRoles,
+        tableName: table.name,
+        visibleFields,
+      });
+      definition.authorityProfileOperation = {
+        id: profile.id,
+        generation: profile.generation,
+        operation,
+      };
+      functionsModule[operationName] = definition;
+    }
   }
 
   if (
@@ -3684,12 +3766,121 @@ async function generateInProcessLocked({
     ? renderInlineOperationModule
     : renderInlineOperationGraphModule;
 
+  const compileHandlerMembershipAdmission = (def, name) => {
+    const compiled = [];
+    for (const predicate of def.membership ?? []) {
+      if (!predicate || predicate.__membershipPredicate !== true) {
+        err('QUERY_MEMBERSHIP_INVALID', 'function', `${name}: membership predicate must come from a declaration-bound helper`, { function: name });
+        continue;
+      }
+      const found = membershipDeclarations.get(predicate.declaration);
+      const authority = authorityProfiles.get(predicate.declaration);
+      if (!found) {
+        err('QUERY_MEMBERSHIP_UNKNOWN_DECLARATION', 'function', `${name}: membership predicate names unknown declaration ${String(predicate.declaration)}`, {
+          function: name,
+          declaration: predicate.declaration ?? null,
+        });
+        continue;
+      }
+      if (!authority) {
+        err(
+          'SNAPBACK_AUTHORITY_PROFILE_FUNCTION_ADMISSION_REQUIRED',
+          'function',
+          `${name}: opaque handler membership admission requires authorityProfile() on declaration ${predicate.declaration}`,
+          { function: name, declaration: predicate.declaration },
+        );
+        continue;
+      }
+      if (predicate.roles !== null) {
+        if (!Array.isArray(predicate.roles) || predicate.roles.length === 0) {
+          err('QUERY_MEMBERSHIP_EMPTY_ROLES', 'function', `${name}: hasRole must name at least one role`, {
+            function: name,
+            declaration: predicate.declaration,
+          });
+          continue;
+        }
+        const vocabulary = new Set(found.membership.roles);
+        const unknownRole = predicate.roles.find((role) => !vocabulary.has(role));
+        if (unknownRole !== undefined) {
+          err('QUERY_MEMBERSHIP_UNKNOWN_ROLE', 'function', `${name}: ${predicate.declaration}.hasRole names undeclared active role ${String(unknownRole)}`, {
+            function: name,
+            declaration: predicate.declaration,
+            role: unknownRole,
+          });
+          continue;
+        }
+      }
+      const resource = predicate.resource;
+      if (!resource || resource.__membershipResourceRef !== true || resource.kind === 'rowField') {
+        err(
+          'QUERY_MEMBERSHIP_RESOURCE_REF_INVALID',
+          'function',
+          `${name}: handler admission requires membershipResource.arg(); row-field references exist only inside declarative row plans`,
+          { function: name, declaration: predicate.declaration },
+        );
+        continue;
+      }
+      let resourceArg = null;
+      if (found.membership.scope === 'resource') {
+        if (resource.kind !== 'arg') {
+          err('QUERY_MEMBERSHIP_RESOURCE_TYPE_MISMATCH', 'function', `${name}: resource-scoped declaration ${predicate.declaration} requires membershipResource.arg()`, {
+            function: name,
+            declaration: predicate.declaration,
+          });
+          continue;
+        }
+        const segments = typeof resource.path === 'string' ? resource.path.split('.') : [];
+        let validator = segments.length > 0 ? def.args?.[segments[0]] : null;
+        for (const segment of segments.slice(1)) {
+          validator = validator?.primitive === 'object' ? validator.fields?.[segment] : null;
+        }
+        const actualTable = idFieldTypeTable(validator?.fieldType);
+        if (actualTable !== found.membership.resourceTable) {
+          err('QUERY_MEMBERSHIP_RESOURCE_TYPE_MISMATCH', 'function', `${name}: ${predicate.declaration} expects Id<${found.membership.resourceTable}> but membershipResource.arg(${JSON.stringify(resource.path)}) resolves to ${actualTable === null ? 'a non-id value' : `Id<${actualTable}>`}`, {
+            function: name,
+            declaration: predicate.declaration,
+            expectedTable: found.membership.resourceTable,
+            actualTable,
+          });
+          continue;
+        }
+        resourceArg = resource.path;
+      } else if (resource.kind !== 'app') {
+        err('QUERY_MEMBERSHIP_RESOURCE_TYPE_MISMATCH', 'function', `${name}: app-scoped declaration ${predicate.declaration} requires membershipResource.app()`, {
+          function: name,
+          declaration: predicate.declaration,
+        });
+        continue;
+      }
+      compiled.push({
+        declaration: predicate.declaration,
+        resourceArg,
+        roles: lowerAuthorityProfileRoles(predicate, authority),
+        table: found.table.name,
+      });
+    }
+    return compiled;
+  };
+
   // @ref LLP 0108#final-author-reconciliation-after-round-3 — codegen
   // evaluates only an opaque marker in the definition sandbox, then binds
   // that marker back to the direct AST expression extracted from the same
   // functions.mjs bytes. Handler source never crosses the definition
   // evaluator and an indirect or forged marker fails closed.
   const resolveJsHandler = (def, name) => {
+    if (typeof def.js?.generatedSource === 'string') {
+      return {
+        source: def.js.generatedSource,
+        exportName: def.js.exportName ?? name,
+        handlerForm: 'module',
+        sourceSpan: null,
+        typescriptIdentity: null,
+        elevatedDbUses: captureElevatedDbUseSites(def.js.generatedSource, {
+          path: '<generated-authority-profile>',
+          exportName: def.js.exportName ?? name,
+        }),
+      };
+    }
     if (def.js?.inlineHandler !== undefined) {
       const extracted = inlineExtraction.handlers.get(name);
       const marker = def.js.inlineHandler?.__snapbackInlineHandlerMarker;
@@ -3783,6 +3974,23 @@ async function generateInProcessLocked({
             exportName,
           })
         : [],
+    };
+  };
+
+  const resolveAdmittedJsHandler = (def, name) => {
+    const resolved = resolveJsHandler(def, name);
+    if (!resolved) return null;
+    const admission = compileHandlerMembershipAdmission(def, name);
+    const wrapped = wrapHandlerWithMembershipAdmission(
+      resolved.source,
+      resolved.exportName ?? name,
+      def.__kind,
+      admission,
+    );
+    return {
+      ...resolved,
+      ...wrapped,
+      membershipReads: [...new Set(admission.map(({ table }) => table))],
     };
   };
 
@@ -4696,7 +4904,11 @@ async function generateInProcessLocked({
         ...contractQueryLivenessFields(def),
       };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.js) {
-      const readTables = def.js.reads ?? [];
+      const resolvedHandler = resolveAdmittedJsHandler(def, name);
+      const readTables = [...new Set([
+        ...(def.js.reads ?? []),
+        ...(resolvedHandler?.membershipReads ?? []),
+      ])];
       for (const table of readTables) {
         if (!tables[table]) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: handler declares unknown read table ${table}`, { function: name, table });
@@ -4712,7 +4924,6 @@ async function generateInProcessLocked({
           });
         }
       }
-      const resolvedHandler = resolveJsHandler(def, name);
       const handlerSource = resolvedHandler?.source ?? '';
       const handlerExportName = resolvedHandler?.exportName ?? name;
       validateStaticUniqueManyCalls(handlerSource, name, tables, err);
@@ -5122,7 +5333,11 @@ async function generateInProcessLocked({
         ...contractQueryLivenessFields(def),
       };
     } else if (def.__kind === 'Mutation' && def.js) {
-      const reads = def.js.reads ?? [];
+      const resolvedHandler = resolveAdmittedJsHandler(def, name);
+      const reads = [...new Set([
+        ...(def.js.reads ?? []),
+        ...(resolvedHandler?.membershipReads ?? []),
+      ])];
       const writes = def.js.writes ?? [];
       for (const table of [...reads, ...writes]) {
         if (!tables[table]) {
@@ -5140,7 +5355,6 @@ async function generateInProcessLocked({
           });
         }
       }
-      const resolvedHandler = resolveJsHandler(def, name);
       validateStaticUniqueManyCalls(resolvedHandler?.source ?? '', name, tables, err);
       diagnostics.push(...nPlusOneBatchReadAdvisories({
         source: resolvedHandler?.analysisSource ?? '',
@@ -5529,6 +5743,7 @@ async function generateInProcessLocked({
 
   for (const fn of functions) {
     const declarations = new Set();
+    const def = functionsModule[fn.name];
     const query = fn.runtime?.HostPlan?.Query;
     for (const predicate of query?.membershipFilters ?? []) {
       declarations.add(predicate.declaration);
@@ -5539,6 +5754,12 @@ async function generateInProcessLocked({
     for (const tableName of fn.declaredWrites ?? []) {
       const id = tables[tableName]?.authorityProfile?.id;
       if (id) declarations.add(id);
+    }
+    for (const predicate of def?.membership ?? []) {
+      if (predicate?.declaration) declarations.add(predicate.declaration);
+    }
+    if (def?.authorityProfileOperation?.id) {
+      declarations.add(def.authorityProfileOperation.id);
     }
     const dependence = [...declarations]
       .map((declaration) => authorityProfiles.get(declaration)?.profile)
@@ -7140,6 +7361,7 @@ async function generateInProcessLocked({
     generatedReferences.actions,
     generatedReferences.defaultAssetNames,
     appBindingIdentity,
+    [...authorityProfiles.keys()].sort(compareCodeUnits),
   );
   const familiarOperationNames = [
     ...functionManifest.functions.map(({ name }) => name),
@@ -7171,6 +7393,7 @@ async function generateInProcessLocked({
     capabilityManifest,
     clientLifecycleManifest,
     authoringProfile,
+    [...authorityProfiles.keys()].sort(compareCodeUnits),
   );
   const microArtifacts = buildMicroArtifacts({
     backendRoot,
@@ -8179,16 +8402,9 @@ function serializeQueryPlan(plan, membershipDeclarations, authorityProfiles = ne
     membershipFilters: (plan.membershipFilters ?? []).map((predicate) => {
       const membership = membershipDeclarations.get(predicate.declaration)?.membership;
       const authority = authorityProfiles.get(predicate.declaration);
-      const requestedRoles = predicate.roles === null
-        ? authority?.profile.roleLattice.map(({ role }) => role)
+      const loweredRoles = authority
+        ? lowerAuthorityProfileRoles(predicate, authority)
         : predicate.roles;
-      const loweredRoles = authority && Array.isArray(requestedRoles)
-        ? [...new Set(requestedRoles.flatMap((minimumRole) => (
-            authority.profile.roleLattice
-              .filter(({ implies }) => implies.includes(minimumRole))
-              .map(({ role }) => role)
-          )))].sort()
-        : requestedRoles;
       return {
         declaration: predicate.declaration,
         resource: predicate.resource.kind === 'rowField'
@@ -8205,6 +8421,88 @@ function serializeQueryPlan(plan, membershipDeclarations, authorityProfiles = ne
     order: plan.order.map(serializeOrderExpr),
     limit: plan.limit,
     indexed_by: plan.index,
+  };
+}
+
+function lowerAuthorityProfileRoles(predicate, authority) {
+  const requestedRoles = predicate.roles === null
+    ? authority.profile.roleLattice.map(({ role }) => role)
+    : predicate.roles;
+  return [...new Set(requestedRoles.flatMap((minimumRole) => (
+    authority.profile.roleLattice
+      .filter(({ implies }) => implies.includes(minimumRole))
+      .map(({ role }) => role)
+  )))].sort(compareCodeUnits);
+}
+
+function authorityProjectionAssignment(fields) {
+  return fields
+    .map((field) => `projected[${JSON.stringify(field)}] = row[${JSON.stringify(field)}];`)
+    .join('\n      ');
+}
+
+function authorityProfileProjectionSource({
+  declaration,
+  operation,
+  principalField,
+  profileName,
+  resourceField,
+  roles,
+  tableName,
+  visibleFields,
+}) {
+  const operationName = `${profileName}.${operation}`;
+  const project = authorityProjectionAssignment(visibleFields);
+  const membershipCheck = `await ctx.permissions[${JSON.stringify(declaration)}].allowsRole(args.scopeId, ${roles.map(JSON.stringify).join(', ')})`;
+  const query = operation === 'list'
+    ? `if (!(${membershipCheck})) return [];
+    var rows = await ctx.db.elevated.query(${JSON.stringify(tableName)})
+      .withIndex('_membership_reverse')
+      .eq(${JSON.stringify(resourceField)}, args.scopeId)
+      .take(100)
+      .collect();`
+    : `if (!(${membershipCheck})) return [];
+    var row = await ctx.db.elevated.query(${JSON.stringify(tableName)})
+      .withIndex('_membership_pk')
+      .eq(${JSON.stringify(principalField)}, ctx.auth.userId)
+      .eq(${JSON.stringify(resourceField)}, args.scopeId)
+      .first();
+    var rows = row === null ? [] : [row];`;
+  return `globalThis.__snapbackHandlers = globalThis.__snapbackHandlers || {};
+globalThis.__snapbackHandlers[${JSON.stringify(operationName)}] = async function(ctx, args) {
+    ${query}
+    return rows.map(function(row) {
+      var projected = Object.create(null);
+      ${project}
+      return projected;
+    });
+};
+`;
+}
+
+function wrapHandlerWithMembershipAdmission(source, exportName, kind, predicates) {
+  if (predicates.length === 0) return { source, exportName };
+  const wrapper = `__snapbackAuthorityAdmission_${sha256(canonicalResultJson({ exportName, kind, predicates })).slice(0, 16)}`;
+  const checks = predicates.map((predicate) => {
+    const resource = predicate.resourceArg === null
+      ? 'null'
+      : predicate.resourceArg.split('.').reduce(
+          (expression, segment) => `${expression}[${JSON.stringify(segment)}]`,
+          'args',
+        );
+    const call = `ctx.permissions[${JSON.stringify(predicate.declaration)}]`;
+    const argumentsList = [resource, ...predicate.roles.map(JSON.stringify)].join(', ');
+    return kind === 'Mutation'
+      ? `await ${call}.requireRole(${argumentsList});`
+      : `if (!(await ${call}.allowsRole(${argumentsList}))) return [];`;
+  }).join('\n  ');
+  return {
+    source: `${source}\nvar __snapbackAuthorityOriginal = globalThis.__snapbackHandlers[${JSON.stringify(exportName)}];
+globalThis.__snapbackHandlers[${JSON.stringify(wrapper)}] = async function(ctx, args) {
+  ${checks}
+  return await __snapbackAuthorityOriginal(ctx, args);
+};\n`,
+    exportName: wrapper,
   };
 }
 
@@ -10698,6 +10996,9 @@ function hostPlanAuthorizationDependence(def) {
 
 function jsAuthorizationDependence(def) {
   if (Array.isArray(def.authorizationDependence)) return [...def.authorizationDependence];
+  if ((def.membership?.length ?? 0) > 0 || def.authorityProfileOperation !== undefined) {
+    return ['userId'];
+  }
   if (def.js?.authScopeField != null) return ['userId'];
   return ['opaque'];
 }
@@ -14911,16 +15212,28 @@ function renderAppTypes(
   return `${lines.join('\n')}\n`;
 }
 
-function renderApiModule(functions, actionReferences, defaultAssetNames, appBindingIdentity) {
+function renderApiModule(
+  functions,
+  actionReferences,
+  defaultAssetNames,
+  appBindingIdentity,
+  authorityProfileNames = [],
+) {
   const standalone = standaloneIdentifierFunctions(functions);
   const reexports = ['app', ...standalone.map(({ name }) => name)].join(', ');
   const appSpecifier = contentAddressedModuleSpecifier('./app.binding.mjs', appBindingIdentity);
   const defaultAssignments = [];
+  const authorityAssignments = [];
   for (const [tableName, fields] of Object.entries(defaultAssetNames)) {
     defaultAssignments.push(`defaults[${JSON.stringify(tableName)}] = Object.create(null);`);
     for (const [fieldName, assetName] of Object.entries(fields)) {
       defaultAssignments.push(`defaults[${JSON.stringify(tableName)}][${JSON.stringify(fieldName)}] = app.api.assets[${JSON.stringify(assetName)}];`);
     }
+  }
+  for (const profileName of authorityProfileNames) {
+    authorityAssignments.push(
+      `references[${JSON.stringify(profileName)}] = { list: references[${JSON.stringify(`${profileName}.list`)}], myRole: references[${JSON.stringify(`${profileName}.myRole`)}] };`,
+    );
   }
   return `${HEADER}\n` +
     `import { app, artifacts } from ${JSON.stringify(appSpecifier)};\n` +
@@ -14937,6 +15250,7 @@ function renderApiModule(functions, actionReferences, defaultAssetNames, appBind
     `const actionReferences = ${stableJson(actionReferences)};\n` +
     `for (const reference of Object.values(actionReferences)) { reference.authoringProfile = app.authoringProfile; reference.retention ??= 'none'; Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
     `const references = { ...app.api.assets, ...app.api.queries, ...app.api.mutations, ...actionReferences, ephemeral, groups };\n` +
+    `${authorityAssignments.join('\n')}\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
     `export const api = deepFreeze(references);\n` +
     `export default api;\n`;
@@ -14953,6 +15267,7 @@ function renderApiTypes(
   capabilityManifest = null,
   clientLifecycleManifest,
   authoringProfile = EXPLICIT_AUTHORING_PROFILE,
+  authorityProfileNames = [],
 ) {
   const hasSearchFunction = functions.some(
     (fn) => fn.runtime?.HostPlan?.SearchQuery !== undefined,
@@ -15286,7 +15601,7 @@ function renderApiTypes(
       ? idFieldTypeTable(table.fields?.[membership.resource]?.fieldType)
       : null;
     const resourceType = resourceTable ? `Id<'${resourceTable}'>` : 'null';
-    lines.push(`  ${declaration}: { requireRole(resource: ${resourceType}, role: ${typeName}Role, ...roles: ${typeName}Role[]): Promise<void> };`);
+    lines.push(`  ${declaration}: { allowsRole(resource: ${resourceType}, role: ${typeName}Role, ...roles: ${typeName}Role[]): Promise<boolean>; requireRole(resource: ${resourceType}, role: ${typeName}Role, ...roles: ${typeName}Role[]): Promise<void> };`);
   }
   lines.push('}');
   const membershipAliases = [];
@@ -15465,6 +15780,11 @@ function renderApiTypes(
         .split('\n')
         .map((line) => `  ${line}`),
       `  ${JSON.stringify(fn.name)}: FunctionReference<${JSON.stringify(fn.name)}, '${fn.kind}', ${args}, ${result}, ${JSON.stringify(authoringProfile)}>;`,
+    );
+  }
+  for (const profileName of authorityProfileNames) {
+    lines.push(
+      `  readonly ${JSON.stringify(profileName)}: Readonly<{ list: GeneratedApi[${JSON.stringify(`${profileName}.list`)}]; myRole: GeneratedApi[${JSON.stringify(`${profileName}.myRole`)}] }>;`,
     );
   }
   // Explicit and derived upload intents are api members like functions —
@@ -16359,15 +16679,15 @@ function renderFamiliarServerModule() {
   // @ref LLP 0253#s32-generated-local-modules — this bootstrap cannot depend
   // on Phase C's umbrella package; every runtime value comes from the Phase B
   // adapter that codegen already owns.
-  return `${HEADER}\nexport { defineSchema, defineTable, defineAssetUpload, query, mutation, action, allow, v } from '@expo/snapback-codegen/familiar';\n`;
+  return `${HEADER}\nexport { defineSchema, defineTable, defineAssetUpload, query, mutation, action, allow, membershipResource, v } from '@expo/snapback-codegen/familiar';\n`;
 }
 
 function renderFamiliarServerTypes() {
   return `${HEADER}
 import { v as familiarV } from '@expo/snapback-codegen/familiar';
-import type { InferObjectValidatorFields, InferValidator, Validator } from '@expo/snapback-codegen/define';
+import type { InferObjectValidatorFields, InferValidator, MembershipPredicate, Validator } from '@expo/snapback-codegen/define';
 import type { FunctionArgs, FunctionReference, FunctionResult, GeneratedActionContext, GeneratedDataModel, GeneratedHandlerSchema, GeneratedIndexNames, GeneratedMutationContext, GeneratedQueryContext, GeneratedReadableTableName, Id, QueryBuilder } from './api';
-export { allow, defineAssetUpload, defineSchema, defineTable } from '@expo/snapback-codegen/familiar';
+export { allow, defineAssetUpload, defineSchema, defineTable, membershipResource } from '@expo/snapback-codegen/familiar';
 export declare const v: Omit<typeof familiarV, 'doc' | 'id'> & {
   doc<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<GeneratedDataModel[Table], { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: Table } }, false>;
   id<const Table extends keyof GeneratedDataModel & string>(table: Table): Validator<Id<Table>, { readonly Id: { readonly table: Table } }, false>;
@@ -16406,8 +16726,8 @@ export type FamiliarActionContext = Readonly<Pick<GeneratedActionContext, 'auth'
   fetch(...args: never[]): never;
   fetchStream(...args: never[]): never;
 }>;
-export declare function query<const Args extends Record<string, Validator>, Returns extends Validator>(spec: FamiliarCommon<Args, Returns, FamiliarQueryContext> & Readonly<{ reads: readonly string[]; delivery?: 'live' | 'read'; retainable?: boolean; authScopeField?: string }>): unknown;
-export declare function mutation<const Args extends Record<string, Validator>, Returns extends Validator>(spec: FamiliarCommon<Args, Returns, FamiliarMutationContext> & Readonly<{ reads: readonly string[]; writes: readonly string[] }>): unknown;
+export declare function query<const Args extends Record<string, Validator>, Returns extends Validator>(spec: FamiliarCommon<Args, Returns, FamiliarQueryContext> & Readonly<{ reads: readonly string[]; delivery?: 'live' | 'read'; retainable?: boolean; authScopeField?: string; membership?: readonly MembershipPredicate[] }>): unknown;
+export declare function mutation<const Args extends Record<string, Validator>, Returns extends Validator>(spec: FamiliarCommon<Args, Returns, FamiliarMutationContext> & Readonly<{ reads: readonly string[]; writes: readonly string[]; membership?: readonly MembershipPredicate[] }>): unknown;
 export declare function action<const Args extends Record<string, Validator>, Returns extends Validator>(spec: FamiliarCommon<Args, Returns, FamiliarActionContext> & Readonly<{ secrets?: readonly string[] }>): unknown;
 `;
 }

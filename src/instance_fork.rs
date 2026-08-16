@@ -2324,6 +2324,10 @@ impl EgressFamily {
             | "action.runMutation"
             | "action.streamAttemptStart"
             | "action.streamAttemptSettle"
+            // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions —
+            // generated profile admission is a captured local database read,
+            // not a derived-fork egress effect.
+            | "permissions.allowsRole"
             | "permissions.requireRole" => None,
             _ => Some(Self::UnclassifiedHostOperation),
         }
@@ -6502,6 +6506,10 @@ mod tests {
             Some(EgressFamily::UnclassifiedHostOperation)
         );
         assert_eq!(EgressFamily::for_derived_host_op("db.query"), None);
+        assert_eq!(
+            EgressFamily::for_derived_host_op("permissions.allowsRole"),
+            None
+        );
     }
 
     #[tokio::test]
