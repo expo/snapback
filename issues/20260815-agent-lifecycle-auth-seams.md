@@ -51,3 +51,39 @@ that every agent-driven (headless or scripted) auth flow trips over:
   surviving lease after close.
 - Guide pages for served auth / react-expo updated if any documented
   workaround (remount advice, retry loops) becomes obsolete.
+
+## Additions 2026-08-15/16 — three more seams found during the backend-stall investigation
+
+Observed live while running the sibling ticket's repro harnesses
+against a current build; each is a client-lifecycle seam a headless
+agent hits during ordinary dev-loop churn:
+
+4. **The client clears auth custody on transient `AUTH_MODE_PENDING`.**
+   `packages/snapback-client/index.mjs` (~5029) calls
+   `clearAuthSession()` when a request fails with
+   `SNAPBACK_AUTH_MODE_PENDING` — but that code is the *transient*
+   "watch reload in progress" refusal (measured 3.3 s at dev boot;
+   seconds around a reload). A signed-in headless client that touches
+   the backend during any reload window silently loses its session
+   custody and must re-authenticate, which is precisely the
+   sign-in-churn behavior that aggravates the sibling backend ticket.
+   MODE_PENDING should be retryable-after, not custody-clearing.
+5. **`SNAPBACK_AUTH_MODE_PENDING` is a live-stream terminal code**
+   (`LIVE_TERMINAL_AUTH_CODES`, index.mjs ~1356): every reload window
+   also terminates all live streams, so agent consumers see stream
+   death + custody loss + signin refusals from one comment-only schema
+   touch. Combined with seam 2 (forced remounts), a dev-loop reload
+   costs an agent its entire session state.
+6. **Post-signin `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING` race:** a
+   `liveQuery` issued immediately after an awaited
+   `authPasswordSignIn` intermittently refuses with
+   `SNAPBACK_EPHEMERAL_AUTHORITY_PENDING` (3 occurrences across ~200
+   signin→subscribe sequences; one 250 ms retry always cleared it). An
+   awaited signin should leave the ephemeral authority usable, or the
+   client should absorb the settle internally.
+
+Also relevant to DX here (documented server behavior, not client bugs):
+a fresh `snapback dev` reports its ready file before the first sessions
+activation settles, so an installer's first signup wave eats
+`SNAPBACK_AUTH_TRANSITION_FAILED`; recommendation filed in the sibling
+ticket is to delay ready or emit `Retry-After`.
