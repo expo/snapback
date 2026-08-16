@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (0.1.23 fast-path publication):** 2026-08-16 (the twelve-package
+closure from clean revision `cc79d498537b` passed Darwin arm64 and Linux x64
+store qualification, byte verification, and the published install/boot smoke;
+see §0.1.23.)
+
 **Revised (fast-path isolate worktree):** 2026-08-12 (`stage`/`release` default
 to an ephemeral detached worktree at HEAD so a dirty shared checkout cannot
 burn Ibex bootstrap then die on `SNAPBACK_FASTPATH_DIRTY_TREE`; `preflight` is
@@ -1426,8 +1431,30 @@ The first `latest` readback observed npm propagation lag on nine names and
 correctly left the ceremony incomplete. An idempotent resume skipped all
 already-published immutable versions, re-verified their bytes, repeated the
 consumer smoke, and closed with all twelve `latest` tags resolving to 0.1.22.
-This is a fast-path publication, so `newestPublished` advances while
-`newestQualified` remains 0.1.21.
+The same two-platform store receipts that gated the cut allow both
+`newestPublished` and `newestQualified` to advance to 0.1.22.
+
+### 0.1.23 (2026-08-16) — declarative membership admission published
+
+The twelve-package closure published from clean revision
+`cc79d498537b2e56723f290c245f9f64786f244b` under holding tag
+`fastpath-0-1-23-cc79d498537b`. Darwin arm64 and Linux x64 store qualification
+passed over one immutable tarball vector, every registry tarball re-downloaded
+byte-identical to the retained candidate ledger, and the external
+registry-installed boot smoke passed twice, including codegen, server readiness,
+admin-route, capability, ensure-app, and live-query checks. The retained ledger
+is `~/snapback-release-ledgers/fastpath-ledger-0.1.23-cc79d498.json` (SHA-256
+`f4c3e4ba6e3f86d1f0ae569308636b9b260e10616a4c6ba3dd9383fc98cac115`).
+
+The first `latest` readback observed npm propagation lag only for
+`create-snapback-app` and correctly left the ceremony incomplete. The
+idempotent resume skipped all already-published immutable versions, re-verified
+their bytes, repeated the consumer smoke, and closed with all twelve `latest`
+tags resolving to 0.1.23. The cut contains LLP 0240's declarative membership
+handler admission and generated authority-profile reads, including the
+fail-closed refusal for result contracts that cannot represent blank denial.
+The closure record advances both `newestPublished` and `newestQualified` to
+0.1.23.
 
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 

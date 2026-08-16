@@ -28,11 +28,7 @@ Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
 building a feature. Use this page when choosing collection options or handling
 recovery.
 
-<!-- since: 0.1.23 unreleased -->
-
-> **Unreleased.** `useSnapbackActivityPresence` is newer than the newest
-> published package closure, 0.1.22. Use a checkout build until a later closure
-> includes it.
+<!-- since: 0.1.23 -->
 
 ## Stop publishing when activity goes idle
 

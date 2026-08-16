@@ -1457,10 +1457,7 @@ Named JavaScript queries and mutations are trusted server code, but ordinary
 `ctx.db` is intentionally caller-scoped. If a handler forgets an authorization
 check, owner or membership visibility still hides the row.
 
-<!-- since: 0.1.23 unreleased -->
-
-> **Unreleased.** Declarative named-handler admission is newer than the newest
-> published Snapback closure, 0.1.22.
+<!-- since: 0.1.23 -->
 
 For the ordinary group case where the resource id is already a typed argument,
 put an authority-profile predicate on the definition; codegen emits the same
@@ -1982,10 +1979,7 @@ incomparable visibility edit still requires LLP 0234's remotely-prior,
 content-bound approval and exact-set ratchet—generation rotation records the
 change but does not approve it.
 
-<!-- since: 0.1.23 unreleased -->
-
-> **Unreleased.** Handler admission and generated roster reads are newer than
-> the newest published Snapback closure, 0.1.22.
+<!-- since: 0.1.23 -->
 
 The qualified local, app-table-owned profile now composes with ordinary table
 visibility, named handler admission, and two generated read references:

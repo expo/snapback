@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:665052df17a38e93290fd012e59372c7aed6b35b9159
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:5b68ed463de1cf0a4e467e37fb2c76a5eaf23858423c90061c76719681b9cc47`.
+`sha256:5c82d21685b3cb90135bdb66d5dc06924243818e1c53e832da48020cb7299ce0`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 
@@ -45,7 +45,7 @@ Symbols: 11 total; 2 runtime values; 9 type-only.
 
 Stable identity: `npm:@expo/snapback-client/search#parseSearchQueryV1`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:765`
+Source: `packages/snapback-client/index.d.mts:768`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function parseSearchQueryV1(
@@ -59,7 +59,7 @@ export function parseSearchQueryV1(
 
 Stable identity: `npm:@expo/snapback-client/search#search`
 Kind: `runtime-constant`
-Source: `packages/snapback-client/index.d.mts:769`
+Source: `packages/snapback-client/index.d.mts:772`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 search: Readonly<{
@@ -78,7 +78,7 @@ search: Readonly<{
 
 Stable identity: `npm:@expo/snapback-client/search#SearchAtomV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/index.d.mts:684`
+Source: `packages/snapback-client/index.d.mts:687`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SearchAtomV1 = SearchClauseV1;
@@ -89,7 +89,7 @@ export type SearchAtomV1 = SearchClauseV1;
 
 Stable identity: `npm:@expo/snapback-client/search#SearchClauseV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/index.d.mts:674`
+Source: `packages/snapback-client/index.d.mts:677`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SearchClauseV1 =
@@ -108,7 +108,7 @@ export type SearchClauseV1 =
 
 Stable identity: `npm:@expo/snapback-client/search#SearchHighlightV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:697`
+Source: `packages/snapback-client/index.d.mts:700`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SearchHighlightV1 {
@@ -129,7 +129,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/search#SearchItemV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:704`
+Source: `packages/snapback-client/index.d.mts:707`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SearchItemV1<
@@ -155,7 +155,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/search#SearchMatchAtomV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-client/index.d.mts:670`
+Source: `packages/snapback-client/index.d.mts:673`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SearchMatchAtomV1 =
@@ -169,7 +169,7 @@ export type SearchMatchAtomV1 =
 
 Stable identity: `npm:@expo/snapback-client/search#SearchMatchRangeV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:693`
+Source: `packages/snapback-client/index.d.mts:696`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SearchMatchRangeV1 {
@@ -188,7 +188,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/search#SearchPageV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:714`
+Source: `packages/snapback-client/index.d.mts:717`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SearchPageV1<
@@ -215,7 +215,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/search#SearchQueryAstV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:685`
+Source: `packages/snapback-client/index.d.mts:688`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SearchQueryAstV1 {
@@ -232,7 +232,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/search#SearchRequestV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:688`
+Source: `packages/snapback-client/index.d.mts:691`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SearchRequestV1 {

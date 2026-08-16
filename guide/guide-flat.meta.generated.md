@@ -187,7 +187,7 @@ proof command, and honest nonclaims without opening every demo.
   two-source joins, including conversation-membership and message-sender
   shapes; aggregation and self-joins remain explicit gaps.
 - [Familiar TypeScript profile](./backend/familiar-profile.md) — the
-  Experimental/non-default 0.1.22 grammar, server-side authorization,
+  Experimental/non-default 0.1.23 grammar, server-side authorization,
   identity-stable React hooks, native SecureStore custody, and one Expo Router
   journey.
 - [Snapshot batches](./backend/snapshot-batches.md) — 2–8 bounded child

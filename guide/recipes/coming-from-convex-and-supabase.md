@@ -419,10 +419,7 @@ and `demos/competitive-checkpoint/tests/acceptance/step5-both-helpers.mjs`
 
 **Read next:** [relational queries](../backend/relational-queries.md).
 
-<!-- since: 0.1.23 unreleased -->
-
-> **Unreleased.** `useSnapbackActivityPresence` is newer than the newest
-> published package closure, 0.1.22.
+<!-- since: 0.1.23 -->
 
 <a id="ephemeral-presence"></a>
 ### Typing indicators and cursors: presence vs. broadcast

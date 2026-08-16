@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:a085589ba7b2f3e8388ffac3756f0db22895595d974e
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:5b68ed463de1cf0a4e467e37fb2c76a5eaf23858423c90061c76719681b9cc47`.
+`sha256:5c82d21685b3cb90135bdb66d5dc06924243818e1c53e832da48020cb7299ce0`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -39,7 +39,7 @@ Symbols: 5 total; 1 runtime values; 4 type-only.
 
 Stable identity: `npm:@expo/snapback-client/vector-search#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1545`
+Source: `packages/snapback-client/index.d.mts:1548`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -604,7 +604,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorFilterV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:725`
+Source: `packages/snapback-client/index.d.mts:728`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorFilterV1 {
@@ -625,7 +625,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorItemV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:735`
+Source: `packages/snapback-client/index.d.mts:738`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorItemV1<
@@ -649,7 +649,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorPageV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:744`
+Source: `packages/snapback-client/index.d.mts:747`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorPageV1<
@@ -672,7 +672,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/vector-search#VectorRequestV1`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:730`
+Source: `packages/snapback-client/index.d.mts:733`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface VectorRequestV1 {

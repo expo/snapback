@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:1d5cf7d4de3903d256e1aea7f678a84007d28aa308c7
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:5b68ed463de1cf0a4e467e37fb2c76a5eaf23858423c90061c76719681b9cc47`.
+`sha256:5c82d21685b3cb90135bdb66d5dc06924243818e1c53e832da48020cb7299ce0`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -38,7 +38,7 @@ Symbols: 4 total; 3 runtime values; 1 type-only.
 
 Stable identity: `npm:@expo/snapback-client/online#bindSnapbackAppLifecycle`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2024`
+Source: `packages/snapback-client/index.d.mts:2027`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function bindSnapbackAppLifecycle(
@@ -59,7 +59,7 @@ export function bindSnapbackAppLifecycle(
 
 Stable identity: `npm:@expo/snapback-client/online#createExternalSessionClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/index.d.mts:2020`
+Source: `packages/snapback-client/index.d.mts:2023`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createExternalSessionClient(
@@ -73,7 +73,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClient`
 Kind: `runtime-class`
-Source: `packages/snapback-client/index.d.mts:1545`
+Source: `packages/snapback-client/index.d.mts:1548`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export class SnapbackClient {
@@ -638,7 +638,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/online#SnapbackClientOptions`
 Kind: `type-interface`
-Source: `packages/snapback-client/index.d.mts:1117`
+Source: `packages/snapback-client/index.d.mts:1120`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackClientOptions {

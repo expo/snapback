@@ -241,11 +241,7 @@ at that point: those declarative carriers can own the relationship plus live,
 cursor, retention, and whole-plan cost facts; a batch remains an imperative
 exact lookup.
 
-<!-- since: 0.1.23 unreleased -->
-
-> **Unreleased.** The N+1 authoring diagnostic is newer than the newest
-> published Snapback closure, 0.1.22. Use it from a source checkout until the
-> next qualified closure is published.
+<!-- since: 0.1.23 -->
 
 ### Catch repeated point reads during generation
 

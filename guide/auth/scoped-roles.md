@@ -184,10 +184,7 @@ incomparable visibility edit still requires LLP 0234's remotely-prior,
 content-bound approval and exact-set ratchet—generation rotation records the
 change but does not approve it.
 
-<!-- since: 0.1.23 unreleased -->
-
-> **Unreleased.** Handler admission and generated roster reads are newer than
-> the newest published Snapback closure, 0.1.22.
+<!-- since: 0.1.23 -->
 
 The qualified local, app-table-owned profile now composes with ordinary table
 visibility, named handler admission, and two generated read references:

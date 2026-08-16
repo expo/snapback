@@ -16,7 +16,7 @@ reviewed-authorities-digest: sha256:8d755dadfc7074bdf2071561aa83601ad521d4c7ae7d
 
 # Familiar TypeScript profile (Experimental, non-default)
 
-> **Experimental / non-default in 0.1.22.** The familiar profile is a source
+> **Experimental / non-default in 0.1.23.** The familiar profile is a source
 > adapter over Snapback's canonical schema, function, runtime, and client
 > owners. It is not a second backend and does not make Convex compatibility a
 > target claim.
@@ -181,10 +181,7 @@ queries and mutations. Prefer that fail-closed path whenever the governed row
 directly names the membership resource; it makes an omitted handler check hide
 the row instead of widening access.
 
-<!-- since: 0.1.23 unreleased -->
-
-> **Unreleased.** Familiar authority-profile admission is newer than the newest
-> published Snapback closure, 0.1.22.
+<!-- since: 0.1.23 -->
 
 For a handler that already receives the typed resource id, Familiar accepts
 the same authority-profile declaration as Explicit:
@@ -285,11 +282,7 @@ handoffs and triggers the development diagnostic
 `SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN`. Memoization is lifecycle
 hygiene, not a workaround for stale data.
 
-<!-- since: 0.1.23 unreleased -->
-
-> **Unreleased.** The first-party SecureStore adapter is newer than the newest
-> published Snapback closure, 0.1.22. Use it from a source checkout until the
-> next qualified closure is published.
+<!-- since: 0.1.23 -->
 
 ## Persist native session custody with SecureStore
 
@@ -345,7 +338,7 @@ reference exercises:
    references and use memoized argument objects.
 3. Gate each protected query/mutation with active membership or admin checks.
    Keep this server-side even if Expo Router already hid the screen.
-4. For a simple private JPEG/PNG field in 0.1.22, a bare `v.assetRef()` derives
+4. For a simple private JPEG/PNG field in 0.1.23, a bare `v.assetRef()` derives
    the bounded default upload intent. Upload through the generated asset
    reference and `assets.upload(...)`, wait for its ready asset id, then attach
    the typed id in a mutation. Use the complete [asset guide](./assets.md), not
