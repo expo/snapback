@@ -16,6 +16,9 @@ export const OPTIMISTIC_REBASE_SNAPSHOT_FORMAT_V1 =
   'snapback.optimistic-rebase-snapshot.v1';
 export const OPTIMISTIC_REBASE_OUTCOME_FORMAT_V1 =
   'snapback.optimistic-rebase-outcome.v1';
+// Inspection keeps enough recent rebases to diagnose churn without retaining
+// every replayed operation for the lifetime of a client.
+export const OPTIMISTIC_REBASE_OUTCOME_CAP = 64;
 
 const PRIVATE_LAYER_FORMAT_V1 = 'snapback.private-optimistic-layer.v1';
 const SETTLEMENT_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/u;
@@ -446,6 +449,7 @@ export function createOptimisticRebaseEngineV1({
     reflectedSettlementIdentities = nextReflected;
     snapshot = nextSnapshot;
     outcomes.push(outcome);
+    if (outcomes.length > OPTIMISTIC_REBASE_OUTCOME_CAP) outcomes.shift();
     notify();
     return outcome;
   };
@@ -490,6 +494,7 @@ export function createOptimisticRebaseEngineV1({
       if (closed) return;
       closed = true;
       listeners.clear();
+      outcomes.length = 0;
     },
   });
 }

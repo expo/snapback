@@ -7,6 +7,7 @@ import {
   applyPrivateOptimisticLayerV1,
   applyPrivateOptimisticLayersV1,
   createOptimisticRebaseEngineV1,
+  OPTIMISTIC_REBASE_OUTCOME_CAP,
 } from './optimistic-rebase.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
@@ -352,4 +353,18 @@ test('closed optimistic rebase engines reject with a stable diagnostic', async (
     (error) => error.code === 'SNAPBACK_OPTIMISTIC_REBASE_CLOSED'
       && error.diagnostic.code === error.code,
   );
+});
+
+test('inspection retains only the most recent bounded rebase outcomes and close clears them', async () => {
+  const fixture = await setup();
+  const total = OPTIMISTIC_REBASE_OUTCOME_CAP + 5;
+  for (let revision = 1; revision <= total; revision += 1) {
+    await fixture.engine.rebase({ cause: `bounded-history-${revision}` });
+  }
+  const outcomes = fixture.engine.inspection().rebaseOutcomes;
+  assert.equal(outcomes.length, OPTIMISTIC_REBASE_OUTCOME_CAP);
+  assert.equal(outcomes[0].revision, total - OPTIMISTIC_REBASE_OUTCOME_CAP + 1);
+  assert.equal(outcomes.at(-1).revision, total);
+  fixture.engine.close();
+  assert.deepEqual(fixture.engine.inspection().rebaseOutcomes, []);
 });
