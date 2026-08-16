@@ -10,8 +10,9 @@ Witness: `fixtures/browser-lane/browser-auth-bootstrap.2026-08-16.v1.json`
 ## What was exercised
 
 `browser-auth-bootstrap-v1.mjs` bundles the page probe with esbuild, starts a
-real Snapback server from the pinned prebuilt binary, and serves a
-same-origin page/proxy harness. The page constructs `createSnapbackAppClient`
+real Snapback server from the worktree's freshly built debug binary; the
+witness records its identity verdict. It also serves a same-origin page/proxy
+harness. The page constructs `createSnapbackAppClient`
 with real IndexedDB and Web Locks. The runner drives two engines in one
 invocation:
 
@@ -42,7 +43,19 @@ credential and bearer/recovery-token scans pass).
    fixed in this landing: browser/expo-web owners now preserve the
    coordinator's BroadcastChannel/localStorage wakeup defaults, injectable
    through `platform` options.
-3. The final recorded two-engine run below includes that fix.
+3. The dual-review round tightened the two-tab arms (seeded predecessor
+   state, winner-tying, an LLP 0059-exact refresh predicate, a genuinely
+   cross-account user switch). The cross-account requirement then exposed a
+   HARNESS false positive: the page's direct-IndexedDB custody inspector
+   always read the legacy default-partition row, so a partition-isolated
+   seeding page reported the default partition's principal. Raw server
+   probes and a proxy-logged run proved the product stack partition-clean
+   (distinct emails mint distinct users; the seed page's own signup minted
+   its own user); the page inspector now derives the same partition-aware
+   storage key and lock name as the product adapter, and a two-partition
+   regression test pins the product behavior in
+   `packages/snapback-client/app-client.test.mjs`.
+4. The final recorded two-engine run below includes all of the above.
 
 ## Proof outcomes (final recorded run, per engine)
 
@@ -97,9 +110,9 @@ in the witness.
 - WebKit adapter mock-lifecycle test mode (session, two windows, concurrent
   handle routing, reload, window close, session close, initialization-failure
   session cleanup): PASS.
-- targeted app-client regression suite (including omitted/default, explicit-null,
-  and absent browser wakeup mechanisms): 22/22 tests PASS under volta node
-  24.18.0.
+- app-client regression suite (including omitted/default, explicit-null,
+  and absent browser wakeup mechanisms, plus the two-partition custody
+  isolation test): 23/23 tests PASS under volta node 24.18.0.
 - generated symbol-registry check: 50 modules, 1202 symbols, runtime parity
   exact.
 - `./ref-check --verbose`: PASS.

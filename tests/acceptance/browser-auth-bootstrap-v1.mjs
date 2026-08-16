@@ -330,14 +330,25 @@ async function startHarnessServer(bundle, upstreamOrigin) {
         pathname: url.pathname,
         status: upstream.status,
       }));
+      if (process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1' && url.pathname.startsWith('/auth/')) {
+        const scrubbed = Object.fromEntries(Object.entries(request.headers).map(([n, v]) =>
+          [n, /authorization|cookie|token/i.test(n) ? '<redacted-present>' : v]));
+        const bodyText = body ? Buffer.from(body).toString('utf8').replace(/"password":"[^"]*"/g, '"password":"<redacted>"') : null;
+        console.error('AUTH-DEBUG', url.pathname, JSON.stringify({ headers: scrubbed, body: bodyText, status: upstream.status }).slice(0, 900));
+      }
       const responseHeaders = {};
       for (const [name, value] of upstream.headers) {
         if (!['connection', 'content-length', 'transfer-encoding'].includes(name)) {
           responseHeaders[name] = value;
         }
       }
+      const upstreamBody = Buffer.from(await upstream.arrayBuffer());
+      if (process.env.SNAPBACK_BROWSER_AUTH_DEBUG_HEADERS === '1' && url.pathname.startsWith('/auth/')) {
+        const match = upstreamBody.toString('utf8').match(/"userId":"([^"]+)"/);
+        console.error('AUTH-DEBUG-RESPONSE', url.pathname, upstream.status, 'serverUserId=' + (match?.[1] ?? 'none'));
+      }
       response.writeHead(upstream.status, responseHeaders);
-      response.end(Buffer.from(await upstream.arrayBuffer()));
+      response.end(upstreamBody);
     } catch (error) {
       response.writeHead(502, { 'content-type': 'application/json; charset=utf-8' });
       response.end(JSON.stringify({
@@ -789,11 +800,13 @@ async function launchSafariWebDriverAttempt({ executable }) {
     try {
       await ownership.stop();
     } catch (cleanupError) {
-      throw new AggregateError(
+      const startupAndCleanupError = new AggregateError(
         [error, cleanupError],
         `safaridriver startup and cleanup failed: ${error.message}`,
         { cause: error },
       );
+      startupAndCleanupError.code = error?.code;
+      throw startupAndCleanupError;
     }
     throw error;
   }
@@ -1462,7 +1475,23 @@ try {
   await seedPage.call('dispose');
   await seedPage.close();
   seedPage = null;
-  if (!seedBob.ok) fail('SNAPBACK_BROWSER_AUTH_SECOND_ACCOUNT_FAILED', 'could not seed second account');
+  const seededAliceUserId = settledUser(signup.snapshot);
+  const seededBobUserId = settledUser(seedBob.snapshot);
+  if (
+    !seedBob.ok
+    || seededAliceUserId === null
+    || seededBobUserId === null
+    || seededAliceUserId === seededBobUserId
+  ) {
+    fail(
+      'SNAPBACK_BROWSER_AUTH_SECOND_ACCOUNT_FAILED',
+      `could not seed two distinct accounts (seedReady=${seedReady.ok === true} seedBobOk=${
+        seedBob.ok === true
+      } seedBobCode=${seedBob.code ?? 'none'} alice=${seededAliceUserId} bob=${
+        seededBobUserId
+      } distinct=${seededAliceUserId !== seededBobUserId})`,
+    );
+  }
 
   // Proof 3: actual React DOM StrictMode plus repeated mount/unmount.
   const strictMetrics = await pageA.call('runStrictModeRemount', { cycles: 3 }, 120_000);
@@ -1810,6 +1839,17 @@ try {
     );
   }
 
+  const switchStart = await Promise.all([pageA.call('snapshot'), pageB.call('snapshot')]);
+  const switchPredecessorUserId = settledUser(switchStart[0]);
+  const switchTarget = seededAliceUserId !== switchPredecessorUserId
+    ? { credentials: credentials.alice, userId: seededAliceUserId }
+    : { credentials: credentials.bob, userId: seededBobUserId };
+  const switchPrecondition = switchPredecessorUserId !== null && switchStart.every((snapshot) => (
+    snapshot.principal?.status === 'authenticated'
+    && settledUser(snapshot) === switchPredecessorUserId
+    && sameSettledAuthority(snapshot, switchStart[0])
+    && captureMatchesCustody(snapshot)
+  ));
   const switchSeeds = await Promise.all([
     pageA.call('seedProtected', { label: 'two-tab-user-switch-a' }),
     pageB.call('seedProtected', { label: 'two-tab-user-switch-b' }),
@@ -1821,17 +1861,21 @@ try {
     'both tabs exposed one protected row and optimistic layer before the user-switch race',
   ));
   const switchRace = await gatedRace(harness, '/auth/logout', [
-    () => pageA.call('switchUser', credentials.alice),
-    () => pageB.call('switchUser', credentials.bob),
+    () => pageA.call('switchUser', switchTarget.credentials),
+    () => pageB.call('switchUser', switchTarget.credentials),
   ]);
   const switchAuto = await observePages(pageA, pageB);
   const successfulSwitches = switchRace.results.filter(({ ok }) => ok);
   const switchSuccesses = successfulSwitches.length;
   const switchWinner = successfulSwitches.length === 1 ? successfulSwitches[0].snapshot : null;
-  const switchConverged = switchSuccesses === 1
+  const switchWinnerUserId = settledUser(switchWinner);
+  const switchConverged = switchPrecondition
+    && switchSuccesses === 1
     && switchPredecessorMaterialized
     && switchWinner?.principal?.status === 'authenticated'
     && switchWinner?.custody?.authorityKind === 'session'
+    && switchWinnerUserId === switchTarget.userId
+    && switchWinnerUserId !== switchPredecessorUserId
     && captureMatchesCustody(switchWinner)
     && switchAuto.every((snapshot, index) => (
       snapshot.principal?.status === 'authenticated'
@@ -1844,10 +1888,12 @@ try {
     'concurrent-user-switch',
     switchConverged,
     switchConverged
-      ? 'one composed user switch won and both tabs exposed only its successor'
-      : `user-switch race had ${switchSuccesses} caller successes and did not automatically converge`,
+      ? 'one composed user switch won for the distinct target account and both tabs exposed only its successor'
+      : `user-switch race had ${switchSuccesses} caller successes, or its winner did not settle the target account distinct from the predecessor, or both tabs did not automatically converge`,
   ));
   raceDetails.userSwitch = {
+    predecessor: switchStart.map(snapshotEvidence),
+    targetUserId: switchTarget.userId,
     ...raceEvidence(switchRace, switchAuto),
     winner: switchWinner ? snapshotEvidence(switchWinner) : null,
     predecessorBarriers: switchAuto.map((snapshot, index) => (

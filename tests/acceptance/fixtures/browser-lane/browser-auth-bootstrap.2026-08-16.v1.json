@@ -32,7 +32,7 @@
         "version": "Google Chrome 151.0.7922.138"
       },
       "carrier": {
-        "databaseNameHash": "sha256:9461eb99fc3eca35b0f1d6015f009b3428d328de6cea1de75e1629a987dc58d8",
+        "databaseNameHash": "sha256:10226ed789283c8c8cc9e70b294f21655694db951ca83abd77a2ebbab431514c",
         "indexedDb": true,
         "profileTempRoot": "/tmp",
         "webLocks": true
@@ -114,7 +114,7 @@
               },
               "capture": {
                 "authorityEpoch": 3,
-                "authorityKey": "sha256:036a5aa6a9fe3636bdc303eac1cccc21f8eea1cd3013543fbe4def678942b3fe",
+                "authorityKey": "sha256:a07a6ef6e905da79cc04c36a60fff9fa12d5f5911782dc0065290ba30262c696",
                 "custodyRevision": 7
               },
               "custody": {
@@ -125,19 +125,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 7,
-                "sessionId": "ses_01m0505f82er5b74kwzxenk4n3",
+                "sessionId": "ses_01m052dnzyfc8a2m6z4t577qp4",
                 "shape": "record",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0505f82exj90v0zmacvmqty",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052dnzye1g89t6g596egb27",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0505f82er5b74kwzxenk4n3",
+                "sessionId": "ses_01m052dnzyfc8a2m6z4t577qp4",
                 "status": "authenticated",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "protected": {
                 "optimistic": 0,
@@ -159,7 +159,7 @@
               },
               "capture": {
                 "authorityEpoch": 3,
-                "authorityKey": "sha256:036a5aa6a9fe3636bdc303eac1cccc21f8eea1cd3013543fbe4def678942b3fe",
+                "authorityKey": "sha256:a07a6ef6e905da79cc04c36a60fff9fa12d5f5911782dc0065290ba30262c696",
                 "custodyRevision": 7
               },
               "custody": {
@@ -170,19 +170,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 7,
-                "sessionId": "ses_01m0505f82er5b74kwzxenk4n3",
+                "sessionId": "ses_01m052dnzyfc8a2m6z4t577qp4",
                 "shape": "record",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0505f82exj90v0zmacvmqty",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052dnzye1g89t6g596egb27",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0505f82er5b74kwzxenk4n3",
+                "sessionId": "ses_01m052dnzyfc8a2m6z4t577qp4",
                 "status": "authenticated",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "protected": {
                 "optimistic": 0,
@@ -236,7 +236,7 @@
             },
             {
               "name": "concurrent-user-switch",
-              "note": "one composed user switch won and both tabs exposed only its successor",
+              "note": "one composed user switch won for the distinct target account and both tabs exposed only its successor",
               "pass": true
             },
             {
@@ -263,7 +263,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 10,
-                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                    "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                     "custodyRevision": 21
                   },
                   "custody": {
@@ -280,8 +280,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -304,7 +304,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 10,
-                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                    "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                     "custodyRevision": 21
                   },
                   "custody": {
@@ -321,8 +321,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -386,7 +386,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                      "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -397,19 +397,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -471,7 +471,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                      "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -482,19 +482,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -534,7 +534,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 10,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 21
                     },
                     "custody": {
@@ -551,8 +551,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -579,7 +579,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                      "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -590,19 +590,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -631,7 +631,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                    "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -642,19 +642,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                    "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                    "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -682,7 +682,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 9,
-                        "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                        "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                         "custodyRevision": 19
                       },
                       "custody": {
@@ -693,19 +693,19 @@
                         "pendingBearerPresent": false,
                         "phase": "settled",
                         "revision": 19,
-                        "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                        "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                         "shape": "record",
-                        "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                        "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                        "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                         "sessionClass": "humanSession",
                         "sessionGeneration": 1,
-                        "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                        "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                         "status": "authenticated",
-                        "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                        "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                       },
                       "protected": {
                         "optimistic": 0,
@@ -731,7 +731,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 9,
-                        "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                        "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                         "custodyRevision": 19
                       },
                       "custody": {
@@ -742,19 +742,19 @@
                         "pendingBearerPresent": false,
                         "phase": "settled",
                         "revision": 19,
-                        "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                        "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                         "shape": "record",
-                        "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                        "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                        "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                         "sessionClass": "humanSession",
                         "sessionGeneration": 1,
-                        "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                        "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                         "status": "authenticated",
-                        "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                        "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                       },
                       "protected": {
                         "optimistic": 0,
@@ -779,7 +779,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                      "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -790,19 +790,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -824,7 +824,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                      "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -835,19 +835,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                      "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -872,7 +872,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                    "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -883,19 +883,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                    "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                    "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -917,7 +917,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:b819363619b3ef0d0b43b5a6909d8f486fcbe11d988bba16726a8948ef8debc9",
+                    "authorityKey": "sha256:8ea7aa63049f0a218f8797e050d2c39eff0b79d584976a16d63394c156a094d2",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -928,19 +928,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                    "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505prhe1mvv5fkem031zky",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052dxfwe1bs766vmr6w6fvk",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505prhe3xsjpgajx4r1p5a",
+                    "sessionId": "ses_01m052dxfwfbhv37ce631ejndx",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -966,7 +966,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 8,
-                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                    "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                     "custodyRevision": 17
                   },
                   "custody": {
@@ -983,8 +983,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -1007,7 +1007,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 8,
-                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                    "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                     "custodyRevision": 17
                   },
                   "custody": {
@@ -1024,8 +1024,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -1054,7 +1054,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 8,
-                        "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                        "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                         "custodyRevision": 17
                       },
                       "custody": {
@@ -1071,8 +1071,8 @@
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                        "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                         "status": "anonymous"
                       },
                       "protected": {
@@ -1099,7 +1099,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 8,
-                        "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                        "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                         "custodyRevision": 17
                       },
                       "custody": {
@@ -1116,8 +1116,8 @@
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                        "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                         "status": "anonymous"
                       },
                       "protected": {
@@ -1143,7 +1143,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -1160,8 +1160,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1184,7 +1184,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -1201,8 +1201,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1228,7 +1228,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 7,
-                    "authorityKey": "sha256:8c9c0c2b698463e464fdeef2e3047dae57bf9ff84ba2ddc609b04c9f67ed20ba",
+                    "authorityKey": "sha256:5b920dfe3c5d09c16e69c99d7bdb1322b7d2efdc7044f215a0661a5cdf1606b8",
                     "custodyRevision": 15
                   },
                   "custody": {
@@ -1239,19 +1239,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 15,
-                    "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                    "sessionId": "ses_01m052dshxfgh9vxbstn3w1jb9",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505jtpfcksgybbdfyxnspd",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052dshxe9y9p2jybj0mejwy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                    "sessionId": "ses_01m052dshxfgh9vxbstn3w1jb9",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -1273,7 +1273,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 7,
-                    "authorityKey": "sha256:8c9c0c2b698463e464fdeef2e3047dae57bf9ff84ba2ddc609b04c9f67ed20ba",
+                    "authorityKey": "sha256:5b920dfe3c5d09c16e69c99d7bdb1322b7d2efdc7044f215a0661a5cdf1606b8",
                     "custodyRevision": 15
                   },
                   "custody": {
@@ -1284,19 +1284,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 15,
-                    "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                    "sessionId": "ses_01m052dshxfgh9vxbstn3w1jb9",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505jtpfcksgybbdfyxnspd",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052dshxe9y9p2jybj0mejwy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                    "sessionId": "ses_01m052dshxfgh9vxbstn3w1jb9",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -1335,7 +1335,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 7,
-                      "authorityKey": "sha256:8c9c0c2b698463e464fdeef2e3047dae57bf9ff84ba2ddc609b04c9f67ed20ba",
+                      "authorityKey": "sha256:5b920dfe3c5d09c16e69c99d7bdb1322b7d2efdc7044f215a0661a5cdf1606b8",
                       "custodyRevision": 15
                     },
                     "custody": {
@@ -1346,19 +1346,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 15,
-                      "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                      "sessionId": "ses_01m052dshxfgh9vxbstn3w1jb9",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505jtpfcksgybbdfyxnspd",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dshxe9y9p2jybj0mejwy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                      "sessionId": "ses_01m052dshxfgh9vxbstn3w1jb9",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -1384,7 +1384,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -1401,8 +1401,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1430,7 +1430,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 11,
-                    "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                    "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
                     "custodyRevision": 23
                   },
                   "custody": {
@@ -1441,19 +1441,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 23,
-                    "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                    "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                    "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -1475,7 +1475,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 11,
-                    "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                    "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
                     "custodyRevision": 23
                   },
                   "custody": {
@@ -1486,19 +1486,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 23,
-                    "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                    "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                    "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -1561,7 +1561,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 10,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 21
                     },
                     "custody": {
@@ -1578,8 +1578,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1642,7 +1642,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 10,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 21
                     },
                     "custody": {
@@ -1659,8 +1659,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1701,7 +1701,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                      "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
                       "custodyRevision": 23
                     },
                     "custody": {
@@ -1712,19 +1712,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -1751,20 +1751,20 @@
                     "capture": null,
                     "custody": {
                       "authorityEpoch": 11,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
-                      "pendingAuthorityPresent": false,
-                      "pendingBearerPresent": false,
-                      "phase": "settled",
-                      "revision": 23,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "authorityKind": null,
+                      "bearerPresent": false,
+                      "pendingAuthorityPresent": true,
+                      "pendingBearerPresent": true,
+                      "phase": "clearing",
+                      "revision": 22,
+                      "sessionId": null,
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": null
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -1789,7 +1789,7 @@
                 },
                 "capture": {
                   "authorityEpoch": 11,
-                  "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                  "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
                   "custodyRevision": 23
                 },
                 "custody": {
@@ -1800,19 +1800,19 @@
                   "pendingBearerPresent": false,
                   "phase": "settled",
                   "revision": 23,
-                  "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                  "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                   "shape": "record",
-                  "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                  "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                 },
                 "lastError": null,
                 "principal": {
-                  "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
-                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                  "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                   "sessionClass": "humanSession",
                   "sessionGeneration": 1,
-                  "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                  "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                   "status": "authenticated",
-                  "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                  "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                 },
                 "protected": {
                   "optimistic": 0,
@@ -1837,7 +1837,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 13,
-                    "authorityKey": "sha256:f2a40941b089727c99c85947ff30060111330b87a4a00ea0dc3af8e25e0223b2",
+                    "authorityKey": "sha256:3feea343575756bd1fe7e94db32f3f06519c7d8e7bd1916d1f53288458c59057",
                     "custodyRevision": 27
                   },
                   "custody": {
@@ -1848,19 +1848,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 27,
-                    "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                    "sessionId": "ses_01m052e09wern8sytkmzgssnf0",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505sgjfr6seqp2asa48c5v",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052e09we81bjw8pe2fhd5kq",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                    "sessionId": "ses_01m052e09wern8sytkmzgssnf0",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -1882,7 +1882,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 13,
-                    "authorityKey": "sha256:f2a40941b089727c99c85947ff30060111330b87a4a00ea0dc3af8e25e0223b2",
+                    "authorityKey": "sha256:3feea343575756bd1fe7e94db32f3f06519c7d8e7bd1916d1f53288458c59057",
                     "custodyRevision": 27
                   },
                   "custody": {
@@ -1893,19 +1893,111 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 27,
-                    "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                    "sessionId": "ses_01m052e09wern8sytkmzgssnf0",
                     "shape": "record",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0505sgjfr6seqp2asa48c5v",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052e09we81bjw8pe2fhd5kq",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                    "sessionId": "ses_01m052e09wern8sytkmzgssnf0",
                     "status": "authenticated",
-                    "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                    "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                }
+              ],
+              "predecessor": [
+                {
+                  "bootstrap": {
+                    "authoritySource": "application-entry",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 11,
+                    "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
+                    "custodyRevision": 23
+                  },
+                  "custody": {
+                    "authorityEpoch": 11,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 23,
+                    "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
+                    "shape": "record",
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
+                    "status": "authenticated",
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                },
+                {
+                  "bootstrap": {
+                    "authoritySource": "durable-restored",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 11,
+                    "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
+                    "custodyRevision": 23
+                  },
+                  "custody": {
+                    "authorityEpoch": 11,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 23,
+                    "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
+                    "shape": "record",
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
+                    "status": "authenticated",
+                    "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -2004,7 +2096,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                      "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
                       "custodyRevision": 23
                     },
                     "custody": {
@@ -2015,19 +2107,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -2125,7 +2217,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                      "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
                       "custodyRevision": 23
                     },
                     "custody": {
@@ -2136,19 +2228,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -2188,7 +2280,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 13,
-                      "authorityKey": "sha256:f2a40941b089727c99c85947ff30060111330b87a4a00ea0dc3af8e25e0223b2",
+                      "authorityKey": "sha256:3feea343575756bd1fe7e94db32f3f06519c7d8e7bd1916d1f53288458c59057",
                       "custodyRevision": 27
                     },
                     "custody": {
@@ -2199,19 +2291,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 27,
-                      "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                      "sessionId": "ses_01m052e09wern8sytkmzgssnf0",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505sgjfr6seqp2asa48c5v",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052e09we81bjw8pe2fhd5kq",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                      "sessionId": "ses_01m052e09wern8sytkmzgssnf0",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -2237,7 +2329,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:4aee437cf97ed92f6586289e208ebb319a2a9f72d9f48920fc2f57e3e6cc86c5",
+                      "authorityKey": "sha256:160e5c5844a05146596b6da2479ab42ab033c23b7ee5dcbe5f291b41d18f6fac",
                       "custodyRevision": 23
                     },
                     "custody": {
@@ -2248,19 +2340,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                       "shape": "record",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0505r4men3snabq0gv3vvq4",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052dywse6jr9wd8dwmdffsy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0505r4mfxjbyzrtmzr7jej5",
+                      "sessionId": "ses_01m052dywsfn9snbxc291wjb5p",
                       "status": "authenticated",
-                      "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                      "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -2269,6 +2361,7 @@
                   }
                 }
               ],
+              "targetUserId": "usr_7pzp64v8he66bpsh0d5vavfbsa",
               "winner": {
                 "bootstrap": {
                   "authoritySource": "application-entry",
@@ -2284,7 +2377,7 @@
                 },
                 "capture": {
                   "authorityEpoch": 13,
-                  "authorityKey": "sha256:f2a40941b089727c99c85947ff30060111330b87a4a00ea0dc3af8e25e0223b2",
+                  "authorityKey": "sha256:3feea343575756bd1fe7e94db32f3f06519c7d8e7bd1916d1f53288458c59057",
                   "custodyRevision": 27
                 },
                 "custody": {
@@ -2295,19 +2388,19 @@
                   "pendingBearerPresent": false,
                   "phase": "settled",
                   "revision": 27,
-                  "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                  "sessionId": "ses_01m052e09wern8sytkmzgssnf0",
                   "shape": "record",
-                  "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                  "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
                 },
                 "lastError": null,
                 "principal": {
-                  "authorityInstanceId": "aut_01m0505sgjfr6seqp2asa48c5v",
-                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "authorityInstanceId": "aut_01m052e09we81bjw8pe2fhd5kq",
+                  "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                   "sessionClass": "humanSession",
                   "sessionGeneration": 1,
-                  "sessionId": "ses_01m0505sgjfyksxpd2cypj9pfb",
+                  "sessionId": "ses_01m052e09wern8sytkmzgssnf0",
                   "status": "authenticated",
-                  "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                  "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
                 },
                 "protected": {
                   "optimistic": 0,
@@ -2470,7 +2563,7 @@
               },
               "capture": {
                 "authorityEpoch": 4,
-                "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                 "custodyRevision": 9
               },
               "custody": {
@@ -2487,8 +2580,8 @@
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "status": "anonymous"
               },
               "protected": {
@@ -2511,7 +2604,7 @@
               },
               "capture": {
                 "authorityEpoch": 7,
-                "authorityKey": "sha256:8c9c0c2b698463e464fdeef2e3047dae57bf9ff84ba2ddc609b04c9f67ed20ba",
+                "authorityKey": "sha256:5b920dfe3c5d09c16e69c99d7bdb1322b7d2efdc7044f215a0661a5cdf1606b8",
                 "custodyRevision": 15
               },
               "custody": {
@@ -2522,19 +2615,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 15,
-                "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                "sessionId": "ses_01m052dshxfgh9vxbstn3w1jb9",
                 "shape": "record",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0505jtpfcksgybbdfyxnspd",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052dshxe9y9p2jybj0mejwy",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0505jtpedfbgpwn8jvs06f0",
+                "sessionId": "ses_01m052dshxfgh9vxbstn3w1jb9",
                 "status": "authenticated",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "protected": {
                 "optimistic": 0,
@@ -2556,7 +2649,7 @@
               },
               "capture": {
                 "authorityEpoch": 5,
-                "authorityKey": "sha256:bad8cea66a69ea2ad9f201ad51973d3957443b6deb5f98cf947aae52c5464328",
+                "authorityKey": "sha256:41d66d50131bdfcfcf939a7f2edfb97fd5976cb3e77291e9658a1df4035f3793",
                 "custodyRevision": 11
               },
               "custody": {
@@ -2567,19 +2660,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 11,
-                "sessionId": "ses_01m0505hh6esq9fddhgegccqpz",
+                "sessionId": "ses_01m052dr8depjr6kcg94qqjt2t",
                 "shape": "record",
-                "userId": "usr_7z9d8mb1bzw0atg0q9nvg4rc5t"
+                "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0505hh6esrvjqmk4pp0h5jj",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052dr8dey1amxj30zexcewj",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0505hh6esq9fddhgegccqpz",
+                "sessionId": "ses_01m052dr8depjr6kcg94qqjt2t",
                 "status": "authenticated",
-                "userId": "usr_7z9d8mb1bzw0atg0q9nvg4rc5t"
+                "userId": "usr_7pzp64v8he66bpsh0d5vavfbsa"
               },
               "protected": {
                 "optimistic": 0,
@@ -2787,7 +2880,7 @@
               },
               "capture": {
                 "authorityEpoch": 1,
-                "authorityKey": "sha256:0dd9f2efa84852d33f7477f7ddd08c08d27561d28b8cedc985b0ef772635b31c",
+                "authorityKey": "sha256:520204dbb6106bafa1e3f9b18992b6d85f2c8aac6f0c66f26b170d47935f0b53",
                 "custodyRevision": 3
               },
               "custody": {
@@ -2798,19 +2891,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 3,
-                "sessionId": "ses_01m0505txcepevebdxh1b6exzd",
+                "sessionId": "ses_01m052e1ryef4aemyty6d432fb",
                 "shape": "record",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0505txce1bb7f7b811bg6bn",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052e1ryed6sshxjjq6z2phn",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0505txcepevebdxh1b6exzd",
+                "sessionId": "ses_01m052e1ryef4aemyty6d432fb",
                 "status": "authenticated",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "protected": {
                 "optimistic": 0,
@@ -2835,7 +2928,7 @@
                 },
                 "capture": {
                   "authorityEpoch": 0,
-                  "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                  "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                   "custodyRevision": 1
                 },
                 "custody": {
@@ -2852,8 +2945,8 @@
                 },
                 "lastError": null,
                 "principal": {
-                  "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                  "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                   "status": "anonymous"
                 },
                 "protected": {
@@ -2963,7 +3056,7 @@
               },
               "capture": {
                 "authorityEpoch": 1,
-                "authorityKey": "sha256:0dd9f2efa84852d33f7477f7ddd08c08d27561d28b8cedc985b0ef772635b31c",
+                "authorityKey": "sha256:520204dbb6106bafa1e3f9b18992b6d85f2c8aac6f0c66f26b170d47935f0b53",
                 "custodyRevision": 3
               },
               "custody": {
@@ -2974,19 +3067,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 3,
-                "sessionId": "ses_01m0505txcepevebdxh1b6exzd",
+                "sessionId": "ses_01m052e1ryef4aemyty6d432fb",
                 "shape": "record",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0505txce1bb7f7b811bg6bn",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052e1ryed6sshxjjq6z2phn",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0505txcepevebdxh1b6exzd",
+                "sessionId": "ses_01m052e1ryef4aemyty6d432fb",
                 "status": "authenticated",
-                "userId": "usr_2swmhmb29466wjvdw5kvgxbept"
+                "userId": "usr_66a1nb04e4r7bvcehyrbnm8r20"
               },
               "protected": {
                 "optimistic": 0,
@@ -3015,7 +3108,7 @@
         "version": "Safari 26.6"
       },
       "carrier": {
-        "databaseNameHash": "sha256:739f2ca8add02a031babaef15906bdb30279310f00513faf8b31e0516d4b96fd",
+        "databaseNameHash": "sha256:73015432dc5e620110f8f87109d0357785023e901b76338f9b66b7a8d1973807",
         "indexedDb": true,
         "webLocks": true
       },
@@ -3095,7 +3188,7 @@
               },
               "capture": {
                 "authorityEpoch": 3,
-                "authorityKey": "sha256:9d6e5b78fecde3790ebc629961504303e3d1ac31fc848e75e65aa1534cd2ddbf",
+                "authorityKey": "sha256:f0e0af2ad0d3f567fffc4eb243fef27542eea68d9384c84c710d5d30cdc97112",
                 "custodyRevision": 7
               },
               "custody": {
@@ -3106,19 +3199,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 7,
-                "sessionId": "ses_01m0505y5jeg4bdezfxtwfrgj4",
+                "sessionId": "ses_01m052e50qfacbcrgfcjwwfzva",
                 "shape": "record",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0505y5jfama5mb56kz71p24",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052e50qftbvvvsm99r66sd5",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0505y5jeg4bdezfxtwfrgj4",
+                "sessionId": "ses_01m052e50qfacbcrgfcjwwfzva",
                 "status": "authenticated",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "protected": {
                 "optimistic": 0,
@@ -3140,7 +3233,7 @@
               },
               "capture": {
                 "authorityEpoch": 3,
-                "authorityKey": "sha256:9d6e5b78fecde3790ebc629961504303e3d1ac31fc848e75e65aa1534cd2ddbf",
+                "authorityKey": "sha256:f0e0af2ad0d3f567fffc4eb243fef27542eea68d9384c84c710d5d30cdc97112",
                 "custodyRevision": 7
               },
               "custody": {
@@ -3151,19 +3244,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 7,
-                "sessionId": "ses_01m0505y5jeg4bdezfxtwfrgj4",
+                "sessionId": "ses_01m052e50qfacbcrgfcjwwfzva",
                 "shape": "record",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0505y5jfama5mb56kz71p24",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052e50qftbvvvsm99r66sd5",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0505y5jeg4bdezfxtwfrgj4",
+                "sessionId": "ses_01m052e50qfacbcrgfcjwwfzva",
                 "status": "authenticated",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "protected": {
                 "optimistic": 0,
@@ -3217,7 +3310,7 @@
             },
             {
               "name": "concurrent-user-switch",
-              "note": "one composed user switch won and both tabs exposed only its successor",
+              "note": "one composed user switch won for the distinct target account and both tabs exposed only its successor",
               "pass": true
             },
             {
@@ -3229,47 +3322,6 @@
           "details": {
             "logout": {
               "automatic": [
-                {
-                  "bootstrap": {
-                    "authoritySource": "application-entry",
-                    "custody": {
-                      "carrier": "indexeddb-web-locks",
-                      "formatVersion": 2,
-                      "grade": "durable",
-                      "recoveryAvailable": true,
-                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                    },
-                    "diagnosticCode": null,
-                    "status": "ready"
-                  },
-                  "capture": {
-                    "authorityEpoch": 10,
-                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
-                    "custodyRevision": 21
-                  },
-                  "custody": {
-                    "authorityEpoch": 10,
-                    "authorityKind": "anonymous",
-                    "bearerPresent": false,
-                    "pendingAuthorityPresent": false,
-                    "pendingBearerPresent": false,
-                    "phase": "settled",
-                    "revision": 21,
-                    "sessionId": null,
-                    "shape": "record",
-                    "userId": null
-                  },
-                  "lastError": null,
-                  "principal": {
-                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "status": "anonymous"
-                  },
-                  "protected": {
-                    "optimistic": 0,
-                    "rows": 0
-                  }
-                },
                 {
                   "bootstrap": {
                     "authoritySource": "fresh-anonymous",
@@ -3285,7 +3337,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 10,
-                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                    "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                     "custodyRevision": 21
                   },
                   "custody": {
@@ -3302,8 +3354,49 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "status": "anonymous"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                },
+                {
+                  "bootstrap": {
+                    "authoritySource": "durable-restored",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 10,
+                    "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
+                    "custodyRevision": 21
+                  },
+                  "custody": {
+                    "authorityEpoch": 10,
+                    "authorityKind": "anonymous",
+                    "bearerPresent": false,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 21,
+                    "sessionId": null,
+                    "shape": "record",
+                    "userId": null
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -3367,7 +3460,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                      "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -3378,19 +3471,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                       "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                       "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -3452,7 +3545,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                      "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -3463,19 +3556,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                       "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                       "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -3498,55 +3591,6 @@
               ],
               "results": [
                 {
-                  "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
-                  "ok": false,
-                  "snapshot": {
-                    "bootstrap": {
-                      "authoritySource": "application-entry",
-                      "custody": {
-                        "carrier": "indexeddb-web-locks",
-                        "formatVersion": 2,
-                        "grade": "durable",
-                        "recoveryAvailable": true,
-                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                      },
-                      "diagnosticCode": null,
-                      "status": "ready"
-                    },
-                    "capture": {
-                      "authorityEpoch": 9,
-                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
-                      "custodyRevision": 19
-                    },
-                    "custody": {
-                      "authorityEpoch": 9,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
-                      "pendingAuthorityPresent": false,
-                      "pendingBearerPresent": false,
-                      "phase": "settled",
-                      "revision": 19,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
-                      "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                    },
-                    "lastError": null,
-                    "principal": {
-                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "sessionClass": "humanSession",
-                      "sessionGeneration": 1,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
-                      "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                    },
-                    "protected": {
-                      "optimistic": 1,
-                      "rows": 1
-                    }
-                  }
-                },
-                {
                   "code": null,
                   "ok": true,
                   "snapshot": {
@@ -3564,7 +3608,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 10,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 21
                     },
                     "custody": {
@@ -3581,13 +3625,62 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
                       "optimistic": 0,
                       "rows": 0
+                    }
+                  }
+                },
+                {
+                  "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
+                  "ok": false,
+                  "snapshot": {
+                    "bootstrap": {
+                      "authoritySource": "durable-restored",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 9,
+                      "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
+                      "custodyRevision": 19
+                    },
+                    "custody": {
+                      "authorityEpoch": 9,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 19,
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
+                      "shape": "record",
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
+                      "status": "authenticated",
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
                     }
                   }
                 }
@@ -3612,7 +3705,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                    "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -3623,19 +3716,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                    "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                     "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                    "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                     "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -3663,7 +3756,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 9,
-                        "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                        "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                         "custodyRevision": 19
                       },
                       "custody": {
@@ -3674,19 +3767,19 @@
                         "pendingBearerPresent": false,
                         "phase": "settled",
                         "revision": 19,
-                        "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                        "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                         "shape": "record",
-                        "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                        "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                        "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                         "sessionClass": "humanSession",
                         "sessionGeneration": 1,
-                        "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                        "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                         "status": "authenticated",
-                        "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                        "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                       },
                       "protected": {
                         "optimistic": 0,
@@ -3712,7 +3805,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 9,
-                        "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                        "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                         "custodyRevision": 19
                       },
                       "custody": {
@@ -3723,19 +3816,19 @@
                         "pendingBearerPresent": false,
                         "phase": "settled",
                         "revision": 19,
-                        "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                        "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                         "shape": "record",
-                        "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                        "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                        "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                         "sessionClass": "humanSession",
                         "sessionGeneration": 1,
-                        "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                        "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                         "status": "authenticated",
-                        "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                        "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                       },
                       "protected": {
                         "optimistic": 0,
@@ -3760,7 +3853,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                      "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -3771,19 +3864,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                       "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                       "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -3805,7 +3898,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 9,
-                      "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                      "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                       "custodyRevision": 19
                     },
                     "custody": {
@@ -3816,19 +3909,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 19,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                       "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                      "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                       "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -3853,7 +3946,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                    "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -3864,19 +3957,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                    "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                     "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                    "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                     "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -3898,7 +3991,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 9,
-                    "authorityKey": "sha256:7bc647a2ecb0e23693e618ce4d145131d05f9b5df7d9c168c681ddd281233c6c",
+                    "authorityKey": "sha256:b4d0465abcbab84242f55dbe2fbd7cf1449e2aa9356569b48c2902aa6c782b48",
                     "custodyRevision": 19
                   },
                   "custody": {
@@ -3909,19 +4002,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 19,
-                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                    "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                     "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m05066srfpytbd5jfax2fqpa",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052edy5e0wrk43akxqrw0gy",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m05066srf24vamqykdny1z5x",
+                    "sessionId": "ses_01m052edy5fxprrbfg9b713ss7",
                     "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -3947,7 +4040,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 8,
-                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                    "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                     "custodyRevision": 17
                   },
                   "custody": {
@@ -3964,8 +4057,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -3988,7 +4081,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 8,
-                    "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                    "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                     "custodyRevision": 17
                   },
                   "custody": {
@@ -4005,8 +4098,8 @@
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "status": "anonymous"
                   },
                   "protected": {
@@ -4035,7 +4128,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 8,
-                        "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                        "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                         "custodyRevision": 17
                       },
                       "custody": {
@@ -4052,8 +4145,8 @@
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                        "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                         "status": "anonymous"
                       },
                       "protected": {
@@ -4080,7 +4173,7 @@
                       },
                       "capture": {
                         "authorityEpoch": 8,
-                        "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                        "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                         "custodyRevision": 17
                       },
                       "custody": {
@@ -4097,8 +4190,8 @@
                       },
                       "lastError": null,
                       "principal": {
-                        "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                        "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                        "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                        "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                         "status": "anonymous"
                       },
                       "protected": {
@@ -4124,7 +4217,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -4141,8 +4234,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -4165,7 +4258,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -4182,8 +4275,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -4209,7 +4302,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 7,
-                    "authorityKey": "sha256:d3ed0d35020530a170d2914ab09afc61d5e3d91581ecd2185fa2a15ec77de841",
+                    "authorityKey": "sha256:0ee5c5539295b54693c35982cd8238c4cb3be307ad04983219e8852276dcf6b8",
                     "custodyRevision": 15
                   },
                   "custody": {
@@ -4220,19 +4313,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 15,
-                    "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                    "sessionId": "ses_01m052e8t0eepbtvnefmx8zx0v",
                     "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m05061njedqbj560bqff612e",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052e8t0ebeaccn6excvaev6",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                    "sessionId": "ses_01m052e8t0eepbtvnefmx8zx0v",
                     "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -4254,7 +4347,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 7,
-                    "authorityKey": "sha256:d3ed0d35020530a170d2914ab09afc61d5e3d91581ecd2185fa2a15ec77de841",
+                    "authorityKey": "sha256:0ee5c5539295b54693c35982cd8238c4cb3be307ad04983219e8852276dcf6b8",
                     "custodyRevision": 15
                   },
                   "custody": {
@@ -4265,19 +4358,19 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 15,
-                    "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                    "sessionId": "ses_01m052e8t0eepbtvnefmx8zx0v",
                     "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m05061njedqbj560bqff612e",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052e8t0ebeaccn6excvaev6",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                    "sessionId": "ses_01m052e8t0eepbtvnefmx8zx0v",
                     "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -4299,7 +4392,7 @@
               ],
               "results": [
                 {
-                  "code": "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID",
+                  "code": "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
                   "ok": false,
                   "snapshot": {
                     "bootstrap": {
@@ -4315,57 +4408,8 @@
                       "status": "ready"
                     },
                     "capture": {
-                      "authorityEpoch": 7,
-                      "authorityKey": "sha256:d3ed0d35020530a170d2914ab09afc61d5e3d91581ecd2185fa2a15ec77de841",
-                      "custodyRevision": 15
-                    },
-                    "custody": {
-                      "authorityEpoch": 7,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
-                      "pendingAuthorityPresent": false,
-                      "pendingBearerPresent": false,
-                      "phase": "settled",
-                      "revision": 15,
-                      "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
-                      "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                    },
-                    "lastError": null,
-                    "principal": {
-                      "authorityInstanceId": "aut_01m05061njedqbj560bqff612e",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "sessionClass": "humanSession",
-                      "sessionGeneration": 1,
-                      "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
-                      "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                    },
-                    "protected": {
-                      "optimistic": 0,
-                      "rows": 0
-                    }
-                  }
-                },
-                {
-                  "code": "SNAPBACK_AUTH_REFRESH_SUPERSEDED",
-                  "ok": false,
-                  "snapshot": {
-                    "bootstrap": {
-                      "authoritySource": "durable-restored",
-                      "custody": {
-                        "carrier": "indexeddb-web-locks",
-                        "formatVersion": 2,
-                        "grade": "durable",
-                        "recoveryAvailable": true,
-                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                      },
-                      "diagnosticCode": null,
-                      "status": "ready"
-                    },
-                    "capture": {
                       "authorityEpoch": 8,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 17
                     },
                     "custody": {
@@ -4382,9 +4426,58 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
+                    },
+                    "protected": {
+                      "optimistic": 0,
+                      "rows": 0
+                    }
+                  }
+                },
+                {
+                  "code": "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID",
+                  "ok": false,
+                  "snapshot": {
+                    "bootstrap": {
+                      "authoritySource": "durable-restored",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 7,
+                      "authorityKey": "sha256:0ee5c5539295b54693c35982cd8238c4cb3be307ad04983219e8852276dcf6b8",
+                      "custodyRevision": 15
+                    },
+                    "custody": {
+                      "authorityEpoch": 7,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 15,
+                      "sessionId": "ses_01m052e8t0eepbtvnefmx8zx0v",
+                      "shape": "record",
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m052e8t0ebeaccn6excvaev6",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m052e8t0eepbtvnefmx8zx0v",
+                      "status": "authenticated",
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -4396,51 +4489,6 @@
             },
             "signin": {
               "automatic": [
-                {
-                  "bootstrap": {
-                    "authoritySource": "application-entry",
-                    "custody": {
-                      "carrier": "indexeddb-web-locks",
-                      "formatVersion": 2,
-                      "grade": "durable",
-                      "recoveryAvailable": true,
-                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                    },
-                    "diagnosticCode": null,
-                    "status": "ready"
-                  },
-                  "capture": {
-                    "authorityEpoch": 11,
-                    "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
-                    "custodyRevision": 23
-                  },
-                  "custody": {
-                    "authorityEpoch": 11,
-                    "authorityKind": "session",
-                    "bearerPresent": true,
-                    "pendingAuthorityPresent": false,
-                    "pendingBearerPresent": false,
-                    "phase": "settled",
-                    "revision": 23,
-                    "sessionId": "ses_01m05069wseths4shhb9mznf5j",
-                    "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                  },
-                  "lastError": null,
-                  "principal": {
-                    "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                    "sessionClass": "humanSession",
-                    "sessionGeneration": 1,
-                    "sessionId": "ses_01m05069wseths4shhb9mznf5j",
-                    "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                  },
-                  "protected": {
-                    "optimistic": 0,
-                    "rows": 0
-                  }
-                },
                 {
                   "bootstrap": {
                     "authoritySource": "fresh-anonymous",
@@ -4456,7 +4504,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 11,
-                    "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
+                    "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
                     "custodyRevision": 23
                   },
                   "custody": {
@@ -4467,19 +4515,64 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 23,
-                    "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                    "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                     "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                    "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                     "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                },
+                {
+                  "bootstrap": {
+                    "authoritySource": "application-entry",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 11,
+                    "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
+                    "custodyRevision": 23
+                  },
+                  "custody": {
+                    "authorityEpoch": 11,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 23,
+                    "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
+                    "shape": "record",
+                    "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
+                    "status": "authenticated",
+                    "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -4529,7 +4622,7 @@
                   ],
                   "seed": {
                     "bootstrap": {
-                      "authoritySource": "application-entry",
+                      "authoritySource": "fresh-anonymous",
                       "custody": {
                         "carrier": "indexeddb-web-locks",
                         "formatVersion": 2,
@@ -4542,7 +4635,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 10,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 21
                     },
                     "custody": {
@@ -4559,8 +4652,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -4610,7 +4703,7 @@
                   ],
                   "seed": {
                     "bootstrap": {
-                      "authoritySource": "fresh-anonymous",
+                      "authoritySource": "durable-restored",
                       "custody": {
                         "carrier": "indexeddb-web-locks",
                         "formatVersion": 2,
@@ -4623,7 +4716,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 10,
-                      "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                      "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                       "custodyRevision": 21
                     },
                     "custody": {
@@ -4640,8 +4733,8 @@
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "status": "anonymous"
                     },
                     "protected": {
@@ -4665,55 +4758,6 @@
               ],
               "results": [
                 {
-                  "code": null,
-                  "ok": true,
-                  "snapshot": {
-                    "bootstrap": {
-                      "authoritySource": "application-entry",
-                      "custody": {
-                        "carrier": "indexeddb-web-locks",
-                        "formatVersion": 2,
-                        "grade": "durable",
-                        "recoveryAvailable": true,
-                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                      },
-                      "diagnosticCode": null,
-                      "status": "ready"
-                    },
-                    "capture": {
-                      "authorityEpoch": 11,
-                      "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
-                      "custodyRevision": 23
-                    },
-                    "custody": {
-                      "authorityEpoch": 11,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
-                      "pendingAuthorityPresent": false,
-                      "pendingBearerPresent": false,
-                      "phase": "settled",
-                      "revision": 23,
-                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
-                      "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                    },
-                    "lastError": null,
-                    "principal": {
-                      "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "sessionClass": "humanSession",
-                      "sessionGeneration": 1,
-                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
-                      "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                    },
-                    "protected": {
-                      "optimistic": 0,
-                      "rows": 0
-                    }
-                  }
-                },
-                {
                   "code": "SNAPBACK_CLIENT_AUTHORITY_STALE",
                   "ok": false,
                   "snapshot": {
@@ -4732,25 +4776,74 @@
                     "capture": null,
                     "custody": {
                       "authorityEpoch": 11,
+                      "authorityKind": null,
+                      "bearerPresent": false,
+                      "pendingAuthorityPresent": true,
+                      "pendingBearerPresent": true,
+                      "phase": "clearing",
+                      "revision": 22,
+                      "sessionId": null,
+                      "shape": "record",
+                      "userId": null
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "status": "anonymous"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                },
+                {
+                  "code": null,
+                  "ok": true,
+                  "snapshot": {
+                    "bootstrap": {
+                      "authoritySource": "application-entry",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 11,
+                      "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
+                      "custodyRevision": 23
+                    },
+                    "custody": {
+                      "authorityEpoch": 11,
                       "authorityKind": "session",
                       "bearerPresent": true,
                       "pendingAuthorityPresent": false,
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                      "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                       "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "status": "anonymous"
+                      "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
+                      "status": "authenticated",
+                      "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                     },
                     "protected": {
-                      "optimistic": 1,
-                      "rows": 1
+                      "optimistic": 0,
+                      "rows": 0
                     }
                   }
                 }
@@ -4770,7 +4863,7 @@
                 },
                 "capture": {
                   "authorityEpoch": 11,
-                  "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
+                  "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
                   "custodyRevision": 23
                 },
                 "custody": {
@@ -4781,19 +4874,19 @@
                   "pendingBearerPresent": false,
                   "phase": "settled",
                   "revision": 23,
-                  "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                  "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                   "shape": "record",
-                  "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                  "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                 },
                 "lastError": null,
                 "principal": {
-                  "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
-                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                  "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                   "sessionClass": "humanSession",
                   "sessionGeneration": 1,
-                  "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                  "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                   "status": "authenticated",
-                  "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                  "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                 },
                 "protected": {
                   "optimistic": 0,
@@ -4818,7 +4911,7 @@
                   },
                   "capture": {
                     "authorityEpoch": 13,
-                    "authorityKey": "sha256:dda698d65f7615cdbb3778c765d173e01167ee296e63485a9a0e09b5a1d59293",
+                    "authorityKey": "sha256:99f07bfbdac03b1e3be39165bb0412420ffa649af6908568113d551b213d7429",
                     "custodyRevision": 27
                   },
                   "custody": {
@@ -4829,25 +4922,72 @@
                     "pendingBearerPresent": false,
                     "phase": "settled",
                     "revision": 27,
-                    "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                    "sessionId": "ses_01m052em5ceg8tptw6jee887kz",
                     "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0506byrfcea1mqntgm0j7q9",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052em5ce08abmdv6kzmyrhx",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                    "sessionId": "ses_01m052em5ceg8tptw6jee887kz",
                     "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                   },
                   "protected": {
                     "optimistic": 0,
                     "rows": 0
                   }
                 },
+                {
+                  "bootstrap": {
+                    "authoritySource": "application-entry",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 13,
+                    "authorityKey": "sha256:99f07bfbdac03b1e3be39165bb0412420ffa649af6908568113d551b213d7429",
+                    "custodyRevision": 27
+                  },
+                  "custody": {
+                    "authorityEpoch": 13,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 27,
+                    "sessionId": "ses_01m052em5ceg8tptw6jee887kz",
+                    "shape": "record",
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m052em5ce08abmdv6kzmyrhx",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m052em5ceg8tptw6jee887kz",
+                    "status": "authenticated",
+                    "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                }
+              ],
+              "predecessor": [
                 {
                   "bootstrap": {
                     "authoritySource": "fresh-anonymous",
@@ -4862,31 +5002,76 @@
                     "status": "ready"
                   },
                   "capture": {
-                    "authorityEpoch": 13,
-                    "authorityKey": "sha256:dda698d65f7615cdbb3778c765d173e01167ee296e63485a9a0e09b5a1d59293",
-                    "custodyRevision": 27
+                    "authorityEpoch": 11,
+                    "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
+                    "custodyRevision": 23
                   },
                   "custody": {
-                    "authorityEpoch": 13,
+                    "authorityEpoch": 11,
                     "authorityKind": "session",
                     "bearerPresent": true,
                     "pendingAuthorityPresent": false,
                     "pendingBearerPresent": false,
                     "phase": "settled",
-                    "revision": 27,
-                    "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                    "revision": 23,
+                    "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                     "shape": "record",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                   },
                   "lastError": null,
                   "principal": {
-                    "authorityInstanceId": "aut_01m0506byrfcea1mqntgm0j7q9",
-                    "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                    "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                     "sessionClass": "humanSession",
                     "sessionGeneration": 1,
-                    "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                    "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                     "status": "authenticated",
-                    "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                    "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
+                  },
+                  "protected": {
+                    "optimistic": 0,
+                    "rows": 0
+                  }
+                },
+                {
+                  "bootstrap": {
+                    "authoritySource": "application-entry",
+                    "custody": {
+                      "carrier": "indexeddb-web-locks",
+                      "formatVersion": 2,
+                      "grade": "durable",
+                      "recoveryAvailable": true,
+                      "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                    },
+                    "diagnosticCode": null,
+                    "status": "ready"
+                  },
+                  "capture": {
+                    "authorityEpoch": 11,
+                    "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
+                    "custodyRevision": 23
+                  },
+                  "custody": {
+                    "authorityEpoch": 11,
+                    "authorityKind": "session",
+                    "bearerPresent": true,
+                    "pendingAuthorityPresent": false,
+                    "pendingBearerPresent": false,
+                    "phase": "settled",
+                    "revision": 23,
+                    "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
+                    "shape": "record",
+                    "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
+                  },
+                  "lastError": null,
+                  "principal": {
+                    "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                    "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                    "sessionClass": "humanSession",
+                    "sessionGeneration": 1,
+                    "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
+                    "status": "authenticated",
+                    "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                   },
                   "protected": {
                     "optimistic": 0,
@@ -4895,127 +5080,6 @@
                 }
               ],
               "predecessorBarriers": [
-                {
-                  "events": [
-                    {
-                      "optimisticState": 1,
-                      "phase": "quiesce",
-                      "protectedRows": 1,
-                      "reason": "logout"
-                    },
-                    {
-                      "optimisticState": 1,
-                      "phase": "blank",
-                      "protectedRows": 0,
-                      "reason": "logout"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "clearMemory",
-                      "protectedRows": 0,
-                      "reason": "logout"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "commitDurable",
-                      "protectedRows": 0,
-                      "reason": "logout"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "resume",
-                      "protectedRows": 0,
-                      "reason": "logout"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "stagePublication",
-                      "protectedRows": 0,
-                      "reason": "logout"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "quiesce",
-                      "protectedRows": 0,
-                      "reason": "login"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "blank",
-                      "protectedRows": 0,
-                      "reason": "login"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "clearMemory",
-                      "protectedRows": 0,
-                      "reason": "login"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "commitDurable",
-                      "protectedRows": 0,
-                      "reason": "login"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "resume",
-                      "protectedRows": 0,
-                      "reason": "login"
-                    },
-                    {
-                      "optimisticState": 0,
-                      "phase": "stagePublication",
-                      "protectedRows": 0,
-                      "reason": "login"
-                    }
-                  ],
-                  "seed": {
-                    "bootstrap": {
-                      "authoritySource": "application-entry",
-                      "custody": {
-                        "carrier": "indexeddb-web-locks",
-                        "formatVersion": 2,
-                        "grade": "durable",
-                        "recoveryAvailable": true,
-                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
-                      },
-                      "diagnosticCode": null,
-                      "status": "ready"
-                    },
-                    "capture": {
-                      "authorityEpoch": 11,
-                      "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
-                      "custodyRevision": 23
-                    },
-                    "custody": {
-                      "authorityEpoch": 11,
-                      "authorityKind": "session",
-                      "bearerPresent": true,
-                      "pendingAuthorityPresent": false,
-                      "pendingBearerPresent": false,
-                      "phase": "settled",
-                      "revision": 23,
-                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
-                      "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                    },
-                    "lastError": null,
-                    "principal": {
-                      "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                      "sessionClass": "humanSession",
-                      "sessionGeneration": 1,
-                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
-                      "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
-                    },
-                    "protected": {
-                      "optimistic": 1,
-                      "rows": 1
-                    }
-                  }
-                },
                 {
                   "events": [
                     {
@@ -5106,7 +5170,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
+                      "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
                       "custodyRevision": 23
                     },
                     "custody": {
@@ -5117,19 +5181,140 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 23,
-                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                      "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                       "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                      "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                       "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
+                    },
+                    "protected": {
+                      "optimistic": 1,
+                      "rows": 1
+                    }
+                  }
+                },
+                {
+                  "events": [
+                    {
+                      "optimisticState": 1,
+                      "phase": "quiesce",
+                      "protectedRows": 1,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 1,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "logout"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "quiesce",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "blank",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "clearMemory",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "commitDurable",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "resume",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    },
+                    {
+                      "optimisticState": 0,
+                      "phase": "stagePublication",
+                      "protectedRows": 0,
+                      "reason": "login"
+                    }
+                  ],
+                  "seed": {
+                    "bootstrap": {
+                      "authoritySource": "application-entry",
+                      "custody": {
+                        "carrier": "indexeddb-web-locks",
+                        "formatVersion": 2,
+                        "grade": "durable",
+                        "recoveryAvailable": true,
+                        "storagePartitionIdentityHash": "sha256:46a11939d36f3b85418a22d1777c4ae8050585d20e32a52cf1c8d8b08fa35b48"
+                      },
+                      "diagnosticCode": null,
+                      "status": "ready"
+                    },
+                    "capture": {
+                      "authorityEpoch": 11,
+                      "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
+                      "custodyRevision": 23
+                    },
+                    "custody": {
+                      "authorityEpoch": 11,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
+                      "pendingAuthorityPresent": false,
+                      "pendingBearerPresent": false,
+                      "phase": "settled",
+                      "revision": 23,
+                      "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
+                      "shape": "record",
+                      "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
+                    },
+                    "lastError": null,
+                    "principal": {
+                      "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                      "sessionClass": "humanSession",
+                      "sessionGeneration": 1,
+                      "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
+                      "status": "authenticated",
+                      "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -5169,7 +5354,7 @@
                     },
                     "capture": {
                       "authorityEpoch": 13,
-                      "authorityKey": "sha256:dda698d65f7615cdbb3778c765d173e01167ee296e63485a9a0e09b5a1d59293",
+                      "authorityKey": "sha256:99f07bfbdac03b1e3be39165bb0412420ffa649af6908568113d551b213d7429",
                       "custodyRevision": 27
                     },
                     "custody": {
@@ -5180,19 +5365,19 @@
                       "pendingBearerPresent": false,
                       "phase": "settled",
                       "revision": 27,
-                      "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                      "sessionId": "ses_01m052em5ceg8tptw6jee887kz",
                       "shape": "record",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m0506byrfcea1mqntgm0j7q9",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052em5ce08abmdv6kzmyrhx",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                      "sessionId": "ses_01m052em5ceg8tptw6jee887kz",
                       "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                     },
                     "protected": {
                       "optimistic": 0,
@@ -5205,7 +5390,7 @@
                   "ok": false,
                   "snapshot": {
                     "bootstrap": {
-                      "authoritySource": "fresh-anonymous",
+                      "authoritySource": "application-entry",
                       "custody": {
                         "carrier": "indexeddb-web-locks",
                         "formatVersion": 2,
@@ -5218,30 +5403,30 @@
                     },
                     "capture": {
                       "authorityEpoch": 11,
-                      "authorityKey": "sha256:a399c4b4a5454aa53619fe735e493b584106fc23ae72516518abf5b693ee74e6",
+                      "authorityKey": "sha256:8824283b29035bdaccc93044cc54da69f0cf0bbedb15a7ce6b40722ded86e6fa",
                       "custodyRevision": 23
                     },
                     "custody": {
-                      "authorityEpoch": 12,
-                      "authorityKind": "anonymous",
-                      "bearerPresent": false,
+                      "authorityEpoch": 11,
+                      "authorityKind": "session",
+                      "bearerPresent": true,
                       "pendingAuthorityPresent": false,
                       "pendingBearerPresent": false,
                       "phase": "settled",
-                      "revision": 25,
-                      "sessionId": null,
+                      "revision": 23,
+                      "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                       "shape": "record",
-                      "userId": null
+                      "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                     },
                     "lastError": null,
                     "principal": {
-                      "authorityInstanceId": "aut_01m05069wsex7r5azn8xzk2px3",
-                      "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                      "authorityInstanceId": "aut_01m052ehvpe4jraa9jfb09daaq",
+                      "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                       "sessionClass": "humanSession",
                       "sessionGeneration": 1,
-                      "sessionId": "ses_01m05069wseths4shhb9mznf5j",
+                      "sessionId": "ses_01m052ehvpfxgs9yszz7p9ncbe",
                       "status": "authenticated",
-                      "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                      "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
                     },
                     "protected": {
                       "optimistic": 1,
@@ -5250,6 +5435,7 @@
                   }
                 }
               ],
+              "targetUserId": "usr_46ffwnwbe0ed3ps9fe45d2154d",
               "winner": {
                 "bootstrap": {
                   "authoritySource": "application-entry",
@@ -5265,7 +5451,7 @@
                 },
                 "capture": {
                   "authorityEpoch": 13,
-                  "authorityKey": "sha256:dda698d65f7615cdbb3778c765d173e01167ee296e63485a9a0e09b5a1d59293",
+                  "authorityKey": "sha256:99f07bfbdac03b1e3be39165bb0412420ffa649af6908568113d551b213d7429",
                   "custodyRevision": 27
                 },
                 "custody": {
@@ -5276,19 +5462,19 @@
                   "pendingBearerPresent": false,
                   "phase": "settled",
                   "revision": 27,
-                  "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                  "sessionId": "ses_01m052em5ceg8tptw6jee887kz",
                   "shape": "record",
-                  "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                  "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                 },
                 "lastError": null,
                 "principal": {
-                  "authorityInstanceId": "aut_01m0506byrfcea1mqntgm0j7q9",
-                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "authorityInstanceId": "aut_01m052em5ce08abmdv6kzmyrhx",
+                  "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                   "sessionClass": "humanSession",
                   "sessionGeneration": 1,
-                  "sessionId": "ses_01m0506byren8t397r6e0z9gxe",
+                  "sessionId": "ses_01m052em5ceg8tptw6jee887kz",
                   "status": "authenticated",
-                  "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                  "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
                 },
                 "protected": {
                   "optimistic": 0,
@@ -5451,7 +5637,7 @@
               },
               "capture": {
                 "authorityEpoch": 4,
-                "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                 "custodyRevision": 9
               },
               "custody": {
@@ -5468,8 +5654,8 @@
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "status": "anonymous"
               },
               "protected": {
@@ -5492,7 +5678,7 @@
               },
               "capture": {
                 "authorityEpoch": 7,
-                "authorityKey": "sha256:d3ed0d35020530a170d2914ab09afc61d5e3d91581ecd2185fa2a15ec77de841",
+                "authorityKey": "sha256:0ee5c5539295b54693c35982cd8238c4cb3be307ad04983219e8852276dcf6b8",
                 "custodyRevision": 15
               },
               "custody": {
@@ -5503,19 +5689,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 15,
-                "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                "sessionId": "ses_01m052e8t0eepbtvnefmx8zx0v",
                 "shape": "record",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m05061njedqbj560bqff612e",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052e8t0ebeaccn6excvaev6",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m05061njf97ayp7qsj63m0k6",
+                "sessionId": "ses_01m052e8t0eepbtvnefmx8zx0v",
                 "status": "authenticated",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "protected": {
                 "optimistic": 0,
@@ -5537,7 +5723,7 @@
               },
               "capture": {
                 "authorityEpoch": 5,
-                "authorityKey": "sha256:7586f341169ab55a99b9ccb174e655f9547d37e9807003bcfc58134795cf516e",
+                "authorityKey": "sha256:166c2fadaf943ec3a4cf21b5d71ee762546b6465fe8e9f3a1e936b8bca3cca52",
                 "custodyRevision": 11
               },
               "custody": {
@@ -5548,19 +5734,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 11,
-                "sessionId": "ses_01m050609sfjprxdvkgdgvycw1",
+                "sessionId": "ses_01m052e75res1tgab01m9689ty",
                 "shape": "record",
-                "userId": "usr_2ydqz3q80vsz5hm79kem0y41dn"
+                "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m050609sewybtcef90sshg1j",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052e75rftzsmpc4e7k4mf07",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m050609sfjprxdvkgdgvycw1",
+                "sessionId": "ses_01m052e75res1tgab01m9689ty",
                 "status": "authenticated",
-                "userId": "usr_2ydqz3q80vsz5hm79kem0y41dn"
+                "userId": "usr_311yzmk0ene72pmrzc5kt83twc"
               },
               "protected": {
                 "optimistic": 0,
@@ -5768,7 +5954,7 @@
               },
               "capture": {
                 "authorityEpoch": 1,
-                "authorityKey": "sha256:2404a426fdea4681aa2d8a426e9df224286123cf3a0b46dd3156aab7f8624901",
+                "authorityKey": "sha256:67b3bb180a4c7dbadb0a216ce02a854a1365d2340c95dd3bbc7442d48e016f5e",
                 "custodyRevision": 3
               },
               "custody": {
@@ -5779,19 +5965,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 3,
-                "sessionId": "ses_01m0506e41fw7vn12qzn3g2176",
+                "sessionId": "ses_01m052epjvfvra8m11zz8aspth",
                 "shape": "record",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0506e41ffpv32sn59n4aj94",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052epjvfmg8rg9rkxy01yz6",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0506e41fw7vn12qzn3g2176",
+                "sessionId": "ses_01m052epjvfvra8m11zz8aspth",
                 "status": "authenticated",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "protected": {
                 "optimistic": 0,
@@ -5816,7 +6002,7 @@
                 },
                 "capture": {
                   "authorityEpoch": 0,
-                  "authorityKey": "sha256:c083b9668024572255e4ebe545ca78c47d8e77f1920de008c664e7df42661113",
+                  "authorityKey": "sha256:88137beb67127828c5e416d3d3e182c082f8090989e48a31edcd2ec86767498c",
                   "custodyRevision": 1
                 },
                 "custody": {
@@ -5833,8 +6019,8 @@
                 },
                 "lastError": null,
                 "principal": {
-                  "authorityInstanceId": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
-                  "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                  "authorityInstanceId": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
+                  "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                   "status": "anonymous"
                 },
                 "protected": {
@@ -5944,7 +6130,7 @@
               },
               "capture": {
                 "authorityEpoch": 1,
-                "authorityKey": "sha256:2404a426fdea4681aa2d8a426e9df224286123cf3a0b46dd3156aab7f8624901",
+                "authorityKey": "sha256:67b3bb180a4c7dbadb0a216ce02a854a1365d2340c95dd3bbc7442d48e016f5e",
                 "custodyRevision": 3
               },
               "custody": {
@@ -5955,19 +6141,19 @@
                 "pendingBearerPresent": false,
                 "phase": "settled",
                 "revision": 3,
-                "sessionId": "ses_01m0506e41fw7vn12qzn3g2176",
+                "sessionId": "ses_01m052epjvfvra8m11zz8aspth",
                 "shape": "record",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "lastError": null,
               "principal": {
-                "authorityInstanceId": "aut_01m0506e41ffpv32sn59n4aj94",
-                "authorizationStreamIncarnation": "01a00a02-b34b-7723-9a5f-c6b565e540cb",
+                "authorityInstanceId": "aut_01m052epjvfmg8rg9rkxy01yz6",
+                "authorizationStreamIncarnation": "01a00a26-ce6c-7293-a46a-c8fc8e97f81d",
                 "sessionClass": "humanSession",
                 "sessionGeneration": 1,
-                "sessionId": "ses_01m0506e41fw7vn12qzn3g2176",
+                "sessionId": "ses_01m052epjvfvra8m11zz8aspth",
                 "status": "authenticated",
-                "userId": "usr_1psxm2wqqg4ztxqnfvfy0ybs7n"
+                "userId": "usr_46ffwnwbe0ed3ps9fe45d2154d"
               },
               "protected": {
                 "optimistic": 0,
@@ -5984,7 +6170,7 @@
       "status": "FAIL"
     }
   ],
-  "finishedAt": "2026-08-16T09:59:40.455Z",
+  "finishedAt": "2026-08-16T10:39:08.721Z",
   "fixture": {
     "authBootstrap": {
       "anonymousPublic": "refused",
@@ -6048,9 +6234,9 @@
   },
   "server": {
     "binary": {
-      "mtimeMs": 1786874336382.1257,
+      "mtimeMs": 1786876696344.4558,
       "path": "/Users/ccheever/projects/snapback/.claude/worktrees/sbs0816-w-browser/target/debug/snapback",
-      "sha256": "sha256:4050f8d4d504eb49f8a034ce700ddb6bafec6ccb11850695ac0927093cac8096",
+      "sha256": "sha256:367cf3a57d78012cfd10f7012da5bb24214c7d0285064c0d7625594a578036fa",
       "size": 460572232,
       "version": "snapback 0.1.0"
     },
@@ -6058,13 +6244,13 @@
       "identity": {
         "buildProfile": "debug",
         "crateVersion": "0.1.0",
-        "gitCommit": "b7528195ce1f65d05df37089030970eec0633d93",
-        "gitDirty": true,
-        "startupNonce": "01a00a02-b366-70f3-947c-88a52e087b20"
+        "gitCommit": "1cf1c2e58718e3f0697559dea7bb85da400b25f1",
+        "gitDirty": false,
+        "startupNonce": "01a00a26-ce7c-7821-9eb2-935d287921f8"
       },
-      "identityVerdict": "unpinned-binary",
+      "identityVerdict": "verified",
       "path": "<run-scratch>/snapback",
-      "sha256": "sha256:4050f8d4d504eb49f8a034ce700ddb6bafec6ccb11850695ac0927093cac8096",
+      "sha256": "sha256:367cf3a57d78012cfd10f7012da5bb24214c7d0285064c0d7625594a578036fa",
       "sourceByteIdentical": true,
       "strategy": "qualified-byte-identical-scratch-copy"
     },
@@ -6118,17 +6304,17 @@
   },
   "source": {
     "bundle": {
-      "bytes": 2706421,
-      "sha256": "sha256:8d6b4e7a8a41723957811d7f401d0dec2cd79a596130b905c20c17f1253525ac"
+      "bytes": 2706742,
+      "sha256": "sha256:400c08eeb6033deb4b066fb27fbb8104801e6db702f781d0bd751111c70ea849"
     },
     "files": [
       {
         "path": "tests/acceptance/browser-auth-bootstrap-v1.mjs",
-        "sha256": "sha256:93671cf3e61266b64cb158c37b1de91797382cd842afa85fdc4ba2d7eb06f14e"
+        "sha256": "sha256:d150135480f6c104d40721b667fd905ada632643ff37b59e8e94b8b125cc84b4"
       },
       {
         "path": "tests/acceptance/browser-auth-bootstrap-v1-page.mjs",
-        "sha256": "sha256:0ae84bf76d5cfc257f34b01703ae7a25bb24bcb47fa9e9a4698dac4ee5f3fa1c"
+        "sha256": "sha256:abb710ceed8a871bea91bddf5d986f8954961a3164b64de87855a4a96f91f69a"
       },
       {
         "path": "packages/snapback-client/app-client.mjs",
@@ -6147,10 +6333,10 @@
         "sha256": "sha256:fa128e5569ddc5789a224c6ab3a96593cffb25cbaf329bf833644482d2186a48"
       }
     ],
-    "gitCommit": "b7528195ce1f65d05df37089030970eec0633d93",
-    "gitDirty": true,
+    "gitCommit": "1cf1c2e58718e3f0697559dea7bb85da400b25f1",
+    "gitDirty": false,
     "node": "v24.18.0",
     "note": "Executed bytes are pinned below; this witness and its proof artifacts are committed with the landing."
   },
-  "startedAt": "2026-08-16T09:58:58.021Z"
+  "startedAt": "2026-08-16T10:38:24.291Z"
 }

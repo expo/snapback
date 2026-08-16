@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 import { IDBFactory } from 'fake-indexeddb';
 import { AuthCoordinator } from '@expo/snapback-contract/auth-coordinator';
+import { createIndexedDbAuthCustodyStorage } from '@expo/snapback-contract/auth-custody-indexeddb';
 
 import {
   DEFAULT_AUTH_STORAGE_PARTITION,
@@ -646,7 +647,7 @@ test('raw bootstrap refuses fabricated receipts and local, private, or unspecifi
   }
 });
 
-test('browser durable custody restores the default record and isolates explicit partitions', async () => {
+test('browser durable custody restores the default record and keeps signed-in partitions distinct', async () => {
   const server = installServer();
   const app = makeApp({ custody: 'durable-required' });
   const indexedDB = new IDBFactory();
@@ -662,14 +663,23 @@ test('browser durable custody restores the default record and isolates explicit 
   let first = null;
   let restored = null;
   let partitioned = null;
+  let inspector = null;
   try {
     first = await createSnapbackAppClient(input);
     assert.equal(first.bootstrapState().custody.carrier, 'indexeddb-web-locks');
     assert.equal(first.bootstrapState().custody.grade, 'durable');
-    server.respond('/auth/password/signin', () => (
-      Response.json(server.credential({ token: APPLICATION_BEARER }))
+    server.respond('/auth/password/signup', ({ body }) => Response.json(
+      body.email === 'peer@example.com'
+        ? server.credential({
+            token: PEER_BEARER,
+            codes: RECOVERY_CODES,
+            userId: PEER_USER,
+            sessionId: PEER_SESSION,
+            authorityInstanceId: PEER_AUTHORITY,
+          })
+        : server.credential({ token: APPLICATION_BEARER, codes: RECOVERY_CODES }),
     ));
-    await first.auth.signInWithPassword({ email: 'person@example.com', password: PASSWORD });
+    await first.auth.signUpWithPassword({ email: 'person@example.com', password: PASSWORD });
     await first.dispose();
     first = null;
 
@@ -686,7 +696,52 @@ test('browser durable custody restores the default record and isolates explicit 
       storagePartition: 'secondary-profile',
     });
     assert.equal(partitioned.auth.currentPrincipal().status, 'anonymous');
+    await partitioned.auth.signUpWithPassword({ email: 'peer@example.com', password: PASSWORD });
+    assert.equal(restored.auth.currentPrincipal().userId, USER);
+    assert.equal(partitioned.auth.currentPrincipal().userId, PEER_USER);
+
+    inspector = createIndexedDbAuthCustodyStorage({
+      indexedDB,
+      lockManager,
+      cryptoObject: webcrypto,
+      databaseName: platform.databaseName,
+    });
+    const legacyAddressRecord = await inspector.withOwnership(
+      APP_ID,
+      (owner) => owner.read(),
+    );
+    const partitionAddressRecord = await inspector.withOwnership(
+      { appId: APP_ID, storagePartition: 'secondary-profile' },
+      (owner) => owner.read(),
+    );
+    assert.equal(
+      legacyAddressRecord.authority.userId,
+      USER,
+      'an app-id-only inspection names the default partition',
+    );
+    assert.equal(
+      partitionAddressRecord.authority.userId,
+      PEER_USER,
+      'the full owner-key inspection names the explicit partition',
+    );
+
+    const forcedRequestOffset = server.requests.length;
+    const [defaultSession, partitionedSession] = await Promise.all([
+      restored.client.auth.authSession({ force: true }),
+      partitioned.client.auth.authSession({ force: true }),
+    ]);
+    assert.equal(defaultSession.authority.userId, USER);
+    assert.equal(partitionedSession.authority.userId, PEER_USER);
+    assert.deepEqual(
+      server.requests.slice(forcedRequestOffset)
+        .filter(({ path }) => path === '/auth/session')
+        .map(({ authorization }) => authorization)
+        .sort(),
+      [`Bearer ${APPLICATION_BEARER}`, `Bearer ${PEER_BEARER}`].sort(),
+      'each partition identifies its HTTP session with its own custody bearer',
+    );
   } finally {
+    await inspector?.close();
     await partitioned?.dispose();
     await restored?.dispose();
     await first?.dispose();
@@ -881,6 +936,65 @@ test('browser kind explicit null BroadcastChannel disables peer wakeups', async 
     await tabB?.dispose();
     restoreLocalStorage();
     restoreBroadcast();
+    server.restore();
+  }
+});
+
+test('browser kind explicit null hintStorage bypasses host localStorage while configured broadcasts wake peers', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'durable-required' });
+  const broadcastHub = new BroadcastHub();
+  const hintBytes = new Map();
+  let hintReads = 0;
+  let hintWrites = 0;
+  const restoreLocalStorage = replaceGlobal('localStorage', {
+    getItem(key) {
+      hintReads += 1;
+      return hintBytes.get(key) ?? null;
+    },
+    setItem(key, value) {
+      hintWrites += 1;
+      hintBytes.set(key, value);
+    },
+  });
+  const platform = {
+    kind: 'browser',
+    indexedDB: new IDBFactory(),
+    lockManager: createSerialLockManager(),
+    cryptoObject: webcrypto,
+    databaseName: 'snapback-app-client-browser-null-hint-storage-test',
+    broadcastChannelFactory: broadcastHub.factory,
+    hintStorage: null,
+  };
+  const [{ createSnapbackAppClient: createTabA }, { createSnapbackAppClient: createTabB }] = (
+    await Promise.all([
+      import('./app-client.mjs?null-hint-storage-a'),
+      import('./app-client.mjs?null-hint-storage-b'),
+    ])
+  );
+  let tabA = null;
+  let tabB = null;
+  try {
+    tabA = await createTabA({ app, binding: makeBinding(app), platform });
+    tabB = await createTabB({ app, binding: makeBinding(app), platform });
+    server.respond('/auth/password/signin', () => (
+      Response.json(server.credential({ token: APPLICATION_BEARER }))
+    ));
+    await tabA.auth.signInWithPassword({ email: 'person@example.com', password: PASSWORD });
+    await waitFor(
+      () => tabB.auth.currentPrincipal().status === 'authenticated'
+        && tabB.auth.currentPrincipal().userId === USER,
+      'broadcast-only peer sign-in principal',
+    );
+    assert.deepEqual(
+      { reads: hintReads, writes: hintWrites },
+      { reads: 0, writes: 0 },
+      'explicit null bypasses the functioning host localStorage hint mechanism',
+    );
+  } finally {
+    await tabA?.dispose();
+    await tabB?.dispose();
+    restoreLocalStorage();
     server.restore();
   }
 });

@@ -14,6 +14,10 @@
 import React, { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import {
+  AUTH_DEFAULT_STORAGE_PARTITION,
+  authCustodyOwnerKeyHash,
+} from '../../packages/snapback-contract/auth-coordinator.mjs';
 import { createSnapbackAppClient } from '../../packages/snapback-client/index.mjs';
 import app from '../../demos/rbac/snapback/generated/app.mjs';
 
@@ -22,7 +26,24 @@ const DATABASE_NAME = params.get('database');
 const DEFAULT_PARTITION = params.get('partition') ?? 'default';
 const CUSTODY_STORE = 'custody';
 const LEASE_STORE = 'leases';
-const LOCK_NAME = `snapback-auth-custody:${app.identity.app}`;
+// @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+//   — this raw proof helper must inspect and perturb the same full owner-key
+//   address as the product adapter, not the default partition's legacy row.
+const CUSTODY_ADDRESS = DEFAULT_PARTITION === AUTH_DEFAULT_STORAGE_PARTITION
+  ? Object.freeze({
+      storageKey: app.identity.app,
+      lockName: `snapback-auth-custody:${app.identity.app}`,
+    })
+  : (() => {
+      const partitionHash = authCustodyOwnerKeyHash({
+        appId: app.identity.app,
+        storagePartition: DEFAULT_PARTITION,
+      });
+      return Object.freeze({
+        storageKey: Object.freeze(['snapback-auth-custody-partition-v1', partitionHash]),
+        lockName: `snapback-auth-custody-partition:${partitionHash}`,
+      });
+    })();
 
 if (
   typeof DATABASE_NAME !== 'string'
@@ -317,7 +338,7 @@ const inspectCustody = async () => {
     if (!database.objectStoreNames.contains(CUSTODY_STORE)) return null;
     const transaction = database.transaction(CUSTODY_STORE, 'readonly');
     const record = await requestResult(
-      transaction.objectStore(CUSTODY_STORE).get(app.identity.app),
+      transaction.objectStore(CUSTODY_STORE).get(CUSTODY_ADDRESS.storageKey),
     );
     await transactionDone(transaction);
     if (record === undefined) return null;
@@ -404,7 +425,7 @@ const mutateCustody = async (operation) => {
 const corruptCustody = async () => {
   await disposeCurrent();
   await mutateCustody(async (custody) => {
-    await requestResult(custody.put('truncated-custody-record', app.identity.app));
+    await requestResult(custody.put('truncated-custody-record', CUSTODY_ADDRESS.storageKey));
   });
   return inspectCustody();
 };
@@ -413,8 +434,8 @@ const clearCustodyExplicitly = async () => {
   await disposeCurrent();
   await mutateCustody(async (custody, leases) => {
     await Promise.all([
-      requestResult(custody.delete(app.identity.app)),
-      requestResult(leases.delete(app.identity.app)),
+      requestResult(custody.delete(CUSTODY_ADDRESS.storageKey)),
+      requestResult(leases.delete(CUSTODY_ADDRESS.storageKey)),
     ]);
   });
   state.lastError = null;
@@ -440,8 +461,8 @@ const deleteDatabase = async () => {
 const lockState = async () => {
   const snapshot = await globalThis.navigator.locks.query();
   return Object.freeze({
-    held: snapshot.held.filter(({ name }) => name === LOCK_NAME).length,
-    pending: snapshot.pending.filter(({ name }) => name === LOCK_NAME).length,
+    held: snapshot.held.filter(({ name }) => name === CUSTODY_ADDRESS.lockName).length,
+    pending: snapshot.pending.filter(({ name }) => name === CUSTODY_ADDRESS.lockName).length,
   });
 };
 
@@ -452,7 +473,7 @@ const holdCustodyLock = async () => {
   const enteredPromise = new Promise((resolve) => { entered = resolve; });
   const releasePromise = new Promise((resolve) => { release = resolve; });
   const completion = globalThis.navigator.locks.request(
-    LOCK_NAME,
+    CUSTODY_ADDRESS.lockName,
     { mode: 'exclusive' },
     async () => {
       entered();
