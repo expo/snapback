@@ -180,6 +180,53 @@ test('password signup adopts the server principal without exposing the bearer', 
   }
 });
 
+test('client.auth is a vocabulary-only projection with exact flat-method contracts', async () => {
+  const fixture = makeFixture();
+  try {
+    assert.deepEqual(Object.keys(fixture.client.auth).sort(), [
+      'authExchange',
+      'authLogout',
+      'authPasswordChange',
+      'authPasswordReset',
+      'authPasswordSet',
+      'authPasswordSignIn',
+      'authPasswordSignup',
+      'authRecoveryConsume',
+      'authRecoveryRotate',
+      'authRefresh',
+      'authRequestCode',
+      'authSession',
+      'authTerminalStatus',
+      'currentPrincipal',
+      'subscribeAuthTerminal',
+      'subscribeCurrentPrincipal',
+    ]);
+    assert.deepEqual(fixture.client.auth.currentPrincipal(), { status: 'loading' });
+    let notifications = 0;
+    const unsubscribe = fixture.client.auth.subscribeCurrentPrincipal(() => {
+      notifications += 1;
+    });
+    fixture.respond('/auth/password/signup', () => (
+      Response.json(credential({ codes: recoveryCodes }))
+    ));
+    const result = await fixture.client.auth.authPasswordSignup({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    assert.deepEqual(result.recoveryCodes, recoveryCodes);
+    assert.equal(Object.hasOwn(result, 'token'), false);
+    assert.equal(fixture.client.auth.currentPrincipal().status, 'authenticated');
+    assert.equal(fixture.client.auth.currentPrincipal().expiresAt, result.session.expiresAt);
+    fixture.respond('/auth/logout', () => new Response(null, { status: 204 }));
+    assert.equal(await fixture.client.auth.authLogout(), null);
+    assert.equal(fixture.client.auth.currentPrincipal().status, 'anonymous');
+    assert.ok(notifications >= 2);
+    unsubscribe();
+  } finally {
+    await fixture.close();
+  }
+});
+
 test('closeAuth terminally drains realtime demand owned by the client', async () => {
   const fixture = makeFixture();
   let managerClosed = false;

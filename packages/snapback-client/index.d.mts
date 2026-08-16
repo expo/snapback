@@ -18,6 +18,22 @@ export type {
   SnapbackDiagnosticOperation,
 } from './diagnostic-error.mjs';
 export {
+  DEFAULT_AUTH_STORAGE_PARTITION,
+  createSnapbackAppClient,
+} from './app-client.mjs';
+export type {
+  ApplicationAuthBootstrapV1,
+  AuthBootstrapAdvisory,
+  AuthBootstrapAuthoritySource,
+  AuthBootstrapSnapshot,
+  PublicAuthCustodyFacts,
+  SnapbackAppBindingV1,
+  SnapbackAppClient,
+  SnapbackAppClientPlatform,
+  SnapbackApplicationDescriptorV1,
+  SnapbackAuthFacade,
+} from './app-client.mjs';
+export {
   ARGUMENT_NORMALIZATION_VERSION,
   exactArgumentContract,
   normalizeArgumentsAgainstContractV1,
@@ -530,6 +546,70 @@ export interface AuthCredentialPublicProjectionV1 {
 export interface AuthRecoveryCredentialPublicProjectionV1
   extends AuthCredentialPublicProjectionV1 {
   readonly recoveryCodes: readonly string[];
+}
+
+export type SnapbackAuthRemediation = Readonly<{
+  kind: string;
+  riskClass: string;
+  machineApplicable: boolean;
+  requiresApproval: boolean;
+  authorityEffect: string;
+  precondition: Readonly<Record<string, unknown>>;
+  description: string;
+}>;
+
+export type AuthenticatedCurrentPrincipalSnapshot = Readonly<{
+  status: 'authenticated';
+  userId: string;
+  sessionId: string;
+  sessionClass: 'humanSession' | 'servicePrincipal';
+  provider: string;
+  authorityInstanceId: string;
+  sessionGeneration: number;
+  authorizationStreamIncarnation: string;
+  /** Credential-entry projections carry expiry; a restored session handshake
+   * does not, so these fields remain explicitly unknown until enriched. */
+  expiresAt: number | null;
+  absoluteExpiresAt: number | null;
+}>;
+
+export type CurrentPrincipalSnapshot =
+  | Readonly<{ status: 'loading' }>
+  | Readonly<{
+      status: 'anonymous';
+      authMode: AuthMode;
+      authorizationStreamIncarnation: string;
+      authorityInstanceId: string;
+    }>
+  | AuthenticatedCurrentPrincipalSnapshot
+  | Readonly<{
+      status: 'refreshing';
+      principal: AuthenticatedCurrentPrincipalSnapshot;
+    }>
+  | Readonly<{
+      status: 'blocked';
+      diagnostic: SnapbackDiagnostic;
+      remediations: readonly SnapbackAuthRemediation[];
+    }>;
+
+/** LLP 0238 D6 vocabulary-only projection over the existing flat methods. */
+export interface SnapbackClientAuthNamespace {
+  currentPrincipal(): CurrentPrincipalSnapshot;
+  subscribeCurrentPrincipal(listener: () => void): () => void;
+  readonly authSession: SnapbackClient['authSession'];
+  readonly authRequestCode: SnapbackClient['authRequestCode'];
+  readonly authExchange: SnapbackClient['authExchange'];
+  readonly authPasswordSignup: SnapbackClient['authPasswordSignup'];
+  readonly authPasswordSignIn: SnapbackClient['authPasswordSignIn'];
+  readonly authPasswordChange: SnapbackClient['authPasswordChange'];
+  readonly authPasswordSet: SnapbackClient['authPasswordSet'];
+  readonly authPasswordReset: SnapbackClient['authPasswordReset'];
+  readonly authRecoveryConsume: SnapbackClient['authRecoveryConsume'];
+  readonly authRecoveryRotate: SnapbackClient['authRecoveryRotate'];
+  readonly authRefresh: SnapbackClient['authRefresh'];
+  readonly authLogout: SnapbackClient['authLogout'];
+  readonly authTerminalStatus: SnapbackClient['authTerminalStatus'];
+  readonly subscribeAuthTerminal: SnapbackClient['subscribeAuthTerminal'];
 }
 
 export interface AuthChallengePublicProjectionV1 {
@@ -1464,6 +1544,8 @@ export interface ProgrammaticQueryRegistrationOptions<Args = Record<string, unkn
 
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
+  /** LLP 0238 D6 namespaced projection; flat methods remain compatible. */
+  readonly auth: SnapbackClientAuthNamespace;
   /** This client's bounded, process-local structured diagnostics channel. */
   diagnosticsChannel(): SnapbackClientDiagnosticsChannel;
   /** Final auth/client cleanup. Disposes the diagnostics channel and releases

@@ -99,6 +99,7 @@ export const PACKAGE_TEST_INVENTORIES = [
     suffix: '.test.mjs',
     scriptNames: ['pretest', 'test'],
     expectedFiles: [
+      'app-client.test.mjs',
       'app-data.test.mjs',
       'argument-normalization.test.mjs',
       'argument-validation.test.mjs',
@@ -509,7 +510,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 291,
+  expectedTotal = 292,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -912,6 +913,8 @@ export function checkPackageTestInventories(options = {}) {
 // wrapper suites.
 // 290 -> 291 (2026-08-15, LLP 0239 R3): @expo/snapback-codegen gains the
 // assetCollection declaration/lowering/source-attributed-refusal suite.
+// 291 -> 292 (2026-08-15, LLP 0258 Phase 1 Slice 2): @expo/snapback-client
+// gains the framework-neutral application auth owner/facade conformance suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

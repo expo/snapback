@@ -49,6 +49,11 @@ import {
   isSnapbackDiagnosticError,
   snapbackDiagnosticError,
 } from './diagnostic-error.mjs';
+
+export {
+  DEFAULT_AUTH_STORAGE_PARTITION,
+  createSnapbackAppClient,
+} from './app-client.mjs';
 import {
   SEARCH_REQUEST_ARGS_CONTRACT_GENERATION,
   SEARCH_REQUEST_ARGS_CONTRACT_HASH,
@@ -1870,6 +1875,56 @@ const credentialPublicProjectionWithRecoveryCodes = (credential) => ({
   recoveryCodes: [...credential.recoveryCodes],
 });
 
+const LOADING_CURRENT_PRINCIPAL = Object.freeze({ status: 'loading' });
+
+const currentPrincipalFromSession = (session, credential = null) => {
+  if (session.authority.kind === 'anonymous') {
+    return Object.freeze({
+      status: 'anonymous',
+      authMode: session.activeMode,
+      authorizationStreamIncarnation: session.authorizationStreamIncarnation,
+      authorityInstanceId: session.authorityDescriptor.authorityInstanceId,
+    });
+  }
+  const credentialSession = credential?.session ?? null;
+  return Object.freeze({
+    status: 'authenticated',
+    userId: session.authority.userId,
+    sessionId: session.authority.sessionId,
+    sessionClass: session.authority.kind,
+    provider: credentialSession?.provider ?? session.provider.key,
+    authorityInstanceId: session.authorityDescriptor.authorityInstanceId,
+    sessionGeneration: session.authorityDescriptor.sessionGeneration,
+    authorizationStreamIncarnation: session.authorizationStreamIncarnation,
+    expiresAt: credentialSession?.expiresAt ?? null,
+    absoluteExpiresAt: credentialSession?.absoluteExpiresAt ?? null,
+  });
+};
+
+const currentPrincipalBlocked = (error) => {
+  const causeCode = error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_AUTH_HANDSHAKE_INVALID';
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: causeCode,
+    severity: 'error',
+    message: 'Authentication custody or authority could not settle.',
+    details: Object.freeze({ causeCode }),
+  });
+  return Object.freeze({
+    status: 'blocked',
+    diagnostic,
+    remediations: Object.freeze([Object.freeze({
+      kind: 'retryAuthBootstrap',
+      riskClass: 'mechanical',
+      machineApplicable: true,
+      requiresApproval: false,
+      authorityEffect: 'none',
+      precondition: Object.freeze({ causeCode }),
+      description: 'Retry after repairing the named custody or authority condition.',
+    })]),
+  });
+};
+
 const projectChallengeResponse = (value) => {
   if (
     !exactRecord(value, ['challengeId', 'expiresAt'])
@@ -2619,6 +2674,10 @@ export class SnapbackClient {
     this.__closeAuthPromise = null;
     this.__authTransportGeneration = 0;
     this.__authSessionCapture = null;
+    this.__currentPrincipalSnapshot = LOADING_CURRENT_PRINCIPAL;
+    this.__currentPrincipalPending = LOADING_CURRENT_PRINCIPAL;
+    this.__currentPrincipalListeners = new Set();
+    this.__currentPrincipalPublicationHold = 0;
     this.__authMaterializations = new Set();
     this.__authBarrierParticipants = new Set();
     // Explicit external-bearer custody has no AuthCoordinator to enumerate
@@ -2768,6 +2827,81 @@ export class SnapbackClient {
           },
         }));
     }
+    // LLP 0238 D6 deliberately changes vocabulary only: every method below
+    // remains a bound projection of the existing flat implementation.
+    this.auth = Object.freeze({
+      currentPrincipal: () => this.__currentPrincipalSnapshot,
+      subscribeCurrentPrincipal: (listener) => this.#subscribeCurrentPrincipal(listener),
+      authSession: (...args) => this.authSession(...args),
+      authRequestCode: (...args) => this.authRequestCode(...args),
+      authExchange: (...args) => this.authExchange(...args),
+      authPasswordSignup: (...args) => this.authPasswordSignup(...args),
+      authPasswordSignIn: (...args) => this.authPasswordSignIn(...args),
+      authPasswordChange: (...args) => this.authPasswordChange(...args),
+      authPasswordSet: (...args) => this.authPasswordSet(...args),
+      authPasswordReset: (...args) => this.authPasswordReset(...args),
+      authRecoveryConsume: (...args) => this.authRecoveryConsume(...args),
+      authRecoveryRotate: (...args) => this.authRecoveryRotate(...args),
+      authRefresh: (...args) => this.authRefresh(...args),
+      authLogout: (...args) => this.authLogout(...args),
+      authTerminalStatus: (...args) => this.authTerminalStatus(...args),
+      subscribeAuthTerminal: (...args) => this.subscribeAuthTerminal(...args),
+    });
+  }
+
+  #subscribeCurrentPrincipal(listener) {
+    if (typeof listener !== 'function') {
+      throw new TypeError('subscribeCurrentPrincipal requires a listener function');
+    }
+    this.__currentPrincipalListeners.add(listener);
+    return () => { this.__currentPrincipalListeners.delete(listener); };
+  }
+
+  #notifyCurrentPrincipal() {
+    for (const listener of [...this.__currentPrincipalListeners]) {
+      try { listener(); } catch { /* current-principal observation cannot own auth */ }
+    }
+  }
+
+  #publishCurrentPrincipal(snapshot) {
+    this.__currentPrincipalPending = snapshot;
+    if (this.__currentPrincipalPublicationHold > 0) return;
+    if (this.__currentPrincipalSnapshot === snapshot) return;
+    this.__currentPrincipalSnapshot = snapshot;
+    this.#notifyCurrentPrincipal();
+  }
+
+  #publishCredentialPrincipal(credential, session = this.__authSessionLastSuccessful) {
+    if (!session || !credential?.session) return;
+    this.#publishCurrentPrincipal(currentPrincipalFromSession(session, credential));
+  }
+
+  // Owner-only composition seam used by createSnapbackAppClient. It gates the
+  // D5 initiating context's projection; it never pauses coordinator
+  // participants or changes custody.
+  __withholdCurrentPrincipalPublication() {
+    this.__currentPrincipalPublicationHold += 1;
+    if (this.__currentPrincipalPublicationHold === 1) {
+      this.__currentPrincipalPending = this.__currentPrincipalSnapshot;
+      this.__currentPrincipalSnapshot = this.__currentPrincipalSnapshot.status === 'authenticated'
+        ? Object.freeze({
+            status: 'refreshing',
+            principal: this.__currentPrincipalSnapshot,
+          })
+        : LOADING_CURRENT_PRINCIPAL;
+      this.#notifyCurrentPrincipal();
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.__currentPrincipalPublicationHold -= 1;
+      if (this.__currentPrincipalPublicationHold === 0) {
+        const pending = this.__currentPrincipalPending;
+        this.__currentPrincipalSnapshot = pending;
+        this.#notifyCurrentPrincipal();
+      }
+    };
   }
 
   #ensureAgentTransportParticipant() {
@@ -2886,7 +3020,20 @@ export class SnapbackClient {
   /// diagnostic. Connection and subscribe boundaries request a fresh value.
   // @ref LLP 0058#kit-ordering — no online boundary relies on capability-manifest mode guesses.
   authSession(options = {}) {
-    return this.#authSession(options);
+    return this.#authSession(options).catch((error) => {
+      const code = error?.diagnostic?.code ?? error?.code ?? '';
+      const custodyPrefix = ['SNAPBACK', 'AUTH', 'CUSTODY'].join('_') + '_';
+      const clientAuthPrefix = ['SNAPBACK', 'CLIENT', 'AUTH'].join('_') + '_';
+      if (
+        code.startsWith(custodyPrefix)
+        || code.startsWith(clientAuthPrefix)
+        || code === 'SNAPBACK_AUTH_HANDSHAKE_INVALID'
+        || code === 'SNAPBACK_AUTH_HANDSHAKE_AUTHORITY_MISMATCH'
+      ) {
+        this.#publishCurrentPrincipal(currentPrincipalBlocked(error));
+      }
+      throw error;
+    });
   }
 
   #authSession(
@@ -3254,6 +3401,7 @@ export class SnapbackClient {
     this.__authSessionLastSuccessful = null;
     this.__authSessionInFlight = null;
     this.__authSessionCapture = null;
+    this.#publishCurrentPrincipal(LOADING_CURRENT_PRINCIPAL);
     if (this.__authCounterError) throw this.__authCounterError;
     try {
       this.__authSessionCacheGeneration = safeNextCounter(
@@ -3683,6 +3831,7 @@ export class SnapbackClient {
     this.__authSessionCapture = capture
       ? { authorityEpoch: capture.authorityEpoch, authorityKey: capture.authorityKey }
       : null;
+    this.#publishCurrentPrincipal(currentPrincipalFromSession(session));
     return session;
   }
 
@@ -5639,7 +5788,9 @@ export class SnapbackClient {
     );
     if (current.authority.kind !== 'anonymous') {
       if (sameClientAuthority(current.authority, authority)) {
-        return credentialPublicProjection(response);
+        const projected = credentialPublicProjection(response);
+        this.#publishCredentialPrincipal(projected);
+        return projected;
       }
       throw staleAuthorityError();
     }
@@ -5649,7 +5800,9 @@ export class SnapbackClient {
       refreshAfterMs: response.refreshAfter,
       ...(senderConstraint === null ? {} : { senderConstraint }),
     }, 'login');
-    return credentialPublicProjection(response);
+    const projected = credentialPublicProjection(response);
+    this.#publishCredentialPrincipal(projected);
+    return projected;
   }
 
   #requirePasswordBearerCustody() {
@@ -5709,9 +5862,11 @@ export class SnapbackClient {
     );
     if (current.authority.kind !== 'anonymous') {
       if (sameClientAuthority(current.authority, authority)) {
-        return recoveryCodes
+        const projected = recoveryCodes
           ? credentialPublicProjectionWithRecoveryCodes(response)
           : credentialPublicProjection(response);
+        this.#publishCredentialPrincipal(projected);
+        return projected;
       }
       throw staleAuthorityError();
     }
@@ -5720,9 +5875,11 @@ export class SnapbackClient {
       bearer: response.token,
       refreshAfterMs: response.refreshAfter,
     }, 'login');
-    return recoveryCodes
+    const projected = recoveryCodes
       ? credentialPublicProjectionWithRecoveryCodes(response)
       : credentialPublicProjection(response);
+    this.#publishCredentialPrincipal(projected);
+    return projected;
   }
 
   async #authPasswordCredentialRotation({
@@ -5777,7 +5934,9 @@ export class SnapbackClient {
       },
     );
     if (!outcome.rotated) throw staleAuthorityError();
+    const session = this.__authSessionLastSuccessful;
     this.clearAuthSession();
+    this.#publishCredentialPrincipal(outcome.value, session);
     return outcome.value;
   }
 
@@ -5940,7 +6099,9 @@ export class SnapbackClient {
         if (successor) return { superseded: true };
         throw staleAuthorityError();
       }
+      const session = this.__authSessionLastSuccessful;
       this.clearAuthSession();
+      this.#publishCredentialPrincipal(outcome.value, session);
       return outcome.value;
     } catch (error) {
       const errorCode = error?.diagnostic?.code ?? error?.code;
@@ -6032,7 +6193,9 @@ export class SnapbackClient {
         if (successor) return { superseded: true };
         throw staleAuthorityError();
       }
+      const session = this.__authSessionLastSuccessful;
       this.clearAuthSession();
+      this.#publishCredentialPrincipal(outcome.value, session);
       return outcome.value;
     } catch (error) {
       const errorCode = error?.diagnostic?.code ?? error?.code;
