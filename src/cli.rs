@@ -8375,7 +8375,7 @@ async fn run_composed(
     }
     validate_path_disjointness(&managed_paths)?;
 
-    // @ref LLP 0262#d1-custody-model-sidecar-primary-environment-fallback —
+    // @ref LLP 0262#d1-the-dev-identity-capability —
     // production never mints or consumes the developer-identity capability;
     // even a stale anchor is an operator-visible startup refusal.
     if startup_profile == ServerProfile::Prod {
@@ -8634,7 +8634,7 @@ async fn run_composed(
         } else {
             (None, None)
         };
-    // @ref LLP 0262#d1-custody-model-sidecar-primary-environment-fallback —
+    // @ref LLP 0262#d1-the-dev-identity-capability —
     // one startup-nonce-bound capability is minted for every non-production
     // serve boot and handed off on the same anchor ladder as the admin token.
     let (dev_identity_capabilities, dev_identity_operator) = if server_context.profile

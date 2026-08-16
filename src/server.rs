@@ -30099,7 +30099,7 @@ fn handle_live_socket_text_authorized(
         && !effect_context.dev_identity_witnessed
         && let Some(registry) = effect_context.dev_identity_capabilities
     {
-        // @ref LLP 0262#d5-staged-rollout-sequencing — stage 1 records the
+        // @ref LLP 0262#d5-rollout-stages — stage 1 records the
         // connection witness and warns once, but accepts an unwitnessed dev
         // identity frame until the explicit enforcement stage lands.
         registry.warn_unwitnessed_assertion_once();

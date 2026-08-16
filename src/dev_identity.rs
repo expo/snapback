@@ -107,7 +107,7 @@ impl DevIdentityCapabilityRegistry {
     /// without the capability, but make the migration debt visible exactly
     /// once for this boot. No asserted identity or bearer material is logged.
     ///
-    /// @ref LLP 0262#d5-staged-rollout-sequencing — stage 1 warns once per
+    /// @ref LLP 0262#d5-rollout-stages — stage 1 warns once per
     ///   boot for absent capability instead of refusing the request.
     pub fn warn_unwitnessed_assertion_once(&self) -> bool {
         if self
