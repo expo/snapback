@@ -32,6 +32,67 @@ const ASSET_CUT_DIGEST_DOMAIN: &[u8] = b"snapback:asset-cut:v1\n";
 pub const ASSET_CUT_MANIFEST_FILE: &str = "asset-cut.manifest.json";
 pub const ASSET_CUT_BLOB_DIR: &str = "blobs/sha256";
 
+fn manifest_invalid(message: impl Into<String>) -> SnapbackError {
+    cut_error("SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID", message)
+}
+
+/// Resolve one manifest blob path without letting the manifest select a file
+/// outside the cut. The lexical spelling is closed before any target is
+/// inspected; canonicalization then catches symlink escapes before callers
+/// open or hash the object.
+///
+/// @ref LLP 0044#consistent-cut-exportimport-dated-design-addition-2026-07-31 —
+/// refuse-partial verification covers only the cut's digest-addressed blob
+/// objects, never arbitrary host files named by an import manifest.
+pub(crate) fn resolve_import_blob_path(
+    dir: &std::path::Path,
+    object_path: &str,
+) -> SnapbackResult<std::path::PathBuf> {
+    let relative = std::path::Path::new(object_path);
+    let digest = object_path.strip_prefix("blobs/sha256/").ok_or_else(|| {
+        manifest_invalid("blob object path must use the blobs/sha256/<digest> spelling")
+    })?;
+    if relative.as_os_str().is_empty()
+        || relative.is_absolute()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+        || digest.len() != 64
+        || !digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(manifest_invalid(
+            "blob object path must be blobs/sha256/ followed by 64 lowercase hexadecimal characters",
+        ));
+    }
+
+    let root = std::fs::canonicalize(dir).map_err(|_| {
+        cut_error(
+            "SNAPBACK_ASSET_IMPORT_INCOMPLETE",
+            "cut directory could not be resolved",
+        )
+    })?;
+    let joined = dir.join(relative);
+    let resolved = std::fs::canonicalize(&joined).map_err(|_| {
+        cut_error(
+            "SNAPBACK_ASSET_IMPORT_INCOMPLETE",
+            format!("blob object {object_path} is missing"),
+        )
+    })?;
+    if !resolved.starts_with(&root) {
+        return Err(manifest_invalid(
+            "blob object path resolves outside the cut directory",
+        ));
+    }
+    Ok(resolved)
+}
+
 /// One exported asset: the record plus the ready renditions that carry its
 /// content. Only `ready` assets appear here; everything else is transient
 /// or a tombstone.
@@ -333,7 +394,7 @@ pub fn validate_export_dir(dir: &std::path::Path) -> SnapbackResult<AssetCutMani
                 format!("unsupported digest algorithm {}", blob.digest_algorithm),
             ));
         }
-        let path = dir.join(&blob.object_path);
+        let path = resolve_import_blob_path(dir, &blob.object_path)?;
         if !path.is_file() {
             return Err(cut_error(
                 "SNAPBACK_ASSET_IMPORT_INCOMPLETE",
@@ -444,6 +505,103 @@ mod tests {
             err.diagnostic.code,
             "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID"
         );
+    }
+
+    fn write_manifest(dir: &std::path::Path, manifest: &mut AssetCutManifestV1) {
+        manifest.manifest_digest = cut_manifest_digest(manifest).expect("manifest digest");
+        std::fs::write(
+            dir.join(ASSET_CUT_MANIFEST_FILE),
+            serde_json::to_string(manifest).expect("encode manifest"),
+        )
+        .expect("write manifest");
+    }
+
+    fn manifest_with_blob(object_path: &str, digest: &str, byte_length: u64) -> AssetCutManifestV1 {
+        let mut manifest = manifest_fixture();
+        manifest.blobs.push(AssetCutBlobV1 {
+            blob_id: "blob-1".to_owned(),
+            digest_algorithm: ASSET_DIGEST_ALGORITHM_SHA256.to_owned(),
+            digest: digest.to_owned(),
+            byte_length,
+            detected_content_type: "application/octet-stream".to_owned(),
+            canonicalization_policy: "identity".to_owned(),
+            object_path: object_path.to_owned(),
+        });
+        manifest
+    }
+
+    #[test]
+    fn validate_export_dir_refuses_traversal_and_absolute_blob_paths_before_read() {
+        for object_path in ["../etc/passwd", "/etc/passwd"] {
+            let dir = tempfile::tempdir().expect("tempdir");
+            let mut manifest = manifest_with_blob(object_path, &"0".repeat(64), 0);
+            write_manifest(dir.path(), &mut manifest);
+
+            let error = validate_export_dir(dir.path()).expect_err("unsafe path must refuse");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID"
+            );
+            assert!(
+                !error
+                    .diagnostic
+                    .message
+                    .contains("does not match the manifest")
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn validate_export_dir_refuses_symlink_escape_without_hashing_target() {
+        use sha2::Digest as _;
+        use std::os::unix::fs::symlink;
+
+        let scratch = tempfile::tempdir().expect("scratch");
+        let cut = scratch.path().join("cut");
+        std::fs::create_dir_all(cut.join(ASSET_CUT_BLOB_DIR)).expect("blob directory");
+        let outside = scratch.path().join("outside-secret");
+        let outside_bytes = b"outside bytes must never be hashed";
+        std::fs::write(&outside, outside_bytes).expect("outside file");
+        let observed_digest = format!("{:x}", sha2::Sha256::digest(outside_bytes));
+        let digest = "a".repeat(64);
+        let object_path = format!("{ASSET_CUT_BLOB_DIR}/{digest}");
+        symlink(&outside, cut.join(&object_path)).expect("escape symlink");
+        let mut manifest = manifest_with_blob(&object_path, &digest, 999_999);
+        write_manifest(&cut, &mut manifest);
+
+        let error = validate_export_dir(&cut).expect_err("symlink escape must refuse");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID"
+        );
+        assert_eq!(
+            error.diagnostic.message,
+            "blob object path resolves outside the cut directory"
+        );
+        assert!(!error.diagnostic.message.contains(&observed_digest));
+        assert!(
+            !error
+                .diagnostic
+                .message
+                .contains(&outside_bytes.len().to_string())
+        );
+    }
+
+    #[test]
+    fn validate_export_dir_accepts_canonical_digest_object_path() {
+        use sha2::Digest as _;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let bytes = b"valid cut object";
+        let digest = format!("{:x}", sha2::Sha256::digest(bytes));
+        let object_path = format!("{ASSET_CUT_BLOB_DIR}/{digest}");
+        std::fs::create_dir_all(dir.path().join(ASSET_CUT_BLOB_DIR)).expect("blob directory");
+        std::fs::write(dir.path().join(&object_path), bytes).expect("blob object");
+        let mut manifest = manifest_with_blob(&object_path, &digest, bytes.len() as u64);
+        write_manifest(dir.path(), &mut manifest);
+
+        validate_export_dir(dir.path()).expect("canonical object path verifies");
     }
 }
 

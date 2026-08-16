@@ -8793,7 +8793,10 @@ impl LocalSnapback {
         // that is not durably present.
         let mut fresh_keys = Vec::with_capacity(manifest.blobs.len());
         for entry in &manifest.blobs {
-            let bytes = std::fs::read(dir.join(&entry.object_path)).map_err(|error| {
+            // Re-resolve immediately before the apply read so validation-only
+            // and apply share the same lexical and symlink confinement.
+            let path = cut::resolve_import_blob_path(&dir, &entry.object_path)?;
+            let bytes = std::fs::read(path).map_err(|error| {
                 SnapbackError::error(
                     "SNAPBACK_ASSET_IMPORT_INCOMPLETE",
                     "assets",
@@ -18123,26 +18126,32 @@ impl LocalSnapback {
         });
         let _publication = admission.effect_guard("config verification publication")?;
         let record = match result {
-            Ok(value) => {
-                let ok = value.get("ok").and_then(Value::as_bool).unwrap_or(true);
-                let diagnostic = if ok {
-                    None
-                } else {
-                    Some(
+            Ok(value) => match value.get("ok").and_then(Value::as_bool) {
+                Some(true) => VerificationRecord {
+                    ok: true,
+                    at_ms,
+                    diagnostic: None,
+                },
+                Some(false) => VerificationRecord {
+                    ok: false,
+                    at_ms,
+                    diagnostic: Some(
                         self.config.redact_text(
                             value
                                 .get("message")
                                 .and_then(Value::as_str)
                                 .unwrap_or("probe reported failure"),
                         ),
-                    )
-                };
-                VerificationRecord {
-                    ok,
+                    ),
+                },
+                None => VerificationRecord {
+                    ok: false,
                     at_ms,
-                    diagnostic,
-                }
-            }
+                    diagnostic: Some(
+                        "probe did not return the closed { ok: boolean } result shape".to_owned(),
+                    ),
+                },
+            },
             Err(error) => {
                 let error = self.config.redact_diagnostic(error.diagnostic);
                 VerificationRecord {

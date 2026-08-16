@@ -20894,6 +20894,85 @@ fn config_verify_admission_precedes_cooldown_and_retirement_suppresses_finish() 
 }
 
 #[test]
+fn config_verify_requires_closed_ok_boolean_shape() {
+    for malformed in [
+        json!({}),
+        json!({ "message": "nope" }),
+        json!({ "ok": "true" }),
+    ] {
+        let mut snapback = config_verify_gate_snapback();
+        let revision = snapback
+            .config
+            .entry_revision("gateKey")
+            .expect("entry revision");
+        let admission = snapback.admission.admit().expect("admission");
+        let outcome = snapback
+            .finish_config_verify("gateKey", revision, 100, Ok(malformed), admission)
+            .expect("malformed probe result records a closed failure");
+        assert!(!outcome.ok);
+        assert!(!outcome.verified.ok);
+        assert_eq!(
+            snapback
+                .config
+                .entry("gateKey")
+                .and_then(|entry| entry.verified.as_ref())
+                .and_then(|record| record.diagnostic.as_deref()),
+            Some("probe did not return the closed { ok: boolean } result shape"),
+        );
+    }
+
+    let mut succeeded = config_verify_gate_snapback();
+    let revision = succeeded
+        .config
+        .entry_revision("gateKey")
+        .expect("entry revision");
+    let admission = succeeded.admission.admit().expect("admission");
+    let outcome = succeeded
+        .finish_config_verify(
+            "gateKey",
+            revision,
+            200,
+            Ok(json!({ "ok": true })),
+            admission,
+        )
+        .expect("boolean true records success");
+    assert!(outcome.ok);
+    assert!(
+        succeeded
+            .config
+            .entry("gateKey")
+            .and_then(|entry| entry.verified.as_ref())
+            .and_then(|record| record.diagnostic.as_ref())
+            .is_none()
+    );
+
+    let mut failed = config_verify_gate_snapback();
+    let revision = failed
+        .config
+        .entry_revision("gateKey")
+        .expect("entry revision");
+    let admission = failed.admission.admit().expect("admission");
+    let outcome = failed
+        .finish_config_verify(
+            "gateKey",
+            revision,
+            300,
+            Ok(json!({ "ok": false, "message": "nope secret" })),
+            admission,
+        )
+        .expect("boolean false records failure");
+    assert!(!outcome.ok);
+    assert_eq!(
+        failed
+            .config
+            .entry("gateKey")
+            .and_then(|entry| entry.verified.as_ref())
+            .and_then(|record| record.diagnostic.as_deref()),
+        Some("nope [REDACTED]"),
+    );
+}
+
+#[test]
 fn legacy_local_and_read_lane_apis_reject_settled_sessions_mode() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     snapback
