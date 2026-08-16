@@ -252,6 +252,16 @@ export function launchExpoNativeCheckout(
   carrier: 'ios-simctl-environment' | 'android-adb-activity-extra';
 }> | null;
 
+export function shouldLaunchExpoNativeCheckout(
+  plan: ExpoRoutingPlan,
+  options?: Readonly<{
+    /** Explicit protocol opt-in while the first-party native reader is absent. */
+    nativeCheckout?: boolean;
+    /** Test-only command runner; its presence opts protocol tests into launch. */
+    nativeLaunchRun?: (...args: any[]) => any;
+  }>,
+): boolean;
+
 export function enumerateExpoOwnedListeners(options: Readonly<{
   backendPid: number;
   metroPid: number;
@@ -286,7 +296,14 @@ export interface ExpoDevSupervisor {
   close(): Promise<void>;
 }
 
-export function runExpoDev(options?: Readonly<Record<string, unknown>>): Promise<ExpoDevSupervisor>;
+export interface RunExpoDevOptions extends Readonly<Record<string, unknown>> {
+  /** Explicit protocol opt-in while the first-party native reader is absent. */
+  readonly nativeCheckout?: boolean;
+  /** Test-only command runner; its presence opts protocol tests into launch. */
+  readonly nativeLaunchRun?: (...args: any[]) => any;
+}
+
+export function runExpoDev(options?: RunExpoDevOptions): Promise<ExpoDevSupervisor>;
 
 export declare function resolveExpoMetroCommand(
   command: unknown,

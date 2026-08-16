@@ -1022,6 +1022,21 @@ export function launchExpoNativeCheckout(plan, nonce, {
   });
 }
 
+// The first-party native reader does not exist yet
+// (issues/20260816-0262-expo-native-checkout-reader.md). Keep ordinary
+// supervised sessions as the unconditional path: only an explicit protocol
+// opt-in, or the typed test runner hook, may issue a nonce and invoke the
+// destructive native launch commands above.
+export function shouldLaunchExpoNativeCheckout(plan, {
+  nativeCheckout = false,
+  nativeLaunchRun,
+} = {}) {
+  const nativeTarget = plan?.platform === 'ios'
+    || (plan?.platform === 'android' && plan?.transport === 'adb-reverse');
+  return nativeTarget
+    && (nativeCheckout === true || typeof nativeLaunchRun === 'function');
+}
+
 function processTable() {
   const result = spawnSync('/bin/ps', ['-axo', 'pid=,ppid='], { encoding: 'utf8' });
   if (result.error || result.status !== 0) {
@@ -1663,10 +1678,13 @@ export async function runExpoDev(options = {}) {
           }
           descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
           // A backend restart rotates startupNonce and the dev-identity
-          // sidecar. Stage 1 deliberately strands the already-running app;
-          // automatic native re-checkout is stage-2 polish.
+          // sidecar, so both the pending delivery and every issued nonce are
+          // invalid. Re-delivery after rotation arrives with the first-party
+          // native reader tracked in
+          // issues/20260816-0262-expo-native-checkout-reader.md.
           checkoutRegistry?.invalidate();
           checkoutNonce = null;
+          nativeCheckoutLaunch = null;
           route = createExpoRoutingPlan({
             platform: options.platform ?? 'ios',
             backendPort: backendRoute.port,
@@ -1755,11 +1773,7 @@ export async function runExpoDev(options = {}) {
       now: options.now?.() ?? Date.now(),
       ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
     });
-    const shouldLaunchNativeCheckout = (
-      route.platform === 'ios'
-      || (route.platform === 'android' && route.transport === 'adb-reverse')
-    )
-      && (options.metroCommand === undefined || typeof options.nativeLaunchRun === 'function');
+    const shouldLaunchNativeCheckout = shouldLaunchExpoNativeCheckout(route, options);
     if (shouldLaunchNativeCheckout) {
       checkoutNonce = checkoutRegistry.issue({
         platform: route.platform,

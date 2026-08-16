@@ -18,6 +18,7 @@ export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV: 'SNAPBACK_EXPO_DEV_IDENTITY_C
 
 export function resolveSupervisedDevIdentityCheckoutNonce(options?: Readonly<{
   runtimePlatform?: 'native' | 'web';
+  /** Protocol-test injection until the first-party native reader lands. */
   nativeLaunchEnvironment?: Readonly<Record<string, string | undefined>> | null;
 }>): string | null;
 
@@ -93,6 +94,7 @@ export function createSupervisedExpoEnvironment(options?: Readonly<{
   developmentSync?: false | Readonly<Record<string, unknown>>;
   clientOptions?: SnapbackClientOptions;
   runtimePlatform?: 'native' | 'web';
+  /** Protocol-test injection until the first-party native reader lands. */
   nativeLaunchEnvironment?: Readonly<Record<string, string | undefined>> | null;
   bindingCache?: SupervisedBindingCache | null;
   onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;

@@ -12,8 +12,8 @@ import {
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = supervisedExchangePath();
 export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH = supervisedDevIdentityCheckoutPath();
-export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER = 'x-snapback-dev-identity-checkout';
-export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER = supervisedDevIdentityCheckoutHeader();
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = supervisedDevIdentityCheckoutEnvironment();
 
 function supervisedExchangePath() {
   // @ref LLP 0181#package-contract — release exports must not retain the supervised
@@ -29,6 +29,20 @@ function supervisedDevIdentityCheckoutPath() {
   // not retain the local native checkout endpoint vocabulary.
   if (process.env.NODE_ENV !== 'production') {
     return '/_snapback/expo/v1/dev-identity-checkout';
+  }
+  return '';
+}
+
+function supervisedDevIdentityCheckoutHeader() {
+  if (process.env.NODE_ENV !== 'production') {
+    return 'x-snapback-dev-identity-checkout';
+  }
+  return '';
+}
+
+function supervisedDevIdentityCheckoutEnvironment() {
+  if (process.env.NODE_ENV !== 'production') {
+    return 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
   }
   return '';
 }
@@ -108,9 +122,10 @@ function inferredRuntimePlatform() {
 }
 
 // @ref LLP 0262#d2-carriers-per-shipped-topology — only a native runtime may
-// read the non-public launch environment/Activity-extra bridge. A web runtime
-// ignores even a same-named process variable, keeping the checkout unreachable
-// from Expo web.
+// read the non-public launch environment/Activity-extra bridge. The hook is a
+// protocol seam today: no first-party native reader installs it yet (tracked
+// in issues/20260816-0262-expo-native-checkout-reader.md). A web runtime ignores
+// even a same-named process variable, keeping checkout unreachable from web.
 export function resolveSupervisedDevIdentityCheckoutNonce({
   runtimePlatform = inferredRuntimePlatform(),
   nativeLaunchEnvironment = null,
@@ -303,7 +318,9 @@ export function createSupervisedExpoEnvironment({
   const exchanges = new Map();
   const offlineFallbacks = new Map();
   let adopted = null;
+  let devIdentityCapability = undefined;
   let devIdentityCapabilityPromise = null;
+  let devIdentityCheckoutWarningLogged = false;
 
   const retainExchange = (key, exchange, signal) => {
     exchanges.set(key, exchange);
@@ -399,24 +416,51 @@ export function createSupervisedExpoEnvironment({
     return validateExchange(await response.json());
   };
 
-  const resolveDevIdentityCapability = (signal) => {
-    if (devIdentityCapabilityPromise !== null) return devIdentityCapabilityPromise;
-    let checkoutNonce = resolveSupervisedDevIdentityCheckoutNonce({
-      ...(runtimePlatform === undefined ? {} : { runtimePlatform }),
-      ...(nativeLaunchEnvironment === undefined ? {} : { nativeLaunchEnvironment }),
+  const logConsumedCheckoutOnce = (status) => {
+    if (devIdentityCheckoutWarningLogged) return;
+    devIdentityCheckoutWarningLogged = true;
+    const warning = Object.freeze({
+      schemaVersion: 'snapback.client-diagnostic.v1',
+      code: 'SNAPBACK_EXPO_NATIVE_CHECKOUT_UNAVAILABLE',
+      severity: 'warning',
+      message: 'Native dev-identity checkout was unavailable; continuing with the ordinary supervised session.',
+      details: Object.freeze({
+        cause: 'checkout-consumed-or-refused',
+        status,
+      }),
     });
-    if (checkoutNonce === null) return Promise.resolve(null);
-    devIdentityCapabilityPromise = (async () => {
-      const origin = normalizedExchangeOrigin(exchangeOrigin);
-      if (origin === null || typeof fetchImplementation !== 'function') {
-        throw codedError(
-          'SNAPBACK_DEV_IDENTITY_REFUSED',
-          'The supervised native dev-identity checkout was refused.',
-        );
-      }
-      let response;
+    try {
+      if (typeof onDiagnostic === 'function') onDiagnostic(warning);
+      else globalThis.console?.warn?.(`[warning] ${warning.code}: ${warning.message}`);
+    } catch {
+      // Local diagnostics are observational and cannot disturb adoption.
+    }
+  };
+
+  const resolveDevIdentityCapability = (signal) => {
+    if (devIdentityCapability !== undefined) return Promise.resolve(devIdentityCapability);
+    if (devIdentityCapabilityPromise !== null) return devIdentityCapabilityPromise;
+    let resolvedCheckoutNonce;
+    try {
+      resolvedCheckoutNonce = resolveSupervisedDevIdentityCheckoutNonce({
+        ...(runtimePlatform === undefined ? {} : { runtimePlatform }),
+        ...(nativeLaunchEnvironment === undefined ? {} : { nativeLaunchEnvironment }),
+      });
+    } catch {
+      // A malformed host bridge remains optional enrichment. Keep the slot
+      // empty so a later lifecycle attempt can retry after host repair.
+      return Promise.resolve(null);
+    }
+    if (resolvedCheckoutNonce === null) {
+      devIdentityCapability = null;
+      return Promise.resolve(null);
+    }
+    let checkoutNonce = resolvedCheckoutNonce;
+    const attempt = (async () => {
       try {
-        response = await fetchImplementation(`${origin}${SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH}`, {
+        const origin = normalizedExchangeOrigin(exchangeOrigin);
+        if (origin === null || typeof fetchImplementation !== 'function') return null;
+        const response = await fetchImplementation(`${origin}${SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH}`, {
           method: 'POST',
           cache: 'no-store',
           headers: {
@@ -425,32 +469,50 @@ export function createSupervisedExpoEnvironment({
           },
           signal,
         });
-      } catch (cause) {
-        const error = codedError(
-          'SNAPBACK_DEV_IDENTITY_REFUSED',
-          'The supervised native dev-identity checkout was refused.',
-        );
-        error.cause = cause;
-        throw error;
+        if (response.status === 403) {
+          devIdentityCapability = null;
+          logConsumedCheckoutOnce(response.status);
+          return null;
+        }
+        if (!response.ok) return null;
+        let payload;
+        try {
+          payload = await response.json();
+        } catch {
+          // A body-read abort/failure remains retryable. If the server already
+          // consumed the one-shot, the retry will receive the definitive 403
+          // handled above and become a permanent sessions-only result.
+          return null;
+        }
+        if (
+          payload?.ok === true
+          && nonEmptyString(payload.devIdentityCapability)
+          && payload.devIdentityCapability.startsWith('sbdev_')
+        ) {
+          devIdentityCapability = payload.devIdentityCapability;
+          return devIdentityCapability;
+        }
+        // A successful checkout response with an invalid capability has
+        // consumed the one-shot. Do not retry it for this JS boot; keep the
+        // ordinary supervised session and report the local degradation once
+        // without projecting nonce or bearer bytes.
+        devIdentityCapability = null;
+        logConsumedCheckoutOnce(response.status);
+        return null;
+      } catch {
+        // Abort and transport failures cannot outrank the ordinary supervised
+        // session. Leave the fulfilled cache unset so a later lifecycle call
+        // may retry the same startup nonce.
+        return null;
       } finally {
         checkoutNonce = null;
       }
-      let payload;
-      try { payload = await response.json(); } catch { payload = null; }
-      if (
-        !response.ok
-        || payload?.ok !== true
-        || !nonEmptyString(payload.devIdentityCapability)
-        || !payload.devIdentityCapability.startsWith('sbdev_')
-      ) {
-        throw codedError(
-          'SNAPBACK_DEV_IDENTITY_REFUSED',
-          'The supervised native dev-identity checkout was refused.',
-        );
-      }
-      return payload.devIdentityCapability;
     })();
-    return devIdentityCapabilityPromise;
+    devIdentityCapabilityPromise = attempt;
+    void attempt.then(() => {
+      if (devIdentityCapabilityPromise === attempt) devIdentityCapabilityPromise = null;
+    });
+    return attempt;
   };
 
   const clientOptionsWithDevIdentity = async (signal) => {

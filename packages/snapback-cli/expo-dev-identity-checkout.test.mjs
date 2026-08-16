@@ -12,6 +12,7 @@ import {
   createExpoRoutingPlan,
   expoMetroChildEnvironment,
   launchExpoNativeCheckout,
+  shouldLaunchExpoNativeCheckout,
   startBootstrapExchange,
 } from './expo-dev.mjs';
 import {
@@ -109,6 +110,13 @@ try {
   const rotated = await redeem(nonce);
   assert.equal(rotated.status, 403);
 
+  registry.issue({ platform: 'android', device: { class: 'emulator' } });
+  assert.equal(registry.pending, 1);
+  registry.invalidate();
+  assert.equal(registry.pending, 0, 'backend rotation clears every issued nonce');
+  const invalidated = await redeem(nonce);
+  assert.equal(invalidated.status, 403);
+
   // Proof (d): inherited checkout state is stripped before Metro constructs
   // the web-visible environment; no EXPO_PUBLIC_* value contains the nonce.
   const metroEnvironment = expoMetroChildEnvironment({
@@ -132,6 +140,35 @@ try {
   const ios = createExpoRoutingPlan({
     platform: 'ios', backendPort: 4101, metroPort: 4102, bootstrapPort: 4103,
   });
+  assert.equal(
+    shouldLaunchExpoNativeCheckout(ios),
+    false,
+    'ordinary sessions never issue or launch native checkout by default',
+  );
+  assert.equal(
+    shouldLaunchExpoNativeCheckout(ios, {
+      metroCommand: { command: 'custom-expo' },
+    }),
+    false,
+    '--expo-command does not implicitly opt into native checkout',
+  );
+  assert.equal(
+    shouldLaunchExpoNativeCheckout(ios, {
+      nativeCheckout: true,
+      metroCommand: { command: 'custom-expo' },
+    }),
+    true,
+    'explicit checkout opt-in is coherent with --expo-command',
+  );
+  assert.equal(
+    shouldLaunchExpoNativeCheckout(ios, { nativeLaunchRun: run }),
+    true,
+    'the typed test runner remains an explicit protocol-test opt-in',
+  );
+
+  // Protocol-only command-construction tests. The first-party native reader
+  // that will consume these channels is tracked separately and is not claimed
+  // by this stage-1 lane.
   const iosLaunch = launchExpoNativeCheckout(ios, nonce, { run, env: {} });
   assert.equal(iosLaunch.carrier, 'ios-simctl-environment');
   assert.deepEqual(launchCalls[0].args.slice(0, 3), [
@@ -149,6 +186,11 @@ try {
     bootstrapPort: 4203,
     androidSerial: 'emulator-5554',
   });
+  assert.equal(shouldLaunchExpoNativeCheckout(android), false);
+  assert.equal(
+    shouldLaunchExpoNativeCheckout(android, { nativeCheckout: true }),
+    true,
+  );
   const androidLaunch = launchExpoNativeCheckout(android, nonce, { run, env: {} });
   assert.equal(androidLaunch.carrier, 'android-adb-activity-extra');
   assert.deepEqual(launchCalls[1].args.slice(0, 6), [
@@ -161,10 +203,14 @@ try {
   const web = createExpoRoutingPlan({
     platform: 'web', backendPort: 4301, metroPort: 4302, bootstrapPort: 4303,
   });
+  assert.equal(
+    shouldLaunchExpoNativeCheckout(web, { nativeCheckout: true, nativeLaunchRun: run }),
+    false,
+  );
   assert.equal(launchExpoNativeCheckout(web, nonce, { run, env: {} }), null);
   assert.equal(launchCalls.length, 2, 'Expo web has no native checkout launch channel');
 
-  console.log('expo-dev-identity-checkout.test.mjs: bootstrap secrecy, generic refusal, one-shot redemption, web isolation, and native launch carriers pass');
+  console.log('expo-dev-identity-checkout.test.mjs: default-off issuance, bootstrap secrecy, one-shot/rotation invalidation, web isolation, and opt-in native launch construction pass');
 } finally {
   await exchange.close();
   rmSync(scratch, { recursive: true, force: true });

@@ -9,12 +9,15 @@ const forbiddenVocabulary = [
   '/_snapback/expo/v1/bootstrap',
   'localhost',
   '10.0.2.2',
+  '/_snapback/expo/v1/dev-identity-checkout',
+  'x-snapback-dev-identity-checkout',
+  'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE',
   '__SNAPBACK_EXPO_SUPERVISOR_ORIGIN__',
   '10.0.2',
   '[::1]',
   '127(?:',
 ];
-const g4Vocabulary = forbiddenVocabulary.slice(0, 4);
+const g4Vocabulary = forbiddenVocabulary.slice(0, 7);
 
 async function bundle({ nodeEnv, minify }) {
   const result = await build({

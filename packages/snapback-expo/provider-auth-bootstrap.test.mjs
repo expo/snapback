@@ -14,6 +14,14 @@ import {
   APPLICATION_AUTH_BOOTSTRAP_CAPABILITY,
   createSnapbackExpoBoot,
 } from './provider.mjs';
+import {
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV,
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER,
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH,
+  SUPERVISED_EXCHANGE_FORMAT,
+  SUPERVISED_EXCHANGE_PATH,
+  createSupervisedExpoEnvironment,
+} from './supervised-environment.mjs';
 
 const USER_A = '018f0d90-9c20-7a22-8c33-445566778899';
 const USER_B = '018f0d90-9c21-7a22-8c33-445566778899';
@@ -261,14 +269,11 @@ await seeded.auth.signInWithPassword({ email: 'application@example.com', passwor
 await seeded.dispose();
 seeded = null;
 
-const devIdentityCapability = 'sbdev_provider_plumbing_test';
 const supervisor = {
   bearer: SUPERVISED_BEARER,
-  clientOptions: Object.freeze({ devIdentityCapability }),
   events: [],
   diagnostics: [],
 };
-const supervisedAdoptionInputs = [];
 const boot = createSnapbackExpoBoot({
   app,
   environment: environmentFor(platform, supervisor),
@@ -280,10 +285,6 @@ const boot = createSnapbackExpoBoot({
   },
   createProvider: fakeReactProvider,
   bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
-  async adoptSupervisedAuthority(appClient, input) {
-    supervisedAdoptionInputs.push(input);
-    return adoptSupervisedBootstrapAuthority(appClient, input);
-  },
 });
 const bootStates = [];
 boot.subscribe(() => bootStates.push(boot.getSnapshot()));
@@ -298,11 +299,6 @@ assert.deepEqual(ready.advisories.map(({ diagnostic }) => diagnostic.code), [
   'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT',
 ]);
 assert.equal(boot.appClient().auth.currentPrincipal().userId, USER_A);
-assert.deepEqual(
-  supervisedAdoptionInputs[0]?.clientOptions,
-  { devIdentityCapability },
-  'supervised dev-identity custody is forwarded only through the client-option seam',
-);
 assert.deepEqual(
   bootStates
     .filter(({ status }) => status === 'starting')
@@ -346,6 +342,46 @@ assert.equal(boot.appClient().auth.currentPrincipal().userId, USER_A);
 assert.equal(applicationConflict.advisories[0].diagnostic.code,
   'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT');
 await boot.dispose();
+
+// Protocol-only injected client-options test. The ordinary lifecycle above
+// uses the default sessions-only environment; this focused seam test preserves
+// coverage for the future first-party native reader without pretending that
+// the reader exists today.
+const devIdentityCapability = 'sbdev_provider_plumbing_test';
+const carrierProtocolPlatform = Object.freeze({
+  ...platform,
+  databaseName: 'snapback-expo-auth-bootstrap-carrier-protocol-test',
+});
+const carrierProtocolSupervisor = {
+  bearer: SUPERVISED_BEARER,
+  clientOptions: Object.freeze({ devIdentityCapability }),
+  events: [],
+  diagnostics: [],
+};
+const carrierProtocolAdoptionInputs = [];
+const carrierProtocolBoot = createSnapbackExpoBoot({
+  app,
+  environment: environmentFor(carrierProtocolPlatform, carrierProtocolSupervisor),
+  now: () => Date.parse('2026-08-15T12:30:00.000Z'),
+  async createApplicationClient(input, observer) {
+    const appClient = await createSnapbackAppClientWithBootstrapObserver(input, observer);
+    appClient.client.prepareReactBinding = async () => ({ source: 'deployment' });
+    return appClient;
+  },
+  createProvider: fakeReactProvider,
+  bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
+  async adoptSupervisedAuthority(appClient, input) {
+    carrierProtocolAdoptionInputs.push(input);
+    return adoptSupervisedBootstrapAuthority(appClient, input);
+  },
+});
+assert.equal((await carrierProtocolBoot.start()).status, 'ready');
+assert.deepEqual(
+  carrierProtocolAdoptionInputs[0]?.clientOptions,
+  { devIdentityCapability },
+  'the future native-reader result crosses only the internal client-option seam',
+);
+await carrierProtocolBoot.dispose();
 
 const anonymousPlatform = Object.freeze({
   ...platform,
@@ -396,6 +432,97 @@ assert.equal(
 );
 await anonymousBoot.dispose();
 
+// New regression: a server-side one-shot refusal must never outrank adoption
+// of the ordinary supervised session. This uses the resolver's default native
+// environment path; the global installation models the missing reader and is
+// intentionally confined to this protocol test.
+const failedCheckoutNonce = `failed-checkout-${'f'.repeat(32)}`;
+const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+const previousNativeLaunchEnvironment = globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__;
+const checkoutDiagnostics = [];
+let checkoutBootstraps = 0;
+let refusedRedemptions = 0;
+try {
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    enumerable: true,
+    value: Object.freeze({ product: 'ReactNative' }),
+  });
+  globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__ = Object.freeze({
+    [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: failedCheckoutNonce,
+  });
+  const failedCheckoutEnvironment = createSupervisedExpoEnvironment({
+    exchangeOrigin: 'http://127.0.0.1:4321',
+    bindingCache: null,
+    onDiagnostic: (value) => checkoutDiagnostics.push(value),
+    async fetch(url, options) {
+      if (options.method === 'GET') {
+        assert.equal(url, `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`);
+        checkoutBootstraps += 1;
+        return Response.json({
+          format: SUPERVISED_EXCHANGE_FORMAT,
+          correlationId: `failed-checkout-adoption-${checkoutBootstraps}`,
+          binding,
+          authority: {
+            status: 'ready',
+            tokenType: 'Bearer',
+            token: SUPERVISED_BEARER,
+          },
+        });
+      }
+      assert.equal(url, `http://127.0.0.1:4321${SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH}`);
+      assert.equal(options.method, 'POST');
+      assert.equal(
+        options.headers[SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER],
+        failedCheckoutNonce,
+      );
+      refusedRedemptions += 1;
+      return Response.json({
+        ok: false,
+        code: 'SNAPBACK_DEV_IDENTITY_REFUSED',
+      }, { status: 403 });
+    },
+  });
+  const checkoutAdmission = await failedCheckoutEnvironment.resolveBinding({
+    app,
+    signal: new AbortController().signal,
+  });
+  const checkoutAuthority = await failedCheckoutEnvironment.resolveSupervisedAuthority({
+    app,
+    binding: checkoutAdmission.binding,
+    signal: new AbortController().signal,
+  });
+  assert.equal(checkoutAuthority.status, 'ready');
+  assert.equal(checkoutAuthority.bearer, SUPERVISED_BEARER);
+  assert.equal(checkoutAuthority.clientOptions, undefined);
+
+  const adoptedAfterRefusal = await failedCheckoutEnvironment.adoptAuthority({
+    app,
+    binding: checkoutAdmission.binding,
+    signal: new AbortController().signal,
+  });
+  assert.equal(adoptedAfterRefusal.status, 'ready');
+  assert.equal(adoptedAfterRefusal.publicFacts.kind, 'session');
+  assert.equal(adoptedAfterRefusal.publicFacts.userId, USER_B);
+  assert.equal(
+    await failedCheckoutEnvironment.resolveDevIdentityCapability(),
+    null,
+    'server-confirmed consumption degrades permanently for this JS boot',
+  );
+  assert.equal(refusedRedemptions, 1, 'a consumed checkout nonce is not retried');
+  assert.equal(checkoutDiagnostics.length, 1, 'the local degradation is logged once');
+  assert.equal(checkoutDiagnostics[0].code, 'SNAPBACK_EXPO_NATIVE_CHECKOUT_UNAVAILABLE');
+  await adoptedAfterRefusal.dispose();
+} finally {
+  if (previousNavigator === undefined) delete globalThis.navigator;
+  else Object.defineProperty(globalThis, 'navigator', previousNavigator);
+  if (previousNativeLaunchEnvironment === undefined) {
+    delete globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__;
+  } else {
+    globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__ = previousNativeLaunchEnvironment;
+  }
+}
+
 assert.deepEqual(supervisor.events, ['boot', 'refresh', 'refresh', 'refresh', 'refresh']);
 assert.deepEqual(anonymousSupervisor.events, ['boot', 'refresh']);
 assert.deepEqual(supervisor.diagnostics, []);
@@ -420,4 +547,4 @@ server.restore();
 if (priorRqs === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
 else process.env.SNAPBACK_CLIENT_RQS_STORE = priorRqs;
 
-console.log('provider-auth-bootstrap.test.mjs: durable precedence, anonymous adoption, refresh rebind-only, and signOut readmission pass');
+console.log('provider-auth-bootstrap.test.mjs: default sessions lifecycle, protocol-only client-option forwarding, redeem-refusal adoption, refresh rebind-only, and signOut readmission pass');
