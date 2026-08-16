@@ -10,7 +10,7 @@
     "serverRunnableQueries": false,
     "subscriptions": true
   },
-  "inputsHash": "b99d16d677cfe8b0",
+  "inputsHash": "a42bfa78dc6220e0",
   "manifestVersion": 2,
   "mutations": {
     "createPost": {
@@ -49,7 +49,10 @@
       "optimistic": false,
       "serverRunnable": false,
       "writes": [
-        "profiles"
+        "messages",
+        "posts",
+        "profiles",
+        "search"
       ]
     },
     "login": {
@@ -107,47 +110,101 @@
         "messages"
       ]
     },
-    "toggleFollow": {
+    "setChatAccent": {
       "argOrder": [
-        "userId"
+        "chatId",
+        "color",
+        "mutationId"
       ],
       "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "color": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "setChatAccent",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chats"
+      ]
+    },
+    "setDisappearing": {
+      "argOrder": [
+        "chatId",
+        "value",
+        "mutationId"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "value": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "setDisappearing",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chats"
+      ]
+    },
+    "setFollow": {
+      "argOrder": [
+        "userId",
+        "following",
+        "mutationId"
+      ],
+      "args": {
+        "following": {
+          "name": "boolean",
+          "shape": "primitive"
+        },
+        "mutationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
         "userId": {
           "name": "string",
           "shape": "primitive"
         }
       },
-      "name": "toggleFollow",
+      "name": "setFollow",
       "optimistic": false,
       "serverRunnable": false,
       "writes": [
+        "follows",
+        "posts",
         "profiles"
       ]
     },
-    "toggleLike": {
-      "argOrder": [
-        "postId"
-      ],
-      "args": {
-        "postId": {
-          "name": "string",
-          "shape": "primitive"
-        }
-      },
-      "name": "toggleLike",
-      "optimistic": false,
-      "serverRunnable": false,
-      "writes": [
-        "posts"
-      ]
-    },
-    "votePoll": {
+    "setLike": {
       "argOrder": [
         "postId",
-        "optionId"
+        "liked",
+        "mutationId"
       ],
       "args": {
-        "optionId": {
+        "liked": {
+          "name": "boolean",
+          "shape": "primitive"
+        },
+        "mutationId": {
           "name": "string",
           "shape": "primitive"
         },
@@ -156,11 +213,11 @@
           "shape": "primitive"
         }
       },
-      "name": "votePoll",
+      "name": "setLike",
       "optimistic": false,
       "serverRunnable": false,
       "writes": [
-        "pollOptions"
+        "posts"
       ]
     }
   },
@@ -169,7 +226,7 @@
     "listChats": {
       "argOrder": [],
       "args": {},
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
@@ -188,6 +245,10 @@
               "shape": "primitive"
             },
             "avatarUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "disappearing": {
               "name": "string",
               "shape": "primitive"
             },
@@ -232,13 +293,14 @@
           "shape": "primitive"
         }
       },
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
       "mode": "live",
       "name": "listFeed",
       "reads": [
+        "follows",
         "posts"
       ],
       "receipts": "none",
@@ -312,14 +374,15 @@
     "listInsights": {
       "argOrder": [],
       "args": {},
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
       "mode": "live",
       "name": "listInsights",
       "reads": [
-        "insights"
+        "follows",
+        "posts"
       ],
       "receipts": "none",
       "result": {
@@ -330,15 +393,39 @@
               "name": "string",
               "shape": "primitive"
             },
-            "engagements": {
-              "name": "number",
-              "shape": "primitive"
-            },
             "id": {
               "name": "string",
               "shape": "primitive"
             },
-            "views": {
+            "likesReceived": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "posts": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "totalFollowers": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "totalFollowing": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "totalLikesReceived": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "totalPosts": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "totalRepliesReceived": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "totalRepostsReceived": {
               "name": "number",
               "shape": "primitive"
             }
@@ -359,7 +446,7 @@
           "shape": "primitive"
         }
       },
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
@@ -373,14 +460,6 @@
         "kind": "list",
         "row": {
           "fields": {
-            "attachmentKind": {
-              "name": "string",
-              "shape": "primitive"
-            },
-            "attachmentUrl": {
-              "name": "string",
-              "shape": "primitive"
-            },
             "body": {
               "name": "string",
               "shape": "primitive"
@@ -413,10 +492,6 @@
               "name": "string",
               "shape": "primitive"
             },
-            "reaction": {
-              "name": "string",
-              "shape": "primitive"
-            },
             "senderId": {
               "name": "string",
               "shape": "primitive"
@@ -427,61 +502,6 @@
             },
             "status": {
               "name": "string",
-              "shape": "primitive"
-            },
-            "viewOnce": {
-              "name": "boolean",
-              "shape": "primitive"
-            }
-          },
-          "shape": "object"
-        }
-      },
-      "serverRunnable": false,
-      "subscription": "initial-snapshot"
-    },
-    "listPollOptions": {
-      "argOrder": [
-        "postId"
-      ],
-      "args": {
-        "postId": {
-          "name": "string",
-          "shape": "primitive"
-        }
-      },
-      "compatibilityToken": "1",
-      "initialSnapshot": true,
-      "livePush": true,
-      "localRunnable": false,
-      "mode": "live",
-      "name": "listPollOptions",
-      "reads": [
-        "pollOptions"
-      ],
-      "receipts": "none",
-      "result": {
-        "kind": "list",
-        "row": {
-          "fields": {
-            "id": {
-              "name": "string",
-              "shape": "primitive"
-            },
-            "label": {
-              "name": "string",
-              "shape": "primitive"
-            },
-            "postId": {
-              "name": "string",
-              "shape": "primitive"
-            },
-            "selectedByMe": {
-              "name": "boolean",
-              "shape": "primitive"
-            },
-            "votes": {
-              "name": "number",
               "shape": "primitive"
             }
           },
@@ -587,46 +607,6 @@
       "serverRunnable": false,
       "subscription": "initial-snapshot"
     },
-    "listTrending": {
-      "argOrder": [],
-      "args": {},
-      "compatibilityToken": "1",
-      "initialSnapshot": true,
-      "livePush": true,
-      "localRunnable": false,
-      "mode": "live",
-      "name": "listTrending",
-      "reads": [
-        "trends"
-      ],
-      "receipts": "none",
-      "result": {
-        "kind": "list",
-        "row": {
-          "fields": {
-            "id": {
-              "name": "string",
-              "shape": "primitive"
-            },
-            "label": {
-              "name": "string",
-              "shape": "primitive"
-            },
-            "postCount": {
-              "name": "number",
-              "shape": "primitive"
-            },
-            "rank": {
-              "name": "number",
-              "shape": "primitive"
-            }
-          },
-          "shape": "object"
-        }
-      },
-      "serverRunnable": false,
-      "subscription": "initial-snapshot"
-    },
     "searchSocial": {
       "argOrder": [
         "query"
@@ -637,7 +617,7 @@
           "shape": "primitive"
         }
       },
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,

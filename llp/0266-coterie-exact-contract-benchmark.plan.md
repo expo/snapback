@@ -1,11 +1,11 @@
-# LLP 0263: Coterie Exact/Contract social-messenger benchmark
+# LLP 0266: Coterie Exact/Contract social-messenger benchmark
 
 **Type:** Plan
 **Status:** Draft
 **Systems:** Benchmarks, Demos, Exact, Contract, Native clients, Provider adapters, Social messenger
 **Author:** Codex / Charlie Cheever
 **Date:** 2026-08-15
-**Revised:** 2026-08-15
+**Revised:** 2026-08-16
 **Related:** LLP 0000, LLP 0005, LLP 0064, LLP 0137, LLP 0189, LLP 0201, `benchmarks/briefs/social-messenger.md`, `benchmarks/tools/social-messenger/CONTRACT.md`
 
 ## Summary
@@ -107,11 +107,13 @@ code must not infer those facts or build a second offline queue above the seam.
 ### D5. Backendless semantics
 
 "Backendless" means deterministic local process state, not a fake claim of
-durability. It supports immediate queries and mutations so every screen and
-interaction can be exercised, resets from committed fixtures, and advertises
-only capabilities it actually implements. Restarting the app may reset data.
-Multi-client sync, server authority, durable auth, and offline recovery are
-explicitly absent until supplied by an adapter.
+durability. The stage-1 shell supports immediate queries and mutations for the
+screens and interactions it actually exposes, resets from committed fixtures,
+and advertises only capabilities it implements. Screens or controls whose
+semantics require unfinished backend behavior stay absent and are staged by D6
+rather than rendered as inert or misleading affordances. Restarting the app may
+reset data. Multi-client sync, server authority, durable auth, and offline
+recovery are explicitly absent until supplied by an adapter.
 
 ### D6. Feature and evidence progression
 
@@ -135,8 +137,10 @@ separate lane:
 - `demos/coterie` contains no React-authored application UI and no React Native
   or Expo dependency. Exact's current shared web scaffold may retain React and
   React DOM as internal toolchain dependencies until Exact removes that need.
-- A backendless run renders and navigates the social-messenger surface on web
-  and compiles for the Exact native application target.
+- A backendless run renders and navigates the stage-1 routes enumerated in
+  `demos/coterie/README.md` on web and compiles the same Contract route graph
+  into Exact's native startup artifact; this is not a claim that every brief
+  screen or interaction has landed.
 - Reusable presentation components use plain values/callbacks and preserve the
   frozen `sm-*` IDs relevant to their states.
 - The Coterie provider declaration deterministically generates its binding
@@ -163,3 +167,6 @@ separate lane:
 
 - 2026-08-15: initial Draft; establishes identity, placement, presentation
   portability, provider seam, backendless semantics, and separate evidence.
+- 2026-08-16: renumbered this plan to LLP 0266 after the prior number
+  collided on main; narrowed D5 to the interactions the stage-1 shell actually
+  exposes.

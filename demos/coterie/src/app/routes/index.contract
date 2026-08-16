@@ -1,107 +1,48 @@
-// Coterie's backendless social-messenger shell.
-// @ref LLP 0263#d3-presentation-port-rule — this route preserves the shared
+// Coterie's backendless feed and sign-in route.
+// @ref LLP 0266#d3-presentation-port-rule — this route preserves the shared
 // social-messenger semantics while remaining Contract-native and provider-free.
 
-use FacetButton from "@exact/facet-contract/components/button.contract"
-use FacetInput from "@exact/facet-contract/components/input.contract"
-use CoterieNavigation from "../../ui/app-navigation.contract"
+use navigate from "@exact/router/contract"
+use CoterieAppHeader from "../../ui/app-header.contract"
 use CoterieAuthForm from "../../ui/auth-form.contract"
-use CoterieBrand from "../../ui/brand.contract"
-use CoterieChatListRow from "../../ui/chat-list-row.contract"
 use CoterieComposer from "../../ui/composer.contract"
 use CoterieFeedCard from "../../ui/feed-card.contract"
 use CoterieFeedTabs from "../../ui/feed-tabs.contract"
-use CoterieInsightDayRow from "../../ui/insights.contract"
-use CoterieInsightsSummary from "../../ui/insights.contract"
-use CoterieMessageBubble from "../../ui/message-bubble.contract"
-use CoteriePollOption from "../../ui/poll-option.contract"
-use CoterieProfileCard from "../../ui/profile-card.contract"
-use CoterieSearchResult from "../../ui/search-result.contract"
-use CoterieTrendingRow from "../../ui/trending-row.contract"
 use createPost from "../../data/generated/coterie-memory.bindings.ts"
-use editProfile from "../../data/generated/coterie-memory.bindings.ts"
-use listChats from "../../data/generated/coterie-memory.bindings.ts"
 use listFeed from "../../data/generated/coterie-memory.bindings.ts"
-use listInsights from "../../data/generated/coterie-memory.bindings.ts"
-use listMessages from "../../data/generated/coterie-memory.bindings.ts"
-use listPollOptions from "../../data/generated/coterie-memory.bindings.ts"
-use listProfiles from "../../data/generated/coterie-memory.bindings.ts"
 use listSession from "../../data/generated/coterie-memory.bindings.ts"
-use listTrending from "../../data/generated/coterie-memory.bindings.ts"
 use login from "../../data/generated/coterie-memory.bindings.ts"
 use logout from "../../data/generated/coterie-memory.bindings.ts"
-use searchSocial from "../../data/generated/coterie-memory.bindings.ts"
-use sendMessage from "../../data/generated/coterie-memory.bindings.ts"
-use toggleFollow from "../../data/generated/coterie-memory.bindings.ts"
-use toggleLike from "../../data/generated/coterie-memory.bindings.ts"
-use votePoll from "../../data/generated/coterie-memory.bindings.ts"
+use setLike from "../../data/generated/coterie-memory.bindings.ts"
 
-component CoterieHomeRoute
-  state screen = "feed"
+component CoterieFeedRoute
   state feedTab = "following"
-  state selectedProfileId = "user-alice"
-  state selectedChatId = "chat-1"
   state composeText = ""
   state composeResetFlip = false
-  state messageText = ""
-  state messageResetFlip = false
-  state searchText = ""
   state email = "alice@example.com"
-  state password = "password"
+  state password = "Alice!Clique2026"
   state authError = ""
-  state profileEditing = false
-  state profileName = "Alice Adebayo"
-  state profileBio = "Designing smaller, kinder social spaces."
-  state selectedReaction = ""
-  state disappearing = false
-  state chatAccent = "#4F46E5"
 
   query session = listSession({})
   query feed = listFeed({ mode: feedTab })
-  query profiles = listProfiles({})
-  query chats = listChats({})
-  query messages = listMessages({ chatId: selectedChatId })
-  query searchResults = searchSocial({ query: searchText })
-  query pollOptions = listPollOptions({ postId: "post-2" })
-  query insights = listInsights({})
-  query trending = listTrending({})
 
   mutation loginMutation = login
   mutation logoutMutation = logout
   mutation createPostMutation = createPost
-  mutation toggleLikeMutation = toggleLike
-  mutation toggleFollowMutation = toggleFollow
-  mutation editProfileMutation = editProfile
-  mutation sendMessageMutation = sendMessage
-  mutation votePollMutation = votePoll
+  mutation setLikeMutation = setLike
 
-  action chooseScreen(next) writes screen
-    screen = next
+  action choosePrimary(next)
+    if next == "feed"
+      navigate("/")
+    else if next == "chats"
+      navigate("/chats")
+    else if next == "search"
+      navigate("/search")
+    else
+      navigate({ to: "/profile/[id]", params: { id: "alice" } })
 
   action chooseFeed(next) writes feedTab
     feedTab = next
-
-  action showFeed writes screen
-    screen = "feed"
-
-  action showChats writes screen
-    screen = "chats"
-
-  action showConversation writes screen
-    screen = "conversation"
-
-  action showChatSettings writes screen
-    screen = "chat-settings"
-
-  action showProfile writes screen
-    screen = "profile"
-
-  action showInsights writes screen
-    screen = "insights"
-
-  action showGlobalFeed writes feedTab, screen
-    feedTab = "global"
-    screen = "feed"
 
   action setComposeText(value) writes composeText
     composeText = value
@@ -112,51 +53,14 @@ component CoterieHomeRoute
     composeResetFlip = !composeResetFlip
     await createPostMutation({ body: body })
 
-  action likePost(postId) mutates toggleLikeMutation
-    await toggleLikeMutation({ postId: postId })
+  action likePost(postId, liked) mutates setLikeMutation
+    await setLikeMutation({ postId: postId, liked: !liked, mutationId: `coterie-like-${postId}-${now()}` })
 
-  action openProfile(userId) writes selectedProfileId, profileEditing, screen
-    selectedProfileId = userId
-    profileEditing = false
-    screen = "profile"
+  action openProfile(userId)
+    navigate({ to: "/profile/[id]", params: { id: userId } })
 
-  action followProfile(userId) mutates toggleFollowMutation
-    await toggleFollowMutation({ userId: userId })
-
-  action beginProfileEdit(name, bio) writes profileEditing, profileName, profileBio
-    profileEditing = true
-    profileName = name
-    profileBio = bio
-
-  action setProfileName(value) writes profileName
-    profileName = value
-
-  action setProfileBio(value) writes profileBio
-    profileBio = value
-
-  action saveProfile writes profileEditing mutates editProfileMutation
-    let result = await editProfileMutation({ displayName: profileName, bio: profileBio })
-    if result.ok
-      profileEditing = false
-
-  action openChat(chatId) writes selectedChatId, screen
-    selectedChatId = chatId
-    screen = "conversation"
-
-  action setMessageText(value) writes messageText
-    messageText = value
-
-  action sendMessage writes messageText, messageResetFlip mutates sendMessageMutation
-    let result = await sendMessageMutation({ chatId: selectedChatId, body: messageText.trim() })
-    if result.ok
-      messageText = ""
-      messageResetFlip = !messageResetFlip
-
-  action setSearchText(value) writes searchText
-    searchText = value
-
-  action vote(optionId) mutates votePollMutation
-    await votePollMutation({ postId: "post-2", optionId: optionId })
+  action openMedia(postId)
+    navigate({ to: "/media/[id]", params: { id: postId } })
 
   action setEmail(value) writes email
     email = value
@@ -174,25 +78,10 @@ component CoterieHomeRoute
   action signOut mutates logoutMutation
     await logoutMutation({})
 
-  action showReaction writes selectedReaction
-    selectedReaction = selectedReaction == "👍" ? "" : "👍"
-
-  action openMedia writes screen
-    screen = "media"
-
-  action toggleDisappearing writes disappearing
-    disappearing = !disappearing
-
-  action chooseAccent(color) writes chatAccent
-    chatAccent = color
-
   contract
     has node testId="coterie-root"
-    when screen == "feed" then has node testId="sm-feed-tab-following"
-    when screen == "chats" then has node testId="sm-chats-item"
-    when screen == "search" then has node testId="sm-search-input"
-    when screen == "profile" then has node testId="sm-profile"
-    when screen == "conversation" then has node testId="sm-convo-input"
+    when feedTab == "following" then has node testId="sm-feed-tab-following"
+    when feedTab == "global" then has node testId="sm-feed-tab-global"
 
   view
     main width="100%" minHeight="100%" background="#F4F5F7" testId="coterie-root"
@@ -209,168 +98,21 @@ component CoterieHomeRoute
             CoterieAuthForm(email=email, password=password, errorText=authError, changeEmail=setEmail, changePassword=setPassword, submit=signIn)
         ready activeSessions
           column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" safeArea={ regions: ["container", "keyboard"] } testId="coterie-shell"
-            header width="100%" padding=14 background="#FFFFFF" borderBottomWidth=1 borderColor="#E2E4E8"
-              row width="100%" align="center" justify="space-between" gap=12
-                CoterieBrand(compact=true)
-                row align="center" gap=8
-                  link href="/about" label="About Coterie" testId="coterie-about-link"
-                    text "About" size=13 color="#4F46E5"
-                  FacetButton(label="Log out", variant="ghost", size="sm", press=signOut, testId="sm-settings-logout")
-            CoterieNavigation(selected=screen, select=chooseScreen)
-            match screen
-              case "feed"
-                column width="100%" flex=1
-                  CoterieFeedTabs(selected=feedTab, select=chooseFeed)
-                  when feedTab == "trending"
-                    scroll flex=1 width="100%"
-                      async trending
-                        loading
-                          skeleton width="100%" height=160
-                        error problem
-                          text `${problem}` size=13 color="#DC2626" padding=16
-                        empty
-                          text "Nothing is trending yet" size=13 color="#6B7280" padding=16 testId="sm-trending-empty"
-                        ready topics
-                          list width="100%" label="Trending topics"
-                            each topic in topics key=topic.id
-                              CoterieTrendingRow(rank=topic.rank, label=topic.label, postCount=topic.postCount, press=showGlobalFeed)
-                  else
-                    CoterieComposer(variant="post", value=composeText, resetFlip=composeResetFlip, change=setComposeText, send=publishPost)
-                    scroll flex=1 width="100%"
-                      async feed
-                        loading
-                          skeleton width="100%" height=220
-                        error problem
-                          text `${problem}` size=13 color="#DC2626" padding=16
-                        stale posts
-                          text "Showing saved posts while the provider reconnects" size=12 color="#D97706" padding=10
-                        empty
-                          text "No posts yet" size=13 color="#6B7280" padding=16
-                        ready posts
-                          list width="100%" label="Feed posts"
-                            each post in posts key=post.id
-                              listitem width="100%"
-                                CoterieFeedCard(id=post.id, authorId=post.authorId, authorName=post.authorName, authorHandle=post.authorHandle, avatarUrl=post.avatarUrl, body=post.body, createdAt=post.createdAt, likeCount=post.likeCount, repostCount=post.repostCount, replyCount=post.replyCount, liked=post.likedByMe, mediaUrl=post.mediaUrl, mediaKind=post.mediaKind, pollQuestion=post.pollQuestion, pressAuthor=openProfile, pressLike=likePost, pressRepost=showFeed, pressReply=showFeed, pressMedia=openMedia)
-                                when post.id == "post-2"
-                                  column gap=6 paddingLeft=68 paddingRight=16 paddingBottom=14
-                                    async pollOptions
-                                      loading
-                                        skeleton width="100%" height=60
-                                      error problem
-                                        text `${problem}` size=12 color="#DC2626"
-                                      empty
-                                        text "No poll options" size=12 color="#6B7280"
-                                      ready options
-                                        each option in options key=option.id
-                                          CoteriePollOption(id=option.id, label=option.label, votes=option.votes, selected=option.selectedByMe, press=vote)
-              case "chats"
-                scroll flex=1 width="100%"
-                  async chats
-                    loading
-                      skeleton width="100%" height=180
-                    error problem
-                      text `${problem}` size=13 color="#DC2626" padding=16
-                    empty
-                      text "No conversations" size=13 color="#6B7280" padding=16
-                    ready chatRows
-                      list width="100%" label="Conversations"
-                        each chat in chatRows key=chat.id
-                          CoterieChatListRow(id=chat.id, title=chat.title, preview=chat.preview, timestamp=chat.updatedAt, unreadCount=chat.unreadCount, avatarUrl=chat.avatarUrl, accentColor=chat.accentColor, press=openChat)
-              case "conversation"
-                column width="100%" flex=1
-                  row width="100%" align="center" justify="space-between" padding=12 borderBottomWidth=1 borderColor="#E2E4E8"
-                    FacetButton(label="Back", variant="ghost", size="sm", press=showChats, testId="coterie-conversation-back")
-                    text "Bob Chen" size=17 weight=700 color="#17191C"
-                    FacetButton(label="Settings", variant="ghost", size="sm", press=showChatSettings, testId="sm-convo-settings")
-                  scroll flex=1 width="100%" background="#FFFFFF"
-                    async messages
-                      loading
-                        skeleton width="100%" height=240
-                      error problem
-                        text `${problem}` size=13 color="#DC2626" padding=16 testId="sm-convo-error"
-                      empty
-                        text "Start the conversation" size=13 color="#6B7280" padding=16
-                      ready messageRows
-                        list width="100%" label="Messages"
-                          each message in messageRows key=message.id
-                            CoterieMessageBubble(senderName=message.senderName, body=message.body, timestamp=message.createdAt, mine=message.mine, status=message.status, reaction=message.reaction ?? selectedReaction, quoteText=message.quoteText, edited=message.edited, deleted=message.deleted, attachmentUrl=message.attachmentUrl, viewOnce=message.viewOnce, accentColor=chatAccent, pressReaction=showReaction, pressMedia=openMedia)
-                        text "Bob is typing…" size=12 color="#6B7280" padding=12 testId="sm-convo-typing"
-                  CoterieComposer(variant="message", value=messageText, resetFlip=messageResetFlip, change=setMessageText, send=sendMessage)
-              case "chat-settings"
-                scroll flex=1 width="100%" background="#FFFFFF"
-                  column width="100%" gap=18 padding=18
-                    row width="100%" align="center" justify="space-between"
-                      FacetButton(label="Back", variant="ghost", size="sm", press=showConversation, testId="coterie-settings-back")
-                      text "Chat settings" size=22 weight=700 color="#17191C"
-                    column gap=8 testId="sm-chatsettings-color"
-                      text "Accent color" size=15 weight=600 color="#17191C"
-                      row gap=10
-                        button "Indigo" press=chooseAccent("#4F46E5") accessibilitySelected=chatAccent == "#4F46E5" padding=10 radius=999 background="#4F46E5" color="#FFFFFF" testId="sm-chatsettings-color-indigo"
-                        button "Teal" press=chooseAccent("#0D9488") accessibilitySelected=chatAccent == "#0D9488" padding=10 radius=999 background="#0D9488" color="#FFFFFF" testId="sm-chatsettings-color-teal"
-                        button "Coral" press=chooseAccent("#EF6351") accessibilitySelected=chatAccent == "#EF6351" padding=10 radius=999 background="#EF6351" color="#FFFFFF" testId="sm-chatsettings-color-coral"
-                    column gap=8 testId="sm-chatsettings-background"
-                      text "Background" size=15 weight=600 color="#17191C"
-                      column width="100%" height=100 radius=10 background="#F4F5F7" align="center" justify="center" testId="sm-chatsettings-background-preview"
-                        text "Coterie light" size=13 color="#6B7280"
-                    row width="100%" align="center" justify="space-between" gap=12
-                      column flex=1 gap=3
-                        text "Disappearing messages" size=15 weight=600 color="#17191C"
-                        text "Local demo setting" size=12 color="#6B7280"
-                      toggle checked=disappearing change=toggleDisappearing label="Disappearing messages" testId="sm-chatsettings-disappearing"
-              case "search"
-                column width="100%" flex=1
-                  column padding=12 background="#FFFFFF" borderBottomWidth=1 borderColor="#E2E4E8"
-                    FacetInput(value=searchText, placeholder="Search people, posts, and chats", label="Search", change=setSearchText, testId="sm-search-input")
-                  scroll flex=1 width="100%"
-                    async searchResults
-                      loading
-                        skeleton width="100%" height=180
-                      error problem
-                        text `${problem}` size=13 color="#DC2626" padding=16 testId="sm-search-offline"
-                      empty
-                        text "No results" size=13 color="#6B7280" padding=16
-                      ready results
-                        list width="100%" label="Search results"
-                          each result in results key=result.id
-                            CoterieSearchResult(title=result.title, subtitle=result.subtitle, kind=result.kind, destination=result.kind == "person" ? "profile" : "feed", avatarUrl=result.avatarUrl, press=chooseScreen)
-              case "profile"
-                scroll flex=1 width="100%" background="#FFFFFF"
-                  async profiles
-                    loading
-                      skeleton width="100%" height=240
-                    error problem
-                      text `${problem}` size=13 color="#DC2626" padding=16
-                    empty
-                      text "Profile unavailable" size=13 color="#6B7280" padding=16
-                    ready profileRows
-                      each profile in profileRows key=profile.id
-                        when profile.id == selectedProfileId
-                          CoterieProfileCard(id=profile.id, displayName=profile.displayName, handle=profile.handle, bio=profile.bio, avatarUrl=profile.avatarUrl, followers=profile.followers, following=profile.following, followedByMe=profile.followedByMe, isMe=profile.isMe, editing=profileEditing, draftName=profileName, draftBio=profileBio, changeName=setProfileName, changeBio=setProfileBio, pressEdit=beginProfileEdit, pressSave=saveProfile, pressFollow=followProfile)
-                          when profile.isMe && !profileEditing
-                            column paddingLeft=18 paddingRight=18 paddingBottom=18
-                              FacetButton(label="View insights", variant="outline", press=showInsights, testId="coterie-profile-insights")
-              case "insights"
-                scroll flex=1 width="100%" background="#FFFFFF"
-                  column width="100%" gap=16 padding=18
-                    row width="100%" align="center" justify="space-between"
-                      text "Insights" size=22 weight=700 color="#17191C"
-                      FacetButton(label="Profile", variant="ghost", size="sm", press=showProfile, testId="coterie-insights-back")
-                    CoterieInsightsSummary(posts=38, likes=312, reposts=74, replies=91, followers=184, following=96)
-                    text "Last five days" size=17 weight=600 color="#17191C"
-                    column width="100%" testId="sm-insights-bar-list"
-                      async insights
-                        loading
-                          skeleton width="100%" height=180
-                        error problem
-                          text `${problem}` size=13 color="#DC2626"
-                        empty
-                          text "No insight data" size=13 color="#6B7280"
-                        ready days
-                          each day in days key=day.id
-                            CoterieInsightDayRow(day=day.day, views=day.views, engagements=day.engagements)
-              case "media"
-                column width="100%" flex=1 background="#17191C" align="center" justify="center" gap=14 padding=18
-                  image src="/assets/fixtures/img-01.png" alt="Coterie media preview" width="100%" maxWidth=640 aspectRatio=1.6 objectFit="contain" testId="sm-media-viewer-image"
-                  FacetButton(label="Close", variant="secondary", press=showFeed, testId="sm-media-viewer-close")
-              else
-                text "Unknown screen" size=13 color="#6B7280" padding=16
+            CoterieAppHeader(selected="feed", select=choosePrimary, logout=signOut)
+            CoterieFeedTabs(selected=feedTab, select=chooseFeed)
+            CoterieComposer(variant="post", value=composeText, resetFlip=composeResetFlip, change=setComposeText, send=publishPost)
+            scroll flex=1 width="100%"
+              async feed
+                loading
+                  skeleton width="100%" height=220
+                error problem
+                  text `${problem}` size=13 color="#DC2626" padding=16
+                stale posts
+                  text "Showing saved posts while the provider reconnects" size=12 color="#D97706" padding=10
+                empty
+                  text "No posts yet" size=13 color="#6B7280" padding=16
+                ready posts
+                  list width="100%" label="Feed posts"
+                    each post in posts key=post.id
+                      listitem width="100%"
+                        CoterieFeedCard(id=post.id, authorId=post.authorId, authorName=post.authorName, authorHandle=post.authorHandle, avatarUrl=post.avatarUrl, body=post.body, createdAt=post.createdAt, likeCount=post.likeCount, liked=post.likedByMe, mediaUrl=post.mediaUrl, mediaKind=post.mediaKind, pressAuthor=openProfile, pressLike=likePost, pressMedia=openMedia)

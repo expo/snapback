@@ -1,6 +1,6 @@
 # coterie-memory data provider
 
-Generated reference (declaration `1`, inputsHash `b99d16d677cfe8b0`, generatedAt: DETERMINISTIC).
+Generated reference (declaration `2`, inputsHash `a42bfa78dc6220e0`, generatedAt: DETERMINISTIC).
 
 ## Capabilities
 
@@ -27,7 +27,7 @@ Generated reference (declaration `1`, inputsHash `b99d16d677cfe8b0`, generatedAt
 
 ### `listChats`
 
-- identity: descriptor `listChats` @ compatibility token `1`
+- identity: descriptor `listChats` @ compatibility token `2`
 - params: (none)
 - result: list of `Chat` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
@@ -36,7 +36,7 @@ Generated reference (declaration `1`, inputsHash `b99d16d677cfe8b0`, generatedAt
 
 ### `listFeed`
 
-- identity: descriptor `listFeed` @ compatibility token `1`
+- identity: descriptor `listFeed` @ compatibility token `2`
 - params: `mode: string`
 - result: list of `FeedItem` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
@@ -45,7 +45,7 @@ Generated reference (declaration `1`, inputsHash `b99d16d677cfe8b0`, generatedAt
 
 ### `listInsights`
 
-- identity: descriptor `listInsights` @ compatibility token `1`
+- identity: descriptor `listInsights` @ compatibility token `2`
 - params: (none)
 - result: list of `InsightDay` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
@@ -54,18 +54,9 @@ Generated reference (declaration `1`, inputsHash `b99d16d677cfe8b0`, generatedAt
 
 ### `listMessages`
 
-- identity: descriptor `listMessages` @ compatibility token `1`
+- identity: descriptor `listMessages` @ compatibility token `2`
 - params: `chatId: string`
 - result: list of `Message` (excess fields: project)
-- liveness: mode `live`, push yes, initial snapshot yes
-- receipts: none
-- errors: (none)
-
-### `listPollOptions`
-
-- identity: descriptor `listPollOptions` @ compatibility token `1`
-- params: `postId: string`
-- result: list of `PollOption` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
 - receipts: none
 - errors: (none)
@@ -88,18 +79,9 @@ Generated reference (declaration `1`, inputsHash `b99d16d677cfe8b0`, generatedAt
 - receipts: none
 - errors: (none)
 
-### `listTrending`
-
-- identity: descriptor `listTrending` @ compatibility token `1`
-- params: (none)
-- result: list of `TrendingTopic` (excess fields: project)
-- liveness: mode `live`, push yes, initial snapshot yes
-- receipts: none
-- errors: (none)
-
 ### `searchSocial`
 
-- identity: descriptor `searchSocial` @ compatibility token `1`
+- identity: descriptor `searchSocial` @ compatibility token `2`
 - params: `query: string`
 - result: list of `SearchResult` (excess fields: project)
 - liveness: mode `live`, push yes, initial snapshot yes
@@ -118,7 +100,7 @@ Generated reference (declaration `1`, inputsHash `b99d16d677cfe8b0`, generatedAt
 ### `editProfile`
 
 - params: `displayName: string`, `bio: string`
-- writes: `profiles`
+- writes: `messages`, `posts`, `profiles`, `search`
 - optimistic: no
 - receipts: none
 
@@ -143,28 +125,36 @@ Generated reference (declaration `1`, inputsHash `b99d16d677cfe8b0`, generatedAt
 - optimistic: no
 - receipts: none
 
-### `toggleFollow`
+### `setChatAccent`
 
-- params: `userId: string`
-- writes: `profiles`
+- params: `chatId: string`, `color: string`, `mutationId: string`
+- writes: `chats`
 - optimistic: no
 - receipts: none
 
-### `toggleLike`
+### `setDisappearing`
 
-- params: `postId: string`
+- params: `chatId: string`, `value: string`, `mutationId: string`
+- writes: `chats`
+- optimistic: no
+- receipts: none
+
+### `setFollow`
+
+- params: `userId: string`, `following: boolean`, `mutationId: string`
+- writes: `follows`, `posts`, `profiles`
+- optimistic: no
+- receipts: none
+
+### `setLike`
+
+- params: `postId: string`, `liked: boolean`, `mutationId: string`
 - writes: `posts`
-- optimistic: no
-- receipts: none
-
-### `votePoll`
-
-- params: `postId: string`, `optionId: string`
-- writes: `pollOptions`
 - optimistic: no
 - receipts: none
 
 ## Provider extensions
 
-- `coterie.fixtureProfile`: `"clique-feature-parity"`
+- `coterie.fixtureClock`: `"2026-01-01T00:01:30Z"`
+- `coterie.fixtureProfile`: `"social-messenger-starter-pack"`
 - `coterie.persistence`: `"process-memory-only"`

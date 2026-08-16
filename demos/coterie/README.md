@@ -5,9 +5,27 @@ social-messenger workload and stable `sm-*` automation vocabulary while using
 one Contract source tree for web, macOS, and iOS.
 
 The checked-in default is intentionally backendless: `coterie-memory` is a
-deterministic process-memory `ContractDataProvider`. It makes the full UI
-surface runnable without claiming persistence, server authority, offline
-recovery, or multi-client synchronization.
+deterministic process-memory `ContractDataProvider`. This stage-1 shell makes
+its implemented routes and controls runnable without claiming persistence,
+server authority, offline recovery, or multi-client synchronization.
+
+## Stage-1 surface
+
+The checked-in routes cover sign-in, Following/Global feed and text compose,
+people profiles, fixture-derived Insights, people/chat search, chats,
+conversation text send, chat accent/disappearing options, and an image viewer.
+Navigation carries canonical fixture identities such as `alice`,
+`d-alice-bob`, `g-starter`, and `sp0002`; the viewer returns through the real
+router back stack.
+
+Surfaces staged by LLP 0266 D6 are deliberately absent rather than presented
+as inert controls: sign-up and durable sessions; Trending; repost/reply and
+post threads; post or message attachments/video; reactions, typing, and live
+receipts; chat-background upload; new chat/group; account settings; profile
+avatar/handle/location/link editing; offline, multi-client, and server-
+authoritative behavior. Search is the backendless people/chat word-prefix
+slice, not the brief's complete message/offline search. The only accepted
+backendless login is the committed Alice fixture credential shown in the form.
 
 ## Run it
 
@@ -40,8 +58,10 @@ not on `PATH`.
 bun run verify:coterie
 ```
 
-That checks generated-provider freshness, TypeScript, provider conformance and
-invalidation tests, platform splits, and the Exact web/native production build.
+That checks generated-provider freshness, TypeScript (including the native
+entry), provider conformance and invalidation tests, platform splits, and the
+production web bundle. Native runtime evidence is the separate recorded iOS
+simulator run; this command does not perform a native production build.
 
 `bun run typecheck` also checks the linked Exact source graph. If it reports an
 error exclusively under `../../../exact/`, verify the sibling Exact checkout
@@ -67,7 +87,7 @@ To add Snapback or another backend:
 4. Leave the Contract UI and `sm-*` IDs unchanged.
 
 Do not hand-write binding links or import a backend client from a `.contract`
-component. See [LLP 0263](../../llp/0263-coterie-exact-contract-benchmark.plan.md)
+component. See [LLP 0266](../../llp/0266-coterie-exact-contract-benchmark.plan.md)
 for the governing boundary and evidence rules.
 
 ## Naming and comparison

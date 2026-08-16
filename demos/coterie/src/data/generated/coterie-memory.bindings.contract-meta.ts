@@ -1,18 +1,16 @@
 // GENERATED provider/binding contract-meta — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie-memory" 1 (inputsHash b99d16d677cfe8b0).
+// Source authority: provider-native declaration "coterie-memory" 2 (inputsHash a42bfa78dc6220e0).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 import { defineContractModule, mutation, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./coterie-memory.bindings.ts', {
-  Chat: shape({ fields: { accentColor: 'string', avatarUrl: 'string | null', id: 'string', isGroup: 'boolean', preview: 'string', title: 'string', unreadCount: 'number', updatedAt: 'string' } }),
+  Chat: shape({ fields: { accentColor: 'string', avatarUrl: 'string | null', disappearing: 'string', id: 'string', isGroup: 'boolean', preview: 'string', title: 'string', unreadCount: 'number', updatedAt: 'string' } }),
   FeedItem: shape({ fields: { authorHandle: 'string', authorId: 'string', authorName: 'string', avatarUrl: 'string | null', body: 'string', createdAt: 'string', id: 'string', likeCount: 'number', likedByMe: 'boolean', mediaKind: 'string | null', mediaUrl: 'string | null', pollQuestion: 'string | null', replyCount: 'number', repostCount: 'number' } }),
-  InsightDay: shape({ fields: { day: 'string', engagements: 'number', id: 'string', views: 'number' } }),
-  Message: shape({ fields: { attachmentKind: 'string | null', attachmentUrl: 'string | null', body: 'string', chatId: 'string', createdAt: 'string', deleted: 'boolean', edited: 'boolean', id: 'string', mine: 'boolean', quoteText: 'string | null', reaction: 'string | null', senderId: 'string', senderName: 'string', status: 'string', viewOnce: 'boolean' } }),
-  PollOption: shape({ fields: { id: 'string', label: 'string', postId: 'string', selectedByMe: 'boolean', votes: 'number' } }),
+  InsightDay: shape({ fields: { day: 'string', id: 'string', likesReceived: 'number', posts: 'number', totalFollowers: 'number', totalFollowing: 'number', totalLikesReceived: 'number', totalPosts: 'number', totalRepliesReceived: 'number', totalRepostsReceived: 'number' } }),
+  Message: shape({ fields: { body: 'string', chatId: 'string', createdAt: 'string', deleted: 'boolean', edited: 'boolean', id: 'string', mine: 'boolean', quoteText: 'string | null', senderId: 'string', senderName: 'string', status: 'string' } }),
   Profile: shape({ fields: { avatarUrl: 'string | null', bio: 'string', displayName: 'string', followedByMe: 'boolean', followers: 'number', following: 'number', handle: 'string', id: 'string', isMe: 'boolean' } }),
   SearchResult: shape({ fields: { avatarUrl: 'string | null', id: 'string', kind: 'string', subtitle: 'string', title: 'string' } }),
   Session: shape({ fields: { id: 'string', signedIn: 'boolean', userId: 'string' } }),
-  TrendingTopic: shape({ fields: { id: 'string', label: 'string', postCount: 'number', rank: 'number' } }),
   listChats: query({
     reads: ['chats'],
     result: 'Chat[]',
@@ -21,14 +19,14 @@ export default defineContractModule('./coterie-memory.bindings.ts', {
     initialSnapshot: true,
   }),
   listFeed: query({
-    reads: ['posts'],
+    reads: ['follows', 'posts'],
     result: 'FeedItem[]',
     mode: 'live',
     livePush: true,
     initialSnapshot: true,
   }),
   listInsights: query({
-    reads: ['insights'],
+    reads: ['follows', 'posts'],
     result: 'InsightDay[]',
     mode: 'live',
     livePush: true,
@@ -37,13 +35,6 @@ export default defineContractModule('./coterie-memory.bindings.ts', {
   listMessages: query({
     reads: ['messages'],
     result: 'Message[]',
-    mode: 'live',
-    livePush: true,
-    initialSnapshot: true,
-  }),
-  listPollOptions: query({
-    reads: ['pollOptions'],
-    result: 'PollOption[]',
     mode: 'live',
     livePush: true,
     initialSnapshot: true,
@@ -62,13 +53,6 @@ export default defineContractModule('./coterie-memory.bindings.ts', {
     livePush: true,
     initialSnapshot: true,
   }),
-  listTrending: query({
-    reads: ['trends'],
-    result: 'TrendingTopic[]',
-    mode: 'live',
-    livePush: true,
-    initialSnapshot: true,
-  }),
   searchSocial: query({
     reads: ['search'],
     result: 'SearchResult[]',
@@ -83,8 +67,8 @@ export default defineContractModule('./coterie-memory.bindings.ts', {
   }),
   editProfile: mutation({
     params: { bio: 'string', displayName: 'string' },
-    effects: ['data:profiles'],
-    invalidates: ['profiles'],
+    effects: ['data:messages', 'data:posts', 'data:profiles', 'data:search'],
+    invalidates: ['messages', 'posts', 'profiles', 'search'],
   }),
   login: mutation({
     params: { email: 'string', password: 'string' },
@@ -101,19 +85,24 @@ export default defineContractModule('./coterie-memory.bindings.ts', {
     effects: ['data:chats', 'data:messages'],
     invalidates: ['chats', 'messages'],
   }),
-  toggleFollow: mutation({
-    params: { userId: 'string' },
-    effects: ['data:profiles'],
-    invalidates: ['profiles'],
+  setChatAccent: mutation({
+    params: { chatId: 'string', color: 'string', mutationId: 'string' },
+    effects: ['data:chats'],
+    invalidates: ['chats'],
   }),
-  toggleLike: mutation({
-    params: { postId: 'string' },
+  setDisappearing: mutation({
+    params: { chatId: 'string', mutationId: 'string', value: 'string' },
+    effects: ['data:chats'],
+    invalidates: ['chats'],
+  }),
+  setFollow: mutation({
+    params: { following: 'boolean', mutationId: 'string', userId: 'string' },
+    effects: ['data:follows', 'data:posts', 'data:profiles'],
+    invalidates: ['follows', 'posts', 'profiles'],
+  }),
+  setLike: mutation({
+    params: { liked: 'boolean', mutationId: 'string', postId: 'string' },
     effects: ['data:posts'],
     invalidates: ['posts'],
-  }),
-  votePoll: mutation({
-    params: { optionId: 'string', postId: 'string' },
-    effects: ['data:pollOptions'],
-    invalidates: ['pollOptions'],
   }),
 });

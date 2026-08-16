@@ -34,7 +34,7 @@ type StarterNativeGlobal = typeof globalThis & {
 
 const starterGlobal = globalThis as StarterNativeGlobal;
 
-// @ref LLP 0263#d4-backend-boundary — the same generated Contract bindings
+// @ref LLP 0266#d4-backend-boundary — the same generated Contract bindings
 // accept a different conforming provider without a native-specific UI fork.
 const providerProjection = configureFromProvider(createCoterieMemoryProvider());
 

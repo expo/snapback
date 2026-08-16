@@ -20,7 +20,7 @@ component CoterieProfileCard
     changeBio: (value) => void
     pressEdit: (name, bio) => void
     pressSave: () => void
-    pressFollow: (profileId) => void
+    pressFollow: (profileId, followed) => void
 
   contract
     has node testId="sm-profile"
@@ -35,7 +35,7 @@ component CoterieProfileCard
         when isMe && !editing
           button "Edit profile" press=pressEdit(displayName, bio) padding=8 radius=8 borderWidth=1 borderColor="#E2E4E8" background="#FFFFFF" testId="sm-profile-edit"
         when !isMe
-          button followedByMe ? "Following" : "Follow" press=pressFollow(id) padding=8 radius=8 borderWidth=1 borderColor=followedByMe ? "#E2E4E8" : "#4F46E5" background=followedByMe ? "#FFFFFF" : "#4F46E5" color=followedByMe ? "#17191C" : "#FFFFFF" testId="sm-profile-follow"
+          button followedByMe ? "Following" : "Follow" press=pressFollow(id, followedByMe) padding=8 radius=8 borderWidth=1 borderColor=followedByMe ? "#E2E4E8" : "#4F46E5" background=followedByMe ? "#FFFFFF" : "#4F46E5" color=followedByMe ? "#17191C" : "#FFFFFF" testId="sm-profile-follow"
       when editing
         column gap=10 testId="sm-profile-form"
           FacetInput(value=draftName, label="Display name", change=changeName, testId="sm-profile-field-displayname")

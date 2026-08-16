@@ -27,7 +27,7 @@ import { configureFromProvider } from './data/generated/coterie-memory.bindings.
 
 let disposeApp: (() => void) | null = null;
 
-// @ref LLP 0263#d4-backend-boundary — swap this boot factory, not the
+// @ref LLP 0266#d4-backend-boundary — swap this boot factory, not the
 // Contract routes, when a Snapback or comparison provider is installed.
 const providerProjection = configureFromProvider(createCoterieMemoryProvider());
 

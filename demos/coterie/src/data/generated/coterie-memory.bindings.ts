@@ -1,5 +1,5 @@
 // GENERATED binding module — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie-memory" 1 (inputsHash b99d16d677cfe8b0).
+// Source authority: provider-native declaration "coterie-memory" 2 (inputsHash a42bfa78dc6220e0).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 
 import { createProviderLinks, type ContractDataProvider } from '@exact/contract/runtime';
@@ -8,6 +8,7 @@ import { createProviderLinks, type ContractDataProvider } from '@exact/contract/
 export interface Chat {
   accentColor: string;
   avatarUrl: string | null;
+  disappearing: string;
   id: string;
   isGroup: boolean;
   preview: string;
@@ -37,15 +38,19 @@ export interface FeedItem {
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface InsightDay {
   day: string;
-  engagements: number;
   id: string;
-  views: number;
+  likesReceived: number;
+  posts: number;
+  totalFollowers: number;
+  totalFollowing: number;
+  totalLikesReceived: number;
+  totalPosts: number;
+  totalRepliesReceived: number;
+  totalRepostsReceived: number;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface Message {
-  attachmentKind: string | null;
-  attachmentUrl: string | null;
   body: string;
   chatId: string;
   createdAt: string;
@@ -54,20 +59,9 @@ export interface Message {
   id: string;
   mine: boolean;
   quoteText: string | null;
-  reaction: string | null;
   senderId: string;
   senderName: string;
   status: string;
-  viewOnce: boolean;
-}
-
-/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
-export interface PollOption {
-  id: string;
-  label: string;
-  postId: string;
-  selectedByMe: boolean;
-  votes: number;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
@@ -99,14 +93,6 @@ export interface Session {
   userId: string;
 }
 
-/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
-export interface TrendingTopic {
-  id: string;
-  label: string;
-  postCount: number;
-  rank: number;
-}
-
 export type ListChatsParams = Record<string, never>;
 export type ListChatsResult = Array<Chat>;
 export type ListChatsError = never;
@@ -131,13 +117,6 @@ export type ListMessagesResult = Array<Message>;
 export type ListMessagesError = never;
 export type ListMessagesReceiptsPosture = 'none';
 
-export interface ListPollOptionsParams {
-  postId: string;
-}
-export type ListPollOptionsResult = Array<PollOption>;
-export type ListPollOptionsError = never;
-export type ListPollOptionsReceiptsPosture = 'none';
-
 export type ListProfilesParams = Record<string, never>;
 export type ListProfilesResult = Array<Profile>;
 export type ListProfilesError = never;
@@ -147,11 +126,6 @@ export type ListSessionParams = Record<string, never>;
 export type ListSessionResult = Array<Session>;
 export type ListSessionError = never;
 export type ListSessionReceiptsPosture = 'none';
-
-export type ListTrendingParams = Record<string, never>;
-export type ListTrendingResult = Array<TrendingTopic>;
-export type ListTrendingError = never;
-export type ListTrendingReceiptsPosture = 'none';
 
 export interface SearchSocialParams {
   query: string;
@@ -191,24 +165,37 @@ export interface SendMessageParams {
 export type SendMessageError = never;
 export type SendMessageReceiptsPosture = 'none';
 
-export interface ToggleFollowParams {
+export interface SetChatAccentParams {
+  chatId: string;
+  color: string;
+  mutationId: string;
+}
+export type SetChatAccentError = never;
+export type SetChatAccentReceiptsPosture = 'none';
+
+export interface SetDisappearingParams {
+  chatId: string;
+  value: string;
+  mutationId: string;
+}
+export type SetDisappearingError = never;
+export type SetDisappearingReceiptsPosture = 'none';
+
+export interface SetFollowParams {
   userId: string;
+  following: boolean;
+  mutationId: string;
 }
-export type ToggleFollowError = never;
-export type ToggleFollowReceiptsPosture = 'none';
+export type SetFollowError = never;
+export type SetFollowReceiptsPosture = 'none';
 
-export interface ToggleLikeParams {
+export interface SetLikeParams {
   postId: string;
+  liked: boolean;
+  mutationId: string;
 }
-export type ToggleLikeError = never;
-export type ToggleLikeReceiptsPosture = 'none';
-
-export interface VotePollParams {
-  postId: string;
-  optionId: string;
-}
-export type VotePollError = never;
-export type VotePollReceiptsPosture = 'none';
+export type SetLikeError = never;
+export type SetLikeReceiptsPosture = 'none';
 
 export interface GeneratedQueryBinding {
   readonly kind: 'query';
@@ -231,19 +218,18 @@ export interface GeneratedProviderLinks {
   listFeed(args: ListFeedParams): unknown;
   listInsights(args: ListInsightsParams): unknown;
   listMessages(args: ListMessagesParams): unknown;
-  listPollOptions(args: ListPollOptionsParams): unknown;
   listProfiles(args: ListProfilesParams): unknown;
   listSession(args: ListSessionParams): unknown;
-  listTrending(args: ListTrendingParams): unknown;
   searchSocial(args: SearchSocialParams): unknown;
   createPost(args: CreatePostParams): unknown;
   editProfile(args: EditProfileParams): unknown;
   login(args: LoginParams): unknown;
   logout(args: LogoutParams): unknown;
   sendMessage(args: SendMessageParams): unknown;
-  toggleFollow(args: ToggleFollowParams): unknown;
-  toggleLike(args: ToggleLikeParams): unknown;
-  votePoll(args: VotePollParams): unknown;
+  setChatAccent(args: SetChatAccentParams): unknown;
+  setDisappearing(args: SetDisappearingParams): unknown;
+  setFollow(args: SetFollowParams): unknown;
+  setLike(args: SetLikeParams): unknown;
 }
 
 let generatedProviderLinks: GeneratedProviderLinks | null = null;
@@ -269,7 +255,7 @@ export const listChats = (() => {
     kind: { value: 'query' },
     name: { value: 'listChats' },
     descriptorId: { value: 'listChats' },
-    compatibilityToken: { value: '1' },
+    compatibilityToken: { value: '2' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -281,7 +267,7 @@ export const listFeed = (() => {
     kind: { value: 'query' },
     name: { value: 'listFeed' },
     descriptorId: { value: 'listFeed' },
-    compatibilityToken: { value: '1' },
+    compatibilityToken: { value: '2' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -293,7 +279,7 @@ export const listInsights = (() => {
     kind: { value: 'query' },
     name: { value: 'listInsights' },
     descriptorId: { value: 'listInsights' },
-    compatibilityToken: { value: '1' },
+    compatibilityToken: { value: '2' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -305,19 +291,7 @@ export const listMessages = (() => {
     kind: { value: 'query' },
     name: { value: 'listMessages' },
     descriptorId: { value: 'listMessages' },
-    compatibilityToken: { value: '1' },
-    resultKind: { value: 'list' },
-  });
-  return callable as typeof callable & GeneratedQueryBinding;
-})();
-
-export const listPollOptions = (() => {
-  const callable = (args: ListPollOptionsParams): unknown => requireGeneratedProviderLinks().listPollOptions(args);
-  Object.defineProperties(callable, {
-    kind: { value: 'query' },
-    name: { value: 'listPollOptions' },
-    descriptorId: { value: 'listPollOptions' },
-    compatibilityToken: { value: '1' },
+    compatibilityToken: { value: '2' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -347,25 +321,13 @@ export const listSession = (() => {
   return callable as typeof callable & GeneratedQueryBinding;
 })();
 
-export const listTrending = (() => {
-  const callable = (args: ListTrendingParams): unknown => requireGeneratedProviderLinks().listTrending(args);
-  Object.defineProperties(callable, {
-    kind: { value: 'query' },
-    name: { value: 'listTrending' },
-    descriptorId: { value: 'listTrending' },
-    compatibilityToken: { value: '1' },
-    resultKind: { value: 'list' },
-  });
-  return callable as typeof callable & GeneratedQueryBinding;
-})();
-
 export const searchSocial = (() => {
   const callable = (args: SearchSocialParams): unknown => requireGeneratedProviderLinks().searchSocial(args);
   Object.defineProperties(callable, {
     kind: { value: 'query' },
     name: { value: 'searchSocial' },
     descriptorId: { value: 'searchSocial' },
-    compatibilityToken: { value: '1' },
+    compatibilityToken: { value: '2' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -387,7 +349,7 @@ export const editProfile = (() => {
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'editProfile' },
-    writes: { value: ['profiles'] },
+    writes: { value: ['messages', 'posts', 'profiles', 'search'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -426,34 +388,45 @@ export const sendMessage = (() => {
   return callable as typeof callable & GeneratedMutationBinding;
 })();
 
-export const toggleFollow = (() => {
-  const callable = (args: ToggleFollowParams): unknown => requireGeneratedProviderLinks().toggleFollow(args);
+export const setChatAccent = (() => {
+  const callable = (args: SetChatAccentParams): unknown => requireGeneratedProviderLinks().setChatAccent(args);
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
-    name: { value: 'toggleFollow' },
-    writes: { value: ['profiles'] },
+    name: { value: 'setChatAccent' },
+    writes: { value: ['chats'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
 })();
 
-export const toggleLike = (() => {
-  const callable = (args: ToggleLikeParams): unknown => requireGeneratedProviderLinks().toggleLike(args);
+export const setDisappearing = (() => {
+  const callable = (args: SetDisappearingParams): unknown => requireGeneratedProviderLinks().setDisappearing(args);
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
-    name: { value: 'toggleLike' },
+    name: { value: 'setDisappearing' },
+    writes: { value: ['chats'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const setFollow = (() => {
+  const callable = (args: SetFollowParams): unknown => requireGeneratedProviderLinks().setFollow(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'setFollow' },
+    writes: { value: ['follows', 'posts', 'profiles'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const setLike = (() => {
+  const callable = (args: SetLikeParams): unknown => requireGeneratedProviderLinks().setLike(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'setLike' },
     writes: { value: ['posts'] },
-    optimistic: { value: false },
-  });
-  return callable as typeof callable & GeneratedMutationBinding;
-})();
-
-export const votePoll = (() => {
-  const callable = (args: VotePollParams): unknown => requireGeneratedProviderLinks().votePoll(args);
-  Object.defineProperties(callable, {
-    kind: { value: 'mutation' },
-    name: { value: 'votePoll' },
-    writes: { value: ['pollOptions'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -461,11 +434,11 @@ export const votePoll = (() => {
 
 export const bindings = {
   provider: 'coterie-memory',
-  declarationVersion: '1',
+  declarationVersion: '2',
   /** Declaration digest as a runtime value (LLP 0391 §4.2 — the fail-closed configure handshake input). */
-  inputsHash: 'b99d16d677cfe8b0',
-  queries: { listChats, listFeed, listInsights, listMessages, listPollOptions, listProfiles, listSession, listTrending, searchSocial },
-  mutations: { createPost, editProfile, login, logout, sendMessage, toggleFollow, toggleLike, votePoll },
+  inputsHash: 'a42bfa78dc6220e0',
+  queries: { listChats, listFeed, listInsights, listMessages, listProfiles, listSession, searchSocial },
+  mutations: { createPost, editProfile, login, logout, sendMessage, setChatAccent, setDisappearing, setFollow, setLike },
 } as const;
 
 /**

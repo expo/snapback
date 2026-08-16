@@ -14,7 +14,10 @@
         "displayName": "displayName-example"
       },
       "writes": [
-        "profiles"
+        "messages",
+        "posts",
+        "profiles",
+        "search"
       ]
     },
     "login": {
@@ -42,29 +45,46 @@
         "messages"
       ]
     },
-    "toggleFollow": {
+    "setChatAccent": {
       "args": {
+        "chatId": "chatId-example",
+        "color": "color-example",
+        "mutationId": "mutationId-example"
+      },
+      "writes": [
+        "chats"
+      ]
+    },
+    "setDisappearing": {
+      "args": {
+        "chatId": "chatId-example",
+        "mutationId": "mutationId-example",
+        "value": "value-example"
+      },
+      "writes": [
+        "chats"
+      ]
+    },
+    "setFollow": {
+      "args": {
+        "following": true,
+        "mutationId": "mutationId-example",
         "userId": "userId-example"
       },
       "writes": [
+        "follows",
+        "posts",
         "profiles"
       ]
     },
-    "toggleLike": {
+    "setLike": {
       "args": {
+        "liked": true,
+        "mutationId": "mutationId-example",
         "postId": "postId-example"
       },
       "writes": [
         "posts"
-      ]
-    },
-    "votePoll": {
-      "args": {
-        "optionId": "optionId-example",
-        "postId": "postId-example"
-      },
-      "writes": [
-        "pollOptions"
       ]
     }
   },
@@ -76,6 +96,7 @@
         {
           "accentColor": "accentColor-example",
           "avatarUrl": "avatarUrl-example",
+          "disappearing": "disappearing-example",
           "id": "id-example",
           "isGroup": true,
           "preview": "preview-example",
@@ -113,9 +134,15 @@
       "exampleResult": [
         {
           "day": "day-example",
-          "engagements": 1,
           "id": "id-example",
-          "views": 1
+          "likesReceived": 1,
+          "posts": 1,
+          "totalFollowers": 1,
+          "totalFollowing": 1,
+          "totalLikesReceived": 1,
+          "totalPosts": 1,
+          "totalRepliesReceived": 1,
+          "totalRepostsReceived": 1
         }
       ]
     },
@@ -125,8 +152,6 @@
       },
       "exampleResult": [
         {
-          "attachmentKind": "attachmentKind-example",
-          "attachmentUrl": "attachmentUrl-example",
           "body": "body-example",
           "chatId": "chatId-example",
           "createdAt": "createdAt-example",
@@ -135,25 +160,9 @@
           "id": "id-example",
           "mine": true,
           "quoteText": "quoteText-example",
-          "reaction": "reaction-example",
           "senderId": "senderId-example",
           "senderName": "senderName-example",
-          "status": "status-example",
-          "viewOnce": true
-        }
-      ]
-    },
-    "listPollOptions": {
-      "args": {
-        "postId": "postId-example"
-      },
-      "exampleResult": [
-        {
-          "id": "id-example",
-          "label": "label-example",
-          "postId": "postId-example",
-          "selectedByMe": true,
-          "votes": 1
+          "status": "status-example"
         }
       ]
     },
@@ -180,17 +189,6 @@
           "id": "id-example",
           "signedIn": true,
           "userId": "userId-example"
-        }
-      ]
-    },
-    "listTrending": {
-      "args": {},
-      "exampleResult": [
-        {
-          "id": "id-example",
-          "label": "label-example",
-          "postCount": 1,
-          "rank": 1
         }
       ]
     },

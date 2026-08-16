@@ -36,11 +36,11 @@ component CoterieInsightTile
 component CoterieInsightDayRow
   props
     day: string
-    views: number
-    engagements: number
+    posts: number
+    likesReceived: number
 
-  derive viewWidth = `${Math.min(100, views / 1.5)}%`
-  derive engagementWidth = `${Math.min(100, engagements)}%`
+  derive postsWidth = `${Math.min(100, posts * 20)}%`
+  derive likesWidth = `${Math.min(100, likesReceived * 20)}%`
 
   contract
     has node testId="sm-insights-day-row"
@@ -52,12 +52,12 @@ component CoterieInsightDayRow
       text day size=13 weight=600 color="#17191C" width=42
       column flex=1 gap=6
         row width="100%" align="center" gap=8
-          text "Views" size=12 color="#6B7280" width=82
+          text "Posts" size=12 color="#6B7280" width=82
           column flex=1 height=8 radius=999 background="#F4F5F7" overflow="hidden"
-            column width=viewWidth height=8 radius=999 background="#4F46E5" testId="sm-insights-day-posts-bar"
-          text `${views}` size=12 color="#6B7280" width=32
+            column width=postsWidth height=8 radius=999 background="#4F46E5" testId="sm-insights-day-posts-bar"
+          text `${posts}` size=12 color="#6B7280" width=32
         row width="100%" align="center" gap=8
-          text "Engagements" size=12 color="#6B7280" width=82
+          text "Likes received" size=12 color="#6B7280" width=82
           column flex=1 height=8 radius=999 background="#F4F5F7" overflow="hidden"
-            column width=engagementWidth height=8 radius=999 background="#EF6351" testId="sm-insights-day-likes-bar"
-          text `${engagements}` size=12 color="#6B7280" width=32
+            column width=likesWidth height=8 radius=999 background="#EF6351" testId="sm-insights-day-likes-bar"
+          text `${likesReceived}` size=12 color="#6B7280" width=32

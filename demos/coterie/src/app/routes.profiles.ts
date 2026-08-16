@@ -36,7 +36,17 @@ export const CORE_PROFILE: NativeRouteProfile = {
   profile: 'app',
   registryId: '/src/app/routes.runtime.native.core.ts',
   match: {},
-  routes: ['index', 'about'],
+  routes: [
+    'index',
+    'about',
+    'chats',
+    'search',
+    'profile/[id]',
+    'chat/[id]',
+    'chat/[id]/settings',
+    'insights',
+    'media/[id]',
+  ],
 };
 
 export const NATIVE_ROUTE_PROFILES: readonly NativeRouteProfile[] = [];

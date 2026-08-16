@@ -12,8 +12,43 @@ export const webFallbackRouteOwnershipClassifier =
   "schemaVersion": 1,
   "explicitRoutes": [
     {
+      "pathnamePattern": "/chat/:id/settings",
+      "routeId": "app/chat/[id]/settings.contract",
+      "owningProfile": "app"
+    },
+    {
+      "pathnamePattern": "/chat/:id",
+      "routeId": "app/chat/[id].contract",
+      "owningProfile": "app"
+    },
+    {
+      "pathnamePattern": "/media/:id",
+      "routeId": "app/media/[id].contract",
+      "owningProfile": "app"
+    },
+    {
+      "pathnamePattern": "/profile/:id",
+      "routeId": "app/profile/[id].contract",
+      "owningProfile": "app"
+    },
+    {
       "pathnamePattern": "/about",
       "routeId": "app/about.contract",
+      "owningProfile": "app"
+    },
+    {
+      "pathnamePattern": "/chats",
+      "routeId": "app/chats.contract",
+      "owningProfile": "app"
+    },
+    {
+      "pathnamePattern": "/insights",
+      "routeId": "app/insights.contract",
+      "owningProfile": "app"
+    },
+    {
+      "pathnamePattern": "/search",
+      "routeId": "app/search.contract",
       "owningProfile": "app"
     },
     {
@@ -23,7 +58,7 @@ export const webFallbackRouteOwnershipClassifier =
     }
   ],
   "zone": null,
-  "digest": "sha256:fafc33e54c50ea7ac9d706d67d30e0b1903788ee8237010ce6f428a4e58aed61"
+  "digest": "sha256:c4934b3d1861c2dfec600372a6748c83b85e093f6059ccad052e5ebf6494ea6e"
 } as const satisfies WebFallbackRouteOwnershipClassifier;
 export const webFallbackLabRouteOwnershipClassifiers: Readonly<Record<string, WebFallbackRouteOwnershipClassifier>> =
 {};

@@ -14,9 +14,72 @@
     {
       "version": 1,
       "schemaVersion": 1,
+      "routeId": "app/chat/[id].contract",
+      "routeGraphDigest": "sha256:fefb0a65cad6189e67b973cf3f89f45466ed65053dbdc5ad4ce5c5129cbb1ac9",
+      "sourceVersion": "sha256:fefb0a65cad6189e67b973cf3f89f45466ed65053dbdc5ad4ce5c5129cbb1ac9",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    },
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/chat/[id]/settings.contract",
+      "routeGraphDigest": "sha256:9874e1f8347ac0859c1b61f8d3f0e8ed710c9b03e4ab9d6070286a64eba51dcc",
+      "sourceVersion": "sha256:9874e1f8347ac0859c1b61f8d3f0e8ed710c9b03e4ab9d6070286a64eba51dcc",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    },
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/chats.contract",
+      "routeGraphDigest": "sha256:ffd81ac0f3c06314cd49659a02fb8bfe549e7abe7bcac1e226a2b24890c3d3e4",
+      "sourceVersion": "sha256:ffd81ac0f3c06314cd49659a02fb8bfe549e7abe7bcac1e226a2b24890c3d3e4",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    },
+    {
+      "version": 1,
+      "schemaVersion": 1,
       "routeId": "app/index.contract",
-      "routeGraphDigest": "sha256:28d8e9e57d39dcc916a609d51f844d9351bf721c89c2735ee03db2380d57561e",
-      "sourceVersion": "sha256:28d8e9e57d39dcc916a609d51f844d9351bf721c89c2735ee03db2380d57561e",
+      "routeGraphDigest": "sha256:7f9cea0c88130a833a15710547549d2a5ad7466509264d9d3d258f33687e5950",
+      "sourceVersion": "sha256:7f9cea0c88130a833a15710547549d2a5ad7466509264d9d3d258f33687e5950",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    },
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/insights.contract",
+      "routeGraphDigest": "sha256:1bebc66fbd1e24b8fc9f229872f4e4677573bf8a416b6377aad280fe45fa84ac",
+      "sourceVersion": "sha256:1bebc66fbd1e24b8fc9f229872f4e4677573bf8a416b6377aad280fe45fa84ac",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    },
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/media/[id].contract",
+      "routeGraphDigest": "sha256:16f2ec5c6d3820669df64c0489c0948ff29980bad90e6126507a80c636b4bff9",
+      "sourceVersion": "sha256:16f2ec5c6d3820669df64c0489c0948ff29980bad90e6126507a80c636b4bff9",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    },
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/profile/[id].contract",
+      "routeGraphDigest": "sha256:794fe540c398efa74ea57df8fd123255bf04554c16b841f548f5d7ea9aea8b2c",
+      "sourceVersion": "sha256:794fe540c398efa74ea57df8fd123255bf04554c16b841f548f5d7ea9aea8b2c",
+      "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "generatedAdapterVersion": "exact-contract-router-chain-v1"
+    },
+    {
+      "version": 1,
+      "schemaVersion": 1,
+      "routeId": "app/search.contract",
+      "routeGraphDigest": "sha256:704621d703ade7a745599c78bf42baeef43d768b7d069fba5e4d85147ba9b577",
+      "sourceVersion": "sha256:704621d703ade7a745599c78bf42baeef43d768b7d069fba5e4d85147ba9b577",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     }

@@ -6,10 +6,8 @@ component CoterieFeedTabs
   contract
     has node testId="sm-feed-tab-following"
     has node testId="sm-feed-tab-global"
-    has node testId="sm-feed-tab-trending"
 
   view
     row width="100%" background="#FFFFFF" borderBottomWidth=1 borderColor="#E2E4E8"
       button "Following" press=select("following") accessibilitySelected=selected == "following" flex=1 padding=12 background="transparent" borderBottomWidth=selected == "following" ? 3 : 0 borderColor="#4F46E5" testId="sm-feed-tab-following"
       button "Global" press=select("global") accessibilitySelected=selected == "global" flex=1 padding=12 background="transparent" borderBottomWidth=selected == "global" ? 3 : 0 borderColor="#4F46E5" testId="sm-feed-tab-global"
-      button "Trending" press=select("trending") accessibilitySelected=selected == "trending" flex=1 padding=12 background="transparent" borderBottomWidth=selected == "trending" ? 3 : 0 borderColor="#4F46E5" testId="sm-feed-tab-trending"

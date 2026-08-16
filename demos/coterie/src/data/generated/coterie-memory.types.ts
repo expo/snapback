@@ -1,11 +1,12 @@
 // GENERATED types — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie-memory" 1 (inputsHash b99d16d677cfe8b0).
+// Source authority: provider-native declaration "coterie-memory" 2 (inputsHash a42bfa78dc6220e0).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface Chat {
   accentColor: string;
   avatarUrl: string | null;
+  disappearing: string;
   id: string;
   isGroup: boolean;
   preview: string;
@@ -35,15 +36,19 @@ export interface FeedItem {
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface InsightDay {
   day: string;
-  engagements: number;
   id: string;
-  views: number;
+  likesReceived: number;
+  posts: number;
+  totalFollowers: number;
+  totalFollowing: number;
+  totalLikesReceived: number;
+  totalPosts: number;
+  totalRepliesReceived: number;
+  totalRepostsReceived: number;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface Message {
-  attachmentKind: string | null;
-  attachmentUrl: string | null;
   body: string;
   chatId: string;
   createdAt: string;
@@ -52,20 +57,9 @@ export interface Message {
   id: string;
   mine: boolean;
   quoteText: string | null;
-  reaction: string | null;
   senderId: string;
   senderName: string;
   status: string;
-  viewOnce: boolean;
-}
-
-/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
-export interface PollOption {
-  id: string;
-  label: string;
-  postId: string;
-  selectedByMe: boolean;
-  votes: number;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
@@ -97,14 +91,6 @@ export interface Session {
   userId: string;
 }
 
-/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
-export interface TrendingTopic {
-  id: string;
-  label: string;
-  postCount: number;
-  rank: number;
-}
-
 export type ListChatsParams = Record<string, never>;
 export type ListChatsResult = Array<Chat>;
 export type ListChatsError = never;
@@ -129,13 +115,6 @@ export type ListMessagesResult = Array<Message>;
 export type ListMessagesError = never;
 export type ListMessagesReceiptsPosture = 'none';
 
-export interface ListPollOptionsParams {
-  postId: string;
-}
-export type ListPollOptionsResult = Array<PollOption>;
-export type ListPollOptionsError = never;
-export type ListPollOptionsReceiptsPosture = 'none';
-
 export type ListProfilesParams = Record<string, never>;
 export type ListProfilesResult = Array<Profile>;
 export type ListProfilesError = never;
@@ -145,11 +124,6 @@ export type ListSessionParams = Record<string, never>;
 export type ListSessionResult = Array<Session>;
 export type ListSessionError = never;
 export type ListSessionReceiptsPosture = 'none';
-
-export type ListTrendingParams = Record<string, never>;
-export type ListTrendingResult = Array<TrendingTopic>;
-export type ListTrendingError = never;
-export type ListTrendingReceiptsPosture = 'none';
 
 export interface SearchSocialParams {
   query: string;
@@ -189,21 +163,34 @@ export interface SendMessageParams {
 export type SendMessageError = never;
 export type SendMessageReceiptsPosture = 'none';
 
-export interface ToggleFollowParams {
+export interface SetChatAccentParams {
+  chatId: string;
+  color: string;
+  mutationId: string;
+}
+export type SetChatAccentError = never;
+export type SetChatAccentReceiptsPosture = 'none';
+
+export interface SetDisappearingParams {
+  chatId: string;
+  value: string;
+  mutationId: string;
+}
+export type SetDisappearingError = never;
+export type SetDisappearingReceiptsPosture = 'none';
+
+export interface SetFollowParams {
   userId: string;
+  following: boolean;
+  mutationId: string;
 }
-export type ToggleFollowError = never;
-export type ToggleFollowReceiptsPosture = 'none';
+export type SetFollowError = never;
+export type SetFollowReceiptsPosture = 'none';
 
-export interface ToggleLikeParams {
+export interface SetLikeParams {
   postId: string;
+  liked: boolean;
+  mutationId: string;
 }
-export type ToggleLikeError = never;
-export type ToggleLikeReceiptsPosture = 'none';
-
-export interface VotePollParams {
-  postId: string;
-  optionId: string;
-}
-export type VotePollError = never;
-export type VotePollReceiptsPosture = 'none';
+export type SetLikeError = never;
+export type SetLikeReceiptsPosture = 'none';

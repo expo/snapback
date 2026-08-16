@@ -1,7 +1,7 @@
 {
   "schemaVersion": "provider-declaration.v1",
   "provider": "coterie-memory",
-  "declarationVersion": "1",
+  "declarationVersion": "2",
   "capabilities": {
     "push": true,
     "pollingCadenceMs": null,
@@ -48,8 +48,8 @@
     {
       "name": "listFeed",
       "descriptorId": "listFeed",
-      "compatibilityToken": "1",
-      "reads": ["posts"],
+      "compatibilityToken": "2",
+      "reads": ["posts", "follows"],
       "params": [
         { "name": "mode", "type": { "kind": "string" }, "nullable": false }
       ],
@@ -113,7 +113,7 @@
     {
       "name": "listChats",
       "descriptorId": "listChats",
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "reads": ["chats"],
       "params": [],
       "result": {
@@ -130,6 +130,7 @@
             { "name": "unreadCount", "type": { "kind": "number" }, "nullable": false },
             { "name": "isGroup", "type": { "kind": "boolean" }, "nullable": false },
             { "name": "accentColor", "type": { "kind": "string" }, "nullable": false },
+            { "name": "disappearing", "type": { "kind": "string" }, "nullable": false },
             { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true }
           ]
         }
@@ -141,7 +142,7 @@
     {
       "name": "listMessages",
       "descriptorId": "listMessages",
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "reads": ["messages"],
       "params": [
         { "name": "chatId", "type": { "kind": "string" }, "nullable": false }
@@ -161,13 +162,9 @@
             { "name": "createdAt", "type": { "kind": "string" }, "nullable": false },
             { "name": "mine", "type": { "kind": "boolean" }, "nullable": false },
             { "name": "status", "type": { "kind": "string" }, "nullable": false },
-            { "name": "reaction", "type": { "kind": "string" }, "nullable": true },
             { "name": "quoteText", "type": { "kind": "string" }, "nullable": true },
             { "name": "edited", "type": { "kind": "boolean" }, "nullable": false },
-            { "name": "deleted", "type": { "kind": "boolean" }, "nullable": false },
-            { "name": "attachmentUrl", "type": { "kind": "string" }, "nullable": true },
-            { "name": "attachmentKind", "type": { "kind": "string" }, "nullable": true },
-            { "name": "viewOnce", "type": { "kind": "boolean" }, "nullable": false }
+            { "name": "deleted", "type": { "kind": "boolean" }, "nullable": false }
           ]
         }
       },
@@ -178,7 +175,7 @@
     {
       "name": "searchSocial",
       "descriptorId": "searchSocial",
-      "compatibilityToken": "1",
+      "compatibilityToken": "2",
       "reads": ["search"],
       "params": [
         { "name": "query", "type": { "kind": "string" }, "nullable": false }
@@ -203,37 +200,10 @@
       "receipts": "none"
     },
     {
-      "name": "listPollOptions",
-      "descriptorId": "listPollOptions",
-      "compatibilityToken": "1",
-      "reads": ["pollOptions"],
-      "params": [
-        { "name": "postId", "type": { "kind": "string" }, "nullable": false }
-      ],
-      "result": {
-        "kind": "list",
-        "row": {
-          "kind": "shape",
-          "name": "PollOption",
-          "excessFields": "project",
-          "fields": [
-            { "name": "id", "type": { "kind": "string" }, "nullable": false },
-            { "name": "postId", "type": { "kind": "string" }, "nullable": false },
-            { "name": "label", "type": { "kind": "string" }, "nullable": false },
-            { "name": "votes", "type": { "kind": "number" }, "nullable": false },
-            { "name": "selectedByMe", "type": { "kind": "boolean" }, "nullable": false }
-          ]
-        }
-      },
-      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
-      "errors": [],
-      "receipts": "none"
-    },
-    {
       "name": "listInsights",
       "descriptorId": "listInsights",
-      "compatibilityToken": "1",
-      "reads": ["insights"],
+      "compatibilityToken": "2",
+      "reads": ["posts", "follows"],
       "params": [],
       "result": {
         "kind": "list",
@@ -244,32 +214,14 @@
           "fields": [
             { "name": "id", "type": { "kind": "string" }, "nullable": false },
             { "name": "day", "type": { "kind": "string" }, "nullable": false },
-            { "name": "views", "type": { "kind": "number" }, "nullable": false },
-            { "name": "engagements", "type": { "kind": "number" }, "nullable": false }
-          ]
-        }
-      },
-      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
-      "errors": [],
-      "receipts": "none"
-    },
-    {
-      "name": "listTrending",
-      "descriptorId": "listTrending",
-      "compatibilityToken": "1",
-      "reads": ["trends"],
-      "params": [],
-      "result": {
-        "kind": "list",
-        "row": {
-          "kind": "shape",
-          "name": "TrendingTopic",
-          "excessFields": "project",
-          "fields": [
-            { "name": "id", "type": { "kind": "string" }, "nullable": false },
-            { "name": "rank", "type": { "kind": "number" }, "nullable": false },
-            { "name": "label", "type": { "kind": "string" }, "nullable": false },
-            { "name": "postCount", "type": { "kind": "number" }, "nullable": false }
+            { "name": "posts", "type": { "kind": "number" }, "nullable": false },
+            { "name": "likesReceived", "type": { "kind": "number" }, "nullable": false },
+            { "name": "totalPosts", "type": { "kind": "number" }, "nullable": false },
+            { "name": "totalLikesReceived", "type": { "kind": "number" }, "nullable": false },
+            { "name": "totalRepostsReceived", "type": { "kind": "number" }, "nullable": false },
+            { "name": "totalRepliesReceived", "type": { "kind": "number" }, "nullable": false },
+            { "name": "totalFollowers", "type": { "kind": "number" }, "nullable": false },
+            { "name": "totalFollowing", "type": { "kind": "number" }, "nullable": false }
           ]
         }
       },
@@ -309,9 +261,11 @@
       "errors": []
     },
     {
-      "name": "toggleLike",
+      "name": "setLike",
       "params": [
-        { "name": "postId", "type": { "kind": "string" }, "nullable": false }
+        { "name": "postId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "liked", "type": { "kind": "boolean" }, "nullable": false },
+        { "name": "mutationId", "type": { "kind": "string" }, "nullable": false }
       ],
       "writes": ["posts"],
       "optimistic": false,
@@ -319,11 +273,13 @@
       "errors": []
     },
     {
-      "name": "toggleFollow",
+      "name": "setFollow",
       "params": [
-        { "name": "userId", "type": { "kind": "string" }, "nullable": false }
+        { "name": "userId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "following", "type": { "kind": "boolean" }, "nullable": false },
+        { "name": "mutationId", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["profiles"],
+      "writes": ["follows", "profiles", "posts"],
       "optimistic": false,
       "receipts": "none",
       "errors": []
@@ -334,7 +290,7 @@
         { "name": "displayName", "type": { "kind": "string" }, "nullable": false },
         { "name": "bio", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["profiles"],
+      "writes": ["profiles", "posts", "messages", "search"],
       "optimistic": false,
       "receipts": "none",
       "errors": []
@@ -351,19 +307,33 @@
       "errors": []
     },
     {
-      "name": "votePoll",
+      "name": "setChatAccent",
       "params": [
-        { "name": "postId", "type": { "kind": "string" }, "nullable": false },
-        { "name": "optionId", "type": { "kind": "string" }, "nullable": false }
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "color", "type": { "kind": "string" }, "nullable": false },
+        { "name": "mutationId", "type": { "kind": "string" }, "nullable": false }
       ],
-      "writes": ["pollOptions"],
+      "writes": ["chats"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": []
+    },
+    {
+      "name": "setDisappearing",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "value", "type": { "kind": "string" }, "nullable": false },
+        { "name": "mutationId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["chats"],
       "optimistic": false,
       "receipts": "none",
       "errors": []
     }
   ],
   "extensions": {
-    "coterie.fixtureProfile": "clique-feature-parity",
+    "coterie.fixtureProfile": "social-messenger-starter-pack",
+    "coterie.fixtureClock": "2026-01-01T00:01:30Z",
     "coterie.persistence": "process-memory-only"
   }
 }

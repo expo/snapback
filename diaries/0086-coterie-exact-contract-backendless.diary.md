@@ -105,3 +105,40 @@ into the Contract UI.
 Snapback was not attached in this entry. There are therefore no Snapback
 ergonomics, correctness, or performance claims yet. The checked-in provider
 seam is the input to that future work.
+
+## 2026-08-16 — round-1 review fixes
+
+I corrected the first entry's landing rather than rewriting that historical
+account. The review exposed that I had preserved the benchmark's visual tone
+while replacing too much of its actual fixture authority. Coterie now starts
+from Alice through Henry, the asymmetric starter follow graph, canonical post
+and conversation IDs, exact starter-log text, and byte-identical fixture-pack
+media. The feed and Insights screens became more convincing once the numbers
+came from those rows instead of decorative constants.
+
+Splitting the large state-switched route was less painful in Contract than I
+expected. Dynamic `route.params`, target objects, and `back()` made person,
+chat, settings, and media identity explicit, while the presentation components
+kept their plain callback props. The repetitive part is session/header wiring:
+without a layout component in this small shell, every route repeats the same
+provider query and primary-navigation action. That is honest and readable at
+this size, but it is the first place I would look for a paved Contract layout
+example as the stage-2 screen count grows.
+
+The provider seam made the set-state corrections straightforward. `setLike`
+and `setFollow` now accept desired state plus mutation IDs, and retry tests make
+the non-flipping behavior concrete. The awkward Exact-specific edge was the
+mock boundary's table-granular subscription handle: a Following query can
+declare reads of both posts and follows, but its live handle is anchored to one
+table. I kept a small maintained post-side follow projection so the honest
+`setFollow` write set invalidates the feed, while the filter itself reads the
+actual follow-edge table. Contract's mutation-observability checker then warns
+on profile-route mutations whose additional denormalized writes are observed
+on other routes. Those warnings are accurate about locality, but broad writes
+used to maintain cross-screen projections make them noisy.
+
+I removed surfaces whose frozen IDs would otherwise lie: always-on typing,
+route-wide reactions, topic-shaped Trending, dead attachments, static chat
+background, and inert repost/reply controls. The remaining settings options
+now use all eight pinned accents and the exact `off`/`24h`/`7d` values. This
+round still did not attach Snapback, so the earlier Snapback non-finding stands.

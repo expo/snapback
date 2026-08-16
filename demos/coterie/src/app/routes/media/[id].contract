@@ -1,0 +1,33 @@
+use back from "@exact/router/contract"
+use FacetButton from "@exact/facet-contract/components/button.contract"
+use listFeed from "../../../data/generated/coterie-memory.bindings.ts"
+
+component CoterieMediaRoute
+  props
+    route: object
+
+  derive postId = route.params.id
+  query feed = listFeed({ mode: "global" })
+
+  action close
+    back()
+
+  contract
+    has node testId="coterie-root"
+    has node testId="sm-media-viewer-close"
+
+  view
+    main width="100%" minHeight="100%" background="#17191C" testId="coterie-root"
+      column width="100%" flex=1 align="center" justify="center" gap=14 padding=18
+        async feed
+          loading
+            skeleton width="100%" height=320 radius=12
+          error problem
+            text `${problem}` size=13 color="#FFFFFF"
+          empty
+            text "Media unavailable" size=15 color="#FFFFFF"
+          ready posts
+            each post in posts key=post.id
+              when post.id == postId && post.mediaUrl
+                image src=post.mediaUrl alt=`Media from ${post.authorName}` width="100%" maxWidth=640 aspectRatio=1.6 objectFit="contain" testId="sm-media-viewer-image"
+        FacetButton(label="Close", variant="secondary", press=close, testId="sm-media-viewer-close")
