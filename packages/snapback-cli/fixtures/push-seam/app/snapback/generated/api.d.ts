@@ -230,7 +230,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:377d6ef45ebba6129ef72d57eebea32583ff86b3769e6ce7ed78236203b28547`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:5855e6cf97949418b9fad4f6b71bdb6fe0cc6e6ec3b01e5475415035e679b22c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "joinAsHost": FunctionReference<"joinAsHost", 'Mutation', Record<string, never>, null, "snapback-explicit-v1">;
   /**
@@ -239,7 +239,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `ibex_ctx_db_host_bridge`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: dispatch result is not durable settlement Retention: durable outbox identity until terminal disposition/acknowledgement.
    * Dispatch/task states: `dispatch:settled`, `dispatch:queued`, `disposition:pending`, `disposition:settled`, `disposition:failed`, `disposition:stranded`, `disposition:quarantined`, `disposition:resultGone`, `disposition:unknown`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:377d6ef45ebba6129ef72d57eebea32583ff86b3769e6ce7ed78236203b28547`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:5855e6cf97949418b9fad4f6b71bdb6fe0cc6e6ec3b01e5475415035e679b22c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "leaveHost": FunctionReference<"leaveHost", 'Mutation', Record<string, never>, null, "snapback-explicit-v1">;
   /**
@@ -248,7 +248,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `notifications.expoPushSeam`, `result_contract_v1`.
    * Freshness: one-shot authoritative response or liveQuery snapshot followed by updates Retention: none.
    * Dispatch/task states: `connecting`, `live`, `polling`, `stale`, `disconnected`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:377d6ef45ebba6129ef72d57eebea32583ff86b3769e6ce7ed78236203b28547`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:5855e6cf97949418b9fad4f6b71bdb6fe0cc6e6ec3b01e5475415035e679b22c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "pushLedger": FunctionReference<"pushLedger", 'Query', { intentId: string }, ReadonlyArray<{ "_id": string; "intentId": string; "triggerMode": "immediate" | "system" | "deferred"; "intentState": string; "attemptCount": number; "createdAtMs": number; "updatedAtMs": number; "expiresAtMs": number; "batchId": null | string; "attemptNumber": null | number; "batchIndex": null | number; "batchState": null | string; "transmittingAtMs": null | number; "settledAtMs": null | number; "httpStatus": null | number; "requestErrorCode": null | string; "previousAmbiguous": null | boolean; "messageId": null | string; "tokenId": null | string; "messageState": null | string; "ticketId": null | string; "receiptPollCount": null | number; "nextReceiptPollAtMs": null | number; "receiptWindowClosesAtMs": null | number; "handedToExpoAtMs": null | number; "expoAcceptedAtMs": null | number; "expoErrorCode": null | string; "retirementEffect": null | boolean }>, "snapback-explicit-v1">;
   /**
@@ -257,7 +257,7 @@ export interface GeneratedApi {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `cron_action_run_mutation`, `ibex_ctx_db_host_bridge`, `result_contract_v1`.
    * Freshness: one-shot online response Retention: none.
    * Dispatch/task states: promise-only (no handle state table).
-   * Build identity: `snapback.v1:sessions:inputs:sha256:377d6ef45ebba6129ef72d57eebea32583ff86b3769e6ce7ed78236203b28547`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:5855e6cf97949418b9fad4f6b71bdb6fe0cc6e6ec3b01e5475415035e679b22c`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   "sendSelected": FunctionReference<"sendSelected", 'Action', { principalIds: ReadonlyArray<Principal>; title: string; body: string; dedupeKey: string; redriveAmbiguous?: boolean }, { "intentId": string; "attempt": number; "targetCount": number; "batchCount": number; "state": string; "deduplicated": boolean }, "snapback-explicit-v1">;
   ephemeral: GeneratedEphemeral;

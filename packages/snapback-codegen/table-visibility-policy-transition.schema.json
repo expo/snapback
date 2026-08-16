@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/table-visibility-policy-transition.v1.json",
+  "title": "Snapback table visibility policy transition v1",
+  "type": "object",
+  "required": ["schemaVersion", "id", "tableId", "predecessorHeadId", "predecessorHeadDigest", "predecessorNormalizedPolicyBody", "predecessorPolicyDigest", "successorNormalizedPolicyBody", "successorPolicyDigest", "admissionKind", "approvalPath", "approvalClosureDigest", "serverSeparationReceipt", "serverSeparationReceiptDigest", "quarantineVerdict"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.table-visibility-policy-transition.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "tableId": { "type": "string", "minLength": 1 },
+    "predecessorHeadId": { "type": ["string", "null"] },
+    "predecessorHeadDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+    "predecessorNormalizedPolicyBody": { "type": ["object", "null"] },
+    "predecessorPolicyDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+    "successorNormalizedPolicyBody": { "type": "object" },
+    "successorPolicyDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "admissionKind": { "enum": ["g1-migration", "new-restricted", "approved-transition", "narrowing", "quarantined-reversal"] },
+    "approvalPath": { "type": ["string", "null"] },
+    "approvalClosureDigest": { "type": ["string", "null"] },
+    "serverSeparationReceipt": { "type": ["string", "null"] },
+    "serverSeparationReceiptDigest": { "type": ["string", "null"] },
+    "quarantineVerdict": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

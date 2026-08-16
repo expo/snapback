@@ -48,8 +48,9 @@
       "table": "workspaceMembers"
     }
   ],
+  "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "cdd775f40c99acc086763718d92ad485c0506c5f7720ed2ef813382de74d1a99",
+  "inputsHash": "94884a39a65509ec727e137ff161579cc368efe20b8f18474c014a579e6e3494",
   "operations": [
     {
       "authRequirement": {
@@ -294,12 +295,13 @@
       }
     }
   ],
-  "schemaVersion": "snapback.authorization-review.v1",
+  "quarantines": [],
+  "schemaVersion": "snapback.authorization-review.v2",
   "sectionSchemas": {
     "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
-    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
-    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
     "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
   },
   "tablePolicies": [

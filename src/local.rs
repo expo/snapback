@@ -4873,6 +4873,16 @@ impl LocalSnapback {
         .map_err(ephemeral_manifest_error)?;
 
         let deployment = artifacts.deployment_identity(requested_mode)?;
+        // @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
+        // activation consumes target-owned custody and the exact derived
+        // deployment identity before any durable schema/function cut. A
+        // request or bundle field cannot supply these inputs.
+        let _governance_warnings =
+            crate::visibility_governance::validate_activation_from_target(
+                &artifacts.schema,
+                &artifacts.functions,
+                now_millis(),
+            )?;
         // @ref LLP 0076#target-contract — cold-start capability admission
         // composes the candidate pair with the exact process's live egress
         // fact, just like `/inspect` and ordinary function loading. The
@@ -5046,6 +5056,17 @@ impl LocalSnapback {
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         manifest.validate_artifact()?;
+        if manifest
+            .visibility_governance
+            .as_ref()
+            .is_some_and(|governance| governance.required)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE",
+                "auth",
+                "a governed visibility program requires complete-pair activation with a target-owned protected observer verdict",
+            ));
+        }
         if self.functions_loaded {
             manifest.validate_api_against_functions(&self.functions)?;
         }

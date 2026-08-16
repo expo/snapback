@@ -3,8 +3,9 @@
   "authMode": "dev",
   "authorityProfiles": [],
   "authorizationTables": [],
+  "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "63b1fc3ab2203a047ac37d2eaee388dc4696e86dd45200f53e031e5d808133fe",
+  "inputsHash": "d2311634bfd5ee8e290abd0d42c3f36d67f3a6463d3bffe395431f274903449c",
   "operations": [
     {
       "authRequirement": {
@@ -408,12 +409,13 @@
       }
     }
   ],
-  "schemaVersion": "snapback.authorization-review.v1",
+  "quarantines": [],
+  "schemaVersion": "snapback.authorization-review.v2",
   "sectionSchemas": {
     "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
-    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
-    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
     "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
   },
   "tablePolicies": [

@@ -107,6 +107,9 @@ const QUERY_BUILDER_VERBS = new Set(INLINE_HANDLER_RULES.queryBuilderVerbs);
 // runtime "undefined is not a function" failure.
 const CTX_DB_MEMBERS = new Set(INLINE_HANDLER_RULES.ctxDbMembers);
 // @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
+// @ref LLP 0234#d6--projection-and-acceptance-are-load-bearing-but-not-proof-theater
+// The G0 census is exact over this closed host-call channel: direct inline
+// forms retain spans while visible aliases and helper escapes fail generation.
 // — make the call-site authority visible while rejecting nested write aliases.
 const ELEVATED_DB_MEMBERS = new Set(INLINE_HANDLER_RULES.elevatedDbMembers);
 
@@ -186,6 +189,29 @@ function elevatedDbMember(node, checker, boundary) {
   if (!rootedAtElevatedCtxDb) return null;
   const member = staticMemberName(node, checker, boundary);
   return member !== null && ELEVATED_DB_MEMBERS.has(member) ? member : null;
+}
+
+function isCtxDbElevatedRoot(node) {
+  return ts.isPropertyAccessExpression(node)
+    && node.name.text === 'elevated'
+    && ts.isPropertyAccessExpression(node.expression)
+    && node.expression.name.text === 'db'
+    && ts.isIdentifier(node.expression.expression)
+    && node.expression.expression.text === 'ctx';
+}
+
+function directElevatedReadRootUse(node, checker, boundary) {
+  if (!isCtxDbElevatedRoot(node)) return false;
+  const memberAccess = node.parent;
+  if (!ts.isPropertyAccessExpression(memberAccess) && !ts.isElementAccessExpression(memberAccess)) {
+    return false;
+  }
+  const member = staticMemberName(memberAccess, checker, boundary);
+  // The enclosing member-access check owns computed/unknown-form refusals.
+  if (member === null || !ELEVATED_DB_MEMBERS.has(member)) return true;
+  return memberAccess.expression === node
+    && ts.isCallExpression(memberAccess.parent)
+    && memberAccess.parent.expression === memberAccess;
 }
 
 function elevatedDbUsesIn(node, checker, boundary, sourceFile, path, capture) {
@@ -287,7 +313,12 @@ function ctxDbMemberProblem(node, checker, boundary) {
   if (!rootedAtCtxDb && !rootedAtElevatedCtxDb) return null;
   const member = staticMemberName(node, checker, boundary);
   const allowed = rootedAtElevatedCtxDb ? ELEVATED_DB_MEMBERS : CTX_DB_MEMBERS;
-  if (member === null || allowed.has(member)) return null;
+  if (member === null) {
+    return rootedAtElevatedCtxDb
+      ? 'computed ctx.db.elevated read forms cannot produce an exact host-call capability'
+      : null;
+  }
+  if (allowed.has(member)) return null;
   if (rootedAtElevatedCtxDb) {
     return `${member} is not a ctx.db.elevated member in inline_handler_v1 `
       + '(use query, get, getMany, or uniqueMany; elevated writes are never available)';
@@ -465,6 +496,13 @@ function selfContainedProblems(expression, checker, sourceFile) {
   const forbidden = [];
   const elevatedDbUses = [];
   const collect = (node) => {
+    if (isCtxDbElevatedRoot(node) && !directElevatedReadRootUse(node, checker, expression)) {
+      forbidden.push({
+        node,
+        reason: 'ctx.db.elevated must be consumed by one direct literal read-form call',
+        details: { elevatedReadEscape: true },
+      });
+    }
     if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
       forbidden.push({ node, reason: 'class syntax is outside inline_handler_v1' });
     }
@@ -489,13 +527,21 @@ function selfContainedProblems(expression, checker, sourceFile) {
       forbidden.push({ node, reason: 'Function construction is forbidden' });
     }
     if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
-      const reason = reflectionProblem(node, checker, expression);
+      const reason = isCtxDbElevatedRoot(node.expression)
+        ? null
+        : reflectionProblem(node, checker, expression);
       if (reason) {
         forbidden.push({ node, reason });
       }
       const dbMemberReason = ctxDbMemberProblem(node, checker, expression);
       if (dbMemberReason) {
-        forbidden.push({ node, reason: dbMemberReason });
+        forbidden.push({
+          node,
+          reason: dbMemberReason,
+          ...(isCtxDbElevatedRoot(node.expression)
+            ? { details: { elevatedReadEscape: true } }
+            : {}),
+        });
       }
       const elevatedMember = elevatedDbMember(node, checker, expression);
       if (elevatedMember) {
@@ -531,6 +577,20 @@ function selfContainedProblems(expression, checker, sourceFile) {
       forbidden.push({
         node,
         reason: `${destructured} destructuring reflection is outside inline_handler_v1`,
+      });
+    }
+    if (destructured === 'elevated'
+      && ts.isBindingElement(node)
+      && ts.isObjectBindingPattern(node.parent)
+      && ts.isVariableDeclaration(node.parent.parent)
+      && ts.isPropertyAccessExpression(node.parent.parent.initializer)
+      && node.parent.parent.initializer.name.text === 'db'
+      && ts.isIdentifier(node.parent.parent.initializer.expression)
+      && node.parent.parent.initializer.expression.text === 'ctx') {
+      forbidden.push({
+        node,
+        reason: 'ctx.db.elevated destructuring cannot produce an exact host-call capability',
+        details: { elevatedReadEscape: true },
       });
     }
     ts.forEachChild(node, collect);
@@ -1218,13 +1278,25 @@ export function extractInlineHandlers(source, {
       ...use,
       capture: `helper:${name}`,
     }));
+    if (analysis.elevatedDbUses.length > 0) {
+      diagnostics.push(diagnostic(
+        'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE',
+        `helper ${name}: elevated reads must remain direct in the admitted handler expression`,
+        path,
+        declaration,
+        sourceFile,
+        { helper: name, readForms: analysis.elevatedDbUses.map(({ member }) => member) },
+      ));
+    }
     // The 2026-07-28 adversarial refusals hold across the helper boundary: a
     // sibling helper body is scanned under exactly the handler-expression
     // rules, so alias/destructuring/computed-access reflection cannot be
     // laundered through a spliced helper.
     for (const problem of forbidden) {
       diagnostics.push(diagnostic(
-        'SNAPBACK_INLINE_HELPER_SYNTAX_FORBIDDEN',
+        problem.details?.elevatedReadEscape
+          ? 'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE'
+          : 'SNAPBACK_INLINE_HELPER_SYNTAX_FORBIDDEN',
         `helper ${name}: ${problem.reason}`,
         path,
         problem.node,
@@ -1446,7 +1518,9 @@ export function extractInlineHandlers(source, {
       } = selfContainedProblems(expression, checker, sourceFile);
       for (const problem of forbidden) {
         diagnostics.push(diagnostic(
-          'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN',
+          problem.details?.elevatedReadEscape
+            ? 'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE'
+            : 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN',
           `${name}: ${problem.reason}`,
           path,
           problem.node,

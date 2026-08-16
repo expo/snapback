@@ -64,11 +64,37 @@ use crate::vector::{
     VECTOR_RESULT_PROJECTION, VectorFieldClassV1, VectorIndexManifestV1, VectorMaintenanceLimitsV1,
     VectorMetricV1, VectorQueryPlanV1, VectorTieBreakV1, VectorVisibilityV1,
 };
+use crate::visibility_governance::VisibilityGovernanceActivationV1;
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
+
+#[test]
+fn raw_schema_apply_cannot_bypass_governed_complete_pair_activation() {
+    let mut snapback = LocalSnapback::memory().expect("governed local fixture");
+    let mut schema = SchemaManifest::default();
+    schema.visibility_governance = Some(VisibilityGovernanceActivationV1 {
+        schema_version: "snapback.visibility-governance-activation.v1".to_owned(),
+        required: true,
+        generation_inputs_hash: "sha256:inputs".to_owned(),
+        visibility_authorization_program_digest: "sha256:program".to_owned(),
+        override_baseline_digest: "sha256:overrides".to_owned(),
+        table_policy_baseline_digest: "sha256:policies".to_owned(),
+        quarantine_head_digest: "sha256:quarantine".to_owned(),
+        fixture_profiles: Vec::new(),
+        production_windows: Vec::new(),
+    });
+
+    let error = snapback
+        .apply_schema(schema)
+        .expect_err("raw schema application must not bypass complete-pair activation");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE"
+    );
+}
 
 #[test]
 fn connected_client_witnesses_do_not_advance_the_durable_version() {

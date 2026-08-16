@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/table-visibility-policy-baseline.v1.json",
+  "title": "Snapback exact-set ordinary table visibility policy baseline v1",
+  "type": "object",
+  "required": ["schemaVersion", "entries", "exactSetDigest"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.table-visibility-policy-baseline.v1" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["tableId", "normalizedPolicyBody", "policyDigest", "provenanceHeadId"],
+        "properties": {
+          "tableId": { "type": "string", "minLength": 1 },
+          "normalizedPolicyBody": {
+            "type": "object",
+            "required": ["policy", "audienceDeclarationClosure", "audienceDeclarationClosureDigest"],
+            "properties": {
+              "policy": { "type": "object" },
+              "audienceDeclarationClosure": { "type": "array", "items": { "type": "object" } },
+              "audienceDeclarationClosureDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+            },
+            "additionalProperties": false
+          },
+          "policyDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "provenanceHeadId": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "exactSetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  },
+  "additionalProperties": false
+}

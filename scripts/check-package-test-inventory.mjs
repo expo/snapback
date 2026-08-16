@@ -357,6 +357,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'typed-search-wrapper.test.mjs',
       'typescript-profile.test.mjs',
       'vector-authoring.test.mjs',
+      'visibility-governance.test.mjs',
       'vector-distance-profile.test.mjs',
     ],
   },
@@ -509,7 +510,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 291,
+  expectedTotal = 292,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -924,6 +925,8 @@ export function checkPackageTestInventories(options = {}) {
 // 296 -> 289 (2026-08-16, LLP 0254 D10): the Tiny data doorway and its seven
 // package-level suites are withdrawn before 0.1.24; historical evidence stays
 // in the tombstoned LLPs and frozen benchmark.
+// 291 -> 292 (2026-08-16, LLP 0234 G0): @expo/snapback-codegen gains the
+// visibility override, transition/quarantine, observer, and activation corpus.
 // 290 -> 291 (2026-08-16, LLP 0239 R4): @expo/snapback-codegen gains the
 // defineMediaCommand closed-binding/source-attributed-refusal suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

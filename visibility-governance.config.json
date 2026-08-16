@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "snapback.visibility-governance-config.v1",
+  "providerProfile": "github-push-v1",
+  "governedRefs": ["refs/heads/main"],
+  "backendPaths": [],
+  "revokedObserverKeyEpochs": [],
+  "anchorWitness": null,
+  "protectedCreationService": "externally-custodied-single-ref-v1"
+}

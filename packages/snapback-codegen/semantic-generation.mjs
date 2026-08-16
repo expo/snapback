@@ -394,6 +394,7 @@ const NORMALIZED_DECORATED_OPERATION_FIELD_DECISIONS = Object.freeze({
   authorizationDependence: 'include:authority',
   authorityProfileDependence: 'include:authority',
   fieldBoundary: 'include:authority',
+  elevatedDbCapabilities: 'include:authority',
   syncabilityClass: 'include:syncabilityClass',
   readSetSummary: 'include:reads',
   writeSetSummary: 'include:writes',
@@ -439,6 +440,7 @@ function normalizedOperation(operation) {
       authorityIndependent: operation?.authorityIndependent === true,
       authorityCreating: operation?.authorityCreating === true,
       fieldBoundary: operation?.fieldBoundary ?? null,
+      elevatedDbCapabilities: canonicalClone(operation?.elevatedDbCapabilities ?? []),
       authorityProfileDependence: canonicalClone(
         operation?.authorityProfileDependence ?? [],
       ),

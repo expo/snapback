@@ -19,6 +19,8 @@ assert.deepEqual(workflowNames, [
   'ref-check.yml',
   'required-surface-builds.yml',
   'telemetry-latest-main.yml',
+  'visibility-governance-observer.yml',
+  'visibility-governance-reconciler.yml',
 ]);
 
 const deploymentIdentityWorkflow = readFileSync(
@@ -124,7 +126,9 @@ for (const name of workflowNames) {
   assert(permissions, `${name} must declare top-level permissions`);
   const expectedPermissions = name === 'app-bound-linux-qualification.yml'
     ? 'contents: read\n  attestations: read'
-    : 'contents: read';
+    : name === 'visibility-governance-observer.yml'
+      ? 'contents: read\n  id-token: write\n  attestations: write'
+      : 'contents: read';
   assert.equal(
     permissions[1].trim(),
     expectedPermissions,
@@ -191,7 +195,7 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 9, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(setupNodeCount, 11, 'the Node-using workflow inventory changed; review and update this count');
 // 30 -> 31 (2026-08-02): the expo-large local-proof runner does not include
 // Chrome, so the required admin browser-security lane now provisions one
 // through a pinned action instead of inheriting an ambient browser.
@@ -204,7 +208,10 @@ assert.equal(setupNodeCount, 9, 'the Node-using workflow inventory changed; revi
 // 44 -> 45 (2026-08-09): LLP 0188 G1 ltx-conformance adds one pinned checkout.
 // 45 -> 46 (2026-08-09): the public-package matrix installs checkout-pinned
 // Bun for the nested Expo public-registry closure rehearsal.
-assert.equal(actionCount, 46, 'the reviewed workflow action inventory changed; review and update this count');
+// 46 -> 53 (2026-08-15): LLP 0234's protected observer projection and
+// missing-event reconciler add two checkouts, two Node setups, two retained
+// evidence uploads, and one provenance attestation.
+assert.equal(actionCount, 53, 'the reviewed workflow action inventory changed; review and update this count');
 
 const telemetryLatestMain = readFileSync(
   join(workflowDir, 'telemetry-latest-main.yml'),

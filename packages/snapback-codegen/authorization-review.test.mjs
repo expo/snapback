@@ -291,15 +291,14 @@ test('staleness comparison and human diff render structural visibility effects',
   assert.doesNotMatch(stale.diff, /safe|reviewed|approved|waived|discharged/iu);
 });
 
-test('inline and module scanners capture elevated members, tables, handlers, and helpers', () => {
+test('inline and module scanners census only direct or declared elevated capabilities', () => {
   const inline = extractInlineHandlers(`
 import { defineJsMutation, defineJsQuery, results } from './define.mjs';
-async function inspect(ctx) { return ctx.db.elevated.get('messages', 'one'); }
 export const list = defineJsQuery({
   args: {}, reads: ['messages'], result: results.documents('messages'),
   handler: async (ctx) => {
     const rows = await ctx.db.elevated.query('messages').collect();
-    await inspect(ctx);
+    await ctx.db.elevated.get('messages', 'one');
     return rows;
   },
 });
@@ -311,7 +310,7 @@ export const mutate = defineJsMutation({
   assert.equal(inline.diagnostics.length, 0, JSON.stringify(inline.diagnostics));
   assert.deepEqual(
     inline.handlers.get('list').elevatedDbUses.map(({ member, table, capture }) => [member, table, capture]),
-    [['get', 'messages', 'helper:inspect'], ['query', 'messages', 'handler']],
+    [['query', 'messages', 'handler'], ['get', 'messages', 'handler']],
   );
   assert.deepEqual(
     inline.handlers.get('mutate').elevatedDbUses.map(({ member, table }) => [member, table]),
@@ -323,6 +322,40 @@ async function other(ctx) { return ctx.db.elevated.query('private').collect(); }
 globalThis.__snapbackHandlers = { list, other };
 `, { path: 'handlers.mjs', exportName: 'list' });
   assert.deepEqual(moduleUses.map(({ member, table }) => [member, table]), [['getMany', 'messages']]);
+
+  const helperEscape = extractInlineHandlers(`
+import { defineJsQuery, results } from './define.mjs';
+async function inspect(ctx) { return ctx.db.elevated.get('messages', 'one'); }
+export const list = defineJsQuery({
+  args: {}, reads: ['messages'], result: results.documents('messages'),
+  handler: async (ctx) => inspect(ctx),
+});
+`);
+  assert.deepEqual(
+    helperEscape.diagnostics.map(({ code }) => code),
+    ['SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE'],
+  );
+});
+
+test('visible elevated alias, destructure, computed form, and helper escape refuse exactly once', () => {
+  const bodies = [
+    `async (ctx) => { const elevated = ctx.db.elevated; return elevated.get('messages', 'one'); }`,
+    `async (ctx) => { const { elevated } = ctx.db; return elevated.get('messages', 'one'); }`,
+    `async (ctx, args) => ctx.db.elevated[args.form]('messages', 'one')`,
+  ];
+  for (const [index, body] of bodies.entries()) {
+    const extracted = extractInlineHandlers(`
+import { defineJsQuery, results } from './define.mjs';
+export const list = defineJsQuery({
+  args: {}, reads: ['messages'], result: results.document('messages'), handler: ${body},
+});
+`);
+    assert.deepEqual(
+      extracted.diagnostics.map(({ code }) => code),
+      ['SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE'],
+      `escape fixture ${index}: ${JSON.stringify(extracted.diagnostics)}`,
+    );
+  }
 });
 
 test('uncomposed read-surface diagnostics are listed exactly once per operation', () => {
@@ -374,6 +407,10 @@ export const list = defineJsQuery({
     assert.equal(record.authority, '@expo/snapback-codegen/authorization-review.schema.json');
     assert.equal(first.authorizationReview.inputsHash, first.artifactIndex.inputsHash);
     assert.equal(first.authorizationReview.operations[0].elevatedDatabase.uses[0].table, 'messages');
+    assert.deepEqual(first.functionManifest.functions[0].elevatedDbCapabilities, [{
+      form: 'query',
+      tables: ['messages'],
+    }]);
     assert.equal(validateSchema(first.authorizationReview), true, JSON.stringify(validateSchema.errors));
     const second = await generate(backend);
     assert.equal(second.ok, true, JSON.stringify(second.diagnostics));

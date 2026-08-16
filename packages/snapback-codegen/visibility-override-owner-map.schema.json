@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-override-owner-map.v1.json",
+  "title": "Snapback visibility override owner map v1",
+  "type": "object",
+  "required": ["schemaVersion", "fallbackApprovalOwner", "entries"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-override-owner-map.v1" },
+    "fallbackApprovalOwner": { "type": "string", "minLength": 1 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["implementationOwner", "approvalOwner", "authorRuling", "delegationRecord"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "patternId": { "type": "string", "minLength": 1 },
+          "implementationOwner": { "type": "string", "minLength": 1 },
+          "approvalOwner": { "type": "string", "minLength": 1 },
+          "authorRuling": { "type": "string", "minLength": 1 },
+          "delegationRecord": { "type": "object" }
+        },
+        "oneOf": [{ "required": ["path"], "not": { "required": ["patternId"] } }, { "required": ["patternId"], "not": { "required": ["path"] } }],
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

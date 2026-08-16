@@ -38,8 +38,9 @@
       "table": "eventMembers"
     }
   ],
+  "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "ec8bedbfab481e1a295fd76538ea52c0129fe90be23ec4ac1a7cc3343567b478",
+  "inputsHash": "7629d8d57c39af451ee518ca823a7d0b2ec5d40233c3f0f64d9a34f38bd92ba8",
   "operations": [
     {
       "authRequirement": {
@@ -713,12 +714,13 @@
       }
     }
   ],
-  "schemaVersion": "snapback.authorization-review.v1",
+  "quarantines": [],
+  "schemaVersion": "snapback.authorization-review.v2",
   "sectionSchemas": {
     "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
-    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
-    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
     "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
   },
   "tablePolicies": [

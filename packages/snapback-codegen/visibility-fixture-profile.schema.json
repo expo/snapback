@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-fixture-profile.v1.json",
+  "title": "Snapback visibility fixture profile v1",
+  "type": "object",
+  "required": ["schemaVersion", "id", "digest", "targetClassCeiling", "principalClass", "dataClassification"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-fixture-profile.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "targetClassCeiling": { "type": "string", "minLength": 1 },
+    "principalClass": { "const": "synthetic" },
+    "dataClassification": { "const": "fixture-owned" }
+  },
+  "additionalProperties": false
+}

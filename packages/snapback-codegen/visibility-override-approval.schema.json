@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-override-approval.v1.json",
+  "title": "Snapback visibility override approval record v1",
+  "type": "object",
+  "required": ["schemaVersion", "scopeDigestVersion", "digestAlgorithm", "approvalKind", "id", "scopeDigest", "lifecycleClass", "requestedBy", "approvedBy", "ownerMapDigest", "issuedOn", "justificationDigest", "acceptanceId", "acceptancePath", "reviewArtifact", "reviewRecord", "approvalRuling", "rulingRecord", "delegationRuling", "delegationRecord"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-override-approval.v1" },
+    "scopeDigestVersion": { "const": "snapback.visibility-scope.v1" },
+    "digestAlgorithm": { "const": "sha256" },
+    "approvalKind": { "enum": ["custom", "pattern", "table-policy-transition", "delegation"] },
+    "id": { "type": "string", "minLength": 1 },
+    "scopeDigest": { "$ref": "#/$defs/digest" },
+    "patternId": { "type": "string", "minLength": 1 },
+    "constructorVersion": { "type": "string", "minLength": 1 },
+    "constructorDigest": { "$ref": "#/$defs/digest" },
+    "patternCeiling": { "$ref": "#/$defs/patternCeiling" },
+    "lifecycleClass": { "enum": ["production", "fixture", "durable-policy", "delegation"] },
+    "authorityAdmissionPolicy": { "type": "object" },
+    "authorityAdmissionPolicyDigest": { "$ref": "#/$defs/digest" },
+    "authorityAdmissionMembershipAudienceClosure": { "type": "array", "items": { "type": "object" } },
+    "authorityAdmissionMembershipAudienceClosureDigest": { "$ref": "#/$defs/digest" },
+    "fixtureProfileId": { "type": "string", "minLength": 1 },
+    "fixtureProfileDigest": { "$ref": "#/$defs/digest" },
+    "fixtureTargetClassCeiling": { "type": "string", "minLength": 1 },
+    "fixturePrincipalClass": { "const": "synthetic" },
+    "fixtureDataClassification": { "const": "fixture-owned" },
+    "requestedBy": { "type": "string", "minLength": 1 },
+    "approvedBy": { "type": "string", "minLength": 1 },
+    "ownerMapDigest": { "$ref": "#/$defs/digest" },
+    "issuedOn": { "type": "string", "format": "date-time" },
+    "expiresOn": { "type": "string", "format": "date" },
+    "justificationDigest": { "$ref": "#/$defs/digest" },
+    "acceptanceId": { "type": "string", "minLength": 1 },
+    "acceptancePath": { "type": "string", "minLength": 1 },
+    "reviewArtifact": { "type": ["string", "null"] },
+    "reviewRecord": { "type": ["object", "null"] },
+    "approvalRuling": { "type": ["string", "null"] },
+    "rulingRecord": { "type": ["object", "null"] },
+    "delegationRuling": { "type": ["string", "null"] },
+    "delegationRecord": { "type": ["object", "null"] }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "approvalKind": { "const": "pattern" } }, "required": ["approvalKind"] },
+      "then": { "required": ["patternId", "constructorVersion", "constructorDigest", "patternCeiling"] },
+      "else": { "not": { "anyOf": [{ "required": ["patternId"] }, { "required": ["constructorVersion"] }, { "required": ["constructorDigest"] }, { "required": ["patternCeiling"] }] } }
+    },
+    {
+      "if": { "properties": { "lifecycleClass": { "const": "fixture" } }, "required": ["lifecycleClass"] },
+      "then": { "required": ["fixtureProfileId", "fixtureProfileDigest", "fixtureTargetClassCeiling", "fixturePrincipalClass", "fixtureDataClassification"] },
+      "else": { "not": { "anyOf": [{ "required": ["fixtureProfileId"] }, { "required": ["fixtureProfileDigest"] }, { "required": ["fixtureTargetClassCeiling"] }, { "required": ["fixturePrincipalClass"] }, { "required": ["fixtureDataClassification"] }] } }
+    },
+    {
+      "oneOf": [
+        { "required": ["authorityAdmissionPolicy", "authorityAdmissionPolicyDigest", "authorityAdmissionMembershipAudienceClosure", "authorityAdmissionMembershipAudienceClosureDigest"] },
+        { "not": { "anyOf": [{ "required": ["authorityAdmissionPolicy"] }, { "required": ["authorityAdmissionPolicyDigest"] }, { "required": ["authorityAdmissionMembershipAudienceClosure"] }, { "required": ["authorityAdmissionMembershipAudienceClosureDigest"] }] } }
+      ]
+    }
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "patternCeiling": {
+      "type": "object",
+      "required": ["authority", "reads", "operations", "lifecycleClass"],
+      "properties": {
+        "authority": { "$ref": "visibility-override-declaration.v1.json#/$defs/authority" },
+        "reads": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "visibility-override-declaration.v1.json#/$defs/rowScope" } },
+        "operations": { "$ref": "visibility-override-declaration.v1.json#/$defs/stringSet" },
+        "lifecycleClass": { "enum": ["production", "fixture"] },
+        "fixtureProfile": { "$ref": "visibility-fixture-profile.v1.json" }
+      },
+      "allOf": [
+        { "if": { "properties": { "lifecycleClass": { "const": "fixture" } } }, "then": { "required": ["fixtureProfile"] }, "else": { "not": { "required": ["fixtureProfile"] } } }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

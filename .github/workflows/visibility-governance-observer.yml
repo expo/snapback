@@ -1,0 +1,114 @@
+name: visibility-governance-protected-observer
+
+# Repository-side projection of the LLP 0234 protected observer contract.
+# The `visibility-governance-observer` environment, signing material, required
+# workflow/ruleset, append-only ledger, and receipt publisher must be protected
+# outside this tree. If that provider configuration is absent this job fails
+# closed and produces no usable receipt or activation verdict.
+#
+# @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
+# — GitHub supplies authenticated per-ref before/after OIDs for an existing
+# ref, but no verified atomic multi-ref envelope. New governed refs therefore
+# remain prohibited here and belong to the protected single-ref service.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: visibility-governance-event-${{ github.event.after }}
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    environment: visibility-governance-observer
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - name: Retain authenticated provider event input
+        env:
+          EVENT_ID: ${{ github.run_id }}.${{ github.run_attempt }}
+          REPOSITORY: ${{ github.repository }}
+          BEFORE_OID: ${{ github.event.before }}
+          AFTER_OID: ${{ github.event.after }}
+          DELIVERED_AT: ${{ github.event.head_commit.timestamp }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/visibility-governance"
+          jq -n \
+            --arg eventId "$EVENT_ID" \
+            --arg repository "$REPOSITORY" \
+            --arg before "$BEFORE_OID" \
+            --arg after "$AFTER_OID" \
+            --arg deliveredAt "$DELIVERED_AT" \
+            '{
+              providerProfile: "github-push-v1",
+              eventId: $eventId,
+              repository: $repository,
+              authenticated: true,
+              deliveredAt: $deliveredAt,
+              commands: [{
+                ref: "refs/heads/main",
+                beforeOid: $before,
+                afterOid: $after
+              }]
+            }' > "$RUNNER_TEMP/visibility-governance/provider-event.json"
+
+      - name: Materialize externally custodied observer signing key
+        env:
+          OBSERVER_PRIVATE_KEY: ${{ secrets.VISIBILITY_GOVERNANCE_OBSERVER_PRIVATE_KEY }}
+          PROTECTED_CONFIG: ${{ secrets.VISIBILITY_GOVERNANCE_OBSERVER_CONFIG }}
+        run: |
+          test -n "$OBSERVER_PRIVATE_KEY"
+          test -n "$PROTECTED_CONFIG"
+          umask 077
+          printf '%s\n' "$OBSERVER_PRIVATE_KEY" > "$RUNNER_TEMP/visibility-governance/observer-private-key.pem"
+          printf '%s\n' "$PROTECTED_CONFIG" > "$RUNNER_TEMP/visibility-governance/protected-config.json"
+
+      - name: Compare true predecessor and emit signed receipts and verdicts
+        id: observe
+        continue-on-error: true
+        env:
+          SNAPBACK_VISIBILITY_OBSERVER_PRIVATE_KEY: ${{ runner.temp }}/visibility-governance/observer-private-key.pem
+          SNAPBACK_VISIBILITY_OBSERVER_KEY_EPOCH: ${{ vars.VISIBILITY_GOVERNANCE_OBSERVER_KEY_EPOCH }}
+          SNAPBACK_VISIBILITY_OBSERVER_KEY_DIGEST: ${{ vars.VISIBILITY_GOVERNANCE_OBSERVER_KEY_DIGEST }}
+          SNAPBACK_VISIBILITY_QUARANTINE_HEAD: ${{ vars.VISIBILITY_GOVERNANCE_QUARANTINE_HEAD }}
+          SNAPBACK_VISIBILITY_GOVERNANCE_PROTECTED_CONFIG: ${{ runner.temp }}/visibility-governance/protected-config.json
+          SNAPBACK_VISIBILITY_GOVERNANCE_PROTECTED_CONFIG_DIGEST: ${{ vars.VISIBILITY_GOVERNANCE_OBSERVER_CONFIG_DIGEST }}
+        run: |
+          node scripts/check-visibility-governance.mjs observe \
+            --event "$RUNNER_TEMP/visibility-governance/provider-event.json" \
+            --out "$RUNNER_TEMP/visibility-governance/observer-output"
+
+      - name: Attest the exact signed observer output
+        if: always() && steps.observe.outcome != 'skipped'
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v4.1.0
+        with:
+          subject-path: ${{ runner.temp }}/visibility-governance/observer-output/*.json
+
+      - name: Upload signed separation and deployment-identity evidence
+        if: always() && steps.observe.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visibility-governance-${{ github.event.after }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/visibility-governance/observer-output
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Keep the protected check red after retaining evidence
+        if: steps.observe.outcome == 'failure'
+        run: exit 1

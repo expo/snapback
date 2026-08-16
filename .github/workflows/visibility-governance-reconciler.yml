@@ -1,0 +1,66 @@
+name: visibility-governance-missing-event-reconciler
+
+# The schedule and worker are a repository projection; the event ledger and
+# its authentication remain in the protected `visibility-governance-observer`
+# environment. Missing custody fails without manufacturing a green verdict.
+# @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visibility-governance-reconciler
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    environment: visibility-governance-observer
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - name: Fetch externally attested append-only event ledger
+        env:
+          LEDGER_URL: ${{ secrets.VISIBILITY_GOVERNANCE_EVENT_LEDGER_URL }}
+          LEDGER_TOKEN: ${{ secrets.VISIBILITY_GOVERNANCE_EVENT_LEDGER_TOKEN }}
+          PROTECTED_CONFIG: ${{ secrets.VISIBILITY_GOVERNANCE_OBSERVER_CONFIG }}
+        run: |
+          test -n "$LEDGER_URL"
+          test -n "$LEDGER_TOKEN"
+          test -n "$PROTECTED_CONFIG"
+          umask 077
+          printf '%s\n' "$PROTECTED_CONFIG" > "$RUNNER_TEMP/visibility-governance-protected-config.json"
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer $LEDGER_TOKEN" \
+            --output "$RUNNER_TEMP/visibility-governance-event-ledger.json" \
+            "$LEDGER_URL"
+
+      - name: Reconcile exact governed-ref tips
+        env:
+          SNAPBACK_VISIBILITY_GOVERNANCE_PROTECTED_CONFIG: ${{ runner.temp }}/visibility-governance-protected-config.json
+          SNAPBACK_VISIBILITY_GOVERNANCE_PROTECTED_CONFIG_DIGEST: ${{ vars.VISIBILITY_GOVERNANCE_OBSERVER_CONFIG_DIGEST }}
+        run: |
+          node scripts/check-visibility-governance.mjs reconcile \
+            --ledger "$RUNNER_TEMP/visibility-governance-event-ledger.json" \
+            --out "$RUNNER_TEMP/visibility-governance-reconciliation.json"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visibility-governance-reconciliation-${{ github.run_id }}
+          path: ${{ runner.temp }}/visibility-governance-reconciliation.json
+          if-no-files-found: error
+          retention-days: 90

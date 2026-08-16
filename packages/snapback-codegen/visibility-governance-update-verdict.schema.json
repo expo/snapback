@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-governance-update-verdict.v1.json",
+  "title": "Snapback protected visibility governance update verdict v1",
+  "type": "object",
+  "required": [
+    "schemaVersion", "verdictKind", "disposition", "providerProfile", "eventId",
+    "eventInputDigest", "governedRef", "beforeOid", "afterOid", "observedAt",
+    "comparatorVersion", "deploymentIdentities", "quarantineHeadDigest", "violation",
+    "observerKeyEpoch", "observerKeyDigest", "signature"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-governance-update-verdict.v1" },
+    "verdictKind": { "const": "governedUpdateVerdict" },
+    "disposition": { "enum": ["green", "red"] },
+    "providerProfile": { "enum": ["github-push-v1", "atomic-push-envelope-v1"] },
+    "eventId": { "type": "string", "minLength": 1 },
+    "eventInputDigest": { "$ref": "#/$defs/digest" },
+    "governedRef": { "type": "string", "pattern": "^refs/" },
+    "beforeOid": { "$ref": "#/$defs/oid" },
+    "afterOid": { "$ref": "#/$defs/oid" },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "comparatorVersion": { "const": "snapback.visibility-governance-comparator.v1" },
+    "deploymentIdentities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["backend", "appId", "schemaHash", "functionBundleHash", "generationInputsHash", "visibilityAuthorizationProgramDigest", "visibilityGovernanceActivationDigest", "quarantineHeadDigest"],
+        "properties": {
+          "backend": { "type": "string" },
+          "appId": { "type": "string", "minLength": 1 },
+          "schemaHash": { "type": "string", "minLength": 1 },
+          "functionBundleHash": { "type": "string", "minLength": 1 },
+          "generationInputsHash": { "$ref": "#/$defs/digest" },
+          "visibilityAuthorizationProgramDigest": { "$ref": "#/$defs/digest" },
+          "visibilityGovernanceActivationDigest": { "$ref": "#/$defs/digest" },
+          "quarantineHeadDigest": { "$ref": "#/$defs/digest" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "quarantineHeadDigest": { "$ref": "#/$defs/digest" },
+    "violation": { "type": ["object", "null"] },
+    "observerKeyEpoch": { "type": "string", "minLength": 1 },
+    "observerKeyDigest": { "$ref": "#/$defs/digest" },
+    "signature": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "oid": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  }
+}

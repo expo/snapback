@@ -4,18 +4,20 @@
 // codegen graph into a small consumer-committed artifact. It reports structural
 // facts only; it neither supplies runtime enforcement nor approval authority.
 
+import { createHash } from 'node:crypto';
+
 import { stableArtifactJson } from './review-surface.mjs';
 
 export const AUTHORIZATION_REVIEW_FILE = 'authorization-review.json';
-export const AUTHORIZATION_REVIEW_SCHEMA_VERSION = 'snapback.authorization-review.v1';
+export const AUTHORIZATION_REVIEW_SCHEMA_VERSION = 'snapback.authorization-review.v2';
 export const AUTHORIZATION_REVIEW_SCHEMA_AUTHORITY =
   '@expo/snapback-codegen/authorization-review.schema.json';
 
 const RESERVED_SECTION_SCHEMAS = Object.freeze({
   fieldPolicies: 'snapback.authorization-review.field-policies.reserved.v1',
   maskedFieldUses: 'snapback.authorization-review.masked-field-uses.reserved.v1',
-  tablePolicyTransitions: 'snapback.authorization-review.table-policy-transitions.reserved.v1',
-  visibilityOverrides: 'snapback.authorization-review.visibility-overrides.reserved.v1',
+  tablePolicyTransitions: 'snapback.authorization-review.table-policy-transitions.v1',
+  visibilityOverrides: 'snapback.authorization-review.visibility-overrides.v1',
   writePolicyChecks: 'snapback.authorization-review.write-policy-checks.reserved.v1',
 });
 
@@ -223,7 +225,7 @@ function elevatedDatabase(fn, sourceFn) {
     fn.runtime?.IbexModule
     && ['Query', 'LiveQuery', 'Mutation'].includes(fn.kind),
   );
-  const uses = available
+  const capturedUses = available
     ? sortedBy(
         (sourceFn?.elevatedDbUses ?? []).map(({ member, table = null, source, capture }) => ({
           member,
@@ -236,6 +238,18 @@ function elevatedDatabase(fn, sourceFn) {
         ),
       )
     : [];
+  const uses = available && fn.handlerForm === 'module'
+    ? sortedBy(
+        (sourceFn?.elevatedDbCapabilities ?? []).map(({ form, tables }) => ({
+          member: form,
+          table: null,
+          tables: clone(tables),
+          source: portableSource(capturedUses[0]?.source ?? null),
+          capture: 'module-declaration',
+        })),
+        ({ member }) => member,
+      )
+    : capturedUses;
   return {
     available,
     captureCompleteness: !available
@@ -265,6 +279,7 @@ export function createAuthorizationReview({
   sourceFunctions = [],
   uncomposedReadSurfaceDiagnostics = [],
   summary,
+  visibilityGovernance = null,
 }) {
   const tablePolicies = tablePolicyFacts(tables, summary);
   const policiesByTable = new Map(tablePolicies.map((policy) => [policy.table, policy]));
@@ -302,9 +317,47 @@ export function createAuthorizationReview({
     };
   }).sort((left, right) => compareText(left.name, right.name));
 
-  // @ref LLP 0173#2-top-level-shape — Draft override, class-M, transition,
-  // and write-check siblings reserve versioned schema room but are explicitly
-  // empty until their own governing implementations land.
+  // @ref LLP 0234#d6--projection-and-acceptance-are-load-bearing-but-not-proof-theater
+  //   — census the admitted operation × read-form host channels. Inline
+  //   entries retain stable source evidence; module entries are explicitly
+  //   opaque capabilities and never acquire invented source spans.
+  const elevatedReadSites = operations.flatMap((operation) => (
+    operation.elevatedDatabase.uses.map((use) => {
+      const moduleForm = operation.handlerForm === 'module';
+      const core = {
+        operation: operation.name,
+        readForm: use.member,
+        siteEvidence: moduleForm ? 'opaque-module' : 'static-inline',
+        ...(moduleForm
+          ? {
+              modulePath: use.source?.path ?? 'functions.mjs',
+              moduleDigest: governanceFactDigest(
+                'snapback:elevated-module-source:v1',
+                functions.find(({ name }) => name === operation.name)?.runtime?.IbexModule?.source ?? '',
+              ),
+              declaredForm: use.member,
+            }
+          : {
+              sourcePath: use.source?.path ?? 'functions.mjs',
+              sourceSpanId: governanceFactDigest('snapback:elevated-inline-site:v1', {
+                operation: operation.name,
+                source: use.source,
+                readForm: use.member,
+              }),
+            }),
+        tables: use.tables ?? (use.table === null ? 'opaque' : [use.table]),
+      };
+      return {
+        ...core,
+        capabilityId: governanceFactDigest('snapback:elevated-read-capability:v1', core),
+        capabilityDigest: governanceFactDigest('snapback:elevated-read-capability-body:v1', core),
+      };
+    })
+  )).sort((left, right) => compareText(left.capabilityId, right.capabilityId));
+
+  // @ref LLP 0173#2-top-level-shape — G0 fills the already-reserved override
+  // and transition sections. The unrelated field/write siblings stay empty,
+  // and this emitter remains usable without any other LLP 0173 fact source.
   return {
     schemaVersion: AUTHORIZATION_REVIEW_SCHEMA_VERSION,
     appId,
@@ -316,8 +369,10 @@ export function createAuthorizationReview({
     authorityProfiles: authorityProfileFacts(tables),
     sectionSchemas: { ...RESERVED_SECTION_SCHEMAS },
     fieldPolicies: [],
-    visibilityOverrides: [],
-    tablePolicyTransitions: [],
+    visibilityOverrides: clone(visibilityGovernance?.visibilityOverrides ?? []),
+    tablePolicyTransitions: clone(visibilityGovernance?.tablePolicyTransitions ?? []),
+    quarantines: clone(visibilityGovernance?.quarantine.records.map(({ verdict }) => verdict) ?? []),
+    elevatedReadSites,
     writePolicyChecks: [],
   };
 }
@@ -346,10 +401,12 @@ export function validateAuthorizationReview(value) {
     'visibilityOverrides',
     'tablePolicyTransitions',
     'writePolicyChecks',
+    'quarantines',
+    'elevatedReadSites',
   ]) {
     if (!Array.isArray(value[field])) problems.push(`${field} must be an array`);
   }
-  for (const field of ['fieldPolicies', 'visibilityOverrides', 'tablePolicyTransitions', 'writePolicyChecks']) {
+  for (const field of ['fieldPolicies', 'writePolicyChecks']) {
     if (Array.isArray(value[field]) && value[field].length !== 0) problems.push(`${field} must be empty in v1`);
   }
   if (canonicalKey(value.sectionSchemas) !== canonicalKey(RESERVED_SECTION_SCHEMAS)) {
@@ -361,6 +418,10 @@ export function validateAuthorizationReview(value) {
     }
   }
   return problems;
+}
+
+function governanceFactDigest(domain, value) {
+  return `sha256:${createHash('sha256').update(`${domain}\n${canonicalKey(value)}`).digest('hex')}`;
 }
 
 export function formatTableVisibilityPolicy(policy) {

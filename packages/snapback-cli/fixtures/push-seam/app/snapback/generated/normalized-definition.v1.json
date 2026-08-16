@@ -177,6 +177,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -248,6 +249,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -330,6 +332,7 @@
           "authorizationDependence": [
             "opaque"
           ],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -858,6 +861,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -972,7 +976,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:71ae0643c5925132d5f06e0e4f28aee8b868361adc6513a4359490b2187e4835",
+  "normalizedContractId": "sha256:77229cc634f47192b57d29eb1eaf7222fc296307933ac7bbb26a0933bdde63ed",
   "normalizedSchemaId": "sha256:9051fe314f2cb93a5bbbdc37e6d0882438277a66d0bf0a624c3138ab2f634e6e",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

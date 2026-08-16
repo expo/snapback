@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-override-owner-baseline.v1.json",
+  "title": "Snapback visibility override owner baseline v1",
+  "type": "object",
+  "required": ["schemaVersion", "entries", "retiredDelegations", "exactSetDigest"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-override-owner-baseline.v1" },
+    "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } },
+    "retiredDelegations": { "type": "array", "items": { "$ref": "#/$defs/entry" } },
+    "exactSetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": ["implementationOwner", "approvalOwner", "authorRuling", "delegationRecord", "delegationClosureDigest"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "patternId": { "type": "string", "minLength": 1 },
+        "implementationOwner": { "type": "string", "minLength": 1 },
+        "approvalOwner": { "type": "string", "minLength": 1 },
+        "authorRuling": { "type": "string", "minLength": 1 },
+        "delegationRecord": { "type": "object" },
+        "delegationClosureDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      },
+      "oneOf": [{ "required": ["path"], "not": { "required": ["patternId"] } }, { "required": ["patternId"], "not": { "required": ["path"] } }],
+      "additionalProperties": false
+    }
+  }
+}

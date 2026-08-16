@@ -20079,6 +20079,10 @@ fn production_snapback_literals() -> BTreeSet<String> {
 // helper constructors, embedded runtime source, and macros.
 const NON_DIAGNOSTIC_SNAPBACK_LITERALS: &[(&str, &str)] = &[
     (
+        "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG",
+        "target-owned configuration path for LLP 0234 activation custody; never an HTTP diagnostic",
+    ),
+    (
         "SNAPBACK_DEV_AUTH_ORIGINS",
         "comma-separated exact loopback-origin configuration for Dev browser body authority; never an HTTP diagnostic",
     ),

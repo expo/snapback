@@ -152,6 +152,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -250,6 +251,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -495,6 +497,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -614,6 +617,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -753,6 +757,7 @@
           "authorityIndependent": false,
           "authorityProfileDependence": [],
           "authorizationDependence": [],
+          "elevatedDbCapabilities": [],
           "fieldBoundary": null
         },
         "boundedSkew": null,
@@ -934,7 +939,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:742de0342d7c198811fbc616988ccc624114846cb11343728b61f0aea165bd66",
+  "normalizedContractId": "sha256:dfab52db21c995c378951b28cc8d1115872a049e19cdfcb6a305cc40468e45d2",
   "normalizedSchemaId": "sha256:87d969dca43bb6f81925ea78c4916e6999b7ee1852089c52b7160c5129707844",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

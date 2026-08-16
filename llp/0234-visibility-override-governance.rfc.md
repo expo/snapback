@@ -1436,6 +1436,36 @@ comparator, the protected observer/publishers, and host receipt/verdict/
 quarantine consumption pass G0. This phase does not depend on the rest of LLP
 0173.
 
+G0 implementation record (2026-08-16):
+
+- [x] Added versioned, content-bound override, approval, owner-map, fixture,
+  transition-ledger, quarantine-ledger, observer-key, receipt, and verdict
+  schemas; exact-set baselines; and history-independent validation/refusal.
+- [x] Added the synchronous never-deferred governed-ref comparator and the
+  protected observer/reconciler implementation. The GitHub profile uses the
+  specified signed-anchor plus protected-single-ref fallback and fails closed
+  when externally custodied configuration, keys, ledgers, or publishers are
+  absent; organization-side provisioning remains an operational deployment
+  prerequisite rather than an in-tree claim.
+- [x] Added target-owned activation checks for signed green verdicts,
+  recomputed deployment identity, externally pinned key epochs, trusted
+  not-before/expiry, quarantine checkpoints, and exact fixture-profile fences.
+- [x] Filled the LLP 0173 `authorization-review.json` reserved visibility
+  sections through a standalone emitter, including conservative elevated-read
+  census facts, without introducing an enforcement dependency on LLP 0173.
+- [x] Added fixture-only system, principal, captured-grant, fixture-profile,
+  pattern, transition, quarantine, comparator, provider-envelope, and
+  verdict/bundle-swap governance-corpus coverage. Production override records
+  remain generated only in temporary test trees.
+- [ ] End-to-end alternate-scope execution fixtures for principal admission,
+  system invocation, and captured-grant subsets remain to be connected to the
+  storage read path. This substrate admits no such runtime authority yet, so
+  the missing positive path is fail-closed rather than an exposure.
+- [ ] The transitive root-provenance/runtime host-call fixture named above is
+  pending the separately assigned D7 lane. G0 carries and validates the closed
+  elevated-read capability manifest, but this lane deliberately does not edit
+  the elevated dispatch sites in `src/runtime.rs`.
+
 ### Phase G1 — migration closure
 
 Declare ordinary visibility on every required table. For each no-principal

@@ -2,10 +2,15 @@
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-if [ -z "$root" ] || [ ! -f "$root/scripts/drift-prone-gates.mjs" ]; then
+if [ -z "$root" ] || [ ! -f "$root/scripts/drift-prone-gates.mjs" ] \
+  || [ ! -f "$root/scripts/check-visibility-governance.mjs" ]; then
   printf '[snapback-drift] REFUSED: repository root or drift gate runner is unavailable\n' >&2
   exit 2
 fi
+
+updates_file="$(mktemp "${TMPDIR:-/tmp}/snapback-pre-push-updates.XXXXXX")"
+trap 'rm -f "$updates_file"' EXIT HUP INT TERM
+tee "$updates_file" >/dev/null
 
 pinned_node="$(tr -d '[:space:]' < "$root/.node-version")"
 running_node="$(node -v 2>/dev/null || true)"
@@ -29,7 +34,12 @@ if [ "${running_node#v}" != "$pinned_node" ]; then
   fi
 fi
 
+# @ref LLP 0234#d3--widening-requires-a-remotely-prior-artifact-closed-approval-receipt
+# the visibility-governance class is synchronous and never consumes the drift
+# bypass spelling; it sees Git's exact advertised predecessor for every ref.
+node "$root/scripts/check-visibility-governance.mjs" pre-push --root "$root" < "$updates_file"
+
 # @ref LLP 0232#optimistic-landing-default-2026-08-13 — the tracked hook
 # always delegates Git's exact ref-update stream for selection; ordinary
 # pushes defer execution and SNAPBACK_DRIFT_GATES_STRICT=1 enforces it now.
-exec node "$root/scripts/drift-prone-gates.mjs" pre-push --remote "$1"
+node "$root/scripts/drift-prone-gates.mjs" pre-push --remote "$1" < "$updates_file"

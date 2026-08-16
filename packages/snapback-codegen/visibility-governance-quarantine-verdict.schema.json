@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-governance-quarantine-verdict.v1.json",
+  "title": "Snapback visibility governance quarantine verdict v1",
+  "type": "object",
+  "required": [
+    "schemaVersion", "quarantineId", "governedRecordId", "authorityKind",
+    "governedRef", "beforeOid", "afterOid", "eventId", "externalVerdictDigest",
+    "offendingLedgerHead", "violationSignature", "predecessorQuarantineHead",
+    "successorExactSetDigest", "observedAt", "observerKeyEpoch",
+    "observerKeyDigest", "signature"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-governance-quarantine-verdict.v1" },
+    "quarantineId": { "type": "string", "minLength": 1 },
+    "governedRecordId": { "type": "string", "minLength": 1 },
+    "authorityKind": { "enum": ["visibility-override", "delegation", "table-policy-transition", "governance-record"] },
+    "governedRef": { "type": "string", "minLength": 1 },
+    "beforeOid": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "afterOid": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "externalVerdictDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "offendingLedgerHead": { "type": ["string", "null"] },
+    "violationSignature": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "predecessorQuarantineHead": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "successorExactSetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "observerKeyEpoch": { "type": "string", "minLength": 1 },
+    "observerKeyDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "signature": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

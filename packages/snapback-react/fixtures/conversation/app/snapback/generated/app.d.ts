@@ -37,7 +37,7 @@ export interface GeneratedAppCommands {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `host_plan_runtime`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
    * Dispatch/task states: `preparing`, `transferring`, `committing`, `succeeded`, `failed`, `cancelled`, `ambiguous`.
-   * Build identity: `snapback.v1:sessions:inputs:sha256:aef796689117e79e464acf6191b14bf0e250bade0a8013c36df2bed5c8c2ea78`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `snapback.v1:sessions:inputs:sha256:21fbfa55c180c50301d08208097bf5cdbbbdd28671627fdaa142cad8fdcdf0b9`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   readonly "send": CommandDescriptor<GeneratedApi["sendMessage"], "image", "image", true, GeneratedApi["messageImageUpload"]>;
 }

@@ -79,6 +79,8 @@ pub(crate) mod contract_exact;
 // activation coordinator.
 pub(crate) mod elevated_read_trace;
 pub(crate) mod generation_activation;
+#[doc(hidden)]
+pub mod visibility_governance;
 pub(crate) mod spike_trace;
 // @ref LLP 0225#1-ownership-map — dependency-free shared contract/types
 // leaf consumed downward by Rust owners and generated-artifact producers.

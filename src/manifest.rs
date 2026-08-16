@@ -725,6 +725,17 @@ pub struct SchemaManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub push_seam: Option<crate::push::PushSeamDeclarationV1>,
+    /// Executable LLP 0234 governance identity. Review-only projection facts
+    /// remain outside the manifest; activation deep-matches these digests to
+    /// a target-owned protected observer verdict.
+    #[serde(
+        default,
+        rename = "visibilityGovernance",
+        alias = "visibility_governance",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub visibility_governance:
+        Option<crate::visibility_governance::VisibilityGovernanceActivationV1>,
     #[serde(
         default,
         rename = "requiredCapabilities",
@@ -796,6 +807,7 @@ impl Default for SchemaManifest {
             api: None,
             assets: None,
             push_seam: None,
+            visibility_governance: None,
             required_capabilities: Vec::new(),
             strict_declarations: false,
             schema_hash: None,
@@ -1688,6 +1700,9 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             // The strict-declaration posture is server-enforcement authority,
             // not a client-facing schema fact (LLP 0146 D1).
             strict_declarations: _,
+            // Visibility governance is target-owned activation authority and
+            // must not be projected into the public client manifest.
+            visibility_governance: _,
             schema_hash,
             inputs_hash,
             authored_source_hash,
@@ -3075,6 +3090,7 @@ impl FunctionManifest {
             validate_standard_pattern_identity(function)?;
             validate_result_contract_definition(function)?;
             validate_field_boundary(function)?;
+            validate_elevated_read_capabilities(function)?;
             validate_args_contract_definition(function)?;
             validate_live_search_contracts(function)?;
             validate_declared_refusals(function)?;
@@ -4853,6 +4869,66 @@ fn validate_field_boundary(function: &FunctionDefinition) -> SnapbackResult<()> 
                 "SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN",
                 format!("field {field:?} is absent from the effective result row contract"),
             ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_elevated_read_capabilities(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if function.elevated_db_capabilities.is_empty() {
+        return Ok(());
+    }
+    let refuse = |reason: String| {
+        SnapbackError::error(
+            "SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED",
+            "auth",
+            format!(
+                "function {} carries an invalid elevated-read host capability: {reason}",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "reason": reason,
+        }))
+    };
+    if !matches!(function.runtime, FunctionRuntime::IbexModule(_))
+        || !matches!(
+            function.kind,
+            FunctionKind::Query | FunctionKind::LiveQuery | FunctionKind::Mutation
+        )
+    {
+        return Err(refuse(
+            "only a named Ibex query or mutation may carry elevated-read capability".to_owned(),
+        ));
+    }
+    let mut forms = BTreeSet::new();
+    for capability in &function.elevated_db_capabilities {
+        if !forms.insert(&capability.form) {
+            return Err(refuse("read forms must be unique".to_owned()));
+        }
+        match &capability.tables {
+            ElevatedReadTableCeilingV1::Opaque(value) if value == "opaque" => {}
+            ElevatedReadTableCeilingV1::Opaque(_) => {
+                return Err(refuse("the only string table ceiling is opaque".to_owned()));
+            }
+            ElevatedReadTableCeilingV1::Tables(tables) => {
+                let mut prior = None;
+                if tables.is_empty()
+                    || tables.iter().any(|table| {
+                        let invalid = table.is_empty()
+                            || table.trim() != table
+                            || prior.is_some_and(|previous| previous >= table.as_str());
+                        prior = Some(table.as_str());
+                        invalid
+                    })
+                {
+                    return Err(refuse(
+                        "table ceilings must be non-empty, unique, and canonically sorted"
+                            .to_owned(),
+                    ));
+                }
+            }
         }
     }
     Ok(())
@@ -8655,6 +8731,40 @@ pub struct FieldBoundaryDeclaration {
     pub condition: String,
 }
 
+/// Closed host-call capability emitted for every admitted D7 elevated read.
+/// The runtime dispatch fence is owned by the separate provenance lane; this
+/// manifest carrier gives that fence an alias-independent operation/form/table
+/// ceiling instead of asking it to recover JavaScript source behavior.
+///
+/// @ref LLP 0234#d1--an-override-is-an-alternate-invocation-bound-table-policy
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ElevatedReadCapabilityV1 {
+    pub form: ElevatedReadFormV1,
+    pub tables: ElevatedReadTableCeilingV1,
+}
+
+#[derive(
+    Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
+)]
+pub enum ElevatedReadFormV1 {
+    #[serde(rename = "get")]
+    Get,
+    #[serde(rename = "getMany")]
+    GetMany,
+    #[serde(rename = "uniqueMany")]
+    UniqueMany,
+    #[serde(rename = "query")]
+    Query,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(untagged)]
+pub enum ElevatedReadTableCeilingV1 {
+    Opaque(String),
+    Tables(Vec<String>),
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FunctionDefinition {
@@ -8739,6 +8849,13 @@ pub struct FunctionDefinition {
         skip_serializing_if = "Option::is_none"
     )]
     pub field_boundary: Option<FieldBoundaryDeclaration>,
+    #[serde(
+        default,
+        rename = "elevatedDbCapabilities",
+        alias = "elevated_db_capabilities",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub elevated_db_capabilities: Vec<ElevatedReadCapabilityV1>,
     #[serde(
         default,
         rename = "requiredCapabilities",
@@ -8921,6 +9038,7 @@ impl FunctionDefinition {
             result_contract: FunctionResultContract::Unknown,
             result_contract_hash: None,
             field_boundary: None,
+            elevated_db_capabilities: Vec::new(),
             required_capabilities: Vec::new(),
             auth_requirement: None,
             api_exposure: None,
@@ -9707,6 +9825,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             // The committed codegen summary is LLP 0231 D5's review surface.
             // Public inspect does not restate this free-text handler claim.
             field_boundary: _,
+            elevated_db_capabilities: _,
             required_capabilities,
             auth_requirement,
             api_exposure,
@@ -16746,6 +16865,43 @@ mod membership_manifest_grammar_tests {
         assert_eq!(
             wrong_kind.diagnostic.code,
             "SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID"
+        );
+    }
+
+    #[test]
+    fn elevated_read_capability_is_closed_manifest_authority() {
+        let mut function = FunctionDefinition::new(
+            "moderate",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = {};".to_owned(),
+                export: "moderate".to_owned(),
+            }),
+        );
+        function.elevated_db_capabilities = vec![ElevatedReadCapabilityV1 {
+            form: ElevatedReadFormV1::GetMany,
+            tables: ElevatedReadTableCeilingV1::Tables(vec!["messages".to_owned()]),
+        }];
+        validate_elevated_read_capabilities(&function)
+            .expect("named Ibex mutation accepts one closed elevated-read ceiling");
+        let serialized = serde_json::to_value(&function).expect("serialize capability");
+        assert_eq!(serialized["elevatedDbCapabilities"][0]["form"], "getMany");
+        assert_eq!(
+            serialized["elevatedDbCapabilities"][0]["tables"],
+            json!(["messages"])
+        );
+        let public = serde_json::to_value(PublicFunctionDefinition::from(function.clone()))
+            .expect("serialize public projection");
+        assert!(public.get("elevatedDbCapabilities").is_none());
+
+        function.elevated_db_capabilities[0].tables =
+            ElevatedReadTableCeilingV1::Opaque("everything".to_owned());
+        assert_eq!(
+            validate_elevated_read_capabilities(&function)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED"
         );
     }
 

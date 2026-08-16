@@ -104,6 +104,11 @@ import {
   validateAuthorizationReview,
 } from './authorization-review.mjs';
 import {
+  GOVERNANCE_FILES,
+  VisibilityGovernanceError,
+  validateVisibilityGovernance,
+} from './visibility-governance.mjs';
+import {
   buildSeedAssetFixturesV1,
   canonicalSeedAssetFixturesJson,
   canonicalSeedArtifactJson,
@@ -3873,6 +3878,27 @@ async function generateInProcessLocked({
     }
     const loaded = loadHandlerSource(def.js?.source, name);
     const exportName = def.js?.exportName ?? name;
+    const capturedElevatedDbUses = loaded
+      ? captureElevatedDbUseSites(loaded.authoredSource, {
+          path: loaded.identity,
+          exportName,
+        })
+      : [];
+    const elevatedDbCapabilities = def.js?.elevatedReads ?? [];
+    for (const use of capturedElevatedDbUses) {
+      const declared = elevatedDbCapabilities.find(({ form, tables: ceiling }) => (
+        form === use.member
+        && (ceiling === 'opaque' || use.table === null || ceiling.includes(use.table))
+      ));
+      if (!declared) {
+        err(
+          'SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED',
+          'auth',
+          `${name}: module handler uses ctx.db.elevated.${use.member} outside its declared host-call capability`,
+          { function: name, readForm: use.member, table: use.table, sourceSpan: use.source },
+        );
+      }
+    }
     return {
       source: loaded?.source ?? '',
       analysisSource: loaded?.source ?? '',
@@ -3892,12 +3918,8 @@ async function generateInProcessLocked({
       handlerForm: 'module',
       sourceSpan: null,
       typescriptIdentity: loaded?.typescriptIdentity ?? null,
-      elevatedDbUses: loaded
-        ? captureElevatedDbUseSites(loaded.authoredSource, {
-            path: loaded.identity,
-            exportName,
-          })
-        : [],
+      elevatedDbUses: capturedElevatedDbUses,
+      elevatedDbCapabilities,
     };
   };
 
@@ -4963,6 +4985,7 @@ async function generateInProcessLocked({
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
         elevatedDbUses: resolvedHandler?.elevatedDbUses ?? [],
+        elevatedDbCapabilities: resolvedHandler?.elevatedDbCapabilities ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: readTables,
@@ -5302,6 +5325,7 @@ async function generateInProcessLocked({
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
         elevatedDbUses: resolvedHandler?.elevatedDbUses ?? [],
+        elevatedDbCapabilities: resolvedHandler?.elevatedDbCapabilities ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: reads,
@@ -6392,6 +6416,56 @@ async function generateInProcessLocked({
     }
   }
 
+  // @ref LLP 0234#phase-g0--governance-substrate — generation validates the
+  // complete current-tree governance closure without Git before any output is
+  // published. Remote predecessor ordering is checked separately by the
+  // synchronous admission comparator and protected observer.
+  let visibilityGovernance = null;
+  try {
+    const governanceNow = testHooks?.visibilityGovernance?.now ?? Date.now();
+    if (!Number.isFinite(governanceNow)) {
+      throw new TypeError('testHooks.visibilityGovernance.now must be a finite trusted timestamp');
+    }
+    visibilityGovernance = validateVisibilityGovernance({
+      backendRoot,
+      schemaDef,
+      tables,
+      now: governanceNow,
+      targetObserverPin: testHooks?.visibilityGovernance?.targetObserverPin ?? null,
+    });
+    if (visibilityGovernance) {
+      const generatedOperations = new Set(functions.map(({ name }) => name));
+      for (const declaration of visibilityGovernance.visibilityOverrides) {
+        for (const operation of declaration.operations) {
+          if (!generatedOperations.has(operation)) {
+            throw new VisibilityGovernanceError(
+              'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_INVALID',
+              `visibility override ${declaration.id} names unknown operation ${operation}`,
+              { overrideId: declaration.id, operation },
+            );
+          }
+        }
+        if (declaration.authority.mode === 'system'
+          && !generatedOperations.has(declaration.authority.entrypoint)) {
+          throw new VisibilityGovernanceError(
+            'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_INVALID',
+            `system visibility override ${declaration.id} names unknown entrypoint ${declaration.authority.entrypoint}`,
+            { overrideId: declaration.id, entrypoint: declaration.authority.entrypoint },
+          );
+        }
+      }
+    }
+    if (visibilityGovernance) diagnostics.push(...visibilityGovernance.warnings);
+  } catch (error) {
+    err(
+      error.code ?? 'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_INVALID',
+      'auth',
+      error.message,
+      error.details ?? {},
+    );
+    return { ok: false, diagnostics };
+  }
+
   const requiredTargetCapabilities = new Set(schemaRequiredCapabilities);
   for (const fn of decoratedFunctionDefinitions) {
     for (const capability of fn.requiredCapabilities) requiredTargetCapabilities.add(capability);
@@ -6495,6 +6569,9 @@ async function generateInProcessLocked({
     contractCapabilitiesSource,
     canonicalCapability.source,
     ...(remoteServiceInputs?.identityInputs ?? []),
+    ...(visibilityGovernance
+      ? ['visibility-governance-inputs', visibilityGovernance.generationInputsHash]
+      : []),
     ...handlerInputs,
     ...handlerTypeScriptExecutableInputs,
   ];
@@ -6601,6 +6678,7 @@ async function generateInProcessLocked({
     ...(apiManifest ? { api: apiManifest } : {}),
     ...(schemaAssetsPolicy ? { assets: schemaAssetsPolicy } : {}),
     ...(schemaDef.pushSeam ? { pushSeam: schemaDef.pushSeam } : {}),
+    ...(visibilityGovernance ? { visibilityGovernance: visibilityGovernance.activation } : {}),
     // @ref LLP 0146#d1-declarationobservation-conformance — the per-app
     // strict-declaration opt-in rides the schema manifest so the serving
     // runtime enforces exactly what the author declared.
@@ -7203,6 +7281,18 @@ async function generateInProcessLocked({
   const contractArtifactFiles = contractModules.map((module) => `contract/${module.file}`);
   const operationArtifactFiles = operationSchemas.map((schema) => `operations/${schema.file}`);
   const remoteServiceArtifactFiles = remoteServicePublication?.artifacts.map((artifact) => artifact.file) ?? [];
+  const governanceArtifactFiles = [
+    'elevated-read-site-baseline.json',
+    ...(visibilityGovernance
+      ? [
+          'visibility-override-owner-baseline.json',
+          'visibility-override-baseline.json',
+          'table-visibility-policy-baseline.json',
+          'table-visibility-policy-transition-ledger.json',
+          'visibility-governance-quarantine-ledger.json',
+        ]
+      : []),
+  ];
   const authorizationSummary = createCodegenSummary({
     appId,
     inputsHash,
@@ -7247,6 +7337,7 @@ async function generateInProcessLocked({
         }
       : {}),
   };
+  legacyArtifactIndex.artifacts.splice(3, 0, ...governanceArtifactFiles);
   const tmpOutDir = join(backendRoot, `.generated.tmp-${process.pid}-${Date.now()}`);
   let artifactIndex;
   let summary;
@@ -7269,6 +7360,7 @@ async function generateInProcessLocked({
         ({ code }) => code === 'SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE',
       ),
       summary: authorizationSummary,
+      visibilityGovernance,
     });
     const authorizationReviewProblems = validateAuthorizationReview(authorizationReview);
     if (authorizationReviewProblems.length > 0) {
@@ -7280,6 +7372,7 @@ async function generateInProcessLocked({
       schemaManifest,
       functionManifest,
       authorizationReview,
+      visibilityGovernance,
       normalizedDefinition,
       handlerRuntimeProfile,
       clientLifecycleManifest,
@@ -7455,6 +7548,7 @@ async function generateInProcessLocked({
     schemaManifest,
     functionManifest,
     authorizationReview,
+    visibilityGovernance,
     normalizedDefinition,
     handlerRuntimeProfile,
     clientLifecycleManifest,
@@ -11086,6 +11180,37 @@ function functionId(appId, name) {
   return `${appId}:${name}`;
 }
 
+// @ref LLP 0234#d1--an-override-is-an-alternate-invocation-bound-table-policy
+// — compile the scanner/metadata result into the closed host-call carrier;
+// runtime never needs to infer authority from JavaScript aliases or source.
+function manifestElevatedDbCapabilities(fn) {
+  if (fn.handlerForm !== 'inline') {
+    return [...(fn.elevatedDbCapabilities ?? [])]
+      .map(({ form, tables: ceiling }) => ({
+        form,
+        tables: ceiling === 'opaque' ? 'opaque' : [...ceiling].sort(compareCodeUnits),
+      }))
+      .sort((left, right) => compareCodeUnits(left.form, right.form));
+  }
+  const byForm = new Map();
+  for (const use of fn.elevatedDbUses ?? []) {
+    const prior = byForm.get(use.member);
+    if (use.table === null || prior === 'opaque') {
+      byForm.set(use.member, 'opaque');
+    } else {
+      const tables = prior ?? new Set();
+      tables.add(use.table);
+      byForm.set(use.member, tables);
+    }
+  }
+  return [...byForm.entries()]
+    .map(([form, ceiling]) => ({
+      form,
+      tables: ceiling === 'opaque' ? 'opaque' : [...ceiling].sort(compareCodeUnits),
+    }))
+    .sort((left, right) => compareCodeUnits(left.form, right.form));
+}
+
 function decorateFunctions(appId, functions, sourceSpans = {}) {
   return functions.map((fn) => {
     const reads = readSummary(fn);
@@ -11122,13 +11247,16 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
     // new format domain; sequence-free v1/v2 hashes remain byte-identical.
     const hasAuthorityProfileDependence = Array.isArray(fn.authorityProfileDependence)
       && fn.authorityProfileDependence.length > 0;
+    const elevatedDbCapabilities = manifestElevatedDbCapabilities(fn);
     // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
     // — profile generation is an implementation-identity input only for
     // operations that mechanically depend on that profile. Legacy functions
     // retain their byte-identical v1-v4 hashes.
-    const implementationFormatVersion = hasAuthorityProfileDependence
-      ? 'v5'
-      : (fn.stream === true
+    const implementationFormatVersion = elevatedDbCapabilities.length > 0
+      ? 'v6'
+      : hasAuthorityProfileDependence
+        ? 'v5'
+        : (fn.stream === true
           ? 'v4'
           : (sequences.length > 0 ? 'v3' : (inlineHelpers ? 'v2' : 'v1')));
     const implementationIdentity = {
@@ -11173,6 +11301,7 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       ...(fn.stream === true ? { stream: true } : {}),
       ...(sequences.length > 0 ? { sequences } : {}),
       ...(fn.boundedSkew !== undefined ? { boundedSkew: fn.boundedSkew } : {}),
+      ...(elevatedDbCapabilities.length > 0 ? { elevatedDbCapabilities } : {}),
     };
     return {
       id: functionId(appId, fn.name),
@@ -11211,6 +11340,7 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
         ? { authorityProfileDependence: fn.authorityProfileDependence }
         : {}),
       ...(fn.fieldBoundary !== undefined ? { fieldBoundary: fn.fieldBoundary } : {}),
+      ...(elevatedDbCapabilities.length > 0 ? { elevatedDbCapabilities } : {}),
       syncabilityClass: syncabilityClass(fn),
       readSetSummary: reads,
       writeSetSummary: writes,
@@ -18476,6 +18606,7 @@ function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
   authorizationReview,
+  visibilityGovernance,
   normalizedDefinition,
   handlerRuntimeProfile,
   clientLifecycleManifest,
@@ -18517,6 +18648,32 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, AUTHORIZATION_REVIEW_FILE), serializeAuthorizationReview(authorizationReview));
+  const elevatedReadEntries = authorizationReview.elevatedReadSites;
+  writeFileSync(join(outDir, 'elevated-read-site-baseline.json'), stableJson({
+    schemaVersion: 'snapback.elevated-read-site-baseline.v1',
+    entries: elevatedReadEntries,
+    exactSetDigest: `sha256:${createHash('sha256')
+      .update(`snapback:elevated-read-site-baseline:v1\n${stableJson(elevatedReadEntries)}`)
+      .digest('hex')}`,
+  }) + '\n');
+  if (visibilityGovernance) {
+    writeFileSync(join(outDir, 'visibility-override-owner-baseline.json'),
+      stableJson(visibilityGovernance.ownerBaseline) + '\n');
+    writeFileSync(join(outDir, 'visibility-override-baseline.json'),
+      stableJson(visibilityGovernance.overrideBaseline) + '\n');
+    writeFileSync(join(outDir, 'table-visibility-policy-baseline.json'),
+      stableJson(visibilityGovernance.policyBaseline) + '\n');
+    writeFileSync(join(outDir, 'table-visibility-policy-transition-ledger.json'),
+      stableJson(visibilityGovernance.transitionLedger.artifact) + '\n');
+    writeFileSync(join(outDir, 'visibility-governance-quarantine-ledger.json'), stableJson(
+      visibilityGovernance.quarantine.artifact ?? {
+        schemaVersion: 'snapback.visibility-governance-quarantine-ledger.v1',
+        records: [],
+        retiredIds: [],
+        headDigest: visibilityGovernance.quarantine.headDigest,
+      },
+    ) + '\n');
+  }
   writeFileSync(join(outDir, 'normalized-definition.v1.json'), stableJson(normalizedDefinition) + '\n');
   writeFileSync(join(outDir, 'handler-runtime-profile.v1.json'), stableJson(handlerRuntimeProfile) + '\n');
   writeFileSync(join(outDir, CLIENT_LIFECYCLE_MANIFEST_FILE), stableJson(clientLifecycleManifest) + '\n');

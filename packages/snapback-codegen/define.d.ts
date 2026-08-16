@@ -438,6 +438,12 @@ interface JsQuerySpecBase extends QueryAuthOptions {
   /** Closed declaration for diagnostics. JavaScript remains non-retainable
    * until its ctx.auth and module-state profile is mechanically proved. */
   authorizationDependence?: AuthorizationInputDimension[];
+  /** Closed elevated host-call capabilities for an opaque module handler.
+   * Inline handlers are censused from direct literal call sites instead. */
+  elevatedReads?: readonly {
+    form: 'get' | 'getMany' | 'uniqueMany' | 'query';
+    tables: 'opaque' | readonly string[];
+  }[];
   defaultLive?: boolean;
   /** Authority-profile predicates compiled ahead of the opaque handler.
    * Row-set reads blank on denial; mutations use the same rule as a terminal
@@ -463,6 +469,11 @@ interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
   reads?: string[];
   writes: string[];
+  /** Closed elevated host-call capabilities for an opaque module handler. */
+  elevatedReads?: readonly {
+    form: 'get' | 'getMany' | 'uniqueMany' | 'query';
+    tables: 'opaque' | readonly string[];
+  }[];
   result?: ResultContract;
   /** Authority-profile predicates compiled as terminal pre-handler gates. */
   membership?: MembershipPredicate[];
@@ -738,6 +749,50 @@ export interface AuthProgramV1 {
 export declare const AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS: number;
 export declare const AUTH_PROGRAM_FIELDS: ReadonlySet<string>;
 export declare function defineAuth(program: AuthProgramV1): AuthProgramV1;
+export interface VisibilityOverrideDeclarationV1 {
+  readonly schemaVersion?: 'snapback.visibility-override-declaration.v1';
+  readonly id: string;
+  readonly owner: string;
+  readonly authority:
+    | { readonly mode: 'principal'; readonly operations: readonly string[]; readonly admissionPolicy: Record<string, unknown> }
+    | { readonly mode: 'system'; readonly entrypoint: string; readonly calls?: readonly string[] }
+    | { readonly mode: 'capturedGrant'; readonly issuanceProfile: string; readonly operations: readonly string[]; readonly maximumTtlMs: number };
+  readonly reads: Readonly<Record<string, Record<string, unknown>>>;
+  readonly operations: readonly string[];
+  readonly justification: string;
+  readonly lifecycleClass: 'production' | 'fixture';
+  readonly issuedOn?: string;
+  readonly expiresOn?: string;
+  readonly fixtureProfile?: {
+    readonly schemaVersion: 'snapback.visibility-fixture-profile.v1';
+    readonly id: string;
+    readonly digest: string;
+    readonly targetClassCeiling: string;
+    readonly principalClass: 'synthetic';
+    readonly dataClassification: 'fixture-owned';
+  };
+  readonly approval: string;
+  readonly approvalSeparationReceipt: string;
+  readonly acceptance: { readonly id: string; readonly path: string; readonly resultDigest: string };
+  readonly patternDerivation?: {
+    readonly patternId: string;
+    readonly constructorVersion: string;
+    readonly constructorDigest: `sha256:${string}`;
+    readonly derivationDigest: `sha256:${string}`;
+  };
+  readonly rekey?: {
+    readonly oldScopeDigestVersion: string;
+    readonly oldScopeDigest: `sha256:${string}`;
+    readonly newScopeDigestVersion: string;
+    readonly newScopeDigest: `sha256:${string}`;
+    readonly toolChange: string;
+    readonly predecessorApproval: string;
+    readonly substantiveProvenance: string;
+  };
+}
+export declare function defineVisibilityOverride(
+  spec: VisibilityOverrideDeclarationV1,
+): VisibilityOverrideDeclarationV1 & { readonly schemaVersion: 'snapback.visibility-override-declaration.v1' };
 export declare function defineSchema(
   tables: Record<string, unknown>,
   options?: {
@@ -751,6 +806,7 @@ export declare function defineSchema(
     /** Registry-only LLP 0143 declaration. The send and handoff-ledger slices
      * are not implied by this marker. */
     pushSeam?: PushSeamDefinition;
+    visibilityOverrides?: readonly ReturnType<typeof defineVisibilityOverride>[];
     requiredCapabilities?: TargetCapabilityId[];
   },
 ): unknown;

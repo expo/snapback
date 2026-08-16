@@ -1,5 +1,5 @@
 export const AUTHORIZATION_REVIEW_FILE: 'authorization-review.json';
-export const AUTHORIZATION_REVIEW_SCHEMA_VERSION: 'snapback.authorization-review.v1';
+export const AUTHORIZATION_REVIEW_SCHEMA_VERSION: 'snapback.authorization-review.v2';
 export const AUTHORIZATION_REVIEW_SCHEMA_AUTHORITY: '@expo/snapback-codegen/authorization-review.schema.json';
 
 export function createAuthorizationReview(input: Readonly<{
@@ -11,6 +11,7 @@ export function createAuthorizationReview(input: Readonly<{
   sourceFunctions?: readonly Readonly<Record<string, unknown>>[];
   uncomposedReadSurfaceDiagnostics?: readonly Readonly<Record<string, unknown>>[];
   summary: Readonly<Record<string, unknown>>;
+  visibilityGovernance?: Readonly<Record<string, any>> | null;
 }>): Readonly<Record<string, unknown>>;
 
 export function serializeAuthorizationReview(value: unknown): string;

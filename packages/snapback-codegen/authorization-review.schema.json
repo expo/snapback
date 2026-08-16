@@ -1,15 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/authorization-review.v1.json",
+  "$id": "https://snapback.dev/schemas/authorization-review.v2.json",
   "title": "Snapback authorization review projection",
   "type": "object",
   "required": [
     "schemaVersion", "appId", "authMode", "inputsHash", "operations",
     "tablePolicies", "authorizationTables", "authorityProfiles", "sectionSchemas",
-    "fieldPolicies", "visibilityOverrides", "tablePolicyTransitions", "writePolicyChecks"
+    "fieldPolicies", "visibilityOverrides", "tablePolicyTransitions", "quarantines",
+    "elevatedReadSites", "writePolicyChecks"
   ],
   "properties": {
-    "schemaVersion": { "const": "snapback.authorization-review.v1" },
+    "schemaVersion": { "const": "snapback.authorization-review.v2" },
     "appId": { "type": "string", "minLength": 1 },
     "authMode": { "type": "string", "minLength": 1 },
     "inputsHash": { "type": "string", "minLength": 1 },
@@ -219,15 +220,37 @@
       "properties": {
         "fieldPolicies": { "const": "snapback.authorization-review.field-policies.reserved.v1" },
         "maskedFieldUses": { "const": "snapback.authorization-review.masked-field-uses.reserved.v1" },
-        "tablePolicyTransitions": { "const": "snapback.authorization-review.table-policy-transitions.reserved.v1" },
-        "visibilityOverrides": { "const": "snapback.authorization-review.visibility-overrides.reserved.v1" },
+        "tablePolicyTransitions": { "const": "snapback.authorization-review.table-policy-transitions.v1" },
+        "visibilityOverrides": { "const": "snapback.authorization-review.visibility-overrides.v1" },
         "writePolicyChecks": { "const": "snapback.authorization-review.write-policy-checks.reserved.v1" }
       },
       "additionalProperties": false
     },
     "fieldPolicies": { "type": "array", "maxItems": 0 },
-    "visibilityOverrides": { "type": "array", "maxItems": 0 },
-    "tablePolicyTransitions": { "type": "array", "maxItems": 0 },
+    "visibilityOverrides": { "type": "array", "items": { "type": "object" } },
+    "tablePolicyTransitions": { "type": "array", "items": { "type": "object" } },
+    "quarantines": { "type": "array", "items": { "type": "object" } },
+    "elevatedReadSites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["operation", "readForm", "siteEvidence", "tables", "capabilityId", "capabilityDigest"],
+        "properties": {
+          "operation": { "type": "string", "minLength": 1 },
+          "readForm": { "enum": ["get", "getMany", "uniqueMany", "query"] },
+          "siteEvidence": { "enum": ["static-inline", "opaque-module"] },
+          "sourcePath": { "type": "string" },
+          "sourceSpanId": { "type": "string" },
+          "modulePath": { "type": "string" },
+          "moduleDigest": { "type": "string" },
+          "declaredForm": { "type": "string" },
+          "tables": { "oneOf": [{ "const": "opaque" }, { "type": "array", "items": { "type": "string" }, "uniqueItems": true }] },
+          "capabilityId": { "type": "string", "minLength": 1 },
+          "capabilityDigest": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
     "writePolicyChecks": { "type": "array", "maxItems": 0 }
   },
   "$defs": {

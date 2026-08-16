@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-governance-separation-receipt.v1.json",
+  "title": "Snapback visibility governance separation receipt v1",
+  "type": "object",
+  "required": ["schemaVersion", "providerProfile", "eventId", "governedRef", "eventInputDigest", "beforeOid", "afterOid", "observedAt", "approvalKind", "approvalId", "scopeDigest", "approvalClosureDigest", "predecessorOwnerMapDigest", "comparatorVersion", "approvalOnly", "observerKeyEpoch", "observerKeyDigest", "signature"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-governance-separation-receipt.v1" },
+    "providerProfile": { "enum": ["github-push-v1", "atomic-push-envelope-v1"] },
+    "eventId": { "type": "string", "minLength": 1 },
+    "governedRef": { "type": "string", "pattern": "^refs/" },
+    "eventInputDigest": { "$ref": "#/$defs/digest" },
+    "beforeOid": { "$ref": "#/$defs/oid" },
+    "afterOid": { "$ref": "#/$defs/oid" },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "approvalKind": { "enum": ["custom", "pattern", "table-policy-transition", "delegation"] },
+    "approvalId": { "type": "string", "minLength": 1 },
+    "scopeDigest": { "$ref": "#/$defs/digest" },
+    "approvalClosureDigest": { "$ref": "#/$defs/digest" },
+    "predecessorOwnerMapDigest": { "$ref": "#/$defs/digest" },
+    "comparatorVersion": { "type": "string", "minLength": 1 },
+    "approvalOnly": { "const": true },
+    "observerKeyEpoch": { "type": "string", "minLength": 1 },
+    "observerKeyDigest": { "$ref": "#/$defs/digest" },
+    "signature": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "oid": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  }
+}

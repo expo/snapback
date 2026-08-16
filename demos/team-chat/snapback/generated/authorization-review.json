@@ -75,8 +75,9 @@
       "table": "roomMembers"
     }
   ],
+  "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "e099f7a8d9d6b552bb79ab39da7acb38f871d973049c8eae02d4cc80975aaa81",
+  "inputsHash": "64c8c4754d8e2d0d5d468204b8035e74408a13cec5e38d28ce966c9d017990b0",
   "operations": [
     {
       "authRequirement": {
@@ -1339,12 +1340,13 @@
       }
     }
   ],
-  "schemaVersion": "snapback.authorization-review.v1",
+  "quarantines": [],
+  "schemaVersion": "snapback.authorization-review.v2",
   "sectionSchemas": {
     "fieldPolicies": "snapback.authorization-review.field-policies.reserved.v1",
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
-    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.reserved.v1",
-    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.reserved.v1",
+    "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
+    "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
     "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
   },
   "tablePolicies": [

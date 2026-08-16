@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/visibility-override-baseline.v1.json",
+  "title": "Snapback exact-set visibility override baseline v1",
+  "type": "object",
+  "required": ["schemaVersion", "entries", "exactSetDigest"],
+  "properties": {
+    "schemaVersion": { "const": "snapback.visibility-override-baseline.v1" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "scopeDigestVersion", "scopeDigest", "normalizedDeclaration", "approvalKind", "normalizedPatternCeiling", "patternId", "constructorVersion", "constructorDigest", "derivationDigest", "lifecycleClass", "authorityMode", "authorityAdmissionPolicy", "authorityAdmissionPolicyDigest", "authorityAdmissionMembershipAudienceClosure", "authorityAdmissionMembershipAudienceClosureDigest", "operations", "tables", "rowScopeDigests", "audienceDeclarationClosureDigests", "owner", "approvalRecord", "approvalClosureDigest", "serverSeparationReceipt", "serverSeparationReceiptDigest", "fixtureProfileId", "fixtureProfileDigest", "fixtureTargetClassCeiling", "fixturePrincipalClass", "fixtureDataClassification", "expiresOn", "acceptanceId"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "scopeDigestVersion": { "const": "snapback.visibility-scope.v1" },
+          "scopeDigest": { "$ref": "#/$defs/digest" },
+          "normalizedDeclaration": { "type": "object" },
+          "approvalKind": { "enum": ["custom", "pattern"] },
+          "normalizedPatternCeiling": { "type": ["object", "null"] },
+          "patternId": { "type": ["string", "null"] },
+          "constructorVersion": { "type": ["string", "null"] },
+          "constructorDigest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+          "derivationDigest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+          "lifecycleClass": { "enum": ["production", "fixture"] },
+          "authorityMode": { "enum": ["principal", "system", "capturedGrant"] },
+          "authorityAdmissionPolicy": { "type": ["object", "null"] },
+          "authorityAdmissionPolicyDigest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+          "authorityAdmissionMembershipAudienceClosure": { "type": "array", "items": { "type": "object" } },
+          "authorityAdmissionMembershipAudienceClosureDigest": { "$ref": "#/$defs/digest" },
+          "operations": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+          "tables": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+          "rowScopeDigests": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/digest" } },
+          "audienceDeclarationClosureDigests": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/digest" } },
+          "owner": { "type": "string", "minLength": 1 },
+          "approvalRecord": { "type": "string", "minLength": 1 },
+          "approvalClosureDigest": { "$ref": "#/$defs/digest" },
+          "serverSeparationReceipt": { "type": "string", "minLength": 1 },
+          "serverSeparationReceiptDigest": { "$ref": "#/$defs/digest" },
+          "fixtureProfileId": { "type": ["string", "null"] },
+          "fixtureProfileDigest": { "anyOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+          "fixtureTargetClassCeiling": { "type": ["string", "null"] },
+          "fixturePrincipalClass": { "type": ["string", "null"] },
+          "fixtureDataClassification": { "type": ["string", "null"] },
+          "expiresOn": { "type": ["string", "null"] },
+          "acceptanceId": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "exactSetDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  },
+  "additionalProperties": false,
+  "$defs": { "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" } }
+}

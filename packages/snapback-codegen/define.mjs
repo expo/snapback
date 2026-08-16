@@ -35,6 +35,21 @@ const PUSH_SEAM = Symbol('snapback.pushSeam');
 // definition and rejects any additional hidden carrier.
 const RELATIONAL_PAGES = new WeakMap();
 const AUTH_PROGRAMS = new WeakSet();
+const VISIBILITY_OVERRIDE_DECLARATIONS = new WeakSet();
+// Definition modules execute in a deliberately small VM global which does not
+// expose structuredClone. Override declarations are JSON-schema carriers, so
+// a recursive data copy both preserves that isolation and prevents callers
+// from mutating a declaration after it has been admitted.
+const copyVisibilityDeclaration = (value) => {
+  if (Array.isArray(value)) return value.map(copyVisibilityDeclaration);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+      key,
+      copyVisibilityDeclaration(child),
+    ]));
+  }
+  return value;
+};
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 const REFLECT_APPLY = Reflect.apply;
 const ARRAY_SLICE = Array.prototype.slice;
@@ -137,7 +152,35 @@ export const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals', 'trackedRefusals',
   'authorizationDependence', 'requires', 'fieldBoundary', 'membership',
+  'elevatedReads',
 ]);
+const ELEVATED_READ_FORMS = new Set(['get', 'getMany', 'uniqueMany', 'query']);
+
+function normalizeElevatedReads(value, inline, where) {
+  if (value === undefined) return [];
+  assert(!inline, `${where} elevatedReads is available only for module-form handlers`,
+    'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE');
+  assert(Array.isArray(value), `${where} elevatedReads must be an array`,
+    'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE');
+  const forms = new Set();
+  return Object.freeze(value.map((entry, index) => {
+    exactObject(entry, `${where} elevatedReads[${index}]`, new Set(['form', 'tables']),
+      'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE');
+    assert(ELEVATED_READ_FORMS.has(entry.form),
+      `${where} elevatedReads[${index}].form must be get, getMany, uniqueMany, or query`,
+      'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE');
+    assert(!forms.has(entry.form), `${where} elevatedReads repeats ${entry.form}`,
+      'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE');
+    forms.add(entry.form);
+    if (entry.tables === 'opaque') return Object.freeze({ form: entry.form, tables: 'opaque' });
+    assert(Array.isArray(entry.tables) && entry.tables.length > 0
+      && entry.tables.every((table) => typeof table === 'string' && table.length > 0)
+      && new Set(entry.tables).size === entry.tables.length,
+    `${where} elevatedReads[${index}].tables must be opaque or a non-empty unique table list`,
+    'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE');
+    return Object.freeze({ form: entry.form, tables: Object.freeze([...entry.tables].sort()) });
+  }));
+}
 const TARGET_CAPABILITIES = new Set([
   'auth.sessions.v1',
   'cron',
@@ -1909,6 +1952,28 @@ export function defineAuth(program) {
   return normalized;
 }
 
+/**
+ * Declare one schema-level alternate read policy. Content/approval closure is
+ * validated by codegen after isolated schema evaluation; this facade only
+ * freezes the closed declaration carrier and prevents an arbitrary object
+ * from masquerading as an override.
+ *
+ * @ref LLP 0234#d1--an-override-is-an-alternate-invocation-bound-table-policy
+ *   — an override exists only at the schema locus and binds named authority,
+ *   operations, tables, row scopes, lifecycle, approval, and acceptance.
+ */
+export function defineVisibilityOverride(spec) {
+  assert(spec && typeof spec === 'object' && !Array.isArray(spec),
+    'defineVisibilityOverride expects a spec object',
+    'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_INVALID');
+  const normalized = copyVisibilityDeclaration({
+    schemaVersion: 'snapback.visibility-override-declaration.v1',
+    ...spec,
+  });
+  VISIBILITY_OVERRIDE_DECLARATIONS.add(normalized);
+  return normalized;
+}
+
 export function defineSchema(tables, options = {}) {
   assert(tables && typeof tables === 'object', 'defineSchema expects a tables object');
   for (const [name, table] of Object.entries(tables)) {
@@ -2187,6 +2252,20 @@ export function defineSchema(tables, options = {}) {
       }),
     };
   }
+  let visibilityOverrides;
+  if (options.visibilityOverrides !== undefined) {
+    assert(Array.isArray(options.visibilityOverrides),
+      'defineSchema visibilityOverrides must be an array',
+      'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_INVALID');
+    assert(options.visibilityOverrides.every((override) => VISIBILITY_OVERRIDE_DECLARATIONS.has(override)),
+      'defineSchema visibilityOverrides entries must be defineVisibilityOverride(...) declarations',
+      'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_INVALID');
+    const ids = options.visibilityOverrides.map(({ id }) => id);
+    assert(new Set(ids).size === ids.length,
+      'defineSchema visibilityOverrides must not repeat an id',
+      'SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_INVALID');
+    visibilityOverrides = options.visibilityOverrides.map(copyVisibilityDeclaration);
+  }
   return {
     __schema: true,
     tables,
@@ -2196,6 +2275,7 @@ export function defineSchema(tables, options = {}) {
     ...(api ? { api } : {}),
     ...(assets ? { assets } : {}),
     ...(pushSeam ? { pushSeam } : {}),
+    ...(visibilityOverrides ? { visibilityOverrides } : {}),
     ...(strictDeclarations === true ? { strictDeclarations: true } : {}),
     ...(options.requiredCapabilities !== undefined
       ? { requiredCapabilities: [...new Set(options.requiredCapabilities)] }
@@ -3769,6 +3849,7 @@ function jsQueryDef(kind, spec) {
     assert(spec.source, `${kind} requires a handler source file`);
     assert(spec.exportName, `${kind} requires exportName`);
   }
+  const elevatedReads = normalizeElevatedReads(spec.elevatedReads, inline, kind);
   assert(spec.reads && Array.isArray(spec.reads) && spec.reads.length > 0, `${kind} requires declared reads`);
   if (spec.authScopeField !== undefined) {
     assert(
@@ -3809,6 +3890,7 @@ function jsQueryDef(kind, spec) {
         : { source: spec.source, exportName: spec.exportName }),
       reads: spec.reads,
       writes: [],
+      elevatedReads,
       authScopeField: spec.authScopeField ?? null,
       syncabilityClass: kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
     },
@@ -4496,6 +4578,7 @@ export function defineJsMutation(spec) {
     assert(spec.source, 'defineJsMutation requires a handler source file');
     assert(spec.exportName, 'defineJsMutation requires exportName');
   }
+  const elevatedReads = normalizeElevatedReads(spec.elevatedReads, inline, 'Mutation');
   const sequences = normalizeSequences(spec.sequences);
   if (spec.membership !== undefined) {
     assert(Array.isArray(spec.membership) && spec.membership.length > 0, 'defineJsMutation membership must be a non-empty array');
@@ -4543,6 +4626,7 @@ export function defineJsMutation(spec) {
         : { source: spec.source, exportName: spec.exportName }),
       reads: spec.reads ?? [],
       writes: spec.writes,
+      elevatedReads,
       syncabilityClass: 'mutation',
     },
   };
