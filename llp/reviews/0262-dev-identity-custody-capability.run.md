@@ -63,3 +63,35 @@ the one authorized transition. Convergence produces a recommendation only.
   revision (11,917 bytes) within budget.
 - Next: round 2 = delta round, all three families (claude has not yet
   returned READY, so it remains per the author rule).
+
+## Round 2 (delta round)
+
+- Round: 2 of 3. Topology unchanged; all three families (claude has not yet
+  returned READY).
+- Target revision r2 (sha256 first-16): `22ba760d2d28b9ce` (landed
+  `e9b9bd9cf`). Capsule: pristine capsule-r1 clone + r2 overlay (never
+  re-exported from main; review artifacts structurally excluded, verified
+  zero matches); capsule tar sha256 first-16 `13b29623e5262d06`; one clone
+  per reviewer.
+- Instructions: `review-prompt-r2.md`, enumerated 13-item delta with
+  IN-DELTA/PRE-EXISTING + MATERIAL/implementation-phase duty; sha256
+  recorded at launch below.
+
+### Round 2 receipt + revision r3
+
+- Receipts 2026-08-15: claude NOT READY (1 MATERIAL in-delta: anchor),
+  codex NOT READY (4 MATERIAL in-delta + 1 MATERIAL PRE-EXISTING:
+  refusal-path disclosure), grok NOT READY (2 MATERIAL in-delta) — verbatim
+  in the family artifacts. The pre-existing MATERIAL blocks delta
+  convergence at r2. Cross-family consensus: anchor triad, claim-exchange
+  carve-out.
+- Revision r3 (reviser: orchestrating session): anchor ladder (db sibling →
+  ready-file sibling → TTY mint) + ready-descriptor advertisement;
+  credential-bootstrap carve-out extended to claim-exchange with the
+  bootstrap-vs-inspection rule + redemption witness; Expo topology split
+  (native gated rendezvous leg incl. USB Android / web bearer-free /
+  refused rows); generic network refusal with local-only path remediation;
+  relay overwrite + restart re-read; clean-shutdown removal; D4
+  fronted+unset = full prod semantics.
+- Round 3 of 3 (final in budget) = delta round, all three families (claude
+  has not yet returned READY).

@@ -59,3 +59,57 @@ D5's three stages are written for the dev-identity capability. Dropping the bare
 The problem diagnosis is verified and precise; the survey claims match the source almost everywhere, and the choice of custody over transport inference is the right primitive with five shipped precedents behind it. D1's server-side mechanics, the typed refusals, and the staged rollout are sound. The document's weakness is concentrated in the client-distribution half: D2's serve-time browser injection rests on a factually wrong precedent, conflicts with LLP 0030's browser-facts fence, and — most importantly — re-serves the credential over exactly the channels a developer tunnels to reach a phone, which is the RFC's own motivating scenario; the safety claims are correspondingly overbroad, and D3 amplifies the blast radius by giving that same widely-distributed credential admin-read authority. These are fixable with a topology-scoped safety claim, a redesigned (or honestly-caveated) browser path reconciled with LLP 0030, and a narrowed or justified D3 — but as written they are defective decisions, not polish.
 
 VERDICT: NOT READY
+
+
+## Round 2 (delta) — 2026-08-15 — claude family
+
+**Reviewer:** fresh blind general-purpose agent (Claude Fable 5 harness), capsule cwd
+**Target revision r2 (sha256 first-16):** 22ba760d2d28b9ce
+**Capsule:** pristine r1 clone + r2 overlay (tar sha256 first-16 13b29623e5262d06)
+**Instructions (sha256 first-16):** ca01a2ee53db1a00
+**Blindness:** structural
+**Verdict: NOT READY** (1 MATERIAL, IN-DELTA; pre-existing text clean)
+
+### Verbatim review
+
+I have now read the target RFC in full and verified its claims against the snapshot source. Below is my Round 2 (delta) review.
+
+---
+
+# Review: LLP 0262 r2 — Dev identity becomes a custody capability
+
+## Verification summary (claims checked against source)
+
+Verified accurate: `resolve_profile` bind-derived dev default and fail-closed typo handling (`src/admin.rs` ~330); `evaluate_access` read arm passing on `loopback || token_ok` and tokenless non-loopback `Disabled` (`src/admin.rs` ~3641); `authorize_for_mode` accepting the console credential ahead of `evaluate_access` (`src/admin.rs` ~3858); console approval request/poll registered as `RoutePolicy::AdminRead` with the console shell itself `SystemStatic`/public, so D3's carve-out is sufficient for the credential bootstrap (`src/admin.rs` ~4252–4268, `src/server.rs` RoutePolicy enum); D6 counts — exactly 20 `require_operation_profile` call sites, 3 non-test `validate_plaintext_auth_transport` callers, 1 `permits_dev_body_origin` caller, 34 suites using `captureImpersonationCapability: true` (doc says ~35); `--allow-insecure-dev-auth` semantics (`src/admin.rs` ~117); `sbdev_` mutually prefix-free against the registry (`src/auth/crypto.rs` ~18–39, 732); the relay terminating every allowlisted app route including `POST /connection/open` and both WebSocket legs, so relay-side stamping is feasible with no CORS change (`packages/snapback-vite/proxy.mjs`, `allowlist.mjs`); dev-mode socket frames asserting identity in-band after `/connection/open`, with in-process grants that die on restart (`src/server.rs` `handle_live_socket_text_authorized` ~30008, `prepare_act` ~6443); the dev-authority installation chokepoints `dev_body_authority`/`dev_host_operation_authority` (`src/server.rs` ~10906–10925); `permits_dev_body_origin` composing as an origin fence (`src/admin.rs` ~2221, `src/server.rs` ~13008); external Vite mode accepting only `server.url` (`packages/snapback-vite/index.mjs` ~231); the Expo supervisor loopback bootstrap exchange (`packages/snapback-cli/expo-dev.mjs` ~28, ~202); LLP 0168's "changes the server's auth boundary and needs a focused RFC" (line 153); LLP 0213's prod-startup-refusal precedent (M-23); LLP 0036's blessed SSH tunnel (line 429); LLP 0030's browser-facts fence; both referenced tickets exist.
+
+## Concerns
+
+**1. The DB-sibling anchor premise is false for in-memory served instances, and D2's `_kit` row does not compose with it.**
+IN-DELTA (delta items 5 and 6). **MATERIAL.**
+Defective decision: D1 chooses the DB sibling *over* the ready-file sibling on the stated ground that "the DB anchor always exists for served instances." It does not: `snapback start --memory` is a first-class served mode with no database path at all (`src/cli.rs` ~8168: `if args.memory { (None, None) }`), and it is the demo kit's *default* topology (`demos/_kit/server-process.mjs` line 94: `db = ':memory:'`; line 628 pushes `--memory`). The cited "admin-token pattern" is in fact a **dual-anchor ladder**, not a DB sibling: `database_path.as_deref().or(ready_path.as_deref()).map(admin_token_sibling)` — DB sibling when file-backed, ready-file sibling when in-memory, per-process token when neither (`src/cli.rs` ~8467–8497; the shutdown path at ~9238 removes the ready-sibling token an in-memory instance was "handed off through"). As written, an in-memory served instance mints a capability with nowhere to publish it, D2's `_kit` row ("extend the existing `captureImpersonationCapability` harvest to the new sibling") has nothing to harvest — the impersonation harvest reads a *ready-file* sibling (`src/admin_impersonation.rs` ~178: `<ready-file>.impersonation`) — and stage 3 would break the 34 harvest-using acceptance suites plus every dev-identity client of a `--memory` instance. The doc also mischaracterizes its own cited precedent while rejecting the alternative that the precedent actually uses.
+Evidence: `src/cli.rs` (~8168, ~8467–8497, ~9238), `demos/_kit/server-process.mjs` (94, 628), `src/admin_impersonation.rs` (~167–180), `llp/0262-dev-identity-custody-capability.rfc.md` D1/D2.
+Disposition: replace the single-anchor decision with the admin token's actual ladder (DB sibling when file-backed; ready-file sibling for in-memory instances with a ready file, advertised in the descriptor like `impersonationCapabilityFile`; document the no-anchor posture for `--memory` without `--ready-file`), and correct the false premise sentence.
+
+**2. The Expo supervisor rendezvous hands the bearer over a credential-free loopback HTTP exchange, weaker than 0600 file custody.**
+IN-DELTA (delta item 5). Implementation-phase.
+The bootstrap exchange is a credential-free loopback origin advertised via `EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN` (`packages/snapback-cli/expo-dev.mjs` ~56–64), so any local process of *any* user can fetch whatever payload rides it — broader than the owner-only file every other carrier row uses. The doc's stated threat model ("deliberately reaches every client the developer's own tooling starts"; removes only the uncredentialed path) plausibly covers this, and the exchange already has an operator-token control-plane precedent (`x-snapback-operator-token`, ~1062) to harden against cross-user harvest at implementation time. No defective decision identified.
+Disposition: note in D2 that the exchange leg should gate the capability payload (nonce or operator-token discipline) rather than serving it on the bare payload route.
+
+**3. The sidecar is "overwritten each boot" but never removed, so every dev→prod flip on the same database hits the startup refusal.**
+IN-DELTA (delta item 6). Implementation-phase.
+The prod-presence refusal is a deliberate, precedented fail-closed choice (LLP 0213 M-23), and the message carries the one-line cleanup; but because D1 specifies overwrite-only, a *clean* dev shutdown leaves the sidecar, making the refusal the ordinary case rather than a crash indicator. The in-memory admin-token precedent removes its handoff file at shutdown (`src/cli.rs` ~9238). No defective decision — the refusal posture is right — but clean-shutdown removal would make the signal meaningful.
+Disposition: implementation note; consider remove-on-clean-shutdown.
+
+**4. D4's "default flips to prod semantics" under `fronted` + unset profile is ambiguous about scope.**
+IN-DELTA (delta item 9). Implementation-phase.
+It is unclear whether the *resolved profile itself* becomes Prod (also disabling provisioning/seeding/`function.run` via `OperationProfileRequirement::NonProd`, `src/admin.rs` ~180–248) or only the dev-identity mint/acceptance flips. Either reading is fail-closed and defensible; the decision (no silent dev behind a declared front) is sound, so this is a precision gap, not a defective decision.
+Disposition: one clarifying sentence in D4.
+
+**5. Pre-existing text: no MATERIAL concern found.**
+PRE-EXISTING. Not a concern per se, recorded for completeness: the custody primitive, its five precedents, the motivation's authority-site facts, the non-goals, and OQ2–OQ4 all check out against source, and the r2 rewrites (topology-honest scoping, relay-side stamping preserving LLP 0030's fence, the grant-witness socket design, the D3 narrowing with the console-approval carve-out, the origin-fence composition) are correct against the code as it stands.
+
+## Overall assessment
+
+R2 is a substantial, well-verified improvement: the safety claim is now honestly scoped with the confused-deputy residual named and parked on LLP 0168 (OQ1); the browser path genuinely preserves LLP 0030's fence because the relay terminates every app route including `/connection/open`; the socket design matches the real grant machinery; D3's narrowing correctly excludes the app-plane capability from the operator plane and carves out exactly the two routes that need credential-free AdminRead; the D6 chokepoints and counts are accurate to the file. The one defect is concentrated and fixable: D1's anchor decision rests on a factually false premise about served instances, contradicts the very admin-token precedent it cites, and as written strands the capability on the in-memory topology that the demo kit — the enforcement witness D5 depends on — uses by default. Until the anchor decision is corrected to the dual-anchor ladder the codebase already implements, the document contains an unresolved MATERIAL concern.
+
+VERDICT: NOT READY

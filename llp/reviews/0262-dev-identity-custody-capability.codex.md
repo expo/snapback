@@ -80,3 +80,47 @@
 The strict per-boot, digest-only sidecar mechanism is feasible and consistent with the repository’s existing custody primitives, and declared `fronted` exposure is a sensible tightening input. The proposal is nevertheless not ready because its browser delivery turns custody back into reachability, its live transport has an ungated identity path, D3 breaks console onboarding and conflates app/admin authority, and the advertised injection matrix does not exist across the shipped clients.
 
 VERDICT: NOT READY
+
+## Round 2 (delta) — 2026-08-15 — codex family
+
+**Target revision r2 (sha256 first-16):** 22ba760d2d28b9ce
+**Capsule:** pristine r1 clone + r2 overlay (tar sha256 first-16 13b29623e5262d06)
+**Instructions (sha256 first-16):** ca01a2ee53db1a00
+**Blindness:** structural
+**Verdict: NOT READY (4 MATERIAL in-delta, 1 MATERIAL pre-existing)**
+
+### Verbatim review
+
+1. Claim-link redemption is stranded by D3  
+   **IN-DELTA · MATERIAL**  
+   **Defective decision:** D3 preserves only approval-request and approval-poll as pre-credential `AdminRead` exceptions. `/_snapback/api/console/claim/exchange` is also intentionally `AdminRead`; it redeems a claim-body bearer into the caller’s first console credential. The global authorization gate runs before that handler, so requiring an admin token or existing console credential makes claim redemption impossible.  
+   **Evidence:** [src/admin.rs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/src/admin.rs:4194), [src/server.rs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/src/server.rs:13360), [LLP 0017](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/llp/0017-admin-console-inspection-surface.rfc.md:584).  
+   **Suggested disposition:** Give claim exchange an explicit claim-credential resolution/carve-out, amend LLP 0017, and test authorization ordering through successful first-credential redemption.
+
+2. The database-sibling anchor does not exist for supported in-memory servers  
+   **IN-DELTA · MATERIAL**  
+   **Defective decision:** D1 selects `<db>.dev-identity` because the database anchor supposedly always exists, but `snapback start --memory` has no database path. The shared `_kit` defaults to `:memory:` and therefore cannot perform D2’s proposed database-sibling harvest. Raw interactive `start --memory` can also omit a ready file, leaving no specified carrier at all.  
+   **Evidence:** [src/cli.rs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/src/cli.rs:8168), [demos/_kit/server-process.mjs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/demos/_kit/server-process.mjs:628), [RFC D1–D2](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/llp/0262-dev-identity-custody-capability.rfc.md:78).  
+   **Suggested disposition:** Define an anchor matrix: database sibling for file-backed instances, a ready-file sibling for memory instances with readiness, and an explicit terminal/output-file carrier or typed refusal for memory instances without readiness.
+
+3. The Expo carrier contradicts the no-bootstrap/no-browser exposure invariant  
+   **IN-DELTA · MATERIAL**  
+   **Defective decision:** D2 says the bearer never enters served bootstrap or browser-visible material, then sends it through Expo’s HTTP bootstrap exchange. That exchange serializes its payload to the client, and supervised Expo web—currently supported—fetches it from browser JavaScript. The implementation cannot satisfy both decisions.  
+   **Evidence:** [packages/snapback-cli/expo-dev.mjs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/packages/snapback-cli/expo-dev.mjs:1004), [packages/snapback-expo/supervised-environment.mjs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/packages/snapback-expo/supervised-environment.mjs:306), [RFC D2](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/llp/0262-dev-identity-custody-capability.rfc.md:107).  
+   **Suggested disposition:** Specify distinct native and web carriers. A native rendezvous exception may be documented under LLP 0181’s reachability model; Expo web needs relay-side stamping or an explicit, justified removal from support.
+
+4. The Expo topology matrix silently omits shipped web and physical-Android paths  
+   **IN-DELTA · MATERIAL**  
+   **Defective decision:** “Simulator/emulator only, as today” is false. `snapback dev --expo` supports web, and its Android routing explicitly admits physical USB devices through per-serial `adb reverse`; only TCP/IP Android and physical iOS are refused. D5 therefore cannot claim every supported topology is witnessed, and enforcement would regress unlisted clients.  
+   **Evidence:** [packages/snapback-cli/index.mjs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/packages/snapback-cli/index.mjs:3825), [packages/snapback-cli/expo-dev.mjs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/packages/snapback-cli/expo-dev.mjs:381), [LLP 0181](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/llp/0181-zero-configuration-expo.rfc.md:649).  
+   **Suggested disposition:** Split the row into iOS simulator, Android emulator, Android physical USB, and web; retain separate refusals for physical iOS and Android TCP/IP/LAN. Assign a carrier and acceptance witness to each supported row, or make any support removal explicit with migration rationale.
+
+5. Pre-authentication refusals disclose the server’s filesystem path  
+   **PRE-EXISTING · MATERIAL**  
+   **Defective decision:** The RFC requires the refusal remediation to name the exact sidecar path. At this gate the caller is unauthenticated, and ordinary `ApiError` serialization returns the complete diagnostic message and details. Thus callers arriving through the very front being closed can learn operator-only local path information.  
+   **Evidence:** [RFC D1](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/llp/0262-dev-identity-custody-capability.rfc.md:78), [src/server/api_error.rs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/src/server/api_error.rs:1711), [src/diagnostic.rs](/private/tmp/claude-501/-Users-ccheever-projects-snapback/b7be81b8-4e2a-4c7d-ab91-c450c54d72e6/scratchpad/sr0262/capsule-r2-codex/src/diagnostic.rs:33).  
+   **Suggested disposition:** Keep the network refusal generic and non-oracular. Emit the exact sidecar path only in local server logs or custody-holding CLI diagnostics.
+
+Overall, the authority-installation gate, connection-grant witness, relay-side Vite stamping, D4 truth table, and topology-honest deputy residual are sound directions. The claim-exchange deadlock and incomplete/contradictory carrier model are implementation-blocking design defects, however, and the unauthenticated path disclosure needs correction.
+
+VERDICT: NOT READY

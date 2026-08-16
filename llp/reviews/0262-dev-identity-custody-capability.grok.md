@@ -80,3 +80,56 @@ The document is not ready because two decisions re-open what D1 claims to close.
 
 VERDICT: NOT READY
 
+
+## Round 2 (delta) — 2026-08-15 — grok family
+
+**Target revision r2 (sha256 first-16):** 22ba760d2d28b9ce
+**Capsule:** pristine r1 clone + r2 overlay (tar sha256 first-16 13b29623e5262d06)
+**Instructions (sha256 first-16):** ca01a2ee53db1a00
+**Blindness:** structural
+**Verdict: NOT READY (2 MATERIAL in-delta)**
+
+### Verbatim review
+
+I'll review the r2 RFC against the snapshot source and the listed key sites, starting with the document and its governing LLPs.Next I’ll verify the RFC’s claims against the listed source sites and the related LLPs, without looking at other reviews.The RFC’s authority and transport claims need to be checked against the actual functions, so I’m reading those implementations next.I’ve confirmed the profile and access functions; next I’m checking credential prefixes, connection grants, and the Vite/Expo handoff paths.The Vite relay, Expo supervisor, and live-socket identity paths are the load-bearing r2 claims, so I’m reading those next.I’m checking remaining authority install sites, console route policy, and the sidecar/prod-refusal patterns next.The r2 revision is mostly a coherent security-boundary repair: the safety claim is topology-honest, the Vite path preserves LLP 0030’s fence, and gating at authority installation plus a connection-grant witness matches how identity is actually installed. Two r2 decisions are still defective against the snapshot.
+
+## Concerns
+
+1. **D3’s credential-free AdminRead carve-out omits claim exchange**  
+   **IN-DELTA · MATERIAL**  
+   **Defective decision:** D3 enumerates only approval-request/poll as the routes that keep a credential-free AdminRead posture after the loopback-read default is dropped. That exception set is incomplete.  
+   **Evidence:** `llp/0262-dev-identity-custody-capability.rfc.md` §D3; `src/admin.rs` registers `POST /_snapback/api/console/approval/request` and `.../poll` as AdminRead, and also registers `POST /_snapback/api/console/claim/exchange` as AdminRead. `exchange_console_claim` does not call `authorize_master`; it relies on the middleware `authorize_for_mode(..., write=false)` path, which today succeeds on loopback with no token (`evaluate_access` read arm). `packages/snapback-admin-client/index.mjs` `exchangeConsoleClaim` posts that route with empty headers. LLP 0017’s operator claim-link is the other intentional pre-credential bootstrap.  
+   Implementing D3 as written (`evaluate_access` requires admin token or `sbcc_` except the two named routes) 401s the claim link before the claim code is considered. Approval and master-token mint still work; the remote-dev claim flow does not.  
+   **Disposition:** Name claim-exchange in the same bounded exception (or reclassify it as Public with its own claim-code gate), and treat the LLP 0017 amendment as “every credential-bootstrap AdminRead keeps its own proof; inspection AdminRead does not.”
+
+2. **DB-only sidecar anchor is not the admin-token pattern and does not exist for named topologies**  
+   **IN-DELTA · MATERIAL**  
+   **Defective decision:** D1/D2 choose `<db>.dev-identity` over a ready-file sibling because “the DB anchor always exists for served instances.” That premise is false.  
+   **Evidence:** `src/cli.rs` — `--memory` sets `database_path = None`; admin-token resolution is `database_path.as_deref().or(ready_path.as_deref()).map(admin_token_sibling)`, else an ephemeral mint. LLP 0017 already documents that triad (db sibling / ready-file sibling / TTY or `SNAPBACK_ADMIN_TOKEN`). `demos/_kit/server-process.mjs` defaults `db = ':memory:'` and always passes `--ready-file`; impersonation harvest is the ready-file sibling. Managed Vite is file-backed (`.snapback/dev.sqlite3`) and would work; kit and `snapback start --memory` would not.  
+   D2 tells CLI/kit/raw-start to read `<db>.dev-identity` and to “extend `captureImpersonationCapability`” to that sibling. On the default kit topology there is no database file to harvest.  
+   **Disposition:** Use the real admin-token path rule (`database` else `ready-file` else TTY/env), publish the path on the ready descriptor the way `adminTokenFile` is published, and say how kit harvests it. Do not claim a DB sibling always exists.
+
+3. **Relay stamp must overwrite a client-supplied header and re-read after backend restart**  
+   **IN-DELTA · implementation-phase**  
+   `packages/snapback-vite/proxy.mjs` copies inbound headers then would attach the stamp; a client-supplied value must not win. `refreshTarget` already re-resolves a restarted backend; a per-boot sidecar must be re-read or the relay stamps a rotated secret. Specify both. Not a defective decision.
+
+4. **Expo supervisor becomes a bearer-distributing host**  
+   **IN-DELTA · implementation-phase**  
+   Putting `sbdev_` on the loopback bootstrap exchange is the right Expo carrier (Metro is not a request relay). Anyone who can fetch that exchange also receives the Snapback origin in the binding. That is the same residual class as a fronted Vite host; OQ1 already owns it. Do not cache the bearer in the supervised binding cache across rotation.
+
+5. **Header spelling is unspecified**  
+   **PRE-EXISTING in spirit, reshaped by r2 · implementation-phase**  
+   “The capability header” is enough for the RFC if it is a dedicated carrier and not `Authorization` (sessions reserves that). Prefix `sbdev_` is prefix-free against `REGISTERED_CREDENTIAL_PREFIXES`. Fine at this altitude.
+
+OQ1–OQ4 are left open on purpose. OQ1’s deputy framing is honest (a Vite bind check cannot see `ngrok http 5173`). OQ2 does not contradict D6: D6 names where identity is installed; OQ2 asks whether host-ops that already hold the admin token need a second witness.
+
+## What held up
+
+Verified against source: bind-derived `resolve_profile`; served-loopback admin-token mint vs tokenless non-loopback disable; `evaluate_access` read arm is the tokenless-read residual; `authorize_for_mode` accepts `sbcc_` first; `dev_body_authority` / `dev_host_operation_authority` / in-band live-socket `auth` are the install sites; `/connection/open` is public and can carry a server-side witness without putting `sbdev_` in served JS; Vite `virtual:snapback/dev` and Expo `EXPO_PUBLIC_*` stay credential-free; `permits_dev_body_origin` and `validate_plaintext_auth_transport` (3 callers) compose and should not become the gate; `--allow-insecure-dev-auth` is bind-only; `require_operation_profile` has 20 call sites; approval-request/poll are deliberately credential-free AdminRead.
+
+## Overall
+
+r2 fixed the r1 browser-path mistake and scoped the safety claim to what custody can actually close. The remaining defects are both r2 decisions: D3’s exception set is one LLP 0017 bootstrap short, and the sidecar anchor was justified with a fact the serve path and kit do not satisfy. Close those two and this is ready.
+
+VERDICT: NOT READY
+
