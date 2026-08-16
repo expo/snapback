@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:e8f67c228e2bdc3611eeedeb013eb2c570bf75f4c4c1ffc6e2f93ad3fe7f8730
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:41a71ce40674c88e9cff5ba210c8ea81fb61bc41e28505d587ad9d6bdff8e2fa
 ---
 
 # Capability index
@@ -87,8 +87,8 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | auth.sessions | Server-minted sessions; email-code and email+password login; server-derived principals | login, signin, identity, session, principal binding, app user table, identityBinding, who am I, am I signed in, whoami, currentAuthorizationScope, settledView | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.passwords | First-class session email+password: noninteractive signup/signin/change/set; server-side argon2id (19456/2/1) outside writer lock; bounded KDF concurrency; app-declared 8–128-byte password minimum (default 12, maximum 1024); declared testable lockout (10 failures→15 min); one-time self-serve recovery codes. Uniform refusal for wrong password/unknown identifier/locked; lock state never on wire. Catalog v4 required; v3 reports provider unready. Unready LLP 0045-prerequisite nonclaims: production blind-accept signup/mail reset. Local reset: capture-mailbox only. | password, email password, signup, password login, password auth, minimumLength, minimum password length, hash password, argon2, scrypt gateway, recovery codes, lockout, GoTrue, Supabase auth, password reset | local | shipped | route /auth/password/signin + `authPasswordSignIn` in packages/snapback-client/index.mjs | llp/0227, llp/0214, llp/0215, llp/0011 | auth/passwords.md |
 | auth.external-identity-broker | Local bridges: adopted bearer for headless/native, or trusted-server one-use exchange into browser coordinator custody; mint/capture remain dev/test/demo only | native login, external identity, broker, adopted bearer, browser external sign-in, signed assertion, issuer subject | local | partial | `createExternalSessionClient` in packages/snapback-client/index.mjs + demos/browser-auth/tests/acceptance/browser-auth.mjs | llp/0024, llp/0057, llp/0096, llp/0151 | recipes/browser-auth.md |
-| auth.browser-session-custody | First-party browser/Expo-web auth: `createSnapbackAppClient`/`client.auth`, React auth/principal hooks, durable IndexedDB/Web Locks; XSS-readable, not sender-constrained | app auth bootstrap, createSnapbackAppClient, client.auth, useSnapbackAuth, useSnapbackCurrentPrincipal, persistent login | local | shipped | packages/snapback-react/auth-bootstrap.test.mjs | llp/0258, llp/0238, llp/0059 | GAP (journey page; owner: ccheever, review: 2026-08-29; issue: issues/20260815-llp-0258-phase-3-remainders.md); recipes/browser-auth.md |
-| auth.application-bootstrap-native-custody | Owner-key SecureStore exists; Expo native durable-required refuses pending per-OS evidence | SecureStore, iOS relaunch, Android force-stop | none | partial | `createSecureStoreAuthCustodyStorage` in packages/snapback-contract/auth-custody-secure-store.mjs | llp/0258, llp/0059, llp/0064 | GAP (owner: ccheever, review: 2026-09-05; issue: issues/20260815-llp-0258-phase-2-native-custody-evidence.md) |
+| auth.browser-session-custody | First-party browser/Expo-web auth: `createSnapbackAppClient`/`client.auth`, React auth/principal hooks, durable IndexedDB/Web Locks; XSS-readable, not sender-constrained | app auth bootstrap, createSnapbackAppClient, client.auth, useSnapbackAuth, useSnapbackCurrentPrincipal, persistent login | local | shipped | packages/snapback-react/auth-bootstrap.test.mjs | llp/0258, llp/0238, llp/0059 | auth/passwords.md |
+| auth.application-bootstrap-native-custody | Owner-key SecureStore exists; Expo native durable-required refuses pending per-OS evidence | SecureStore, iOS relaunch, Android force-stop | none | partial | `createSecureStoreAuthCustodyStorage` in packages/snapback-contract/auth-custody-secure-store.mjs | llp/0258, llp/0059, llp/0064 | GAP (owner: ccheever, review: 2026-09-05; issue: issues/20260815-llp-0258-phase-2-native-custody-evidence.md); auth/passwords.md |
 | auth.scoped-queries | Caller-bound filters enforce reads; `authScopeField` is invalidation/retention metadata | hidden data, per-user, row security, Supabase RLS | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
 | auth.table-visibility | Table owner/membership policy composed into all shipped read plans and ordinary `ctx.db`; `anyOf`, resource `_id`, explicit `ctx.db.elevated` | table visibility, joins, bounded children, snapshot batch, elevated read | local | shipped | `compose_declared_table_visibility` in src/storage.rs | llp/0231, llp/0056 | auth/protecting-data.md |
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
@@ -2679,14 +2679,14 @@ title: Email and password
 id: auth.passwords
 order: 2
 audience: agent-first
-capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody]
-authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/auth/runtime.rs, src/auth/wire.rs, src/contract_types.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-admin-client/index.mjs]
-examples: [demos/browser-auth]
+capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody, auth.application-bootstrap-native-custody]
+authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, src/auth/provider.rs, src/auth/runtime.rs, src/auth/wire.rs, src/contract_types.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-admin-client/index.mjs]
+examples: [packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, tests/fixtures/application-auth/browser-explicit/application, demos/browser-auth]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:083db4d14228e12d2ff9515640806d6e39acb794ac39d9356de96756b4a5adfd
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:2dc2739723561bb726d1f38029d6f76e37c8d3680efe9467a52911e93f65299b
 ---
 
 # Email and password
@@ -2712,7 +2712,7 @@ Choose the password identifier in the app's `defineAuth` program and pass that
 program to `defineSchema(..., { auth: { mode: 'sessions' }, authProgram })`.
 Use `identifier: 'email'` for the email-v1 canonicalizer:
 
-```js source=demos/rbac/snapback/schema.mjs
+```js source=packages/snapback-cli/templates/react/snapback/schema.mjs
 const authProgram = defineAuth({
   version: 1,
   mechanisms: {
@@ -2736,6 +2736,18 @@ const authProgram = defineAuth({
   guestPolicy: { enabled: false },
   secretReferences: {},
 });
+```
+
+Codegen derives the non-secret `app.authBootstrap` policy from that normalized
+auth program and adds `auth.application-bootstrap.v1` to the generated app's
+required capabilities. Do not hand-author either fact. Binding admission
+intersects the generated password mechanism with the target's
+`auth.passwords` capability before credential UI can issue network work. The
+React template's static acceptance check pins both generated facts:
+
+```js source=packages/snapback-cli/templates/react/acceptance.static.mjs
+assert.equal(descriptor.authBootstrap.format, 'snapback.application-auth-bootstrap.v1');
+assert(descriptor.capabilities.required.includes('auth.application-bootstrap.v1'));
 ```
 
 `identifier: 'username'` selects username-v1. An app with no declared password
@@ -2769,11 +2781,204 @@ misses the active policy refuses with `SNAPBACK_AUTH_PASSWORD_POLICY`, whose
 redacted details name the active minimum, maximum, default, and `defineAuth
 mechanisms.<name>.minimumLength` configuration path.
 
+<!-- since: 0.1.23 -->
 ## Sign up, then sign in
 
-`authPasswordSignup` mints an ordinary session and adopts it into
-`AuthCoordinator` custody, exactly as `authExchange` does. You need no admin
-token, no impersonation capability, and no `auth.mintSession`.
+For an ordinary React application, construct one application client from the
+generated `app` and the admitted environment binding, then give that owner to
+`SnapbackProvider`. The clean browser Explicit fixture is runnable first-party
+source; its host supplies the admitted binding and platform:
+
+```js source=tests/fixtures/application-auth/browser-explicit/application/App.mjs
+import React from 'react';
+import { createSnapbackAppClient } from '@expo/snapback-client';
+import {
+  SnapbackProvider,
+  useSnapbackAuth,
+  useSnapbackCurrentPrincipal,
+} from '@expo/snapback-react';
+
+import { app } from './snapback/generated/app.mjs';
+import { createAuthPanel } from '../../shared/auth-panel.mjs';
+
+const AuthPanel = createAuthPanel({
+  useAuth: useSnapbackAuth,
+  useCurrentPrincipal: useSnapbackCurrentPrincipal,
+});
+
+export async function createApplication({ binding, platform, now, onSnapshot }) {
+  const appClient = await createSnapbackAppClient({ app, binding, platform, now });
+  return Object.freeze({
+    app,
+    appClient,
+    element: React.createElement(
+      SnapbackProvider,
+      {
+        appClient,
+        fallback: (state) => React.createElement(
+          'pre',
+          { 'data-fixture': 'boot' },
+          JSON.stringify(state),
+        ),
+      },
+      React.createElement(AuthPanel, { onSnapshot }),
+    ),
+  });
+}
+
+export { app };
+```
+
+`fallback` owns construction states. When children render, the bootstrap is
+`ready`: binding, custody, client, and authority synchronization have settled.
+`ready` does **not** mean signed in. A cold password-only app still settles a
+server-witnessed anonymous principal so the entry form is reachable; generated
+`anonymousPublic` controls anonymous app-data access, not whether boot can
+finish.
+
+Inside the provider, use the canonical facade and principal projection. The
+template clears any previous recovery projection before every operation, then
+keeps the signup result only long enough to render its one-time codes:
+
+```tsx source=packages/snapback-cli/templates/react/src/App.tsx
+export function App() {
+  const auth = useSnapbackAuth();
+  const principal = useSnapbackCurrentPrincipal();
+  const workspace = useSnapbackQueries(workspaceQueries);
+  const createTodo = useSnapbackMutation(api.createTodo);
+  const connection = useSnapbackConnection();
+  const [email, setEmail] = useState('person@example.com');
+  const [password, setPassword] = useState('replace-this-password');
+  const [recoveryCodes, setRecoveryCodes] = useState<readonly string[] | null>(null);
+  const todos = workspace.queries.todos.status === 'ready'
+    || workspace.queries.todos.status === 'refreshing'
+    ? workspace.queries.todos.data
+    : [];
+
+  const signUp = async () => {
+    setRecoveryCodes(null);
+    const result = await auth.signUpWithPassword({ email, password });
+    setRecoveryCodes(result.recoveryCodes);
+  };
+  const signIn = async () => {
+    setRecoveryCodes(null);
+    await auth.signInWithPassword({ email, password });
+  };
+  const signOut = async () => {
+    setRecoveryCodes(null);
+    await auth.signOut();
+  };
+```
+
+Render all five `CurrentPrincipalSnapshot` states distinctly: `loading`,
+`anonymous`, `authenticated`, `refreshing`, and `blocked`. Only the
+`authenticated` arm has a current `userId`. The template's account UI also
+makes the recovery handoff explicit:
+
+```tsx source=packages/snapback-cli/templates/react/src/App.tsx
+        {recoveryCodes ? (
+          <aside>
+            <strong>Save these recovery codes now. They are shown once.</strong>
+            <pre>{recoveryCodes.join('\n')}</pre>
+          </aside>
+        ) : null}
+```
+
+The application must hand those codes to the user for separate safe custody
+at signup. They are not session credentials: do not put them in the app
+client, general persistence, logs, analytics, diagnostics, or a later account
+screen. Snapback cannot read them back. Clear the projection when the user
+leaves the handoff or starts another auth action. Recovery consumption and
+rotation each return a new one-time set and require the same handling; see
+[Recovery codes are the recovery path](#recovery-codes-are-the-recovery-path).
+
+The complete ordinary sequence is:
+
+1. Wait for provider `ready`; `useSnapbackCurrentPrincipal()` reports the
+   settled anonymous arm.
+2. Call `auth.signUpWithPassword`. Save the returned recovery codes now; the
+   principal projection becomes `authenticated` only after coordinator
+   adoption and its barrier settle.
+3. On a full browser reload, construct the same app client again. Browser and
+   Expo web use IndexedDB plus Web Locks, so the owner restores the settled
+   principal without another signup or sign-in. `dispose()` only releases the
+   process projection; it does not sign out or delete durable custody.
+4. Call `auth.signOut()`. The provider blanks predecessor protected state,
+   revokes the session, settles anonymous custody, and only then publishes the
+   anonymous principal.
+5. Call `auth.signInWithPassword` for the existing account. Sign-in returns
+   the ordinary credential projection, not recovery codes.
+6. To switch users, sign out first, replace the form identity, then sign in or
+   sign up. Entry while an application-entered or restored principal is still
+   authenticated refuses with a typed `signOut` remediation; there is no
+   implicit latest-user-wins switch.
+
+The browser restoration path is package-tested against a fresh application
+client over the same durable custody record:
+
+```js source=packages/snapback-client/app-client.test.mjs
+    restored = await createSnapbackAppClient(input);
+    assert.equal(restored.auth.currentPrincipal().status, 'authenticated');
+    assert.equal(
+      restored.auth.currentPrincipal().provider,
+      null,
+      'restoration does not fabricate the provider availability key as issuance provenance',
+    );
+    assert.equal(restored.bootstrapState().authoritySource, 'durable-restored');
+```
+
+### Use the same owner through Expo
+
+An Expo application passes only the generated `app` to the ordinary provider.
+When that descriptor carries the generated bootstrap policy and required
+capability, `SnapbackExpoProvider` resolves the environment and delegates to
+the same application-client owner; its `useSnapbackAuth` and
+`useSnapbackCurrentPrincipal` exports project the same contracts. The current
+`expo-chat` template keeps this composition at the root:
+
+```tsx source=packages/snapback-cli/templates/expo-chat/App.tsx
+export default function App() {
+  const [thread, setThread] = useState<Thread | null>(null);
+  return (
+    <SnapbackExpoProvider app={app} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
+      <TestPersonaProvider>
+        <AccountEntry />
+        {thread
+          ? <ChatScreen conversationId={thread.id} title={thread.title} onBack={() => setThread(null)} />
+          : <InboxScreen onOpen={(id, title) => setThread({ id, title })} />}
+      </TestPersonaProvider>
+    </SnapbackExpoProvider>
+  );
+}
+```
+
+**Expo web** selects the shipped browser IndexedDB/Web Locks carrier and has
+the same durable reload restoration as React web. **Expo native does not yet
+have Phase-2 durable-custody evidence.** A native `durable-required` program
+therefore refuses before credential entry rather than falling back to memory.
+The disposable `expo-chat` template opts into `custody:
+'volatile-explicit'`, which can exercise signup/sign-in/sign-out but cannot
+claim restoration after process death or supported relaunch. Do not change it
+to `durable-required` until the iOS or Android capability row has its own
+evidence. Read [Authenticate a native app](./native-apps.md) for the native
+broker and custody threat boundary, and [Targets](./targets.md) before making
+any hosted or production claim.
+
+### Keep custom identity brokers on the advanced seam
+
+If the app already has an external identity front door, custom gateway, or
+application-owned identity binding, keep that explicit composition on the
+[browser sign-in and reload custody recipe](../recipes/browser-auth.md). That
+recipe deliberately owns a trusted broker, `AuthCoordinator`, and one-use
+exchange; it is not a second spelling for the first-party password journey.
+The ordinary and advanced owners cannot share one app/storage partition.
+
+### Use the low-level methods only in advanced compositions
+
+The underlying client methods remain available for custom shells and tests.
+`authPasswordSignup` mints an ordinary session and adopts it into an
+application-supplied `AuthCoordinator`, exactly as `authExchange` does. You
+need no admin token, no impersonation capability, and no `auth.mintSession`.
 
 ```js source=packages/snapback-client/password-auth.test.mjs
     const result = await fixture.client.authPasswordSignup({
@@ -2793,7 +2998,8 @@ do after an email-code exchange.
 Both methods require an `AuthCoordinator` and an anonymous predecessor — they
 create a fresh authority, so they adopt through the same anonymous-issuance
 path `authExchange` uses. The bearer is never returned to your code; the
-coordinator owns it.
+coordinator owns it. An ordinary React or Expo app should not construct that
+coordinator itself; use the application-client/provider journey above.
 
 ## The exact session shape
 
@@ -2954,6 +3160,20 @@ These are not shipped, and Snapback says so rather than pretending:
 - **Sender-constrained custody is refused, not downgraded.** When
   sender-constrained credentials are active, password methods refuse with a
   typed error rather than quietly falling back to bearer-only custody.
+
+## Anti-patterns
+
+- **Do not construct `AuthCoordinator` or call an authority-adoption method in
+  an ordinary React/Expo app.** The generated application client and provider
+  own that composition; the explicit seam is for custom brokers and shells.
+- **Do not discard, log, analyze, or silently persist signup recovery codes.**
+  Present the one-time projection immediately and hand custody to the user.
+- **Do not implement user switch as sign-in over an authenticated principal.**
+  Sign out, wait for settled anonymous, then enter the successor account.
+- **Do not infer Expo-native restoration from browser or Expo-web evidence.**
+  Native durable custody remains Phase-2 evidence-gated per OS.
+- **Do not generalize this local bearer journey into hosted or
+  sender-constrained auth.** Check [Targets](./targets.md) first.
 
 ---
 
@@ -13343,13 +13563,13 @@ id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react, clients.dev-diagnostics]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0133-local-settlement.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0145-client-bundle-architecture.research.md, llp/0155-local-sync-product-direction.rfc.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0218-outbox-settlement-contract.rfc.md, llp/0219-client-dev-diagnostics-channel.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, packages/snapback-client/app-client.mjs, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/index.d.mts, packages/snapback-client/reference-kinds.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/core.mjs, packages/snapback-react/full-capabilities.mjs, packages/snapback-react/implementation.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-codegen/client-lifecycle.mjs, packages/snapback-codegen/client-lifecycle.test.mjs, packages/snapback-client/client-diagnostics.mjs]
 examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, demos/messaging-snapback/src/lib/useTyping.ts, demos/_kit/tests/provider-live-conformance.mjs, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/optimistic-create.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts, packages/snapback-react/optimistic-create-types.fixture.ts, packages/snapback-react/dev-diagnostics.test.mjs, packages/snapback-react/dev-diagnostics-acceptance.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:185469da32a058a35d64a64020776980440e9d0c96b5afc8e4f2b342fe5ab3e1
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:422eb1717130f3aad1be98301f8ac6dcb28610fdac92292248623a5de76b1433
 ---
 
 # The React client
@@ -13366,8 +13586,27 @@ replay, late-handle disposal, auth custody blanking, expiry/heartbeat work, and
 cleanup. Components do not open live handles in `useEffect`, add a second
 query cache, or manage presence intervals.
 
-Prepare the connected deployment before rendering, then construct a provider
-from that immutable binding:
+<!-- since: 0.1.23 -->
+## Add first-party application auth
+
+When the generated app declares an application auth bootstrap, use
+`createSnapbackAppClient`, pass that owner to `<SnapbackProvider
+appClient={...}>`, and read `useSnapbackCurrentPrincipal()` plus
+`useSnapbackAuth()`. The complete runnable journey — generated admission,
+anonymous `ready`, password signup/sign-in, one-time recovery custody, reload,
+sign-out, and user switch — lives on
+[Email and password](../auth/passwords.md#sign-up-then-sign-in).
+
+Do not add an application `AuthCoordinator`, bearer setter, or parallel user
+cache on that path. The prepared-binding/provider form below remains the
+advanced composition seam for a shell that deliberately owns its client; the
+[browser auth recipe](../recipes/browser-auth.md) documents the external-broker
+case.
+
+## Prepare a provider for advanced composition
+
+Prepare the connected deployment before rendering, then construct the
+provider from that immutable binding:
 
 ```ts fragment reason="application composition varies by renderer and generated artifact imports"
 const binding = await client.prepareReactBinding({
@@ -14858,13 +15097,13 @@ id: clients.react-expo
 order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-cli/templates/expo-chat/App.tsx, packages/snapback-client/app-client.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/asset-source.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-binding-cache.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/tandem-expo-bakeoff/snapback/scripts/dev-backend.mjs, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/_kit/eas-stage-build.mjs]
 examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/expo-golden-path-fixture/receipts/physical-device-online-checklist.md, demos/partiful-matrix/native/react-expo, packages/snapback-cli/expo-device-forwarding.test.mjs, packages/snapback-cli/expo-bootstrap-exchange.test.mjs, packages/snapback-cli/expo-dev-loop.test.mjs, packages/snapback-expo/asset-source.test.mjs, packages/snapback-expo/supervised-offline-fallback.test.mjs, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-react/cold-boot-binding.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/snapback/src/backend.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs, benchmarks/lanes/native-simulator.md]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:0067ca5e30caa1d049007d2453abd3cacf01e272be7e36cdde9cf9ba4fa93004
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:8dc1831c42022e0f862384ae86c5880eac764e6d004fb3eead12d4b8b49930c3
 ---
 
 # React Expo Online clients
@@ -14888,6 +15127,24 @@ store consequence, the offline queue, and reconnect honesty. In particular,
 optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
+
+<!-- since: 0.1.23 -->
+## Add first-party application auth
+
+Pass the generated `app` to `SnapbackExpoProvider`. When its generated
+`authBootstrap` requires `auth.application-bootstrap.v1`, the provider opts
+into the common application client and exposes `useSnapbackAuth()` plus
+`useSnapbackCurrentPrincipal()` over that one owner. Follow the complete
+[password application-auth journey](../auth/passwords.md#sign-up-then-sign-in)
+for anonymous `ready`, signup and its one-time recovery projection, sign-in,
+restoration, sign-out, and user switch.
+
+Expo web has the shipped browser durable-custody evidence. Expo native does
+not: `durable-required` remains refused there until Phase-2 iOS/Android
+evidence lands, while a disposable native app may declare
+`volatile-explicit` without claiming process-death restoration. Keep the
+[native threat-model page](../auth/native-apps.md) and
+[target-honesty page](../auth/targets.md) in view before changing that policy.
 
 ## Install the published Expo path
 
@@ -23396,8 +23653,8 @@ examples: [demos/browser-auth, demos/pointing-room/surfaces/contract, demos/file
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:a70d555f13f958cda513f75a238433ac2ee5be9c83d7c28db0fabc90eaee0257
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:447ad2cfdbee049fb2d7e2d7f0194fd66fad70c7cab7a47afcc65c3c4e5ef739
 ---
 
 # Recipe: browser sign-in and reload custody
@@ -23409,6 +23666,11 @@ reviewed-authorities-digest: sha256:a70d555f13f958cda513f75a238433ac2ee5be9c83d7
 Use this recipe when a browser app already has an identity front door and
 app-owned user rows. The registered [`browser-auth` demo](repo:demos/browser-auth)
 proves the complete local composition in real Chrome:
+
+If the app uses Snapback's built-in password entry, use the ordinary
+[first-party application-auth journey](../auth/passwords.md#sign-up-then-sign-in)
+instead. This page remains the advanced external-broker/custom-composition
+path.
 
 1. an app-owned trusted server verifies an external assertion;
 2. immutable `(issuer, subject)` selects the app user;
@@ -27511,9 +27773,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-react-args-invalid"></a>`SNAPBACK_REACT_ARGS_INVALID` | client | — | — | `packages/snapback-client/canonical-client-value.mjs:36` | 2 |
 | <a id="diagnostic-snapback-react-asset-strict-delivery-sessions"></a>`SNAPBACK_REACT_ASSET_STRICT_DELIVERY_SESSIONS` | react | — | [guide](../backend/assets.md#render-the-uploaded-image-in-a-plain-image) | `packages/snapback-react/implementation.mjs:6338` | 1 |
 | <a id="diagnostic-snapback-react-auth-provider-required"></a>`SNAPBACK_REACT_AUTH_PROVIDER_REQUIRED` | react | — | — | `packages/snapback-react/implementation.mjs:4229` | 1 |
-| <a id="diagnostic-snapback-react-binding-mismatch"></a>`SNAPBACK_REACT_BINDING_MISMATCH` | client | — | [guide](../clients/react.md#the-react-client) | `packages/snapback-client/react-binding.mjs:419` | 3 |
+| <a id="diagnostic-snapback-react-binding-mismatch"></a>`SNAPBACK_REACT_BINDING_MISMATCH` | client | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-client/react-binding.mjs:419` | 3 |
 | <a id="diagnostic-snapback-react-binding-origin-unreachable"></a>`SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE` | client | — | [guide](../clients/react-expo.md#use-the-low-level-provider-when-you-own-environment-wiring) | `packages/snapback-client/react-binding.mjs:65` | 1 |
-| <a id="diagnostic-snapback-react-binding-receipt-not-persisted"></a>`SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED` | client | — | [guide](../clients/react.md#the-react-client) | `packages/snapback-client/react-binding.mjs:579` | 3 |
+| <a id="diagnostic-snapback-react-binding-receipt-not-persisted"></a>`SNAPBACK_REACT_BINDING_RECEIPT_NOT_PERSISTED` | client | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-client/react-binding.mjs:579` | 3 |
 | <a id="diagnostic-snapback-react-binding-required"></a>`SNAPBACK_REACT_BINDING_REQUIRED` | client | — | — | `packages/snapback-client/react-binding.mjs:1632` | 1 |
 | <a id="diagnostic-snapback-react-command-invalid"></a>`SNAPBACK_REACT_COMMAND_INVALID` | client | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-client/react-binding.mjs:1734` | 1 |
 | <a id="diagnostic-snapback-react-command-result-invalid"></a>`SNAPBACK_REACT_COMMAND_RESULT_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:2031` | 1 |
@@ -27532,7 +27794,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-react-group-preparation-invalid"></a>`SNAPBACK_REACT_GROUP_PREPARATION_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:554` | 1 |
 | <a id="diagnostic-snapback-react-group-reference-invalid"></a>`SNAPBACK_REACT_GROUP_REFERENCE_INVALID` | client | — | — | `packages/snapback-client/react-binding.mjs:1651` | 3 |
 | <a id="diagnostic-snapback-react-group-register-unavailable"></a>`SNAPBACK_REACT_GROUP_REGISTER_UNAVAILABLE` | client | — | — | `packages/snapback-client/react-binding.mjs:1991` | 1 |
-| <a id="diagnostic-snapback-react-hmr-rebind-failed"></a>`SNAPBACK_REACT_HMR_REBIND_FAILED` | react | — | [guide](../clients/react.md#the-react-client) | `packages/snapback-react/implementation.mjs:3057` | 4 |
+| <a id="diagnostic-snapback-react-hmr-rebind-failed"></a>`SNAPBACK_REACT_HMR_REBIND_FAILED` | react | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-react/implementation.mjs:3057` | 4 |
 | <a id="diagnostic-snapback-react-live-hook-args-identity-churn"></a>`SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN` | react | — | [guide](../backend/familiar-profile.md#keep-react-hook-arguments-identity-stable) | `packages/snapback-react/react-runtime.mjs:45` | 2 |
 | <a id="diagnostic-snapback-react-manifest-invalid"></a>`SNAPBACK_REACT_MANIFEST_INVALID` | client | — | — | `packages/snapback-client/react-binding-hmr.mjs:95` | 26 |
 | <a id="diagnostic-snapback-react-mutation-queued"></a>`SNAPBACK_REACT_MUTATION_QUEUED` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:26` | 4 |
@@ -27567,7 +27829,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-react-query-failed"></a>`SNAPBACK_REACT_QUERY_FAILED` | react | — | — | `packages/snapback-react/implementation.mjs:318` | 2 |
 | <a id="diagnostic-snapback-react-queued-presentation-unavailable"></a>`SNAPBACK_REACT_QUEUED_PRESENTATION_UNAVAILABLE` | react | — | — | `packages/snapback-react/implementation.mjs:1680` | 3 |
 | <a id="diagnostic-snapback-react-queue-false-violated"></a>`SNAPBACK_REACT_QUEUE_FALSE_VIOLATED` | react | — | — | `packages/snapback-react/implementation.mjs:1784` | 2 |
-| <a id="diagnostic-snapback-react-reference-invalid"></a>`SNAPBACK_REACT_REFERENCE_INVALID` | client | — | [guide](../clients/react.md#the-react-client) | `packages/snapback-client/react-binding.mjs:2379` | 5 |
+| <a id="diagnostic-snapback-react-reference-invalid"></a>`SNAPBACK_REACT_REFERENCE_INVALID` | client | — | [guide](../clients/react.md#prepare-a-provider-for-advanced-composition) | `packages/snapback-client/react-binding.mjs:2379` | 5 |
 | <a id="diagnostic-snapback-react-store-capacity"></a>`SNAPBACK_REACT_STORE_CAPACITY` | react | — | — | `packages/snapback-react/implementation.mjs:1175` | 3 |
 | <a id="diagnostic-snapback-react-subscription-churn"></a>`SNAPBACK_REACT_SUBSCRIPTION_CHURN` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:15` | 2 |
 | <a id="diagnostic-snapback-react-surface-generation-stale"></a>`SNAPBACK_REACT_SURFACE_GENERATION_STALE` | react | — | [guide](../clients/surfaces.md#act-on-every-surface-refusal) | `packages/snapback-react/implementation.mjs:5316` | 1 |

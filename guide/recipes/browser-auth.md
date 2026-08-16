@@ -9,8 +9,8 @@ examples: [demos/browser-auth, demos/pointing-room/surfaces/contract, demos/file
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:a70d555f13f958cda513f75a238433ac2ee5be9c83d7c28db0fabc90eaee0257
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:447ad2cfdbee049fb2d7e2d7f0194fd66fad70c7cab7a47afcc65c3c4e5ef739
 ---
 
 # Recipe: browser sign-in and reload custody
@@ -22,6 +22,11 @@ reviewed-authorities-digest: sha256:a70d555f13f958cda513f75a238433ac2ee5be9c83d7
 Use this recipe when a browser app already has an identity front door and
 app-owned user rows. The registered [`browser-auth` demo](repo:demos/browser-auth)
 proves the complete local composition in real Chrome:
+
+If the app uses Snapback's built-in password entry, use the ordinary
+[first-party application-auth journey](../auth/passwords.md#sign-up-then-sign-in)
+instead. This page remains the advanced external-broker/custom-composition
+path.
 
 1. an app-owned trusted server verifies an external assertion;
 2. immutable `(issuer, subject)` selects the app user;

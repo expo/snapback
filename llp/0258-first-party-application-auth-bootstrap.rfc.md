@@ -1021,6 +1021,14 @@ custody/barrier semantics.
   `issues/20260815-llp-0258-rebind-0241-successor-proof.md` (today's binding
   carries no LLP 0241 activation proof; the shipped rebind enforces only the
   provable subset, so `b186296fd`'s D5/D2 claims are scoped by that ticket).
+- Phase 3 closure (2026-08-16): `54bb1cd44` (D9 completeness rows +
+  `recoveryPolicy` source field), `5f1e79bbc` (four clean fixtures,
+  Explicit/Familiar parity proof, ordinary-path react/expo-chat templates,
+  supervised same-origin Vite relay), and the guide-journey landing
+  (`guide/auth/passwords.md` + routing + capability-GAP closure).
+  `issues/20260815-llp-0258-phase-3-remainders.md` is closed; remaining
+  closure is the Phase 2 and Phase 4 tickets plus the 0241 successor-proof
+  ticket.
 - A post-convergence r4 delta review (codex + grok, 2026-08-15) found the
   shipped mid-entry supervisor adoption deferred-then-adopted and an
   intermediate mid-entry `ready` publication; both were fixed with the r5

@@ -1,6 +1,6 @@
 # LLP 0258 Phase 3: completeness manifest, templates, fixtures, and guide journey
 
-**Status:** Open
+**Status:** Closed (2026-08-16)
 **Impact:** 3
 **Urgency:** 3
 **Ease:** 3
@@ -113,3 +113,31 @@ reconciliation), the guide journey/routing closure, and both CLI template
 updates, in two lanes dispatched now. The Phase 0.4 clean fixtures are NOT
 claimed and remain open here. Per the fleet convention this claim yields
 to landed code.
+
+
+## Resolution (2026-08-16)
+
+Delivered across three landings on main:
+
+- **D9 rows + recoveryPolicy source field** — `54bb1cd44`: all eight row
+  groups in the generated client-lifecycle manifest with
+  authoritative-domain fail-closed checks; `defineAuth` gains the LLP 0214
+  §2.7 `recoveryPolicy` shape in semantic identity. Recovery rows honestly
+  record consumption/rotation on the client namespace (facade joins later).
+- **Fixtures + templates** — `5f1e79bbc`: four clean application fixtures
+  (browser/Expo × Explicit/Familiar) with the byte-identical parity proof;
+  react template on the ordinary path via the supervised same-origin Vite
+  relay; expo-chat on the ordinary journey under explicit
+  `volatile-explicit` custody citing the Phase 2 ticket. Live template
+  profiles verified outside the sandbox via the Vite package witness;
+  static acceptances green.
+- **Guide journey** — landed with this closure: the runnable first-party
+  journey in `guide/auth/passwords.md`, React/Expo routing, seams retained,
+  browser/Expo-web capability GAP closed; native custody remains the owned
+  Phase 2 GAP.
+
+Inherited main-reds found during landing were baseline-proven and ticketed
+separately (`20260816-client-lifecycle-vocabulary-red-rebuildtodos.md`,
+`20260816-0234-g2-familiar-todo-fixture-visibility-red.md`). Remaining 0258
+work lives in the Phase 2 and Phase 4 tickets plus
+`20260815-llp-0258-rebind-0241-successor-proof.md`.

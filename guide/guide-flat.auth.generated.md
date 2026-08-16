@@ -925,14 +925,14 @@ title: Email and password
 id: auth.passwords
 order: 2
 audience: agent-first
-capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody]
-authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/provider.rs, src/auth/runtime.rs, src/auth/wire.rs, src/contract_types.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-admin-client/index.mjs]
-examples: [demos/browser-auth]
+capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody, auth.application-bootstrap-native-custody]
+authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, src/auth/provider.rs, src/auth/runtime.rs, src/auth/wire.rs, src/contract_types.rs, src/storage/auth_identity.rs, src/server.rs, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-admin-client/index.mjs]
+examples: [packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, tests/fixtures/application-auth/browser-explicit/application, demos/browser-auth]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:083db4d14228e12d2ff9515640806d6e39acb794ac39d9356de96756b4a5adfd
+reviewed: 2026-08-16
+reviewed-authorities-digest: sha256:2dc2739723561bb726d1f38029d6f76e37c8d3680efe9467a52911e93f65299b
 ---
 
 # Email and password
@@ -958,7 +958,7 @@ Choose the password identifier in the app's `defineAuth` program and pass that
 program to `defineSchema(..., { auth: { mode: 'sessions' }, authProgram })`.
 Use `identifier: 'email'` for the email-v1 canonicalizer:
 
-```js source=demos/rbac/snapback/schema.mjs
+```js source=packages/snapback-cli/templates/react/snapback/schema.mjs
 const authProgram = defineAuth({
   version: 1,
   mechanisms: {
@@ -982,6 +982,18 @@ const authProgram = defineAuth({
   guestPolicy: { enabled: false },
   secretReferences: {},
 });
+```
+
+Codegen derives the non-secret `app.authBootstrap` policy from that normalized
+auth program and adds `auth.application-bootstrap.v1` to the generated app's
+required capabilities. Do not hand-author either fact. Binding admission
+intersects the generated password mechanism with the target's
+`auth.passwords` capability before credential UI can issue network work. The
+React template's static acceptance check pins both generated facts:
+
+```js source=packages/snapback-cli/templates/react/acceptance.static.mjs
+assert.equal(descriptor.authBootstrap.format, 'snapback.application-auth-bootstrap.v1');
+assert(descriptor.capabilities.required.includes('auth.application-bootstrap.v1'));
 ```
 
 `identifier: 'username'` selects username-v1. An app with no declared password
@@ -1015,11 +1027,204 @@ misses the active policy refuses with `SNAPBACK_AUTH_PASSWORD_POLICY`, whose
 redacted details name the active minimum, maximum, default, and `defineAuth
 mechanisms.<name>.minimumLength` configuration path.
 
+<!-- since: 0.1.23 -->
 ## Sign up, then sign in
 
-`authPasswordSignup` mints an ordinary session and adopts it into
-`AuthCoordinator` custody, exactly as `authExchange` does. You need no admin
-token, no impersonation capability, and no `auth.mintSession`.
+For an ordinary React application, construct one application client from the
+generated `app` and the admitted environment binding, then give that owner to
+`SnapbackProvider`. The clean browser Explicit fixture is runnable first-party
+source; its host supplies the admitted binding and platform:
+
+```js source=tests/fixtures/application-auth/browser-explicit/application/App.mjs
+import React from 'react';
+import { createSnapbackAppClient } from '@expo/snapback-client';
+import {
+  SnapbackProvider,
+  useSnapbackAuth,
+  useSnapbackCurrentPrincipal,
+} from '@expo/snapback-react';
+
+import { app } from './snapback/generated/app.mjs';
+import { createAuthPanel } from '../../shared/auth-panel.mjs';
+
+const AuthPanel = createAuthPanel({
+  useAuth: useSnapbackAuth,
+  useCurrentPrincipal: useSnapbackCurrentPrincipal,
+});
+
+export async function createApplication({ binding, platform, now, onSnapshot }) {
+  const appClient = await createSnapbackAppClient({ app, binding, platform, now });
+  return Object.freeze({
+    app,
+    appClient,
+    element: React.createElement(
+      SnapbackProvider,
+      {
+        appClient,
+        fallback: (state) => React.createElement(
+          'pre',
+          { 'data-fixture': 'boot' },
+          JSON.stringify(state),
+        ),
+      },
+      React.createElement(AuthPanel, { onSnapshot }),
+    ),
+  });
+}
+
+export { app };
+```
+
+`fallback` owns construction states. When children render, the bootstrap is
+`ready`: binding, custody, client, and authority synchronization have settled.
+`ready` does **not** mean signed in. A cold password-only app still settles a
+server-witnessed anonymous principal so the entry form is reachable; generated
+`anonymousPublic` controls anonymous app-data access, not whether boot can
+finish.
+
+Inside the provider, use the canonical facade and principal projection. The
+template clears any previous recovery projection before every operation, then
+keeps the signup result only long enough to render its one-time codes:
+
+```tsx source=packages/snapback-cli/templates/react/src/App.tsx
+export function App() {
+  const auth = useSnapbackAuth();
+  const principal = useSnapbackCurrentPrincipal();
+  const workspace = useSnapbackQueries(workspaceQueries);
+  const createTodo = useSnapbackMutation(api.createTodo);
+  const connection = useSnapbackConnection();
+  const [email, setEmail] = useState('person@example.com');
+  const [password, setPassword] = useState('replace-this-password');
+  const [recoveryCodes, setRecoveryCodes] = useState<readonly string[] | null>(null);
+  const todos = workspace.queries.todos.status === 'ready'
+    || workspace.queries.todos.status === 'refreshing'
+    ? workspace.queries.todos.data
+    : [];
+
+  const signUp = async () => {
+    setRecoveryCodes(null);
+    const result = await auth.signUpWithPassword({ email, password });
+    setRecoveryCodes(result.recoveryCodes);
+  };
+  const signIn = async () => {
+    setRecoveryCodes(null);
+    await auth.signInWithPassword({ email, password });
+  };
+  const signOut = async () => {
+    setRecoveryCodes(null);
+    await auth.signOut();
+  };
+```
+
+Render all five `CurrentPrincipalSnapshot` states distinctly: `loading`,
+`anonymous`, `authenticated`, `refreshing`, and `blocked`. Only the
+`authenticated` arm has a current `userId`. The template's account UI also
+makes the recovery handoff explicit:
+
+```tsx source=packages/snapback-cli/templates/react/src/App.tsx
+        {recoveryCodes ? (
+          <aside>
+            <strong>Save these recovery codes now. They are shown once.</strong>
+            <pre>{recoveryCodes.join('\n')}</pre>
+          </aside>
+        ) : null}
+```
+
+The application must hand those codes to the user for separate safe custody
+at signup. They are not session credentials: do not put them in the app
+client, general persistence, logs, analytics, diagnostics, or a later account
+screen. Snapback cannot read them back. Clear the projection when the user
+leaves the handoff or starts another auth action. Recovery consumption and
+rotation each return a new one-time set and require the same handling; see
+[Recovery codes are the recovery path](#recovery-codes-are-the-recovery-path).
+
+The complete ordinary sequence is:
+
+1. Wait for provider `ready`; `useSnapbackCurrentPrincipal()` reports the
+   settled anonymous arm.
+2. Call `auth.signUpWithPassword`. Save the returned recovery codes now; the
+   principal projection becomes `authenticated` only after coordinator
+   adoption and its barrier settle.
+3. On a full browser reload, construct the same app client again. Browser and
+   Expo web use IndexedDB plus Web Locks, so the owner restores the settled
+   principal without another signup or sign-in. `dispose()` only releases the
+   process projection; it does not sign out or delete durable custody.
+4. Call `auth.signOut()`. The provider blanks predecessor protected state,
+   revokes the session, settles anonymous custody, and only then publishes the
+   anonymous principal.
+5. Call `auth.signInWithPassword` for the existing account. Sign-in returns
+   the ordinary credential projection, not recovery codes.
+6. To switch users, sign out first, replace the form identity, then sign in or
+   sign up. Entry while an application-entered or restored principal is still
+   authenticated refuses with a typed `signOut` remediation; there is no
+   implicit latest-user-wins switch.
+
+The browser restoration path is package-tested against a fresh application
+client over the same durable custody record:
+
+```js source=packages/snapback-client/app-client.test.mjs
+    restored = await createSnapbackAppClient(input);
+    assert.equal(restored.auth.currentPrincipal().status, 'authenticated');
+    assert.equal(
+      restored.auth.currentPrincipal().provider,
+      null,
+      'restoration does not fabricate the provider availability key as issuance provenance',
+    );
+    assert.equal(restored.bootstrapState().authoritySource, 'durable-restored');
+```
+
+### Use the same owner through Expo
+
+An Expo application passes only the generated `app` to the ordinary provider.
+When that descriptor carries the generated bootstrap policy and required
+capability, `SnapbackExpoProvider` resolves the environment and delegates to
+the same application-client owner; its `useSnapbackAuth` and
+`useSnapbackCurrentPrincipal` exports project the same contracts. The current
+`expo-chat` template keeps this composition at the root:
+
+```tsx source=packages/snapback-cli/templates/expo-chat/App.tsx
+export default function App() {
+  const [thread, setThread] = useState<Thread | null>(null);
+  return (
+    <SnapbackExpoProvider app={app} fallback={(state: ExpoBootState) => <BootFallback state={state} />}>
+      <TestPersonaProvider>
+        <AccountEntry />
+        {thread
+          ? <ChatScreen conversationId={thread.id} title={thread.title} onBack={() => setThread(null)} />
+          : <InboxScreen onOpen={(id, title) => setThread({ id, title })} />}
+      </TestPersonaProvider>
+    </SnapbackExpoProvider>
+  );
+}
+```
+
+**Expo web** selects the shipped browser IndexedDB/Web Locks carrier and has
+the same durable reload restoration as React web. **Expo native does not yet
+have Phase-2 durable-custody evidence.** A native `durable-required` program
+therefore refuses before credential entry rather than falling back to memory.
+The disposable `expo-chat` template opts into `custody:
+'volatile-explicit'`, which can exercise signup/sign-in/sign-out but cannot
+claim restoration after process death or supported relaunch. Do not change it
+to `durable-required` until the iOS or Android capability row has its own
+evidence. Read [Authenticate a native app](./native-apps.md) for the native
+broker and custody threat boundary, and [Targets](./targets.md) before making
+any hosted or production claim.
+
+### Keep custom identity brokers on the advanced seam
+
+If the app already has an external identity front door, custom gateway, or
+application-owned identity binding, keep that explicit composition on the
+[browser sign-in and reload custody recipe](../recipes/browser-auth.md). That
+recipe deliberately owns a trusted broker, `AuthCoordinator`, and one-use
+exchange; it is not a second spelling for the first-party password journey.
+The ordinary and advanced owners cannot share one app/storage partition.
+
+### Use the low-level methods only in advanced compositions
+
+The underlying client methods remain available for custom shells and tests.
+`authPasswordSignup` mints an ordinary session and adopts it into an
+application-supplied `AuthCoordinator`, exactly as `authExchange` does. You
+need no admin token, no impersonation capability, and no `auth.mintSession`.
 
 ```js source=packages/snapback-client/password-auth.test.mjs
     const result = await fixture.client.authPasswordSignup({
@@ -1039,7 +1244,8 @@ do after an email-code exchange.
 Both methods require an `AuthCoordinator` and an anonymous predecessor — they
 create a fresh authority, so they adopt through the same anonymous-issuance
 path `authExchange` uses. The bearer is never returned to your code; the
-coordinator owns it.
+coordinator owns it. An ordinary React or Expo app should not construct that
+coordinator itself; use the application-client/provider journey above.
 
 ## The exact session shape
 
@@ -1200,6 +1406,20 @@ These are not shipped, and Snapback says so rather than pretending:
 - **Sender-constrained custody is refused, not downgraded.** When
   sender-constrained credentials are active, password methods refuse with a
   typed error rather than quietly falling back to bearer-only custody.
+
+## Anti-patterns
+
+- **Do not construct `AuthCoordinator` or call an authority-adoption method in
+  an ordinary React/Expo app.** The generated application client and provider
+  own that composition; the explicit seam is for custom brokers and shells.
+- **Do not discard, log, analyze, or silently persist signup recovery codes.**
+  Present the one-time projection immediately and hand custody to the user.
+- **Do not implement user switch as sign-in over an authenticated principal.**
+  Sign out, wait for settled anonymous, then enter the successor account.
+- **Do not infer Expo-native restoration from browser or Expo-web evidence.**
+  Native durable custody remains Phase-2 evidence-gated per OS.
+- **Do not generalize this local bearer journey into hosted or
+  sender-constrained auth.** Check [Targets](./targets.md) first.
 
 ---
 

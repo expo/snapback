@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:0cb9fc140de41e33634d3671489a9e2a740f68cdb92e2f53148df34ad637148b"
+    "sourceDigest": "sha256:99fae74ef176f9086fff32b3765ebb40f036b70a71fe53a2cc5c4d41a3081039"
   },
   "limits": {
     "lookupBytes": 16384
@@ -71666,9 +71666,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/clients/react.md#the-react-client",
+      "guideAnchor": "/_snapback/guide/clients/react.md#prepare-a-provider-for-advanced-composition",
       "guideAnchors": [
-        "/_snapback/guide/clients/react.md#the-react-client"
+        "/_snapback/guide/clients/react.md#prepare-a-provider-for-advanced-composition"
       ]
     },
     "SNAPBACK_REACT_BINDING_ORIGIN_UNREACHABLE": {
@@ -71710,9 +71710,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/clients/react.md#the-react-client",
+      "guideAnchor": "/_snapback/guide/clients/react.md#prepare-a-provider-for-advanced-composition",
       "guideAnchors": [
-        "/_snapback/guide/clients/react.md#the-react-client"
+        "/_snapback/guide/clients/react.md#prepare-a-provider-for-advanced-composition"
       ]
     },
     "SNAPBACK_REACT_BINDING_REQUIRED": {
@@ -72099,9 +72099,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/clients/react.md#the-react-client",
+      "guideAnchor": "/_snapback/guide/clients/react.md#prepare-a-provider-for-advanced-composition",
       "guideAnchors": [
-        "/_snapback/guide/clients/react.md#the-react-client"
+        "/_snapback/guide/clients/react.md#prepare-a-provider-for-advanced-composition"
       ]
     },
     "SNAPBACK_REACT_LIVE_HOOK_ARGS_IDENTITY_CHURN": {
@@ -73008,9 +73008,9 @@
       ],
       "httpStatus": null,
       "httpStatusClass": null,
-      "guideAnchor": "/_snapback/guide/clients/react.md#the-react-client",
+      "guideAnchor": "/_snapback/guide/clients/react.md#prepare-a-provider-for-advanced-composition",
       "guideAnchors": [
-        "/_snapback/guide/clients/react.md#the-react-client"
+        "/_snapback/guide/clients/react.md#prepare-a-provider-for-advanced-composition"
       ]
     },
     "SNAPBACK_REACT_STORE_CAPACITY": {
