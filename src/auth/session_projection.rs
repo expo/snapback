@@ -931,6 +931,32 @@ impl FencedPublication {
         monotonic_now: Instant,
         publish: impl FnOnce() -> SnapbackResult<T>,
     ) -> SnapbackResult<Option<T>> {
+        self.try_publish_with_permitted_pending_tickets(
+            epoch_now_ms,
+            monotonic_now,
+            &BTreeSet::new(),
+            publish,
+        )
+    }
+
+    /// Publish one exact committed bearer-rotation response while only the
+    /// named sibling rotations remain pending. Those siblings all planned
+    /// against the already-replaced predecessor and therefore cannot commit;
+    /// any later rotation, revocation, expiry, or stream mutation still
+    /// closes this cut.
+    ///
+    /// @ref LLP 0057#rotation — one concurrent refresh commits and every
+    /// sibling predecessor refresh becomes `REFRESH_SUPERSEDED`.
+    /// @ref LLP 0059#operation-specific-publication — the committed winner's
+    /// fixed credential response remains fenced against every mutation that
+    /// can still change authority.
+    pub(crate) fn try_publish_with_permitted_pending_tickets<T>(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+        permitted_pending_tickets: &BTreeSet<MutationTicket>,
+        publish: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<Option<T>> {
         validate_timestamp_u64(epoch_now_ms)?;
         let stream = self.stream.lock()?;
         if !StreamFence::admits_locked(&stream, &self.expected_incarnation) {
@@ -940,12 +966,13 @@ impl FencedPublication {
             return publish().map(Some);
         };
         let session_state = session.session.lock()?;
-        if !SessionFence::admits_locked(
-            &session_state,
-            session.expected_generation,
-            epoch_now_ms,
-            monotonic_now,
-        ) {
+        if session_state.generation != session.expected_generation
+            || session_state.terminal.is_some()
+            || !session_state
+                .pending_tickets
+                .is_subset(permitted_pending_tickets)
+            || !session_state.deadline.live_at(epoch_now_ms, monotonic_now)
+        {
             return Ok(None);
         }
         publish().map(Some)
@@ -1377,6 +1404,59 @@ impl SessionProjection {
                 session: Arc::clone(&session.fence),
             }),
         })
+    }
+
+    /// Prepare the response fence for a rotation that is still pending under
+    /// `ticket`. Only sibling token rotations with the exact same durable
+    /// predecessor are admitted as harmless pending work after this ticket
+    /// wins. Ticket identity remains intact so each losing owner still exact-
+    /// unmarks itself after its durable CAS reports `PredecessorChanged`.
+    pub(crate) fn prepare_rotation_response_publication(
+        &self,
+        ticket: &MutationTicket,
+        session_id: &str,
+        expected_generation: u64,
+        predecessor: TokenDigest,
+        successor: TokenDigest,
+        superseded_at_ms: u64,
+    ) -> SnapbackResult<(FencedPublication, BTreeSet<MutationTicket>)> {
+        let session = self.session_for_ticket(ticket, session_id)?;
+        let expected_kind = PendingMutationKind::TokenSupersede {
+            predecessor,
+            successor,
+            superseded_at_ms,
+        };
+        if session.generation != expected_generation
+            || session.state != ProjectedSessionState::Current
+            || session.current_token != Some(predecessor)
+            || session.pending.get(ticket).is_none_or(|pending| {
+                pending.expected_generation != expected_generation || pending.kind != expected_kind
+            })
+        {
+            return Err(projection_unavailable(
+                "rotation response fence does not match its pending predecessor",
+            ));
+        }
+        let permitted_pending_tickets = session
+            .pending
+            .iter()
+            .filter_map(|(sibling_ticket, pending)| {
+                (sibling_ticket != ticket
+                    && pending.expected_generation == expected_generation
+                    && matches!(
+                        &pending.kind,
+                        PendingMutationKind::TokenSupersede {
+                            predecessor: sibling_predecessor,
+                            ..
+                        } if *sibling_predecessor == predecessor
+                    ))
+                .then(|| sibling_ticket.clone())
+            })
+            .collect();
+        Ok((
+            self.session_publication_fence(session_id, expected_generation)?,
+            permitted_pending_tickets,
+        ))
     }
 
     pub(crate) fn anonymous_publication_fence(&self) -> FencedPublication {

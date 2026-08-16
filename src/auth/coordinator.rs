@@ -215,6 +215,7 @@ pub(crate) enum CommittedAuthResponseClass {
 struct CommittedAuthOutcomeState {
     publication: FencedPublication,
     ticket: MutationTicket,
+    permitted_pending_tickets: BTreeSet<MutationTicket>,
     response_class: CommittedAuthResponseClass,
 }
 
@@ -248,7 +249,12 @@ impl CommittedAuthOutcome {
         let _finalized_ticket = state.ticket;
         state
             .publication
-            .try_publish(epoch_now_ms, monotonic_now, publish)
+            .try_publish_with_permitted_pending_tickets(
+                epoch_now_ms,
+                monotonic_now,
+                &state.permitted_pending_tickets,
+                publish,
+            )
     }
 }
 
@@ -271,7 +277,10 @@ pub(crate) enum RevocationFinish {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub(crate) enum RotationFinish {
-    Committed(CredentialIssue),
+    Committed {
+        issue: CredentialIssue,
+        outcome: CommittedAuthOutcome,
+    },
     CandidateCollision,
     PredecessorChanged,
 }
@@ -983,6 +992,7 @@ impl AuthCoordinator {
                     state: Arc::new(Mutex::new(Some(CommittedAuthOutcomeState {
                         publication: topology.projection.anonymous_publication_fence(),
                         ticket: carrier.ticket.clone(),
+                        permitted_pending_tickets: BTreeSet::new(),
                         response_class,
                     }))),
                 };
@@ -1023,6 +1033,24 @@ impl AuthCoordinator {
                 Ok(RotationFinish::CandidateCollision)
             }
             AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed { session }) => {
+                let response_publication =
+                    topology.projection.prepare_rotation_response_publication(
+                        &carrier.ticket,
+                        carrier.plan.session_id(),
+                        carrier.plan.expected_generation(),
+                        carrier.plan.predecessor_digest(),
+                        carrier.plan.successor_digest(),
+                        carrier.plan.superseded_at_ms(),
+                    );
+                let Ok((publication, permitted_pending_tickets)) = response_publication else {
+                    fail_session_closed(
+                        &mut topology,
+                        &carrier.ticket,
+                        carrier.plan.session_id(),
+                        Some(carrier.plan.expected_generation()),
+                    );
+                    return Err(projection_unavailable());
+                };
                 if self.take_finalize_failpoint()
                     || topology
                         .projection
@@ -1040,7 +1068,18 @@ impl AuthCoordinator {
                     // unavailable.
                     return Err(projection_unavailable());
                 }
-                Ok(RotationFinish::Committed(carrier.plan.into_issue(session)))
+                let outcome = CommittedAuthOutcome {
+                    state: Arc::new(Mutex::new(Some(CommittedAuthOutcomeState {
+                        publication,
+                        ticket: carrier.ticket.clone(),
+                        permitted_pending_tickets,
+                        response_class: CommittedAuthResponseClass::CredentialSecret,
+                    }))),
+                };
+                Ok(RotationFinish::Committed {
+                    issue: carrier.plan.into_issue(session),
+                    outcome,
+                })
             }
         }
     }
@@ -1171,6 +1210,7 @@ impl AuthCoordinator {
                     state: Arc::new(Mutex::new(Some(CommittedAuthOutcomeState {
                         publication: topology.projection.anonymous_publication_fence(),
                         ticket: carrier.issuance_ticket.clone(),
+                        permitted_pending_tickets: BTreeSet::new(),
                         response_class: CommittedAuthResponseClass::CredentialSecret,
                     }))),
                 };
@@ -2052,6 +2092,19 @@ mod tests {
         }))
     }
 
+    fn committed_rotation_session(fixture: &Fixture) -> crate::auth::wire::SessionResponse {
+        crate::auth::wire::SessionResponse {
+            id: fixture.session_id.clone(),
+            user_id: uuid_v7(2, 2),
+            provider: "email-code".to_owned(),
+            created_at: 3,
+            expires_at: 1_000,
+            absolute_expires_at: 9_000_000_000,
+            authority_instance_id: fixture.authority_instance_id.clone(),
+            generation: 1,
+        }
+    }
+
     async fn wait_until_publication_closed(
         publication: &FencedPublication,
         epoch_now_ms: u64,
@@ -2532,6 +2585,145 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "TEST_ROLLBACK");
         fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn committed_rotation_response_ignores_only_doomed_sibling_refresh_tickets() {
+        let fixture = fixture();
+        let (_, ordinary_publication) = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap()
+            .into_parts();
+        let winner = fixture
+            .coordinator
+            .premark_rotation(ProviderTokenRotationPlan::for_test(
+                fixture.session_id.clone(),
+                1,
+                fixture.digest,
+                SessionBearer::generate(&FixedRandom(8)).unwrap(),
+                250,
+            ))
+            .await
+            .unwrap();
+        let loser = fixture
+            .coordinator
+            .premark_rotation(ProviderTokenRotationPlan::for_test(
+                fixture.session_id.clone(),
+                1,
+                fixture.digest,
+                SessionBearer::generate(&FixedRandom(9)).unwrap(),
+                250,
+            ))
+            .await
+            .unwrap();
+
+        let RotationFinish::Committed { issue, outcome } = fixture
+            .coordinator
+            .finish_rotation(
+                winner,
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                    session: committed_rotation_session(&fixture),
+                }),
+            )
+            .unwrap()
+        else {
+            panic!("first refresh commits its exact successor");
+        };
+        assert!(
+            ordinary_publication
+                .try_publish(250, fixture.monotonic_start, || Ok(()))
+                .unwrap()
+                .is_none(),
+            "the ordinary predecessor publication remains blocked by the sibling ticket"
+        );
+        assert_eq!(
+            outcome
+                .try_publish(
+                    CommittedAuthResponseClass::CredentialSecret,
+                    250,
+                    fixture.monotonic_start,
+                    || Ok("winner"),
+                )
+                .unwrap(),
+            Some("winner"),
+            "the exact committed credential response ignores only the sibling refresh that can no longer win"
+        );
+        let (credential, committed_revocation) = issue.into_parts();
+        assert!(committed_revocation.is_none());
+        assert_eq!(credential.session.id, fixture.session_id);
+
+        assert!(matches!(
+            fixture
+                .coordinator
+                .finish_rotation(
+                    loser,
+                    AuthTransactionAttempt::Committed(PlannedRotationCommit::PredecessorChanged),
+                )
+                .unwrap(),
+            RotationFinish::PredecessorChanged
+        ));
+        assert!(
+            ordinary_publication
+                .try_publish(250, fixture.monotonic_start, || Ok(()))
+                .unwrap()
+                .is_some(),
+            "the same session authority reopens after its losing refresh exact-unmarks"
+        );
+        fixture.coordinator.check_invariants().unwrap();
+
+        let revocation_fixture = self::fixture();
+        let winner = revocation_fixture
+            .coordinator
+            .premark_rotation(ProviderTokenRotationPlan::for_test(
+                revocation_fixture.session_id.clone(),
+                1,
+                revocation_fixture.digest,
+                SessionBearer::generate(&FixedRandom(10)).unwrap(),
+                250,
+            ))
+            .await
+            .unwrap();
+        let revocation = revocation_fixture
+            .coordinator
+            .premark_revocation(plan(&revocation_fixture, RevocationReason::Logout))
+            .await
+            .unwrap();
+        let RotationFinish::Committed { outcome, .. } = revocation_fixture
+            .coordinator
+            .finish_rotation(
+                winner,
+                AuthTransactionAttempt::Committed(PlannedRotationCommit::Committed {
+                    session: committed_rotation_session(&revocation_fixture),
+                }),
+            )
+            .unwrap()
+        else {
+            panic!("rotation commits before the pending revocation");
+        };
+        assert!(
+            outcome
+                .try_publish(
+                    CommittedAuthResponseClass::CredentialSecret,
+                    250,
+                    revocation_fixture.monotonic_start,
+                    || Ok(()),
+                )
+                .unwrap()
+                .is_none(),
+            "a real revocation ticket is never admitted by the refresh-only exception"
+        );
+        assert!(matches!(
+            revocation_fixture
+                .coordinator
+                .finish_revocation(
+                    revocation,
+                    AuthTransactionAttempt::Committed(PlannedRevocationCommit::PredecessorChanged),
+                )
+                .unwrap(),
+            RevocationFinish::PredecessorChanged
+        ));
+        revocation_fixture.coordinator.check_invariants().unwrap();
     }
 
     #[tokio::test]

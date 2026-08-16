@@ -16921,7 +16921,7 @@ async fn auth_refresh(
     Extension(authority): Extension<PreparedAuthority>,
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
-) -> Result<Json<CredentialResponse>, ApiError> {
+) -> Result<Response, ApiError> {
     require_provider_session_authority(&authority, InvocationSource::AuthRefresh)?;
     let provider = installed_auth_provider(&runtime)?;
     let coordinator = installed_auth_coordinator(&runtime)?;
@@ -16971,10 +16971,12 @@ async fn auth_refresh(
                     .await
                     .map_err(ApiError::from)??
                 {
-                    RotationFinish::Committed(issue) => {
+                    RotationFinish::Committed { issue, outcome } => {
                         let (response, committed_revocation) = issue.into_parts();
                         debug_assert!(committed_revocation.is_none());
-                        return Ok(Json(response));
+                        let mut response = Json(response).into_response();
+                        response.extensions_mut().insert(outcome);
+                        return Ok(response);
                     }
                     RotationFinish::CandidateCollision => continue,
                     RotationFinish::PredecessorChanged => continue,

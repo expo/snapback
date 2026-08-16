@@ -16524,6 +16524,65 @@ async fn auth_refresh_and_logout_routes_enforce_exact_carriers_and_statuses() {
     );
 }
 
+/// @ref LLP 0057#rotation — two refreshes admitted with the same current
+/// bearer have one credential winner and one typed in-grace loser.
+/// @ref LLP 0059#coordinator-and-two-context-races — the server must not turn
+/// the committed winner into a stale-authority 401 while the losing rotation
+/// ticket is still settling.
+#[tokio::test]
+async fn concurrent_auth_refresh_has_exactly_one_http_winner() {
+    let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+    let state = activate_test_sessions(state);
+    let initial = mint_test_credential(&state, "refresh-race@example.com").await;
+    let initial_token = initial["token"].as_str().unwrap().to_owned();
+    let router = app(state);
+
+    let request_a = router.clone().oneshot(session_auth_http_request(
+        "/auth/refresh",
+        br#"{}"#.to_vec(),
+        &initial_token,
+    ));
+    let request_b = router.clone().oneshot(session_auth_http_request(
+        "/auth/refresh",
+        br#"{}"#.to_vec(),
+        &initial_token,
+    ));
+    let (response_a, response_b) = tokio::join!(request_a, request_b);
+    let response_a = response_a.expect("first concurrent refresh response");
+    let response_b = response_b.expect("second concurrent refresh response");
+    let outcomes = [response_a, response_b];
+    let mut statuses = outcomes
+        .iter()
+        .map(|response| response.status())
+        .collect::<Vec<_>>();
+    statuses.sort();
+    assert_eq!(statuses, [StatusCode::OK, StatusCode::CONFLICT]);
+
+    for response in outcomes {
+        let status = response.status();
+        let body = response_json(response).await;
+        match status {
+            StatusCode::OK => {
+                assert_ne!(body["token"].as_str(), Some(initial_token.as_str()));
+                assert_eq!(body["session"]["id"], initial["session"]["id"]);
+                assert_eq!(
+                    body["authorityDescriptor"]["authorityInstanceId"],
+                    initial["authorityDescriptor"]["authorityInstanceId"],
+                );
+                assert_eq!(
+                    body["authorityDescriptor"]["sessionGeneration"],
+                    initial["authorityDescriptor"]["sessionGeneration"],
+                );
+            }
+            StatusCode::CONFLICT => assert_eq!(
+                body["diagnostic"]["code"],
+                "SNAPBACK_AUTH_REFRESH_SUPERSEDED"
+            ),
+            status => panic!("unexpected concurrent refresh status {status}: {body}"),
+        }
+    }
+}
+
 /// @ref LLP 0227#surface-routes-cli-verbs-client-methods — password signup/signin
 /// and recovery reuse the exact credential response and registered issuance path.
 #[tokio::test]
@@ -19087,7 +19146,15 @@ async fn refresh_credential_response_is_fenced_by_prepublication_revocation() {
     )
     .await
     .expect("refresh commits before publication pause");
-    let successor = refreshed.0.token().expose_secret().to_owned();
+    let (refreshed_parts, refreshed_body) = refreshed.into_parts();
+    let refreshed_bytes = axum::body::to_bytes(refreshed_body, usize::MAX)
+        .await
+        .expect("buffer committed refresh response");
+    let refreshed_json: Value =
+        serde_json::from_slice(&refreshed_bytes).expect("committed refresh response JSON");
+    let successor = refreshed_json["token"].as_str().unwrap().to_owned();
+    let refreshed =
+        axum::response::Response::from_parts(refreshed_parts, Body::from(refreshed_bytes));
 
     let logout_authority =
         prepared_provider_route_authority(&state, InvocationSource::AuthLogout, &successor).0;
@@ -19108,7 +19175,7 @@ async fn refresh_credential_response_is_fenced_by_prepublication_revocation() {
         .effective_for(PolicyAuthMode::Sessions);
     let response = super::finish_registered_response(
         refresh_policy,
-        refreshed.into_response(),
+        refreshed,
         Some(refresh_authority.admission_lease()),
         Some(&refresh_authority),
     );
@@ -20652,7 +20719,7 @@ async fn auth_family_alarm_is_delayed_opaque_and_revoke_only() {
     )
     .await
     .expect("current bearer survived alarm");
-    let rotated = serde_json::to_value(rotated.0).unwrap();
+    let rotated = response_json(rotated).await;
     let successor = rotated["token"].as_str().unwrap().to_owned();
 
     // The predecessor is now an attributable tombstone. Its response is

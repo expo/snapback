@@ -6978,7 +6978,9 @@ mod tests {
             .await
             .expect("premark password-session refresh");
         let attempt = admission.commit_planned_rotation(&mut database, &commit_plan);
-        let RotationFinish::Committed(refreshed) = coordinator
+        let RotationFinish::Committed {
+            issue: refreshed, ..
+        } = coordinator
             .finish_rotation(carrier, attempt)
             .expect("finalize password-session refresh")
         else {
