@@ -104,3 +104,12 @@ inventory checks are green.
   `recoveryPolicy` entirely (`packages/snapback-codegen/define.mjs`). The
   Phase 3 D9 work must reconcile that source-field gap before generating
   recovery rows (found by the codex r4 delta review).
+
+## Claim (2026-08-16)
+
+The 531ce12aa orchestration session is executing this ticket's D9
+completeness rows (including the addendum's recoveryPolicy source-field
+reconciliation), the guide journey/routing closure, and both CLI template
+updates, in two lanes dispatched now. The Phase 0.4 clean fixtures are NOT
+claimed and remain open here. Per the fleet convention this claim yields
+to landed code.
