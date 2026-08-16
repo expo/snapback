@@ -919,7 +919,7 @@ verbatim; D5 keeps Snapback authority first-class). Schema-level
 carry the dispositions in the Auth-program paragraph below).
 
 **Auth-program fields:** `version`, `mechanisms`, `providers`,
-`assuranceRequirements`, `guestPolicy`, `secretReferences`, and
+`assuranceRequirements`, `recoveryPolicy`, `guestPolicy`, `secretReferences`, and
 `verifiedProvisioning` are disposition 1 through the shared auth extension.
 `custody` is disposition 2: Familiar supplies `durable-required` and refuses
 `volatile-explicit`. `externalSessionEntry` is disposition 1 through the same

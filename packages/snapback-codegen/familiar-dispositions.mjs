@@ -21,6 +21,7 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     mechanisms: entry(1, 'shared auth extension'),
     providers: entry(1, 'shared auth extension'),
     assuranceRequirements: entry(1, 'shared auth extension'),
+    recoveryPolicy: entry(1, 'shared auth extension'),
     guestPolicy: entry(1, 'shared auth extension'),
     secretReferences: entry(1, 'shared auth extension'),
     verifiedProvisioning: entry(1, 'shared auth extension'),

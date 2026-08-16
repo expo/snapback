@@ -84,7 +84,7 @@
       ]
     }
   },
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:5855e6cf97949418b9fad4f6b71bdb6fe0cc6e6ec3b01e5475415035e679b22c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:931ad8f18c49f72cf6b4d273ba1835bc45d27fc0e0a06f51bce744950076e9fa",
   "mutationSettlement": {
     "dispatch": "mutate() resolves to settled or queued dispatch; queued means durably recorded for delivery, not settled",
     "dispositions": [
@@ -373,6 +373,624 @@
         }
       ],
       "version": "snapback.argument-normalization.v1"
+    },
+    "authAnchors": {
+      "capabilityIndex": [
+        "auth.passwords",
+        "auth.browser-session-custody",
+        "auth.application-bootstrap-native-custody",
+        "clients.react-expo"
+      ],
+      "guide": [
+        "guide/auth/passwords.md#sign-up-then-sign-in",
+        "guide/auth/passwords.md#recovery-codes-are-the-recovery-path",
+        "guide/auth/targets.md",
+        "guide/auth/native-apps.md",
+        "guide/clients/headless.md#enter-and-leave-session-authority",
+        "guide/clients/react.md",
+        "guide/clients/react-expo.md"
+      ]
+    },
+    "authBootstrapPolicy": {
+      "configured": true,
+      "fields": [
+        {
+          "derivation": "constant:APPLICATION_AUTH_BOOTSTRAP_FORMAT",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "generated identically"
+          },
+          "field": "format",
+          "semanticIdentityEffect": "included-constant",
+          "value": "snapback.application-auth-bootstrap.v1"
+        },
+        {
+          "derivation": "normalized-schema:appId",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "generated from the same normalized application id"
+          },
+          "field": "appId",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": "app"
+        },
+        {
+          "derivation": "settled-schema-and-defineAuth:auth.mode",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared verbatim"
+          },
+          "field": "mode",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": "sessions"
+        },
+        {
+          "derivation": "normalized-defineAuth:custody(default:durable-required)",
+          "familiarDisposition": {
+            "disposition": 2,
+            "route": "defaults to durable-required; volatile-explicit is refused"
+          },
+          "field": "custody",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": "durable-required"
+        },
+        {
+          "derivation": "normalized-defineAuth:mechanisms+externalSessionEntry",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "entryMechanisms",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": []
+        },
+        {
+          "derivation": "normalized-functions:authRequirement+normalized-schema:table.visibility",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "derived from the same normalized operations and schema"
+          },
+          "field": "anonymousPublic",
+          "semanticIdentityEffect": "rotates-semanticId",
+          "value": "refused"
+        },
+        {
+          "derivation": "constant:1",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "generated identically"
+          },
+          "field": "lifecycleProtocol",
+          "semanticIdentityEffect": "included-constant",
+          "value": 1
+        }
+      ],
+      "profiles": [
+        {
+          "disposition": "direct-normalized-auth-program",
+          "profile": "snapback-explicit-v1",
+          "selected": true
+        },
+        {
+          "disposition": "same-runtime-with-declared-field-dispositions",
+          "profile": "snapback-familiar-ts-v1",
+          "selected": false
+        }
+      ],
+      "sourceFields": [
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-no-bootstrap-field",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "assuranceRequirements",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [
+            "custody"
+          ],
+          "disposition": "bootstrap-source",
+          "familiarDisposition": {
+            "disposition": 2,
+            "route": "defaults to durable-required; volatile-explicit is refused in the familiar profile"
+          },
+          "field": "custody",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [
+            "entryMechanisms"
+          ],
+          "disposition": "bootstrap-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared explicit advanced-session seam"
+          },
+          "field": "externalSessionEntry",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-not-anonymous-public",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "guestPolicy",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [
+            "entryMechanisms"
+          ],
+          "disposition": "bootstrap-and-mechanism-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "mechanisms",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-no-bootstrap-field",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "providers",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "recovery-lifecycle-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "recoveryPolicy",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-no-bootstrap-field",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "secretReferences",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source-no-bootstrap-field",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "verifiedProvisioning",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        },
+        {
+          "bootstrapProjection": [],
+          "disposition": "semantic-source",
+          "familiarDisposition": {
+            "disposition": 1,
+            "route": "shared auth extension"
+          },
+          "field": "version",
+          "semanticIdentityEffect": "included-in-normalized-auth-program"
+        }
+      ]
+    },
+    "authBootstrapState": {
+      "advisories": [
+        {
+          "authorityEffect": "non-authoritative",
+          "diagnosticCode": "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT",
+          "state": "ready"
+        }
+      ],
+      "diagnostics": [
+        {
+          "class": "durable-custody-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE",
+            "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED"
+          ]
+        },
+        {
+          "class": "duplicate-ordinary-advanced-owner",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID"
+          ]
+        },
+        {
+          "class": "binding-app-profile-mismatch",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_APP_INVALID",
+            "SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID",
+            "SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID"
+          ]
+        },
+        {
+          "class": "custody-corrupt-or-unrecognized",
+          "codes": [
+            "SNAPBACK_AUTH_CUSTODY_CORRUPT",
+            "SNAPBACK_AUTH_CUSTODY_AMBIGUOUS"
+          ]
+        },
+        {
+          "class": "supervised-principal-conflict",
+          "codes": [
+            "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT"
+          ]
+        },
+        {
+          "class": "mechanism-unavailable",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE"
+          ]
+        },
+        {
+          "class": "auth-mode-not-sessions",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID"
+          ]
+        },
+        {
+          "class": "participant-barrier-or-final-confirmation",
+          "codes": [
+            "SNAPBACK_AUTH_BOOTSTRAP_FAILED"
+          ]
+        }
+      ],
+      "remediations": [
+        {
+          "authorityEffect": "none",
+          "kind": "retryAuthBootstrap",
+          "machineApplicable": true,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "regenerateAppDescriptor",
+          "machineApplicable": "context-dependent",
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "selectCompatibleBinding",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "selectSupportedPlatform",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "installDurableCustody",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "keepCurrentPrincipal",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "clears-session",
+          "kind": "signOut",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "useStoragePartition",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        },
+        {
+          "authorityEffect": "none",
+          "kind": "disposeAndReconstruct",
+          "machineApplicable": false,
+          "publicType": "SnapbackAuthRemediation",
+          "requiresApproval": false,
+          "riskClass": "mechanical"
+        }
+      ],
+      "stages": [
+        "binding",
+        "custody",
+        "authority",
+        "client"
+      ],
+      "states": [
+        {
+          "fields": [
+            "stage"
+          ],
+          "status": "starting"
+        },
+        {
+          "fields": [
+            "custody",
+            "authoritySource",
+            "advisories"
+          ],
+          "status": "ready"
+        },
+        {
+          "fields": [
+            "diagnostic",
+            "remediations"
+          ],
+          "status": "authority-required"
+        },
+        {
+          "fields": [
+            "diagnostic",
+            "remediations"
+          ],
+          "status": "blocked"
+        },
+        {
+          "fields": [
+            "diagnostic",
+            "remediations"
+          ],
+          "status": "unsupported"
+        },
+        {
+          "fields": [
+            "diagnostic",
+            "remediations"
+          ],
+          "status": "error"
+        }
+      ]
+    },
+    "authCustodyPlatforms": {
+      "platforms": [
+        {
+          "adapter": "createIndexedDbAuthCustodyStorage",
+          "disposition": "shipped",
+          "grade": "durable",
+          "platform": "browser",
+          "policy": "durable-required-or-explicit-memory",
+          "refusalCode": null,
+          "runtimePlatformKind": "browser"
+        },
+        {
+          "adapter": "createIndexedDbAuthCustodyStorage",
+          "disposition": "shipped",
+          "grade": "durable",
+          "platform": "expo-web",
+          "policy": "durable-required-or-explicit-memory",
+          "refusalCode": null,
+          "runtimePlatformKind": "expo-web"
+        },
+        {
+          "adapter": "createMemoryAuthCustodyStorage",
+          "disposition": "shipped-nonclaim",
+          "grade": "volatile",
+          "platform": "memory",
+          "policy": "volatile-explicit-only",
+          "refusalCode": "SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE",
+          "runtimePlatformKind": "memory"
+        },
+        {
+          "adapter": "createSecureStoreAuthCustodyStorage",
+          "disposition": "refused-pending-evidence",
+          "grade": "pending-per-os-evidence",
+          "platform": "expo-ios",
+          "policy": "durable-required-refused",
+          "refusalCode": "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED",
+          "runtimePlatformKind": "expo-native-phase-2-evidence-required"
+        },
+        {
+          "adapter": "createSecureStoreAuthCustodyStorage",
+          "disposition": "refused-pending-evidence",
+          "grade": "pending-per-os-evidence",
+          "platform": "expo-android",
+          "policy": "durable-required-refused",
+          "refusalCode": "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED",
+          "runtimePlatformKind": "expo-native-phase-2-evidence-required"
+        },
+        {
+          "adapter": "explicit-file-or-transactional-adapter",
+          "disposition": "not-admitted-by-ordinary-app-client",
+          "grade": "caller-evidenced",
+          "platform": "node-headless",
+          "policy": "advanced-explicit-only",
+          "refusalCode": "SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED",
+          "runtimePlatformKind": null
+        }
+      ],
+      "selectedPolicy": "durable-required"
+    },
+    "authEntryMechanisms": {
+      "entries": [
+        {
+          "configured": false,
+          "familiarHook": "useAuth",
+          "mechanism": "password-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": "signUpWithPassword",
+              "clientMethod": "authPasswordSignup",
+              "clientNamespaceMethod": "authPasswordSignup",
+              "facadeMethod": "signUpWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "signup",
+              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "one-time-response",
+              "resultType": "Promise<AuthRecoveryCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "signInWithPassword",
+              "clientMethod": "authPasswordSignIn",
+              "clientNamespaceMethod": "authPasswordSignIn",
+              "facadeMethod": "signInWithPassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "signin",
+              "predecessor": "settled-anonymous-or-process-local-supervised-adopted",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": "changePassword",
+              "clientMethod": "authPasswordChange",
+              "clientNamespaceMethod": "authPasswordChange",
+              "facadeMethod": "changePassword",
+              "facadeOwner": "SnapbackAppClient.auth",
+              "operation": "change",
+              "predecessor": "settled-authenticated-same-authority",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            }
+          ],
+          "phase": "shipped",
+          "reactHook": "useSnapbackAuth",
+          "targetCapability": "auth.passwords"
+        },
+        {
+          "configured": false,
+          "familiarHook": null,
+          "mechanism": "email-code-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": null,
+              "clientMethod": "authRequestCode",
+              "clientNamespaceMethod": "authRequestCode",
+              "facadeMethod": "authRequestCode",
+              "facadeOwner": "SnapbackClient.auth",
+              "operation": "request-code",
+              "predecessor": "none",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthChallengePublicProjectionV1>"
+            },
+            {
+              "applicationFacadeMethod": null,
+              "clientMethod": "authExchange",
+              "clientNamespaceMethod": "authExchange",
+              "facadeMethod": "authExchange",
+              "facadeOwner": "SnapbackClient.auth",
+              "operation": "exchange",
+              "predecessor": "settled-anonymous",
+              "recoveryProjection": "none",
+              "resultType": "Promise<AuthCredentialPublicProjectionV1>"
+            }
+          ],
+          "phase": "deferred-facade-phase",
+          "reactHook": null,
+          "targetCapability": null
+        },
+        {
+          "configured": false,
+          "familiarHook": null,
+          "mechanism": "external-session-explicit-v1",
+          "operations": [
+            {
+              "applicationFacadeMethod": null,
+              "clientMethod": "createExternalSessionClient",
+              "clientNamespaceMethod": null,
+              "facadeMethod": null,
+              "facadeOwner": null,
+              "operation": "construct-external-session-client",
+              "predecessor": "explicit-advanced-construction",
+              "recoveryProjection": "none",
+              "resultType": "SnapbackClient"
+            }
+          ],
+          "phase": "advanced-explicit-only",
+          "reactHook": null,
+          "targetCapability": "auth.sessions.v1"
+        }
+      ],
+      "sourceMechanisms": [
+        {
+          "disposition": "excluded-guest-principal-is-not-entry",
+          "entryMechanism": null,
+          "kind": "guest"
+        },
+        {
+          "disposition": "shipped",
+          "entryMechanism": "password-v1",
+          "kind": "password"
+        },
+        {
+          "disposition": "deferred-facade-phase",
+          "entryMechanism": "email-code-v1",
+          "kind": "email-code"
+        },
+        {
+          "disposition": "deferred-llp-0151-slot",
+          "entryMechanism": null,
+          "kind": "passkey"
+        }
+      ]
+    },
+    "authOwnership": {
+      "advancedForms": [
+        "prepared-binding",
+        "prepared-provider"
+      ],
+      "conflictingOwnerKeyDisposition": "SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT",
+      "duplicateRefusalCode": "SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID",
+      "exclusive": true,
+      "ordinaryForms": [
+        "appClient",
+        "app+binding"
+      ],
+      "ordinaryOwner": "createSnapbackAppClient",
+      "sameOwnerKeyDisposition": "reference-counted-reuse"
+    },
+    "authRecoveryLifecycle": {
+      "operations": [],
+      "policy": null,
+      "sourceField": "recoveryPolicy"
+    },
+    "authSupervisedPrecedence": {
+      "conflictDiagnostic": "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT",
+      "conflictState": "ready-advisory",
+      "events": [
+        "binding-remint",
+        "supervisor-restart",
+        "refreshAuthority"
+      ],
+      "midEntryRule": "drop-supervisor-adoption-at-arrival",
+      "order": [
+        "valid-durable-settled-record",
+        "explicit-application-entry",
+        "admitted-supervised-development-over-anonymous",
+        "explicit-advanced-external-adoption"
+      ],
+      "protectedRule": "application-entered-or-restored-updates-binding-and-transport-facts-only",
+      "replacementRule": "replace-only-process-local-supervised-capture-or-anonymous"
     },
     "authorityAdmission": {
       "operations": [

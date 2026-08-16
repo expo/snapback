@@ -50,6 +50,8 @@ import {
   typecheckTypeScriptHandler,
 } from './typescript-transform.mjs';
 import {
+  AUTH_PROGRAM_FIELDS,
+  AUTH_PROGRAM_MECHANISM_KINDS,
   OUTGREW_IR_CLASSES,
   PINNED_FUNCTIONS,
   defineJsLiveQuery,
@@ -129,10 +131,12 @@ import {
   handlerDiagnosticDetails,
 } from './handler-runtime-profile.mjs';
 import {
+  APPLICATION_AUTH_PLATFORM_KINDS,
   buildClientLifecycleManifest,
   CLIENT_LIFECYCLE_MANIFEST_FILE,
   renderReferenceJSDoc,
 } from './client-lifecycle.mjs';
+import { FAMILIAR_DISPOSITIONS } from './familiar-dispositions.mjs';
 import {
   APPLICATION_GENERATION_SCHEMA_VERSION,
   EXPLICIT_AUTHORING_PROFILE,
@@ -6975,23 +6979,32 @@ async function generateInProcessLocked({
   )) {
     delete generatedReferences.api.mutations[functionName];
   }
-  const clientLifecycleManifest = {
-    ...buildClientLifecycleManifest({
-      appId,
-      inputsHash,
-      authoredSourceHash,
-      targetProfile,
-      functions: functionManifest.functions,
-      commands: generatedCommands,
-    }),
+  const clientLifecycleManifest = buildClientLifecycleManifest({
+    appId,
+    inputsHash,
+    authoredSourceHash,
+    targetProfile,
+    functions: functionManifest.functions,
+    commands: generatedCommands,
     // @ref LLP 0247#d5-generated-lifecycle-metadata-owns-normalization-and-failure-tables
     // — extend LLP 0238's one lifecycle manifest instead of publishing a
     // competing normalization/failure table.
-    rows: buildOrdinaryClientLifecycleRows({
+    ordinaryRows: buildOrdinaryClientLifecycleRows({
       functions: functionManifest.functions,
       ephemeralCollections,
     }),
-  };
+    applicationAuth: {
+      authProgram: schemaDef.authProgram,
+      applicationAuthBootstrap,
+      authProgramFields: AUTH_PROGRAM_FIELDS,
+      mechanismKinds: AUTH_PROGRAM_MECHANISM_KINDS,
+      entryMechanisms: APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS,
+      platformKinds: APPLICATION_AUTH_PLATFORM_KINDS,
+      authoringProfiles: [EXPLICIT_AUTHORING_PROFILE, FAMILIAR_AUTHORING_PROFILE],
+      authoringProfile,
+      familiarDispositions: FAMILIAR_DISPOSITIONS.authProgramFields,
+    },
+  });
   const generatedSurfaces = buildGeneratedSurfaces({
     appId,
     surfaceDefs,

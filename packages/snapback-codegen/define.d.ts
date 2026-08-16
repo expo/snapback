@@ -719,6 +719,15 @@ export type AuthMechanism =
   | { readonly kind: 'password'; readonly identifier: 'username' | 'email'; readonly provider: string; readonly recovery: string; readonly minimumLength?: number }
   | { readonly kind: 'email-code'; readonly identityKind: 'email'; readonly provider: string; readonly canonicalization?: 'email-v1'; readonly delivery: string }
   | { readonly kind: 'passkey'; readonly provider: string };
+export interface AuthRecoveryPolicyV1 {
+  readonly recoveryCodes: {
+    readonly enabled: boolean;
+    readonly requiredWhen: 'no-independent-recovery';
+    readonly rotateAfterUse: true;
+    readonly plaintextCustody: 'one-time-response';
+  };
+  readonly lastAuthenticator: 'enforce';
+}
 export interface AuthProgramV1 {
   readonly version: 1;
   /** Client authority custody policy. Omission normalizes to durable-required. */
@@ -728,6 +737,7 @@ export interface AuthProgramV1 {
   readonly mechanisms: Readonly<Record<string, AuthMechanism>>;
   readonly providers?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly assuranceRequirements: Readonly<Record<string, { readonly allOf: readonly string[] }>>;
+  readonly recoveryPolicy: AuthRecoveryPolicyV1;
   readonly guestPolicy: {
     readonly enabled: boolean;
     readonly claiming?: readonly string[];
@@ -748,6 +758,7 @@ export interface AuthProgramV1 {
 }
 export declare const AUTH_DEFAULT_UNCLAIMED_GUEST_RETENTION_MS: number;
 export declare const AUTH_PROGRAM_FIELDS: ReadonlySet<string>;
+export declare const AUTH_PROGRAM_MECHANISM_KINDS: readonly ['guest', 'password', 'email-code', 'passkey'];
 export declare function defineAuth(program: AuthProgramV1): AuthProgramV1;
 export interface VisibilityOverrideDeclarationV1 {
   readonly schemaVersion?: 'snapback.visibility-override-declaration.v1';

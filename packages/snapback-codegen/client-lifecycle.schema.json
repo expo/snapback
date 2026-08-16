@@ -4,22 +4,52 @@
   "$comment": "@ref LLP 0247#d5-generated-lifecycle-metadata-owns-normalization-and-failure-tables — origin schema; LLP 0238 D7 may extend this artifact later.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "appId", "inputsHash", "rows"],
+  "required": ["artifactKind", "schemaVersion", "appId", "inputsHash", "rows"],
   "properties": {
+    "artifactKind": { "const": "clientLifecycleManifest" },
     "schemaVersion": { "const": "snapback.client-lifecycle.v1" },
     "appId": { "type": "string", "minLength": 1 },
     "inputsHash": { "type": "string", "minLength": 1 },
+    "authoredSourceHash": { "type": "string", "minLength": 1 },
+    "targetProfile": { "type": "string", "minLength": 1 },
+    "custody": { "type": "object" },
+    "surfaceFamilies": { "$ref": "#/$defs/stringList" },
+    "referenceKinds": { "type": "array", "items": { "type": "object" } },
+    "handleStates": { "type": "object" },
+    "mutationSettlement": { "type": "object" },
+    "resourceIdentity": { "type": "object" },
+    "diagnostics": { "type": "array", "items": { "type": "object" } },
+    "compatibilityAliases": { "type": "array", "items": { "type": "object" } },
+    "futureClassM": { "type": "object" },
+    "operations": { "type": "array", "items": { "type": "object" } },
+    "commands": { "type": "array", "items": { "type": "object" } },
     "rows": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "argumentNormalization",
+        "authBootstrapPolicy",
+        "authBootstrapState",
+        "authCustodyPlatforms",
+        "authEntryMechanisms",
+        "authOwnership",
+        "authRecoveryLifecycle",
+        "authSupervisedPrecedence",
+        "authAnchors",
         "authorityAdmission",
         "presenceLifecycle",
         "primaryFailureCarrier",
         "anchors"
       ],
       "properties": {
+        "authBootstrapPolicy": { "$ref": "#/$defs/authBootstrapPolicy" },
+        "authBootstrapState": { "$ref": "#/$defs/authBootstrapState" },
+        "authCustodyPlatforms": { "$ref": "#/$defs/authCustodyPlatforms" },
+        "authEntryMechanisms": { "$ref": "#/$defs/authEntryMechanisms" },
+        "authOwnership": { "$ref": "#/$defs/authOwnership" },
+        "authRecoveryLifecycle": { "$ref": "#/$defs/authRecoveryLifecycle" },
+        "authSupervisedPrecedence": { "$ref": "#/$defs/authSupervisedPrecedence" },
+        "authAnchors": { "$ref": "#/$defs/authAnchors" },
         "argumentNormalization": {
           "type": "object",
           "additionalProperties": false,
@@ -116,6 +146,294 @@
     }
   },
   "$defs": {
+    "authBootstrapPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["configured", "fields", "sourceFields", "profiles"],
+      "properties": {
+        "configured": { "type": "boolean" },
+        "fields": {
+          "type": "array",
+          "minItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "derivation", "semanticIdentityEffect", "familiarDisposition", "value"],
+            "properties": {
+              "field": { "type": "string", "minLength": 1 },
+              "derivation": { "type": "string", "minLength": 1 },
+              "semanticIdentityEffect": { "type": "string", "minLength": 1 },
+              "familiarDisposition": { "$ref": "#/$defs/familiarDisposition" },
+              "value": true
+            }
+          }
+        },
+        "sourceFields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field", "disposition", "bootstrapProjection", "semanticIdentityEffect", "familiarDisposition"],
+            "properties": {
+              "field": { "type": "string", "minLength": 1 },
+              "disposition": { "type": "string", "minLength": 1 },
+              "bootstrapProjection": { "$ref": "#/$defs/stringList" },
+              "semanticIdentityEffect": { "const": "included-in-normalized-auth-program" },
+              "familiarDisposition": { "$ref": "#/$defs/familiarDisposition" }
+            }
+          }
+        },
+        "profiles": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["profile", "selected", "disposition"],
+            "properties": {
+              "profile": { "enum": ["snapback-explicit-v1", "snapback-familiar-ts-v1"] },
+              "selected": { "type": "boolean" },
+              "disposition": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "authMethodOperation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation",
+        "clientMethod",
+        "clientNamespaceMethod",
+        "applicationFacadeMethod",
+        "facadeOwner",
+        "facadeMethod",
+        "predecessor",
+        "resultType",
+        "recoveryProjection"
+      ],
+      "properties": {
+        "operation": { "type": "string", "minLength": 1 },
+        "clientMethod": { "type": "string", "minLength": 1 },
+        "clientNamespaceMethod": { "type": ["string", "null"] },
+        "applicationFacadeMethod": { "type": ["string", "null"] },
+        "facadeOwner": { "type": ["string", "null"] },
+        "facadeMethod": { "type": ["string", "null"] },
+        "predecessor": { "type": "string", "minLength": 1 },
+        "resultType": { "type": "string", "minLength": 1 },
+        "recoveryProjection": { "enum": ["none", "one-time-response"] },
+        "facadeDisposition": { "type": "string", "minLength": 1 },
+        "targetCapability": { "type": "string", "minLength": 1 }
+      }
+    },
+    "authEntryMechanisms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceMechanisms", "entries"],
+      "properties": {
+        "sourceMechanisms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "entryMechanism", "disposition"],
+            "properties": {
+              "kind": { "type": "string", "minLength": 1 },
+              "entryMechanism": { "type": ["string", "null"] },
+              "disposition": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mechanism", "configured", "phase", "targetCapability", "reactHook", "familiarHook", "operations"],
+            "properties": {
+              "mechanism": { "type": "string", "minLength": 1 },
+              "configured": { "type": "boolean" },
+              "phase": { "type": "string", "minLength": 1 },
+              "targetCapability": { "type": ["string", "null"] },
+              "reactHook": { "type": ["string", "null"] },
+              "familiarHook": { "type": ["string", "null"] },
+              "operations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/authMethodOperation" } }
+            }
+          }
+        }
+      }
+    },
+    "authRecoveryLifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceField", "policy", "operations"],
+      "properties": {
+        "sourceField": { "const": "recoveryPolicy" },
+        "policy": { "type": ["object", "null"] },
+        "operations": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              { "$ref": "#/$defs/authMethodOperation" },
+              {
+                "type": "object",
+                "required": ["facadeDisposition", "targetCapability"],
+                "properties": {
+                  "facadeDisposition": { "type": "string", "minLength": 1 },
+                  "targetCapability": { "type": "string", "minLength": 1 }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "authCustodyPlatforms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selectedPolicy", "platforms"],
+      "properties": {
+        "selectedPolicy": { "type": ["string", "null"] },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["platform", "runtimePlatformKind", "adapter", "grade", "policy", "disposition", "refusalCode"],
+            "properties": {
+              "platform": { "type": "string", "minLength": 1 },
+              "runtimePlatformKind": { "type": ["string", "null"] },
+              "adapter": { "type": "string", "minLength": 1 },
+              "grade": { "type": "string", "minLength": 1 },
+              "policy": { "type": "string", "minLength": 1 },
+              "disposition": { "type": "string", "minLength": 1 },
+              "refusalCode": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "authBootstrapState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stages", "states", "advisories", "diagnostics", "remediations"],
+      "properties": {
+        "stages": { "$ref": "#/$defs/stringList" },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status", "fields"],
+            "properties": {
+              "status": { "enum": ["starting", "ready", "authority-required", "blocked", "unsupported", "error"] },
+              "fields": { "$ref": "#/$defs/stringList" }
+            }
+          }
+        },
+        "advisories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["diagnosticCode", "state", "authorityEffect"],
+            "properties": {
+              "diagnosticCode": { "const": "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT" },
+              "state": { "const": "ready" },
+              "authorityEffect": { "const": "non-authoritative" }
+            }
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["class", "codes"],
+            "properties": {
+              "class": { "type": "string", "minLength": 1 },
+              "codes": { "$ref": "#/$defs/stringList" }
+            }
+          }
+        },
+        "remediations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/authRemediation" }
+        }
+      }
+    },
+    "authOwnership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinaryOwner", "ordinaryForms", "advancedForms", "exclusive", "duplicateRefusalCode", "sameOwnerKeyDisposition", "conflictingOwnerKeyDisposition"],
+      "properties": {
+        "ordinaryOwner": { "const": "createSnapbackAppClient" },
+        "ordinaryForms": { "$ref": "#/$defs/stringList" },
+        "advancedForms": { "$ref": "#/$defs/stringList" },
+        "exclusive": { "const": true },
+        "duplicateRefusalCode": { "const": "SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID" },
+        "sameOwnerKeyDisposition": { "type": "string", "minLength": 1 },
+        "conflictingOwnerKeyDisposition": { "type": "string", "minLength": 1 }
+      }
+    },
+    "authSupervisedPrecedence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order", "events", "replacementRule", "protectedRule", "midEntryRule", "conflictDiagnostic", "conflictState"],
+      "properties": {
+        "order": { "$ref": "#/$defs/stringList" },
+        "events": { "$ref": "#/$defs/stringList" },
+        "replacementRule": { "type": "string", "minLength": 1 },
+        "protectedRule": { "type": "string", "minLength": 1 },
+        "midEntryRule": { "type": "string", "minLength": 1 },
+        "conflictDiagnostic": { "const": "SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT" },
+        "conflictState": { "const": "ready-advisory" }
+      }
+    },
+    "authAnchors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capabilityIndex", "guide"],
+      "properties": {
+        "capabilityIndex": { "$ref": "#/$defs/stringList" },
+        "guide": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "familiarDisposition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "route"],
+      "properties": {
+        "disposition": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "route": { "type": "string", "minLength": 1 }
+      }
+    },
+    "authRemediation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "publicType", "riskClass", "machineApplicable", "requiresApproval", "authorityEffect"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "publicType": { "const": "SnapbackAuthRemediation" },
+        "riskClass": { "type": "string", "minLength": 1 },
+        "machineApplicable": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "const": "context-dependent" }
+          ]
+        },
+        "requiresApproval": { "type": "boolean" },
+        "authorityEffect": { "type": "string", "minLength": 1 }
+      }
+    },
     "functionIdentity": {
       "type": "object",
       "required": ["functionId", "name", "kind", "verb"],

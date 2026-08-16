@@ -63,9 +63,13 @@ const isUserIdentifier = (value) => {
 };
 const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_CUSTODY_GRADES = new Set(['durable-required', 'volatile-explicit']);
+export const AUTH_PROGRAM_MECHANISM_KINDS = Object.freeze([
+  'guest', 'password', 'email-code', 'passkey',
+]);
 export const AUTH_PROGRAM_FIELDS = new Set([
   'version', 'mechanisms', 'providers', 'assuranceRequirements', 'guestPolicy',
   'secretReferences', 'verifiedProvisioning', 'custody', 'externalSessionEntry',
+  'recoveryPolicy',
 ]);
 const AUTH_ASSURANCE_KINDS = new Set([
   'authenticated', 'email_verified', 'phone_verified', 'recent_auth', 'phishing_resistant',
@@ -1872,6 +1876,76 @@ export function defineAuth(program) {
   };
   for (const name of assuranceNames) visitAssurance(name);
 
+  // @ref LLP 0214#27-recovery-policy — the wave-1 recovery declaration is a
+  // closed semantic source field. The values below are the exact v1 floor;
+  // targets cannot weaken or infer them while retaining program version 1.
+  const recoveryPolicy = program.recoveryPolicy;
+  assert(
+    recoveryPolicy && typeof recoveryPolicy === 'object' && !Array.isArray(recoveryPolicy),
+    'defineAuth recoveryPolicy must be an object',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  exactObject(
+    recoveryPolicy,
+    'defineAuth recoveryPolicy',
+    new Set(['recoveryCodes', 'lastAuthenticator']),
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  const recoveryCodes = recoveryPolicy.recoveryCodes;
+  assert(
+    recoveryCodes && typeof recoveryCodes === 'object' && !Array.isArray(recoveryCodes),
+    'defineAuth recoveryPolicy.recoveryCodes must be an object',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  exactObject(
+    recoveryCodes,
+    'defineAuth recoveryPolicy.recoveryCodes',
+    new Set(['enabled', 'requiredWhen', 'rotateAfterUse', 'plaintextCustody']),
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  assert(
+    typeof recoveryCodes.enabled === 'boolean',
+    'defineAuth recoveryPolicy.recoveryCodes.enabled must be boolean',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  assert(
+    recoveryCodes.requiredWhen === 'no-independent-recovery',
+    'defineAuth recoveryPolicy.recoveryCodes.requiredWhen must be no-independent-recovery',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  assert(
+    recoveryCodes.rotateAfterUse === true,
+    'defineAuth recoveryPolicy.recoveryCodes.rotateAfterUse must be true',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  assert(
+    recoveryCodes.plaintextCustody === 'one-time-response',
+    'defineAuth recoveryPolicy.recoveryCodes.plaintextCustody must be one-time-response',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  assert(
+    recoveryPolicy.lastAuthenticator === 'enforce',
+    'defineAuth recoveryPolicy.lastAuthenticator must be enforce',
+    'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  for (const [name, mechanism] of Object.entries(mechanisms)) {
+    if (mechanism.kind !== 'password') continue;
+    assert(
+      mechanism.recovery === 'recoveryCodes',
+      `defineAuth mechanisms.${name}.recovery must name recoveryCodes`,
+      'SNAPBACK_AUTH_PROGRAM_INVALID',
+    );
+  }
+  const normalizedRecoveryPolicy = {
+    recoveryCodes: {
+      enabled: recoveryCodes.enabled,
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  };
+
   const secretReferences = {};
   assert(program.secretReferences && typeof program.secretReferences === 'object' && !Array.isArray(program.secretReferences), 'defineAuth secretReferences must be an object');
   for (const [name, reference] of Object.entries(program.secretReferences)) {
@@ -1944,6 +2018,7 @@ export function defineAuth(program) {
     mechanisms,
     ...(program.providers === undefined ? {} : { providers: { ...program.providers } }),
     assuranceRequirements,
+    recoveryPolicy: normalizedRecoveryPolicy,
     guestPolicy: { enabled: guestPolicy.enabled, claiming: [...claiming], ...(reaping ? { reaping } : {}) },
     secretReferences,
     ...(verifiedProvisioning ? { verifiedProvisioning } : {}),

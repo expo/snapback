@@ -203,7 +203,7 @@ test('NormalizedApplicationDefinitionV1 has a frozen canonical golden vector', (
   assert.equal(canonicalGenerationJson(artifact.definition).includes('deployment-one'), false);
   assert.equal(
     artifact.normalizedContractId,
-    'sha256:b23af27b28fca3e8495e3236a483777d67f75896f69a0cf4fb231a1e3edfe325',
+    'sha256:30495623d163f250679603a35a58b4375e6cb42f1733d934f2a7fcc95aea7938',
   );
   assert.equal(
     artifact.normalizedSchemaId,

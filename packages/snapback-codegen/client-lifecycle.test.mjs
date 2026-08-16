@@ -10,11 +10,24 @@ import { dirname, join } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import Ajv2020 from 'ajv/dist/2020.js';
+
+import {
+  APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS,
+} from './app-descriptor.mjs';
 import { generate } from './index.mjs';
 import {
+  APPLICATION_AUTH_LIFECYCLE_SOURCE,
+  APPLICATION_AUTH_PLATFORM_KINDS,
   CLIENT_COMPATIBILITY_ALIASES,
+  assertApplicationAuthLifecycleCompleteness,
   renderReferenceJSDoc,
 } from './client-lifecycle.mjs';
+import {
+  AUTH_PROGRAM_FIELDS,
+  AUTH_PROGRAM_MECHANISM_KINDS,
+} from './define.mjs';
+import { FAMILIAR_DISPOSITIONS } from './familiar-dispositions.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
@@ -24,8 +37,29 @@ function backend() {
   const root = mkdtempSync(join(tmpdir(), 'snapback-client-lifecycle-'));
   roots.push(root);
   writeFileSync(join(root, 'schema.mjs'), `
-import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
+const authProgram = defineAuth({
+  version: 1,
+  mechanisms: {
+    password: { kind: 'password', identifier: 'email', provider: 'builtIn', recovery: 'recoveryCodes' },
+  },
+  assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  },
+  guestPolicy: { enabled: false },
+  secretReferences: {},
+});
+export default defineSchema(
+  { todos: defineTable({ title: v.string() }).sync() },
+  { auth: { mode: 'sessions' }, authProgram },
+);
 `);
   writeFileSync(join(root, 'functions.mjs'), `
 import { defineAction, defineCommand, defineJsLiveQuery, defineJsMutation, defineJsQuery, v } from '${defineUrl}';
@@ -50,8 +84,11 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
   const apiTypes = readFileSync(join(root, 'generated', 'api.d.ts'), 'utf8');
   const appTypes = readFileSync(join(root, 'generated', 'app.d.ts'), 'utf8');
   const envelope = JSON.parse(readFileSync(join(root, 'generated', 'api-envelope.members.json'), 'utf8'));
+  const lifecycleSchema = JSON.parse(readFileSync(join(packageRoot, 'client-lifecycle.schema.json'), 'utf8'));
+  const validateLifecycle = new Ajv2020({ strict: false }).compile(lifecycleSchema);
 
   assert.equal(manifest.schemaVersion, 'snapback.client-lifecycle.v1');
+  assert.equal(validateLifecycle(manifest), true, JSON.stringify(validateLifecycle.errors));
   assert.deepEqual(manifest.surfaceFamilies, ['query', 'liveQuery', 'mutate', 'action', 'commands']);
   assert.deepEqual(
     manifest.mutationSettlement.dispositions,
@@ -75,6 +112,116 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
   assert.equal(manifest.compatibilityAliases[0].removalEpoch, 'declared-major-after-stage-2-measurement');
   assert.equal(manifest.commands.length, 1);
   assert.equal(manifest.commands[0].semanticIdentity, `${manifest.appId}:command:createTodoCommand`);
+
+  const authRows = manifest.rows;
+  assert.deepEqual(
+    authRows.authBootstrapPolicy.fields.map(({ field }) => field),
+    ['format', 'appId', 'mode', 'custody', 'entryMechanisms', 'anonymousPublic', 'lifecycleProtocol'],
+  );
+  assert.equal(
+    authRows.authBootstrapPolicy.fields.find(({ field }) => field === 'custody')
+      .familiarDisposition.disposition,
+    2,
+  );
+  assert.deepEqual(
+    authRows.authBootstrapPolicy.sourceFields.map(({ field }) => field),
+    [...AUTH_PROGRAM_FIELDS].sort(),
+  );
+  assert(authRows.authBootstrapPolicy.sourceFields.every(
+    ({ semanticIdentityEffect }) => semanticIdentityEffect === 'included-in-normalized-auth-program',
+  ));
+  assert.deepEqual(
+    authRows.authBootstrapPolicy.profiles.map(({ profile, selected }) => [profile, selected]),
+    [['snapback-explicit-v1', true], ['snapback-familiar-ts-v1', false]],
+  );
+  const password = authRows.authEntryMechanisms.entries.find(
+    ({ mechanism }) => mechanism === 'password-v1',
+  );
+  assert.equal(password.configured, true);
+  assert.equal(password.targetCapability, 'auth.passwords');
+  assert.equal(password.reactHook, 'useSnapbackAuth');
+  assert.equal(password.familiarHook, 'useAuth');
+  assert.deepEqual(
+    password.operations.map(({ operation, applicationFacadeMethod, resultType }) => (
+      [operation, applicationFacadeMethod, resultType]
+    )),
+    [
+      ['signup', 'signUpWithPassword', 'Promise<AuthRecoveryCredentialPublicProjectionV1>'],
+      ['signin', 'signInWithPassword', 'Promise<AuthCredentialPublicProjectionV1>'],
+      ['change', 'changePassword', 'Promise<AuthCredentialPublicProjectionV1>'],
+    ],
+  );
+  assert.deepEqual(authRows.authRecoveryLifecycle.policy, {
+    recoveryCodes: {
+      enabled: true,
+      plaintextCustody: 'one-time-response',
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+    },
+    lastAuthenticator: 'enforce',
+  });
+  assert.deepEqual(
+    authRows.authRecoveryLifecycle.operations.map(({ operation, clientMethod, resultType }) => (
+      [operation, clientMethod, resultType]
+    )),
+    [
+      ['consume', 'authRecoveryConsume', 'Promise<AuthRecoveryCredentialPublicProjectionV1>'],
+      ['rotate', 'authRecoveryRotate', 'Promise<AuthRecoveryCredentialPublicProjectionV1>'],
+    ],
+  );
+  assert.deepEqual(
+    authRows.authCustodyPlatforms.platforms.map(({ platform, grade, disposition }) => (
+      [platform, grade, disposition]
+    )),
+    [
+      ['browser', 'durable', 'shipped'],
+      ['expo-web', 'durable', 'shipped'],
+      ['memory', 'volatile', 'shipped-nonclaim'],
+      ['expo-ios', 'pending-per-os-evidence', 'refused-pending-evidence'],
+      ['expo-android', 'pending-per-os-evidence', 'refused-pending-evidence'],
+      ['node-headless', 'caller-evidenced', 'not-admitted-by-ordinary-app-client'],
+    ],
+  );
+  assert.deepEqual(authRows.authBootstrapState.stages, ['binding', 'custody', 'authority', 'client']);
+  assert.deepEqual(
+    authRows.authBootstrapState.states.map(({ status }) => status),
+    ['starting', 'ready', 'authority-required', 'blocked', 'unsupported', 'error'],
+  );
+  assert.deepEqual(
+    authRows.authBootstrapState.advisories.map(({ diagnosticCode, state }) => [diagnosticCode, state]),
+    [['SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT', 'ready']],
+  );
+  assert.equal(authRows.authBootstrapState.diagnostics.length, 8);
+  assert.deepEqual(
+    authRows.authBootstrapState.remediations.map(({ kind }) => kind),
+    [
+      'retryAuthBootstrap',
+      'regenerateAppDescriptor',
+      'selectCompatibleBinding',
+      'selectSupportedPlatform',
+      'installDurableCustody',
+      'keepCurrentPrincipal',
+      'signOut',
+      'useStoragePartition',
+      'disposeAndReconstruct',
+    ],
+  );
+  assert(authRows.authBootstrapState.remediations.every(
+    ({ publicType, requiresApproval }) => (
+      publicType === 'SnapbackAuthRemediation' && requiresApproval === false
+    ),
+  ));
+  assert.equal(authRows.authOwnership.exclusive, true);
+  assert.equal(authRows.authOwnership.duplicateRefusalCode, 'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID');
+  assert.deepEqual(authRows.authSupervisedPrecedence.events, [
+    'binding-remint', 'supervisor-restart', 'refreshAuthority',
+  ]);
+  assert.equal(
+    authRows.authSupervisedPrecedence.conflictDiagnostic,
+    'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT',
+  );
+  assert(authRows.authAnchors.capabilityIndex.includes('auth.browser-session-custody'));
+  assert(authRows.authAnchors.guide.includes('guide/auth/passwords.md#sign-up-then-sign-in'));
 
   for (const operation of manifest.operations) {
     const start = apiTypes.indexOf(`reference \`${operation.semanticIdentity}\``);
@@ -116,4 +263,148 @@ test('manifest vocabulary, generated types, and JSDoc share one lifecycle projec
   assert.equal(record.logicalKind, 'client-lifecycle');
   assert.equal(record.consumer, 'developer-tooling');
   assert.equal(record.custody, 'regenerable-cache');
+
+  const identical = await generate(root);
+  assert.equal(identical.ok, true, JSON.stringify(identical.diagnostics));
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(root, 'generated', 'client-lifecycle.v1.json'), 'utf8')),
+    manifest,
+  );
+});
+
+function completenessInput(overrides = {}) {
+  return {
+    authProgram: {
+      recoveryPolicy: {
+        recoveryCodes: {
+          enabled: true,
+          requiredWhen: 'no-independent-recovery',
+          rotateAfterUse: true,
+          plaintextCustody: 'one-time-response',
+        },
+        lastAuthenticator: 'enforce',
+      },
+    },
+    authProgramFields: AUTH_PROGRAM_FIELDS,
+    mechanismKinds: AUTH_PROGRAM_MECHANISM_KINDS,
+    entryMechanisms: APPLICATION_AUTH_BOOTSTRAP_ENTRY_MECHANISMS,
+    platformKinds: APPLICATION_AUTH_PLATFORM_KINDS,
+    authoringProfiles: ['snapback-explicit-v1', 'snapback-familiar-ts-v1'],
+    familiarDispositions: FAMILIAR_DISPOSITIONS.authProgramFields,
+    ...overrides,
+  };
+}
+
+test('application auth completeness fails closed on every source-domain growth', () => {
+  assert.throws(
+    () => assertApplicationAuthLifecycleCompleteness(completenessInput({
+      authProgramFields: new Set([...AUTH_PROGRAM_FIELDS, 'futureAuthProgramField']),
+    })),
+    /auth-program field dispositions are incomplete.*futureAuthProgramField/u,
+  );
+  assert.throws(
+    () => assertApplicationAuthLifecycleCompleteness(completenessInput({
+      mechanismKinds: [...AUTH_PROGRAM_MECHANISM_KINDS, 'future-mechanism'],
+    })),
+    /auth mechanism kind dispositions are incomplete.*future-mechanism/u,
+  );
+  assert.throws(
+    () => assertApplicationAuthLifecycleCompleteness(completenessInput({
+      platformKinds: [...APPLICATION_AUTH_PLATFORM_KINDS, 'future-platform'],
+    })),
+    /auth custody platform dispositions are incomplete.*future-platform/u,
+  );
+  assert.throws(
+    () => assertApplicationAuthLifecycleCompleteness(completenessInput({
+      authoringProfiles: ['snapback-explicit-v1', 'snapback-familiar-ts-v1', 'future-profile'],
+    })),
+    /auth authoring profile dispositions are incomplete.*future-profile/u,
+  );
+  const missingFamiliar = { ...FAMILIAR_DISPOSITIONS.authProgramFields };
+  delete missingFamiliar.recoveryPolicy;
+  assert.throws(
+    () => assertApplicationAuthLifecycleCompleteness(completenessInput({
+      familiarDispositions: missingFamiliar,
+    })),
+    /Familiar auth-program field dispositions are incomplete.*recoveryPolicy/u,
+  );
+  const missingRecoveryRows = structuredClone(APPLICATION_AUTH_LIFECYCLE_SOURCE);
+  delete missingRecoveryRows.recoveryOperations.rotate;
+  assert.throws(
+    () => assertApplicationAuthLifecycleCompleteness(completenessInput({
+      source: missingRecoveryRows,
+    })),
+    /enabled recovery lifecycle dispositions are incomplete.*rotate/u,
+  );
+});
+
+test('shipped codegen, declarations, hooks, platforms, and diagnostics conform to D9 rows', async () => {
+  const root = backend();
+  const generated = await generate(root);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const rows = JSON.parse(
+    readFileSync(join(root, 'generated', 'client-lifecycle.v1.json'), 'utf8'),
+  ).rows;
+  const clientTypes = readFileSync(join(packageRoot, '..', 'snapback-client', 'index.d.mts'), 'utf8');
+  const appClientTypes = readFileSync(join(packageRoot, '..', 'snapback-client', 'app-client.d.mts'), 'utf8');
+  const appClientRuntime = readFileSync(join(packageRoot, '..', 'snapback-client', 'app-client.mjs'), 'utf8');
+  const authorityRuntime = readFileSync(join(packageRoot, '..', 'snapback-client', 'agent-authority.mjs'), 'utf8');
+  const reactTypes = readFileSync(join(packageRoot, '..', 'snapback-react', 'index.d.mts'), 'utf8');
+  const reactRuntime = readFileSync(join(packageRoot, '..', 'snapback-react', 'implementation.mjs'), 'utf8');
+  const familiarTypes = readFileSync(join(packageRoot, '..', 'snapback-react', 'familiar.d.mts'), 'utf8');
+  const expoTypes = readFileSync(join(packageRoot, '..', 'snapback-expo', 'index.d.mts'), 'utf8');
+  const expoRuntime = readFileSync(join(packageRoot, '..', 'snapback-expo', 'provider.mjs'), 'utf8');
+  const generatedAppTypes = readFileSync(join(root, 'generated', 'app.d.ts'), 'utf8');
+
+  for (const { field } of rows.authBootstrapPolicy.fields) {
+    assert(generatedAppTypes.includes(`readonly ${field}:`), `generated policy types omit ${field}`);
+  }
+  for (const entry of rows.authEntryMechanisms.entries) {
+    for (const operation of entry.operations) {
+      assert(clientTypes.includes(operation.clientMethod), operation.clientMethod);
+      assert(clientTypes.includes(operation.resultType), operation.resultType);
+      if (operation.clientNamespaceMethod !== null) {
+        assert(clientTypes.includes(operation.clientNamespaceMethod), operation.clientNamespaceMethod);
+      }
+      if (operation.applicationFacadeMethod !== null) {
+        assert(appClientTypes.includes(operation.applicationFacadeMethod), operation.applicationFacadeMethod);
+      }
+      if (operation.facadeOwner === 'SnapbackAppClient.auth') {
+        assert(appClientTypes.includes(operation.facadeMethod), operation.facadeMethod);
+      } else if (operation.facadeOwner === 'SnapbackClient.auth') {
+        assert(clientTypes.includes(operation.facadeMethod), operation.facadeMethod);
+      } else {
+        assert.equal(operation.facadeMethod, null);
+      }
+    }
+    if (entry.reactHook !== null) assert(reactTypes.includes(entry.reactHook), entry.reactHook);
+    if (entry.familiarHook !== null) assert(familiarTypes.includes(entry.familiarHook), entry.familiarHook);
+  }
+  for (const operation of rows.authRecoveryLifecycle.operations) {
+    assert(clientTypes.includes(operation.clientMethod), operation.clientMethod);
+    assert.equal(operation.facadeOwner, 'SnapbackClient.auth');
+    assert(clientTypes.includes(operation.facadeMethod), operation.facadeMethod);
+    assert.equal(operation.applicationFacadeMethod, null);
+    assert.match(operation.facadeDisposition, /no-ordinary-app-facade-method/u);
+  }
+  assert(appClientRuntime.includes('createIndexedDbAuthCustodyStorage'));
+  assert(appClientRuntime.includes('createMemoryAuthCustodyStorage'));
+  assert(expoRuntime.includes('expo-native-phase-2-evidence-required'));
+  assert(appClientTypes.includes("'browser' | 'expo-web' | 'memory'"));
+  assert(expoTypes.includes('FirstPartyExpoBootState'));
+  for (const { status } of rows.authBootstrapState.states) {
+    assert(appClientTypes.includes(`status: '${status}'`) || appClientTypes.includes(`status: 'blocked' | 'unsupported' | 'error'`), status);
+  }
+  const diagnosticSources = `${appClientRuntime}\n${authorityRuntime}\n${reactRuntime}\n${expoRuntime}`;
+  for (const diagnosticClass of rows.authBootstrapState.diagnostics) {
+    for (const code of diagnosticClass.codes) assert(diagnosticSources.includes(code), code);
+  }
+  assert(clientTypes.includes('export type SnapbackAuthRemediation = Readonly<{'));
+  for (const field of ['riskClass', 'machineApplicable', 'requiresApproval', 'authorityEffect']) {
+    assert(clientTypes.includes(`${field}:`), field);
+  }
+  assert(familiarTypes.includes('useSnapbackAuth as useAuth'));
+  assert(familiarTypes.includes('useSnapbackCurrentPrincipal as useCurrentPrincipal'));
+  assert(reactTypes.includes('useSnapbackAuth(): SnapbackAuthFacade'));
+  assert(reactTypes.includes('useSnapbackCurrentPrincipal(): CurrentPrincipalSnapshot'));
 });

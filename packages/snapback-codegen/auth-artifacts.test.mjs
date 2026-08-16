@@ -19,6 +19,25 @@ const guideManifest = JSON.parse(readFileSync(
   'utf8',
 ));
 const dirs = [];
+const recoveryPolicy = Object.freeze({
+  recoveryCodes: Object.freeze({
+    enabled: true,
+    requiredWhen: 'no-independent-recovery',
+    rotateAfterUse: true,
+    plaintextCustody: 'one-time-response',
+  }),
+  lastAuthenticator: 'enforce',
+});
+const recoveryPolicySource = `
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  },`;
 
 function backend(schema, functions) {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-auth-'));
@@ -110,6 +129,7 @@ assert.throws(
     mechanisms: { guest: { kind: 'guest' } },
     providers: { mail: { clientSecret: 'literal-must-not-enter-an-artifact' } },
     assuranceRequirements: {},
+    recoveryPolicy,
     guestPolicy: { enabled: false },
     secretReferences: {},
   }),
@@ -139,6 +159,7 @@ assert.throws(
       version: 1,
       mechanisms: { guest: { kind: 'guest' } },
       assuranceRequirements: {},
+      recoveryPolicy,
       guestPolicy: {
         enabled: true,
         claiming: [],
@@ -160,6 +181,7 @@ const authProgram = defineAuth({
   version: 1,
   mechanisms: { password: { kind: 'password', identifier: 'email', provider: 'builtIn', recovery: 'recoveryCodes', minimumLength: 8 } },
   assuranceRequirements: {},
+  ${recoveryPolicySource}
   guestPolicy: { enabled: false },
   secretReferences: {},
 });
@@ -950,6 +972,7 @@ const authProgram = defineAuth({
     emailCode: { kind: 'email-code', identityKind: 'email', provider: 'builtIn', delivery: 'transactionalEmail' },
   },
   assuranceRequirements: { sensitive: { allOf: ['email_verified', 'recent_auth'] } },
+  ${recoveryPolicySource}
   guestPolicy: { enabled: true, claiming: ['emailCode'], reaping: { afterMs: 604800000, cleanup: { kind: 'declarative', default: 'tombstone', tables: {} } } },
   secretReferences: {},
 });

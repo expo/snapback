@@ -63,6 +63,7 @@ function authProgram({
   external = false,
   mechanisms = `password: { kind: 'password', identifier: 'username', provider: 'builtIn', recovery: 'recoveryCodes' }`,
   guestPolicy = '{ enabled: false }',
+  recoveryEnabled = true,
 } = {}) {
   return `{
   version: 1,
@@ -70,6 +71,15 @@ function authProgram({
   ${external ? 'externalSessionEntry: true,' : ''}
   mechanisms: { ${mechanisms} },
   assuranceRequirements: {},
+  recoveryPolicy: {
+    recoveryCodes: {
+      enabled: ${recoveryEnabled},
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  },
   guestPolicy: ${guestPolicy},
   secretReferences: {},
 }`;
@@ -90,6 +100,15 @@ test('sessions bootstrap follows public operation posture independently of guest
   writeExplicit(root, { program, functionsAuth: 'public' });
   const publicResult = await generate(root);
   assert.equal(publicResult.schemaManifest.authProgram.custody, 'durable-required');
+  assert.deepEqual(publicResult.schemaManifest.authProgram.recoveryPolicy, {
+    recoveryCodes: {
+      enabled: true,
+      requiredWhen: 'no-independent-recovery',
+      rotateAfterUse: true,
+      plaintextCustody: 'one-time-response',
+    },
+    lastAuthenticator: 'enforce',
+  });
   assert.deepEqual(bootstrap(publicResult), {
     format: 'snapback.application-auth-bootstrap.v1',
     appId: publicResult.appDescriptor.identity.app,
@@ -258,6 +277,18 @@ test('bootstrap is inspectable and custody or mechanism changes rotate semantic 
   assert.equal(insertionVariant.identities.semanticId, baseline.identities.semanticId);
   assert.deepEqual(insertionVariant.appDescriptor.authBootstrap, baseline.appDescriptor.authBootstrap);
 
+  writeExplicit(root, {
+    program: authProgram({ mechanisms: reordered, recoveryEnabled: false }),
+  });
+  const recoveryDisabled = await generate(root);
+  assert.equal(recoveryDisabled.ok, true, JSON.stringify(recoveryDisabled.diagnostics));
+  assert.notEqual(recoveryDisabled.identities.semanticId, baseline.identities.semanticId);
+  assert.deepEqual(recoveryDisabled.appDescriptor.authBootstrap, baseline.appDescriptor.authBootstrap);
+  assert.deepEqual(
+    recoveryDisabled.clientLifecycleManifest.rows.authRecoveryLifecycle.operations,
+    [],
+  );
+
   writeExplicit(root, { program: authProgram({ custody: 'volatile-explicit', mechanisms: reordered }) });
   const volatile = await generate(root);
   assert.notEqual(volatile.identities.semanticId, baseline.identities.semanticId);
@@ -273,6 +304,63 @@ test('bootstrap is inspectable and custody or mechanism changes rotate semantic 
     passwordOnly.appDescriptor.identity.descriptor,
     baseline.appDescriptor.identity.descriptor,
   );
+});
+
+test('recoveryPolicy is required and keeps the exact LLP 0214 wave-1 shape', () => {
+  const base = {
+    version: 1,
+    mechanisms: {},
+    assuranceRequirements: {},
+    guestPolicy: { enabled: false },
+    secretReferences: {},
+  };
+  assert.throws(
+    () => defineAuth(base),
+    (error) => error?.code === 'SNAPBACK_AUTH_PROGRAM_INVALID',
+  );
+  for (const recoveryPolicy of [
+    {
+      recoveryCodes: {
+        enabled: true,
+        requiredWhen: 'optional',
+        rotateAfterUse: true,
+        plaintextCustody: 'one-time-response',
+      },
+      lastAuthenticator: 'enforce',
+    },
+    {
+      recoveryCodes: {
+        enabled: true,
+        requiredWhen: 'no-independent-recovery',
+        rotateAfterUse: false,
+        plaintextCustody: 'one-time-response',
+      },
+      lastAuthenticator: 'enforce',
+    },
+    {
+      recoveryCodes: {
+        enabled: true,
+        requiredWhen: 'no-independent-recovery',
+        rotateAfterUse: true,
+        plaintextCustody: 'durable-store',
+      },
+      lastAuthenticator: 'enforce',
+    },
+    {
+      recoveryCodes: {
+        enabled: true,
+        requiredWhen: 'no-independent-recovery',
+        rotateAfterUse: true,
+        plaintextCustody: 'one-time-response',
+      },
+      lastAuthenticator: 'optional',
+    },
+  ]) {
+    assert.throws(
+      () => defineAuth({ ...base, recoveryPolicy }),
+      (error) => error?.code === 'SNAPBACK_AUTH_PROGRAM_INVALID',
+    );
+  }
 });
 
 test('familiar defaults durable custody and refuses the weaker grade before publication', async () => {

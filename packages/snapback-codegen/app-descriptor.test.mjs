@@ -173,6 +173,14 @@ try {
   assert.deepEqual(Object.keys(lifecycle.rows), [
     'anchors',
     'argumentNormalization',
+    'authAnchors',
+    'authBootstrapPolicy',
+    'authBootstrapState',
+    'authCustodyPlatforms',
+    'authEntryMechanisms',
+    'authOwnership',
+    'authRecoveryLifecycle',
+    'authSupervisedPrecedence',
     'authorityAdmission',
     'presenceLifecycle',
     'primaryFailureCarrier',
@@ -657,6 +665,7 @@ void directMutationWithoutImage; void commandWithRequiredImage; void commandWith
     format: descriptor.format,
     capabilities: descriptor.capabilities,
     api: descriptor.api,
+    authoringProfile: descriptor.authoringProfile,
   };
   assert.equal(
     canonicalizeAppDescriptorV1(insertionVariant),
