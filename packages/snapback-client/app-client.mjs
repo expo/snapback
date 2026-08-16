@@ -457,8 +457,10 @@ function validateStoragePartition(value) {
 function normalizePlatform(platform) {
   const normalized = typeof platform === 'string' ? { kind: platform } : platform;
   const allowedKeys = new Set([
+    'broadcastChannelFactory',
     'cryptoObject',
     'databaseName',
+    'hintStorage',
     'indexedDB',
     'kind',
     'lockManager',
@@ -627,6 +629,26 @@ async function resolveCustody(preflighted) {
   });
 }
 
+function authCoordinatorCrossContextOptions(platform) {
+  if (platform.kind === 'browser' || platform.kind === 'expo-web') {
+    // @ref LLP 0059#cross-context-ownership — omitted browser mechanisms use
+    // the coordinator's BroadcastChannel/localStorage wakeup defaults; an
+    // explicit injected value (including null) remains testable and host-owned.
+    return {
+      ...(Object.hasOwn(platform, 'broadcastChannelFactory')
+        ? { broadcastChannelFactory: platform.broadcastChannelFactory }
+        : {}),
+      ...(Object.hasOwn(platform, 'hintStorage')
+        ? { hintStorage: platform.hintStorage }
+        : {}),
+    };
+  }
+  return {
+    broadcastChannelFactory: platform.broadcastChannelFactory ?? null,
+    hintStorage: platform.hintStorage ?? null,
+  };
+}
+
 const safeCauseCode = (error) => {
   const observed = error?.diagnostic?.code ?? error?.code;
   return nonEmptyString(observed) ? observed : 'SNAPBACK_AUTH_BOOTSTRAP_FAILED';
@@ -791,8 +813,7 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
       appId: preflighted.app.identity.app,
       storagePartition: preflighted.storagePartition,
       storage: owner.storage,
-      broadcastChannelFactory: null,
-      hintStorage: null,
+      ...authCoordinatorCrossContextOptions(preflighted.platform),
     });
 
     throwIfConstructionAborted(preflighted.signal);

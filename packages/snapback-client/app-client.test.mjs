@@ -90,6 +90,56 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
+class BroadcastHub {
+  channels = new Map();
+  closeCalls = 0;
+
+  factory = (name) => {
+    const channel = {
+      name,
+      onmessage: null,
+      postMessage: (message) => {
+        for (const peer of this.channels.get(name) ?? []) {
+          if (peer !== channel) peer.onmessage?.({ data: structuredClone(message) });
+        }
+      },
+      close: () => {
+        if (!this.channels.get(name)?.delete(channel)) return;
+        this.closeCalls += 1;
+      },
+    };
+    if (!this.channels.has(name)) this.channels.set(name, new Set());
+    this.channels.get(name).add(channel);
+    return channel;
+  };
+}
+
+function createSerialLockManager() {
+  const tails = new Map();
+  return {
+    request(name, _options, operation) {
+      const previous = tails.get(name) ?? Promise.resolve();
+      const result = previous.catch(() => {}).then(operation);
+      const tail = result.catch(() => {});
+      tails.set(name, tail);
+      return result.finally(() => {
+        if (tails.get(name) === tail) tails.delete(name);
+      });
+    },
+  };
+}
+
+async function waitFor(check, label, timeoutMs = 2_000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      if (check()) return;
+    } catch { /* a clearing projection is expected while a wakeup converges */ }
+    if (Date.now() >= deadline) throw new Error(`${label} did not converge`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 const isoFromNow = (offsetMs) => new Date(Date.now() + offsetMs).toISOString();
 
 function makeApp({
@@ -627,6 +677,146 @@ test('browser durable custody restores the default record and isolates explicit 
     await partitioned?.dispose();
     await restored?.dispose();
     await first?.dispose();
+    server.restore();
+  }
+});
+
+test('browser app-client peers converge sign-in, user-switch successor, and logout from wakeups', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'durable-required' });
+  const indexedDB = new IDBFactory();
+  const lockManager = createSerialLockManager();
+  const broadcastHub = new BroadcastHub();
+  const hintBytes = new Map();
+  const hintStorage = {
+    setItem(key, value) { hintBytes.set(key, value); },
+  };
+  const platform = {
+    kind: 'browser',
+    indexedDB,
+    lockManager,
+    cryptoObject: webcrypto,
+    databaseName: 'snapback-app-client-cross-tab-test',
+    broadcastChannelFactory: broadcastHub.factory,
+    hintStorage,
+  };
+  const [{ createSnapbackAppClient: createTabA }, { createSnapbackAppClient: createTabB }] = (
+    await Promise.all([
+      import('./app-client.mjs?cross-tab-a'),
+      import('./app-client.mjs?cross-tab-b'),
+    ])
+  );
+  let tabA = null;
+  let tabB = null;
+  try {
+    tabA = await createTabA({ app, binding: makeBinding(app), platform });
+    tabB = await createTabB({ app, binding: makeBinding(app), platform });
+    assert.equal(broadcastHub.closeCalls, 0);
+    assert.equal(tabB.auth.currentPrincipal().status, 'anonymous');
+
+    server.respond('/auth/password/signin', ({ body }) => Response.json(
+      body.email === 'peer@example.com'
+        ? server.credential({
+            token: PEER_BEARER,
+            userId: PEER_USER,
+            sessionId: PEER_SESSION,
+            authorityInstanceId: PEER_AUTHORITY,
+          })
+        : server.credential({ token: APPLICATION_BEARER }),
+    ));
+    server.respond('/auth/logout', () => new Response(null, { status: 204 }));
+
+    await tabA.auth.signInWithPassword({ email: 'person@example.com', password: PASSWORD });
+    await waitFor(
+      () => tabB.auth.currentPrincipal().status === 'authenticated'
+        && tabB.auth.currentPrincipal().userId === USER,
+      'peer sign-in principal',
+    );
+    await waitFor(
+      () => tabB.client.captureAuthority().authorityKey
+        === tabA.client.captureAuthority().authorityKey,
+      'peer sign-in capture',
+    );
+    assert.deepEqual(tabB.client.captureAuthority(), tabA.client.captureAuthority());
+
+    await tabA.auth.signOut();
+    await waitFor(
+      () => tabB.auth.currentPrincipal().status === 'anonymous',
+      'peer logout principal',
+    );
+    await waitFor(
+      () => tabB.client.captureAuthority().authorityKey
+        === tabA.client.captureAuthority().authorityKey,
+      'peer logout capture',
+    );
+    assert.deepEqual(tabB.client.captureAuthority(), tabA.client.captureAuthority());
+
+    await tabA.auth.signInWithPassword({ email: 'peer@example.com', password: PASSWORD });
+    await waitFor(
+      () => tabB.auth.currentPrincipal().status === 'authenticated'
+        && tabB.auth.currentPrincipal().userId === PEER_USER,
+      'peer user-switch successor principal',
+    );
+    await waitFor(
+      () => tabB.client.captureAuthority().authorityKey
+        === tabA.client.captureAuthority().authorityKey,
+      'peer user-switch successor capture',
+    );
+    assert.deepEqual(tabB.client.captureAuthority(), tabA.client.captureAuthority());
+    assert.ok(hintBytes.size > 0, 'transitions publish a shared secret-free storage hint');
+
+    await tabA.dispose();
+    tabA = null;
+    assert.equal(broadcastHub.closeCalls, 1, 'disposing tab A closes its channel');
+    await tabB.dispose();
+    tabB = null;
+    assert.equal(broadcastHub.closeCalls, 2, 'disposing tab B closes its channel');
+    assert.equal(
+      [...broadcastHub.channels.values()].every((channels) => channels.size === 0),
+      true,
+      'no fake broadcast channels remain open',
+    );
+  } finally {
+    await tabA?.dispose();
+    await tabB?.dispose();
+    server.restore();
+  }
+});
+
+test('Node construction without BroadcastChannel or localStorage stays mechanism-free', async () => {
+  const server = installServer();
+  const app = makeApp();
+  const broadcastDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'BroadcastChannel');
+  const localStorageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  let appClient = null;
+  try {
+    Object.defineProperty(globalThis, 'BroadcastChannel', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+      storagePartition: 'node-without-cross-context-globals',
+    }));
+    assert.equal(appClient.auth.currentPrincipal().status, 'anonymous');
+    server.respond('/auth/password/signin', () => (
+      Response.json(server.credential({ token: APPLICATION_BEARER }))
+    ));
+    await appClient.auth.signInWithPassword({ email: 'person@example.com', password: PASSWORD });
+    assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
+    await appClient.dispose();
+    appClient = null;
+  } finally {
+    await appClient?.dispose();
+    if (broadcastDescriptor === undefined) delete globalThis.BroadcastChannel;
+    else Object.defineProperty(globalThis, 'BroadcastChannel', broadcastDescriptor);
+    if (localStorageDescriptor === undefined) delete globalThis.localStorage;
+    else Object.defineProperty(globalThis, 'localStorage', localStorageDescriptor);
     server.restore();
   }
 });

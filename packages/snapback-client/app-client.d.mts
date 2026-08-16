@@ -99,6 +99,12 @@ export type SnapbackAppClientPlatform =
   | 'memory'
   | Readonly<{
       kind: 'browser' | 'expo-web' | 'memory';
+      /** Cross-context auth wakeup channel. Browser/web defaults to the host
+       * BroadcastChannel; memory contexts default to disabled. */
+      broadcastChannelFactory?: ((name: string) => unknown) | null;
+      /** Secret-free auth wakeup hint storage. Browser/web defaults to the
+       * host localStorage; memory contexts default to disabled. */
+      hintStorage?: unknown;
       indexedDB?: unknown;
       lockManager?: unknown;
       cryptoObject?: unknown;
