@@ -13,6 +13,7 @@
     "check:platform-splits": "bun run node_modules/@exact/devtools/src/scripts/check-platform-splits.ts --source-root src",
     "typecheck": "bun run generate:routes && bun run check:platform-splits && tsc --noEmit",
     "test": "bun test tests",
+    "test:snapback-provider": "COTERIE_SNAPBACK_INTEGRATION=1 bun test tests/snapback-provider.test.ts tests/snapback-provider.integration.test.ts",
     "accept:coterie": "bun run ./scripts/accept-coterie.mjs",
     "verify:coterie": "bun run check:provider && bun run typecheck && bun run test && bun run build",
     "setup-mcp": "bun run node_modules/@exact/devtools/src/scripts/setup-mcp.ts"

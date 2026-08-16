@@ -2,6 +2,7 @@ import type { ContractDataProvider } from '@exact/contract/runtime';
 
 import { configureFromProvider } from './generated/coterie.bindings.ts';
 import { createCoterieMemoryProvider } from './memory-provider.ts';
+import { createCoterieSnapbackProvider } from './snapback-provider.ts';
 
 type ProviderFactory = () => ContractDataProvider;
 
@@ -9,9 +10,7 @@ type ProviderFactory = () => ContractDataProvider;
 // once, here; every registry entry configures the same generated bindings.
 export const coterieProviderRegistry = {
   memory: createCoterieMemoryProvider,
-  snapback: () => {
-    throw new Error('snapback provider not yet wired; see LLP 0266 D9');
-  },
+  snapback: createCoterieSnapbackProvider,
 } satisfies Record<string, ProviderFactory>;
 
 export type CoterieProviderName = keyof typeof coterieProviderRegistry;
@@ -45,6 +44,11 @@ export function bootCoterieProvider(
   const projection = configureFromProvider(provider);
   return {
     provider,
-    dispose: () => projection.dispose(),
+    dispose: () => {
+      projection.dispose();
+      if ('dispose' in provider && typeof provider.dispose === 'function') {
+        provider.dispose();
+      }
+    },
   };
 }

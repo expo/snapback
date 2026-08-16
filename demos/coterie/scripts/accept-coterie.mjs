@@ -12,6 +12,8 @@ import {
   logout,
 } from '../src/data/generated/coterie.bindings.ts';
 import { bootCoterieProvider } from '../src/data/provider-factory.ts';
+import { resolveCoterieSnapbackUrl } from '../src/data/snapback-provider.ts';
+import { installM1Fixtures } from '../snapback/seed-m1.mjs';
 
 const CONTRACT_PATH = new URL(
   '../../../benchmarks/tools/social-messenger/CONTRACT.md',
@@ -116,6 +118,38 @@ function requireLatestRows(deliveries, name) {
   return rows;
 }
 
+function createDeliveryLog(name) {
+  const deliveries = [];
+  const waiters = new Set();
+  return {
+    deliveries,
+    push(rows) {
+      deliveries.push(rows);
+      for (const waiter of [...waiters]) {
+        if (!waiter.predicate(rows)) continue;
+        clearTimeout(waiter.timeout);
+        waiters.delete(waiter);
+        waiter.resolve(rows);
+      }
+    },
+    waitFor(predicate = () => true, timeoutMs = 20_000) {
+      const existing = deliveries.findLast(predicate);
+      if (existing !== undefined) return Promise.resolve(existing);
+      return new Promise((resolveDelivery, rejectDelivery) => {
+        const waiter = {
+          predicate,
+          resolve: resolveDelivery,
+          timeout: setTimeout(() => {
+            waiters.delete(waiter);
+            rejectDelivery(new Error(`timed out waiting for ${name} delivery`));
+          }, timeoutMs),
+        };
+        waiters.add(waiter);
+      });
+    },
+  };
+}
+
 async function runAcceptanceScenario({
   requestedProvider,
   scenario,
@@ -173,16 +207,17 @@ async function runAcceptanceScenario({
 
     const sessionHandle = requireQueryHandle(listSession({}), 'listSession');
     const profileHandle = requireQueryHandle(listProfiles({}), 'listProfiles');
-    const sessionDeliveries = [];
-    const profileDeliveries = [];
+    const sessionLog = createDeliveryLog('listSession');
+    const profileLog = createDeliveryLog('listProfiles');
     disposals.push(
-      sessionHandle.subscribe((rows) => sessionDeliveries.push(rows)),
-      profileHandle.subscribe((rows) => profileDeliveries.push(rows)),
+      sessionHandle.subscribe((rows) => sessionLog.push(rows)),
+      profileHandle.subscribe((rows) => profileLog.push(rows)),
     );
 
     let initialSessionToken = '';
     await runStep('signed-out-precondition', ['sm-settings-logout'], async () => {
-      const initialSessions = requireLatestRows(sessionDeliveries, 'initial listSession');
+      await sessionLog.waitFor();
+      const initialSessions = requireLatestRows(sessionLog.deliveries, 'initial listSession');
       if (initialSessions.length > 1) {
         throw new Error('listSession returned more than one active session at boot');
       }
@@ -204,7 +239,7 @@ async function runAcceptanceScenario({
           throw new Error('precondition logout did not revoke the boot session token');
         }
       }
-      const active = requireLatestRows(sessionDeliveries, 'post-precondition listSession');
+      const active = requireLatestRows(sessionLog.deliveries, 'post-precondition listSession');
       if (active.length !== 0) {
         throw new Error('signed-out precondition did not establish an empty session projection');
       }
@@ -233,7 +268,7 @@ async function runAcceptanceScenario({
         const sessionToken = requireNonEmptyString(value.sessionToken, 'login sessionToken');
         rememberSensitiveValue(sensitiveValues, sessionToken);
         loginSessionToken = sessionToken;
-        const active = requireLatestRows(sessionDeliveries, 'post-login listSession');
+        const active = requireLatestRows(sessionLog.deliveries, 'post-login listSession');
         if (
           userId !== alice.id ||
           active.length !== 1 ||
@@ -257,9 +292,9 @@ async function runAcceptanceScenario({
     );
     requireNonEmptyString(loginSessionToken, 'recorded login sessionToken');
 
-    const editedDisplayName = 'Alice Acceptance Edit';
-    const editedBio = 'Edited by the socket-free Coterie M1 acceptance flow.';
-    const deliveriesBeforeEdit = profileDeliveries.length;
+    const editedDisplayName = `Alice Acceptance Edit ${scenario}`;
+    const editedBio = 'Edited by the Coterie M1 acceptance flow.';
+    const deliveriesBeforeEdit = profileLog.deliveries.length;
     await runStep(
       'profile-edit',
       [
@@ -285,12 +320,12 @@ async function runAcceptanceScenario({
 
     await runStep('profile-edit-observable', ['sm-profile'], async () => {
       const aliceProfile = requireLatestRows(
-        profileDeliveries,
+        profileLog.deliveries,
         'post-edit listProfiles',
       ).find(
         (profile) => profile.id === alice.id,
       );
-      if (profileDeliveries.length <= deliveriesBeforeEdit) {
+      if (profileLog.deliveries.length <= deliveriesBeforeEdit) {
         throw new Error('listProfiles emitted no post-edit invalidation delivery');
       }
       if (
@@ -300,7 +335,7 @@ async function runAcceptanceScenario({
         throw new Error('edited display name and bio were not observable through listProfiles');
       }
       return {
-        deliveryCount: profileDeliveries.length,
+        deliveryCount: profileLog.deliveries.length,
         displayName: aliceProfile.displayName,
         bio: aliceProfile.bio,
       };
@@ -315,7 +350,7 @@ async function runAcceptanceScenario({
       if (value.revokedToken !== loginSessionToken) {
         throw new Error('logout did not revoke the session minted by login');
       }
-      const active = requireLatestRows(sessionDeliveries, 'post-logout listSession');
+      const active = requireLatestRows(sessionLog.deliveries, 'post-logout listSession');
       if (active.length !== 0) {
         throw new Error('logout did not clear the active listSession projection');
       }
@@ -360,7 +395,7 @@ async function main() {
     milestone: 'm1',
     provider: requestedProvider,
     mechanism: 'headless-generated-bindings',
-    socketRequired: false,
+    socketRequired: requestedProvider === 'snapback',
     authorities: {
       testIds: 'benchmarks/tools/social-messenger/CONTRACT.md',
       personas: 'benchmarks/fixtures/social-messenger/personas.json',
@@ -377,14 +412,18 @@ async function main() {
   const sensitiveValues = new Set();
 
   try {
+    if (requestedProvider === 'snapback') {
+      await installM1Fixtures({
+        baseUrl: resolveCoterieSnapbackUrl(),
+        runId: `accept-${Date.now()}`,
+      });
+    }
     const { contractIds, alice } = await loadAuthorities();
     // @ref LLP 0266#d10-acceptance-harness-direction-for-oq2 — one
     // parameterized runner owns every provider lane and its boot-state probes.
     const scenarios = [
       { name: 'provider-boot', injectSignedOut: false },
-      ...(requestedProvider === 'memory'
-        ? [{ name: 'injected-signed-out', injectSignedOut: true }]
-        : []),
+      { name: 'injected-signed-out', injectSignedOut: true },
     ];
     artifact.scenarios = scenarios.map(({ name }) => name);
     for (const scenario of scenarios) {
@@ -418,6 +457,7 @@ async function main() {
     );
     process.stdout.write(
       `${artifact.pass ? 'PASS' : 'FAIL'} Coterie M1 acceptance (${requestedProvider})\n` +
+        `scenarios: ${artifact.scenarios.join(', ')}\n` +
         `steps: ${artifact.steps.filter((step) => step.status === 'passed').length}/${artifact.steps.length}\n` +
         `artifact: ${artifactPath}\n`,
     );

@@ -4,11 +4,11 @@ Coterie is the Exact/Contract sibling benchmark to Clique. It keeps the
 social-messenger workload and stable `sm-*` automation vocabulary while using
 one Contract source tree for web, macOS, and iOS.
 
-The checked-in default is intentionally backendless: the `memory` lane is a
-deterministic process-memory implementation of Coterie's shared
-`ContractDataProvider` surface. This stage-1 shell makes its implemented routes
-and controls runnable without claiming persistence, server authority, offline
-recovery, or multi-client synchronization.
+The checked-in default remains backendless: the `memory` lane is a deterministic
+process-memory implementation of Coterie's shared `ContractDataProvider`
+surface. The optional `snapback` lane now supplies the frozen M1 account,
+session, profile, avatar, and multi-client-live behavior from the application-
+owned backend. Neither lane claims unfinished M2/M3 behavior.
 
 ## Stage-1 surface
 
@@ -31,10 +31,10 @@ and accounts created through its headless `signup` operation.
 
 ## Frozen M1 provider surface
 
-Declaration version 4 freezes the M1 account/session/profile/avatar seam:
+Declaration version 5 freezes the M1 account/session/profile/avatar seam:
 
 - `listSession@2` and `listProfiles@2`
-- `signup@1`, `login@1`, `logout@1`, `editProfile@1`, and `setAvatar@1`
+- `signup@2`, `login@1`, `logout@1`, `editProfile@1`, and `setAvatar@1`
 
 Exact's current declaration core carries compatibility tokens on queries but
 not mutations. The complete set above is therefore recorded in the
@@ -61,8 +61,59 @@ process. Logout moves the current token into an in-process revocation ledger;
 restart resets everything. This is deterministic client/provider evidence,
 not durable or server-authoritative auth evidence.
 
-The implementation sets both `Error.name` and the declaration's stable `code`
-before throwing. Exact's current mutation `SerializedError` envelope preserves
+The Snapback adapter implements the same M1 token set without changing the
+declaration or its `df0562a779095d79` digest. Password signup/sign-in/logout use
+Snapback's built-in password provider and `AuthCoordinator`; the session query
+projects coordinator principal changes, while profiles use the generated
+`getMyProfile`, `ensureMyProfile`, `editProfile`, and streaming `listProfiles`
+references. Avatar changes upload through `createAssetClient` and attach with
+the generated `attachMyAvatar` mutation. Every profile stream explicitly uses
+Snapback's stream transport with polling fallback disabled. Connection-only
+cells publish socket loss and recovery without counting as profile-data
+revisions.
+
+This adapter claims **M1 only**. Calls to M2/M3 queries or mutations return a
+`SnapbackMilestoneUnsupportedError` whose message names the operation and LLP
+0266 D7; they never synthesize rows or acknowledge a fake mutation. Snapback's
+error translation is an exact allow-list; prefix families are deliberately not
+used:
+
+| Operation | Exact Snapback diagnostic | Coterie error |
+| --- | --- | --- |
+| `signup` | `SNAPBACK_AUTH_PASSWORD_EXISTS` | `DuplicateEmailError` |
+| `signup` | `SNAPBACK_AUTH_PASSWORD_POLICY` | `PasswordTooShortError` |
+| `signup` | application `DUPLICATE_HANDLE` before password issuance | `DuplicateHandleError` |
+| `signup` | application `DUPLICATE_HANDLE` after password issuance | `PartialRegistrationError` |
+| `login` | `SNAPBACK_AUTH_CREDENTIAL_INVALID` (or locally malformed login input) | `InvalidCredentialsError` |
+| `editProfile`, `setAvatar` | `SNAPBACK_AUTH_SESSION_EXPIRED`, `SNAPBACK_AUTH_SESSION_REVOKED` | `SessionRequiredError` |
+| `setAvatar` | `SNAPBACK_ASSET_MEDIA_TYPE_UNSUPPORTED`, `SNAPBACK_ASSET_MEDIA_BOUNDS_EXCEEDED` | `AvatarReferenceInvalidError` |
+
+Local avatar URL/fetch/body-read/signature failures also use
+`AvatarReferenceInvalidError`. `PROFILE_NOT_OWNED` and every unlisted backend
+diagnostic surface as `SnapbackProviderError`; provider faults never
+masquerade as bad credentials, a missing session, or a bad avatar reference.
+
+Snapback cannot atomically combine password issuance with the application
+profile write. If a handle race lands between those writes, the adapter clears
+the adopted local bearer and returns `PartialRegistrationError`, explicitly
+stating that the email is registered but the profile is incomplete. Recovery
+is: log in with that email, then call `signup` again with the same email and a
+new handle; under that authenticated incomplete-profile state, `signup`
+performs only the owner-scoped profile completion and returns the existing
+user/session identity.
+
+Avatar bytes are read inside the guarded fetch phase and signature-sniffed as
+PNG, JPEG, or WebP before upload. The adapter retains a bounded, owner-plus-
+digest map of finalized assets so an attach-refusal retry reuses the same asset
+instead of uploading it again. Finalization and profile attachment are not one
+transaction: a failed attachment, or later replacement, can leave a ready
+asset unreferenced. Coterie does not opt this backend into reference GC or
+claim cleanup of that residue; the runtime error names the retained retry fact,
+and backend GC policy remains out of scope for this lane.
+
+The memory implementation sets both `Error.name` and the declaration's stable
+`code` before throwing. Exact's current mutation `SerializedError` envelope
+preserves
 only `name`, `message`, and `stack`, however, so the generated error union's
 typed `code` field is not populated at runtime yet. Callers must match `name`
 until the Exact envelope gap tracked in
@@ -72,7 +123,7 @@ is fixed.
 ## Run it
 
 ```bash
-bun install
+bun install --frozen-lockfile
 bun run dev
 ```
 
@@ -80,12 +131,43 @@ Web provider selection uses the exact boot variable from LLP 0266 D8:
 
 ```bash
 COTERIE_PROVIDER=memory bun run dev       # default when omitted
-COTERIE_PROVIDER=snapback bun run dev     # currently fails loudly at boot
+COTERIE_PROVIDER=snapback bun run dev     # requires COTERIE_SNAPBACK_URL
 ```
 
 Unknown values name the valid registry entries and fail before the router
 mounts. Vite exposes the public `COTERIE_*` prefix to `import.meta.env`; no
 provider value reaches a route, `.contract` component, or generated binding.
+`COTERIE_SNAPBACK_CUSTODY` accepts `auto` (the default), `indexeddb`, or
+`memory`. `auto` uses IndexedDB in a browser and process memory in a headless
+run. `COTERIE_SNAPBACK_CUSTODY_PARTITION` optionally chooses the browser
+custody partition. Missing or malformed Snapback server configuration fails at
+provider construction; it never falls back to memory.
+
+To run the Snapback lane end to end, start from the repository root. The dev
+command generates the backend, starts a sessions-mode server on an assigned
+port, and prints its `serverUrl`; stop it with `q` or Ctrl-C:
+
+```bash
+SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback \
+  node packages/snapback-cli/cli.mjs dev demos/coterie/snapback \
+  --ready-file demos/coterie/.data/snapback/dev.ready.json \
+  --application-ready-file demos/coterie/.data/snapback/application-ready.json \
+  --db demos/coterie/.data/snapback/dev.sqlite3 --json
+```
+
+In another terminal, use the printed URL. The seed command is idempotent and
+installs the eight shared personas plus their avatar assets. The acceptance
+runner invokes that same installer itself, so the explicit seed is needed for
+interactive development but does not have to precede acceptance:
+
+```bash
+export COTERIE_SNAPBACK_URL=http://127.0.0.1:<printed-port>
+node demos/coterie/snapback/seed-m1.mjs --url "$COTERIE_SNAPBACK_URL"
+
+cd demos/coterie
+COTERIE_PROVIDER=snapback bun run dev
+COTERIE_PROVIDER=snapback bun run accept:coterie
+```
 
 Native hosts use the same source:
 
@@ -98,9 +180,9 @@ exact run ios --device
 The current native module pipeline has no documented app-environment
 projection. `src/main.native.tsx` therefore uses the build-time
 `NATIVE_COTERIE_PROVIDER` constant, currently `memory`. A native Snapback run
-must change that build-time constant (or replace it with a future documented
-runtime-config projection); the provider factory and generated bindings stay
-unchanged.
+also needs a paved host projection for the server URL and custody config; this
+lane proves web and headless Snapback, not native Snapback. The provider factory
+and generated bindings do not need to change when that host projection lands.
 
 The iOS simulator path is proven for this baseline. The currently discovered
 prebuilt macOS host displayed its embedded Caltrain bundle instead of the
@@ -117,6 +199,8 @@ not on `PATH`.
 ```bash
 bun run verify:coterie
 bun run accept:coterie
+SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback \
+  bun run test:snapback-provider
 ```
 
 That checks generated-provider freshness, TypeScript (including the native
@@ -124,26 +208,43 @@ entry), provider conformance and invalidation tests, platform splits, and the
 production web bundle. Native runtime evidence is the separate recorded iOS
 simulator run; this command does not perform a native production build.
 
-`accept:coterie` is the socket-free M1 skeleton. It boots the selected provider
+`accept:coterie` is the parameterized M1 runner. It boots the selected provider
 through the same generated bindings as the app, loads Alice from the shared
 persona fixture, validates every step's `sm-*` selector against the shared
 `benchmarks/tools/social-messenger/CONTRACT.md` authority, and accepts either a
 boot session that it revokes or an already-empty session list as the same
-signed-out precondition. The memory lane runs both paths. It then proves login
+signed-out precondition. It then proves login
 returns and delivers a new session token, runs profile edit → observable
 generated-query invalidation, and proves logout revokes that exact new token.
 Tokens stay local to the runner for comparison; the JSON artifact records only
 boolean token receipts, and a partial failure triggers best-effort session
-revocation before provider disposal. The runner reuses the shared choreography
-aggregator and writes the artifact under the ignored `.data/acceptance/`
-directory, printing the absolute path. This is headless provider/binding
-acceptance; it does not claim a mounted Contract semantic tree, two browser
-contexts, or native host evidence.
+revocation before provider disposal. Both providers run the `provider-boot`
+and `injected-signed-out` scenarios. The Snapback lane requires its configured
+server and streaming socket; it installs fixtures through `seed-m1.mjs` before
+the scenarios. The runner reuses the shared choreography aggregator and writes
+the artifact under the ignored `.data/acceptance/` directory, printing the
+absolute path. This is headless provider/binding acceptance; it does not claim
+a mounted Contract semantic tree, two browser contexts, or native host
+evidence.
+
+`test:snapback-provider` starts and tears down an isolated Snapback server and
+runs Exact provider conformance scoped to M1 `listProfiles@2` plus
+`editProfile@1`. Its adapter-specific probes cover: two-client pushed profile
+edits; fixture and non-fixture identity joins; malformed-login and exact
+password-byte round trips; exact and unknown diagnostic mapping; post-adoption
+login/signup rollback; logout transport failure and post-revocation response
+loss; a forced duplicate-handle interleaving plus incomplete-profile recovery;
+avatar byte sniffing, truncated bodies, attach refusal, and digest reuse; slow
+profile-stream failure; M2/M3 refusals; and stream disconnect/recovery cells
+with polling disabled. A paved two-browser-context Coterie harness does not
+exist yet, so that stronger LLP 0266 D10 evidence remains outside this lane.
 
 Select the provider the same way as web boot:
 
 ```bash
 COTERIE_PROVIDER=memory bun run accept:coterie
+COTERIE_PROVIDER=snapback COTERIE_SNAPBACK_URL=http://127.0.0.1:<port> \
+  bun run accept:coterie
 ```
 
 `bun run typecheck` also checks the linked Exact source graph. If it reports an
@@ -161,7 +262,7 @@ The data path is:
   -> selected ContractDataProvider
 ```
 
-To add Snapback or another backend:
+To add another backend:
 
 1. Implement `ContractDataProvider` against `src/data/coterie.provider.json`,
    preferably with Exact's paved row-level boundary, and expose the generated

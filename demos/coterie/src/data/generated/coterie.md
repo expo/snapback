@@ -1,6 +1,6 @@
 # coterie data provider
 
-Generated reference (declaration `4`, inputsHash `e55f0d450e11b583`, generatedAt: DETERMINISTIC).
+Generated reference (declaration `5`, inputsHash `df0562a779095d79`, generatedAt: DETERMINISTIC).
 
 ## Capabilities
 
@@ -171,5 +171,5 @@ Generated reference (declaration `4`, inputsHash `e55f0d450e11b583`, generatedAt
 
 - `coterie.fixtureClock`: `"2026-01-01T00:01:30Z"`
 - `coterie.fixtureProfile`: `"social-messenger-starter-pack"`
-- `coterie.m1CompatibilityTokens`: `{"editProfile":"1","listProfiles":"2","listSession":"2","login":"1","logout":"1","setAvatar":"1","signup":"1"}`
+- `coterie.m1CompatibilityTokens`: `{"editProfile":"1","listProfiles":"2","listSession":"2","login":"1","logout":"1","setAvatar":"1","signup":"2"}`
 - `coterie.surface`: `"shared Contract binding surface; provider lanes implement this declaration and report additional capabilities separately"`

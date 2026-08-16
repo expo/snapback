@@ -48,15 +48,21 @@ function expectMutationError(
 }
 
 describe('Coterie backendless provider', () => {
-  it('selects memory by default and fails loudly for unfinished or unknown providers', () => {
+  it('selects memory by default and fails loudly for unknown or unconfigured providers', () => {
     expect(resolveCoterieProviderName(undefined)).toBe('memory');
     expect(resolveCoterieProviderName('memory')).toBe('memory');
     expect(() => resolveCoterieProviderName('other')).toThrow(
       'Unknown COTERIE_PROVIDER "other"; valid values: memory, snapback',
     );
-    expect(() => coterieProviderRegistry.snapback()).toThrow(
-      'snapback provider not yet wired; see LLP 0266 D9',
-    );
+    const configuredUrl = process.env.COTERIE_SNAPBACK_URL;
+    delete process.env.COTERIE_SNAPBACK_URL;
+    try {
+      expect(() => coterieProviderRegistry.snapback()).toThrow(
+        'COTERIE_PROVIDER=snapback requires COTERIE_SNAPBACK_URL',
+      );
+    } finally {
+      if (configuredUrl !== undefined) process.env.COTERIE_SNAPBACK_URL = configuredUrl;
+    }
   });
 
   it('passes the Exact provider conformance surface it claims', async () => {

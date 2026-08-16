@@ -1,5 +1,5 @@
 // GENERATED provider/binding contract-meta — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie" 4 (inputsHash e55f0d450e11b583).
+// Source authority: provider-native declaration "coterie" 5 (inputsHash df0562a779095d79).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 import { defineContractModule, mutation, query, shape } from '@exact/contract/exports';
 

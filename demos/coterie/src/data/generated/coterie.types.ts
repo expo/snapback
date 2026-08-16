@@ -1,5 +1,5 @@
 // GENERATED types — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie" 4 (inputsHash e55f0d450e11b583).
+// Source authority: provider-native declaration "coterie" 5 (inputsHash df0562a779095d79).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
@@ -330,10 +330,15 @@ export interface SignupHandleInvalidError {
   code: 'handle_invalid';
   message: string;
 }
+export interface SignupPartialRegistrationError {
+  name: 'PartialRegistrationError';
+  code: 'partial_registration';
+  message: string;
+}
 export interface SignupPasswordTooShortError {
   name: 'PasswordTooShortError';
   code: 'password_too_short';
   message: string;
 }
-export type SignupError = SignupDisplayNameInvalidError | SignupDuplicateEmailError | SignupDuplicateHandleError | SignupEmailInvalidError | SignupHandleInvalidError | SignupPasswordTooShortError;
+export type SignupError = SignupDisplayNameInvalidError | SignupDuplicateEmailError | SignupDuplicateHandleError | SignupEmailInvalidError | SignupHandleInvalidError | SignupPartialRegistrationError | SignupPasswordTooShortError;
 export type SignupReceiptsPosture = 'none';

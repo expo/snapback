@@ -1,5 +1,5 @@
 // GENERATED binding module — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie" 4 (inputsHash e55f0d450e11b583).
+// Source authority: provider-native declaration "coterie" 5 (inputsHash df0562a779095d79).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 
 import { createProviderLinks, type ContractDataProvider } from '@exact/contract/runtime';
@@ -332,12 +332,17 @@ export interface SignupHandleInvalidError {
   code: 'handle_invalid';
   message: string;
 }
+export interface SignupPartialRegistrationError {
+  name: 'PartialRegistrationError';
+  code: 'partial_registration';
+  message: string;
+}
 export interface SignupPasswordTooShortError {
   name: 'PasswordTooShortError';
   code: 'password_too_short';
   message: string;
 }
-export type SignupError = SignupDisplayNameInvalidError | SignupDuplicateEmailError | SignupDuplicateHandleError | SignupEmailInvalidError | SignupHandleInvalidError | SignupPasswordTooShortError;
+export type SignupError = SignupDisplayNameInvalidError | SignupDuplicateEmailError | SignupDuplicateHandleError | SignupEmailInvalidError | SignupHandleInvalidError | SignupPartialRegistrationError | SignupPasswordTooShortError;
 export type SignupReceiptsPosture = 'none';
 
 export interface GeneratedQueryBinding {
@@ -601,9 +606,9 @@ export const signup = (() => {
 
 export const bindings = {
   provider: 'coterie',
-  declarationVersion: '4',
+  declarationVersion: '5',
   /** Declaration digest as a runtime value (LLP 0391 §4.2 — the fail-closed configure handshake input). */
-  inputsHash: 'e55f0d450e11b583',
+  inputsHash: 'df0562a779095d79',
   queries: { listChats, listFeed, listInsights, listMessages, listProfiles, listSession, searchSocial },
   mutations: { createPost, editProfile, login, logout, sendMessage, setAvatar, setChatAccent, setDisappearing, setFollow, setLike, signup },
 } as const;

@@ -252,3 +252,120 @@ observations, distinct from the Contract client work:
   `PROFILE_NOT_OWNED` refusals all came out of dual review against
   `benchmarks/briefs/social-messenger.md` rather than the first build pass —
   the brief is the contract, and validation written from taste drifts.
+
+## 2026-08-16 — Snapback `ContractDataProvider` adapter (M1)
+
+Connecting the landed M1 backend to the landed Exact seam preserved the most
+important architectural promise: none of Coterie's `.contract` routes changed.
+The adapter exposes the existing provider-neutral manifest byte for byte, and
+the same generated `configureFromProvider` digest handshake that configures the
+memory implementation configures Snapback. A deliberately wrong manifest still
+fails closed. Backend selection therefore remained one factory concern rather
+than leaking into a route or generated link.
+
+The Snapback client pieces composed cleanly once their ownership was clear.
+`AuthCoordinator` supplied durable browser custody and an observable current
+principal; that became the `listSession` projection without inventing an app
+session table. The generated `listProfiles` reference supplied an initial
+snapshot and stream updates with polling fallback explicitly disabled.
+`createAssetClient().upload` plus `attachMyAvatar` kept byte transfer, admission,
+and profile attachment inside Snapback. The existing `seed-m1.mjs` installer
+could be called unchanged before acceptance, so the adapter did not grow a
+second interpretation of Alice-through-Henry fixtures.
+
+The two-client proof was the satisfying part. Two independent adapters logged
+in against one ephemeral server; B established `listProfiles`, A edited Alice,
+and B received the new display name without a refresh, mutation, or timer on B.
+That is Coterie's first real multi-client evidence. It is headless evidence,
+not the two-browser-context bar in LLP 0266 D10: there is no paved Coterie
+browser-context harness in this lane, and I did not manufacture one around the
+provider test.
+
+Milestone honesty needed an explicit layer because Exact's one shared
+declaration already includes M2/M3 operations. The adapter carries an M1
+qualification constant and operation set; every later operation returns a
+named `SnapbackMilestoneUnsupportedError` that cites LLP 0266 D7. This is more
+verbose than returning empty feed/chat arrays, but it prevents a successful M1
+binding handshake from becoming an accidental full-surface claim. Exact's
+generic conformance suite validated the complete shared manifest and all
+declared capability facts, then exercised `listProfiles@2` and
+`editProfile@1`: 128 checks passed and 37 optional-capability checks skipped.
+The remaining M1 auth/avatar/error behaviors have adapter-specific tests; the
+operation scope is reported rather than described as whole-declaration
+behavioral conformance.
+
+Error translation was an Exact/Snapback boundary tax. Snapback correctly keeps
+stable `SNAPBACK_AUTH_*` diagnostics and application refusals such as
+`DUPLICATE_HANDLE` and `PROFILE_NOT_OWNED`, but the foreign declaration names
+`InvalidCredentialsError`, `DuplicateHandleError`, and
+`SessionRequiredError`. The first adapter pass mapped those before returning a
+mutation result; the dual-review entry below records why broad family and
+`PROFILE_NOT_OWNED` mapping was too optimistic and how the allow-list changed.
+Exact still serializes only name/message/stack, so tests and callers must branch
+by name; the existing Exact envelope ticket remains the right follow-up rather
+than a private Coterie code field.
+
+The principal rough edge was documentation assembly. The Guide has good
+separate pages for generated headless references, live queries, auth custody,
+assets, and Snapback-generated Contract adapters. It does not teach the inverse
+case where a provider-neutral Exact declaration is already frozen and Snapback
+must implement it by hand, preserve its foreign digest, state a milestone
+subset, and translate errors. That gap is now explicit in
+`issues/20260816-guide-gap-provider-neutral-contract-adapter.md`. A smaller
+TypeScript friction also appeared: the generated `api.mjs` and adjacent
+`api.d.ts` are correctly paired for consumers, but this app's bundler resolver
+did not infer the declaration for the relative `.mjs` import, so the adapter
+needed a narrow typed bridge to `GeneratedApi`.
+
+Compared with direct React plus Convex or Supabase hooks, the adapter is more
+ceremonial: there is a foreign declaration, a Snapback generated API, a mapping
+layer, and a scoped conformance report. In return, the ceremony made the seam
+auditable. Session custody, stream selection, server authorization, asset
+admission, and error translation are centralized, while the UI stays portable
+and the unsupported future surface cannot look successful. The Snapback path
+also avoided the application-owned auth/session schema and storage plumbing I
+would expect in a generic Supabase adapter. The cost is worthwhile here because
+provider interchangeability is the benchmark subject, not incidental
+abstraction.
+
+## 2026-08-16 — Lane C dual-review fault cuts
+
+The adversarial auth cuts changed my view of the adapter from “translation
+layer” to “custody owner.” Snapback's client correctly keeps logout's remote
+response and captured local authority separate, but the adapter had observed
+only the happy return. Making local sign-out a `finally`-style terminal path,
+while still returning an error when the remote revocation outcome is unknown,
+produced the honest composition. The same capture-scoped clear was necessary
+after login/signup adopted a bearer but the adapter's later projection failed.
+This is more state-machine work than a direct React hook normally exposes, but
+it keeps Exact subscribers from retaining a session that the mutation reported
+as failed.
+
+The forced handle race exposed a real cross-system transaction boundary:
+Snapback password issuance and the application profile mutation cannot be one
+atomic write. Treating the late duplicate as an ordinary
+`DuplicateHandleError` bricked the email. Coterie now declares a distinct
+`PartialRegistrationError`, clears local custody, and lets a successful login
+enter a narrowly recognized incomplete-profile state whose next signup call
+completes only the profile with a new handle. That compensation is more
+ceremony than a single-database auth/profile transaction, but it is explicit,
+tested with two adapters paused after issuance, and does not pretend rollback
+of the durable password identity.
+
+Assets had the analogous split boundary. Trusted finalization precedes the app
+mutation that attaches the asset, so an attach refusal can leave a ready asset.
+The adapter now sniffs PNG/JPEG/WebP bytes before upload and retains a bounded
+owner/digest mapping so immediate retries reuse the finalized asset. It does
+not claim cleanup: Coterie has not opted into backend reference GC, and the
+README and provider error both say that unreferenced residue can remain. The
+Snapback asset guide's explicit “post-finalize mutation failure can retain
+residue” wording was the useful fact; without it, an adapter could easily imply
+transactionality the backend does not offer.
+
+Finally, connection state had to become a first-class Exact cell. Updating an
+internal field left the last subscriber cell claiming `live` through socket
+loss. Publishing the same projected rows with `stale`/`disconnected` and later
+`live`, without advancing the profile revision used by mutation delivery,
+keeps transport truth observable without turning reconnection into a fake data
+change. The restart test uses the same port and durable database with polling
+disabled, so recovery is stream evidence rather than an eventual refetch.

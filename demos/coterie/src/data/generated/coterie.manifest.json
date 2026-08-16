@@ -10,7 +10,7 @@
     "serverRunnableQueries": false,
     "subscriptions": true
   },
-  "inputsHash": "e55f0d450e11b583",
+  "inputsHash": "df0562a779095d79",
   "manifestVersion": 2,
   "mutations": {
     "createPost": {

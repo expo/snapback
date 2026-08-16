@@ -1,7 +1,7 @@
 {
   "schemaVersion": "provider-declaration.v1",
   "provider": "coterie",
-  "declarationVersion": "4",
+  "declarationVersion": "5",
   "capabilities": {
     "push": true,
     "pollingCadenceMs": null,
@@ -253,6 +253,7 @@
         { "name": "DuplicateHandleError", "code": "duplicate_handle", "message": "An account already uses that handle." },
         { "name": "EmailInvalidError", "code": "email_invalid", "message": "Enter a valid email address." },
         { "name": "HandleInvalidError", "code": "handle_invalid", "message": "Handle must be 3-20 lowercase letters, numbers, or underscores." },
+        { "name": "PartialRegistrationError", "code": "partial_registration", "message": "The email is registered, but its profile is incomplete. Sign in and complete signup with a new handle." },
         { "name": "PasswordTooShortError", "code": "password_too_short", "message": "Password must contain at least 8 characters." }
       ],
       "result": {
@@ -443,7 +444,7 @@
     "coterie.m1CompatibilityTokens": {
       "listSession": "2",
       "listProfiles": "2",
-      "signup": "1",
+      "signup": "2",
       "login": "1",
       "logout": "1",
       "editProfile": "1",
