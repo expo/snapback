@@ -1055,6 +1055,42 @@ export const publicEvents = defineLiveQuery({
     );
   }
 
+  for (const [label, resultContract, resultKind] of [
+    ['document', "results.document('eventNotes')", 'document'],
+    ['value', 'results.value(v.object({ body: v.string() }))', 'value'],
+    [
+      'nonempty records',
+      'results.records(v.object({ body: v.string() }), { minItems: 1, maxItems: 1 })',
+      'records',
+    ],
+  ]) {
+    const { result } = await run(`
+import { eventMembers } from './schema.mjs';
+import {
+  defineJsLiveQuery,
+  membershipResource,
+  results,
+  v,
+} from '${defineUrl}';
+
+export const incompatibleDeniedResult = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: { eventId: v.id('events') },
+  reads: ['eventNotes'],
+  result: ${resultContract},
+  membership: [eventMembers.hasRole(membershipResource.arg('eventId'), 'member')],
+  handler: async () => [],
+});
+`, authorityProfileSchema());
+    assert.equal(result.ok, false, `${label} membership result unexpectedly generated`);
+    const diagnostic = result.diagnostics.find(({ code }) => (
+      code === 'SNAPBACK_AUTHORITY_PROFILE_QUERY_DENIAL_RESULT_INCOMPATIBLE'
+    ));
+    assert(diagnostic, JSON.stringify(result.diagnostics));
+    assert.equal(diagnostic.details?.resultKind, resultKind);
+    assert.match(diagnostic.details?.repair ?? '', /row-set result/u);
+  }
+
   // LLP 0240 rollout 2 / LLP 0236 OQ9: the same Clique-shaped declaration is
   // available in the Familiar profile. The app writes no imperative role
   // guard; generated read/write preludes and the roster namespace carry it.

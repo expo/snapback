@@ -2025,10 +2025,12 @@ export const messages = defineJsLiveQuery({
 
 Codegen closes `member` through the profile hierarchy, adds the membership
 table to the captured read set, and emits the role check before the opaque
-handler. A denied query or live query returns `[]`; a denied mutation is a
-terminal `SNAPBACK_AUTH_PERMISSION_DENIED` and cannot be caught by handler
-code. Multiple predicates are an AND. Authored handlers therefore do not call
-`requireRole` for this direct-argument group pattern.
+handler. A denied row-set query or live query returns `[]`; codegen refuses
+scalar/document results and `results.records(...)` contracts whose `minItems`
+is greater than zero because those shapes cannot represent a blank denial. A
+denied mutation is a terminal `SNAPBACK_AUTH_PERMISSION_DENIED` and cannot be
+caught by handler code. Multiple predicates are an AND. Authored handlers
+therefore do not call `requireRole` for this direct-argument group pattern.
 
 The predicate must name an `authorityProfile()`, must use
 `membershipResource.arg(...)` with the declaration's exact resource-id type,

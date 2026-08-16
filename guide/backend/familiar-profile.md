@@ -206,7 +206,9 @@ export const messages = query({
 ```
 
 Codegen places the captured role check before the handler, blanks a denied
-read, and terminally denies a mutation. It also generates the bounded
+row-set read, and terminally denies a mutation. Read admission requires a
+row-set result contract that accepts `[]`; scalar/document results and
+nonempty bounded record results fail generation. It also generates the bounded
 `api.<profile>.list` and caller-scoped `api.<profile>.myRole` references. The
 authored handler contains no repeated permission guard.
 

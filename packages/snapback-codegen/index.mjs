@@ -3768,6 +3768,27 @@ async function generateInProcessLocked({
 
   const compileHandlerMembershipAdmission = (def, name) => {
     const compiled = [];
+    if ((def.membership?.length ?? 0) > 0 && def.__kind !== 'Mutation') {
+      const contract = def.resultContract;
+      const admitsEmptyRows = contract === undefined
+        || contract.kind === 'documents'
+        || (contract.kind === 'records' && (contract.rows?.minItems ?? 0) === 0);
+      if (!admitsEmptyRows) {
+        err(
+          'SNAPBACK_AUTHORITY_PROFILE_QUERY_DENIAL_RESULT_INCOMPATIBLE',
+          'function',
+          `${name}: membership admission blanks denied reads with [], but the declared ${contract.kind} result cannot represent an empty row set`,
+          {
+            function: name,
+            details: {
+              resultKind: contract.kind,
+              repair: 'Declare a row-set result with results.documents(...), results.records(...) with minItems 0, or the legacy row validator; otherwise move the terminal denial into the handler under a separately designed result contract.',
+            },
+          },
+        );
+        return compiled;
+      }
+    }
     for (const predicate of def.membership ?? []) {
       if (!predicate || predicate.__membershipPredicate !== true) {
         err('QUERY_MEMBERSHIP_INVALID', 'function', `${name}: membership predicate must come from a declaration-bound helper`, { function: name });

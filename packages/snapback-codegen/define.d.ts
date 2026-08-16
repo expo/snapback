@@ -440,7 +440,8 @@ interface JsQuerySpecBase extends QueryAuthOptions {
   authorizationDependence?: AuthorizationInputDimension[];
   defaultLive?: boolean;
   /** Authority-profile predicates compiled ahead of the opaque handler.
-   * Reads blank on denial; mutations use the same rule as a terminal gate. */
+   * Row-set reads blank on denial; mutations use the same rule as a terminal
+   * gate. Scalar/document and nonempty row-set read results are refused. */
   membership?: MembershipPredicate[];
 }
 export type JsQuerySpec = JsQuerySpecBase & (
