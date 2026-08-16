@@ -630,7 +630,10 @@ fn single_holder_live_memo_fixture(
         entry.holders,
         BTreeSet::from([subscription.subscription_id.clone()])
     );
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
     (snapback, subscription.subscription_id)
 }
 
@@ -717,7 +720,10 @@ fn live_evaluation_memo_same_key_executes_again_in_a_later_drain_cycle() {
 
     queue_and_flush_live_memo_refresh(&mut snapback);
     let first_cycle = snapback.pending_live_fanout.drain_cycle;
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
     let before = snapback.live_evaluation_stats.clone();
 
     // No commit or other invalidation separates these refreshes. The second
@@ -739,7 +745,10 @@ fn live_evaluation_memo_same_key_executes_again_in_a_later_drain_cycle() {
         1,
         "sharing remains available within the later drain cycle"
     );
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
     assert!(
         snapback
             .pending_live_fanout
@@ -820,11 +829,7 @@ fn live_evaluation_memo_ctx_ledger_refuses_lookup_and_population() {
     let mut snapback = live_limit_snapback();
     install_live_memo_scheduler(&mut snapback);
     for (index, now) in [100_u64, 200_u64].into_iter().enumerate() {
-        let mut input = live_memo_input(
-            &format!("memo-ledger-{index}"),
-            json!({}),
-            "principal-a",
-        );
+        let mut input = live_memo_input(&format!("memo-ledger-{index}"), json!({}), "principal-a");
         input.input.ctx_ledger = Some(CtxAnswerLedger {
             version: ctx_ledger_version(),
             ids: Vec::new(),
@@ -853,10 +858,7 @@ fn live_evaluation_memo_ctx_ledger_refuses_lookup_and_population() {
     );
     assert_eq!(snapback.pending_live_fanout.evaluation_memo.keys_built, 0);
     assert_eq!(
-        snapback
-            .pending_live_fanout
-            .evaluation_memo
-            .result_clones,
+        snapback.pending_live_fanout.evaluation_memo.result_clones,
         0
     );
     assert!(
@@ -904,7 +906,10 @@ fn live_evaluation_memo_prepared_authority_projection_isolates_roles() {
         .values()
         .map(|subscription| subscription.input.auth.clone())
         .collect::<Vec<_>>();
-    assert_eq!(stored_auth[0], stored_auth[1], "AuthInput is intentionally identical");
+    assert_eq!(
+        stored_auth[0], stored_auth[1],
+        "AuthInput is intentionally identical"
+    );
     let before = snapback.live_evaluation_stats.clone();
 
     queue_and_flush_live_memo_refresh(&mut snapback);
@@ -922,7 +927,10 @@ fn live_evaluation_memo_prepared_authority_projection_isolates_roles() {
         0,
         "different handler-visible role projections cannot share"
     );
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 2);
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        2
+    );
 }
 
 #[test]
@@ -966,9 +974,7 @@ fn live_evaluation_memo_prepared_authority_instance_identity_isolates_sharing() 
                 LiveSubscribeInput {
                     connection_id: connection_id.to_owned(),
                     input: HandlerInput::default(),
-                    authorization_namespace: Some(test_authorization_namespace(
-                        namespace_instance,
-                    )),
+                    authorization_namespace: Some(test_authorization_namespace(namespace_instance)),
                     supersedes: None,
                     resume_from_token: None,
                 },
@@ -995,8 +1001,14 @@ fn live_evaluation_memo_prepared_authority_instance_identity_isolates_sharing() 
         snapback.live_evaluation_stats.memo_misses - before.memo_misses,
         2
     );
-    assert_eq!(snapback.live_evaluation_stats.memo_hits - before.memo_hits, 0);
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 2);
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        2
+    );
 }
 
 #[test]
@@ -1045,8 +1057,14 @@ fn live_evaluation_memo_app_generation_bump_isolates_same_cycle_turns() {
         snapback.live_evaluation_stats.memo_misses - before.memo_misses,
         2
     );
-    assert_eq!(snapback.live_evaluation_stats.memo_hits - before.memo_hits, 0);
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 2);
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        2
+    );
 }
 
 #[test]
@@ -1066,7 +1084,10 @@ fn live_evaluation_memo_unsubscribe_supersession_and_disconnect_retire_entries()
         )
         .expect("subscribe second lifecycle observer");
     queue_and_flush_live_memo_refresh(&mut snapback);
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
 
     snapback
         .unsubscribe_live(
@@ -1081,7 +1102,13 @@ fn live_evaluation_memo_unsubscribe_supersession_and_disconnect_retire_entries()
             },
         )
         .expect("unsubscribe retires shared holder entry");
-    assert!(snapback.pending_live_fanout.evaluation_memo.entries.is_empty());
+    assert!(
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .entries
+            .is_empty()
+    );
 
     let before = snapback.live_evaluation_stats.clone();
     queue_and_flush_live_memo_refresh(&mut snapback);
@@ -1101,16 +1128,31 @@ fn live_evaluation_memo_unsubscribe_supersession_and_disconnect_retire_entries()
         .subscribe_live("listItems", replacement)
         .expect("supersede lifecycle observer");
     assert!(
-        snapback.pending_live_fanout.evaluation_memo.entries.is_empty(),
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .entries
+            .is_empty(),
         "supersession retires the predecessor holder entry"
     );
 
     queue_and_flush_live_memo_refresh(&mut snapback);
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
-    assert!(snapback.subscriptions.contains_key(&replacement.subscription_id));
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
+    assert!(
+        snapback
+            .subscriptions
+            .contains_key(&replacement.subscription_id)
+    );
     snapback.disconnect("memo-life-b", now_millis());
     assert!(
-        snapback.pending_live_fanout.evaluation_memo.entries.is_empty(),
+        snapback
+            .pending_live_fanout
+            .evaluation_memo
+            .entries
+            .is_empty(),
         "connection teardown retires every dropped subscription entry"
     );
 }
@@ -1159,11 +1201,7 @@ fn live_evaluation_memo_remaining_terminal_paths_retire_holder_entries() {
         single_holder_live_memo_fixture("memo-effect-purge", Some(effect_fence.clone()));
     purge.purge_connection_effects("memo-effect-purge", &effect_fence);
     assert!(
-        purge
-            .pending_live_fanout
-            .evaluation_memo
-            .entries
-            .is_empty(),
+        purge.pending_live_fanout.evaluation_memo.entries.is_empty(),
         "effect-fenced purge retires memo holder entries"
     );
 
@@ -1215,10 +1253,7 @@ fn live_evaluation_memo_superseded_abandoned_turn_cannot_seed_a_later_frame() {
     let superseded_control = Arc::new(crate::live_coalesce::LiveEvaluationControl::default());
     assert!(superseded_control.abandon());
 
-    assert!(snapback.run_pending_live_subscription(
-        &subscription_ids[0],
-        superseded_control,
-    ));
+    assert!(snapback.run_pending_live_subscription(&subscription_ids[0], superseded_control,));
     assert!(
         snapback
             .pending_live_fanout
@@ -1240,8 +1275,14 @@ fn live_evaluation_memo_superseded_abandoned_turn_cannot_seed_a_later_frame() {
         snapback.live_evaluation_stats.memo_misses - before.memo_misses,
         2
     );
-    assert_eq!(snapback.live_evaluation_stats.memo_hits - before.memo_hits, 0);
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
 }
 
 #[test]
@@ -1249,10 +1290,7 @@ fn live_evaluation_memo_delta_lane_neither_consults_nor_populates() {
     let mut snapback = rqs_snapback();
     install_live_memo_scheduler(&mut snapback);
     snapback
-        .subscribe_live(
-            "listPublicTodos",
-            rqs_subscribe_input("memo-delta", None),
-        )
+        .subscribe_live("listPublicTodos", rqs_subscribe_input("memo-delta", None))
         .expect("subscribe DK-3-eligible observer");
     let before = snapback.live_evaluation_stats.clone();
 
@@ -1273,17 +1311,26 @@ fn live_evaluation_memo_delta_lane_neither_consults_nor_populates() {
         snapback.live_evaluation_stats.evaluations_executed - before.evaluations_executed,
         0
     );
-    assert_eq!(snapback.live_evaluation_stats.memo_hits - before.memo_hits, 0);
-    assert_eq!(snapback.live_evaluation_stats.memo_misses - before.memo_misses, 0);
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_misses - before.memo_misses,
+        0
+    );
     assert_eq!(snapback.pending_live_fanout.evaluation_memo.keys_built, 0);
     assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.result_clones,
+        0
+    );
+    assert!(
         snapback
             .pending_live_fanout
             .evaluation_memo
-            .result_clones,
-        0
+            .entries
+            .is_empty()
     );
-    assert!(snapback.pending_live_fanout.evaluation_memo.entries.is_empty());
 }
 
 #[test]
@@ -1420,7 +1467,10 @@ fn live_evaluation_memo_writeless_authority_fence_retires_departed_holder_orphan
         &subscription_ids[0],
         Arc::new(crate::live_coalesce::LiveEvaluationControl::default()),
     ));
-    assert_eq!(snapback.pending_live_fanout.evaluation_memo.entries.len(), 1);
+    assert_eq!(
+        snapback.pending_live_fanout.evaluation_memo.entries.len(),
+        1
+    );
     let holder_ids = &snapback
         .pending_live_fanout
         .evaluation_memo
@@ -1466,7 +1516,9 @@ fn live_evaluation_memo_writeless_authority_fence_retires_departed_holder_orphan
         .notify_authorization_event_in_frame(&revocation, cut_version, &admission)
         .expect("publish writeless authority revocation");
     assert_eq!(
-        snapback.durable_version().expect("post-revocation data cut"),
+        snapback
+            .durable_version()
+            .expect("post-revocation data cut"),
         cut_version,
         "the authority event does not advance the application-data cut"
     );
@@ -1661,12 +1713,14 @@ fn live_evaluation_memo_oversize_result_refuses_without_clone_or_sharing() {
         "the second same-key subscription still evaluates after the first refusal"
     );
     assert_eq!(
-        snapback.live_evaluation_stats.memo_oversize_refusals
-            - before.memo_oversize_refusals,
+        snapback.live_evaluation_stats.memo_oversize_refusals - before.memo_oversize_refusals,
         2,
         "each over-budget population attempt is counted"
     );
-    assert_eq!(snapback.live_evaluation_stats.memo_hits - before.memo_hits, 0);
+    assert_eq!(
+        snapback.live_evaluation_stats.memo_hits - before.memo_hits,
+        0
+    );
     assert_eq!(
         snapback.live_evaluation_stats.memo_misses - before.memo_misses,
         2
@@ -2478,8 +2532,7 @@ fn table_visibility_activation_validates_membership_self_resource() {
         let error = validate_function_schema_references(&FunctionManifest::default(), &schema)
             .expect_err("codegen-unadmitted resource fields fail activation");
         assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
+            error.diagnostic.code, "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
             "{resource_field}"
         );
     }
@@ -3230,7 +3283,7 @@ fn live_search_skips_disjoint_table_commits_and_reruns_searched_table_commits() 
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: table.to_owned(),
                     values: BTreeMap::from([(field.to_owned(), ValueExpr::Arg(field.to_owned()))]),
@@ -5022,6 +5075,10 @@ pub(crate) fn asset_profile_snapback() -> LocalSnapback {
                 "publicUpload",
                 crate::assets::AssetDeliveryProfile::PublicImmutable,
             ),
+            asset_profile_intent(
+                "strictUpload",
+                crate::assets::AssetDeliveryProfile::PrivateStrict,
+            ),
         ],
         ..FunctionManifest::default()
     });
@@ -6511,7 +6568,7 @@ fn asset_attachment_authority_cross_owner_refuses_at_commit_boundary() {
     let mut snapback = asset_reference_snapback();
     let asset_id = asset_ready(&mut snapback, "user_a", b"cross-owner-bytes");
     let plan = MutationPlan {
-            owner_write_checks: Vec::new(),
+        owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: "posts".to_owned(),
             values: BTreeMap::from([("photo".to_owned(), ValueExpr::Literal(json!(asset_id)))]),
@@ -6551,7 +6608,7 @@ fn asset_attachment_authority_missing_principal_refuses_at_commit_boundary() {
     let mut snapback = asset_reference_snapback();
     let asset_id = asset_ready(&mut snapback, "user_a", b"missing-principal-bytes");
     let plan = MutationPlan {
-            owner_write_checks: Vec::new(),
+        owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: "posts".to_owned(),
             values: BTreeMap::from([("photo".to_owned(), ValueExpr::Literal(json!(asset_id)))]),
@@ -6582,7 +6639,7 @@ fn asset_host_plan_and_seed_derive_admission_from_the_restriction() {
     let mut snapback = asset_reference_snapback();
     let asset_id = asset_ready(&mut snapback, "user_a", b"plan-bytes");
     let plan_insert = |table: &str, field: &str, asset: &str| MutationPlan {
-            owner_write_checks: Vec::new(),
+        owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Insert {
             table: table.to_owned(),
             values: BTreeMap::from([(field.to_owned(), ValueExpr::Literal(json!(asset)))]),
@@ -10585,6 +10642,59 @@ fn asset_deletion_retires_variant_renditions_with_exact_refcounts() {
 }
 
 #[test]
+fn asset_issuance_resolves_public_immutable_to_the_stable_route() {
+    // Author ruling 2026-08-16: public-immutable is the common delivery
+    // profile, so issuance resolves it to the stable public route instead
+    // of refusing — every issued-URL client projection renders it with no
+    // special path. Only private-strict keeps the typed refusal.
+    let mut snapback = asset_profile_snapback();
+    let bytes = b"public-profile-bytes".to_vec();
+    let asset_id = asset_ready_under_intent(&mut snapback, "user_a", &bytes, "publicUpload");
+    let owner = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+
+    let issued = snapback
+        .asset_signed_url_issue(
+            &owner,
+            &asset_id,
+            crate::assets::AssetSignedUrlIssueRequestV1 {
+                variant: Some("primary".to_owned()),
+                ttl_ms: None,
+                width_px: None,
+            },
+        )
+        .expect("public issuance resolves");
+    assert_eq!(issued.url, format!("/assets/public/{asset_id}/primary"));
+    assert_eq!(issued.variant, "primary");
+    assert!(
+        issued.expires_at_ms > now_millis() + 365 * 24 * 60 * 60 * 1000,
+        "synthetic expiry keeps refresh loops dormant"
+    );
+    assert!(
+        !issued.url.contains("token"),
+        "no bearer on the public route"
+    );
+
+    let strict_bytes = b"strict-profile-bytes".to_vec();
+    let strict_id =
+        asset_ready_under_intent(&mut snapback, "user_a", &strict_bytes, "strictUpload");
+    let strict = snapback
+        .asset_signed_url_issue(
+            &owner,
+            &strict_id,
+            crate::assets::AssetSignedUrlIssueRequestV1 {
+                variant: Some("primary".to_owned()),
+                ttl_ms: None,
+                width_px: None,
+            },
+        )
+        .expect_err("private-strict keeps its typed refusal");
+    assert_eq!(
+        strict.diagnostic.code,
+        "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED"
+    );
+}
+
+#[test]
 fn asset_signed_url_issues_and_serves_as_a_bearer_until_ttl() {
     let mut snapback = asset_profile_snapback();
     let bytes = b"signed-profile-bytes".to_vec();
@@ -11926,7 +12036,7 @@ fn quarantined_offline_mutation_settles_through_resync_before_replay() {
         version: row["_version"].as_u64().expect("version"),
     };
     let rename_plan = MutationPlan {
-            owner_write_checks: Vec::new(),
+        owner_write_checks: Vec::new(),
         steps: vec![MutationStep::Patch {
             table: "authors".to_owned(),
             id: ValueExpr::Arg("id".to_owned()),
@@ -13222,7 +13332,7 @@ fn retained_service_live_revalidates_only_its_matched_grant_entry() {
         .mutation_writes()
         .execute_mutation(
             &MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "items".to_owned(),
                     values: inserted,
@@ -15356,7 +15466,7 @@ fn relational_live_fixture_functions(plan_take: u32) -> (SchemaManifest, Functio
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: table.to_owned(),
                     values: fields
@@ -15931,7 +16041,7 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Patch {
                     table: table.to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
@@ -15949,7 +16059,7 @@ fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionM
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Delete {
                     table: table.to_owned(),
                     id: ValueExpr::Arg("id".to_owned()),
@@ -19197,7 +19307,7 @@ fn projection_fixture(
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: table.to_owned(),
                     values: fields
@@ -19236,7 +19346,7 @@ fn projection_fixture(
                 "renameAuthor",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "authors".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -19252,7 +19362,7 @@ fn projection_fixture(
                 "moveBookSlug",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Patch {
                         table: "books".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -19268,7 +19378,7 @@ fn projection_fixture(
                 "deleteBook",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Delete {
                         table: "books".to_owned(),
                         id: ValueExpr::Arg("id".to_owned()),
@@ -19964,7 +20074,7 @@ fn generation_activation_failed_then_retry_rebuilds_and_matches_materialization(
         .mutation_writes()
         .execute_mutation(
             &MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Delete {
                     table: "books".to_owned(),
                     id: ValueExpr::Literal(json!(beta_id)),
@@ -22838,7 +22948,7 @@ fn guarded_functions() -> FunctionManifest {
                 "hostInsert",
                 FunctionKind::Mutation,
                 FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: vec![MutationStep::Insert {
                         table: "items".to_owned(),
                         values,
@@ -22990,7 +23100,7 @@ fn served_staging_and_managed_action_emit_function_and_runtime_log_observations(
     match &mut refused_staged {
         StagedRecordedMutation::Ready(staged) => {
             staged.execution = StagedMutationExecution::HostPlan(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "missing_after_stage".to_owned(),
                     values: BTreeMap::new(),
@@ -24417,7 +24527,7 @@ fn llp0133_sketch_10_stale_reservation_rolls_back_then_retry_rederives() {
                 .clone()
                 .expect("first server sample");
             staged.execution = super::StagedMutationExecution::HostPlan(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "permissions".to_owned(),
                     values: BTreeMap::from([
@@ -28249,17 +28359,14 @@ fn action_hosted_child_media_proof_refuses_swapped_commit_identity() {
         .iter_mut()
         .find(|function| function.name == "ibexInsert")
         .expect("Ibex fixture mutation");
-    function.implementation_hash = Some(
-        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-            .to_owned(),
-    );
+    function.implementation_hash =
+        Some("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned());
     function.result_contract = FunctionResultContract::Value {
         value: ResultValueContract::MediaRefV1 {
             source_table: "profiles".to_owned(),
             source_field: "image".to_owned(),
             source_field_generation:
-                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                    .to_owned(),
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_owned(),
             optional: false,
             class_m_treatment: "class-m.none.v1".to_owned(),
             upload_intent: "profileImageUpload".to_owned(),
@@ -28275,7 +28382,9 @@ fn action_hosted_child_media_proof_refuses_swapped_commit_identity() {
         crate::manifest::result_contract_hash(&function.result_contract)
             .expect("media result contract hash"),
     );
-    function.required_capabilities.push("result_contract_v1".to_owned());
+    function
+        .required_capabilities
+        .push("result_contract_v1".to_owned());
     snapback
         .functions
         .acknowledged_experimental_capabilities
@@ -28286,18 +28395,10 @@ fn action_hosted_child_media_proof_refuses_swapped_commit_identity() {
         "ibexInsert",
         &input(),
     );
-    let swapped = crate::storage::ClientMutationIdentity::new(
-        "action-child-swapped",
-        "ibexInsert",
-        &input(),
-    );
+    let swapped =
+        crate::storage::ClientMutationIdentity::new("action-child-swapped", "ibexInsert", &input());
     let staged = match snapback
-        .stage_nested_mutation(
-            "ibexInsert",
-            &input(),
-            nested_authority(),
-            Some(&original),
-        )
+        .stage_nested_mutation("ibexInsert", &input(), nested_authority(), Some(&original))
         .expect("stage action-hosted mutation")
     {
         StagedNestedMutation::Detached(staged) => staged,

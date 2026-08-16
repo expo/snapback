@@ -17,6 +17,20 @@ fn asset_signed_url_forbidden() -> SnapbackError {
     )
 }
 
+/// Synthetic expiry for issuance responses that resolve to the stable
+/// public-immutable route: ten years, so client refresh loops stay dormant
+/// while the response shape stays uniform with signed issuance.
+const PUBLIC_DELIVERY_SYNTHETIC_TTL_MS: u64 = 10 * 365 * 24 * 60 * 60 * 1000;
+
+fn asset_delivery_profile_strict() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
+        "assets",
+        "private-strict delivery serves bytes to authenticated fetches only and has no URL form; \
+         public-immutable and private-signed intents resolve delivery URLs here",
+    )
+}
+
 /// One resolved delivery window over an `(asset, rendition)` alias. The
 /// cache posture is the profile's: strict is `private, no-store`, signed is
 /// `private` bounded by the remaining bearer window, public-immutable is the
@@ -637,12 +651,13 @@ impl LocalDatabase {
             if !decision.authorized {
                 return Err(asset_signed_url_forbidden());
             }
-            if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
-                    "assets",
-                    "this asset's declared delivery profile does not issue signed URLs",
-                ));
+            // Issuance resolves a fetchable delivery URL: private-signed
+            // mints a bearer token; public-immutable resolves to the stable
+            // public route (author ruling 2026-08-16 makes it the common
+            // profile, so every media projection must render it); only
+            // private-strict has no URL form at all.
+            if asset.delivery_profile == assets::AssetDeliveryProfile::PrivateStrict {
+                return Err(asset_delivery_profile_strict());
             }
             Ok(())
         })
@@ -667,12 +682,8 @@ impl LocalDatabase {
             if !decision.authorized {
                 return Err(asset_signed_url_forbidden());
             }
-            if asset.delivery_profile != assets::AssetDeliveryProfile::PrivateSigned {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_ASSET_DELIVERY_PROFILE_UNSUPPORTED",
-                    "assets",
-                    "this asset's declared delivery profile does not issue signed URLs",
-                ));
+            if asset.delivery_profile == assets::AssetDeliveryProfile::PrivateStrict {
+                return Err(asset_delivery_profile_strict());
             }
             // @ref LLP 0210#d2--issuance-defaults-and-typed-refusals — the
             // declared keys are metadata, so enumerate only after the read
@@ -724,6 +735,18 @@ impl LocalDatabase {
                     "assets",
                     "the asset has no deliverable bytes yet",
                 ));
+            }
+            if asset.delivery_profile == assets::AssetDeliveryProfile::PublicImmutable {
+                // Public-immutable bytes live at a stable route with no
+                // bearer; issuance resolves to it so every existing media
+                // projection (issued-URL stores, hooks) renders public
+                // assets without a special client path. The synthetic
+                // expiry keeps refresh loops dormant.
+                return Ok(assets::AssetSignedUrlIssueResponseV1 {
+                    url: format!("/assets/public/{asset_id}/{issued_variant}"),
+                    variant: issued_variant.to_owned(),
+                    expires_at_ms: now.saturating_add(PUBLIC_DELIVERY_SYNTHETIC_TTL_MS),
+                });
             }
             let grantee = caller.unwrap_or("anonymous");
             let expires_at_ms = now.saturating_add(ttl);
