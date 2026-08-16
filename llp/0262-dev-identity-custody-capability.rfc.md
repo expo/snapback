@@ -1,10 +1,11 @@
 # LLP 0262: Dev identity becomes a custody capability
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Review
 **Systems:** Auth mode, Server, Security, Developer experience, Local server lifecycle, Demos, Packaged dev loop, CLI
 **Author:** Claude (Fable 5) / Charlie Cheever
 **Date:** 2026-08-15
+**Revised:** 2026-08-15 (super-refine loop start: Draft → Review)
 **Related:** LLP 0009, LLP 0010, LLP 0017, LLP 0030, LLP 0031, LLP 0036, LLP 0039, LLP 0041, LLP 0060, LLP 0168, LLP 0181, LLP 0213, `issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md`, `issues/closed/20260811-demo-dev-servers-default-lan-bind-with-dev-auth.md`, `issues/20260811-ios-physical-device-dev-carrier-decision-packet.md`
 
 ## Summary
