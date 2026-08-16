@@ -744,7 +744,8 @@ fn tagged_digest(domain: &[u8], value: &Value, prefixed: bool) -> SnapbackResult
 fn canonical<T: Serialize>(value: &T) -> SnapbackResult<String> {
     let value = serde_json::to_value(value)
         .map_err(|_| invalid("seed carrier could not be projected to JSON"))?;
-    crate::rqs_contract::jcs(&value).map_err(|_| invalid("seed carrier is outside canonical JSON limits"))
+    crate::rqs_contract::jcs(&value)
+        .map_err(|_| invalid("seed carrier is outside canonical JSON limits"))
 }
 
 fn validate_receipt(

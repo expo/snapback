@@ -458,6 +458,13 @@ scheduled/no-principal authority remains LLP 0234's governed override problem;
 `ctx.db.elevated` is only the call-local authority of trusted named handler
 code already executing for one request.
 
+**Dated note (2026-08-15):** the action/scheduled/no-principal fence is
+transitive over trusted root invocation provenance. A nested mutation retains
+the root's fence even though its currently executing function kind is
+`Mutation`; it cannot regain `ctx.db.elevated` by crossing
+`action.runMutation` (resolved ticket
+[`issues/closed/20260815-elevated-read-nested-mutation-provenance.md`](../issues/closed/20260815-elevated-read-nested-mutation-provenance.md)).
+
 Membership visibility gains one bounded declarative case alongside this
 authority decision: the membership declaration may gate its resource table by
 declaring `resourceField: '_id'`. For a child table, the resource field must
@@ -824,3 +831,7 @@ and the uncomposed-surface diagnostic is now a generation refusal.
   live results conservatively replace on any commit. Flipped
   `SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE` from advisory to
   fail-closed codegen refusal for future unsupported classes.
+- 2026-08-15 — made D7's action/scheduled/no-principal fence transitive over
+  root invocation provenance, so an action cannot regain call-local elevation
+  by entering a nested mutation; recorded LLP 0173's landed per-operation
+  `elevatedDatabase` projection in D5.

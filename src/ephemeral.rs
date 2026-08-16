@@ -14525,10 +14525,7 @@ mod tests {
             .expect_err("a stale fence cannot bypass key ownership");
         let exact = backend
             .delete(
-                request(
-                    Some(published.scope_epoch),
-                    Some(published.entry_version),
-                ),
+                request(Some(published.scope_epoch), Some(published.entry_version)),
                 1_001,
             )
             .expect_err("an exact fence cannot bypass key ownership");

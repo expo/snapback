@@ -1381,8 +1381,8 @@ pub(crate) fn oauth_server_error() -> SnapbackError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::contract_types::ServerProfile;
     use crate::auth::crypto::{CreationInvitation, CryptoError, RandomSource};
+    use crate::contract_types::ServerProfile;
     use crate::manifest::AgentsMode;
     use crate::storage::auth_agents::AgentRegistration;
     use serde_json::json;

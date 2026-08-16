@@ -11,17 +11,17 @@ pub mod deployment;
 pub mod descriptor;
 pub mod effective_source;
 pub mod handshake;
-pub(crate) mod identity_core;
 #[allow(dead_code)] // Composed by the hosted-edge adapter startup lane (LLP 0098).
 pub mod hosted_edge;
+pub(crate) mod identity_core;
 pub mod invalidation;
 #[allow(dead_code)] // Server composition consumes crate-private prepared authority.
 pub(crate) mod invocation;
 pub mod keyring;
 pub mod lease;
-pub(crate) mod logical_transfer;
 #[allow(dead_code)] // Wired by the auth lifecycle/operator composition lane.
 pub(crate) mod lifecycle;
+pub(crate) mod logical_transfer;
 pub mod mailbox;
 pub mod mode;
 pub mod provider;

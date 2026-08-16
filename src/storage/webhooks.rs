@@ -107,7 +107,9 @@ fn catalog_objects(conn: &Connection) -> SnapbackResult<Vec<(String, String, Str
          ORDER BY type, name",
     )?;
     Ok(statement
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
         .collect::<Result<Vec<_>, _>>()?)
 }
 
@@ -138,8 +140,9 @@ impl LocalDatabase {
                 request.now_ms,
             ],
         )?;
-        let record = delivery_for_event_on(&self.conn, &request.consumer_id, request.event_ordinal)?
-            .ok_or_else(catalog_corrupt)?;
+        let record =
+            delivery_for_event_on(&self.conn, &request.consumer_id, request.event_ordinal)?
+                .ok_or_else(catalog_corrupt)?;
         if record.id != request.id
             || record.owner_principal_id != request.owner_principal_id
             || record.target_url != request.target_url
@@ -176,16 +179,36 @@ impl LocalDatabase {
                outcome = excluded.outcome,
                http_status = excluded.http_status,
                diagnostic_code = excluded.diagnostic_code",
-            params![delivery_id, attempt, now_ms, outcome, http_status, diagnostic_code],
+            params![
+                delivery_id,
+                attempt,
+                now_ms,
+                outcome,
+                http_status,
+                diagnostic_code
+            ],
         )?;
-        let state = if outcome == "succeeded" { "succeeded" } else if outcome == "dead" { "dead" } else { "pending" };
+        let state = if outcome == "succeeded" {
+            "succeeded"
+        } else if outcome == "dead" {
+            "dead"
+        } else {
+            "pending"
+        };
         tx.execute(
             "UPDATE _snapback_webhook_deliveries SET state = ?1,
              attempt_count = MAX(attempt_count, ?2), last_http_status = ?3,
              last_diagnostic_code = ?4, updated_at_ms = ?5,
              dead_at_ms = CASE WHEN ?1 = 'dead' THEN ?5 ELSE dead_at_ms END
              WHERE id = ?6",
-            params![state, attempt, http_status, diagnostic_code, now_ms, delivery_id],
+            params![
+                state,
+                attempt,
+                http_status,
+                diagnostic_code,
+                now_ms,
+                delivery_id
+            ],
         )?;
         tx.commit()?;
         Ok(())
@@ -213,13 +236,22 @@ fn delivery_for_event_on(
          FROM _snapback_webhook_deliveries
          WHERE consumer_kind = 'watch' AND consumer_id = ?1 AND event_ordinal = ?2",
         params![consumer_id, ordinal],
-        |row| Ok(DeliveryRecord {
-            id: row.get(0)?, consumer_id: row.get(1)?, event_ordinal: row.get(2)?,
-            owner_principal_id: row.get(3)?, target_url: row.get(4)?,
-            payload_json: row.get(5)?, payload_digest: row.get(6)?, secret_ref: row.get(7)?,
-            idempotency_key: row.get(8)?, state: row.get(9)?, attempt_count: row.get(10)?,
-            max_attempts: row.get(11)?,
-        }),
+        |row| {
+            Ok(DeliveryRecord {
+                id: row.get(0)?,
+                consumer_id: row.get(1)?,
+                event_ordinal: row.get(2)?,
+                owner_principal_id: row.get(3)?,
+                target_url: row.get(4)?,
+                payload_json: row.get(5)?,
+                payload_digest: row.get(6)?,
+                secret_ref: row.get(7)?,
+                idempotency_key: row.get(8)?,
+                state: row.get(9)?,
+                attempt_count: row.get(10)?,
+                max_attempts: row.get(11)?,
+            })
+        },
     )
     .optional()
     .map_err(Into::into)
@@ -242,22 +274,48 @@ mod tests {
         let mut db = LocalDatabase::memory().unwrap();
         db.activate_current_auth_catalog().unwrap();
         let manifest = SchemaManifest {
-            api: Some(crate::manifest::ApiManifest { enabled: true, ..Default::default() }),
+            api: Some(crate::manifest::ApiManifest {
+                enabled: true,
+                ..Default::default()
+            }),
             ..Default::default()
         };
-        db.with_auth_transaction(|tx| activate_manifest_in(tx, &manifest)).unwrap();
+        db.with_auth_transaction(|tx| activate_manifest_in(tx, &manifest))
+            .unwrap();
         let reserve = || ReserveDelivery {
-            id: "delivery-1".to_owned(), consumer_id: "watch-1".to_owned(), event_ordinal: 1,
-            owner_principal_id: "integration-1".to_owned(), target_url: "https://example.com/hook".to_owned(),
-            payload_json: r#"{"ordinal":1}"#.to_owned(), payload_digest: "sha256:one".to_owned(),
-            secret_ref: "webhook:watch-1".to_owned(), idempotency_key: "watch:watch-1:1".to_owned(),
-            max_attempts: 8, now_ms: 10,
+            id: "delivery-1".to_owned(),
+            consumer_id: "watch-1".to_owned(),
+            event_ordinal: 1,
+            owner_principal_id: "integration-1".to_owned(),
+            target_url: "https://example.com/hook".to_owned(),
+            payload_json: r#"{"ordinal":1}"#.to_owned(),
+            payload_digest: "sha256:one".to_owned(),
+            secret_ref: "webhook:watch-1".to_owned(),
+            idempotency_key: "watch:watch-1:1".to_owned(),
+            max_attempts: 8,
+            now_ms: 10,
         };
         let first = db.reserve_webhook_delivery(reserve()).unwrap();
         let second = db.reserve_webhook_delivery(reserve()).unwrap();
         assert_eq!(first.idempotency_key, second.idempotency_key);
-        db.settle_webhook_attempt(&first.id, 1, "retryable", None, Some("SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE"), 11).unwrap();
-        db.settle_webhook_attempt(&first.id, 8, "dead", Some(503), Some("SNAPBACK_WEBHOOK_DEAD_LETTERED"), 12).unwrap();
+        db.settle_webhook_attempt(
+            &first.id,
+            1,
+            "retryable",
+            None,
+            Some("SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE"),
+            11,
+        )
+        .unwrap();
+        db.settle_webhook_attempt(
+            &first.id,
+            8,
+            "dead",
+            Some(503),
+            Some("SNAPBACK_WEBHOOK_DEAD_LETTERED"),
+            12,
+        )
+        .unwrap();
         let dead = db.webhook_delivery_for_test("watch-1", 1).unwrap().unwrap();
         assert_eq!(dead.state, "dead");
         assert_eq!(dead.attempt_count, 8);

@@ -5,8 +5,8 @@
 //! performance rows still gate advertisement.
 
 use crate::admin::ProtectedErasureAdminCredentialBinding;
-use crate::contract_types::ServerProfile;
 use crate::auth::invocation::{InvocationSource, PreparedAuthority, ResolvedAppAuthority};
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AuthMode, SchemaManifest};
 use crate::rqs_contract::jcs;

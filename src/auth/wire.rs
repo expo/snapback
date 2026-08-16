@@ -411,9 +411,7 @@ impl CredentialResponse {
         self
     }
 
-    pub(crate) fn recovery_codes(
-        &self,
-    ) -> Option<&crate::auth::identity_core::RecoveryCodes> {
+    pub(crate) fn recovery_codes(&self) -> Option<&crate::auth::identity_core::RecoveryCodes> {
         self.recovery_codes.as_ref()
     }
 

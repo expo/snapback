@@ -7,7 +7,6 @@
 
 // @ref LLP 0058#shared-invocation-authority — one closed gate separates wire authority, resolved authority, and the immutable handler projection.
 
-use crate::contract_types::ServerProfile;
 use crate::auth::admission::{AdmissionEffectGuard, AdmissionLease};
 use crate::auth::descriptor::{
     AUTHORITY_DESCRIPTOR_VERSION, canonical_uuid_v7, service_authority_instance_id,
@@ -21,6 +20,7 @@ use crate::auth::service_fence::{
     ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication,
 };
 use crate::auth::session_projection::FencedPublication;
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, AuthorityDescriptor, FunctionDefinition, FunctionKind,
@@ -1077,6 +1077,24 @@ pub enum OperationAvailability {
     Available,
 }
 
+/// Host-owned provenance for the root function that established an invocation
+/// ancestry. Nested handlers may change function kind, but cannot replace this
+/// fact and turn an action/background root into caller elevation.
+///
+/// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated —
+///   call-local elevation is fenced transitively by trusted root provenance.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ElevationRootProvenance {
+    /// Authority preparation precedes function selection. Inheriting a nested
+    /// function before this state is bound fails closed.
+    Unbound,
+    /// A direct caller-backed named query/mutation established the ancestry.
+    CallerBackedNamedRead,
+    /// An action, scheduled/background source, or unsupported root established
+    /// the ancestry. This state is permanent for descendants.
+    Fenced,
+}
+
 /// Immutable result of mode, policy, wire-field, and credential preparation.
 #[derive(Clone, Debug)]
 pub struct PreparedAuthority {
@@ -1084,6 +1102,7 @@ pub struct PreparedAuthority {
     active_mode: AuthMode,
     profile: ServerProfile,
     source: InvocationSource,
+    elevation_root_provenance: ElevationRootProvenance,
     resolved: ResolvedAppAuthority,
     projection: HandlerAuthProjection,
     direct_authorization: Option<DirectAuthorizationProjection>,
@@ -1117,6 +1136,7 @@ pub struct PreparedAuthority {
 pub(crate) struct RetainedLiveAuthority {
     active_mode: AuthMode,
     profile: ServerProfile,
+    elevation_root_provenance: ElevationRootProvenance,
     /// Stable bearer-free owner identity. The complete resolved authority is
     /// retained separately for reruns, but mutable deadline facts are not part
     /// of live ownership.
@@ -1140,6 +1160,36 @@ pub(crate) struct RetainedLiveAuthority {
 impl PreparedAuthority {
     pub fn source(&self) -> InvocationSource {
         self.source
+    }
+
+    fn bind_elevation_root(&mut self, function_kind: &FunctionKind) {
+        if self.elevation_root_provenance != ElevationRootProvenance::Unbound {
+            return;
+        }
+        let direct_caller_source = matches!(
+            self.source,
+            InvocationSource::HttpQuery
+                | InvocationSource::HttpMutation
+                | InvocationSource::HttpMcp
+                | InvocationSource::HttpCapabilityLink
+                | InvocationSource::LocalQuery
+                | InvocationSource::LocalMutation
+                | InvocationSource::BranchOperation
+                | InvocationSource::LiveInitialQuery
+        );
+        self.elevation_root_provenance = if direct_caller_source
+            && matches!(
+                function_kind,
+                FunctionKind::Query | FunctionKind::LiveQuery | FunctionKind::Mutation
+            ) {
+            ElevationRootProvenance::CallerBackedNamedRead
+        } else {
+            ElevationRootProvenance::Fenced
+        };
+    }
+
+    pub(crate) fn elevated_database_allowed(&self) -> bool {
+        self.elevation_root_provenance == ElevationRootProvenance::CallerBackedNamedRead
     }
 
     pub fn transition_generation(&self) -> u64 {
@@ -1437,6 +1487,7 @@ impl PreparedAuthority {
         Ok(RetainedLiveAuthority {
             active_mode: self.active_mode,
             profile: self.profile,
+            elevation_root_provenance: self.elevation_root_provenance,
             owner_key: self.resolved.key(),
             resolved: self.resolved.clone(),
             matched_grant_scope: None,
@@ -1483,8 +1534,13 @@ impl PreparedAuthority {
                 "resolved invocation authority cannot be inherited by this source",
             ));
         }
+        let elevation_root_provenance = match self.elevation_root_provenance {
+            ElevationRootProvenance::Unbound => ElevationRootProvenance::Fenced,
+            provenance => provenance,
+        };
         Ok(Self {
             source,
+            elevation_root_provenance,
             ..self.clone()
         })
     }
@@ -1563,6 +1619,7 @@ impl RetainedLiveAuthority {
         }
         .with_optional_caller_attribution(self.caller_attribution.clone());
         Ok(PreparedAuthority {
+            elevation_root_provenance: self.elevation_root_provenance,
             rehearsal_provenance: self.rehearsal_provenance.clone(),
             rehearsal_fence: self.rehearsal_fence.clone(),
             ..prepared
@@ -1866,6 +1923,7 @@ impl InvocationGate {
             active_mode,
             profile,
             source,
+            elevation_root_provenance: ElevationRootProvenance::Unbound,
             resolved,
             projection,
             direct_authorization,
@@ -1957,7 +2015,7 @@ impl InvocationGate {
     }
 
     pub fn prepare_function(
-        authority: PreparedAuthority,
+        mut authority: PreparedAuthority,
         function: &FunctionDefinition,
     ) -> SnapbackResult<PreparedInvocation> {
         authority.validate_admission("function invocation preparation")?;
@@ -1978,6 +2036,7 @@ impl InvocationGate {
                 ),
             ));
         }
+        authority.bind_elevation_root(&function.kind);
         let (requirement, authority_creating_consent, matched_grant_scope) =
             evaluate_function_policy(&authority, function)?;
         Ok(PreparedInvocation {

@@ -3,8 +3,8 @@
 //! @ref LLP 0167#authority-one-activation-chokepoint — every selector uses
 //!   one fail-closed activation gate and runtime selections are process-local.
 
-use crate::contract_types::ServerProfile;
 use crate::auth::deployment::AuthDeploymentTarget;
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -15,10 +15,9 @@ use crate::live_matcher::{
 use crate::manifest::{
     BATCH_READ_MAX_INPUT_BYTES, BATCH_READ_MAX_ITEMS, BATCH_READ_MAX_POLICY_PROBES_PER_ITEM,
     BATCH_READ_MAX_RESPONSE_BYTES, CtxAnswerLedger, FilterExpr, FilterOp, FunctionKind,
-    FunctionResultContract, HandlerInput, IbexModule, MutationOutput, ResultValueContract,
-    QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan,
-    SequenceDeclaration, SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr,
-    effective_query_limit,
+    FunctionResultContract, HandlerInput, IbexModule, MutationOutput, QUERY_INTERNAL_OVERFETCH_MAX,
+    QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan, ResultValueContract, SequenceDeclaration,
+    SequenceScopeAccess, TableVisibilityArmV1, TableVisibilityV1, ValueExpr, effective_query_limit,
 };
 use crate::storage::{
     BufferedMembershipCommand, BufferedWrite, CapturedReadDependency, CapturedReadKind, DbRead,
@@ -38,9 +37,9 @@ use std::ffi::{CStr, CString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::ptr;
-use std::sync::{Arc, Mutex as StdMutex, OnceLock, PoisonError};
 #[cfg(debug_assertions)]
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex as StdMutex, OnceLock, PoisonError};
 use std::time::Instant;
 
 #[derive(Clone)]
@@ -684,7 +683,9 @@ pub(crate) fn media_projection_plan(contract: &FunctionResultContract) -> MediaP
     let mut occurrences = Vec::new();
     match contract {
         FunctionResultContract::Documents { document, .. }
-        | FunctionResultContract::Records { record: document, .. }
+        | FunctionResultContract::Records {
+            record: document, ..
+        }
         | FunctionResultContract::LegacyQueryRowsV0 { row: document } => {
             collect_media_plan_value(document, &mut vec!["*".to_owned()], &mut occurrences);
         }
@@ -703,12 +704,12 @@ fn collect_media_plan_value(
     output: &mut Vec<MediaProjectionSemanticOccurrenceV1>,
 ) {
     match contract {
-        ResultValueContract::MediaRefV1 { .. } => output.push(
-            MediaProjectionSemanticOccurrenceV1 {
+        ResultValueContract::MediaRefV1 { .. } => {
+            output.push(MediaProjectionSemanticOccurrenceV1 {
                 path: path.clone(),
                 node: contract.clone(),
-            },
-        ),
+            })
+        }
         ResultValueContract::Array { element, .. } => {
             path.push("*".to_owned());
             collect_media_plan_value(element, path, output);
@@ -747,7 +748,9 @@ fn normalize_media_contract_value(
 ) -> SnapbackResult<()> {
     match contract {
         FunctionResultContract::Documents { document, .. }
-        | FunctionResultContract::Records { record: document, .. }
+        | FunctionResultContract::Records {
+            record: document, ..
+        }
         | FunctionResultContract::LegacyQueryRowsV0 { row: document } => {
             let rows = value.as_array_mut().ok_or_else(media_unprovenanced)?;
             for (index, row) in rows.iter_mut().enumerate() {
@@ -841,7 +844,9 @@ fn normalize_media_value(
                 if !crate::manifest::value_contract_contains_media(&field.value) {
                     continue;
                 }
-                let child = object.get_mut(&field.name).ok_or_else(media_unprovenanced)?;
+                let child = object
+                    .get_mut(&field.name)
+                    .ok_or_else(media_unprovenanced)?;
                 path.push(field.name.clone());
                 normalize_media_value(&field.value, child, path, handoff, entries, proof)?;
                 path.pop();
@@ -914,6 +919,7 @@ impl RuntimeManager {
                 prepared.authority_creating_consent(),
             ),
             true,
+            prepared.authority().elevated_database_allowed(),
         )?;
         invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
         invocation.declared_refusals = prepared.declared_refusals().to_vec();
@@ -1018,6 +1024,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
             prepared.authority_creating_consent(),
         ),
         true,
+        prepared.authority().elevated_database_allowed(),
     )?;
     invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
@@ -1105,6 +1112,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
             prepared.authority_creating_consent(),
         ),
         false,
+        prepared.authority().elevated_database_allowed(),
     )?;
     invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
     invocation.protected_query_profile = protected_query_profile;
@@ -1199,6 +1207,7 @@ pub(crate) fn run_ibex_asset_authorizer_prepared(
             prepared.authority_creating_consent(),
         ),
         false,
+        prepared.authority().elevated_database_allowed(),
     )?;
     invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
     invocation.protected_query_profile = true;
@@ -1740,16 +1749,15 @@ mod media_provenance_tests {
             &mut Vec::new(),
         )
         .expect_err("a structural copy has no WeakMap custody");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED"
+        );
 
-        let cross_source_entries = BTreeMap::from([(
-            "smp1.cross-source".to_owned(),
-            entry("accountSettings"),
-        )]);
-        let cross_source_handoff = BTreeMap::from([(
-            Vec::<String>::new(),
-            "smp1.cross-source".to_owned(),
-        )]);
+        let cross_source_entries =
+            BTreeMap::from([("smp1.cross-source".to_owned(), entry("accountSettings"))]);
+        let cross_source_handoff =
+            BTreeMap::from([(Vec::<String>::new(), "smp1.cross-source".to_owned())]);
         let error = normalize_media_contract_value(
             &contract,
             &mut json!({ "assetId": "asset-1", "kind": "image" }),
@@ -1759,7 +1767,10 @@ mod media_provenance_tests {
             &mut Vec::new(),
         )
         .expect_err("a token from another semantic source is not interchangeable");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEDIA_PROJECTION_UNPROVENANCED"
+        );
     }
 
     /// @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
@@ -1783,15 +1794,13 @@ mod media_provenance_tests {
             authority_instance_binding: "authority-a".to_owned(),
             function_id: "profiles:setImage".to_owned(),
             function_artifact_generation:
-                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                    .to_owned(),
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned(),
             result_contract_hash: "sha256:result-contract".to_owned(),
             pinned_snapshot: 7,
             request_identity: "request-a".to_owned(),
-            client_mutation_identity:
-                MediaProjectionClientMutationIdentityV1::ClientMutation(
-                    "sha256:mutation-a".to_owned(),
-                ),
+            client_mutation_identity: MediaProjectionClientMutationIdentityV1::ClientMutation(
+                "sha256:mutation-a".to_owned(),
+            ),
         };
         let proof = StagedMediaProjectionProofV1::new(
             MediaProjectionPlanV1 {
@@ -1806,7 +1815,10 @@ mod media_provenance_tests {
         );
         assert_eq!(proof.borrow_occurrences().len(), 1);
         assert_eq!(proof.borrow_occurrences().len(), 1);
-        assert_eq!(proof.consume_occurrences().expect("one commit take").len(), 1);
+        assert_eq!(
+            proof.consume_occurrences().expect("one commit take").len(),
+            1
+        );
     }
 }
 
@@ -1827,7 +1839,7 @@ fn action_db_denied(op: &str) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_HANDLER_WRITE_IN_QUERY",
         "runtime",
-        format!("ctx.db.{op} is unavailable to action handlers"),
+        format!("ctx.db.{op} is unavailable to action-rooted or no-principal invocations"),
     )
 }
 
@@ -1879,6 +1891,9 @@ pub(crate) struct IbexHostContext<'a> {
     /// Exact module export currently executing in this host context. The
     /// runner binds it before either executor can dispatch a host call.
     function_name: String,
+    /// Root-provenance fence for explicit Class-R elevation. Function kind may
+    /// change across a nested mutation, but this host-owned fact may not.
+    elevated_database_allowed: bool,
     /// Default-deny input registry for auth-scoped live and retained queries.
     /// This bit is host-owned and cannot be changed by handler code.
     protected_query_profile: bool,
@@ -1997,6 +2012,7 @@ impl<'a> IbexHostContext<'a> {
         admission: AdmissionLease,
         membership_writer: MembershipWriter,
         writable: bool,
+        elevated_database_allowed: bool,
     ) -> SnapbackResult<Self> {
         let replay = validate_replay_ledger(&input)?;
         let now_ms = input
@@ -2024,6 +2040,7 @@ impl<'a> IbexHostContext<'a> {
                 IbexInvocationMode::Query
             },
             function_name: String::new(),
+            elevated_database_allowed,
             protected_query_profile: false,
             declared_refusals: Vec::new(),
             tracked_refusals: Vec::new(),
@@ -2094,6 +2111,7 @@ impl<'a> IbexHostContext<'a> {
             admission,
             mode: IbexInvocationMode::Action,
             function_name: String::new(),
+            elevated_database_allowed: false,
             protected_query_profile: false,
             declared_refusals: Vec::new(),
             tracked_refusals: Vec::new(),
@@ -2165,7 +2183,10 @@ impl<'a> IbexHostContext<'a> {
             return Ok(());
         };
         for field in &table.fields {
-            if !matches!(field.field_type, crate::manifest::FieldType::AssetRef { media: Some(_), .. }) {
+            if !matches!(
+                field.field_type,
+                crate::manifest::FieldType::AssetRef { media: Some(_), .. }
+            ) {
                 continue;
             }
             let Some(value) = object.get_mut(&field.name) else {
@@ -2186,11 +2207,13 @@ impl<'a> IbexHostContext<'a> {
             .schema()
             .table(table_name)
             .cloned()
-            .ok_or_else(|| SnapbackError::error(
-                "SNAPBACK_MEDIA_PROJECTION_INTEGRITY",
-                "assets",
-                "media projection source table is unavailable",
-            ))?;
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_MEDIA_PROJECTION_INTEGRITY",
+                    "assets",
+                    "media projection source table is unavailable",
+                )
+            })?;
         let object = document
             .as_object_mut()
             .ok_or_else(crate::assets::media_projection_integrity)?;
@@ -2228,10 +2251,8 @@ impl<'a> IbexHostContext<'a> {
                 .transpose()
                 .map_err(|_| crate::assets::media_projection_integrity())?
                 .ok_or_else(crate::assets::media_projection_integrity)?;
-            let related_fact_digest = crate::storage::media_projection_fact_digest_on(
-                self.db().conn(),
-                &asset_id,
-            )?;
+            let related_fact_digest =
+                crate::storage::media_projection_fact_digest_on(self.db().conn(), &asset_id)?;
             let entry = self.next_media_entry;
             self.next_media_entry = entry.checked_add(1).ok_or_else(|| {
                 SnapbackError::error(
@@ -3155,6 +3176,14 @@ impl<'a> IbexHostContext<'a> {
         );
     }
 
+    fn ensure_db_read_available(&self, elevated: bool, op: &str) -> SnapbackResult<()> {
+        if self.mode == IbexInvocationMode::Action || (elevated && !self.elevated_database_allowed)
+        {
+            return Err(action_db_denied(op));
+        }
+        Ok(())
+    }
+
     fn handle_host_call(&mut self, op: &str, args: Value) -> SnapbackResult<Value> {
         self.admission.validate("runtime host call")?;
         if self.protected_query_profile {
@@ -3216,8 +3245,8 @@ impl<'a> IbexHostContext<'a> {
                 if self.mode == IbexInvocationMode::Action || self.media_handoff.is_some() {
                     return Err(media_unprovenanced());
                 }
-                let handoff: MediaHandoffV1 = serde_json::from_value(args)
-                    .map_err(|_| media_unprovenanced())?;
+                let handoff: MediaHandoffV1 =
+                    serde_json::from_value(args).map_err(|_| media_unprovenanced())?;
                 let mut paths = BTreeSet::new();
                 if handoff.occurrences.iter().any(|occurrence| {
                     occurrence.token.is_empty() || !paths.insert(occurrence.path.clone())
@@ -3229,9 +3258,10 @@ impl<'a> IbexHostContext<'a> {
             }
             "db.query" | "db.elevated.query" => {
                 let elevated = op == "db.elevated.query";
-                if self.mode == IbexInvocationMode::Action {
-                    return Err(action_db_denied(if elevated { "elevated.query" } else { "query" }));
-                }
+                self.ensure_db_read_available(
+                    elevated,
+                    if elevated { "elevated.query" } else { "query" },
+                )?;
                 let mut plan = serde_json::from_value::<QueryPlan>(
                     args.get("plan").cloned().unwrap_or(Value::Null),
                 )
@@ -3336,9 +3366,10 @@ impl<'a> IbexHostContext<'a> {
             }
             "db.get" | "db.elevated.get" => {
                 let elevated = op == "db.elevated.get";
-                if self.mode == IbexInvocationMode::Action {
-                    return Err(action_db_denied(if elevated { "elevated.get" } else { "get" }));
-                }
+                self.ensure_db_read_available(
+                    elevated,
+                    if elevated { "elevated.get" } else { "get" },
+                )?;
                 let table = required_string(&args, "table")?;
                 let id = required_string(&args, "id")?;
                 let (stored, visibility, storage_visible) =
@@ -3377,9 +3408,14 @@ impl<'a> IbexHostContext<'a> {
             // and enforce the response ceiling before returning any array.
             "db.getMany" | "db.elevated.getMany" => {
                 let elevated = op == "db.elevated.getMany";
-                if self.mode == IbexInvocationMode::Action {
-                    return Err(action_db_denied(if elevated { "elevated.getMany" } else { "getMany" }));
-                }
+                self.ensure_db_read_available(
+                    elevated,
+                    if elevated {
+                        "elevated.getMany"
+                    } else {
+                        "getMany"
+                    },
+                )?;
                 reject_batch_descriptor_extras(&args, &["table", "ids"])?;
                 let table = required_batch_string(&args, "table")?;
                 let ids = required_batch_ids(&args, "ids")?;
@@ -3396,9 +3432,14 @@ impl<'a> IbexHostContext<'a> {
             // @ref LLP 0248#d3-one-host-operation-one-authoritative-snapshot
             "db.uniqueMany" | "db.elevated.uniqueMany" => {
                 let elevated = op == "db.elevated.uniqueMany";
-                if self.mode == IbexInvocationMode::Action {
-                    return Err(action_db_denied(if elevated { "elevated.uniqueMany" } else { "uniqueMany" }));
-                }
+                self.ensure_db_read_available(
+                    elevated,
+                    if elevated {
+                        "elevated.uniqueMany"
+                    } else {
+                        "uniqueMany"
+                    },
+                )?;
                 reject_batch_descriptor_extras(&args, &["table", "index", "keys"])?;
                 let table = required_batch_string(&args, "table")?;
                 let index = required_batch_string(&args, "index")?;
@@ -4996,8 +5037,7 @@ fn batch_read_cost_facts(
     } else {
         0
     };
-    let physical_statement_count =
-        request_chunk_count.saturating_add(overlay_point_read_count);
+    let physical_statement_count = request_chunk_count.saturating_add(overlay_point_read_count);
     let max_policy_evaluation_count = distinct_item_count
         .saturating_add(overlay_point_read_count)
         .saturating_add(distinct_item_count.saturating_mul(overlay_point_read_count));
@@ -7128,6 +7168,7 @@ mod runtime_boundary_hardening_tests {
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             false,
+            true,
         )
         .unwrap()
     }
@@ -7747,6 +7788,7 @@ mod private_failure_carrier_tests {
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             true,
+            true,
         )
         .expect("runtime context");
         let module = IbexModule {
@@ -7926,6 +7968,7 @@ mod handler_result_bridge_tests {
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             false,
+            true,
         )
         .expect("runtime context");
         let module = IbexModule {
@@ -7949,17 +7992,21 @@ mod handler_result_bridge_tests {
 #[cfg(test)]
 mod table_visibility_runtime_tests {
     use super::{
-        IbexHostContext, read_dependency_key, run_ibex_handler_with_context,
-        with_host_call_trace, with_runtime_log_telemetry,
+        IbexHostContext, execute_ibex_mutation_prepared, read_dependency_key,
+        run_ibex_handler_with_context, run_ibex_query_with_reads_prepared, with_host_call_trace,
+        with_runtime_log_telemetry,
     };
     use crate::auth::admission::AdmissionLease;
-    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
-    use crate::contract_types::IndexManifest;
+    use crate::auth::invocation::{
+        HandlerAuthProjection, InvocationGate, InvocationSource, PreparedInvocation,
+        ResolvedAppAuthority, WireAuthorityFields,
+    };
+    use crate::contract_types::{AuthMode, IndexManifest, ServerProfile};
     use crate::manifest::{
-        AuthInput, BATCH_READ_MAX_POLICY_PROBES_PER_ITEM, FieldManifest, FieldType, HandlerInput,
-        IbexModule, MembershipManifest, MembershipScope, SchemaManifest, SeedData,
-        SequenceDeclaration, SequenceScopeAccess, TableManifest, TableVisibilityArmV1,
-        TableVisibilityV1,
+        ActionPlan, AuthInput, BATCH_READ_MAX_POLICY_PROBES_PER_ITEM, FieldManifest, FieldType,
+        FunctionDefinition, FunctionKind, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
+        MembershipManifest, MembershipScope, SchemaManifest, SeedData, SequenceDeclaration,
+        SequenceScopeAccess, TableManifest, TableVisibilityArmV1, TableVisibilityV1,
     };
     use crate::storage::{
         BufferedWrite, CapturedReadKind, DbRead, LocalDatabase, MembershipWriter,
@@ -8162,6 +8209,20 @@ mod table_visibility_runtime_tests {
             resource_table: Some("resources".to_owned()),
             principal_addressed_writes: None,
         });
+        let mut owner_docs = table(
+            "owner_docs",
+            vec![
+                field("ownerId", FieldType::Principal),
+                field("body", FieldType::String),
+            ],
+            Some(owner.clone()),
+        );
+        owner_docs.indexes = vec![IndexManifest {
+            name: "byBody".to_owned(),
+            fields: vec!["body".to_owned()],
+            unique: true,
+            where_applicable: false,
+        }];
         SchemaManifest {
             tables: vec![
                 table(
@@ -8174,14 +8235,7 @@ mod table_visibility_runtime_tests {
                     }),
                 ),
                 resource_members,
-                table(
-                    "owner_docs",
-                    vec![
-                        field("ownerId", FieldType::Principal),
-                        field("body", FieldType::String),
-                    ],
-                    Some(owner.clone()),
-                ),
+                owner_docs,
                 table(
                     "membership_docs",
                     vec![
@@ -8356,6 +8410,7 @@ mod table_visibility_runtime_tests {
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             writable,
+            true,
         )
         .expect("table-visibility handler context")
     }
@@ -8365,6 +8420,57 @@ mod table_visibility_runtime_tests {
             source: source.to_owned(),
             export: export.to_owned(),
         }
+    }
+
+    fn ibex_function(name: &str, kind: FunctionKind, source: &str) -> FunctionDefinition {
+        FunctionDefinition::new(
+            name,
+            kind,
+            FunctionRuntime::IbexModule(module(source, name)),
+        )
+    }
+
+    fn action_root(authority: crate::auth::invocation::PreparedAuthority) -> PreparedInvocation {
+        let action = FunctionDefinition::new(
+            "elevationRoot",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        InvocationGate::prepare_function(authority, &action).expect("prepare action root")
+    }
+
+    fn elevated_operation_source(op: &str) -> &'static str {
+        match op {
+            "get" => {
+                "globalThis.__snapbackHandlers = { async probe(ctx) { return await ctx.db.elevated.get('__must_not_reach_storage', 'secret'); } };"
+            }
+            "getMany" => {
+                "globalThis.__snapbackHandlers = { async probe(ctx) { return await ctx.db.elevated.getMany('__must_not_reach_storage', ['secret']); } };"
+            }
+            "uniqueMany" => {
+                "globalThis.__snapbackHandlers = { async probe(ctx) { return await ctx.db.elevated.uniqueMany('__must_not_reach_storage', 'bySecret', [{ secret: 'value' }]); } };"
+            }
+            "query" => {
+                "globalThis.__snapbackHandlers = { async probe(ctx) { return await ctx.db.elevated.query('__must_not_reach_storage').collect(); } };"
+            }
+            _ => unreachable!("closed elevated operation fixture"),
+        }
+    }
+
+    fn nested_mutation_from(
+        root: &PreparedInvocation,
+        source: &str,
+    ) -> (FunctionDefinition, PreparedInvocation) {
+        let mutation = ibex_function("probe", FunctionKind::Mutation, source);
+        let authority = root
+            .inherit_authority_for(InvocationSource::NestedMutation)
+            .expect("inherit root provenance into nested mutation");
+        let prepared = InvocationGate::prepare_function(authority, &mutation)
+            .expect("prepare named nested mutation");
+        (mutation, prepared)
     }
 
     #[test]
@@ -8513,15 +8619,12 @@ globalThis.__snapbackHandlers = {
 };
 "#;
         let mut elevated = context(&db, Some("alice"), false);
-        let elevated_rows = run_ibex_handler_with_context(
-            &module(ELEVATED_SOURCE, "list"),
-            &mut elevated,
-            None,
-        )
-        .expect("explicit elevated query runs")
-        .as_array()
-        .expect("elevated query returns rows")
-        .clone();
+        let elevated_rows =
+            run_ibex_handler_with_context(&module(ELEVATED_SOURCE, "list"), &mut elevated, None)
+                .expect("explicit elevated query runs")
+                .as_array()
+                .expect("elevated query returns rows")
+                .clone();
         assert_eq!(elevated_rows.len(), 2);
         let elevated_capture = elevated
             .reads
@@ -8536,6 +8639,141 @@ globalThis.__snapbackHandlers = {
             Value::Null,
             "elevated reads bypass row policy but retain captured-read/OCC evidence",
         );
+    }
+
+    /// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
+    #[test]
+    fn table_visibility_cron_action_root_refuses_all_nested_elevated_read_forms() {
+        let authority = InvocationGate::prepare_authority(
+            InvocationSource::Cron,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::System,
+        )
+        .expect("prepare scheduled system authority");
+        let root = action_root(authority);
+        assert!(!root.authority().elevated_database_allowed());
+        let db = ready_db();
+
+        for op in ["get", "getMany", "uniqueMany", "query"] {
+            let (mutation, prepared) = nested_mutation_from(&root, elevated_operation_source(op));
+            let FunctionRuntime::IbexModule(module) = &mutation.runtime else {
+                unreachable!("nested fixture is an Ibex mutation");
+            };
+            let error = match execute_ibex_mutation_prepared(
+                module,
+                input(None),
+                &prepared,
+                DbRead::Live(&db),
+                None,
+                None,
+            ) {
+                Err(error) => error,
+                Ok(_) => panic!("scheduled action ancestry must fence nested elevation"),
+            };
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_HANDLER_WRITE_IN_QUERY",
+                "operation {op} must refuse before resolving the deliberately missing table",
+            );
+        }
+    }
+
+    /// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
+    #[test]
+    fn table_visibility_caller_backed_action_root_refuses_nested_elevation() {
+        let caller = input(Some("alice"));
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalAction,
+            ServerProfile::Test,
+            &caller,
+        )
+        .expect("prepare caller-backed action authority");
+        let root = action_root(authority);
+        let (mutation, prepared) = nested_mutation_from(&root, elevated_operation_source("get"));
+        let FunctionRuntime::IbexModule(module) = &mutation.runtime else {
+            unreachable!("nested fixture is an Ibex mutation");
+        };
+        let db = ready_db();
+        let error = match execute_ibex_mutation_prepared(
+            module,
+            caller,
+            &prepared,
+            DbRead::Live(&db),
+            None,
+            None,
+        ) {
+            Err(error) => error,
+            Ok(_) => panic!("caller identity cannot turn an action into an elevation root"),
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_WRITE_IN_QUERY");
+    }
+
+    /// @ref LLP 0231#d7--handler-reads-are-scoped-unless-the-call-site-is-explicitly-elevated
+    #[test]
+    fn table_visibility_direct_caller_query_and_mutation_keep_elevated_reads() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async probe(ctx) {
+    await ctx.db.elevated.get('owner_docs', 'owner-bob');
+    await ctx.db.elevated.getMany('owner_docs', ['owner-bob', 'owner-alice']);
+    await ctx.db.elevated.uniqueMany('owner_docs', 'byBody', [{ body: 'bob-only' }]);
+    return await ctx.db.elevated.query('owner_docs').collect();
+  }
+};
+"#;
+        let db = ready_db();
+        let caller = input(Some("alice"));
+
+        let query = ibex_function("probe", FunctionKind::Query, SOURCE);
+        let query_authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalQuery,
+            ServerProfile::Test,
+            &caller,
+        )
+        .expect("prepare direct query authority");
+        let prepared_query = InvocationGate::prepare_function(query_authority, &query)
+            .expect("prepare direct named query");
+        assert!(prepared_query.authority().elevated_database_allowed());
+        let FunctionRuntime::IbexModule(query_module) = &query.runtime else {
+            unreachable!("direct query fixture is Ibex");
+        };
+        let query_output = run_ibex_query_with_reads_prepared(
+            query_module,
+            caller.clone(),
+            &prepared_query,
+            DbRead::Live(&db),
+            None,
+            false,
+        )
+        .expect("direct caller-backed query keeps D7 elevation");
+        assert_eq!(query_output.output.rows.len(), 2);
+
+        let mutation = ibex_function("probe", FunctionKind::Mutation, SOURCE);
+        let mutation_authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &caller,
+        )
+        .expect("prepare direct mutation authority");
+        let prepared_mutation = InvocationGate::prepare_function(mutation_authority, &mutation)
+            .expect("prepare direct named mutation");
+        assert!(prepared_mutation.authority().elevated_database_allowed());
+        let FunctionRuntime::IbexModule(mutation_module) = &mutation.runtime else {
+            unreachable!("direct mutation fixture is Ibex");
+        };
+        let mutation_output = execute_ibex_mutation_prepared(
+            mutation_module,
+            caller,
+            &prepared_mutation,
+            DbRead::Live(&db),
+            None,
+            None,
+        )
+        .expect("direct caller-backed mutation keeps D7 elevation");
+        assert_eq!(mutation_output.result.as_array().unwrap().len(), 2);
     }
 
     #[test]
@@ -8635,10 +8873,13 @@ globalThis.__snapbackHandlers = {
                 && dependency.id.as_deref() == Some("owner-bob")
                 && dependency.kind == CapturedReadKind::Row
         }));
-        assert!(elevated_alice.reads.iter().all(|dependency| {
-            dependency.table.as_deref() != Some("owner_docs")
-                || dependency.kind != CapturedReadKind::Query
-        }), "elevated batch points capture exact rows without a visibility predicate");
+        assert!(
+            elevated_alice.reads.iter().all(|dependency| {
+                dependency.table.as_deref() != Some("owner_docs")
+                    || dependency.kind != CapturedReadKind::Query
+            }),
+            "elevated batch points capture exact rows without a visibility predicate"
+        );
 
         let owner_captures = alice
             .reads
@@ -9626,6 +9867,7 @@ mod membership_bridge_tests {
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             true,
+            true,
         )
         .expect("membership bridge context")
     }
@@ -9655,6 +9897,7 @@ mod membership_bridge_tests {
                 &authority,
                 authority_creating_consent,
             ),
+            true,
             true,
         )
         .expect("service-principal membership context")
@@ -9704,6 +9947,7 @@ mod membership_bridge_tests {
             HandlerAuthProjection::from_authority(&authority),
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
+            true,
             true,
         )
         .expect("anonymous sequence context");
@@ -10561,7 +10805,10 @@ globalThis.__snapbackHandlers = {
             members
                 .rows
                 .iter()
-                .map(|row| (row["userId"].as_str().unwrap(), row["role"].as_str().unwrap()))
+                .map(|row| (
+                    row["userId"].as_str().unwrap(),
+                    row["role"].as_str().unwrap()
+                ))
                 .collect::<BTreeMap<_, _>>(),
             BTreeMap::from([("alice", "host"), ("bob", "guest"), ("carol", "guest")]),
         );
@@ -10585,7 +10832,10 @@ globalThis.__snapbackHandlers = {
             .membership_plans()
             .authorize_membership_commands(commands)
             .expect_err("bootstrap cannot grant a role the transition matrix does not admit");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
         assert_eq!(
             denied_db
                 .query_reads_read()
@@ -10670,6 +10920,7 @@ mod direct_human_projection_tests {
             AdmissionLease::unmanaged(0, 0),
             MembershipWriter::from_resolved(&authority),
             false,
+            true,
         )
         .unwrap();
         let module = IbexModule {

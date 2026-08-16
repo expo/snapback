@@ -2,9 +2,7 @@
 
 use super::LocalDatabase;
 use super::auth::PasswordIdentifierMode;
-use crate::auth::crypto::{
-    CanonicalAddress, RandomSource, SessionBearer, StepUpConsumption,
-};
+use crate::auth::crypto::{CanonicalAddress, RandomSource, SessionBearer, StepUpConsumption};
 use crate::auth::identity_core::{
     AssuranceKind, AssuranceProvenance, AssuranceRecord, AuthClaimsProjection, ClaimsIdentity,
     PasswordSecret, RecoveryCodes,
@@ -1474,8 +1472,7 @@ pub(crate) fn admit_password_issuance_in(
             let exact_session = acting.is_some_and(|(user, generation, digest)| {
                 user == predecessor.credential.user_id
                     && u64::try_from(generation).ok() == Some(predecessor.acting_generation)
-                    && digest.as_slice()
-                        == predecessor.acting_token_digest.as_bytes().as_slice()
+                    && digest.as_slice() == predecessor.acting_token_digest.as_bytes().as_slice()
             });
             let exact_credential = password_snapshot_on(
                 transaction,
@@ -2656,15 +2653,13 @@ impl LocalDatabase {
                         "authentication state invariant failed",
                     )
                 })?,
-                acting_token_digest: crate::contract_types::TokenDigest::from_slice(
-                    &token_digest,
-                )
-                .map_err(|_| {
-                    auth_error(
-                        "INTERNAL_AUTH_STATE",
-                        "authentication state invariant failed",
-                    )
-                })?,
+                acting_token_digest: crate::contract_types::TokenDigest::from_slice(&token_digest)
+                    .map_err(|_| {
+                        auth_error(
+                            "INTERNAL_AUTH_STATE",
+                            "authentication state invariant failed",
+                        )
+                    })?,
                 authority_instance_id: authority,
                 sender_constrained,
             })
@@ -2704,13 +2699,14 @@ impl LocalDatabase {
                         "authentication state invariant failed",
                     )
                 })?,
-                token_digest: crate::contract_types::TokenDigest::from_slice(&digest)
-                    .map_err(|_| {
+                token_digest: crate::contract_types::TokenDigest::from_slice(&digest).map_err(
+                    |_| {
                         auth_error(
                             "INTERNAL_AUTH_STATE",
                             "authentication state invariant failed",
                         )
-                    })?,
+                    },
+                )?,
             })
         })
     }
@@ -3060,10 +3056,7 @@ impl LocalDatabase {
         })
     }
 
-    pub(crate) fn clear_password_lockout(
-        &mut self,
-        identifier: &str,
-    ) -> SnapbackResult<bool> {
+    pub(crate) fn clear_password_lockout(&mut self, identifier: &str) -> SnapbackResult<bool> {
         let mode = self.auth_password_identifier_mode()?;
         let canonical = canonical_password_identifier_value(mode, identifier)?;
         self.with_auth_transaction(|transaction| {
@@ -3505,25 +3498,31 @@ mod tests {
         );
 
         // A credential written under the pinned policy verifies normally.
-        let pinned =
-            hash_password_on_blocking_pool(&password("a-strong-password-123"), &CounterRandom::new())
-                .expect("pinned policy hash")
-                .phc;
+        let pinned = hash_password_on_blocking_pool(
+            &password("a-strong-password-123"),
+            &CounterRandom::new(),
+        )
+        .expect("pinned policy hash")
+        .phc;
         assert!(phc_cost_within_declared_caps(&pinned));
         assert!(verify_password(&password("a-strong-password-123"), &pinned));
 
         // Over-budget hashes are refused rather than verified, per algorithm.
         // Each of these is a well-formed hash whose declared cost is hostile.
-        let hostile_argon2 =
-            "$argon2id$v=19$m=4194304,t=2,p=1$HyAhIiMkJSYnKCkqKywtLg$Kwc47BIKhIV7UTbl8eAZf0EL/mFlTXkkO6rPuplXNLc";
+        let hostile_argon2 = "$argon2id$v=19$m=4194304,t=2,p=1$HyAhIiMkJSYnKCkqKywtLg$Kwc47BIKhIV7UTbl8eAZf0EL/mFlTXkkO6rPuplXNLc";
         assert!(
             !phc_cost_within_declared_caps(hostile_argon2),
             "4 GiB argon2 memory must be refused"
         );
-        assert!(!verify_password(&password("a-strong-password-123"), hostile_argon2));
+        assert!(!verify_password(
+            &password("a-strong-password-123"),
+            hostile_argon2
+        ));
 
         assert!(
-            !phc_cost_within_declared_caps("$2b$31$abcdefghijklmnopqrstuuLYQoZLnCLpYLnCLpYLnCLpYLnCLpY"),
+            !phc_cost_within_declared_caps(
+                "$2b$31$abcdefghijklmnopqrstuuLYQoZLnCLpYLnCLpYLnCLpYLnCLpY"
+            ),
             "bcrypt cost 31 must be refused"
         );
 
@@ -3531,14 +3530,17 @@ mod tests {
         // real foreign credential keeps working.
         let admissible_bcrypt = bcrypt::hash("a-strong-password-123", 4).expect("bcrypt fixture");
         assert!(phc_cost_within_declared_caps(&admissible_bcrypt));
-        assert!(verify_password(&password("a-strong-password-123"), &admissible_bcrypt));
+        assert!(verify_password(
+            &password("a-strong-password-123"),
+            &admissible_bcrypt
+        ));
 
         // Unparseable and unknown-algorithm inputs fail closed.
         assert!(!phc_cost_within_declared_caps("not-a-hash"));
         assert!(!phc_cost_within_declared_caps("$2b$notanumber$xxxx"));
-        assert!(!phc_cost_within_declared_caps(&"x".repeat(
-            IMPORTED_HASH_MAX_ENCODED_BYTES + 1
-        )));
+        assert!(!phc_cost_within_declared_caps(
+            &"x".repeat(IMPORTED_HASH_MAX_ENCODED_BYTES + 1)
+        ));
     }
 
     #[test]

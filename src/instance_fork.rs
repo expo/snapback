@@ -6198,7 +6198,9 @@ mod tests {
         ))
         .unwrap();
 
-        let parent_resume_path = directory.path().join(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
+        let parent_resume_path = directory
+            .path()
+            .join(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
         let mut parent_resume =
             crate::rqs::ResumeKeyring::load_or_create(parent_resume_path, 1_000);
         let (parent_resume_key_id, parent_resume_key) = parent_resume.active(1_000).unwrap();

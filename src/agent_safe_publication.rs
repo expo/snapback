@@ -673,10 +673,12 @@ mod tests {
                         receipt.implementation_scope.as_ref(),
                         Some(&derived_fork_implementation_scope())
                     );
-                    assert!(receipt
-                        .selection_policy_sha256
-                        .as_deref()
-                        .is_some_and(is_nonzero_sha256));
+                    assert!(
+                        receipt
+                            .selection_policy_sha256
+                            .as_deref()
+                            .is_some_and(is_nonzero_sha256)
+                    );
                     (true, true)
                 }
                 other => panic!("unsupported derived receipt schema {other}"),

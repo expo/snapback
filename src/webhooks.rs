@@ -48,9 +48,17 @@ impl std::fmt::Debug for DeliveryRequest {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum DeliveryOutcome {
-    Succeeded { http_status: u16 },
-    Retryable { code: &'static str, http_status: Option<u16> },
-    Permanent { code: &'static str, http_status: Option<u16> },
+    Succeeded {
+        http_status: u16,
+    },
+    Retryable {
+        code: &'static str,
+        http_status: Option<u16>,
+    },
+    Permanent {
+        code: &'static str,
+        http_status: Option<u16>,
+    },
 }
 
 impl DeliveryOutcome {
@@ -89,8 +97,7 @@ where
     } else {
         HttpTargetPolicy::PublicHttpsOnly
     };
-    prepare_http_target_with(url, policy, MAX_TARGET_BYTES, resolve)
-        .map_err(webhook_target_error)
+    prepare_http_target_with(url, policy, MAX_TARGET_BYTES, resolve).map_err(webhook_target_error)
 }
 
 pub(crate) fn signature(secret: &str, canonical_payload: &str) -> String {
@@ -143,7 +150,9 @@ pub(crate) fn deliver(request: DeliveryRequest) -> DeliveryOutcome {
         }
     };
     match status {
-        200..=299 => DeliveryOutcome::Succeeded { http_status: status },
+        200..=299 => DeliveryOutcome::Succeeded {
+            http_status: status,
+        },
         408 | 425 | 429 | 500..=599 => DeliveryOutcome::Retryable {
             code: "SNAPBACK_WEBHOOK_DELIVERY_RETRYABLE",
             http_status: Some(status),
@@ -219,12 +228,18 @@ mod tests {
 
     #[test]
     fn http_is_test_loopback_only_and_signature_verifies() {
-        assert!(prepare_target_with("http://example.test/hook", false, |_| {
-            Ok(vec!["127.0.0.1:80".parse().unwrap()])
-        }).is_err());
-        assert!(prepare_target_with("http://example.test/hook", true, |_| {
-            Ok(vec!["127.0.0.1:80".parse().unwrap()])
-        }).is_ok());
+        assert!(
+            prepare_target_with("http://example.test/hook", false, |_| {
+                Ok(vec!["127.0.0.1:80".parse().unwrap()])
+            })
+            .is_err()
+        );
+        assert!(
+            prepare_target_with("http://example.test/hook", true, |_| {
+                Ok(vec!["127.0.0.1:80".parse().unwrap()])
+            })
+            .is_ok()
+        );
         let payload = r#"{"event":"watch.fired","ordinal":1}"#;
         let actual = signature("receiver-secret", payload);
         let mut verifier = <Hmac<Sha256> as hmac::Mac>::new_from_slice(b"receiver-secret").unwrap();
@@ -245,6 +260,9 @@ mod tests {
         };
         let retained_debug = format!("{request:?}");
         assert!(retained_debug.contains("[REDACTED]"), "{retained_debug}");
-        assert!(!retained_debug.contains("receiver-secret"), "{retained_debug}");
+        assert!(
+            !retained_debug.contains("receiver-secret"),
+            "{retained_debug}"
+        );
     }
 }

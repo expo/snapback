@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::diagnostic::{SnapbackError, SnapbackResult};
 pub use crate::contract_types::MediaKindV1;
+use crate::diagnostic::{SnapbackError, SnapbackResult};
 
 /// The v1 canonical digest algorithm (author decision, 2026-07-31): native
 /// S3-compatible checksum interop and universal tooling. The algorithm is a
@@ -2097,7 +2097,9 @@ pub fn insert_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackRes
                 .ok()
                 .and_then(|v| v.as_str().map(str::to_owned))
                 .unwrap_or_default(),
-            record.media_kind.and_then(|kind| serde_json::to_value(kind).ok())
+            record
+                .media_kind
+                .and_then(|kind| serde_json::to_value(kind).ok())
                 .and_then(|value| value.as_str().map(str::to_owned)),
             record.lifecycle_generation,
             record_json(record)?,
@@ -2484,7 +2486,9 @@ pub fn store_asset(tx: &Transaction<'_>, record: &AssetRecordV1) -> SnapbackResu
                 .ok()
                 .and_then(|v| v.as_str().map(str::to_owned))
                 .unwrap_or_default(),
-            record.media_kind.and_then(|kind| serde_json::to_value(kind).ok())
+            record
+                .media_kind
+                .and_then(|kind| serde_json::to_value(kind).ok())
                 .and_then(|value| value.as_str().map(str::to_owned)),
             record.lifecycle_generation,
             record_json(record)?,
@@ -2530,8 +2534,7 @@ fn backfill_ready_media_kinds(tx: &Transaction<'_>) -> SnapbackResult<()> {
             .primary_rendition_id
             .as_deref()
             .ok_or_else(media_projection_integrity)?;
-        let rendition = load_rendition(tx, rendition_id)?
-            .ok_or_else(media_projection_integrity)?;
+        let rendition = load_rendition(tx, rendition_id)?.ok_or_else(media_projection_integrity)?;
         let detected = rendition
             .media_facts
             .as_ref()

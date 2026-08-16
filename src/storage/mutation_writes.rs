@@ -417,13 +417,9 @@ impl LocalDatabase {
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
         asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
         media_projection_proof: Option<&crate::runtime::StagedMediaProjectionProofV1>,
-        expected_media_projection_binding:
-            Option<&crate::runtime::MediaProjectionProofBindingV1>,
+        expected_media_projection_binding: Option<&crate::runtime::MediaProjectionProofBindingV1>,
     ) -> SnapbackResult<MutationCommit> {
-        let media_projection = match (
-            media_projection_proof,
-            expected_media_projection_binding,
-        ) {
+        let media_projection = match (media_projection_proof, expected_media_projection_binding) {
             (Some(proof), Some(expected)) => {
                 Some(MediaProjectionProofAccess::Borrowed { proof, expected })
             }
@@ -742,8 +738,7 @@ impl<'a> MutationWritesKernel<'a> {
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
         asset_grant_ops: Vec<crate::assets::BufferedAssetGrantOp>,
         media_projection_proof: Option<&crate::runtime::StagedMediaProjectionProofV1>,
-        expected_media_projection_binding:
-            Option<&crate::runtime::MediaProjectionProofBindingV1>,
+        expected_media_projection_binding: Option<&crate::runtime::MediaProjectionProofBindingV1>,
     ) -> SnapbackResult<MutationCommit> {
         self.db.dry_run_buffered_writes_with_jobs(
             input,

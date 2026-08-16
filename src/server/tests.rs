@@ -782,7 +782,10 @@ fn tus_patch_route_runs_durable_append_between_writer_windows() {
     let route = source
         .split("pub(super) async fn asset_tus_patch_route")
         .nth(1)
-        .and_then(|tail| tail.split("pub(super) async fn asset_tus_delete_route").next())
+        .and_then(|tail| {
+            tail.split("pub(super) async fn asset_tus_delete_route")
+                .next()
+        })
         .expect("asset TUS PATCH route source");
     let preflight = route
         .find("asset_tus_patch_preflight")

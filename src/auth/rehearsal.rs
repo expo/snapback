@@ -223,7 +223,9 @@ impl RehearsalReachabilityAdmissionV1 {
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
 pub enum RehearsalGoverningAuthorityV1 {
-    Grant { grant_id: String },
+    Grant {
+        grant_id: String,
+    },
     Window {
         window_id: String,
         parent_grant_id: String,
@@ -276,7 +278,11 @@ impl AuthRehearsalProvenanceV1 {
     pub fn for_grant(grant: &AuthRehearsalGrantV1, assurance_used: bool) -> SnapbackResult<Self> {
         let authority_decision_digest = digest_serializable(
             b"snapback.auth-rehearsal.authority-decision.v1\0",
-            &(grant.grant_id.as_str(), grant.instance_id.as_str(), grant.expires_at),
+            &(
+                grant.grant_id.as_str(),
+                grant.instance_id.as_str(),
+                grant.expires_at,
+            ),
         )?;
         let assurance_decision_digest = digest_serializable(
             b"snapback.auth-rehearsal.assurance-decision.v1\0",
@@ -331,9 +337,8 @@ impl AuthRehearsalProvenanceV1 {
         {
             return Err(provenance_invalid());
         }
-        let uuid_v7 = |value: &str| {
-            uuid::Uuid::parse_str(value).is_ok_and(|id| id.get_version_num() == 7)
-        };
+        let uuid_v7 =
+            |value: &str| uuid::Uuid::parse_str(value).is_ok_and(|id| id.get_version_num() == 7);
         for authority in &self.governing_authorities {
             let (authority_id, parent) = authority.authority_ids();
             if !uuid_v7(authority_id) || parent.is_some_and(|value| !uuid_v7(value)) {
@@ -399,8 +404,7 @@ pub struct RehearsalLiveAuthority {
     pub parent_grant_id: Option<String>,
 }
 
-pub type RehearsalLiveAuthorityRegistry =
-    Arc<RwLock<BTreeMap<String, RehearsalLiveAuthority>>>;
+pub type RehearsalLiveAuthorityRegistry = Arc<RwLock<BTreeMap<String, RehearsalLiveAuthority>>>;
 
 /// Process-bound level-triggered authority checker. Restart starts with an
 /// empty registry, so durable derived rows from an older boot remain inert.
@@ -2428,8 +2432,7 @@ mod tests {
     fn grant_and_window_governors_are_level_triggered_at_use_and_publication() {
         let grant_id = uuid::Uuid::now_v7().to_string();
         let window_id = uuid::Uuid::now_v7().to_string();
-        let registry: RehearsalLiveAuthorityRegistry =
-            Arc::new(RwLock::new(BTreeMap::new()));
+        let registry: RehearsalLiveAuthorityRegistry = Arc::new(RwLock::new(BTreeMap::new()));
         registry.write().unwrap().insert(
             grant_id.clone(),
             RehearsalLiveAuthority {
@@ -2460,11 +2463,20 @@ mod tests {
             "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED"
         );
 
-        registry.write().unwrap().get_mut(&window_id).unwrap().expires_at_ms = 900;
+        registry
+            .write()
+            .unwrap()
+            .get_mut(&window_id)
+            .unwrap()
+            .expires_at_ms = 900;
         assert_eq!(fence.try_publish(850, || Ok(7)).unwrap(), 7);
         registry.write().unwrap().remove(&window_id);
         assert_eq!(
-            fence.try_publish(850, || Ok(7)).unwrap_err().diagnostic.code,
+            fence
+                .try_publish(850, || Ok(7))
+                .unwrap_err()
+                .diagnostic
+                .code,
             "SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED"
         );
 
@@ -2485,8 +2497,7 @@ mod tests {
     #[test]
     fn simulated_assurance_rechecks_governor_at_use_time() {
         let grant_id = uuid::Uuid::now_v7().to_string();
-        let registry: RehearsalLiveAuthorityRegistry =
-            Arc::new(RwLock::new(BTreeMap::new()));
+        let registry: RehearsalLiveAuthorityRegistry = Arc::new(RwLock::new(BTreeMap::new()));
         registry.write().unwrap().insert(
             grant_id.clone(),
             RehearsalLiveAuthority {

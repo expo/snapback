@@ -414,18 +414,19 @@ impl PasswordProviderReadiness {
     fn validate(&self) -> SnapbackResult<()> {
         let production_signup_coherent = !self.production_signup_ready
             && self.production_signup_refusal_code == PASSWORD_PRODUCTION_SIGNUP_UNAVAILABLE_CODE;
-        let coherent = production_signup_coherent && if self.ready {
-            self.catalog_version == Some(4)
-                && matches!(
-                    self.identifier_mode.as_deref(),
-                    Some("username-v1" | "email-v1")
-                )
-                && self.refusal_code.is_none()
-        } else {
-            self.catalog_version.is_none_or(|version| version < 4)
-                && self.identifier_mode.is_none()
-                && self.refusal_code.as_deref() == Some(PASSWORD_PROVIDER_REQUIRES_V4_CODE)
-        };
+        let coherent = production_signup_coherent
+            && if self.ready {
+                self.catalog_version == Some(4)
+                    && matches!(
+                        self.identifier_mode.as_deref(),
+                        Some("username-v1" | "email-v1")
+                    )
+                    && self.refusal_code.is_none()
+            } else {
+                self.catalog_version.is_none_or(|version| version < 4)
+                    && self.identifier_mode.is_none()
+                    && self.refusal_code.as_deref() == Some(PASSWORD_PROVIDER_REQUIRES_V4_CODE)
+            };
         if coherent {
             Ok(())
         } else {

@@ -42,3 +42,23 @@ directly invoked caller-backed named query/mutation remains admitted.
   acceptance fixtures should include the nested-provenance refusal cases.
 - Do not fold into the read-surface composition lane (`lane/visibility-compose-20260815`);
   land after it to avoid `src/runtime.rs` conflicts.
+
+## Resolution (2026-08-15)
+
+Resolved with a host-owned root-provenance fence. Function preparation binds
+each invocation ancestry as caller-backed named-read authority or permanently
+fenced action/background authority; nested mutation inheritance preserves that
+fact, and unbound nested inheritance fails closed. Every elevated dispatcher
+(`get`, `getMany`, `uniqueMany`, and `query`) checks the root fact before
+descriptor parsing or storage access.
+
+The refusal reuses the existing action DB-denial family,
+`SNAPBACK_HANDLER_WRITE_IN_QUERY`, whose shared dispatcher and handler-envelope
+classification already preserve a trusted typed action failure. No new
+diagnostic code or registry entry was needed.
+
+Runtime witnesses:
+
+- `table_visibility_cron_action_root_refuses_all_nested_elevated_read_forms`
+- `table_visibility_caller_backed_action_root_refuses_nested_elevation`
+- `table_visibility_direct_caller_query_and_mutation_keep_elevated_reads`

@@ -436,7 +436,8 @@ impl LocalDatabase {
                     caller_args_json,
                     request.expires_at_ms as i64,
                     request.remaining_uses.map(|value| value as i64),
-                    i64::from(request.approval_per_use), request.now_ms as i64,
+                    i64::from(request.approval_per_use),
+                    request.now_ms as i64,
                 ],
             )?;
             Ok(())
@@ -468,14 +469,17 @@ impl LocalDatabase {
         id: &str,
         now_ms: u64,
     ) -> SnapbackResult<CapabilityLinkRecord> {
-        let live: Option<()> = self.conn.query_row(
-            "SELECT 1 FROM _snapback_capability_links AS l
+        let live: Option<()> = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM _snapback_capability_links AS l
              JOIN _auth_users AS u ON u.id = l.minter_principal_id
              WHERE l.id = ?1 AND l.status = 'active' AND l.expires_at_ms > ?2
                AND u.kind = 'human' AND u.deactivated_at_ms IS NULL",
-            params![id, now_ms as i64],
-            |_| Ok(()),
-        ).optional()?;
+                params![id, now_ms as i64],
+                |_| Ok(()),
+            )
+            .optional()?;
         if live.is_none() {
             return Err(unavailable());
         }

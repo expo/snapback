@@ -27,13 +27,13 @@ use zeroize::Zeroizing;
 use crate::auth::crypto::{OsRandom, RandomSource, ResumeKeyId};
 #[cfg(test)]
 use crate::rqs_contract::ecma_number_string;
-pub use crate::rqs_contract::{MintRefusal, jcs, sha256_identity};
 pub use crate::rqs_contract::{
     CONTENT_DIGEST_ACCUMULATOR_VERSION, CONTENT_DIGEST_DOMAIN, CONTENT_DIGEST_SYSTEM_DOMAIN,
     ContentDigestAccumulatorV1, ContentDigestHeaderV1, ContentDigestStream, DigestKind, MsetState,
     RESUME_KEYRING_FILE_NAME, ResumableSha256, args_hash, leaf, query_artifact_hash, row_hash,
     row_wire_id, seq1_digest,
 };
+pub use crate::rqs_contract::{MintRefusal, jcs, sha256_identity};
 // @ref LLP 0225#1-ownership-map — retain the crate-internal compatibility
 //   path while all implementation consumers depend directly on the leaf.
 #[allow(unused_imports)]

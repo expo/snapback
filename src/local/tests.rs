@@ -2864,12 +2864,11 @@ fn asset_tus_patch_commit_cas_refuses_a_moved_offset_before_acknowledging() {
     let store = snapback.asset_store().expect("store");
     let staged = std::fs::read(store.staging_path(&winner.staging_key).unwrap()).unwrap();
     assert_eq!(staged, b"other");
-    let stale_offset = match snapback
-        .asset_tus_patch_preflight(&transfer, &attempt_id, 0, b"stale", None)
-    {
-        Err(error) => error,
-        Ok(_) => panic!("a stale Upload-Offset must refuse before another append"),
-    };
+    let stale_offset =
+        match snapback.asset_tus_patch_preflight(&transfer, &attempt_id, 0, b"stale", None) {
+            Err(error) => error,
+            Ok(_) => panic!("a stale Upload-Offset must refuse before another append"),
+        };
     assert_eq!(
         stale_offset.diagnostic.code,
         "SNAPBACK_ASSET_OFFSET_CONFLICT"
@@ -2891,13 +2890,7 @@ fn asset_tus_patch_commit_cas_includes_checksum_grade() {
     let attempt_id = created.task.attempt_id;
     let checksum = asset_chunk_checksum(b"x");
     let stale = snapback
-        .asset_tus_patch_preflight(
-            &transfer,
-            &attempt_id,
-            0,
-            b"x",
-            Some(("sha256", &checksum)),
-        )
+        .asset_tus_patch_preflight(&transfer, &attempt_id, 0, b"x", Some(("sha256", &checksum)))
         .expect("checksummed request preflights");
     stale
         .append(b"x")

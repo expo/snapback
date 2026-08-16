@@ -212,7 +212,9 @@ fn parse_node(value: &Value, depth: usize, clauses: &mut usize) -> SnapbackResul
         .ok_or_else(|| input_invalid("predicate nodes must be JSON objects"))?;
     if object.contains_key("and") || object.contains_key("or") {
         if object.len() != 1 {
-            return Err(input_invalid("predicate groups contain exactly one of and/or"));
+            return Err(input_invalid(
+                "predicate groups contain exactly one of and/or",
+            ));
         }
         if depth >= MAX_GROUP_DEPTH {
             return Err(input_invalid("predicate group nesting exceeds depth 2"));
@@ -273,14 +275,18 @@ fn parse_node(value: &Value, depth: usize, clauses: &mut usize) -> SnapbackResul
 
 fn validate_pointer(pointer: &str) -> SnapbackResult<()> {
     if pointer.len() > MAX_POINTER_BYTES || (!pointer.is_empty() && !pointer.starts_with('/')) {
-        return Err(input_invalid("predicate path must be a bounded RFC 6901 pointer"));
+        return Err(input_invalid(
+            "predicate path must be a bounded RFC 6901 pointer",
+        ));
     }
     let bytes = pointer.as_bytes();
     let mut index = 0;
     while index < bytes.len() {
         if bytes[index] == b'~' {
             if index + 1 == bytes.len() || !matches!(bytes[index + 1], b'0' | b'1') {
-                return Err(input_invalid("predicate path contains an invalid RFC 6901 escape"));
+                return Err(input_invalid(
+                    "predicate path contains an invalid RFC 6901 escape",
+                ));
             }
             index += 2;
         } else {
@@ -326,9 +332,7 @@ fn evaluate_leaf(leaf: &PredicateLeaf, document: &Value) -> bool {
 
 fn compare(left: Option<&Value>, right: Option<&Value>) -> Option<std::cmp::Ordering> {
     match (left?, right?) {
-        (Value::Number(left), Value::Number(right)) => {
-            left.as_f64()?.partial_cmp(&right.as_f64()?)
-        }
+        (Value::Number(left), Value::Number(right)) => left.as_f64()?.partial_cmp(&right.as_f64()?),
         (Value::String(left), Value::String(right)) => Some(left.cmp(right)),
         _ => None,
     }
@@ -344,7 +348,9 @@ pub(crate) fn canonical_json(value: &Value) -> SnapbackResult<String> {
 
 pub(crate) fn canonical_args(value: &Value) -> SnapbackResult<(String, String)> {
     if !value.is_object() {
-        return Err(input_invalid("watch query and reaction args must be JSON objects"));
+        return Err(input_invalid(
+            "watch query and reaction args must be JSON objects",
+        ));
     }
     let canonical = canonical_json(value)?;
     if canonical.len() > MAX_ARGUMENT_BYTES {
@@ -406,7 +412,10 @@ mod tests {
             ]
         }))
         .unwrap();
-        assert_eq!(canonical, r#"{"and":[{"op":"eq","path":"/rows/0/done","value":true},{"op":"contains","path":"/rows/0/title","value":"ship"}]}"#);
+        assert_eq!(
+            canonical,
+            r#"{"and":[{"op":"eq","path":"/rows/0/done","value":true},{"op":"contains","path":"/rows/0/title","value":"ship"}]}"#
+        );
         assert!(evaluate(
             &predicate,
             &json!({"rows": [{"done": true, "title": "ship watches"}]})
@@ -414,20 +423,29 @@ mod tests {
         assert!(parse_predicate(&json!({"path": "/x", "op": "eval", "value": "code"})).is_err());
         assert!(parse_predicate(&json!({"code": "return true"})).is_err());
         assert!(parse_predicate(&json!({"path": "/bad~2", "op": "exists"})).is_err());
-        assert!(parse_predicate(&json!({"and": [{"or": [{"and": [{"path": "", "op": "exists"}]}]}]})).is_err());
-        assert!(parse_predicate(&json!({
-            "or": (0..9)
-                .map(|index| json!({"path": format!("/rows/{index}"), "op": "exists"}))
-                .collect::<Vec<_>>()
-        })).is_err());
+        assert!(
+            parse_predicate(&json!({"and": [{"or": [{"and": [{"path": "", "op": "exists"}]}]}]}))
+                .is_err()
+        );
+        assert!(
+            parse_predicate(&json!({
+                "or": (0..9)
+                    .map(|index| json!({"path": format!("/rows/{index}"), "op": "exists"}))
+                    .collect::<Vec<_>>()
+            }))
+            .is_err()
+        );
     }
 
     #[test]
     fn edge_comparison_is_typed_and_contains_is_closed() {
-        let (predicate, _) = parse_predicate(&json!({"path": "/count", "op": "gte", "value": 3})).unwrap();
+        let (predicate, _) =
+            parse_predicate(&json!({"path": "/count", "op": "gte", "value": 3})).unwrap();
         assert!(evaluate(&predicate, &json!({"count": 3})));
         assert!(!evaluate(&predicate, &json!({"count": "3"})));
-        let (predicate, _) = parse_predicate(&json!({"path": "/tags", "op": "contains", "value": "urgent"})).unwrap();
+        let (predicate, _) =
+            parse_predicate(&json!({"path": "/tags", "op": "contains", "value": "urgent"}))
+                .unwrap();
         assert!(evaluate(&predicate, &json!({"tags": ["urgent"]})));
     }
 }

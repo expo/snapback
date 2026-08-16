@@ -90,12 +90,12 @@ use crate::manifest::{
     FunctionManifest, FunctionResponse, MutationAcknowledgementRequest,
     MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
-use crate::operational_readiness::{
-    ApplicationReadyReceiptV1, ExpectedActivationTargetV1, OperationalReadinessV1,
-};
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
     MigrationPreviewObservationV1, MigrationRehearsalPlanV1,
+};
+use crate::operational_readiness::{
+    ApplicationReadyReceiptV1, ExpectedActivationTargetV1, OperationalReadinessV1,
 };
 use crate::proof_checkpoint::{
     BoundaryDigestV1, BoundaryProofV1, CheckpointDigestHeaderV1, CheckpointRegistryRecordV1,

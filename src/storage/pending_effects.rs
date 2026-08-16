@@ -213,7 +213,9 @@ fn catalog_objects(conn: &Connection) -> SnapbackResult<Vec<(String, String, Str
          ORDER BY type, name",
     )?;
     Ok(statement
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))?
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
         .collect::<Result<Vec<_>, _>>()?)
 }
 
@@ -270,17 +272,28 @@ fn read_record(conn: &Connection, id: &str) -> SnapbackResult<Option<PendingEffe
             params![id],
             |row| {
                 Ok((
-                    row.get::<_, String>(0)?, row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?, row.get::<_, String>(3)?,
-                    row.get::<_, String>(4)?, row.get::<_, String>(5)?,
-                    row.get::<_, String>(6)?, row.get::<_, String>(7)?,
-                    row.get::<_, String>(8)?, row.get::<_, String>(9)?,
-                    row.get::<_, String>(10)?, row.get::<_, Option<String>>(11)?,
-                    row.get::<_, Option<String>>(12)?, row.get::<_, i64>(13)?,
-                    row.get::<_, i64>(14)?, row.get::<_, String>(15)?,
-                    row.get::<_, Option<String>>(16)?, row.get::<_, String>(17)?,
-                    row.get::<_, String>(18)?, row.get::<_, Option<i64>>(19)?,
-                    row.get::<_, Option<i64>>(20)?, row.get::<_, Option<String>>(21)?,
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, String>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, String>(7)?,
+                    row.get::<_, String>(8)?,
+                    row.get::<_, String>(9)?,
+                    row.get::<_, String>(10)?,
+                    row.get::<_, Option<String>>(11)?,
+                    row.get::<_, Option<String>>(12)?,
+                    row.get::<_, i64>(13)?,
+                    row.get::<_, i64>(14)?,
+                    row.get::<_, String>(15)?,
+                    row.get::<_, Option<String>>(16)?,
+                    row.get::<_, String>(17)?,
+                    row.get::<_, String>(18)?,
+                    row.get::<_, Option<i64>>(19)?,
+                    row.get::<_, Option<i64>>(20)?,
+                    row.get::<_, Option<String>>(21)?,
                     row.get::<_, String>(22)?,
                 ))
             },
@@ -402,7 +415,9 @@ impl LocalDatabase {
         let generation_json = serde_json::to_string(&request.generation)
             .map_err(|_| input_invalid("effect generation does not serialize"))?;
         if authority_json.len() > AUTHORITY_MAX_BYTES || generation_json.len() > 4096 {
-            return Err(input_invalid("effect authority or generation exceeds its bound"));
+            return Err(input_invalid(
+                "effect authority or generation exceeds its bound",
+            ));
         }
         let mut write_set = request.declared_write_set;
         write_set.sort();
@@ -439,11 +454,22 @@ impl LocalDatabase {
                  ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?4,
                           ?11, ?12, ?13, ?14, 'pending', 'disclosed', ?15, ?16)",
                 params![
-                    id, request.function_id, request.function_name, kind, args_json,
-                    digest, request.caller_lane, request.caller_key, authority_json,
-                    generation_json, request.link_origin_id,
-                    request.approver_principal_id, request.now_ms as i64,
-                    expires_at_ms as i64, preview_json, journal_json,
+                    id,
+                    request.function_id,
+                    request.function_name,
+                    kind,
+                    args_json,
+                    digest,
+                    request.caller_lane,
+                    request.caller_key,
+                    authority_json,
+                    generation_json,
+                    request.link_origin_id,
+                    request.approver_principal_id,
+                    request.now_ms as i64,
+                    expires_at_ms as i64,
+                    preview_json,
+                    journal_json,
                 ],
             )?;
             Ok(())
@@ -520,7 +546,11 @@ impl LocalDatabase {
                 }
             }
             let status = if approve { "approved" } else { "refused" };
-            let outcome = if approve { None } else { Some("SNAPBACK_EFFECT_APPROVAL_DENIED") };
+            let outcome = if approve {
+                None
+            } else {
+                Some("SNAPBACK_EFFECT_APPROVAL_DENIED")
+            };
             let changed = tx.execute(
                 "UPDATE _snapback_pending_effects
                  SET status = ?1, approver_identity = ?2, decided_at_ms = ?3,
@@ -693,7 +723,9 @@ mod tests {
     #[test]
     fn disclosed_intent_is_bounded_and_journals_approve_execute() {
         let mut db = ready();
-        let created = db.create_pending_effect(request(10, DEFAULT_TTL_MS)).unwrap();
+        let created = db
+            .create_pending_effect(request(10, DEFAULT_TTL_MS))
+            .unwrap();
         assert!(created.id.starts_with("pfx_"));
         assert_eq!(created.status, PendingEffectStatus::Pending);
         assert_eq!(created.preview.kind, "disclosed");
@@ -701,14 +733,20 @@ mod tests {
         assert_eq!(created.preview.args_digest, created.args_digest);
         assert_eq!(created.journal[0].transition, "created");
 
-        let approved = db.decide_pending_effect(
-            &created.id, "human-a", true, false, None, 20,
-        ).unwrap();
+        let approved = db
+            .decide_pending_effect(&created.id, "human-a", true, false, None, 20)
+            .unwrap();
         assert_eq!(approved.status, PendingEffectStatus::Approved);
-        let executed = db.settle_pending_effect(&created.id, true, Some("ok"), 21).unwrap();
+        let executed = db
+            .settle_pending_effect(&created.id, true, Some("ok"), 21)
+            .unwrap();
         assert_eq!(executed.status, PendingEffectStatus::Executed);
         assert_eq!(
-            executed.journal.iter().map(|entry| entry.transition.as_str()).collect::<Vec<_>>(),
+            executed
+                .journal
+                .iter()
+                .map(|entry| entry.transition.as_str())
+                .collect::<Vec<_>>(),
             ["created", "approved", "executed"],
         );
     }
@@ -719,12 +757,14 @@ mod tests {
         let denied = db.create_pending_effect(request(10, 100)).unwrap();
         assert_eq!(
             db.decide_pending_effect(&denied.id, "human-b", false, false, None, 20)
-                .unwrap_err().diagnostic.code,
+                .unwrap_err()
+                .diagnostic
+                .code,
             "SNAPBACK_EFFECT_APPROVAL_DENIED",
         );
-        let refused = db.decide_pending_effect(
-            &denied.id, "human-a", false, false, None, 20,
-        ).unwrap();
+        let refused = db
+            .decide_pending_effect(&denied.id, "human-a", false, false, None, 20)
+            .unwrap();
         assert_eq!(refused.status, PendingEffectStatus::Refused);
 
         let expiring = db.create_pending_effect(request(30, 1)).unwrap();
@@ -733,7 +773,9 @@ mod tests {
         assert_eq!(expired.journal.last().unwrap().transition, "expired");
         assert_eq!(
             db.decide_pending_effect(&expiring.id, "human-a", true, false, None, 32)
-                .unwrap_err().diagnostic.code,
+                .unwrap_err()
+                .diagnostic
+                .code,
             "SNAPBACK_EFFECT_EXPIRED",
         );
     }
@@ -742,10 +784,12 @@ mod tests {
     fn exact_catalog_rejects_unrecognized_shape() {
         let db = ready();
         validate_exact_schema(&db.conn).unwrap();
-        db.conn.execute_batch(
-            "CREATE INDEX _snapback_pending_effects_unrecognized
+        db.conn
+            .execute_batch(
+                "CREATE INDEX _snapback_pending_effects_unrecognized
              ON _snapback_pending_effects(function_name);",
-        ).unwrap();
+            )
+            .unwrap();
         assert_eq!(
             validate_exact_schema(&db.conn).unwrap_err().diagnostic.code,
             "SNAPBACK_EFFECT_CATALOG_CORRUPT",

@@ -51,8 +51,8 @@ use crate::auth::session_projection::{
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
-    MailboxResponse, MintSessionRequest, PasswordChangeRequest, PasswordCredentialRequest,
-    PasswordAttemptAdminRecord, PasswordAttemptAdminRequest, PasswordAttemptAdminResponse,
+    MailboxResponse, MintSessionRequest, PasswordAttemptAdminRecord, PasswordAttemptAdminRequest,
+    PasswordAttemptAdminResponse, PasswordChangeRequest, PasswordCredentialRequest,
     PasswordResetRequest, PasswordUnlockRequest, PasswordUnlockResponse, RecoveryConsumeRequest,
     RequestCodeRequest, RequestCodeResponse, RescueCollidingTableRequest, SecretInput,
 };
@@ -1268,12 +1268,7 @@ impl IbexActionHost for DetachedActionHost {
             .inherit_for(InvocationSource::NestedMutation)?;
         let host_identity =
             snapback.covered_host_child_identity(&self.host_operation, name, &input, &authority)?;
-        match snapback.stage_nested_mutation(
-            name,
-            &input,
-            authority,
-            host_identity.as_ref(),
-        )? {
+        match snapback.stage_nested_mutation(name, &input, authority, host_identity.as_ref())? {
             StagedNestedMutation::InLock(staged) => {
                 let snapshot = snapback.authorization_reservation_snapshot()?;
                 let ephemeral = snapback.ephemeral_api();
@@ -2430,9 +2425,7 @@ fn action_stream_error(
     SnapbackError::error(code, "runtime", message).with_details(Value::Object(details))
 }
 
-fn action_stream_target_error(
-    error: crate::outbound_policy::PrepareTargetError,
-) -> SnapbackError {
+fn action_stream_target_error(error: crate::outbound_policy::PrepareTargetError) -> SnapbackError {
     match error.kind() {
         crate::outbound_policy::PrepareTargetErrorKind::Invalid => action_stream_error(
             "SNAPBACK_ACTION_STREAM_INVALID",

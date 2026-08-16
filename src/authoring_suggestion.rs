@@ -329,7 +329,6 @@ pub(crate) fn path_set_hash(paths: &[&str]) -> String {
     format!("sha256:{:x}", digest.finalize())
 }
 
-
 fn contract_kind(contract: &ResultValueContract) -> &'static str {
     match contract {
         ResultValueContract::Null => "null",

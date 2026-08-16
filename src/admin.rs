@@ -17,6 +17,7 @@ use crate::auth::lease::AuthorizedLeaseConfig;
 use crate::auth::mode::{AuthModeStateRecord, AuthProgramReadiness};
 use crate::auth::provider::AuthProvider;
 use crate::auth::runtime::{AuthProviderHealth, AuthRuntime};
+pub use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
@@ -28,7 +29,6 @@ use crate::server::{
     SharedSnapback, committed_mode_terminal_reason, static_public_content_security_policy,
     system_api_route, system_static_route,
 };
-pub use crate::contract_types::ServerProfile;
 use anyhow::Context as _;
 use axum::Json;
 use axum::body::{Body, Bytes};
@@ -2552,8 +2552,7 @@ pub struct AppState {
     /// Process-local capability projection for live grants minted by this
     /// boot. Restart invalidates every durable grant, while revoke and expiry
     /// remove entries without erasing protected rehearsal history.
-    pub(crate) auth_rehearsal_live_grants:
-        crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
+    pub(crate) auth_rehearsal_live_grants: crate::auth::rehearsal::RehearsalLiveAuthorityRegistry,
     /// Item-5 process authority. Production construction publishes this only
     /// after the durable stream migration and complete pre-bind rebuild.
     pub(crate) auth_coordinator: Option<Arc<crate::auth::coordinator::AuthCoordinator>>,

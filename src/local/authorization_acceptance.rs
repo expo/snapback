@@ -8,7 +8,6 @@ use super::{
     AuthorizationInvalidationAckInput, LiveInvalidationAdmission, LiveSubscribeInput,
     LocalSnapback, live_stream_text,
 };
-use crate::contract_types::ServerProfile;
 use crate::auth::admission::AdmissionLease;
 use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, LiveInvalidationIssuer, QueryNamespace,
@@ -16,6 +15,7 @@ use crate::auth::invalidation::{
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
 };
+use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackError;
 use crate::manifest::{
     AuthMode, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,

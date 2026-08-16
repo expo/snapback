@@ -13,8 +13,8 @@ use crate::contract_types::{
     DurableRotationReconcile, EvictionCandidateFact, ExchangeChallengeFact, ExistingIdentityFact,
     PlannedFamilyAlarmCommit, PlannedIdentityState, PlannedRevocationCommit,
     PlannedRotationTransaction, PresentedSessionLookup, RejectedExchangeOutcome,
-    RequestInsertOutcome, ResolvedSession, RevocationReason, SessionCapFacts,
-    SessionIssuanceFacts, SessionRevocation, SessionRevocationCandidateFact, TokenDigest,
+    RequestInsertOutcome, ResolvedSession, RevocationReason, SessionCapFacts, SessionIssuanceFacts,
+    SessionRevocation, SessionRevocationCandidateFact, TokenDigest,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use zeroize::Zeroizing;
@@ -142,10 +142,8 @@ pub(crate) struct CatalogSessionIssuancePlan<'a> {
     pub(crate) identity: &'a crate::contract_types::PlannedIdentityState,
     pub(crate) projected: CatalogProjectedSession<'a>,
     pub(crate) revocations: Vec<CatalogRevocationPlan<'a>>,
-    pub(crate) password:
-        Option<&'a crate::storage::auth_identity::PasswordIssuanceCommitPlan>,
-    pub(crate) password_profile:
-        Option<crate::storage::auth_identity::PasswordSecurityProfile>,
+    pub(crate) password: Option<&'a crate::storage::auth_identity::PasswordIssuanceCommitPlan>,
+    pub(crate) password_profile: Option<crate::storage::auth_identity::PasswordSecurityProfile>,
     pub(crate) challenge: Option<CatalogChallengeConsumption<'a>>,
     pub(crate) sender_issuance: Option<&'a crate::auth::sender_proof::SenderIssuanceCommitment>,
     pub(crate) rehearsal_exercise:
@@ -941,8 +939,7 @@ pub(crate) fn user_session_revocation_facts(
             generation: u64::try_from(generation)
                 .ok()
                 .filter(|generation| {
-                    *generation != 0
-                        && *generation < crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP
+                    *generation != 0 && *generation < crate::contract_types::AUTH_MAX_SAFE_TIMESTAMP
                 })
                 .ok_or_else(internal_state_snapback)?,
             token_digest: TokenDigest::from_bytes(
@@ -1050,9 +1047,7 @@ pub(crate) fn planned_password_change_transaction(
         plan.password_profile,
     )? {
         crate::storage::auth_identity::PasswordIssuanceAdmission::Proceed { .. } => {}
-        crate::storage::auth_identity::PasswordIssuanceAdmission::Invalid {
-            committed_attempt,
-        } => {
+        crate::storage::auth_identity::PasswordIssuanceAdmission::Invalid { committed_attempt } => {
             return Ok(CatalogPasswordChangeCommit::CredentialInvalid { committed_attempt });
         }
         crate::storage::auth_identity::PasswordIssuanceAdmission::LedgerCapacityExhausted => {
@@ -1113,11 +1108,8 @@ pub(crate) fn reconcile_password_change(
     let mut all_revocation_successors = true;
     let mut all_revocation_predecessors = true;
     for revocation in &plan.revocations {
-        match reconcile_planned_revocation(
-            connection,
-            revocation,
-            plan.rotation.superseded_at_ms,
-        )? {
+        match reconcile_planned_revocation(connection, revocation, plan.rotation.superseded_at_ms)?
+        {
             DurableRevocationReconcile::ExactSuccessor(committed) => {
                 revocation_successors.push(committed);
                 all_revocation_predecessors = false;
@@ -1795,9 +1787,7 @@ fn issuance_cap_is_exact_predecessor(
         }
     }
     Ok(match plan.eviction() {
-        None => {
-            count.saturating_sub(projected_user_revocations) < plan.live_session_limit as i64
-        }
+        None => count.saturating_sub(projected_user_revocations) < plan.live_session_limit as i64,
         Some(eviction) if count == plan.live_session_limit as i64 => {
             let oldest: Option<(String, i64, Vec<u8>)> = connection
                 .query_row(

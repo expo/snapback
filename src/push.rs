@@ -3765,10 +3765,10 @@ mod fake_expo;
 mod tests {
     use super::fake_expo::{FakeExpo, FakeExpoStep};
     use super::*;
-    use crate::contract_types::ServerProfile;
     use crate::auth::invocation::{
         InvocationGate, InvocationSource, ResolvedAppAuthority, WireAuthorityFields,
     };
+    use crate::contract_types::ServerProfile;
     use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
     use crate::storage::{DbRead, LocalDatabase};
 
