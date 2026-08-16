@@ -11,12 +11,24 @@ import {
 
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = supervisedExchangePath();
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH = supervisedDevIdentityCheckoutPath();
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER = 'x-snapback-dev-identity-checkout';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
 
 function supervisedExchangePath() {
   // @ref LLP 0181#package-contract — release exports must not retain the supervised
   // endpoint vocabulary; production builds prune this branch (LLP 0176 G4).
   if (process.env.NODE_ENV !== 'production') {
     return '/_snapback/expo/v1/bootstrap';
+  }
+  return '';
+}
+
+function supervisedDevIdentityCheckoutPath() {
+  // @ref LLP 0262#d2-carriers-per-shipped-topology — production exports do
+  // not retain the local native checkout endpoint vocabulary.
+  if (process.env.NODE_ENV !== 'production') {
+    return '/_snapback/expo/v1/dev-identity-checkout';
   }
   return '';
 }
@@ -88,6 +100,34 @@ function exchangeOriginFromRuntime() {
     ) return process.env.EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN;
   }
   return null;
+}
+
+function inferredRuntimePlatform() {
+  if (globalThis.navigator?.product === 'ReactNative') return 'native';
+  return 'web';
+}
+
+// @ref LLP 0262#d2-carriers-per-shipped-topology — only a native runtime may
+// read the non-public launch environment/Activity-extra bridge. A web runtime
+// ignores even a same-named process variable, keeping the checkout unreachable
+// from Expo web.
+export function resolveSupervisedDevIdentityCheckoutNonce({
+  runtimePlatform = inferredRuntimePlatform(),
+  nativeLaunchEnvironment = null,
+} = {}) {
+  if (process.env.NODE_ENV === 'production' || runtimePlatform !== 'native') return null;
+  const sources = [
+    nativeLaunchEnvironment,
+    globalThis.__SNAPBACK_EXPO_NATIVE_LAUNCH_ENVIRONMENT__,
+    globalThis.__SNAPBACK_EXPO_ANDROID_LAUNCH_EXTRAS__,
+    typeof process !== 'undefined' ? process.env : null,
+  ];
+  for (const source of sources) {
+    const candidate = source?.[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV];
+    if (nonEmptyString(candidate)) return candidate;
+  }
+  const installed = globalThis.__SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__;
+  return nonEmptyString(installed) ? installed : null;
 }
 
 function normalizedExchangeOrigin(explicit) {
@@ -255,12 +295,15 @@ export function createSupervisedExpoEnvironment({
   resolveAppState,
   developmentSync,
   clientOptions = {},
+  runtimePlatform,
+  nativeLaunchEnvironment,
   bindingCache = createDefaultSupervisedBindingCache(),
   onDiagnostic,
 } = {}) {
   const exchanges = new Map();
   const offlineFallbacks = new Map();
   let adopted = null;
+  let devIdentityCapabilityPromise = null;
 
   const retainExchange = (key, exchange, signal) => {
     exchanges.set(key, exchange);
@@ -356,12 +399,76 @@ export function createSupervisedExpoEnvironment({
     return validateExchange(await response.json());
   };
 
+  const resolveDevIdentityCapability = (signal) => {
+    if (devIdentityCapabilityPromise !== null) return devIdentityCapabilityPromise;
+    let checkoutNonce = resolveSupervisedDevIdentityCheckoutNonce({
+      ...(runtimePlatform === undefined ? {} : { runtimePlatform }),
+      ...(nativeLaunchEnvironment === undefined ? {} : { nativeLaunchEnvironment }),
+    });
+    if (checkoutNonce === null) return Promise.resolve(null);
+    devIdentityCapabilityPromise = (async () => {
+      const origin = normalizedExchangeOrigin(exchangeOrigin);
+      if (origin === null || typeof fetchImplementation !== 'function') {
+        throw codedError(
+          'SNAPBACK_DEV_IDENTITY_REFUSED',
+          'The supervised native dev-identity checkout was refused.',
+        );
+      }
+      let response;
+      try {
+        response = await fetchImplementation(`${origin}${SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH}`, {
+          method: 'POST',
+          cache: 'no-store',
+          headers: {
+            accept: 'application/json',
+            [SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER]: checkoutNonce,
+          },
+          signal,
+        });
+      } catch (cause) {
+        const error = codedError(
+          'SNAPBACK_DEV_IDENTITY_REFUSED',
+          'The supervised native dev-identity checkout was refused.',
+        );
+        error.cause = cause;
+        throw error;
+      } finally {
+        checkoutNonce = null;
+      }
+      let payload;
+      try { payload = await response.json(); } catch { payload = null; }
+      if (
+        !response.ok
+        || payload?.ok !== true
+        || !nonEmptyString(payload.devIdentityCapability)
+        || !payload.devIdentityCapability.startsWith('sbdev_')
+      ) {
+        throw codedError(
+          'SNAPBACK_DEV_IDENTITY_REFUSED',
+          'The supervised native dev-identity checkout was refused.',
+        );
+      }
+      return payload.devIdentityCapability;
+    })();
+    return devIdentityCapabilityPromise;
+  };
+
+  const clientOptionsWithDevIdentity = async (signal) => {
+    const capability = await resolveDevIdentityCapability(signal);
+    return capability === null
+      ? clientOptions
+      : { ...clientOptions, devIdentityCapability: capability };
+  };
+
   const environment = {
     format: 'snapback.expo-environment.v1',
     ...(appState === undefined ? {} : { appState }),
     ...(resolveAppState === undefined ? {} : { resolveAppState }),
     ...(developmentSync === undefined ? {} : { developmentSync }),
     ...(onDiagnostic === undefined ? {} : { onDiagnostic }),
+    resolveDevIdentityCapability({ signal } = {}) {
+      return resolveDevIdentityCapability(signal);
+    },
     async resolveBinding({ app, signal }) {
       let exchange;
       try {
@@ -414,9 +521,13 @@ export function createSupervisedExpoEnvironment({
         binding: exchange.binding,
         admission: supervisedAdmission(),
       });
+      const devIdentityCapability = await resolveDevIdentityCapability(signal);
       return Object.freeze({
         status: 'ready',
         bearer: exchange.authority.token,
+        ...(devIdentityCapability === null
+          ? {}
+          : { clientOptions: Object.freeze({ devIdentityCapability }) }),
         binding: exchange.binding,
         admission: supervisedAdmission(),
         // Supervisor events own remint; this explicit custody fact means the
@@ -464,11 +575,12 @@ export function createSupervisedExpoEnvironment({
           'The authority exchange did not match the admitted supervised binding.',
         );
       }
+      const resolvedClientOptions = await clientOptionsWithDevIdentity(signal);
       const client = createExternalSessionClient(binding.target.origin, {
-        ...clientOptions,
+        ...resolvedClientOptions,
         bearerToken: exchange.authority.token,
         authorizedLeaseProtocol: 1,
-        clientStoreId: clientOptions.clientStoreId
+        clientStoreId: resolvedClientOptions.clientStoreId
           ?? `snapback-expo-${binding.provenance.supervisorGeneration}`,
       });
       let facts;

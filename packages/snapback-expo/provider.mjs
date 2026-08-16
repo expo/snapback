@@ -374,10 +374,16 @@ export function createSnapbackExpoBoot({
             return state;
           }
           if (supervised?.status === 'ready') {
+            // @ref LLP 0262#d2-carriers-per-shipped-topology — the
+            // checkout result crosses the internal adoption seam as client
+            // configuration; older adopters intentionally ignore this field.
             await awaitBoundary(adoptSupervisedAuthority(applicationClient, {
               bearer: supervised.bearer,
               binding: admittedBinding,
               refreshAfterMs: supervised.refreshAfterMs,
+              ...(supervised.clientOptions === undefined
+                ? {}
+                : { clientOptions: supervised.clientOptions }),
             }));
             if (disposed) {
               await cleanup();
@@ -554,6 +560,9 @@ export function createSnapbackExpoBoot({
                 bearer: supervised.bearer,
                 binding: refreshedBinding,
                 refreshAfterMs: supervised.refreshAfterMs,
+                ...(supervised.clientOptions === undefined
+                  ? {}
+                  : { clientOptions: supervised.clientOptions }),
               }));
               admittedBinding = refreshedBinding;
               admittedBindingAdmission = supervised.admission ?? {};

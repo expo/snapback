@@ -4,7 +4,11 @@ import { createSnapbackExpoBoot } from './provider.mjs';
 import {
   SUPERVISED_EXCHANGE_FORMAT,
   SUPERVISED_EXCHANGE_PATH,
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV,
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER,
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH,
   createSupervisedExpoEnvironment,
+  resolveSupervisedDevIdentityCheckoutNonce,
 } from './supervised-environment.mjs';
 
 const deferred = () => {
@@ -206,4 +210,70 @@ await abortingEnvironment.resolveSupervisedAuthority({
 });
 assert.equal(exchangeFetches, 2, 'aborted construction deletes its retained bearer exchange');
 
-console.log('supervised-environment.test.mjs: no-prop exchange, sanitized refusal, and abort cleanup pass');
+const checkoutNonce = `native-checkout-${'n'.repeat(32)}`;
+assert.equal(resolveSupervisedDevIdentityCheckoutNonce({
+  runtimePlatform: 'web',
+  nativeLaunchEnvironment: { [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: checkoutNonce },
+}), null, 'Expo web ignores even a same-named launch-environment value');
+assert.equal(resolveSupervisedDevIdentityCheckoutNonce({
+  runtimePlatform: 'native',
+  nativeLaunchEnvironment: { [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: checkoutNonce },
+}), checkoutNonce);
+
+let checkoutRedemptions = 0;
+let checkoutBootstraps = 0;
+const checkoutEnvironment = createSupervisedExpoEnvironment({
+  exchangeOrigin: 'http://127.0.0.1:4321',
+  runtimePlatform: 'native',
+  nativeLaunchEnvironment: { [SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV]: checkoutNonce },
+  async fetch(url, options) {
+    if (options.method === 'GET') {
+      assert.equal(url, `http://127.0.0.1:4321${SUPERVISED_EXCHANGE_PATH}`);
+      checkoutBootstraps += 1;
+      return Response.json({
+        format: SUPERVISED_EXCHANGE_FORMAT,
+        correlationId: 'checkout-client-options-proof',
+        binding,
+        authority: {
+          status: 'ready',
+          tokenType: 'Bearer',
+          token: 'sbs_checkout_client_options_proof',
+        },
+      });
+    }
+    assert.equal(url, `http://127.0.0.1:4321${SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH}`);
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers[SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER], checkoutNonce);
+    checkoutRedemptions += 1;
+    return Response.json({
+      ok: true,
+      devIdentityCapability: 'sbdev_native_client_option_proof',
+    });
+  },
+});
+const checkoutAdmission = await checkoutEnvironment.resolveBinding({
+  app,
+  signal: new AbortController().signal,
+});
+const checkoutAuthority = await checkoutEnvironment.resolveSupervisedAuthority({
+  app,
+  binding: checkoutAdmission.binding,
+  signal: new AbortController().signal,
+  refresh: false,
+});
+assert.equal(checkoutAuthority.status, 'ready');
+assert.deepEqual(checkoutAuthority.clientOptions, {
+  devIdentityCapability: 'sbdev_native_client_option_proof',
+});
+assert.equal(
+  await checkoutEnvironment.resolveDevIdentityCapability(),
+  'sbdev_native_client_option_proof',
+);
+assert.equal(
+  await checkoutEnvironment.resolveDevIdentityCapability(),
+  'sbdev_native_client_option_proof',
+);
+assert.equal(checkoutBootstraps, 1);
+assert.equal(checkoutRedemptions, 1, 'one native process redeems its checkout nonce once');
+
+console.log('supervised-environment.test.mjs: no-prop exchange, sanitized refusal, abort cleanup, and one-shot native checkout pass');

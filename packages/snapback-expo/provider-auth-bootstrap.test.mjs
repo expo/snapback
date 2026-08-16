@@ -6,6 +6,7 @@ import { IDBFactory } from 'fake-indexeddb';
 
 import { createSnapbackAppClient } from '@expo/snapback-client';
 import {
+  adoptSupervisedBootstrapAuthority,
   createSnapbackAppClientWithBootstrapObserver,
 } from '@expo/snapback-client/app-client-internal';
 
@@ -229,6 +230,9 @@ function environmentFor(platform, supervisor) {
             binding: currentBinding(),
             admission: admission(),
             refreshAfterMs: Number.MAX_SAFE_INTEGER,
+            ...(supervisor.clientOptions === undefined
+              ? {}
+              : { clientOptions: supervisor.clientOptions }),
           });
     },
     async adoptAuthority() {
@@ -257,7 +261,14 @@ await seeded.auth.signInWithPassword({ email: 'application@example.com', passwor
 await seeded.dispose();
 seeded = null;
 
-const supervisor = { bearer: SUPERVISED_BEARER, events: [], diagnostics: [] };
+const devIdentityCapability = 'sbdev_provider_plumbing_test';
+const supervisor = {
+  bearer: SUPERVISED_BEARER,
+  clientOptions: Object.freeze({ devIdentityCapability }),
+  events: [],
+  diagnostics: [],
+};
+const supervisedAdoptionInputs = [];
 const boot = createSnapbackExpoBoot({
   app,
   environment: environmentFor(platform, supervisor),
@@ -269,6 +280,10 @@ const boot = createSnapbackExpoBoot({
   },
   createProvider: fakeReactProvider,
   bindLifecycle: () => Object.freeze({ dispose() {}, async settled() {} }),
+  async adoptSupervisedAuthority(appClient, input) {
+    supervisedAdoptionInputs.push(input);
+    return adoptSupervisedBootstrapAuthority(appClient, input);
+  },
 });
 const bootStates = [];
 boot.subscribe(() => bootStates.push(boot.getSnapshot()));
@@ -283,6 +298,11 @@ assert.deepEqual(ready.advisories.map(({ diagnostic }) => diagnostic.code), [
   'SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT',
 ]);
 assert.equal(boot.appClient().auth.currentPrincipal().userId, USER_A);
+assert.deepEqual(
+  supervisedAdoptionInputs[0]?.clientOptions,
+  { devIdentityCapability },
+  'supervised dev-identity custody is forwarded only through the client-option seam',
+);
 assert.deepEqual(
   bootStates
     .filter(({ status }) => status === 'starting')

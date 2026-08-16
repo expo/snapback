@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
   chmodSync,
   existsSync,
@@ -26,6 +26,9 @@ import { stopProcessGroup } from './process-teardown.mjs';
 export const EXPO_DEV_EVENT_FORMAT = 'snapback.expo-dev.v1';
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = '/_snapback/expo/v1/bootstrap';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH = '/_snapback/expo/v1/dev-identity-checkout';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER = 'x-snapback-dev-identity-checkout';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV = 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
 export const METRO_WATCH_BLIND_ROOTS = Object.freeze(['/private/tmp', '/tmp']);
 
 export function expoSupervisorChildEnvironment(env = process.env) {
@@ -34,6 +37,10 @@ export function expoSupervisorChildEnvironment(env = process.env) {
   // RQS-store owner. Inheriting the caller's file-store namespace lets a
   // supervised JS child take the app's single-writer lock before the app does.
   delete childEnv.SNAPBACK_CLIENT_RQS_DIR;
+  // A stale caller environment must never turn the process-only native
+  // checkout nonce into Metro input. The supervisor issues its own nonce only
+  // after selecting a native target.
+  delete childEnv[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV];
   return childEnv;
 }
 
@@ -70,6 +77,11 @@ export function expoMetroChildEnvironment({ env, bootstrapOrigin, port }) {
     // public and bound endpoints identical without exposing Metro on LAN.
     NODE_OPTIONS: metroNodeOptions(env?.NODE_OPTIONS),
   };
+  // @ref LLP 0262#d2-carriers-per-shipped-topology — the browser-visible
+  // Metro environment carries only the credential-free rendezvous origin.
+  // The checkout nonce is delivered by the native launcher, never by Metro or
+  // an EXPO_PUBLIC_* variable.
+  delete childEnv[SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV];
   // `snapback dev --expo` is a watch loop even when its controller has no
   // TTY. Omission therefore means ordinary Metro development mode; explicit
   // CI values remain caller-owned for genuinely hermetic invocations.
@@ -225,6 +237,86 @@ function constantTimeTokenEqual(presented, expected) {
     && typeof expected === 'string'
     && expected.length > 0
     && hashesEqual;
+}
+
+function readAdvertisedDevIdentityCapability(descriptor, readCapabilityFile) {
+  const path = descriptor?.devIdentityCapabilityFile;
+  if (typeof path !== 'string' || path.length === 0) return null;
+  if (typeof descriptor?.startupNonce !== 'string' || descriptor.startupNonce.length === 0) {
+    return null;
+  }
+  const capability = String(readCapabilityFile(path, 'utf8')).trim();
+  if (!capability.startsWith('sbdev_')) {
+    throw diagnosticError(
+      'SNAPBACK_DEV_IDENTITY_REFUSED',
+      'the ready-descriptor-advertised dev-identity capability is invalid',
+    );
+  }
+  return Object.freeze({
+    capability,
+    path,
+    startupNonce: descriptor.startupNonce,
+  });
+}
+
+// @ref LLP 0262#d2-carriers-per-shipped-topology — packaged native Expo gets
+// a per-device, one-shot nonce bound to the backend boot. The registry retains
+// no capability bytes: redemption re-reads the advertised sidecar after
+// checking the current startup nonce.
+export function createDevIdentityCheckoutRegistry({
+  getReadyDescriptor,
+  readCapabilityFile = readFileSync,
+  mintNonce = () => randomBytes(32).toString('base64url'),
+} = {}) {
+  if (typeof getReadyDescriptor !== 'function') {
+    throw new TypeError('getReadyDescriptor must be a function');
+  }
+  if (typeof readCapabilityFile !== 'function' || typeof mintNonce !== 'function') {
+    throw new TypeError('checkout registry readers and nonce minter must be functions');
+  }
+  const issued = [];
+  const issue = ({ platform, device } = {}) => {
+    const descriptor = getReadyDescriptor();
+    const advertised = readAdvertisedDevIdentityCapability(descriptor, readCapabilityFile);
+    if (advertised === null) return null;
+    const nonce = mintNonce();
+    if (typeof nonce !== 'string' || nonce.length < 32) {
+      throw new TypeError('checkout nonce minter must return at least 32 characters');
+    }
+    issued.push({
+      nonce,
+      startupNonce: advertised.startupNonce,
+      platform: platform ?? null,
+      device: device ?? null,
+    });
+    return nonce;
+  };
+  const redeem = (presented) => {
+    let matchedIndex = -1;
+    const dummy = '0'.repeat(43);
+    for (let index = 0; index < Math.max(issued.length, 1); index += 1) {
+      const expected = issued[index]?.nonce ?? dummy;
+      if (constantTimeTokenEqual(presented, expected)) matchedIndex = index;
+    }
+    if (matchedIndex === -1) return null;
+    const [checkout] = issued.splice(matchedIndex, 1);
+    let descriptor;
+    let advertised;
+    try {
+      descriptor = getReadyDescriptor();
+      advertised = readAdvertisedDevIdentityCapability(descriptor, readCapabilityFile);
+    } catch {
+      return null;
+    }
+    if (advertised === null || advertised.startupNonce !== checkout.startupNonce) return null;
+    return advertised.capability;
+  };
+  return Object.freeze({
+    issue,
+    redeem,
+    invalidate() { issued.length = 0; },
+    get pending() { return issued.length; },
+  });
 }
 
 function isLoopbackHost(host) {
@@ -855,6 +947,81 @@ export function installAndroidPortForwarding(plan, {
   });
 }
 
+// @ref LLP 0262#d2-carriers-per-shipped-topology — checkout nonces travel
+// only in native process-launch custody: simctl child environment for iOS and
+// one selected serial's Activity extras for Android. This helper has no web
+// arm and never receives the dev-identity capability itself.
+export function launchExpoNativeCheckout(plan, nonce, {
+  xcrunBinary = 'xcrun',
+  adbBinary = 'adb',
+  iosSimulator = 'booted',
+  iosBundleIdentifier = 'host.exp.Exponent',
+  androidComponent = 'host.exp.exponent/.experience.HomeActivity',
+  run = spawnSync,
+  env = process.env,
+} = {}) {
+  if (plan?.platform === 'web' || typeof nonce !== 'string' || nonce.length === 0) return null;
+  let result;
+  let carrier;
+  if (plan?.platform === 'ios' && plan.device?.class === 'simulator') {
+    carrier = 'ios-simctl-environment';
+    result = run(xcrunBinary, [
+      'simctl',
+      'launch',
+      '--terminate-running-process',
+      iosSimulator,
+      iosBundleIdentifier,
+    ], {
+      encoding: 'utf8',
+      timeout: 30_000,
+      env: {
+        ...(env ?? {}),
+        [`SIMCTL_CHILD_${SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV}`]: nonce,
+      },
+    });
+  } else if (plan?.platform === 'android' && plan.transport === 'adb-reverse') {
+    if (typeof plan.androidSerial !== 'string' || plan.androidSerial.length === 0) {
+      throw diagnosticError(
+        'SNAPBACK_EXPO_ANDROID_DEVICE_REQUIRED',
+        'native checkout launch requires the exact adb-reversed serial',
+      );
+    }
+    carrier = 'android-adb-activity-extra';
+    result = run(adbBinary, [
+      '-s',
+      plan.androidSerial,
+      'shell',
+      'am',
+      'start',
+      '-S',
+      '-n',
+      androidComponent,
+      '--es',
+      SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV,
+      nonce,
+    ], { encoding: 'utf8', timeout: 30_000, env });
+  } else {
+    return null;
+  }
+  if (result?.error || result?.status !== 0) {
+    throw diagnosticError(
+      'SNAPBACK_EXPO_NATIVE_LAUNCH_FAILED',
+      'the selected native Expo target could not be launched with its one-shot checkout',
+      {
+        platform: plan.platform,
+        device: plan.device ?? null,
+        carrier,
+        ...commandResultDetails(result),
+      },
+    );
+  }
+  return Object.freeze({
+    platform: plan.platform,
+    device: plan.device,
+    carrier,
+  });
+}
+
 function processTable() {
   const result = spawnSync('/bin/ps', ['-axo', 'pid=,ppid='], { encoding: 'utf8' });
   if (result.error || result.status !== 0) {
@@ -1001,7 +1168,10 @@ async function waitForListenerInventory({
   );
 }
 
-export async function startBootstrapExchange(getPayload, { onControl } = {}) {
+export async function startBootstrapExchange(
+  getPayload,
+  { onControl, onDevIdentityCheckout } = {},
+) {
   const sockets = new Set();
   const handleRequest = async (request, response) => {
     const admittedOrigin = admittedBrowserExchangeOrigin(request.headers.origin);
@@ -1023,6 +1193,34 @@ export async function startBootstrapExchange(getPayload, { onControl } = {}) {
       response.setHeader('access-control-max-age', '600');
       response.statusCode = 204;
       response.end();
+      return;
+    }
+    if (request.method === 'POST' && request.url === SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH) {
+      // This route is native-app-facing, never browser-facing. Remove the
+      // bootstrap GET's permissive loopback CORS projection and reject any
+      // browser-originated attempt before considering its nonce.
+      response.removeHeader('access-control-allow-origin');
+      response.removeHeader('access-control-allow-methods');
+      response.removeHeader('access-control-allow-headers');
+      response.removeHeader('access-control-max-age');
+      response.removeHeader('vary');
+      let capability = null;
+      if (request.headers.origin === undefined && typeof onDevIdentityCheckout === 'function') {
+        try {
+          capability = await onDevIdentityCheckout(
+            request.headers[SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER],
+          );
+        } catch {
+          capability = null;
+        }
+      }
+      if (typeof capability !== 'string' || !capability.startsWith('sbdev_')) {
+        response.statusCode = 403;
+        response.end(JSON.stringify({ ok: false, code: 'SNAPBACK_DEV_IDENTITY_REFUSED' }));
+        return;
+      }
+      response.statusCode = 200;
+      response.end(JSON.stringify({ ok: true, devIdentityCapability: capability }));
       return;
     }
     if (request.method === 'POST' && request.url === SUPERVISED_CONTROL_PATH) {
@@ -1304,6 +1502,9 @@ export async function runExpoDev(options = {}) {
   let forwarding = null;
   let binding = null;
   let authority = null;
+  let checkoutRegistry = null;
+  let checkoutNonce = null;
+  let nativeCheckoutLaunch = null;
   let listeners = Object.freeze([]);
   let closed = false;
   let closePromise = null;
@@ -1361,6 +1562,9 @@ export async function runExpoDev(options = {}) {
     }
     let descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
     const readyDescriptor = readReadyDescriptor(dev.readyFile);
+    checkoutRegistry = createDevIdentityCheckoutRegistry({
+      getReadyDescriptor: () => readReadyDescriptor(dev.readyFile),
+    });
     const mintAndSwapAuthority = (email, { emitReplacement = true } = {}) => {
       let operatorToken = managedAdminToken(readReadyDescriptor(dev.readyFile), database);
       try {
@@ -1398,6 +1602,7 @@ export async function runExpoDev(options = {}) {
             authority,
           })
     ), {
+      onDevIdentityCheckout: (presented) => checkoutRegistry?.redeem(presented) ?? null,
       onControl: async ({ operatorToken, body }) => {
         let expectedOperatorToken = null;
         try {
@@ -1457,6 +1662,11 @@ export async function runExpoDev(options = {}) {
             );
           }
           descriptor = JSON.parse(readFileSync(appDescriptorPath, 'utf8'));
+          // A backend restart rotates startupNonce and the dev-identity
+          // sidecar. Stage 1 deliberately strands the already-running app;
+          // automatic native re-checkout is stage-2 polish.
+          checkoutRegistry?.invalidate();
+          checkoutNonce = null;
           route = createExpoRoutingPlan({
             platform: options.platform ?? 'ios',
             backendPort: backendRoute.port,
@@ -1545,6 +1755,17 @@ export async function runExpoDev(options = {}) {
       now: options.now?.() ?? Date.now(),
       ttlMs: options.bindingTtlMs ?? DEFAULT_BINDING_TTL_MS,
     });
+    const shouldLaunchNativeCheckout = (
+      route.platform === 'ios'
+      || (route.platform === 'android' && route.transport === 'adb-reverse')
+    )
+      && (options.metroCommand === undefined || typeof options.nativeLaunchRun === 'function');
+    if (shouldLaunchNativeCheckout) {
+      checkoutNonce = checkoutRegistry.issue({
+        platform: route.platform,
+        device: route.device,
+      });
+    }
     // @ref LLP 0241#d6-development-commands-share-one-recovery-model —
     // generated-and-loaded is the compatible-cut boundary: only then may the
     // supervisor expose a binding for the successor descriptor identity.
@@ -1631,6 +1852,23 @@ export async function runExpoDev(options = {}) {
       run: options.adbRun,
       env: childEnv,
     });
+    if (checkoutNonce !== null) {
+      nativeCheckoutLaunch = launchExpoNativeCheckout(route, checkoutNonce, {
+        xcrunBinary: options.xcrunBinary,
+        adbBinary: options.adbBinary,
+        iosSimulator: options.iosSimulator,
+        iosBundleIdentifier: options.iosBundleIdentifier,
+        androidComponent: options.androidComponent,
+        run: options.nativeLaunchRun ?? spawnSync,
+        env: childEnv,
+      });
+      checkoutNonce = null;
+      emit({
+        ok: true,
+        state: 'native-checkout-launched',
+        nativeCheckout: nativeCheckoutLaunch,
+      });
+    }
     const finalState = authority.status === 'ready' ? 'ready' : 'authority-required';
     emit({
       ok: authority.status === 'ready',
@@ -1672,6 +1910,9 @@ export async function runExpoDev(options = {}) {
         try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch (error) { failures.push(error); }
         try { await bootstrap?.close?.(); } catch (error) { failures.push(error); }
         try { await dev?.close?.(); } catch (error) { failures.push(error); }
+        checkoutRegistry?.invalidate();
+        checkoutRegistry = null;
+        checkoutNonce = null;
         authority = null;
         binding = null;
         emit({ ok: failures.length === 0, state: 'closed', reclaimed: {
@@ -1742,6 +1983,9 @@ export async function runExpoDev(options = {}) {
     try { await stopProcessGroup(metro?.child, { processGroup: true }); } catch { /* original startup refusal wins */ }
     try { await bootstrap?.close?.(); } catch { /* original startup refusal wins */ }
     try { await dev?.close?.(); } catch { /* original startup refusal wins */ }
+    checkoutRegistry?.invalidate();
+    checkoutRegistry = null;
+    checkoutNonce = null;
     authority = null;
     binding = null;
     emit({

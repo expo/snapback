@@ -12,6 +12,14 @@ import type { SnapbackClientOptions } from '@expo/snapback-client';
 
 export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH: '/_snapback/expo/v1/dev-identity-checkout';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER: 'x-snapback-dev-identity-checkout';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV: 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
+
+export function resolveSupervisedDevIdentityCheckoutNonce(options?: Readonly<{
+  runtimePlatform?: 'native' | 'web';
+  nativeLaunchEnvironment?: Readonly<Record<string, string | undefined>> | null;
+}>): string | null;
 
 export type SupervisedAuthorityRefreshResult =
   | Readonly<{
@@ -49,6 +57,7 @@ export interface SupervisedSnapbackExpoEnvironmentV1 extends SnapbackExpoEnviron
     | Readonly<{
         status: 'ready';
         bearer: string;
+        clientOptions?: Readonly<{ devIdentityCapability: string }>;
         refreshAfterMs: number;
         binding: AppBindingV1;
         admission: AppBindingAdmissionEvidenceV1;
@@ -62,6 +71,9 @@ export interface SupervisedSnapbackExpoEnvironmentV1 extends SnapbackExpoEnviron
         admission: AppBindingAdmissionEvidenceV1;
       }>
   >;
+  resolveDevIdentityCapability(input?: Readonly<{
+    signal?: AbortSignal;
+  }>): Promise<string | null>;
   refreshAuthority(input: Readonly<{
     app: AppDescriptorV1Like;
     binding: AppBindingV1;
@@ -80,6 +92,8 @@ export function createSupervisedExpoEnvironment(options?: Readonly<{
   resolveAppState?: () => AppStateSource | Promise<AppStateSource>;
   developmentSync?: false | Readonly<Record<string, unknown>>;
   clientOptions?: SnapbackClientOptions;
+  runtimePlatform?: 'native' | 'web';
+  nativeLaunchEnvironment?: Readonly<Record<string, string | undefined>> | null;
   bindingCache?: SupervisedBindingCache | null;
   onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
 }>): SupervisedSnapbackExpoEnvironmentV1;

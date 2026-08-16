@@ -1,6 +1,9 @@
 export const EXPO_DEV_EVENT_FORMAT: 'snapback.expo-dev.v1';
 export const SUPERVISED_EXCHANGE_FORMAT: 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH: '/_snapback/expo/v1/bootstrap';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH: '/_snapback/expo/v1/dev-identity-checkout';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER: 'x-snapback-dev-identity-checkout';
+export const SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV: 'SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE';
 export const METRO_WATCH_BLIND_ROOTS: readonly string[];
 
 export function expoSupervisorChildEnvironment(
@@ -81,12 +84,26 @@ export interface BootstrapExchangeHandle {
   close(): Promise<void>;
 }
 
+export interface DevIdentityCheckoutRegistry {
+  issue(input?: Readonly<{ platform?: string; device?: unknown }>): string | null;
+  redeem(presented: unknown): string | null;
+  invalidate(): void;
+  readonly pending: number;
+}
+
+export function createDevIdentityCheckoutRegistry(options: Readonly<{
+  getReadyDescriptor: () => Readonly<Record<string, unknown>>;
+  readCapabilityFile?: (path: string, encoding: 'utf8') => string | Uint8Array;
+  mintNonce?: () => string;
+}>): DevIdentityCheckoutRegistry;
+
 export function startBootstrapExchange(
   getPayload: () => unknown | null,
   options?: Readonly<{
     onControl?: (
       request: BootstrapExchangeControlRequest,
     ) => BootstrapExchangeControlResult | Promise<BootstrapExchangeControlResult>;
+    onDevIdentityCheckout?: (nonce: unknown) => string | null | Promise<string | null>;
   }>,
 ): Promise<BootstrapExchangeHandle>;
 
@@ -216,6 +233,24 @@ export function installAndroidPortForwarding(
     env?: Readonly<Record<string, string | undefined>>;
   }>,
 ): Readonly<{ installed: ExpoRoutingPlan['forwards']; remove(): void }>;
+
+export function launchExpoNativeCheckout(
+  plan: ExpoRoutingPlan,
+  nonce: string | null,
+  options?: Readonly<{
+    xcrunBinary?: string;
+    adbBinary?: string;
+    iosSimulator?: string;
+    iosBundleIdentifier?: string;
+    androidComponent?: string;
+    run?: (...args: any[]) => any;
+    env?: Readonly<Record<string, string | undefined>>;
+  }>,
+): Readonly<{
+  platform: ExpoDevicePlatform;
+  device: ExpoDeviceIdentity;
+  carrier: 'ios-simctl-environment' | 'android-adb-activity-extra';
+}> | null;
 
 export function enumerateExpoOwnedListeners(options: Readonly<{
   backendPid: number;

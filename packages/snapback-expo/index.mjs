@@ -16,7 +16,11 @@ export {
 export {
   SUPERVISED_EXCHANGE_FORMAT,
   SUPERVISED_EXCHANGE_PATH,
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_ENV,
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_HEADER,
+  SUPERVISED_DEV_IDENTITY_CHECKOUT_PATH,
   createSupervisedExpoEnvironment,
+  resolveSupervisedDevIdentityCheckoutNonce,
   resolveSupervisedExpoExchangeOrigin,
 } from './supervised-environment.mjs';
 export {

@@ -67,6 +67,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
       'expo-bootstrap-exchange.test.mjs',
+      'expo-dev-identity-checkout.test.mjs',
       'expo-device-forwarding.test.mjs',
       'expo-dev-loop.test.mjs',
       'expo-metro-watch-advisory.test.mjs',
@@ -512,7 +513,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 294,
+  expectedTotal = 295,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -935,6 +936,9 @@ export function checkPackageTestInventories(options = {}) {
 // card-game implicit-policy completion matrix across every declared read class.
 // 293 -> 294 (2026-08-16, LLP 0258 Phase 0.4): @expo/snapback-cli gains the
 // four clean generated application fixture and Explicit/Familiar parity proof.
+// 294 -> 295 (2026-08-16, LLP 0262 Stage 1 Lane C): @expo/snapback-cli gains
+// the native checkout bootstrap-secrecy, one-shot redemption, web-isolation,
+// and iOS/Android launch-carrier proof.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');
