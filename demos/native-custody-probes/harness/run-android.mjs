@@ -14,6 +14,7 @@ const options = parseArgs(process.argv.slice(2), 'Android', {
   avd: process.env.SNAPBACK_ANDROID_AVD ?? 'Medium_Phone_API_36.1',
   emulator: process.env.ANDROID_EMULATOR ?? 'emulator',
   apk: process.env.SNAPBACK_ANDROID_APK ?? null,
+  iosExtensionEvidence: null,
   email: null,
   password: null,
 });

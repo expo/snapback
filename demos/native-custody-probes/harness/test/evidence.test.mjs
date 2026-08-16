@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -12,23 +12,49 @@ test('jsonl framing is canonical and exactly one line', () => {
 
 test('evidence writer emits machine and human receipts', () => {
   const root = mkdtempSync(join(tmpdir(), 'custody-evidence-'));
-  const writer = new EvidenceWriter({ root, platform: 'ios', date: '20260816' });
+  const writer = new EvidenceWriter({
+    root,
+    platform: 'ios',
+    now: new Date('2026-08-16T12:34:56.789Z'),
+    runId: 'ab12cd',
+  });
   writer.record('P1', 'bootstrap', {
     expected: { status: 'anonymous' }, observed: { status: 'anonymous' }, verdict: 'PASS',
   });
   const output = writer.finalize({ overallVerdict: 'PASS' });
-  assert.match(output.jsonlPath, /20260816-phase2-ios\.jsonl$/u);
-  assert.match(output.markdownPath, /20260816-phase2-ios\.md$/u);
-  assert.equal(scanEvidenceForLeaks(root).ok, true);
+  assert.match(output.jsonlPath, /20260816T123456Z-ab12cd-phase2-ios\/.*\.jsonl$/u);
+  assert.match(output.markdownPath, /20260816T123456Z-ab12cd-phase2-ios\/.*\.md$/u);
+  assert.equal(scanEvidenceForLeaks(writer.directory).ok, true);
+  assert.equal(existsSync(output.markdownPath), true);
 });
 
-test('leakage scan finds literals and secret-valued field names but permits bearerSha256', () => {
+test('evidence run identity is exclusive and never truncates a prior run', () => {
+  const root = mkdtempSync(join(tmpdir(), 'custody-evidence-exclusive-'));
+  const identity = {
+    root,
+    platform: 'android',
+    now: new Date('2026-08-16T01:02:03Z'),
+    runId: 'run42',
+  };
+  const writer = new EvidenceWriter(identity);
+  writer.record('P0', 'first', { expected: {}, observed: {}, verdict: 'PASS' });
+  assert.throws(() => new EvidenceWriter(identity), /EEXIST/u);
+});
+
+test('leakage scan covers the complete in-memory secret set and raw binary artifacts', () => {
   const root = mkdtempSync(join(tmpdir(), 'custody-leakage-'));
   writeFileSync(join(root, 'safe.jsonl'), '{"bearerSha256":"abcd","recoveryCodeCount":8}\n');
-  assert.equal(scanEvidenceForLeaks(root, { forbiddenLiterals: ['probe-password'] }).ok, true);
-  writeFileSync(join(root, 'bad.json'), '{"bearer":"secret","password":"probe-password"}\n');
-  const scan = scanEvidenceForLeaks(root, { forbiddenLiterals: ['probe-password'] });
+  const secrets = ['probe-password', 'literal-bearer', 'literal-recovery-code'];
+  assert.equal(scanEvidenceForLeaks(root, { forbiddenLiterals: secrets }).ok, true);
+  writeFileSync(join(root, 'screen.png'), Buffer.from(`png\0${secrets[1]}\0${secrets[2]}`));
+  writeFileSync(join(root, 'bad.json'), `{"password":"${secrets[0]}"}\n`);
+  const scan = scanEvidenceForLeaks(root, {
+    forbiddenLiterals: secrets,
+    virtualFiles: [{ name: 'candidate.md', bytes: 'safe receipt' }],
+  });
   assert.equal(scan.ok, false);
-  assert.ok(scan.findings.some((finding) => finding.kind === 'literal'));
-  assert.ok(scan.findings.some((finding) => finding.field === 'bearer'));
+  for (const file of ['screen.png', 'bad.json']) {
+    assert.ok(scan.findings.some((finding) => finding.file === file && finding.kind === 'literal'));
+  }
+  assert.ok(scan.findings.some((finding) => finding.field === 'password'));
 });

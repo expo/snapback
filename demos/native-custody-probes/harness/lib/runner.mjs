@@ -1,15 +1,35 @@
-import { randomInt, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { startBackend } from './backend.mjs';
 import { createDirector } from './director.mjs';
 import { EvidenceWriter, scanEvidenceForLeaks } from './evidence.mjs';
+import {
+  gitWorktreeIdentity,
+  harnessFileDigests,
+  matchingPriorBuildReceipt,
+  resolvedInstalledVersions,
+  runtimeBinaryIdentity,
+  sha256File,
+} from './integrity.mjs';
 import { delay, run } from './process.mjs';
+
+const SINGLE_RUNTIME_REFUSAL = 'SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED';
+const CORRUPTION_REFUSALS = new Set(['SNAPBACK_AUTH_CUSTODY_CORRUPT']);
+const IOS_REINSTALL_REFUSALS = new Set([
+  'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+  'SNAPBACK_AUTH_CUSTODY_STORAGE_FAILED',
+  'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
+]);
 
 function publicFailure(error) {
   const code = error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_NATIVE_PROBE_HARNESS_FAILED';
-  return { code, message: error instanceof Error ? error.message : String(error) };
+  return {
+    code,
+    message: error instanceof Error ? error.message : String(error),
+    ...(Array.isArray(error?.attempts) ? { attempts: error.attempts } : {}),
+  };
 }
 
 function assertProbe(condition, probe, message, observed = null) {
@@ -23,18 +43,29 @@ function assertProbe(condition, probe, message, observed = null) {
 function sameCustody(left, right) {
   return left?.revision === right?.revision
     && left?.epoch === right?.epoch
-    && left?.bearerSha256 === right?.bearerSha256;
+    && left?.bearerSha256 === right?.bearerSha256
+    && left?.phase === right?.phase
+    && left?.principalId === right?.principalId;
 }
 
-function typedSecondaryContextRefusal(code) {
-  return /^SNAPBACK_AUTH_CUSTODY_/u.test(code ?? '')
-    && /(?:CONTEXT|PROCESS|SECONDARY|SINGLE_RUNTIME)/u.test(code)
-    && !/(?:UNTYPED|PROBE_FAILED|RESULT_MISSING|TEST_HOOK_UNAVAILABLE)/u.test(code);
+function storageCounterDelta(before, after) {
+  return Object.fromEntries(['platformGradeCalls', 'ownershipCalls', 'readCalls', 'replaceCalls', 'total']
+    .map((key) => [key, (after?.[key] ?? 0) - (before?.[key] ?? 0)]));
 }
 
-function typedCiphertextRefusal(code) {
-  return /^SNAPBACK_AUTH_CUSTODY_/u.test(code ?? '')
-    && /(?:AEAD|CORRUPT|DECRYPT|KEY)/u.test(code);
+function p2Tuple({ facts, principal, credentialEntryCalls, protectedRead }) {
+  return Object.freeze({
+    revision: facts?.revision ?? null,
+    bearerSha256: facts?.bearerSha256 ?? null,
+    epoch: facts?.epoch ?? null,
+    phase: facts?.phase ?? null,
+    custodyPrincipalId: facts?.principalId ?? null,
+    principalStatus: principal?.status ?? null,
+    userId: principal?.userId ?? null,
+    credentialEntryCalls,
+    protectedReadStatus: protectedRead?.status ?? null,
+    protectedReadRowCount: protectedRead?.rowCount ?? null,
+  });
 }
 
 export async function runNativeCustodyHarness({
@@ -48,27 +79,34 @@ export async function runNativeCustodyHarness({
   const appRoot = join(demoRoot, 'app');
   const evidenceRoot = join(demoRoot, 'evidence');
   const packageJson = JSON.parse(readFileSync(join(appRoot, 'package.json'), 'utf8'));
+  const gitIdentity = gitWorktreeIdentity(repoRoot);
   const writer = new EvidenceWriter({
     root: evidenceRoot,
     platform,
     metadata: {
       harness: `${platform}:${options.iterations} interruption iterations`,
       appPackage: `${packageJson.name}@${packageJson.version}`,
-      expo: packageJson.dependencies.expo,
-      reactNative: packageJson.dependencies['react-native'],
-      workspacePackageVersions: Object.fromEntries(
-        Object.entries(packageJson.dependencies)
-          .filter(([name]) => name.startsWith('@expo/snapback-')),
-      ),
-      custodyModule: 'Lane A platformGrade pending first bootstrap',
+      worktree: gitIdentity,
+      harnessFileDigests: harnessFileDigests(repoRoot),
+      screenshotVerification: 'structural app-rendered text; OCR out of scope',
+      custodyModule: 'pending first bootstrap',
     },
   });
-  const director = createDirector({ port: options.directorPort });
+  const portOwnerRoot = join(
+    demoRoot, '.snapback', `native-custody-${platform}`, 'ports',
+  );
+  const director = createDirector({
+    port: options.directorPort,
+    ownerFile: join(portOwnerRoot, `director-${options.directorPort}.json`),
+  });
   const cleanup = [];
   let device = null;
   let backend = null;
   let failureProbe = null;
   let overallVerdict = 'FAIL';
+  let terminalError = null;
+  let p4IosIncomplete = false;
+  let successfulProbeFlow = false;
   const email = options.email ?? `custody-${Date.now()}@example.test`;
   const password = options.password ?? `Ncp-${randomUUID()}-Aa1!`;
 
@@ -119,11 +157,47 @@ export async function runNativeCustodyHarness({
     const boot = await command('bootstrap', { mode: 'native' }, 90_000);
     return { ready, boot };
   };
+  const captureMilestone = async ({ probe, name, facts, principalId, ready, file }) => step(
+    probe,
+    name,
+    {
+      milestone: name,
+      launchId: ready.launchId,
+      custodyRevision: facts?.revision ?? null,
+      bearerSha256Prefix: typeof facts?.bearerSha256 === 'string'
+        ? facts.bearerSha256.slice(0, 8)
+        : 'none',
+      principalId,
+      format: 'png',
+    },
+    async () => {
+      const rendered = await command('renderMilestone', { name });
+      const path = writer.pathFor(file);
+      await device.screenshot(path);
+      return Object.freeze({ rendered, file });
+    },
+    (value) => value.rendered?.name === name
+      && value.rendered?.launchId === ready.launchId
+      && value.rendered?.custodyRevision === (facts?.revision ?? null)
+      && value.rendered?.bearerSha256Prefix === (
+        typeof facts?.bearerSha256 === 'string' ? facts.bearerSha256.slice(0, 8) : 'none'
+      )
+      && value.rendered?.principalId === principalId,
+  );
 
   try {
+    const runtimeIdentity = runtimeBinaryIdentity(process.env.SNAPBACK_RUNTIME_BINARY);
+    writer.setMetadata({ runtimeBinary: runtimeIdentity });
+
     await director.listen();
     cleanup.push(() => director.close());
-    backend = await startBackend({ repoRoot, demoRoot, platform, serverPort: options.serverPort });
+    backend = await startBackend({
+      repoRoot,
+      demoRoot,
+      platform,
+      serverPort: options.serverPort,
+      logPath: writer.pathFor('backend.log'),
+    });
     cleanup.push(() => backend.close());
     assertProbe(
       backend.descriptor.authBootstrap?.format === 'snapback.application-auth-bootstrap.v1',
@@ -132,24 +206,70 @@ export async function runNativeCustodyHarness({
       backend.descriptor.authBootstrap,
     );
 
-    await run('probe app dependency install', 'bun', ['install'], { cwd: appRoot, timeoutMs: 10 * 60_000 });
-    const custodyPackageJson = join(
-      appRoot, 'node_modules', '@expo', 'snapback-expo-custody', 'package.json',
+    await run('probe app dependency install', 'bun', ['install'], {
+      cwd: appRoot,
+      timeoutMs: 10 * 60_000,
+    });
+    const installedVersions = resolvedInstalledVersions(
+      appRoot,
+      Object.keys(packageJson.dependencies),
     );
     writer.setMetadata({
-      custodyModulePackageVersion: existsSync(custodyPackageJson)
-        ? JSON.parse(readFileSync(custodyPackageJson, 'utf8')).version
-        : 'absent (Lane A integration required)',
+      resolvedInstalledPackageVersions: installedVersions,
+      custodyModulePackageVersion: installedVersions['@expo/snapback-expo-custody']?.version ?? null,
     });
+
     device = await createDevice({ appRoot, evidence: writer, options });
     cleanup.push(() => device.cleanup());
+    const artifact = device.artifact();
+    if (!existsSync(artifact.binaryPath)) {
+      throw new Error(`P0/artifact-integrity: built artifact binary is missing at ${artifact.binaryPath}`);
+    }
+    const artifactSha256 = `sha256:${sha256File(artifact.binaryPath)}`;
+    let reusedFrom = null;
+    if (options.skipBuild) {
+      reusedFrom = matchingPriorBuildReceipt({
+        evidenceRoot,
+        currentRunDirectory: writer.directory,
+        platform,
+        bundleId: options.bundleId,
+        artifactSha256,
+      });
+      if (reusedFrom === null) {
+        throw new Error(
+          `P0/skip-build: no prior build receipt matches on-disk artifact ${artifactSha256}`,
+        );
+      }
+    }
+    const buildReceipt = Object.freeze({
+      schemaVersion: 'snapback.native-custody-build.v1',
+      runId: writer.runId,
+      platform,
+      bundleId: options.bundleId,
+      buildMode: options.skipBuild ? 'verified-reuse' : 'built-this-run',
+      artifact: Object.freeze({ ...artifact, sha256: artifactSha256 }),
+      reusedFrom,
+      createdAt: new Date().toISOString(),
+    });
+    writer.writeArtifact('build-receipt.json', `${JSON.stringify(buildReceipt, null, 2)}\n`);
+    writer.setMetadata({ artifact: buildReceipt.artifact, skipBuildEvidence: reusedFrom });
+
     writer.setMetadata(await device.metadata());
     writer.setMetadata({
       backendOrigin: backend.ready.serverUrl,
-      backendRuntime: process.env.SNAPBACK_RUNTIME_BINARY ?? 'CLI-selected runtime',
       descriptorIdentity: backend.descriptor.identity.descriptor,
       bootstrapCapabilityOptIn: 'provider-layer (codegen has no source declaration in this revision)',
       bundleId: options.bundleId,
+      claims: platform === 'android'
+        ? ['SIGKILL mid-write', 'uninstall-clears-data']
+        : ['SIGKILL mid-write', 'keychain uninstall residue handling'],
+      notClaimed: platform === 'android'
+        ? [
+            'force-stop-mid-write (LLP 0263 A-3)',
+            'backup/restore via bmgr (LLP 0263 A-9)',
+            'device-to-device transfer',
+          ]
+        : ['physical-device lock state', 'backup/restore', 'device-to-device transfer'],
     });
     director.setConfig(Object.freeze({
       binding: backend.binding({
@@ -162,15 +282,22 @@ export async function runNativeCustodyHarness({
       await device.installFresh();
       return { installed: true };
     });
-    await step('P1', 'launch witness', { event: 'witness-ready' }, launch, (value) => value.event === 'witness-ready');
+    const firstReady = await step(
+      'P1',
+      'launch witness',
+      { event: 'witness-ready' },
+      launch,
+      (value) => value.event === 'witness-ready',
+    );
     const initialBoot = await step(
       'P1',
       'fresh bootstrap',
-      { status: 'ready', principal: 'anonymous', credentialEntryCalls: 0 },
+      { status: 'ready', principal: 'anonymous', credentialEntryCalls: 0, phase: 'settled' },
       () => command('bootstrap', { mode: 'native' }, 90_000),
       (value) => value.status === 'ready'
         && value.principal?.status === 'anonymous'
-        && value.credentialEntryCalls === 0,
+        && value.credentialEntryCalls === 0
+        && value.custodyFacts?.phase === 'settled',
     );
     writer.setMetadata({ custodyModule: initialBoot.custodyFacts?.platformGrade ?? 'not projected' });
     await step(
@@ -178,10 +305,9 @@ export async function runNativeCustodyHarness({
       { principal: 'authenticated', recoveryCodeProjection: 'count only' },
       () => command('signup', { email, password }, 90_000),
       (value) => value.principal?.status === 'authenticated'
-        && Number.isSafeInteger(value.recoveryCodeCount),
+        && Number.isSafeInteger(value.recoveryCodeCount)
+        && value.recoveryCodeCount > 0,
     );
-    // Signup authenticates by contract; a settled sign-out is required before
-    // the charter's explicit signin witness can exercise credential entry.
     await step(
       'P1', 'settle anonymous before explicit signin',
       { principal: 'anonymous' },
@@ -202,27 +328,42 @@ export async function runNativeCustodyHarness({
     );
     const beforeKill = await step(
       'P1', 'custody facts before kill',
-      { revision: 'integer', epoch: 'integer', bearerSha256: 'sha256' },
+      {
+        revision: 'integer',
+        epoch: 'integer',
+        phase: 'settled',
+        bearerSha256: 'sha256',
+        principalId: signIn.principal.userId,
+      },
       () => command('custodyFacts'),
       (value) => Number.isSafeInteger(value.revision)
         && Number.isSafeInteger(value.epoch)
+        && value.phase === 'settled'
+        && value.principalId === signIn.principal.userId
         && /^[a-f0-9]{64}$/u.test(value.bearerSha256),
     );
-    await step('P1', 'authenticated screenshot', { format: 'png' }, async () => {
-      const path = join(writer.directory, `${writer.base}-p1-authenticated.png`);
-      await device.screenshot(path);
-      return { file: path.split('/').at(-1) };
+    await captureMilestone({
+      probe: 'P1',
+      name: 'authenticated-before-kill',
+      facts: beforeKill,
+      principalId: signIn.principal.userId,
+      ready: firstReady,
+      file: 'p1-authenticated.png',
     });
-    await step('P1', 'hard process kill', { mechanism: platform === 'ios' ? 'SIGKILL' : 'am force-stop' }, async () => {
-      await device.kill();
-      return { killed: true };
-    });
+    await step(
+      'P1',
+      'hard process kill',
+      { mechanism: platform === 'ios' ? 'verified SIGKILL' : 'am force-stop' },
+      () => device.kill(),
+      (value) => value.verifiedGone === true,
+    );
     const restored = await step(
       'P1', 'cold relaunch bootstrap',
       {
         principal: signIn.principal.userId,
-        sameRevisionEpochAndBearerSha256: true,
+        sameFullCustodyIdentity: true,
         credentialEntryCalls: 0,
+        phase: 'settled',
       },
       relaunchAndBootstrap,
       (value) => value.boot.status === 'ready'
@@ -237,59 +378,157 @@ export async function runNativeCustodyHarness({
       () => command('protectedRead', {}, 90_000),
       (value) => value.status === 'ready' && value.rowCount >= 1,
     );
-    await step('P1', 'restored screenshot', { format: 'png' }, async () => {
-      const path = join(writer.directory, `${writer.base}-p1-restored.png`);
-      await device.screenshot(path);
-      return { file: path.split('/').at(-1) };
+    await captureMilestone({
+      probe: 'P1',
+      name: 'restored-after-cold-kill',
+      facts: restored.boot.custodyFacts,
+      principalId: restored.boot.principal.userId,
+      ready: restored.ready,
+      file: 'p1-restored.png',
     });
 
     let latestFacts = restored.boot.custodyFacts;
-    // @ref LLP 0263#5-probe-checklists — the host interrupts the real carrier
-    // after an acknowledged write and admits only predecessor-or-successor
-    // revision recovery; a wider delta is a torn/ambiguous outcome.
+    let activeReady = restored.ready;
+    // @ref LLP 0263#5-probe-checklists — an entered pulse precedes native
+    // replace; a completion pulse follows it. The host arms first, kills on
+    // an unmatched entered sequence, and binds recovery to the last entered
+    // predecessor/successor pair rather than an arbitrary N/N+1.
     for (let iteration = 1; iteration <= options.iterations; iteration += 1) {
       let nextReady = null;
       let nextFacts = null;
       await step(
         'P2', `kill-mid-write iteration ${iteration}`,
-        { parses: true, revision: 'last acknowledged heartbeat or successor' },
+        {
+          signal: 'write-entered after host arm, with no matching completion at kill dispatch',
+          restoration: 'predecessor-or-successor of last entered write',
+          identity: {
+            bearerSha256: latestFacts.bearerSha256,
+            epoch: latestFacts.epoch,
+            principalId: signIn.principal.userId,
+            phase: 'settled',
+            credentialEntryCalls: 0,
+            protectedRead: 'ready',
+          },
+        },
         async () => {
           const eventStart = director.events.length;
-          const activeLaunchId = restored.ready.launchId;
-          await command('tightWriteLoop');
-          await director.waitEvent(
-            (event) => event.event === 'tight-write-heartbeat' && event.launchId === activeLaunchId,
+          const armedAt = new Date().toISOString();
+          const activeLaunchId = activeReady.launchId;
+          const loop = await command('tightWriteLoop');
+          const pulse = await director.waitEvent(
+            (event) => event.launchId === activeLaunchId
+              && event.details?.loopId === loop.loopId
+              && ['write-entered', 'tight-write-failed'].includes(event.event),
             eventStart,
             30_000,
           );
-          const killDelayMs = randomInt(10, 251);
-          await delay(killDelayMs);
-          await device.kill({ midWrite: true });
-          await delay(100);
-          const heartbeats = director.events.slice(eventStart).filter(
-            (event) => event.event === 'tight-write-heartbeat' && event.launchId === activeLaunchId,
+          assertProbe(
+            pulse.event === 'write-entered',
+            'P2',
+            'tight-write-failed arrived instead of a write heartbeat',
+            pulse,
           );
-          const lastHeartbeat = heartbeats.at(-1)?.details?.revision;
-          assertProbe(Number.isSafeInteger(lastHeartbeat), 'P2', 'no integral write heartbeat preceded kill');
+          const targetSequence = pulse.details.sequence;
+          const completedBeforeKill = director.events.slice(eventStart).filter(
+            (event) => event.event === 'write-completed'
+              && event.launchId === activeLaunchId
+              && event.details?.loopId === loop.loopId,
+          ).map((event) => event.details.sequence);
+          assertProbe(
+            !completedBeforeKill.includes(targetSequence),
+            'P2',
+            'the armed write completed before SIGKILL dispatch',
+            { targetSequence, completedBeforeKill },
+          );
+          const killDispatchedAt = new Date().toISOString();
+          const kill = await device.kill({ midWrite: true });
+          await delay(200);
+          const writeEvents = director.events.slice(eventStart).filter(
+            (event) => event.launchId === activeLaunchId
+              && event.details?.loopId === loop.loopId,
+          );
+          const failures = writeEvents.filter((event) => event.event === 'tight-write-failed');
+          assertProbe(failures.length === 0, 'P2', 'tight-write loop reported failure', failures);
+          const entered = writeEvents.filter((event) => event.event === 'write-entered');
+          const completed = writeEvents.filter((event) => event.event === 'write-completed');
+          const lastEntered = entered.at(-1);
+          assertProbe(lastEntered !== undefined, 'P2', 'write heartbeat silence after arming');
+          const last = lastEntered.details;
+          assertProbe(
+            Number.isSafeInteger(last.sequence)
+              && Number.isSafeInteger(last.predecessorRevision)
+              && Number.isSafeInteger(last.successorRevision)
+              && last.successorRevision === last.predecessorRevision + 1,
+            'P2',
+            'last entered write did not carry an exact revision pair',
+            last,
+          );
+          assertProbe(
+            last.phase === 'settled'
+              && last.bearerSha256 === latestFacts.bearerSha256
+              && last.epoch === latestFacts.epoch
+              && last.principalId === signIn.principal.userId,
+            'P2',
+            'last entered write changed the pre-kill custody identity',
+            { prior: latestFacts, lastEntered: last },
+          );
+
           const next = await relaunchAndBootstrap();
           const facts = await command('custodyFacts');
+          const protectedRead = await command('protectedRead', {}, 90_000);
           nextReady = next.ready;
           nextFacts = facts;
-          return {
-            killDelayMs,
-            lastHeartbeat,
-            restoredRevision: facts.revision,
-            phase: facts.phase,
+          const expectedTuple = Object.freeze({
+            revision: [last.predecessorRevision, last.successorRevision],
+            bearerSha256: last.bearerSha256,
+            epoch: last.epoch,
+            phase: 'settled',
+            custodyPrincipalId: last.principalId,
+            principalStatus: 'authenticated',
+            userId: signIn.principal.userId,
+            credentialEntryCalls: 0,
+            protectedReadStatus: 'ready',
+            protectedReadRowCountAtLeast: 1,
+          });
+          const observedTuple = p2Tuple({
+            facts,
+            principal: next.boot.principal,
+            credentialEntryCalls: next.boot.credentialEntryCalls,
+            protectedRead,
+          });
+          return Object.freeze({
+            arm: { eventIndex: eventStart, armedAt, launchId: activeLaunchId, loopId: loop.loopId },
+            kill: { dispatchedAt: killDispatchedAt, ...kill },
+            writeWindow: {
+              killTargetEnteredSequence: targetSequence,
+              completedBeforeKill,
+              enteredSequencesAroundKill: entered.map((event) => event.details.sequence),
+              completedSequencesAroundKill: completed.map((event) => event.details.sequence),
+              lastEntered: last,
+            },
+            expectedTuple,
+            observedTuple,
             bootstrapStatus: next.boot.status,
-          };
+          });
         },
-        (value) => value.bootstrapStatus === 'ready'
-          && (value.restoredRevision === value.lastHeartbeat
-            || value.restoredRevision === value.lastHeartbeat + 1)
-          && ['settled', 'clearing', 'exhausted'].includes(value.phase),
+        (value) => {
+          const expected = value.expectedTuple;
+          const observed = value.observedTuple;
+          return value.bootstrapStatus === 'ready'
+            && expected.revision.includes(observed.revision)
+            && observed.bearerSha256 === expected.bearerSha256
+            && observed.epoch === expected.epoch
+            && observed.phase === 'settled'
+            && observed.custodyPrincipalId === expected.custodyPrincipalId
+            && observed.principalStatus === 'authenticated'
+            && observed.userId === expected.userId
+            && observed.credentialEntryCalls === 0
+            && observed.protectedReadStatus === 'ready'
+            && observed.protectedReadRowCount >= 1;
+        },
       );
       latestFacts = nextFacts;
-      restored.ready = nextReady;
+      activeReady = nextReady;
     }
 
     await step(
@@ -308,68 +547,168 @@ export async function runNativeCustodyHarness({
       (value) => value.staleDiagnostic === 'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
     );
 
-    const contextRefusalVerdict = platform === 'ios' ? 'FALLBACK' : 'PASS';
-    await step(
-      'P4', platform === 'ios' ? 'extension refusal fallback' : 'secondary-process refusal',
-      platform === 'ios'
-        ? { nativeUnitFallbackRequired: true }
-        : { attempted: true, diagnostic: 'typed secondary/single-runtime context refusal' },
-      () => command('refusalProbe', {}, 60_000),
-      (value) => platform === 'ios'
-        ? value.attempted === false
-          && value.diagnostic?.code === 'SNAPBACK_AUTH_CUSTODY_EXTENSION_NATIVE_UNIT_FALLBACK_REQUIRED'
-        : value.attempted === true
-          && typedSecondaryContextRefusal(value.diagnostic?.code),
-      contextRefusalVerdict,
+    const preP4 = await step(
+      'P4',
+      'capture admitted custody before refusal',
+      { principal: signIn.principal.userId, phase: 'settled', credentialEntryCalls: 0 },
+      () => command('probeState'),
+      (value) => value.principal?.status === 'authenticated'
+        && value.principal.userId === signIn.principal.userId
+        && value.custodyFacts?.phase === 'settled'
+        && value.custodyFacts?.principalId === signIn.principal.userId
+        && value.credentialEntryCalls === 0,
     );
-    await step(
-      'P4', 'ordinary capability boundary',
-      { status: 'unsupported', diagnostic: 'durable unavailable or platform unsupported' },
-      () => command('bootstrap', { mode: 'ordinary' }, 90_000),
-      (value) => ['unsupported', 'blocked', 'error'].includes(value.status)
+    const ordinary = await step(
+      'P4',
+      'ordinary capability boundary',
+      {
+        status: 'unsupported',
+        credentialEntryCallsDelta: 0,
+        custodyStorageOperationDelta: 0,
+      },
+      async () => {
+        const before = await command('probeCounters');
+        const boot = await command('bootstrap', { mode: 'ordinary' }, 90_000);
+        const after = await command('probeCounters');
+        return Object.freeze({
+          boot,
+          before,
+          after,
+          storageDelta: storageCounterDelta(before.storageCounters, after.storageCounters),
+          credentialEntryCallsDelta: after.credentialEntryCalls - before.credentialEntryCalls,
+        });
+      },
+      (value) => ['unsupported', 'blocked', 'error'].includes(value.boot.status)
         && [
           'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
           'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED',
-        ].includes(value.diagnostic?.code),
+        ].includes(value.boot.diagnostic?.code)
+        && value.credentialEntryCallsDelta === 0
+        && Object.values(value.storageDelta).every((count) => count === 0),
     );
     await step(
-      'P4', 'restore admitted native platform',
-      { status: 'ready' },
+      'P4',
+      'restore admitted native platform after refusal',
+      {
+        sameCustody: preP4.custodyFacts,
+        sameUserId: signIn.principal.userId,
+        credentialEntryCalls: 0,
+      },
       () => command('bootstrap', { mode: 'native' }, 90_000),
-      (value) => value.status === 'ready',
+      (value) => value.status === 'ready'
+        && value.principal?.status === 'authenticated'
+        && value.principal.userId === signIn.principal.userId
+        && value.credentialEntryCalls === 0
+        && sameCustody(preP4.custodyFacts, value.custodyFacts),
+    );
+    assertProbe(
+      ordinary.after.credentialEntryCalls === 0,
+      'P4',
+      'ordinary refusal changed the process credential-entry count',
+      ordinary,
     );
 
     if (platform === 'android') {
-      // @ref LLP 0263#5-probe-checklists — Android's AEAD and reinstall
-      // probes are distinct: corrupted ciphertext must refuse before an
-      // uninstall proves backup/key lifecycle behavior is sane.
+      await step(
+        'P4', 'secondary-process refusal',
+        {
+          attempted: true,
+          processName: `${options.bundleId}:probe`,
+          diagnostic: SINGLE_RUNTIME_REFUSAL,
+          distinctHostObservedPids: true,
+        },
+        async () => {
+          const appResult = await command('refusalProbe', {}, 60_000);
+          const processes = await device.observeSecondaryProcess(appResult.servicePid);
+          return Object.freeze({ ...appResult, hostProcesses: processes });
+        },
+        (value) => value.attempted === true
+          && value.processName === `${options.bundleId}:probe`
+          && Number.isSafeInteger(value.servicePid)
+          && value.diagnostic?.code === SINGLE_RUNTIME_REFUSAL
+          && value.hostProcesses?.service?.pid === value.servicePid
+          && value.hostProcesses?.service?.pid !== value.hostProcesses?.main?.pid,
+      );
+    } else if (options.iosExtensionEvidence !== null) {
+      const extensionResult = await step(
+        'P4', 'extension refusal with supervisor evidence',
+        { diagnostic: SINGLE_RUNTIME_REFUSAL, externalEvidenceSha256: 'sha256' },
+        async () => {
+          const supplied = readFileSync(options.iosExtensionEvidence);
+          assertProbe(
+            supplied.includes(Buffer.from(SINGLE_RUNTIME_REFUSAL)),
+            'P4',
+            'supervisor-supplied iOS extension evidence lacks the exact refusal code',
+          );
+          const copied = writer.writeArtifact('ios-extension-evidence.txt', supplied);
+          const external = Object.freeze({
+            suppliedPath: options.iosExtensionEvidence,
+            copiedFile: 'ios-extension-evidence.txt',
+            sha256: `sha256:${sha256File(copied)}`,
+          });
+          return { appFallback: await command('refusalProbe'), external };
+        },
+        (value) => value.appFallback?.diagnostic?.code
+            === 'SNAPBACK_AUTH_CUSTODY_EXTENSION_NATIVE_UNIT_FALLBACK_REQUIRED'
+          && /^sha256:[a-f0-9]{64}$/u.test(value.external.sha256),
+      );
+      writer.setMetadata({ iosExtensionEvidence: extensionResult.external });
+    } else {
+      p4IosIncomplete = true;
+      await step(
+        'P4', 'extension refusal not exercised',
+        { nativeExtensionEvidence: 'required for PASS' },
+        () => command('refusalProbe'),
+        (value) => value.attempted === false
+          && value.diagnostic?.code
+            === 'SNAPBACK_AUTH_CUSTODY_EXTENSION_NATIVE_UNIT_FALLBACK_REQUIRED',
+        'INCOMPLETE',
+      );
+    }
+
+    if (platform === 'android') {
+      // @ref LLP 0263#5-probe-checklists — the corruption and uninstall arms
+      // are separate. This arm accepts only the custody package's exact
+      // corruption code and claims uninstall-clears-data, not bmgr restore.
       await step(
         'P5', 'ciphertext corruption and AEAD refusal',
-        { hook: 'present', readAccepted: false, diagnostic: 'typed AEAD/corrupt/decrypt/key refusal' },
+        { hook: 'present', readAccepted: false, diagnosticAllowlist: [...CORRUPTION_REFUSALS] },
         () => command('corruptionProbe'),
         (value) => value.supported === true
           && value.readAccepted === false
-          && typedCiphertextRefusal(value.diagnostic?.code),
+          && CORRUPTION_REFUSALS.has(value.diagnostic?.code),
       );
-      await step('P5', 'uninstall and install APK', { appData: 'removed' }, async () => {
+      await step('P5', 'uninstall and install APK', { claim: 'uninstall-clears-data' }, async () => {
         await device.reinstallPreservingOsCustody();
-        return { installed: true };
+        return { installed: true, backupRestoreClaimed: false };
       });
       const reinstalled = await step(
         'P5', 'uninstall and reinstall',
-        { principal: 'anonymous', custody: 'fresh and sane' },
+        { principal: 'anonymous', custody: 'fresh and sane', backupRestore: 'not-claimed' },
         relaunchAndBootstrap,
         (value) => value.boot.status === 'ready'
-          && value.boot.principal?.status === 'anonymous',
+          && value.boot.principal?.status === 'anonymous'
+          && value.boot.custodyFacts?.phase === 'settled'
+          && value.boot.credentialEntryCalls === 0,
       );
       latestFacts = reinstalled.boot.custodyFacts;
+      activeReady = reinstalled.ready;
+      await captureMilestone({
+        probe: 'P5',
+        name: 'android-uninstall-clears-data',
+        facts: latestFacts,
+        principalId: 'anonymous',
+        ready: activeReady,
+        file: 'p5-reinstall.png',
+      });
     } else {
-      const priorPrincipal = restored.boot.principal.userId;
+      const priorPrincipal = signIn.principal.userId;
       const factsBeforeReinstall = await step(
         'P5', 'custody facts before keychain reinstall probe',
-        { revision: 'integer', bearerSha256: 'sha256' },
+        { revision: 'integer', bearerSha256: 'sha256', phase: 'settled' },
         () => command('custodyFacts'),
         (value) => Number.isSafeInteger(value.revision)
+          && value.phase === 'settled'
           && /^[a-f0-9]{64}$/u.test(value.bearerSha256),
       );
       await step('P5', 'uninstall and install app bundle', { keychain: 'preserved' }, async () => {
@@ -378,36 +717,36 @@ export async function runNativeCustodyHarness({
       });
       const reinstalled = await step(
         'P5', 'uninstall and reinstall with keychain residue',
-        { outcome: 'valid adoption or typed custody refusal' },
+        { outcome: 'valid exact adoption or exact typed custody refusal' },
         relaunchAndBootstrap,
         (value) => (
           value.boot.status === 'ready'
           && value.boot.principal?.status === 'authenticated'
           && value.boot.principal.userId === priorPrincipal
+          && value.boot.credentialEntryCalls === 0
           && sameCustody(factsBeforeReinstall, value.boot.custodyFacts)
         ) || (
           value.boot.status !== 'ready'
-          && /^SNAPBACK_AUTH_CUSTODY_/u.test(value.boot.diagnostic?.code)
+          && IOS_REINSTALL_REFUSALS.has(value.boot.diagnostic?.code)
         ),
       );
-      latestFacts = reinstalled.boot.custodyFacts ?? factsBeforeReinstall;
+      latestFacts = reinstalled.boot.custodyFacts ?? null;
+      activeReady = reinstalled.ready;
+      await captureMilestone({
+        probe: 'P5',
+        name: 'ios-keychain-reinstall-result',
+        facts: latestFacts,
+        principalId: reinstalled.boot.principal?.status === 'authenticated'
+          ? reinstalled.boot.principal.userId
+          : reinstalled.boot.principal?.status ?? 'unavailable',
+        ready: activeReady,
+        file: 'p5-reinstall.png',
+      });
     }
-    await step('P5', 'reinstall screenshot', { format: 'png' }, async () => {
-      const path = join(writer.directory, `${writer.base}-p5-reinstall.png`);
-      await device.screenshot(path);
-      return { file: path.split('/').at(-1) };
-    });
     writer.setMetadata({ finalCustodyPublicFacts: latestFacts });
-
-    const leakage = scanEvidenceForLeaks(evidenceRoot, { forbiddenLiterals: [password] });
-    await step(
-      'P6', 'evidence leakage scan',
-      { findings: 0 },
-      async () => leakage,
-      (value) => value.ok === true,
-    );
-    overallVerdict = platform === 'ios' ? 'PASS WITH DOCUMENTED EXTENSION FALLBACK' : 'PASS';
+    successfulProbeFlow = true;
   } catch (error) {
+    terminalError = error;
     if (failureProbe === null) {
       failureProbe = 'P0/setup';
       writer.record('P0', 'setup', {
@@ -416,18 +755,99 @@ export async function runNativeCustodyHarness({
         verdict: 'FAIL',
       });
     }
-    throw error;
   } finally {
-    for (const dispose of cleanup.reverse()) {
-      try { await dispose(); } catch { /* retain the first probe verdict */ }
-    }
-    writer.finalize({ overallVerdict, failure: failureProbe });
-    if (options.leakageScan) {
-      const leakage = scanEvidenceForLeaks(evidenceRoot, { forbiddenLiterals: [password] });
-      if (!leakage.ok && failureProbe === null) {
-        throw new Error(`P6/leakage-scan: ${JSON.stringify(leakage.findings)}`);
+    if (device !== null) {
+      try {
+        await device.captureDeviceLogs(writer.pathFor(`${platform}-device.log`));
+      } catch (error) {
+        if (terminalError === null) terminalError = error;
+        if (failureProbe === null) failureProbe = 'P6/device-log-capture';
+        writer.record('P6', 'device log capture', {
+          expected: { captured: true },
+          observed: publicFailure(error),
+          verdict: 'FAIL',
+        });
       }
     }
+    for (const dispose of cleanup.reverse()) {
+      try {
+        await dispose();
+      } catch (error) {
+        if (terminalError === null) terminalError = error;
+        if (failureProbe === null) failureProbe = 'P6/cleanup';
+      }
+    }
+    if (!existsSync(writer.pathFor('backend.log'))) {
+      writer.writeArtifact('backend.log', 'Backend did not spawn; no backend output was captured.\n');
+    }
+    if (!existsSync(writer.pathFor('metro.log'))) {
+      writer.writeArtifact('metro.log', 'Metro did not spawn; no Metro output was captured.\n');
+    }
+    writer.writeArtifact('director.log', director.capturedLog());
+
+    const secretSummary = director.secretSummary();
+    const secretInventoryOk = !successfulProbeFlow
+      || ((secretSummary.bearer ?? 0) >= 1 && (secretSummary['recovery-code'] ?? 0) >= 1);
+    writer.record('P6', 'in-memory secret inventory', {
+      expected: successfulProbeFlow
+        ? { password: 1, bearerAtLeast: 1, recoveryCodeAtLeast: 1 }
+        : { password: 1, appSecrets: 'flow did not reach all secret producers' },
+      observed: {
+        password: 1,
+        bearerReports: secretSummary.bearer ?? 0,
+        recoveryCodeReports: secretSummary['recovery-code'] ?? 0,
+        persistedByDirector: false,
+      },
+      verdict: secretInventoryOk ? 'PASS' : 'FAIL',
+    });
+    if (!secretInventoryOk && terminalError === null) {
+      terminalError = new Error('P6/secret-inventory: app did not one-shot report every secret class');
+      failureProbe = 'P6/in-memory-secret-inventory';
+    }
+
+    const forbiddenLiterals = [password, ...director.secretLiterals()];
+    const leakage = scanEvidenceForLeaks(writer.directory, { forbiddenLiterals });
+    writer.record('P6', 'complete run artifact leakage scan', {
+      expected: {
+        findings: 0,
+        scope: 'jsonl, PNGs, build receipt, backend/director/Metro/device logs, external evidence',
+      },
+      observed: {
+        findings: leakage.findings,
+        secretLiteralCount: forbiddenLiterals.length,
+        runDirectory: writer.base,
+      },
+      verdict: leakage.ok ? 'PASS' : 'FAIL',
+    });
+    if (!leakage.ok && terminalError === null) {
+      terminalError = new Error(`P6/leakage-scan: ${JSON.stringify(leakage.findings)}`);
+      failureProbe = 'P6/complete-run-artifact-leakage-scan';
+    }
+
+    overallVerdict = terminalError === null
+      ? p4IosIncomplete
+        ? 'PASS (P4-iOS INCOMPLETE: extension refusal not exercised)'
+        : 'PASS'
+      : 'FAIL';
+    let rendered = writer.renderFinal({ overallVerdict, failure: failureProbe });
+    const receiptScan = scanEvidenceForLeaks(writer.directory, {
+      forbiddenLiterals,
+      virtualFiles: [{ name: `${writer.base}.md`, bytes: rendered }],
+    });
+    if (!receiptScan.ok) {
+      overallVerdict = 'FAIL';
+      failureProbe ??= 'P6/final-receipt-candidate-leakage-scan';
+      terminalError ??= new Error(`P6/final-receipt-leakage: ${JSON.stringify(receiptScan.findings)}`);
+      writer.record('P6', 'final receipt candidate leakage scan', {
+        expected: { findings: 0 },
+        observed: { findings: receiptScan.findings },
+        verdict: 'FAIL',
+      });
+      rendered = writer.renderFinal({ overallVerdict, failure: failureProbe });
+    }
+    writer.finalize({ overallVerdict, failure: failureProbe, rendered });
   }
+
+  if (terminalError !== null) throw terminalError;
   return { verdict: overallVerdict, evidence: writer.markdownPath };
 }

@@ -34,6 +34,7 @@ export async function startWitness(
   onStatus: (status: string) => void,
 ) {
   const directorOrigin = await initialDirectorOrigin();
+  const secretReports = new Map<string, Promise<void>>();
   const emit = async (event: string, details: Readonly<Record<string, unknown>> = {}) => {
     await post(directorOrigin, '/event', {
       schemaVersion: 'snapback.native-custody-event.v1',
@@ -44,7 +45,23 @@ export async function startWitness(
       atMs: Date.now(),
     });
   };
-  (globalThis as { __nativeCustodyProbeEmit?: typeof emit }).__nativeCustodyProbeEmit = emit;
+  const reportSecret = (kind: 'bearer' | 'recovery-code', literal: string) => {
+    const key = `${kind}\0${literal}`;
+    const existing = secretReports.get(key);
+    if (existing !== undefined) return existing;
+    const pending = post(directorOrigin, '/secret', { kind, literal }).catch((error) => {
+      secretReports.delete(key);
+      throw error;
+    });
+    secretReports.set(key, pending);
+    return pending;
+  };
+  const globals = globalThis as {
+    __nativeCustodyProbeEmit?: typeof emit;
+    __nativeCustodyProbeReportSecret?: typeof reportSecret;
+  };
+  globals.__nativeCustodyProbeEmit = emit;
+  globals.__nativeCustodyProbeReportSecret = reportSecret;
   await emit('witness-ready', { launchId });
 
   for (;;) {

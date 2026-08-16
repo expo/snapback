@@ -25,6 +25,7 @@ export function parseArgs(argv, platform, defaults) {
     ['--udid', ['udid', String]],
     ['--derived-data', ['derivedData', resolve]],
     ['--app-path', ['appPath', resolve]],
+    ['--ios-extension-evidence', ['iosExtensionEvidence', resolve]],
     ['--adb', ['adb', String]],
     ['--serial', ['serial', String]],
     ['--avd', ['avd', String]],
@@ -54,7 +55,7 @@ export function parseArgs(argv, platform, defaults) {
 
 export function harnessUsage(platform) {
   const targetOptions = platform === 'iOS'
-    ? '  --udid <id> --derived-data <path> --app-path <path>\n  --preserve-keychain'
+    ? '  --udid <id> --derived-data <path> --app-path <path>\n  --ios-extension-evidence <path> --preserve-keychain'
     : '  --serial <id> --avd <name> --adb <path> --emulator <path> --apk <path>';
   return `${platform} native custody probe harness
 

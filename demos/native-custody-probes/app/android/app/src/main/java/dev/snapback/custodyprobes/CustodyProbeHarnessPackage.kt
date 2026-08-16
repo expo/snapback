@@ -32,17 +32,25 @@ class CustodyProbeHarnessModule(
     val receiver = object : ResultReceiver(Handler(Looper.getMainLooper())) {
       override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
         val map = WritableNativeMap()
-        map.putBoolean("attempted", resultData?.getBoolean("attempted", false) ?: false)
-        map.putString("context", "android-secondary-process")
-        map.putString(
-          "processName",
-          resultData?.getString("processName") ?: "dev.snapback.custodyprobes:probe",
+        val processName = resultData?.getString("processName")
+        val servicePid = resultData?.getInt("servicePid", -1) ?: -1
+        val resultMissing = processName == null || servicePid <= 0
+        map.putBoolean(
+          "attempted",
+          !resultMissing && (resultData?.getBoolean("attempted", false) ?: false),
         )
+        map.putString("context", "android-secondary-process")
+        if (processName == null) map.putNull("processName") else map.putString("processName", processName)
+        if (servicePid <= 0) map.putNull("servicePid") else map.putInt("servicePid", servicePid)
         val diagnostic = WritableNativeMap()
         diagnostic.putString(
           "code",
-          resultData?.getString("diagnosticCode")
-            ?: "SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_RESULT_MISSING",
+          if (resultMissing) {
+            "SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_RESULT_MISSING"
+          } else {
+            resultData?.getString("diagnosticCode")
+              ?: "SNAPBACK_AUTH_CUSTODY_SECONDARY_PROCESS_RESULT_MISSING"
+          },
         )
         diagnostic.putString(
           "message",

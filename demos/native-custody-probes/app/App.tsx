@@ -11,7 +11,11 @@ import {
   SnapbackExpoProvider,
   useSnapbackExpoBootState,
 } from '@expo/snapback-expo';
-import type { ExpoBootState, SnapbackExpoEnvironmentV1 } from '@expo/snapback-expo';
+import type {
+  AppBindingV1,
+  ExpoBootState,
+  SnapbackExpoEnvironmentV1,
+} from '@expo/snapback-expo';
 
 import { app } from './probe-app';
 import { resolveNativeAppClientPlatform } from './native-platform';
@@ -19,6 +23,7 @@ import {
   bootstrapPublicProjection,
   executeProbeCommand,
   installBootstrapInvoker,
+  installMilestoneRenderer,
   ProbeRuntime,
   readPublicCustodyFacts,
   resetRuntimeProjection,
@@ -32,6 +37,13 @@ type PendingBoot = {
   reject(error: unknown): void;
   timer: ReturnType<typeof setTimeout>;
 };
+type Milestone = Readonly<{
+  name: string;
+  launchId: string;
+  custodyRevision: number | null;
+  bearerSha256Prefix: string;
+  principalId: string;
+}>;
 
 const launchId = `${Platform.OS}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -42,6 +54,13 @@ function terminal(state: ExpoBootState) {
 export default function App() {
   const [request, setRequest] = useState<BootRequest | null>(null);
   const [status, setStatus] = useState('starting witness');
+  const [milestone, setMilestone] = useState<Milestone>({
+    name: 'not-captured',
+    launchId,
+    custodyRevision: null,
+    bearerSha256Prefix: 'none',
+    principalId: 'unavailable',
+  });
   const pending = useRef<PendingBoot | null>(null);
   const generation = useRef(0);
 
@@ -63,6 +82,7 @@ export default function App() {
   }, [request]);
 
   useEffect(() => {
+    installMilestoneRenderer((next) => setMilestone(next as Milestone), launchId);
     installBootstrapInvoker((mode) => {
       if (!['native', 'ordinary'].includes(mode)) {
         return Promise.reject(Object.assign(new Error(`unknown bootstrap mode ${mode}`), {
@@ -102,14 +122,14 @@ export default function App() {
       format: 'snapback.expo-environment.v1',
       appState: AppState,
       async resolveBinding() {
-        const config = await fetchDirectorConfig() as { binding?: unknown };
+        const config = await fetchDirectorConfig() as { binding?: AppBindingV1 };
         if (config.binding === undefined) {
           throw Object.assign(new Error('director config carries no binding'), {
             code: 'SNAPBACK_APP_BINDING_UNAVAILABLE',
           });
         }
         return {
-          binding: config.binding as never,
+          binding: config.binding,
           admission: { delivery: { channel: 'local-supervised-ipc' } },
         };
       },
@@ -129,7 +149,7 @@ export default function App() {
         };
       },
       ...(request.mode === 'native'
-        ? { resolveAppClientPlatform: () => resolveNativeAppClientPlatform() as never }
+        ? { resolveAppClientPlatform: () => resolveNativeAppClientPlatform() }
         : {}),
     };
     return Object.freeze(value);
@@ -142,6 +162,11 @@ export default function App() {
         <Text style={styles.title}>Native custody probe</Text>
         <Text testID="probe-platform" style={styles.fact}>{Platform.OS}</Text>
         <Text testID="probe-status" style={styles.status}>{status}</Text>
+        <Text testID="probe-milestone" style={styles.fact}>milestone: {milestone.name}</Text>
+        <Text testID="probe-launch" style={styles.fact}>launch: {milestone.launchId}</Text>
+        <Text testID="probe-revision" style={styles.fact}>revision: {milestone.custodyRevision ?? 'none'}</Text>
+        <Text testID="probe-bearer-sha" style={styles.fact}>bearer sha256: {milestone.bearerSha256Prefix}</Text>
+        <Text testID="probe-principal" style={styles.fact}>principal: {milestone.principalId}</Text>
         {request !== null && environment !== null ? (
           <SnapbackExpoProvider
             key={`${request.generation}:${request.mode}`}

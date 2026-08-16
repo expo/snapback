@@ -102,3 +102,36 @@ substituting a JavaScript mock for OS behavior.
 No Guide gap ticket was filed for this entry. The explicit injection and probe
 hooks remain Phase 2 evidence-only surfaces, and the Bun autolinking issue is
 handled in the package manifest rather than by app-author guidance.
+
+## Evidence-integrity entry — 2026-08-16
+
+The second review round exposed a useful distinction between automating a
+native journey and proving it. The original interruption loop acknowledged a
+completed write and slept before killing, so its old-or-new result was not
+bound to the write the host intended to interrupt. The revised witness emits
+sequenced entry/completion pulses around the native replace, and each receipt
+binds the restored full custody/principal tuple to the predecessor or successor
+of the last entered sequence. A missing pulse or loop failure is now terminal.
+
+Evidence handling required more infrastructure than the application flow.
+Each execution now owns an exclusive timestamp/run-id directory; package,
+binary, runtime-readiness, harness, and worktree identities are resolved rather
+than inferred from manifest ranges. A one-shot director endpoint retains
+bearer and recovery-code literals only in memory so backend, Metro, director,
+device-log, JSONL, Markdown, and raw screenshot bytes can all be scanned before
+the final verdict is written. This is significantly more ceremony than a
+typical React plus Supabase or Convex auth test, but it closes the gap between
+"the app relaunched" and evidence that can support a custody capability claim.
+
+Android process evidence also became deliberately redundant: the service
+reports its own PID and process name, while the host independently observes
+the main and `:probe` PIDs with `adb shell ps` and accepts only the package's
+exact single-runtime refusal. Android mid-write evidence is narrowed to a
+verified `kill -9`; force-stop-mid-write and `bmgr` backup/restore remain named
+nonclaims. iOS extension refusal is similarly `INCOMPLETE` unless a supervisor
+supplies separately produced native evidence whose bytes are copied and
+digest-bound into the run.
+
+No Guide gap ticket was filed. These are proof-host integrity rules for the
+LLP 0258/0263 qualification apparatus, not missing guidance for an ordinary
+supported app-authoring journey.
