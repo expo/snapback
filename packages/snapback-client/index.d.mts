@@ -42,6 +42,9 @@ export {
 } from './argument-normalization.mjs';
 
 export type { SnapbackDiagnosticCode } from './diagnostic-codes.d.mts';
+/** Closed classification of negotiation/configuration refusals that cannot
+ * heal under an unchanged live subscribe or connection-open request. */
+export declare function isTerminalLiveProtocolRefusal(error: unknown): boolean;
 export {
   createClientDevConsoleReporter,
   createClientDiagnosticsChannel,

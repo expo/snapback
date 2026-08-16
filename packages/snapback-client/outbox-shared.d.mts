@@ -90,11 +90,23 @@ export interface OutboxState {
     range: Record<string, unknown>;
     nextCounter: number;
   }>>;
+  authorizationQueue: Readonly<{
+    generation: number;
+    pendingByScope: Record<string, Readonly<Record<string, unknown>>>;
+    resolvedByToken: Record<string, Readonly<Record<string, unknown>>>;
+  }>;
 }
 
 export declare const emptyOutboxState: () => OutboxState;
 
 export declare function validateOutboxState(value: unknown): OutboxState;
+
+export declare function outboxAuthorizationStatus(state: OutboxState): Readonly<{
+  generation: number;
+  suspended: boolean;
+  pendingScopeCount: number;
+  effectiveDisposition: 'retain' | 'quarantine' | 'delete';
+}>;
 
 export declare const outboxOps: Record<
   string,

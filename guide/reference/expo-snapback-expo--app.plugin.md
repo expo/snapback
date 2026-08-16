@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:5ad028732e51174dc239b4904c9116c286516caa47ae
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:9edd29e315d8b773e7dd163f31dc12248d8d97d9be1788e7e72cb931281f4951`.
+`sha256:9fafaf0a8ceb3cfb9006d8746f0f3245f1aa2429ad9e3f2ab87c07944d25d351`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 

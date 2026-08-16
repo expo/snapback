@@ -20,6 +20,7 @@ import { argsHash, jcs, rowsMatchDigest } from './rqs.mjs';
 import {
   allOutboxRecords,
   emptyOutboxState,
+  outboxAuthorizationStatus,
   outboxNotWriterError,
   outboxOps,
   pendingAcknowledgementsFor,
@@ -495,7 +496,10 @@ export function createIndexedDbRqsResumeStore({
     async outboxEmpty() {
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
       try {
-        return await outboxRead((state) => unresolvedOutboxRecords(state).length === 0);
+        return await outboxRead((state) => (
+          unresolvedOutboxRecords(state).length === 0
+          && outboxAuthorizationStatus(state).suspended === false
+        ));
       } catch {
         return false;
       }
@@ -506,6 +510,38 @@ export function createIndexedDbRqsResumeStore({
     async outboxEnqueue(record) {
       return outboxWrite(
         (state) => outboxOps.enqueue(state, record, now()),
+        { throwWhenNotWriter: true },
+      );
+    },
+
+    async outboxAuthorizationStatus() {
+      return outboxRead((state) => outboxAuthorizationStatus(state));
+    },
+
+    async outboxApplyAuthorizationObligation(obligation) {
+      return outboxWrite(
+        (state) => outboxOps.applyAuthorizationObligation(state, obligation),
+        { throwWhenNotWriter: true },
+      );
+    },
+
+    async outboxResolveAuthorizationObligation(resolution) {
+      return outboxWrite(
+        (state) => outboxOps.resolveAuthorizationObligation(state, resolution),
+        { throwWhenNotWriter: true },
+      );
+    },
+
+    async outboxAcknowledgeAuthorizationResolution(resolution) {
+      return outboxWrite(
+        (state) => outboxOps.acknowledgeAuthorizationResolution(state, resolution),
+        { throwWhenNotWriter: true },
+      );
+    },
+
+    async outboxRetireAuthorizationScopes(scopes) {
+      return outboxWrite(
+        (state) => outboxOps.retireAuthorizationScopes(state, scopes),
         { throwWhenNotWriter: true },
       );
     },

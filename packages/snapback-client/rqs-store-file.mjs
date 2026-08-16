@@ -59,6 +59,7 @@ import {
 import {
   allOutboxRecords,
   emptyOutboxState,
+  outboxAuthorizationStatus,
   outboxNotWriterError,
   outboxOps,
   pendingAcknowledgementsFor,
@@ -435,12 +436,13 @@ export function createFileRqsResumeStore({
       if (writer) await writeState(migrated);
       return migrated;
     }
-    const outboxValid = entriesValid && validateOutboxState(parsed.outbox) !== null;
+    const normalizedOutbox = entriesValid ? validateOutboxState(parsed.outbox) : null;
+    const outboxValid = normalizedOutbox !== null;
     if (outboxValid && parsed.format === RQS_FILE_STORE_FORMAT_V2) {
       const migrated = {
         ...emptyState(),
         entries: parsed.entries,
-        outbox: parsed.outbox,
+        outbox: normalizedOutbox,
         reactBindingReceipt: prepareReactBindingReceipt(parsed.reactBindingReceipt),
       };
       if (writer) await writeState(migrated);
@@ -460,7 +462,7 @@ export function createFileRqsResumeStore({
     }
     return {
       entries: parsed.entries,
-      outbox: parsed.outbox,
+      outbox: normalizedOutbox,
       materializations: parsed.materializations,
       pageSets: parsed.pageSets,
       memberships: parsed.memberships,
@@ -595,7 +597,8 @@ export function createFileRqsResumeStore({
         } catch {
           return false;
         }
-        return unresolvedOutboxRecords(state.outbox).length === 0;
+        return unresolvedOutboxRecords(state.outbox).length === 0
+          && outboxAuthorizationStatus(state.outbox).suspended === false;
       });
     },
 
@@ -661,6 +664,43 @@ export function createFileRqsResumeStore({
     async outboxPending() {
       requireOpen();
       return serialized(async () => pendingOutboxRecords((await readState()).outbox));
+    },
+
+    async outboxAuthorizationStatus() {
+      requireOpen();
+      return serialized(async () => outboxAuthorizationStatus((await readState()).outbox));
+    },
+
+    async outboxApplyAuthorizationObligation(obligation) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.applyAuthorizationObligation(outbox, obligation),
+        { throwWhenNotWriter: true },
+      )).result);
+    },
+
+    async outboxResolveAuthorizationObligation(resolution) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.resolveAuthorizationObligation(outbox, resolution),
+        { throwWhenNotWriter: true },
+      )).result);
+    },
+
+    async outboxAcknowledgeAuthorizationResolution(resolution) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.acknowledgeAuthorizationResolution(outbox, resolution),
+        { throwWhenNotWriter: true },
+      )).result);
+    },
+
+    async outboxRetireAuthorizationScopes(scopes) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.retireAuthorizationScopes(outbox, scopes),
+        { throwWhenNotWriter: true },
+      )).result);
     },
 
     async outboxPrepareSubmission(id) {
@@ -1287,7 +1327,8 @@ export async function sweepStaleRqsBlobs({
       //   intents survive to re-entry; the janitor cannot drop them.
       const mustKeep = outbox !== null
         && (pendingOutboxRecords(outbox).length > 0
-          || allOutboxRecords(outbox).some((record) => record.status === 'quarantined'));
+          || allOutboxRecords(outbox).some((record) => record.status === 'quarantined')
+          || outboxAuthorizationStatus(outbox).suspended);
       if (mustKeep) {
         summary.kept += 1;
         continue; // queued or quarantined intent is never silently discarded

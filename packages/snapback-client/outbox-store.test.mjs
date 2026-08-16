@@ -61,6 +61,35 @@ const TEST_FRESH_SNAPSHOT_BARRIER = Object.freeze({
   status: 'passed',
   kind: 'full-snapshot',
 });
+const TEST_QUEUE_AUTHORIZATION = Object.freeze({
+  incarnation: '018f0d90-7b27-7a22-8c33-445566778899',
+  epoch: 1,
+});
+const TEST_QUEUE_SCOPE = Object.freeze({
+  kind: 'clientQuery',
+  namespace: Object.freeze({
+    clientStoreId: 'outbox-store-contract',
+    queryKey: 'createThing:{}',
+    queryInstanceId: 1,
+  }),
+});
+const testQueueObligation = Object.freeze({
+  protocolVersion: 1,
+  scopeId: TEST_QUEUE_SCOPE,
+  revision: 1,
+  maxDisposition: 'quarantine',
+  witness: Object.freeze({ authorization: TEST_QUEUE_AUTHORIZATION, data: null }),
+  retryEpisodeId: null,
+});
+const testQueueResolution = Object.freeze({
+  protocolVersion: 1,
+  kind: 'snapshot',
+  scopeId: TEST_QUEUE_SCOPE,
+  revision: 1,
+  witness: testQueueObligation.witness,
+  maxDisposition: 'quarantine',
+  ackToken: 'outbox-store-authorization-proof',
+});
 
 const adoptionInspection = (generation = TEST_ARTIFACT_GENERATION) => ({
   schema: {
@@ -199,6 +228,25 @@ async function exerciseOutboxContract(store, { label }) {
     (await store.outboxPending()).map((r) => r.id),
     ['cm-1', 'cm-2'],
     `${label}: pending in sequence order`,
+  );
+  const suspended = await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  assert.equal(suspended.suspended, true, `${label}: authorization root suspends replay`);
+  assert.equal(
+    (await store.outboxPrepareSubmission('cm-1')).status,
+    'authorization-suspended',
+    `${label}: submission checks the persisted root`,
+  );
+  const released = await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  assert.equal(released.suspended, false, `${label}: exact proof releases the root`);
+  assert.equal(
+    (await store.outboxPrepareSubmission('cm-1')).status,
+    'ready',
+    `${label}: replay resumes only after exact proof`,
+  );
+  assert.equal(
+    await store.outboxAcknowledgeAuthorizationResolution(testQueueResolution),
+    true,
+    `${label}: acknowledged proof cleanup is durable`,
   );
   // Drop-and-mark-failed stays visible, leaves the pending lane.
   assert.equal(await store.outboxMarkFailed('cm-1', { code: 'X', message: 'refused' }), true);

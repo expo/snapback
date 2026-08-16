@@ -158,6 +158,24 @@ export interface RqsResumeStore {
    * watch primitive are polled only while pending work awaits writer custody. */
   subscribeWriterLock?(listener: (writer: boolean) => void): () => void;
   outboxEmpty(): Promise<boolean>;
+  outboxAuthorizationStatus(): Promise<Readonly<{
+    generation: number;
+    suspended: boolean;
+    pendingScopeCount: number;
+    effectiveDisposition: 'retain' | 'quarantine' | 'delete';
+  }>>;
+  outboxApplyAuthorizationObligation(
+    obligation: Readonly<Record<string, unknown>>,
+  ): Promise<Readonly<Record<string, unknown>>>;
+  outboxResolveAuthorizationObligation(
+    resolution: Readonly<Record<string, unknown>>,
+  ): Promise<Readonly<Record<string, unknown>>>;
+  outboxAcknowledgeAuthorizationResolution(
+    resolution: Readonly<Record<string, unknown>>,
+  ): Promise<boolean>;
+  outboxRetireAuthorizationScopes(
+    scopes: readonly Readonly<Record<string, unknown>>[],
+  ): Promise<Readonly<Record<string, unknown>>>;
   outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;
   outboxMarkStranded(
     id: string,

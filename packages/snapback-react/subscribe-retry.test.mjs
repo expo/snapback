@@ -237,55 +237,78 @@ mock.timers.tick(120_000);
 await flush();
 assert.equal(client.state.attempts, attemptsAtRelease, 'idle release cancels the scheduled retry');
 
-// Protocol/profile negotiation 400s are configuration refusals, not
-// transient availability failures. They must render once, enter the
-// provider's diagnostic surface, and remain timer-free until app wiring
-// changes instead of retrying the same subscribe forever.
-const terminalClient = fakeClient({
-  failureCode: 'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
-  failureStatus: 400,
-});
-const terminalBinding = await prepareReactBindingForClient(terminalClient, {
-  generatedManifest: functions,
-});
-const terminalProvider = createSnapbackReactProvider(terminalBinding, {
-  connectionId: 'terminal-protocol-test',
-});
-const terminalDescriptor = terminalProvider.registry.descriptor(records, {});
-let terminalLease = terminalProvider.registry.subscribe(terminalDescriptor, listener);
-await flush();
-
-assert.equal(terminalClient.state.attempts, 1, 'terminal refusal attempts once');
-const terminalSnapshot = terminalProvider.registry.snapshot(terminalDescriptor);
-assert.equal(terminalSnapshot.status, 'error', 'terminal refusal is renderable');
-assert.equal(
-  terminalSnapshot.error?.code,
+// Protocol/profile negotiation 400s are a closed configuration-refusal set.
+// Every member renders once and remains timer-free; similarly named legacy,
+// readiness, conflict, and transport neighbors retain the retry ladder.
+const terminalCodes = [
+  'SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED',
   'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
-  'the refusal code survives the provider error projection',
-);
-assert.equal(
-  terminalProvider.inspection().diagnostics.at(-1)?.code,
-  'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
-  'the provider diagnostics surface records the terminal refusal',
-);
+  'SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED',
+  'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED',
+  'SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED',
+  'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
+  'SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH',
+  'SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH',
+  'SNAPBACK_WIRE_VERSION_MISMATCH',
+  'SNAPBACK_WIRE_VERSION_REQUIRED',
+  'SNAPBACK_WIRE_VERSION_UNSUPPORTED',
+];
 
-for (let render = 0; render < 100; render += 1) {
-  terminalLease = terminalProvider.registry.subscribe(
-    terminalDescriptor,
-    listener,
-    terminalLease,
-  );
+for (const [index, failureCode] of terminalCodes.entries()) {
+  const terminalClient = fakeClient({ failureCode, failureStatus: 400 });
+  const terminalBinding = await prepareReactBindingForClient(terminalClient, {
+    generatedManifest: functions,
+  });
+  const terminalProvider = createSnapbackReactProvider(terminalBinding, {
+    connectionId: `terminal-protocol-test-${index}`,
+  });
+  const terminalDescriptor = terminalProvider.registry.descriptor(records, {});
+  let terminalLease = terminalProvider.registry.subscribe(terminalDescriptor, listener);
+  await flush();
+  assert.equal(terminalClient.state.attempts, 1, `${failureCode}: attempts once`);
+  const terminalSnapshot = terminalProvider.registry.snapshot(terminalDescriptor);
+  assert.equal(terminalSnapshot.status, 'error', `${failureCode}: renderable`);
+  assert.equal(terminalSnapshot.error?.code, failureCode);
+  assert.equal(terminalProvider.inspection().diagnostics.at(-1)?.code, failureCode);
+  for (let render = 0; render < 25; render += 1) {
+    terminalLease = terminalProvider.registry.subscribe(
+      terminalDescriptor,
+      listener,
+      terminalLease,
+    );
+  }
+  mock.timers.tick(120_000);
+  await flush();
+  assert.equal(terminalClient.state.attempts, 1, `${failureCode}: never retries`);
+  terminalLease.release();
+  await terminalProvider.dispose();
 }
-mock.timers.tick(120_000);
-await flush();
-assert.equal(
-  terminalClient.state.attempts,
-  1,
-  'render churn and elapsed time never retry a terminal protocol refusal',
-);
 
-terminalLease.release();
-await terminalProvider.dispose();
+const retryableNeighbors = [
+  ['SNAPBACK_REQUEST_JSON_INVALID', 400, 'legacy probe'],
+  ['SNAPBACK_AUTH_POLICY_UNAVAILABLE', 503, 'readiness'],
+  ['SNAPBACK_WIRE_VERSION_UNSUPPORTED', 409, 'conflict'],
+  ['SNAPBACK_CLIENT_REFUSED', undefined, 'transport'],
+];
+for (const [failureCode, failureStatus, label] of retryableNeighbors) {
+  const retryClient = fakeClient({ failureCode, failureStatus });
+  const retryBinding = await prepareReactBindingForClient(retryClient, {
+    generatedManifest: functions,
+  });
+  const retryProvider = createSnapbackReactProvider(retryBinding, {
+    connectionId: `retryable-neighbor-${label}`,
+  });
+  const retryDescriptor = retryProvider.registry.descriptor(records, {});
+  const retryLease = retryProvider.registry.subscribe(retryDescriptor, listener);
+  await flush();
+  assert.equal(retryClient.state.attempts, 1, `${label}: first attempt`);
+  mock.timers.tick(LIVE_RECONNECT_BASE_DELAY_MS);
+  await flush();
+  assert.equal(retryClient.state.attempts, 2, `${label}: retry remains enabled`);
+  retryLease.release();
+  await retryProvider.dispose();
+}
+
 await provider.dispose();
 mock.timers.reset();
 console.log('snapback-react subscribe retry window tests: ok');

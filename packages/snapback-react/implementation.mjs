@@ -20,6 +20,7 @@ import {
   createSnapbackAppClientWithBootstrapObserver,
 } from '@expo/snapback-client/app-client-internal';
 import { SnapbackDiagnosticError } from '@expo/snapback-client/diagnostic-error';
+import { isTerminalLiveProtocolRefusal } from '@expo/snapback-client';
 
 import {
   admittedReactCommand,
@@ -427,26 +428,6 @@ function isAnonymousProtectedAuthorizationDenial(client, reference, error) {
   return generatedAuthenticatedAuthorityState(client, reference) === 'anonymous'
     && (error?.status === 401 || error?.status === 403)
     && code === 'SNAPBACK_AUTH_REQUIRED';
-}
-
-// Negotiation/configuration 400s cannot heal under the provider's unchanged
-// subscribe request. This is deliberately narrower than all client errors:
-// readiness 503s and transport failures retain the bounded retry window.
-//
-// @ref LLP 0094#0e--refusal-code-registry-negotiation — exact protocol
-//   refusals require caller repair and must not retry unchanged.
-function isTerminalLiveProtocolRefusal(error) {
-  if (error?.terminalLiveProtocolRefusal === true) return true;
-  const code = error?.diagnostic?.code ?? error?.code;
-  if (typeof code !== 'string' || (error?.status !== undefined && error.status !== 400)) {
-    return false;
-  }
-  return code.endsWith('_CLIENT_UNSUPPORTED')
-    || code.endsWith('_PROTOCOL_UNSUPPORTED')
-    || code.endsWith('_PROTOCOL_MISMATCH')
-    || code === 'SNAPBACK_WIRE_VERSION_REQUIRED'
-    || code === 'SNAPBACK_WIRE_VERSION_MISMATCH'
-    || code === 'SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED';
 }
 
 const SKIPPED = Object.freeze({
@@ -941,6 +922,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const materializeStore = (store) => {
+    if (store.authorizationProjectionSuspended) return store.authoritativeData;
     let rows = store.generatedData ?? store.authoritativeData;
     for (const layer of store.optimisticLayers) {
       if (layer.failed) continue;
@@ -1069,6 +1051,41 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }), generation);
   };
 
+  const publishAuthorizationBoundary = (store, detail, generation) => {
+    const blank = validateQueryRows(store.resultContract, []);
+    store.authorizationProjectionSuspended = true;
+    store.authoritativeData = blank;
+    store.generatedData = blank;
+    store.generatedPresentation = null;
+    store.freshness = 'unknown';
+    store.retention = null;
+    if (store.optimisticCreate !== null) {
+      closeOptimisticCreate(store, store.optimisticCreate, { force: true });
+    }
+    if (detail?.kind === 'authorization_delete') {
+      for (const layer of store.optimisticLayers) {
+        layer.retired = true;
+        releaseLayerPin(store, layer);
+      }
+      store.optimisticLayers = [];
+      store.pendingMutations.clear();
+    }
+    // @ref LLP 0107#resync-authority-and-lifecycle — authorization fencing
+    //   publishes the exact blank projection without replaying predecessor
+    //   optimistic reducers; only a proof-bearing authorization snapshot
+    //   releases the suspended overlays.
+    publish(store, freezeBootDelivery(store, {
+      status: 'ready',
+      data: projectQueryRows(store.resultContract, blank),
+      error: null,
+      connection: normalizeConnection(store.handle?.current?.connection ?? 'disconnected'),
+      freshness: 'unknown',
+      answerClass: 'unknown',
+      retention: null,
+      optimisticPresentation: null,
+    }), generation);
+  };
+
   const publishGeneratedPresentation = (store, rows, detail, generation) => {
     store.generatedPresentation = detail?.optimisticPresentation ?? null;
     store.generatedData = validateQueryRows(store.resultContract, rows);
@@ -1191,6 +1208,23 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       onUpdate(rows, detail) {
         if (store.blockedPreparedPublication) return;
         clearUnadoptedSubscription(store);
+        if (
+          detail?.kind === 'authorization_quarantine'
+          || detail?.kind === 'authorization_delete'
+          || detail?.kind === 'authorization_error'
+        ) {
+          publishAuthorizationBoundary(store, detail, generation);
+          return;
+        }
+        if (
+          detail?.kind === 'authorization_snapshot'
+          || detail?.kind === 'authorization_denied'
+        ) {
+          store.authorizationProjectionSuspended = false;
+        } else if (store.authorizationProjectionSuspended) {
+          publishAuthorizationBoundary(store, detail, generation);
+          return;
+        }
         if (detail?.optimisticPresentation !== undefined) {
           store.generatedPresentation = detail.optimisticPresentation;
         }
@@ -1420,6 +1454,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       authoritativeRevision: readOnlySnapshot === null ? 0 : 1,
       freshness: readOnlySnapshot === null ? 'unknown' : 'snapshot',
       retention: null,
+      authorizationProjectionSuspended: false,
       optimisticLayers: [],
       pendingMutations: new Map(),
       optimisticCreate: null,

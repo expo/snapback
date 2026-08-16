@@ -147,9 +147,9 @@ function fakeClient() {
         started: async () => {},
         dispose() { handles.delete(handle); },
         settled: async () => {},
-        emit(rows) {
+        emit(rows, detail = {}) {
           current.rows = rows;
-          options.onUpdate(rows);
+          options.onUpdate(rows, detail);
         },
       };
       handles.add(handle);
@@ -214,8 +214,8 @@ function fakeClient() {
         if (listeners.size === 0) mutationListeners.delete(clientMutationId);
       };
     },
-    emit(rows) {
-      for (const handle of handles) handle.emit(rows);
+    emit(rows, detail = {}) {
+      for (const handle of handles) handle.emit(rows, detail);
     },
     async cutAuthority() {
       await barrier.quiesce();
@@ -509,6 +509,46 @@ async function queuedDispatchResolvesGenericRollbackCannotErasePendingLayer() {
   harness.queuedClient.disposeDiagnostics();
 }
 await queuedDispatchResolvesGenericRollbackCannotErasePendingLayer();
+
+// Authorization quarantine owns an exact blank publication. An unresolved
+// optimistic reducer remains suspended but cannot rematerialize the fenced
+// row through a later live delivery or local mutation-status notification.
+{
+  const harness = await queuedLayerHarness();
+  harness.attempt.queue();
+  await harness.dispatch;
+  await flush();
+  assert.equal(harness.queuedProvider.inspection().optimisticLayers, 1);
+  assert.deepEqual(
+    harness.queuedObserver.snapshot().queries.feed.data,
+    [{ id: 'counter', count: 1 }],
+  );
+  harness.queuedClient.emit([], { kind: 'authorization_quarantine' });
+  assert.deepEqual(
+    harness.queuedObserver.snapshot().queries.feed.data,
+    [],
+    'quarantine publishes the exact blank projection',
+  );
+  harness.queuedClient.emit([], { kind: 'live_replace' });
+  harness.attempt.disposition('unknown');
+  await flush();
+  assert.equal(
+    harness.queuedProvider.inspection().optimisticLayers,
+    1,
+    'the unresolved overlay is suspended rather than treated as resolved',
+  );
+  assert.deepEqual(
+    harness.queuedObserver.snapshot().queries.feed.data,
+    [],
+    'an unresolved optimistic layer cannot republish across quarantine',
+  );
+  harness.attempt.disposition('failed');
+  await flush();
+  assert.deepEqual(harness.queuedObserver.snapshot().queries.feed.data, []);
+  harness.queuedObserver.dispose();
+  await harness.queuedProvider.dispose();
+  harness.queuedClient.disposeDiagnostics();
+}
 
 for (const disposition of ['failed', 'stranded', 'quarantined', 'resultGone']) {
   const harness = await queuedLayerHarness();

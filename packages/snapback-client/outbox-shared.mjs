@@ -17,6 +17,15 @@
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 import {
+  effectiveDisposition,
+  mergeResyncObligation,
+  resolutionSatisfies,
+  scopeKey,
+  validateResolutionTicket,
+  validateResyncObligation,
+  validateScopeId,
+} from '@expo/snapback-contract/auth-invalidation';
+import {
   rewriteGeneratedArgumentIdsV1,
   settlementIdResolution,
 } from './settlement-id-resolution.mjs';
@@ -458,6 +467,13 @@ export const emptyOutboxState = () => ({
   records: {},
   acks: [],
   operationIdentityRanges: {},
+  // @ref LLP 0053#dispositions-with-producers-and-meanings —
+  //   mutation replay roots share the outbox's atomic persistence domain.
+  authorizationQueue: {
+    generation: 0,
+    pendingByScope: {},
+    resolvedByToken: {},
+  },
 });
 
 export function validateOutboxState(value) {
@@ -467,6 +483,40 @@ export function validateOutboxState(value) {
     || !plainRecord(value.records)
     || !Array.isArray(value.acks)
   ) return null;
+  const authorizationQueue = value.authorizationQueue === undefined
+    ? { generation: 0, pendingByScope: {}, resolvedByToken: {} }
+    : value.authorizationQueue;
+  if (
+    !plainRecord(authorizationQueue)
+    || !Number.isSafeInteger(authorizationQueue.generation)
+    || authorizationQueue.generation < 0
+    || !plainRecord(authorizationQueue.pendingByScope)
+    || (authorizationQueue.resolvedByToken !== undefined
+      && !plainRecord(authorizationQueue.resolvedByToken))
+    || Object.keys(authorizationQueue.resolvedByToken ?? {}).length > OUTBOX_MAX_PENDING_ACKS
+  ) return null;
+  const pendingByScope = {};
+  const resolvedByToken = {};
+  try {
+    for (const [key, obligationValue] of Object.entries(authorizationQueue.pendingByScope)) {
+      const obligation = validateResyncObligation(obligationValue);
+      if (
+        scopeKey(obligation.scopeId) !== key
+        || obligation.scopeId.kind === 'connection'
+        || obligation.maxDisposition === 'retain'
+      ) return null;
+      pendingByScope[key] = structuredClone(obligation);
+    }
+    for (const [token, resolutionValue] of Object.entries(
+      authorizationQueue.resolvedByToken ?? {},
+    )) {
+      const resolution = validateResolutionTicket(resolutionValue);
+      if (resolution.ackToken !== token) return null;
+      resolvedByToken[token] = structuredClone(resolution);
+    }
+  } catch {
+    return null;
+  }
   return {
     ...value,
     operationIdentityRanges: value.operationIdentityRanges
@@ -474,8 +524,61 @@ export function validateOutboxState(value) {
       && !Array.isArray(value.operationIdentityRanges)
       ? value.operationIdentityRanges
       : {},
+    authorizationQueue: {
+      generation: authorizationQueue.generation,
+      pendingByScope,
+      resolvedByToken,
+    },
   };
 }
+
+const queueExpectationFor = (obligation) => ({
+  authorization: obligation.witness.authorization,
+  versionStream: obligation.witness.data?.versionStream ?? null,
+  issuerId: obligation.scopeId.kind === 'clientQuery' ? null : obligation.scopeId.issuerId,
+});
+
+const advanceAuthorizationQueueGeneration = (authorizationQueue) => {
+  if (authorizationQueue.generation === Number.MAX_SAFE_INTEGER) {
+    throw outboxError(
+      'SNAPBACK_AUTH_INVALIDATION_GENERATION_EXHAUSTED',
+      'authorization queue generation is exhausted and the client store must be replaced',
+    );
+  }
+  return authorizationQueue.generation + 1;
+};
+
+const authorizationQueueResult = (authorizationQueue, extra = {}) => Object.freeze({
+  ...extra,
+  generation: authorizationQueue.generation,
+  suspended: Object.keys(authorizationQueue.pendingByScope).length > 0,
+  pendingScopeCount: Object.keys(authorizationQueue.pendingByScope).length,
+  effectiveDisposition: effectiveDisposition(authorizationQueue.pendingByScope),
+});
+
+const redactOutboxForAuthorizationDelete = (records) => Object.fromEntries(
+  Object.entries(records).map(([id, record]) => {
+    if (record.status !== 'pending' && record.status !== 'failed') return [id, record];
+    return [id, {
+      id: record.id,
+      function: record.function,
+      sequence: record.sequence,
+      enqueuedAt: record.enqueuedAt,
+      authorityEpoch: record.authorityEpoch ?? null,
+      authorityKey: record.authorityKey ?? null,
+      status: 'stranded',
+      disposition: 'delete',
+      reason: 'authorization_invalidation',
+      replayable: false,
+      discardOnly: true,
+      rerecordable: false,
+    }];
+  }),
+);
+
+export const outboxAuthorizationStatus = (state) => authorizationQueueResult(
+  state.authorizationQueue ?? emptyOutboxState().authorizationQueue,
+);
 
 const validRange = (range) => (
   range && typeof range === 'object' && !Array.isArray(range)
@@ -579,6 +682,151 @@ const allocateIdentity = (state, key, now) => {
 /// { state, result } without mutating the input, so arms can commit the
 /// whole section atomically (file rename / IndexedDB transaction).
 export const outboxOps = {
+  // @ref LLP 0053#client-fences — root apply precedes blank/ACK, and replay
+  //   stays suspended until an exact proof or authenticated retirement wins.
+  applyAuthorizationObligation(state, obligationValue) {
+    const obligation = validateResyncObligation(obligationValue);
+    if (obligation.scopeId.kind === 'connection') {
+      throw outboxError(
+        'SNAPBACK_CLIENT_QUEUE_SCOPE_UNSUPPORTED',
+        'a connection projection root must be expanded into query-sized children',
+      );
+    }
+    if (obligation.maxDisposition === 'retain') {
+      throw outboxError(
+        'SNAPBACK_CLIENT_QUEUE_ROOT_UNNECESSARY',
+        'retain does not create a mutation-queue suspension root',
+      );
+    }
+    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    const key = scopeKey(obligation.scopeId);
+    const merged = mergeResyncObligation(
+      current.pendingByScope[key] ?? null,
+      obligation,
+      queueExpectationFor(obligation),
+    );
+    if (merged.status !== 'accepted') {
+      return { state, result: authorizationQueueResult(current, { status: merged.status }) };
+    }
+    const authorizationQueue = {
+      generation: advanceAuthorizationQueueGeneration(current),
+      pendingByScope: {
+        ...current.pendingByScope,
+        [key]: structuredClone(merged.obligation),
+      },
+      resolvedByToken: current.resolvedByToken ?? {},
+    };
+    return {
+      state: {
+        ...state,
+        authorizationQueue,
+        records: merged.obligation.maxDisposition === 'delete'
+          ? redactOutboxForAuthorizationDelete(state.records)
+          : state.records,
+      },
+      result: authorizationQueueResult(authorizationQueue, { status: 'accepted' }),
+    };
+  },
+  resolveAuthorizationObligation(state, resolutionValue) {
+    const resolution = validateResolutionTicket(resolutionValue);
+    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    const key = scopeKey(resolution.scopeId);
+    const obligation = current.pendingByScope[key];
+    if (!obligation || !resolutionSatisfies(obligation, resolution)) {
+      const alreadyResolved = current.resolvedByToken?.[resolution.ackToken] ?? null;
+      if (
+        alreadyResolved !== null
+        && canonicalizeClientValueV1(alreadyResolved)
+          === canonicalizeClientValueV1(resolution)
+      ) {
+        return {
+          state,
+          result: authorizationQueueResult(current, {
+            status: 'duplicate',
+            ackToken: resolution.ackToken,
+          }),
+        };
+      }
+      throw outboxError(
+        'SNAPBACK_CLIENT_QUEUE_RESOLUTION_STALE',
+        'resolution does not satisfy the current exact mutation-queue root',
+      );
+    }
+    const pendingByScope = { ...current.pendingByScope };
+    if (
+      !Object.hasOwn(current.resolvedByToken ?? {}, resolution.ackToken)
+      && Object.keys(current.resolvedByToken ?? {}).length >= OUTBOX_MAX_PENDING_ACKS
+    ) {
+      throw outboxError(
+        'SNAPBACK_OUTBOX_ACK_FULL',
+        'authorization resolution cleanup capacity is exhausted before acknowledgement',
+      );
+    }
+    delete pendingByScope[key];
+    const authorizationQueue = {
+      generation: advanceAuthorizationQueueGeneration(current),
+      pendingByScope,
+      resolvedByToken: {
+        ...(current.resolvedByToken ?? {}),
+        [resolution.ackToken]: structuredClone(resolution),
+      },
+    };
+    return {
+      state: { ...state, authorizationQueue },
+      result: authorizationQueueResult(authorizationQueue, {
+        status: 'resolved',
+        ackToken: resolution.ackToken,
+      }),
+    };
+  },
+  acknowledgeAuthorizationResolution(state, resolutionValue) {
+    const resolution = validateResolutionTicket(resolutionValue);
+    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    const recorded = current.resolvedByToken?.[resolution.ackToken] ?? null;
+    if (
+      recorded === null
+      || canonicalizeClientValueV1(recorded) !== canonicalizeClientValueV1(resolution)
+    ) return { state, result: false };
+    const resolvedByToken = { ...current.resolvedByToken };
+    delete resolvedByToken[resolution.ackToken];
+    const authorizationQueue = { ...current, resolvedByToken };
+    return { state: { ...state, authorizationQueue }, result: true };
+  },
+  retireAuthorizationScopes(state, scopeValues) {
+    if (!Array.isArray(scopeValues)) {
+      throw new TypeError('retireAuthorizationScopes requires exact scope ids');
+    }
+    const keys = new Set(scopeValues.map((scopeValue) => {
+      const scope = validateScopeId(scopeValue);
+      if (scope.kind === 'connection') {
+        throw outboxError(
+          'SNAPBACK_CLIENT_QUEUE_SCOPE_UNSUPPORTED',
+          'a connection projection root must be expanded into query-sized children',
+        );
+      }
+      return scopeKey(scope);
+    }));
+    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    const pendingByScope = { ...current.pendingByScope };
+    let retired = 0;
+    for (const key of keys) {
+      if (!Object.hasOwn(pendingByScope, key)) continue;
+      delete pendingByScope[key];
+      retired += 1;
+    }
+    if (retired === 0) {
+      return { state, result: authorizationQueueResult(current, { retired }) };
+    }
+    const authorizationQueue = {
+      generation: advanceAuthorizationQueueGeneration(current),
+      pendingByScope,
+      resolvedByToken: current.resolvedByToken ?? {},
+    };
+    return {
+      state: { ...state, authorizationQueue },
+      result: authorizationQueueResult(authorizationQueue, { retired }),
+    };
+  },
   enqueue(state, input, now) {
     const normalized = normalizeOutboxRecordInput(input);
     if (state.records[normalized.id]) {
@@ -1033,6 +1281,12 @@ export const outboxOps = {
     return { state: acknowledged.state, result: stored };
   },
   prepareSubmission(state, id) {
+    if (outboxAuthorizationStatus(state).suspended) {
+      return {
+        state,
+        result: { status: 'authorization-suspended', record: null },
+      };
+    }
     let working = state;
     let target = working.records[id];
     if (!target || target.status !== 'pending') {

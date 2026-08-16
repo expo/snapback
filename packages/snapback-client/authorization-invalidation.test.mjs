@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { SnapbackClient } from './index.mjs';
+import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const issuerId = {
@@ -115,7 +116,7 @@ const waitFor = async (check, label) => {
   let lastError;
   while (Date.now() < deadline) {
     try {
-      check();
+      await check();
       return;
     } catch (error) {
       lastError = error;
@@ -131,6 +132,7 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
   const acknowledgements = [];
   const boundaries = [];
   const updates = [];
+  const authorizationErrors = [];
   let scopeId = null;
   let handle = null;
 
@@ -190,6 +192,7 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
       bearerToken: 'session-atomic-authorization',
       authInvalidationProtocol: 1,
       clientStoreId: 'store_atomic_authorization',
+      rqsStore: null,
     });
     handle = await client.liveQuery('atomicTodos', {
       connectionId: 'atomic-authorization-label',
@@ -199,6 +202,9 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
       },
       onUpdate(rows, detail) {
         updates.push({ kind: detail.kind, rows: structuredClone(rows) });
+      },
+      onAuthorizationError(error) {
+        authorizationErrors.push(error);
       },
     });
     assert.deepEqual(handle.rows, [{ id: 'held' }]);
@@ -213,8 +219,16 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
       rows: [{ id: 'refreshed' }],
     })]);
     await handle.poll();
+    assert.deepEqual(authorizationErrors.map((error) => error?.code), []);
     await waitFor(
-      () => assert.deepEqual(acknowledgements, ['ack_atomic_authorization_1']),
+      () => assert.deepEqual(
+        acknowledgements,
+        ['ack_atomic_authorization_1'],
+        JSON.stringify(authorizationErrors.map((error) => ({
+          code: error?.code,
+          message: error?.message,
+        }))),
+      ),
       'same-envelope resolution was not acknowledged',
     );
     assert.deepEqual(boundaries.map((entry) => entry.kind), ['authorization_snapshot']);
@@ -269,6 +283,328 @@ test('liveQuery applies same-envelope authorization resolution without a blank b
     assert.deepEqual(updates.map((entry) => entry.rows), [[]]);
   } finally {
     try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
+    globalThis.fetch = originalFetch;
+  }
+});
+
+class AuthorizationInvalidationWebSocket {
+  constructor(url, protocols) {
+    this.url = url;
+    this.protocols = protocols;
+    this.readyState = 0;
+    this.listeners = new Map();
+    queueMicrotask(() => {
+      this.readyState = 1;
+      this.emit('open', {});
+    });
+  }
+
+  addEventListener(type, listener, options = {}) {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push({ listener, once: options.once === true });
+    this.listeners.set(type, listeners);
+  }
+
+  emit(type, event) {
+    for (const entry of [...(this.listeners.get(type) ?? [])]) {
+      entry.listener(event);
+      if (entry.once) {
+        const listeners = this.listeners.get(type) ?? [];
+        const index = listeners.indexOf(entry);
+        if (index !== -1) listeners.splice(index, 1);
+      }
+    }
+  }
+
+  send(encoded) {
+    const frame = JSON.parse(encoded);
+    if (frame.kind !== 'ping') return;
+    queueMicrotask(() => this.emit('message', {
+      data: JSON.stringify({ kind: 'pong', requestId: frame.requestId }),
+    }));
+  }
+
+  close(code = 1000, reason = '') {
+    if (this.readyState === 3) return;
+    this.readyState = 3;
+    this.emit('close', { code, reason });
+  }
+}
+
+const queuedReplayHandshake = {
+  ...handshake,
+  clientProtocols: {
+    ...handshake.clientProtocols,
+    authorityDescriptor: 1,
+  },
+  availability: {
+    ...handshake.availability,
+    queuedReplay: {
+      available: true,
+      minimumAuthorityDescriptorProtocol: 1,
+      reason: null,
+    },
+  },
+};
+
+for (const transport of ['poll', 'stream']) {
+  test(`client-owned outbox suspension fences ${transport} invalidation before ACK`, async () => {
+    const originalFetch = globalThis.fetch;
+    const originalWebSocket = globalThis.WebSocket;
+    const durableStore = createMemoryRqsResumeStore();
+    durableStore.durability = () => ({ implementation: 'authorization-test', durable: true });
+    const connectionId = `queue-authorization-${transport}`;
+    const outbox = [];
+    const acknowledgements = [];
+    let mutationAttempts = 0;
+    let mutationOnline = false;
+    let mutationAttemptsBeforeReplay = 0;
+    let scopeId = null;
+    let handle = null;
+    let client = null;
+
+    globalThis.WebSocket = AuthorizationInvalidationWebSocket;
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (path === '/auth/session') return response(queuedReplayHandshake);
+      if (path === '/connection/open') {
+        return response({
+          connectionId,
+          connectionToken: `sct-${transport}`,
+          ephemeralExpiryProtocol: 1,
+          wireVersion: 'snapback.v1',
+          authorizationInvalidation: {
+            protocolVersion: 1,
+            issuerId,
+            connectionGeneration: 2,
+            authorization,
+            versionStream: 'stream-atomic-authorization',
+          },
+        });
+      }
+      if (path === '/live/atomicTodos/subscribe') {
+        const body = JSON.parse(init.body);
+        scopeId = {
+          kind: 'subscription',
+          issuerId,
+          namespace: body.authorizationNamespace,
+          scopeSequence: 1,
+          connectionGeneration: 2,
+          subscriptionId: 'sub_atomic_authorization',
+        };
+        return response({
+          subscription_id: 'sub_atomic_authorization',
+          snapshot: { version: 10, rows: [{ id: 'held' }] },
+          permission_epochs: {},
+          authorizationScope: scopeId,
+        });
+      }
+      if (path === `/outbox/${connectionId}`) return response(outbox.shift() ?? []);
+      if (path === '/live/authorization-invalidation/acknowledge') {
+        assert.equal(
+          mutationAttempts,
+          mutationAttemptsBeforeReplay,
+          `${transport}: queued mutation crossed before authorization ACK`,
+        );
+        const body = JSON.parse(init.body);
+        acknowledgements.push(body.ackToken);
+        return response({ outcome: 'discharged' });
+      }
+      if (path === '/mutation/queuedWrite') {
+        mutationAttempts += 1;
+        if (!mutationOnline) throw new TypeError('offline before queued replay');
+        return response({ result: { ok: true }, version: 12 });
+      }
+      if (path === '/live/atomicTodos/unsubscribe') {
+        return response({ subscription_id: 'sub_atomic_authorization', disposed: true });
+      }
+      throw new Error(`unexpected ${transport} authorization queue request: ${path}`);
+    };
+
+    try {
+      client = new SnapbackClient('http://authorization-queue.test', {
+        bearerToken: 'session-atomic-authorization',
+        authInvalidationProtocol: 1,
+        authorityDescriptorProtocol: 1,
+        clientStoreId: `store_queue_authorization_${transport}`,
+        rqsStore: durableStore,
+        __offlineMutationReplayCapability: true,
+        __outboxDrainLifecycle: false,
+      });
+      handle = await client.liveQuery('atomicTodos', {
+        connectionId,
+        persistResume: false,
+        transport,
+        fallbackToPoll: false,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const queued = await client.mutate('queuedWrite', {
+        args: { id: transport },
+        queue: true,
+      });
+      assert.equal(queued.status, 'queued');
+      mutationAttemptsBeforeReplay = mutationAttempts;
+      mutationOnline = true;
+
+      const pending = obligation(scopeId, 1, 11);
+      const pendingFrame = envelope({ pending });
+      if (transport === 'poll') {
+        outbox.push([pendingFrame]);
+        await handle.poll();
+      } else {
+        await waitFor(
+          () => assert.equal(client.liveStreamManager(connectionId).inspection().open, true),
+          'stream did not open',
+        );
+        await client.liveStreamManager(connectionId).debugInjectFrame(
+          JSON.parse(pendingFrame.Durable.payload),
+        );
+      }
+      await waitFor(
+        async () => assert.equal(
+          (await durableStore.outboxAuthorizationStatus()).suspended,
+          true,
+        ),
+        `${transport}: obligation was not persisted`,
+      );
+      assert.deepEqual(acknowledgements, []);
+      const blocked = await client.replayQueuedMutations();
+      assert.equal(blocked.stopped, true);
+      assert.equal(
+        mutationAttempts,
+        mutationAttemptsBeforeReplay,
+        `${transport}: replay crossed the persisted root`,
+      );
+
+      const proof = resolution(pending, `ack_queue_authorization_${transport}`);
+      const resolvedFrame = envelope({
+        pending,
+        resolved: proof,
+        version: 11,
+        rows: [{ id: 'released' }],
+      });
+      if (transport === 'poll') {
+        outbox.push([resolvedFrame]);
+        await handle.poll();
+      } else {
+        await client.liveStreamManager(connectionId).debugInjectFrame(
+          JSON.parse(resolvedFrame.Durable.payload),
+        );
+      }
+      await waitFor(
+        () => assert.deepEqual(acknowledgements, [proof.ackToken]),
+        `${transport}: satisfying proof was not acknowledged`,
+      );
+      assert.equal((await durableStore.outboxAuthorizationStatus()).suspended, false);
+      await client.replayQueuedMutations();
+      await waitFor(
+        () => assert.equal(mutationAttempts, mutationAttemptsBeforeReplay + 1),
+        `${transport}: satisfying proof did not release replay`,
+      );
+    } finally {
+      try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
+      try { await client?.close?.(); } catch { /* cleanup cannot mask assertions */ }
+      try { await durableStore.close(); } catch { /* cleanup cannot mask assertions */ }
+      globalThis.fetch = originalFetch;
+      globalThis.WebSocket = originalWebSocket;
+    }
+  });
+}
+
+test('authorization invalidation refuses ACK when outbox suspension cannot persist', async () => {
+  const originalFetch = globalThis.fetch;
+  const durableStore = createMemoryRqsResumeStore();
+  durableStore.durability = () => ({ implementation: 'authorization-test', durable: true });
+  durableStore.outboxApplyAuthorizationObligation = undefined;
+  const outbox = [];
+  const authorizationErrors = [];
+  let acknowledgementAttempts = 0;
+  let scopeId = null;
+  let handle = null;
+  let client = null;
+
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') return response(queuedReplayHandshake);
+    if (path === '/connection/open') {
+      return response({
+        connectionId: 'queue-persistence-refusal',
+        connectionToken: 'sct-queue-persistence-refusal',
+        ephemeralExpiryProtocol: 1,
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: {
+          protocolVersion: 1,
+          issuerId,
+          connectionGeneration: 2,
+          authorization,
+          versionStream: 'stream-atomic-authorization',
+        },
+      });
+    }
+    if (path === '/live/atomicTodos/subscribe') {
+      const body = JSON.parse(init.body);
+      scopeId = {
+        kind: 'subscription',
+        issuerId,
+        namespace: body.authorizationNamespace,
+        scopeSequence: 1,
+        connectionGeneration: 2,
+        subscriptionId: 'sub_atomic_authorization',
+      };
+      return response({
+        subscription_id: 'sub_atomic_authorization',
+        snapshot: { version: 10, rows: [{ id: 'held' }] },
+        permission_epochs: {},
+        authorizationScope: scopeId,
+      });
+    }
+    if (path === '/outbox/queue-persistence-refusal') return response(outbox.shift() ?? []);
+    if (path === '/live/authorization-invalidation/acknowledge') {
+      acknowledgementAttempts += 1;
+      return response({ outcome: 'discharged' });
+    }
+    if (path === '/live/atomicTodos/unsubscribe') {
+      return response({ subscription_id: 'sub_atomic_authorization', disposed: true });
+    }
+    throw new Error(`unexpected queue persistence refusal request: ${path}`);
+  };
+
+  try {
+    client = new SnapbackClient('http://authorization-persistence.test', {
+      bearerToken: 'session-atomic-authorization',
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      clientStoreId: 'store_queue_persistence_refusal',
+      rqsStore: durableStore,
+      __offlineMutationReplayCapability: true,
+      __outboxDrainLifecycle: false,
+    });
+    handle = await client.liveQuery('atomicTodos', {
+      connectionId: 'queue-persistence-refusal',
+      persistResume: false,
+      onAuthorizationError(error) { authorizationErrors.push(error); },
+    });
+    const pending = obligation(scopeId, 1, 11);
+    outbox.push([envelope({
+      pending,
+      resolved: resolution(pending, 'ack_queue_persistence_refusal'),
+      version: 11,
+      rows: [{ id: 'must-not-ack' }],
+    })]);
+    await handle.poll();
+    await waitFor(
+      () => assert.equal(
+        authorizationErrors.at(-1)?.code,
+        'SNAPBACK_RQS_STORE_UNAVAILABLE',
+      ),
+      'queue persistence refusal did not surface',
+    );
+    assert.equal(acknowledgementAttempts, 0);
+    assert.deepEqual(handle.rows, []);
+  } finally {
+    try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
+    try { await client?.close?.(); } catch { /* cleanup cannot mask assertions */ }
+    try { await durableStore.close(); } catch { /* cleanup cannot mask assertions */ }
     globalThis.fetch = originalFetch;
   }
 });

@@ -357,20 +357,29 @@ const isRetryableStreamResetRefusal = (error) => (
 // subscribe, so framework owners must surface it instead of starting a retry
 // loop. Keep readiness/unavailability 503s outside this classification.
 //
-// @ref LLP 0096#22-authlive--auth-scoped-live--invalidation-acknowledge —
-//   invalidation offer refusals require negotiation repair and forbid
-//   unchanged retry.
-const isTerminalLiveProtocolRefusal = (error) => {
+// @ref LLP 0094#0e--refusal-code-registry-negotiation — the exact closed
+//   negotiation/configuration set requires caller repair and forbids
+//   unchanged retry; readiness and transport neighbors remain retryable.
+const TERMINAL_LIVE_PROTOCOL_REFUSAL_CODES = new Set([
+  'SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED',
+  'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
+  'SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED',
+  'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED',
+  'SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED',
+  'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
+  'SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH',
+  'SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH',
+  'SNAPBACK_WIRE_VERSION_MISMATCH',
+  'SNAPBACK_WIRE_VERSION_REQUIRED',
+  'SNAPBACK_WIRE_VERSION_UNSUPPORTED',
+]);
+
+export const isTerminalLiveProtocolRefusal = (error) => {
   const code = error?.diagnostic?.code ?? error?.code;
   if (typeof code !== 'string' || (error?.status !== undefined && error.status !== 400)) {
     return false;
   }
-  return code.endsWith('_CLIENT_UNSUPPORTED')
-    || code.endsWith('_PROTOCOL_UNSUPPORTED')
-    || code.endsWith('_PROTOCOL_MISMATCH')
-    || code === 'SNAPBACK_WIRE_VERSION_REQUIRED'
-    || code === 'SNAPBACK_WIRE_VERSION_MISMATCH'
-    || code === 'SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED';
+  return TERMINAL_LIVE_PROTOCOL_REFUSAL_CODES.has(code);
 };
 
 const operationOutcomeFromError = (error) => {
@@ -7677,6 +7686,62 @@ export class SnapbackClient {
     return store;
   }
 
+  #authorizationQueueAdapter(externalAdapter = null) {
+    // @ref LLP 0053#dispositions-with-producers-and-meanings —
+    //   every non-retain query root suspends the client's own durable outbox;
+    //   adapter absence cannot waive that obligation or license an ACK.
+    let store = null;
+    try { store = this.#offlineQueueStore(); } catch { store = null; }
+    const persistenceError = (method) => {
+      const error = new Error(
+        `SNAPBACK_RQS_STORE_UNAVAILABLE: durable outbox cannot ${method}`,
+      );
+      error.code = 'SNAPBACK_RQS_STORE_UNAVAILABLE';
+      return error;
+    };
+    const persist = async (method, ...args) => {
+      if (store === null) return null;
+      if (typeof store[method] !== 'function') throw persistenceError(method);
+      const result = await store[method](...args);
+      if (result === false || result === null || result === undefined) {
+        throw persistenceError(method);
+      }
+      this.__outboxCustodyWakeGeneration += 1;
+      this.#notifyOutboxListeners();
+      const controller = outboxDrainControllersByStore.get(store) ?? null;
+      if (controller !== null) void controller.noteOutboxTransition();
+      return result;
+    };
+    if (store === null && externalAdapter === null) return null;
+    return Object.freeze({
+      async applyObligation(obligation) {
+        await persist('outboxApplyAuthorizationObligation', obligation);
+        return externalAdapter?.applyObligation?.(obligation) ?? null;
+      },
+      prepareResolution(resolution, snapshot) {
+        return externalAdapter?.prepareResolution?.(resolution, snapshot) ?? null;
+      },
+      async resolveObligation(resolution, snapshot) {
+        await persist('outboxResolveAuthorizationObligation', resolution);
+        return externalAdapter?.resolveObligation?.(resolution, snapshot) ?? null;
+      },
+      async retireScopes(retired, snapshot) {
+        const scopes = retired.map((entry) => entry?.scopeId).filter(Boolean);
+        await persist('outboxRetireAuthorizationScopes', scopes);
+        return externalAdapter?.retireScopes?.(retired, snapshot) ?? null;
+      },
+      async acknowledged(resolution, acknowledgement) {
+        if (store !== null) {
+          if (typeof store.outboxAcknowledgeAuthorizationResolution !== 'function') {
+            throw persistenceError('outboxAcknowledgeAuthorizationResolution');
+          }
+          await store.outboxAcknowledgeAuthorizationResolution(resolution);
+        }
+        return externalAdapter?.acknowledged?.(resolution, acknowledgement) ?? null;
+      },
+    });
+  }
+
   async #outboxHeadFact() {
     let store = null;
     try { store = this.#offlineQueueStore(); } catch { store = null; }
@@ -9288,6 +9353,22 @@ export class SnapbackClient {
         publish('idle', null, null);
         return lastOutcome;
       }
+      try {
+        if (
+          typeof store.outboxAuthorizationStatus === 'function'
+          && (await store.outboxAuthorizationStatus()).suspended === true
+        ) {
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'paused',
+            reason: 'authorization-suspended',
+          });
+          pause('authorization-suspended');
+          return lastOutcome;
+        }
+      } catch (error) {
+        scheduleBackoff(`store-transient:${error?.code ?? 'unavailable'}`);
+        return lastOutcome;
+      }
 
       if (typeof store.isWriter === 'function' && store.isWriter() !== true) {
         void Promise.resolve(store.whenLockSettled?.()).then(() => {
@@ -9624,6 +9705,19 @@ export class SnapbackClient {
         replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining, stopped: true,
       };
     }
+    if (
+      typeof store.outboxAuthorizationStatus === 'function'
+      && (await store.outboxAuthorizationStatus()).suspended === true
+    ) {
+      const remaining = (await store.outboxRecords()).filter(isUnresolvedOutboxRecord).length;
+      this.__outboxLastReplayStop = Object.freeze({
+        kind: 'paused',
+        reason: 'authorization-suspended',
+      });
+      return {
+        replayed: 0, failed: 0, stranded: 0, quarantined: 0, remaining, stopped: true,
+      };
+    }
     let queuedBeforeCustody;
     try {
       queuedBeforeCustody = (await store.outboxPending()).filter(shouldReplayRecord);
@@ -9697,6 +9791,14 @@ export class SnapbackClient {
       // @ref LLP 0133#divergence-on-settle — sequence order is a submission
       //   fence, and cascade is checked again immediately before transport.
       const prepared = await store.outboxPrepareSubmission(record.id);
+      if (prepared?.status === 'authorization-suspended') {
+        this.__outboxLastReplayStop = Object.freeze({
+          kind: 'paused',
+          reason: 'authorization-suspended',
+        });
+        stopped = true;
+        break;
+      }
       if (prepared?.status === 'blocked') {
         this.__outboxLastReplayStop = Object.freeze({
           kind: 'terminal',
@@ -9836,6 +9938,17 @@ export class SnapbackClient {
           break;
         }
         if (!shouldReplayRecord(record)) continue;
+        const submission = await store.outboxPrepareSubmission(record.id);
+        if (submission?.status === 'authorization-suspended') {
+          this.__outboxLastReplayStop = Object.freeze({
+            kind: 'paused',
+            reason: 'authorization-suspended',
+          });
+          stopped = true;
+          break;
+        }
+        if (submission?.status !== 'ready' || !submission.record) continue;
+        record = submission.record;
         // Redelivery under the SAME client-minted durable identity: the
         // server's settlement ledger returns the original result on a
         // duplicate, so a crash between settle and remove cannot double-
@@ -12282,6 +12395,7 @@ export class SnapbackClient {
     // transport so an offline caller never sees availability mask bad args.
     args = validateGeneratedArguments(ref, args, name);
     const client = this;
+    authorizationQueue = this.#authorizationQueueAdapter(authorizationQueue);
     let activeRegistration = Object.freeze({
       registrationId: null,
       publishLiveAnswer: () => false,
@@ -14871,7 +14985,13 @@ export class SnapbackClient {
               deliverIsolated(onConnectionChange, connection, { previous: connection, error });
             });
           }
-          scheduleResubscribeRetry(pendingResubscribeReason);
+          if (isTerminalLiveProtocolRefusal(error)) {
+            needsResubscribe = false;
+            clearResubscribeRetry();
+            setConnection('disconnected');
+          } else {
+            scheduleResubscribeRetry(pendingResubscribeReason);
+          }
         }
         return false;
       } finally {
@@ -15939,9 +16059,18 @@ class LiveStreamManager {
         }
         this.#openSocket(grant, authorityCapture, offeredProtocols, senderFlight);
       },
-      () => {
+      (error) => {
         this.connectPending = false;
         if (this.closed) return;
+        if (isTerminalLiveProtocolRefusal(error)) {
+          this.close(error, {
+            error,
+            terminal: true,
+            code: error?.diagnostic?.code ?? error?.code ?? null,
+            reason: 'protocol_refusal',
+          });
+          return;
+        }
         if (this.attempts === 0) this.#emitState('lost', { wasOpen: false });
         this.#scheduleReconnect();
       },

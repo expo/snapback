@@ -11,6 +11,7 @@
 import {
   allOutboxRecords,
   emptyOutboxState,
+  outboxAuthorizationStatus,
   outboxNotWriterError,
   outboxOps,
   pendingAcknowledgementsFor,
@@ -119,7 +120,8 @@ export function createMemoryRqsResumeStore({
     async outboxEmpty() {
       requireOpen();
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
-      return unresolvedOutboxRecords(state.outbox).length === 0;
+      return unresolvedOutboxRecords(state.outbox).length === 0
+        && outboxAuthorizationStatus(state.outbox).suspended === false;
     },
 
     async loadReactBindingReceipt() {
@@ -361,6 +363,39 @@ export function createMemoryRqsResumeStore({
     async outboxPending() {
       requireOpen();
       return structuredClone(pendingOutboxRecords(state.outbox));
+    },
+
+    async outboxAuthorizationStatus() {
+      requireOpen();
+      return structuredClone(outboxAuthorizationStatus(state.outbox));
+    },
+
+    async outboxApplyAuthorizationObligation(obligation) {
+      if (!requireWriter()) throw outboxNotWriterError();
+      const applied = outboxOps.applyAuthorizationObligation(state.outbox, obligation);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxResolveAuthorizationObligation(resolution) {
+      if (!requireWriter()) throw outboxNotWriterError();
+      const applied = outboxOps.resolveAuthorizationObligation(state.outbox, resolution);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxAcknowledgeAuthorizationResolution(resolution) {
+      if (!requireWriter()) throw outboxNotWriterError();
+      const applied = outboxOps.acknowledgeAuthorizationResolution(state.outbox, resolution);
+      state.outbox = applied.state;
+      return applied.result;
+    },
+
+    async outboxRetireAuthorizationScopes(scopes) {
+      if (!requireWriter()) throw outboxNotWriterError();
+      const applied = outboxOps.retireAuthorizationScopes(state.outbox, scopes);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
     },
 
     async outboxPrepareSubmission(id) {
