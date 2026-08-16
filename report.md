@@ -1,7 +1,7 @@
 # LLP 0262 Lane A — Stage 1 server report
 
-Date: 2026-08-16  
-Branch: `impl0262-a-server`  
+Date: 2026-08-16
+Branch: `impl0262-a-server`
 Merge-base used for inherited-failure verification: `51157f37e638314e1fa902697dc41efa69eb2230`
 
 ## Scope and result
@@ -10,7 +10,7 @@ Implemented Stage 1 only: per-boot `sbdev_` mint/custody/distribution, verificat
 
 The focused implementation tests pass. Of the four s5_d10 tests, three pass. `s5_d10_production_diagnostic_inventory_cannot_drift` fails on 18 unrelated, already-unclassified diagnostic literals. Replaying that exact test against the merge-base produced the identical 18-code list, proving the red is inherited. No full suite was run, and `DYLD_FRAMEWORK_PATH` was not set.
 
-## Local commits
+## Implementation commits
 
 - `e450f14d7` — `feat: mint and custody dev identity capability`
 - `68a5bbaf0` — `feat: witness dev identity authority installation`
@@ -23,7 +23,7 @@ The blocks below are the verbatim merged stdout/stderr captured from each comman
 
 ### Mint, custody, cleanup, prod refusal, connection witness
 
-Command: `cargo test --lib dev_identity -- --nocapture`  
+Command: `cargo test --lib dev_identity -- --nocapture`
 Exit status: `0`
 
 ```text
@@ -122,7 +122,7 @@ test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 2776 filtered out; f
 
 ### App-plane ClientAsserted verification, absent warning, wrong-presented refusal
 
-Command: `cargo test --lib dev_client_asserted_capability_verifies_when_present_and_warns_when_absent -- --nocapture`  
+Command: `cargo test --lib dev_client_asserted_capability_verifies_when_present_and_warns_when_absent -- --nocapture`
 Exit status: `0`
 
 ```text
@@ -213,7 +213,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2782 filtered out; f
 
 ### Live socket connection witness and Stage-1 warning posture
 
-Command: `cargo test --lib dev_live_identity_frames_record_connection_witness_and_warn_once_when_unwitnessed -- --nocapture`  
+Command: `cargo test --lib dev_live_identity_frames_record_connection_witness_and_warn_once_when_unwitnessed -- --nocapture`
 Exit status: `0`
 
 ```text
@@ -304,7 +304,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2782 filtered out; f
 
 ### Credential prefix registry
 
-Command: `cargo test --lib auth::crypto::tests::every_crc_bearer_class_rejects_every_other_class -- --nocapture`  
+Command: `cargo test --lib auth::crypto::tests::every_crc_bearer_class_rejects_every_other_class -- --nocapture`
 Exit status: `0`
 
 ```text
@@ -393,7 +393,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2782 filtered out; f
 
 ### OQ2 host-operation non-gating regression
 
-Command: `cargo test --lib host_ops_inspect_projects_recent_invocations_ring -- --nocapture`  
+Command: `cargo test --lib host_ops_inspect_projects_recent_invocations_ring -- --nocapture`
 Exit status: `0`
 
 ```text
@@ -482,7 +482,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2782 filtered out; f
 
 ### Per-process TTY disclosure seam
 
-Command: `cargo test --lib terminal_emission_seam_consumes_one_operator_and_frames_one_line -- --nocapture`  
+Command: `cargo test --lib terminal_emission_seam_consumes_one_operator_and_frames_one_line -- --nocapture`
 Exit status: `0`
 
 ```text
@@ -571,7 +571,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2782 filtered out; f
 
 ### Memory + ready-file advertisement and shutdown unlink
 
-Command: `cargo test --test host_ops_v0 p6_ready_file_descriptor_is_written_and_validates -- --nocapture`  
+Command: `cargo test --test host_ops_v0 p6_ready_file_descriptor_is_written_and_validates -- --nocapture`
 Exit status: `0`
 
 ```text
@@ -688,7 +688,7 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; fin
 
 ### Exposure and profile truth table (exact requested command)
 
-Command: `cargo test resolve_profile`  
+Command: `cargo test resolve_profile`
 Exit status: `0`
 
 ```text
@@ -1339,7 +1339,7 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; fin
 
 ### Four s5_d10 diagnostic classification tests
 
-Command: `cargo test --lib s5_d10_ -- --nocapture`  
+Command: `cargo test --lib s5_d10_ -- --nocapture`
 Exit status: `101`
 
 ```text
@@ -1441,7 +1441,7 @@ error: test failed, to rerun pass `--lib`
 
 ### Inherited s5_d10 failure replay at merge-base
 
-Command: `CARGO_TARGET_DIR=/Users/ccheever/projects/snapback/.claude/worktrees/impl0262-a-server/target cargo test --lib s5_d10_production_diagnostic_inventory_cannot_drift -- --nocapture`  
+Command: `CARGO_TARGET_DIR=/Users/ccheever/projects/snapback/.claude/worktrees/impl0262-a-server/target cargo test --lib s5_d10_production_diagnostic_inventory_cannot_drift -- --nocapture`
 Exit status: `101`
 
 ```text
@@ -1541,19 +1541,17 @@ error: test failed, to rerun pass `--lib`
 
 ### LLP reference validation
 
-Command: `./ref-check --verbose`  
+Command: `./ref-check --verbose`
 Exit status: `0`
 
 ```text
-ref-check: ok — 267 LLP docs, 5556 refs in 10299 files, 0 errors, 0 unchecked
+ref-check: ok — 267 LLP docs, 5556 refs in 10300 files, 0 errors, 0 unchecked
 ```
 
 ### Whitespace/error-marker validation
 
-Command: `git diff --check`  
+Command: `git diff --check`
 Exit status: `0`
 
 ```text
 ```
-
-
