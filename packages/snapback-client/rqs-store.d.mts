@@ -272,7 +272,18 @@ export interface RqsResumeStore {
   wipe(): Promise<boolean>;
   /** Clear resident/read projections for a session authority transition while
    * preserving the outbox for per-record descriptor reconciliation. */
-  wipeForAuthorityTransition(): Promise<boolean>;
+  wipeForAuthorityTransition(
+    authorityTransitionKey?: string | null,
+    authorityTransitionEpoch?: number | null,
+    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,
+  ): Promise<boolean>;
+  /** Raw authority-transition commit for a caller that already owns the shared
+   * authorization-dispatch fence. */
+  wipeForAuthorityTransitionWithinDispatch?(
+    authorityTransitionKey?: string | null,
+    authorityTransitionEpoch?: number | null,
+    options?: Readonly<{ rebaseUnscopedPending?: boolean }>,
+  ): Promise<boolean>;
   resetCorruptStoreIdentity(): Promise<RqsStoreIdentityResetResult>;
   inspection(): Promise<RqsStoreInspection>;
   close(): Promise<void>;

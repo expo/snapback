@@ -29,6 +29,7 @@ import {
 } from './rqs-store.mjs';
 import {
   RQS_FILE_STORE_FORMAT,
+  acquireLegacyFileRqsStoreMigrationLease,
   createFileRqsResumeStore,
   createNodeFilesAdapter,
   sweepStaleRqsBlobs,
@@ -188,6 +189,133 @@ test('same-process reader defers an authority transition to the file writer', as
   );
   await reader.close();
   await writer.close();
+});
+
+test('writer and follower-request file wipers wait behind the shared dispatch fence', async (t) => {
+  const directory = await makeDirectory(t);
+  const writer = createFileRqsResumeStore({ directory, identity: 'wipe-dispatch' });
+  await writer.whenLockSettled();
+  const follower = createFileRqsResumeStore({ directory, identity: 'wipe-dispatch' });
+  await follower.whenLockSettled();
+  assert.equal(writer.isWriter(), true);
+  assert.equal(follower.isWriter(), false);
+
+  const assertWaitsBehindDispatch = async (requestWipe, label) => {
+    const before = await writer.outboxAuthorizationStatus();
+    let releaseDispatch;
+    let markDispatchEntered;
+    const dispatchEntered = new Promise((resolve) => { markDispatchEntered = resolve; });
+    const dispatchRelease = new Promise((resolve) => { releaseDispatch = resolve; });
+    const heldDispatch = writer.withOutboxAuthorizationDispatch(async () => {
+      markDispatchEntered();
+      await dispatchRelease;
+    });
+    await dispatchEntered;
+
+    let settled = false;
+    const wipe = requestWipe();
+    void wipe.then(
+      () => { settled = true; },
+      () => { settled = true; },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(settled, false, `${label} bypassed the held authorization-dispatch fence`);
+    assert.equal(
+      (await follower.outboxAuthorizationStatus()).authorityGeneration,
+      before.authorityGeneration,
+      `${label} advanced generation before the held dispatch completed`,
+    );
+
+    releaseDispatch();
+    await heldDispatch;
+    assert.equal(await wipe, true);
+    assert.equal(
+      (await writer.outboxAuthorizationStatus()).authorityGeneration,
+      before.authorityGeneration + 1,
+    );
+  };
+
+  await assertWaitsBehindDispatch(
+    () => writer.wipeForAuthorityTransition(
+      null,
+      null,
+      { rebaseUnscopedPending: true },
+    ),
+    'local writer wipe',
+  );
+  await assertWaitsBehindDispatch(
+    () => follower.requestAuthorityTransitionWipe(
+      null,
+      null,
+      { rebaseUnscopedPending: true },
+    ).settlement,
+    'follower registry request',
+  );
+
+  await follower.close();
+  await writer.close();
+});
+
+test('legacy migration lease normalizes provisional and stable in-process owner shapes', async (t) => {
+  const stableDirectory = await makeDirectory(t);
+  const stableFiles = createNodeFilesAdapter();
+  const stableWriter = createFileRqsResumeStore({
+    directory: stableDirectory,
+    files: stableFiles,
+    identity: 'stable-owner-shape',
+  });
+  await stableWriter.whenLockSettled();
+  const stableLease = await acquireLegacyFileRqsStoreMigrationLease({
+    directory: stableDirectory,
+    files: stableFiles,
+    identity: 'stable-owner-shape',
+  });
+  assert.equal(stableLease.status, 'writer-active');
+  assert.equal(typeof stableLease.owner?.instanceId, 'string');
+  assert.equal(
+    stableLease.owner?.instanceId,
+    JSON.parse(await stableFiles.readFile(stableLease.lockPath)).instanceId,
+  );
+  await stableWriter.close();
+
+  const provisionalDirectory = await makeDirectory(t);
+  const baseFiles = createNodeFilesAdapter();
+  let releaseLockCreate;
+  let markLockCreated;
+  const lockCreated = new Promise((resolve) => { markLockCreated = resolve; });
+  const lockCreateRelease = new Promise((resolve) => { releaseLockCreate = resolve; });
+  t.after(() => releaseLockCreate());
+  const provisionalFiles = {
+    ...baseFiles,
+    async writeFileExclusive(path, value) {
+      const acquired = await baseFiles.writeFileExclusive(path, value);
+      if (acquired && path.endsWith('.lock')) {
+        markLockCreated();
+        await lockCreateRelease;
+      }
+      return acquired;
+    },
+  };
+  const provisionalWriter = createFileRqsResumeStore({
+    directory: provisionalDirectory,
+    files: provisionalFiles,
+    identity: 'provisional-owner-shape',
+  });
+  await lockCreated;
+  const provisionalLease = await acquireLegacyFileRqsStoreMigrationLease({
+    directory: provisionalDirectory,
+    files: provisionalFiles,
+    identity: 'provisional-owner-shape',
+  });
+  assert.equal(provisionalLease.status, 'writer-active');
+  assert.equal(typeof provisionalLease.owner?.instanceId, 'string');
+  assert.equal(
+    provisionalLease.owner?.instanceId,
+    JSON.parse(await provisionalFiles.readFile(provisionalLease.lockPath)).instanceId,
+  );
+  releaseLockCreate();
+  await provisionalWriter.whenLockSettled();
+  await provisionalWriter.close();
 });
 
 test('file reader and writer share one authorization dispatch order', async (t) => {

@@ -14,7 +14,10 @@ import { test } from 'node:test';
 import { IDBFactory } from 'fake-indexeddb';
 
 import { SnapbackClient as InspectingSnapbackClient, isSnapbackDiagnosticError } from './index.mjs';
-import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+import {
+  createMemoryRqsResumeStore,
+  createMemoryRqsStoreBacking,
+} from './rqs-store-memory.mjs';
 import { createFileRqsResumeStore, RQS_FILE_STORE_FORMAT_V1 } from './rqs-store-file.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
 import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
@@ -1191,7 +1194,7 @@ test('authorization dispatch serializes a delayed predecessor root behind author
   const held = new Promise((resolve) => { releaseTransition = resolve; });
   const transition = store.withOutboxAuthorizationDispatch(async () => {
     await held;
-    return store.wipeForAuthorityTransition();
+    return store.wipeForAuthorityTransitionWithinDispatch();
   });
   await new Promise((resolve) => setImmediate(resolve));
   const delayedRoot = store.withOutboxAuthorizationDispatch(() => (
@@ -1211,6 +1214,69 @@ test('authorization dispatch serializes a delayed predecessor root behind author
   assert.equal(successor.authorityGeneration, predecessor.authorityGeneration + 1);
   assert.equal(successor.suspended, false);
   await store.close();
+});
+
+test('writer and follower-request memory wipers wait behind the shared dispatch fence', async () => {
+  const backing = createMemoryRqsStoreBacking();
+  const writer = createMemoryRqsResumeStore({ backing });
+  const follower = createMemoryRqsResumeStore({ backing });
+  assert.equal(writer.isWriter(), true);
+  assert.equal(follower.isWriter(), false);
+
+  const assertWaitsBehindDispatch = async (requestWipe, label) => {
+    const before = await writer.outboxAuthorizationStatus();
+    let releaseDispatch;
+    let markDispatchEntered;
+    const dispatchEntered = new Promise((resolve) => { markDispatchEntered = resolve; });
+    const dispatchRelease = new Promise((resolve) => { releaseDispatch = resolve; });
+    const heldDispatch = writer.withOutboxAuthorizationDispatch(async () => {
+      markDispatchEntered();
+      await dispatchRelease;
+    });
+    await dispatchEntered;
+
+    let settled = false;
+    const wipe = requestWipe();
+    void wipe.then(
+      () => { settled = true; },
+      () => { settled = true; },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(settled, false, `${label} bypassed the held authorization-dispatch fence`);
+    assert.equal(
+      (await follower.outboxAuthorizationStatus()).authorityGeneration,
+      before.authorityGeneration,
+      `${label} advanced generation before the held dispatch completed`,
+    );
+
+    releaseDispatch();
+    await heldDispatch;
+    assert.equal(await wipe, true);
+    assert.equal(
+      (await writer.outboxAuthorizationStatus()).authorityGeneration,
+      before.authorityGeneration + 1,
+    );
+  };
+
+  await assertWaitsBehindDispatch(
+    () => writer.wipeForAuthorityTransition(
+      null,
+      null,
+      { rebaseUnscopedPending: true },
+    ),
+    'local writer wipe',
+  );
+  await assertWaitsBehindDispatch(
+    () => follower.requestAuthorityTransitionWipe(
+      null,
+      null,
+      { rebaseUnscopedPending: true },
+    ).settlement,
+    'follower registry request',
+  );
+
+  await follower.close();
+  await writer.close();
 });
 
 test('root, proof, and retirement rewrites preserve keyed authority-transition idempotency', async () => {

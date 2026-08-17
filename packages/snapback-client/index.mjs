@@ -3227,8 +3227,13 @@ export class SnapbackClient {
         const transitionKey = outboxTransitionAuthorityKey(context);
         let transitionAuthorityGeneration = null;
         const commit = async () => {
-          const committed = typeof this.rqsStore.wipeForAuthorityTransition === 'function'
-            ? await this.rqsStore.wipeForAuthorityTransition(
+          const wipeWithinDispatch = typeof this.rqsStore
+            .wipeForAuthorityTransitionWithinDispatch === 'function'
+            ? this.rqsStore.wipeForAuthorityTransitionWithinDispatch
+            : this.rqsStore.wipeForAuthorityTransition;
+          const committed = typeof wipeWithinDispatch === 'function'
+            ? await wipeWithinDispatch.call(
+                this.rqsStore,
                 transitionKey,
                 context.nextEpoch,
               )

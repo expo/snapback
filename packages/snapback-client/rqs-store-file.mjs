@@ -361,7 +361,10 @@ export async function acquireLegacyFileRqsStoreMigrationLease({
       status: 'writer-active',
       pathIdentity,
       lockPath,
-      owner: Object.freeze({ pid: files.processId(), instanceId: inProcessOwner }),
+      owner: Object.freeze({
+        pid: files.processId(),
+        instanceId: inProcessOwner?.instanceId ?? inProcessOwner,
+      }),
     });
   }
 
@@ -968,13 +971,38 @@ export function createFileRqsResumeStore({
     const holder = heldLocks.get(lockPath);
     if (
       holder?.instanceId !== competingWriter?.instanceId
-      || typeof holder?.authorityTransition !== 'function'
+      || typeof holder?.authorityTransitionWithinDispatch !== 'function'
     ) return false;
-    const broker = borrowedAuthorizationDispatchDepth > 0
-      ? holder.authorityTransitionWithinDispatch
-      : holder.authorityTransition;
-    return broker(authorityTransitionKey, authorityTransitionEpoch, options);
+    return holder.authorityTransitionWithinDispatch(
+      authorityTransitionKey,
+      authorityTransitionEpoch,
+      options,
+    );
   });
+
+  const withSharedAuthorizationDispatch = async (operation) => {
+    await initialAcquisition;
+    if (writer) return withAuthorizationDispatch(operation);
+    const holder = heldLocks.get(lockPath);
+    if (
+      holder?.instanceId !== competingWriter?.instanceId
+      || typeof holder?.authorizationDispatch !== 'function'
+    ) throw outboxNotWriterError();
+    return holder.authorizationDispatch(async () => {
+      borrowedAuthorizationDispatchDepth += 1;
+      try {
+        return await operation();
+      } finally {
+        borrowedAuthorizationDispatchDepth -= 1;
+      }
+    });
+  };
+
+  // @ref LLP 0053#client-fences — public and follower-request wipes share the
+  // writer's dispatch order; only the coordinator calls the raw helper above.
+  const authorityTransitionWipeWithDispatch = (...args) => (
+    withSharedAuthorizationDispatch(() => authorityTransitionWipe(...args))
+  );
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
@@ -1002,21 +1030,7 @@ export function createFileRqsResumeStore({
     },
 
     async withOutboxAuthorizationDispatch(operation) {
-      await initialAcquisition;
-      if (writer) return withAuthorizationDispatch(operation);
-      const holder = heldLocks.get(lockPath);
-      if (
-        holder?.instanceId !== competingWriter?.instanceId
-        || typeof holder?.authorizationDispatch !== 'function'
-      ) throw outboxNotWriterError();
-      return holder.authorizationDispatch(async () => {
-        borrowedAuthorizationDispatchDepth += 1;
-        try {
-          return await operation();
-        } finally {
-          borrowedAuthorizationDispatchDepth -= 1;
-        }
-      });
+      return withSharedAuthorizationDispatch(operation);
     },
 
     /// Settles (and, unlike web's queued lock, re-attempts) ownership: a
@@ -1666,7 +1680,9 @@ export function createFileRqsResumeStore({
       });
     },
 
-    wipeForAuthorityTransition: authorityTransitionWipe,
+    wipeForAuthorityTransition: authorityTransitionWipeWithDispatch,
+
+    wipeForAuthorityTransitionWithinDispatch: authorityTransitionWipe,
 
     // A readable follower cannot mutate the shared blob, but it can enqueue
     // the destructive barrier on the actual same-domain writer. The returned

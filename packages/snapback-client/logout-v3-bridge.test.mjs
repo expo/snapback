@@ -223,6 +223,10 @@ async function exercisePublicLogout({
     wipeCalls += 1;
     return store.wipeForAuthorityTransition();
   };
+  injectedStore.wipeForAuthorityTransitionWithinDispatch = async (...args) => {
+    wipeCalls += 1;
+    return store.wipeForAuthorityTransitionWithinDispatch(...args);
+  };
 
   const appId = `snapback.test/logout-v3-${label}`;
   const coordinator = new AuthCoordinator({
@@ -369,6 +373,10 @@ test('logout fails closed when the v3 wipe cannot advance queue authority', asyn
   injectedStore.wipeForAuthorityTransition = async () => {
     if (failWipe) throw new Error('fixture wipe failure');
     return store.wipeForAuthorityTransition();
+  };
+  injectedStore.wipeForAuthorityTransitionWithinDispatch = async (...args) => {
+    if (failWipe) throw new Error('fixture wipe failure');
+    return store.wipeForAuthorityTransitionWithinDispatch(...args);
   };
   const appId = 'snapback.test/logout-v3-availability';
   const coordinator = new AuthCoordinator({

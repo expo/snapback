@@ -571,7 +571,11 @@ export function createIndexedDbRqsResumeStore({
       registerOutboxNormalizationBroker();
       authorityTransitionWipersByLock.set(lockName, {
         instance: authorityTransitionInstance,
-        request: (...args) => authorityTransitionWipe(...args),
+        request: (...args) => lockManager.request(
+          `${lockName}:authorization-dispatch`,
+          { mode: 'exclusive' },
+          () => authorityTransitionWipe(...args),
+        ),
       });
       adjudicateLock();
       notifyWriterLock(true);
@@ -799,10 +803,10 @@ export function createIndexedDbRqsResumeStore({
     options = undefined,
   ) => {
     if (closed) return false;
-    // The external-bearer follower path must install its local predecessor
-    // fence and request the elected writer. Keyed coordinator transitions are
-    // already inside the shared authorization-dispatch lock and may commit the
-    // IndexedDB transaction from either tab.
+    // This is the raw within-dispatch commit. The external-bearer follower
+    // path must install its local predecessor fence and request the elected
+    // writer. Keyed coordinator transitions may commit the IndexedDB
+    // transaction from either tab.
     if (!writer && authorityTransitionKey === null) return false;
     const db = await database();
     const tx = db.transaction(ALL_STORES, 'readwrite');
@@ -1395,7 +1399,20 @@ export function createIndexedDbRqsResumeStore({
       return true;
     },
 
-    wipeForAuthorityTransition: authorityTransitionWipe,
+    // @ref LLP 0053#client-fences — a public wipe cannot advance the durable
+    // generation while predecessor authorization dispatch remains in flight.
+    async wipeForAuthorityTransition(...args) {
+      if (closed) return false;
+      return lockManager.request(
+        `${lockName}:authorization-dispatch`,
+        { mode: 'exclusive' },
+        () => authorityTransitionWipe(...args),
+      );
+    },
+
+    // AuthCoordinator's durable participant already owns the shared dispatch
+    // lock. Web Locks are not re-entrant, so that path calls this raw helper.
+    wipeForAuthorityTransitionWithinDispatch: authorityTransitionWipe,
 
     requestAuthorityTransitionWipe(...args) {
       if (closed) return null;

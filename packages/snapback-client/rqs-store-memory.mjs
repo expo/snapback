@@ -117,7 +117,7 @@ export function createMemoryRqsResumeStore({
     state.storeMeta = storeMeta;
     return true;
   };
-  const authorityTransitionWipe = async (
+  const authorityTransitionWipeWithinDispatch = async (
     authorityTransitionKey = null,
     authorityTransitionEpoch = null,
     options = undefined,
@@ -140,8 +140,13 @@ export function createMemoryRqsResumeStore({
   };
   state.authorityTransitionWipers ??= new Map();
   state.authorityTransitionWipers.set(instance, (...args) => (
-    withAuthorizationDispatch(() => commitAuthorityTransitionAsWriter(...args))
+    commitAuthorityTransitionAsWriter(...args)
   ));
+  // @ref LLP 0053#client-fences — a public wipe cannot advance the shared
+  // generation while predecessor authorization dispatch remains in flight.
+  const authorityTransitionWipe = (...args) => withAuthorizationDispatch(
+    () => authorityTransitionWipeWithinDispatch(...args),
+  );
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
@@ -341,11 +346,15 @@ export function createMemoryRqsResumeStore({
     /// per-record LLP 0043 custody matrix keeps ownership of outbox bytes.
     wipeForAuthorityTransition: authorityTransitionWipe,
 
+    wipeForAuthorityTransitionWithinDispatch: authorityTransitionWipeWithinDispatch,
+
     requestAuthorityTransitionWipe(...args) {
       requireOpen();
       const request = state.authorityTransitionWipers.get(state.writer);
       if (typeof request !== 'function') return null;
-      return Object.freeze({ settlement: Promise.resolve().then(() => request(...args)) });
+      return Object.freeze({
+        settlement: withAuthorizationDispatch(() => request(...args)),
+      });
     },
 
     async resetCorruptStoreIdentity() {

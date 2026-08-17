@@ -408,7 +408,10 @@ test('reader tab can advance and reconcile queue authority while writer holds th
   const sharedTransitionKey = 'sessions:reader-transition:1->2';
   let transitionGeneration;
   await readerTab.withOutboxAuthorizationDispatch(async () => {
-    assert.equal(await readerTab.wipeForAuthorityTransition(sharedTransitionKey, 2), true);
+    assert.equal(
+      await readerTab.wipeForAuthorityTransitionWithinDispatch(sharedTransitionKey, 2),
+      true,
+    );
     transitionGeneration = (await readerTab.outboxAuthorizationStatus()).authorityGeneration;
   });
   const successorEntryKey = rqsEntryKey('successorAfterTransition', {});
@@ -417,7 +420,10 @@ test('reader tab can advance and reconcile queue authority while writer holds th
     true,
   );
   await writerTab.withOutboxAuthorizationDispatch(async () => {
-    assert.equal(await writerTab.wipeForAuthorityTransition(sharedTransitionKey, 2), true);
+    assert.equal(
+      await writerTab.wipeForAuthorityTransitionWithinDispatch(sharedTransitionKey, 2),
+      true,
+    );
     assert.equal(
       (await writerTab.outboxAuthorizationStatus()).authorityGeneration,
       transitionGeneration,
@@ -445,6 +451,71 @@ test('reader tab can advance and reconcile queue authority while writer holds th
   const successor = await writerTab.outboxAuthorizationStatus();
   assert.equal(successor.authorityGeneration, predecessor.authorityGeneration + 1);
   assert.equal((await writerTab.outboxRecords())[0].status, 'stranded');
+
+  await readerTab.close();
+  await writerTab.close();
+});
+
+test('writer and follower-request authority wipers wait behind the IndexedDB dispatch fence', async () => {
+  const indexedDB = new IDBFactory();
+  const lockManager = createLockManagerDouble();
+  const databaseName = `snapback-rqs-wipe-dispatch-${Math.random()}`;
+  const { store: writerTab } = await makeStore({ indexedDB, lockManager, databaseName });
+  const { store: readerTab } = await makeStore({ indexedDB, lockManager, databaseName });
+  assert.equal(writerTab.isWriter(), true);
+  assert.equal(readerTab.isWriter(), false);
+
+  const assertWaitsBehindDispatch = async (requestWipe, label) => {
+    const before = await writerTab.outboxAuthorizationStatus();
+    let releaseDispatch;
+    let markDispatchEntered;
+    const dispatchEntered = new Promise((resolve) => { markDispatchEntered = resolve; });
+    const dispatchRelease = new Promise((resolve) => { releaseDispatch = resolve; });
+    const heldDispatch = writerTab.withOutboxAuthorizationDispatch(async () => {
+      markDispatchEntered();
+      await dispatchRelease;
+    });
+    await dispatchEntered;
+
+    let settled = false;
+    const wipe = requestWipe();
+    void wipe.then(
+      () => { settled = true; },
+      () => { settled = true; },
+    );
+    await tick();
+    assert.equal(settled, false, `${label} bypassed the held authorization-dispatch fence`);
+    assert.equal(
+      (await readerTab.outboxAuthorizationStatus()).authorityGeneration,
+      before.authorityGeneration,
+      `${label} advanced generation before the held dispatch completed`,
+    );
+
+    releaseDispatch();
+    await heldDispatch;
+    assert.equal(await wipe, true);
+    assert.equal(
+      (await writerTab.outboxAuthorizationStatus()).authorityGeneration,
+      before.authorityGeneration + 1,
+    );
+  };
+
+  await assertWaitsBehindDispatch(
+    () => writerTab.wipeForAuthorityTransition(
+      null,
+      null,
+      { rebaseUnscopedPending: true },
+    ),
+    'local writer wipe',
+  );
+  await assertWaitsBehindDispatch(
+    () => readerTab.requestAuthorityTransitionWipe(
+      null,
+      null,
+      { rebaseUnscopedPending: true },
+    ).settlement,
+    'follower registry request',
+  );
 
   await readerTab.close();
   await writerTab.close();
