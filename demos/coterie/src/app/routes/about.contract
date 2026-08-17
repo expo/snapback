@@ -1,3 +1,4 @@
+use theme from "@exact/facet-contract"
 use CoterieBrand from "../../ui/brand.contract"
 
 component CoterieAboutRoute
@@ -6,11 +7,11 @@ component CoterieAboutRoute
     has node testId="home-link"
 
   view
-    main width="100%" minHeight="100%" background="#F4F5F7" padding=24
-      column gap=16 padding=24 maxWidth=560 alignSelf="center" width="100%" background="#FFFFFF" radius=16 borderWidth=1 borderColor="#E2E4E8"
+    main width="100%" minHeight="100%" background=theme.color.background.subtle padding=24
+      column gap=16 padding=24 maxWidth=560 alignSelf="center" width="100%" background=theme.color.background.card radius=16 borderWidth=1 borderColor=theme.color.border.default
         CoterieBrand()
-        text "About Coterie" size=22 weight=700 color="#17191C"
-        text "Coterie is the Exact/Contract sibling benchmark to Clique. It uses one Contract source tree for web, macOS, and iOS, and a replaceable ContractDataProvider boundary for backend comparisons." size=15 color="#17191C"
-        text "This build uses a deterministic process-memory provider. It demonstrates UI and provider integration, not persistence or multi-client synchronization." size=13 color="#6B7280"
+        text "About Coterie" size=22 weight=700 color=theme.color.text.default
+        text "Coterie is the Exact/Contract sibling benchmark to Clique. It uses one Contract source tree for web, macOS, and iOS, and a replaceable ContractDataProvider boundary for backend comparisons." size=15 color=theme.color.text.default
+        text "This build uses a deterministic process-memory provider. It demonstrates UI and provider integration, not persistence or multi-client synchronization." size=13 color=theme.color.text.secondary
         link href="/" label="Back to Coterie" testId="home-link"
-          text "Back to Coterie" size=14 weight=600 color="#4F46E5"
+          text "Back to Coterie" size=14 weight=600 color=theme.color.text.link

@@ -1,3 +1,4 @@
+use theme from "@exact/facet-contract"
 use FacetButton from "@exact/facet-contract/components/button.contract"
 use FacetDialog from "@exact/facet-contract/components/dialog.contract"
 use FacetInput from "@exact/facet-contract/components/input.contract"
@@ -44,24 +45,24 @@ component CoterieComposer
     when mediaPickerOpen then has node testId="sm-compose-media-picker"
 
   view
-    column width="100%" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" safeArea={ regions: ["keyboard"] }
+    column width="100%" background=theme.color.background.default borderWidth=1 borderColor=theme.color.border.default safeArea={ regions: ["keyboard"] }
       when quotedBodySnippet
         row width="100%" align="center" justify="space-between" gap=8 paddingLeft=12 paddingRight=8 paddingTop=8 testId="sm-convo-compose-quote"
-          column minWidth=0 flex=1 borderLeftWidth=3 borderColor="#4F46E5" paddingLeft=8
-            text `Replying to ${quotedSenderName}` size=12 weight=600 color="#4F46E5" numberOfLines=1
-            text quotedBodySnippet size=12 color="#6B7280" numberOfLines=1
+          column minWidth=0 flex=1 borderLeftWidth=3 borderColor=theme.color.border.focus paddingLeft=8
+            text `Replying to ${quotedSenderName}` size=12 weight=600 color=theme.color.text.link numberOfLines=1
+            text quotedBodySnippet size=12 color=theme.color.text.secondary numberOfLines=1
           FacetButton(label="Cancel reply", variant="ghost", size="sm", press=cancelQuote, testId="sm-convo-quote-cancel")
       when hasMedia
         column width="100%" gap=6 paddingLeft=10 paddingRight=10 paddingTop=10 testId="sm-compose-media-selection"
           each option in mediaOptions key=option.id
             when selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef)
-              row width="100%" align="center" gap=8 padding=8 radius=8 borderWidth=1 borderColor="#C7D2FE" background="#EEF2FF" testId=`sm-compose-media-selected-${option.id}`
+              row width="100%" align="center" gap=8 padding=8 radius=8 borderWidth=1 borderColor=theme.color.border.focus background=theme.color.background.selected testId=`sm-compose-media-selected-${option.id}`
                 when option.kind == "image"
                   image src=option.url alt=option.label width=48 height=48 radius=6 objectFit="cover" testId=`sm-compose-media-preview-${option.id}`
                 else
-                  column width=48 height=48 align="center" justify="center" radius=6 background="#17191C" testId=`sm-compose-media-preview-${option.id}`
-                    text "Video" size=11 weight=700 color="#FFFFFF"
-                text option.label size=13 weight=600 color="#17191C" flex=1
+                  column width=48 height=48 align="center" justify="center" radius=6 background=theme.color.background.inverted testId=`sm-compose-media-preview-${option.id}`
+                    text "Video" size=11 weight=700 color=theme.color.button.primary.text
+                text option.label size=13 weight=600 color=theme.color.text.default flex=1
                 FacetButton(label=`Remove ${option.label}`, variant="ghost", size="sm", press=removeMedia(option.mediaRef, option.kind), testId=`sm-compose-media-remove-${option.id}`)
       row width="100%" align="center" gap=8 padding=10
         when supportsMedia
@@ -76,10 +77,10 @@ component CoterieComposer
         FacetDialog(open=mediaPickerOpen, title="Attach media", description="Choose up to four images or one video.", dismiss=closeMediaPicker, cancelLabel="Done", testId="sm-compose-media-picker")
           row width="100%" gap=8 wrap="wrap" testId="sm-compose-media-options"
             each option in mediaOptions key=option.id
-              button press=selectMedia(option.mediaRef, option.kind) label=option.label accessibilitySelected=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) disabled=option.kind == "image" && selectedImageRefs.length >= 4 && !selectedImageRefs.includes(option.mediaRef) width=112 minHeight=118 padding=8 gap=6 radius=10 borderWidth=2 borderColor=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? "#4F46E5" : "#E2E4E8" background=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? "#EEF2FF" : "#FFFFFF" testId=`sm-compose-media-option-${option.id}`
+              button press=selectMedia(option.mediaRef, option.kind) label=option.label accessibilitySelected=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) disabled=option.kind == "image" && selectedImageRefs.length >= 4 && !selectedImageRefs.includes(option.mediaRef) width=112 minHeight=118 padding=8 gap=6 radius=10 borderWidth=2 borderColor=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? theme.color.border.focus : theme.color.border.default background=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? theme.color.background.selected : theme.color.background.default color=theme.color.text.default testId=`sm-compose-media-option-${option.id}`
                 when option.kind == "image"
                   image src=option.url alt="" width="100%" aspectRatio=1 objectFit="cover" radius=7 testId=`sm-compose-media-thumbnail-${option.id}`
                 else
-                  column width="100%" aspectRatio=1 align="center" justify="center" radius=7 background="#17191C" testId=`sm-compose-media-thumbnail-${option.id}`
-                    text "Video" size=13 weight=700 color="#FFFFFF"
-                text selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? `${option.label} · Selected` : option.label size=12 weight=600 color="#17191C" align="center"
+                  column width="100%" aspectRatio=1 align="center" justify="center" radius=7 background=theme.color.background.inverted testId=`sm-compose-media-thumbnail-${option.id}`
+                    text "Video" size=13 weight=700 color=theme.color.button.primary.text
+                text selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? `${option.label} · Selected` : option.label size=12 weight=600 color=theme.color.text.default align="center"

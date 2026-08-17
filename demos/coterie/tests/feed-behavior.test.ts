@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { compileContractSource } from '@exact/contract/compiler';
+import { theme } from '@exact/facet-contract';
 import {
   createOwner,
   createRuntimeContext,
@@ -14,6 +16,7 @@ import {
 } from '@exact/contract/runtime';
 import type { ElementNode, RootNode, TextNode } from '@exact/renderer/host-ops';
 
+import { createCoterieMemoryHarness } from '../src/data/memory-provider.ts';
 import {
   createCoterieChatState,
   reduceCoterieChatState,
@@ -25,7 +28,20 @@ import {
   visibleFeedRows,
   type CoterieFeedState,
 } from '../src/data/feed-pagination.ts';
+import {
+  configureFromProvider,
+  createPost,
+  listFeed,
+} from '../src/data/generated/coterie.bindings.ts';
 import type { FeedItem } from '../src/data/generated/coterie.types.ts';
+import {
+  contrastRatio,
+  coterieAccentForeground,
+  coterieAvatarBackground,
+  coterieAvatarForeground,
+  coterieMessageBubbleFill,
+  coterieSwatchForeground,
+} from '../src/ui/coterie-colors.ts';
 import { linkifyPostBody } from '../src/ui/feed-text.ts';
 
 type AnyNode = ElementNode | TextNode;
@@ -57,8 +73,25 @@ const routeSource = readFileSync(
   new URL('../src/app/routes/index.contract', import.meta.url),
   'utf8',
 );
+const coterieRoot = fileURLToPath(new URL('..', import.meta.url));
 const composerSource = readFileSync(
   new URL('../src/ui/composer.contract', import.meta.url),
+  'utf8',
+);
+const feedListSource = readFileSync(
+  new URL('../src/ui/feed-list.contract', import.meta.url),
+  'utf8',
+);
+const feedCardSource = readFileSync(
+  new URL('../src/ui/feed-card.contract', import.meta.url),
+  'utf8',
+);
+const feedBodySource = readFileSync(
+  new URL('../src/ui/feed-body.contract', import.meta.url),
+  'utf8',
+);
+const avatarSource = readFileSync(
+  new URL('../src/ui/avatar.contract', import.meta.url),
   'utf8',
 );
 const messageBubbleSource = readFileSync(
@@ -148,6 +181,109 @@ function findByTestId(node: { children?: AnyNode[] }, testId: string): ElementNo
     if (nested) return nested;
   }
   return null;
+}
+
+function findAllByTestId(node: { children?: AnyNode[] }, testId: string): ElementNode[] {
+  const matches: ElementNode[] = [];
+  for (const child of node.children ?? []) {
+    if (isText(child)) continue;
+    const element = child as ElementNode;
+    if ((element.originalProps as Record<string, unknown> | undefined)?.testId === testId) {
+      matches.push(element);
+    }
+    matches.push(...findAllByTestId(element, testId));
+  }
+  return matches;
+}
+
+function findElement(
+  node: { children?: AnyNode[] },
+  predicate: (element: ElementNode) => boolean,
+): ElementNode | null {
+  for (const child of node.children ?? []) {
+    if (isText(child)) continue;
+    const element = child as ElementNode;
+    if (predicate(element)) return element;
+    const nested = findElement(element, predicate);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+type ColorLiteralOccurrence = {
+  relativePath: string;
+  line: number;
+  property: string;
+  value: string;
+};
+
+const CHAT_ACCENTS = [
+  '#4F46E5',
+  '#0D9488',
+  '#EF6351',
+  '#D97706',
+  '#7C3AED',
+  '#059669',
+  '#E11D48',
+  '#475569',
+] as const;
+const COLOR_LITERAL_PATTERN = /(?<=["'])(?:#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{4}|[0-9a-f]{3})(?![0-9a-f])|(?:rgb|rgba|hsl|hsla)\([^)]*\))(?=["'])/giu;
+const PROPERTY_ASSIGNMENT_PATTERN = /(?<![.\w])([A-Za-z][A-Za-z0-9]*)(?:\s*:\s*[^=\n]+)?\s*=(?!=)/gu;
+
+function colorOccurrenceKey(occurrence: Pick<ColorLiteralOccurrence, 'relativePath' | 'property' | 'value'>): string {
+  return `${occurrence.relativePath}\u0000${occurrence.property}\u0000${occurrence.value}`;
+}
+
+function allowedColorOccurrences(): Map<string, number> {
+  const allowed = new Map<string, number>();
+  const add = (relativePath: string, property: string, value: string) => {
+    const key = colorOccurrenceKey({ relativePath, property, value });
+    allowed.set(key, (allowed.get(key) ?? 0) + 1);
+  };
+  for (const accent of CHAT_ACCENTS) {
+    for (const property of ['press', 'valueText', 'accessibilitySelected', 'background', 'color']) {
+      add('src/app/routes/chat/[id]/settings.contract', property, accent);
+    }
+  }
+  add('src/ui/avatar.contract', 'accent', '#4F46E5');
+  add('src/ui/chat-list-row.contract', 'accentColor', '#4F46E5');
+  add('src/ui/message-bubble.contract', 'accentColor', '#4F46E5');
+  return allowed;
+}
+
+function colorLiteralOccurrences(relativePath: string, source: string): ColorLiteralOccurrence[] {
+  const occurrences: ColorLiteralOccurrence[] = [];
+  source.split('\n').forEach((line, lineIndex) => {
+    const assignments = [...line.matchAll(PROPERTY_ASSIGNMENT_PATTERN)].map((match) => ({
+      property: match[1]!,
+      valueStart: match.index + match[0].length,
+    }));
+    for (const match of line.matchAll(COLOR_LITERAL_PATTERN)) {
+      const owner = assignments.findLast((assignment) => assignment.valueStart <= match.index);
+      occurrences.push({
+        relativePath,
+        line: lineIndex + 1,
+        property: owner?.property ?? '<unbound>',
+        value: match[0],
+      });
+    }
+  });
+  return occurrences;
+}
+
+function auditColorLiterals(files: ReadonlyArray<{ relativePath: string; source: string }>) {
+  const allowed = allowedColorOccurrences();
+  const observed = new Map<string, number>();
+  const unexpected: ColorLiteralOccurrence[] = [];
+  for (const file of files) {
+    for (const occurrence of colorLiteralOccurrences(file.relativePath, file.source)) {
+      const key = colorOccurrenceKey(occurrence);
+      const count = (observed.get(key) ?? 0) + 1;
+      observed.set(key, count);
+      if (count > (allowed.get(key) ?? 0)) unexpected.push(occurrence);
+    }
+  }
+  return { allowed, observed, unexpected };
 }
 
 function contractActionSource(source: string, actionName: string): string {
@@ -668,6 +804,229 @@ describe('Coterie feed behavior', () => {
     }
   });
 
+  it('renders generated live-feed media only inside the post row that owns it', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const projection = configureFromProvider(provider);
+    const compileErrors = (diagnostics: ReadonlyArray<{ severity: string }>) =>
+      diagnostics.filter((diagnostic) => diagnostic.severity === 'error');
+
+    const avatarCompiled = compileContractSource(avatarSource, 'src/ui/avatar.contract', {
+      importSemantics: {
+        coterieAvatarBackground: {
+          kind: 'pure',
+          params: ['kind', 'accent', 'scheme'],
+          result: 'string',
+          depends: 'args',
+        },
+        coterieAvatarForeground: {
+          kind: 'pure',
+          params: ['kind', 'accent', 'scheme'],
+          result: 'string',
+          depends: 'args',
+        },
+      } as never,
+    });
+    const feedBodyCompiled = compileContractSource(feedBodySource, 'src/ui/feed-body.contract', {
+      importSemantics: {
+        linkifyPostBody: {
+          kind: 'pure',
+          params: ['body'],
+          result: 'unknown',
+          depends: 'args',
+        },
+      } as never,
+    });
+    const feedCardCompiled = compileContractSource(feedCardSource, 'src/ui/feed-card.contract');
+    const feedListCompiled = compileContractSource(feedListSource, 'src/ui/feed-list.contract');
+    expect([
+      ...compileErrors(avatarCompiled.diagnostics),
+      ...compileErrors(feedBodyCompiled.diagnostics),
+      ...compileErrors(feedCardCompiled.diagnostics),
+      ...compileErrors(feedListCompiled.diagnostics),
+    ]).toEqual([]);
+
+    const CoterieAvatar = defineComponent(avatarCompiled.file, {
+      theme,
+      coterieAvatarBackground,
+      coterieAvatarForeground,
+    });
+    const CoterieFeedBody = defineComponent(feedBodyCompiled.file, { linkifyPostBody, theme });
+    const CoterieFeedCard = defineComponent(feedCardCompiled.file, {
+      CoterieAvatar,
+      CoterieFeedBody,
+      theme,
+    });
+    const CoterieFeedList = defineComponent(feedListCompiled.file, { CoterieFeedCard });
+
+    const { file, diagnostics } = compileContractSource(`
+use listFeed from "./coterie.bindings.ts"
+use CoterieFeedList from "../ui/feed-list.contract"
+
+component FeedProjectionProbe
+  state endCount = 0
+  query feed = listFeed({ mode: "global", cursor: null })
+
+  action reached writes endCount
+    endCount = endCount + 1
+
+  action ignore
+
+  view
+    column flex=1 minHeight=0
+      text \`end \${endCount}\` testId="probe-end-count"
+      async feed
+        ready posts
+          CoterieFeedList(posts=posts, reachedEnd=reached, pressAuthor=ignore, pressLike=ignore, pressRepost=ignore, pressReply=ignore, pressMedia=ignore)
+`, 'src/app/feed-projection-probe.contract', {
+      importSemantics: {
+        listFeed: { kind: 'query', reads: ['posts'], readMode: 'sync' },
+      } as never,
+    });
+    expect(compileErrors(diagnostics)).toEqual([]);
+
+    const component = defineComponent(file, { CoterieFeedList, listFeed });
+    const handle = mount(component);
+    try {
+      const text = await createPost({
+        body: '123',
+        imageRefs: [],
+        videoRefs: [],
+        parentId: null,
+      }) as { ok: boolean; value?: { id: string } };
+      expect(text.ok).toBe(true);
+      if (!text.value) throw new Error('expected text-only post identity');
+
+      const media = await createPost({
+        body: '342',
+        imageRefs: ['media/img-01.png'],
+        videoRefs: [],
+        parentId: null,
+      }) as { ok: boolean; value?: { id: string } };
+      expect(media.ok).toBe(true);
+      if (!media.value) throw new Error('expected media post identity');
+
+      const video = await createPost({
+        body: 'video 567',
+        imageRefs: [],
+        videoRefs: ['media/vid-01.mp4'],
+        parentId: null,
+      }) as { ok: boolean; value?: { id: string } };
+      expect(video.ok).toBe(true);
+      if (!video.value) throw new Error('expected video post identity');
+      await settleAsyncWork();
+
+      const cards = findAllByTestId(handle.container, 'sm-feed-item');
+      const textCard = cards.find((card) => collectTexts(card).includes('123'));
+      const mediaCard = cards.find((card) => collectTexts(card).includes('342'));
+      const videoCard = cards.find((card) => collectTexts(card).includes('video 567'));
+      expect(textCard).toBeDefined();
+      expect(mediaCard).toBeDefined();
+      expect(videoCard).toBeDefined();
+      expect(findByTestId(textCard!, 'sm-feed-media')).toBeNull();
+
+      const image = findElement(mediaCard!, (element) =>
+        element.originalProps.src === '/assets/fixtures/img-01.png');
+      expect(image?.originalProps).toMatchObject({ objectFit: 'contain' });
+      const videoMedia = findByTestId(videoCard!, 'sm-feed-media');
+      expect(videoMedia?.originalProps).toMatchObject({ 'data-exact-video-placeholder': 'true' });
+      expect(feedCardSource.match(/objectFit="contain"/gu)).toHaveLength(2);
+      expect((mediaCard!.parent as ElementNode).originalProps.style ?? {}).not.toMatchObject({
+        position: 'absolute',
+        height: 220,
+      });
+
+      const list = findByTestId(handle.container, 'coterie-feed-list');
+      expect(list).not.toBeNull();
+      expect(feedListSource).toContain('endreached=reachedEnd()');
+      expect(typeof list!.originalProps.onScroll).toBe('function');
+      (list!.originalProps.onScroll as (event: unknown) => void)({
+        nativeEvent: {
+          contentOffset: { x: 0, y: 100_000 },
+          layoutMeasurement: { width: 760, height: 600 },
+        },
+      });
+      await settleAsyncWork();
+      expect(collectTexts(findByTestId(handle.container, 'probe-end-count')!)).toEqual(['end 1']);
+    } finally {
+      projection.dispose();
+      handle.dispose();
+    }
+  });
+
+  it('keeps app-owned colors scheme-aware with exact pinned-accent exceptions', () => {
+    const files = [...new Bun.Glob('src/**/*.contract').scanSync({ cwd: coterieRoot })]
+      .map((relativePath) => ({
+        relativePath,
+        source: readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8'),
+      }));
+    const audit = auditColorLiterals(files);
+    expect(audit.unexpected).toEqual([]);
+    expect(
+      [...audit.allowed.entries()].filter(([key, count]) => audit.observed.get(key) !== count),
+    ).toEqual([]);
+
+    expect(colorLiteralOccurrences('src/ui/negative-short-hex.contract', `
+component NegativeShortHex
+  view
+    text "bad" color="#fff"
+`)).toEqual([
+      expect.objectContaining({ property: 'color', value: '#fff' }),
+    ]);
+    expect(auditColorLiterals([{
+      relativePath: 'src/ui/negative-short-hex.contract',
+      source: 'component Fixture\n  view\n    text "bad" color="#fff"',
+    }]).unexpected).toHaveLength(1);
+
+    expect(colorLiteralOccurrences('src/ui/negative-rgb.contract', `
+component NegativeRgb
+  view
+    text "bad" color="rgb(1, 2, 3)"
+`)).toEqual([
+      expect.objectContaining({ property: 'color', value: 'rgb(1, 2, 3)' }),
+    ]);
+    expect(auditColorLiterals([{
+      relativePath: 'src/ui/negative-rgb.contract',
+      source: 'component Fixture\n  view\n    text "bad" color="rgb(1, 2, 3)"',
+    }]).unexpected).toHaveLength(1);
+  });
+
+  it('keeps every pinned accent and search-avatar pair at text contrast', () => {
+    const surfaces = {
+      light: ['#ffffff', '#fafafa', '#f4f4f5', '#e4e4e7', '#eff6ff', '#fffbeb'],
+      dark: ['#09090b', '#18181b', '#27272a', '#3f3f46', '#162456', '#461901'],
+    } as const;
+    for (const accent of CHAT_ACCENTS) {
+      expect(contrastRatio(coterieSwatchForeground(accent), accent)).toBeGreaterThanOrEqual(4.5);
+      for (const scheme of ['light', 'dark'] as const) {
+        const foreground = coterieAccentForeground(accent, scheme);
+        expect(
+          Math.min(...surfaces[scheme].map((background) => contrastRatio(foreground, background))),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    for (const scheme of ['light', 'dark'] as const) {
+      for (const kind of ['person', 'chat'] as const) {
+        const background = coterieAvatarBackground(kind, CHAT_ACCENTS[0], scheme);
+        const foreground = coterieAvatarForeground(kind, CHAT_ACCENTS[0], scheme);
+        expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it('keeps message-bubble presentation fills at AA text contrast in both schemes', () => {
+    const text = {
+      light: { default: '#09090b', secondary: '#3f3f46' },
+      dark: { default: '#fafafa', secondary: '#d4d4d8' },
+    } as const;
+    for (const scheme of ['light', 'dark'] as const) {
+      for (const role of ['highlighted', 'mine', 'theirs'] as const) {
+        const fill = coterieMessageBubbleFill(role, scheme);
+        expect(contrastRatio(text[scheme].default, fill)).toBeGreaterThanOrEqual(4.5);
+        expect(contrastRatio(text[scheme].secondary, fill)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
   it('gates every feed mutation affordance on claims without provider identity', () => {
     expect(routeSource).toContain('use listProviderClaims from "../../data/generated/coterie.bindings.ts"');
     expect(routeSource).toContain(
@@ -687,6 +1046,10 @@ describe('Coterie feed behavior', () => {
 
   it('keeps frozen message actions, reaction choices, chips, and text inside each bubble', () => {
     const bubbleBlock = indentedBlock(messageBubbleSource, 'nativeId=`sm-message-${id}`');
+    expect(messageBubbleSource).toContain(
+      'derive bubbleColor = coterieMessageBubbleFill(bubbleRole, theme.scheme)',
+    );
+    expect(messageBubbleSource).not.toMatch(/theme\.color\.status\.(warning|info)\.muted/u);
     expect(bubbleBlock).toContain('text body');
     expect(bubbleBlock.match(/testId="sm-convo-quote"/gu)).toHaveLength(1);
     expect(bubbleBlock).toContain('testId="sm-convo-quote-preview"');
@@ -1565,7 +1928,7 @@ ${routeTaskSource('feedHeadInitial')}
       } as never,
     });
     expect(diagnostics.filter((diagnostic) => diagnostic.severity === 'error')).toEqual([]);
-    const component = defineComponent(file, { linkifyPostBody });
+    const component = defineComponent(file, { linkifyPostBody, theme });
     const handle = mount(component, { props: { body: 'Open https://example.com/coterie now' } });
     const link = findByTestId(handle.container as RootNode, 'sm-post-link-0');
     expect(link).not.toBeNull();

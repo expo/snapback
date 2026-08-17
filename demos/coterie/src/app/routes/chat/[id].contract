@@ -1,9 +1,11 @@
 use back from "@exact/router/contract"
 use navigate from "@exact/router/contract"
+use theme from "@exact/facet-contract"
 use FacetButton from "@exact/facet-contract/components/button.contract"
 use CoterieAppHeader from "../../../ui/app-header.contract"
 use CoterieComposer from "../../../ui/composer.contract"
 use CoterieMessageBubble from "../../../ui/message-bubble.contract"
+use coterieAccentForeground from "../../../ui/coterie-colors.ts"
 use createCoterieChatState from "../../../data/chat-state.ts"
 use reduceCoterieChatState from "../../../data/chat-state.ts"
 use listChats from "../../../data/generated/coterie.bindings.ts"
@@ -133,44 +135,44 @@ component CoterieConversationRoute
     when canComposeInChat then has node testId="sm-convo-send"
 
   view
-    main width="100%" minHeight="100%" background="#F4F5F7" testId="coterie-root"
+    main width="100%" minHeight="100%" background=theme.color.background.subtle testId="coterie-root"
       async session
         loading
           skeleton width="100%" height=180
         error problem
-          text `${problem}` size=13 color="#DC2626" padding=16
+          text `${problem}` size=13 color=theme.color.text.danger padding=16
         empty
           column width="100%" maxWidth=520 alignSelf="center" padding=24 gap=12
-            text "Your backendless session ended." size=17 weight=600 color="#17191C"
+            text "Your backendless session ended." size=17 weight=600 color=theme.color.text.default
             link href="/" label="Return to sign in" testId="coterie-return-sign-in"
-              text "Return to sign in" size=14 color="#4F46E5"
+              text "Return to sign in" size=14 color=theme.color.text.link
         ready activeSessions
-          column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" testId="coterie-shell"
+          column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background=theme.color.background.default borderWidth=1 borderColor=theme.color.border.default testId="coterie-shell"
             CoterieAppHeader(selected="chats", select=choosePrimary, logout=signOut, canLogout=canLogout)
             async chats
               loading
                 skeleton width="100%" height=72
               error problem
-                text `${problem}` size=13 color="#DC2626" padding=16
+                text `${problem}` size=13 color=theme.color.text.danger padding=16
               empty
-                text "Conversation unavailable" size=13 color="#6B7280" padding=16
+                text "Conversation unavailable" size=13 color=theme.color.text.secondary padding=16
               ready chatRows
                 when chatRows.some((chat) => chat.id == chatId)
                   each chat in chatRows key=chat.id
                     when chat.id == chatId
                       column width="100%" flex=1 minHeight=0
-                        row width="100%" align="center" justify="space-between" padding=12 borderBottomWidth=1 borderColor="#E2E4E8"
+                        row width="100%" align="center" justify="space-between" padding=12 borderBottomWidth=1 borderColor=theme.color.border.default
                           FacetButton(label="Back", variant="ghost", size="sm", press=goBack, testId="coterie-conversation-back")
-                          text chat.title size=17 weight=700 color="#17191C"
+                          text chat.title size=17 weight=700 color=theme.color.text.default
                           FacetButton(label="Settings", variant="ghost", size="sm", press=showSettings, testId="sm-convo-settings")
-                        scroll flex=1 width="100%" background="#FFFFFF"
+                        scroll flex=1 width="100%" background=theme.color.background.default
                           async messages
                             loading
                               skeleton width="100%" height=240
                             error problem
-                              text `${problem}` size=13 color="#DC2626" padding=16 testId="sm-convo-error"
+                              text `${problem}` size=13 color=theme.color.text.danger padding=16 testId="sm-convo-error"
                             empty
-                              text "Start the conversation" size=13 color="#6B7280" padding=16
+                              text "Start the conversation" size=13 color=theme.color.text.secondary padding=16
                             ready messageRows
                               list width="100%" label=`Messages in ${chat.title}`
                                 each message in messageRows key=message.id
@@ -178,10 +180,10 @@ component CoterieConversationRoute
                         async typingParticipants
                           ready typingRows
                             when typingRows.length > 0
-                              text `${typingRows.map((participant) => participant.displayName).join(", ")} ${typingRows.length == 1 ? "is" : "are"} typing...` size=12 color=chat.accentColor paddingLeft=14 paddingRight=14 paddingTop=5 paddingBottom=5 testId="sm-convo-typing"
+                              text `${typingRows.map((participant) => participant.displayName).join(", ")} ${typingRows.length == 1 ? "is" : "are"} typing...` size=12 color=coterieAccentForeground(chat.accentColor, theme.scheme) paddingLeft=14 paddingRight=14 paddingTop=5 paddingBottom=5 testId="sm-convo-typing"
                         when canComposeInChat
                           CoterieComposer(variant="message", value=chatState.messageText, resetFlip=chatState.messageResetFlip, quotedSenderName=chatState.quotedSenderName, quotedBodySnippet=chatState.quotedBodySnippet, change=setMessageText, send=sendCurrentMessage, cancelQuote=cancelReply)
                 else
                   column gap=12 padding=18
-                    text "This conversation isn't available" size=15 weight=600 color="#17191C"
+                    text "This conversation isn't available" size=15 weight=600 color=theme.color.text.default
                     FacetButton(label="Back to conversations", variant="secondary", size="sm", press=goBack, testId="coterie-conversation-not-found-back")

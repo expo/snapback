@@ -1,3 +1,5 @@
+use theme from "@exact/facet-contract"
+
 component CoterieInsightsSummary
   props
     posts: number
@@ -29,9 +31,9 @@ component CoterieInsightTile
     testId: string
 
   view
-    column flex=1 gap=3 padding=12 radius=10 background="#F4F5F7" testId=testId
-      text `${value}` size=22 weight=700 color="#17191C"
-      text label size=12 color="#6B7280"
+    column flex=1 gap=3 padding=12 radius=10 background=theme.color.background.subtle testId=testId
+      text `${value}` size=22 weight=700 color=theme.color.text.default
+      text label size=12 color=theme.color.text.secondary
 
 component CoterieInsightDayRow
   props
@@ -48,16 +50,16 @@ component CoterieInsightDayRow
     has node testId="sm-insights-day-likes-bar"
 
   view
-    row width="100%" align="center" gap=10 paddingTop=10 paddingBottom=10 borderBottomWidth=1 borderColor="#E2E4E8" testId="sm-insights-day-row"
-      text day size=13 weight=600 color="#17191C" width=88
+    row width="100%" align="center" gap=10 paddingTop=10 paddingBottom=10 borderBottomWidth=1 borderColor=theme.color.border.default testId="sm-insights-day-row"
+      text day size=13 weight=600 color=theme.color.text.default width=88
       column flex=1 gap=6
         row width="100%" align="center" gap=8
-          text "Posts" size=12 color="#6B7280" width=82
-          column flex=1 height=8 radius=999 background="#F4F5F7" overflow="hidden"
-            column width=postsWidth height=8 radius=999 background="#4F46E5" testId="sm-insights-day-posts-bar"
-          text `${posts}` size=12 color="#6B7280" width=32
+          text "Posts" size=12 color=theme.color.text.secondary width=82
+          column flex=1 height=8 radius=999 background=theme.color.background.subtle overflow="hidden"
+            column width=postsWidth height=8 radius=999 background=theme.color.button.primary.bg testId="sm-insights-day-posts-bar"
+          text `${posts}` size=12 color=theme.color.text.secondary width=32
         row width="100%" align="center" gap=8
-          text "Likes received" size=12 color="#6B7280" width=82
-          column flex=1 height=8 radius=999 background="#F4F5F7" overflow="hidden"
-            column width=likesWidth height=8 radius=999 background="#EF6351" testId="sm-insights-day-likes-bar"
-          text `${likesReceived}` size=12 color="#6B7280" width=32
+          text "Likes received" size=12 color=theme.color.text.secondary width=82
+          column flex=1 height=8 radius=999 background=theme.color.background.subtle overflow="hidden"
+            column width=likesWidth height=8 radius=999 background=theme.color.status.danger.fill testId="sm-insights-day-likes-bar"
+          text `${likesReceived}` size=12 color=theme.color.text.secondary width=32

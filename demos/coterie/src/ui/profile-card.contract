@@ -1,3 +1,4 @@
+use theme from "@exact/facet-contract"
 use CoterieAvatar from "./avatar.contract"
 use FacetButton from "@exact/facet-contract/components/button.contract"
 use FacetInput from "@exact/facet-contract/components/input.contract"
@@ -36,33 +37,33 @@ component CoterieProfileCard
     when isMe && editing && canEditProfile && canSetAvatar then has node testId="sm-profile-avatar-picker"
 
   view
-    column width="100%" background="#FFFFFF" padding=18 gap=10 testId="sm-profile"
+    column width="100%" background=theme.color.background.default padding=18 gap=10 testId="sm-profile"
       row width="100%" align="center" justify="space-between"
         CoterieAvatar(name=displayName, src=avatarUrl, size=72)
         when isMe && !editing && canEditProfile
-          button "Edit profile" press=pressEdit(displayName, bio) padding=8 radius=8 borderWidth=1 borderColor="#E2E4E8" background="#FFFFFF" testId="sm-profile-edit"
+          button "Edit profile" press=pressEdit(displayName, bio) padding=8 radius=8 borderWidth=1 borderColor=theme.color.button.outline.border background=theme.color.button.outline.bg color=theme.color.button.outline.text testId="sm-profile-edit"
         when !isMe && canFollow
-          button followedByMe ? "Following" : "Follow" press=pressFollow(id, followedByMe) padding=8 radius=8 borderWidth=1 borderColor=followedByMe ? "#E2E4E8" : "#4F46E5" background=followedByMe ? "#FFFFFF" : "#4F46E5" color=followedByMe ? "#17191C" : "#FFFFFF" testId="sm-profile-follow"
+          button followedByMe ? "Following" : "Follow" press=pressFollow(id, followedByMe) padding=8 radius=8 borderWidth=1 borderColor=followedByMe ? theme.color.button.outline.border : theme.color.button.primary.bg background=followedByMe ? theme.color.button.outline.bg : theme.color.button.primary.bg color=followedByMe ? theme.color.button.outline.text : theme.color.button.primary.text testId="sm-profile-follow"
       when editing && canEditProfile
         column gap=10 testId="sm-profile-form"
           when canSetAvatar
             column gap=6 testId="sm-profile-avatar-picker"
-              text "Profile photo" size=13 weight=600 color="#17191C"
+              text "Profile photo" size=13 weight=600 color=theme.color.text.default
               row gap=6 wrap="wrap"
                 each option in avatarOptions key=option.id
-                  button press=pressAvatar(option.value) label=option.label accessibilitySelected=option.value == currentAvatarRef width=96 minHeight=96 padding=7 gap=5 radius=12 borderWidth=2 borderColor=option.value == currentAvatarRef ? "#4F46E5" : "#E2E4E8" background=option.value == currentAvatarRef ? "#EEF2FF" : "#FFFFFF" testId=`sm-profile-avatar-${option.id}`
+                  button press=pressAvatar(option.value) label=option.label accessibilitySelected=option.value == currentAvatarRef width=96 minHeight=96 padding=7 gap=5 radius=12 borderWidth=2 borderColor=option.value == currentAvatarRef ? theme.color.border.focus : theme.color.border.default background=option.value == currentAvatarRef ? theme.color.background.selected : theme.color.background.default color=theme.color.text.default testId=`sm-profile-avatar-${option.id}`
                     image src=option.url alt="" width=52 height=52 radius=26 objectFit="cover" testId=`sm-profile-avatar-thumbnail-${option.id}`
-                    text option.value == currentAvatarRef ? `${option.label} · Current` : option.label size=11 weight=600 color="#17191C" align="center"
+                    text option.value == currentAvatarRef ? `${option.label} · Current` : option.label size=11 weight=600 color=theme.color.text.default align="center"
           FacetInput(value=draftName, label="Display name", change=changeName, testId="sm-profile-field-displayname")
           column gap=6
-            text "Bio" size=13 weight=600 color="#17191C"
-            input value=draftBio change=changeBio label="Bio" multiline=true minHeight=88 padding=10 radius=8 borderWidth=1 borderColor="#E2E4E8" testId="sm-profile-field-bio"
+            text "Bio" size=13 weight=600 color=theme.color.text.default
+            input value=draftBio change=changeBio label="Bio" multiline=true minHeight=88 padding=10 radius=8 borderWidth=1 borderColor=theme.color.border.default background=theme.color.background.default color=theme.color.text.default testId="sm-profile-field-bio"
           FacetButton(label="Save", press=pressSave, testId="sm-profile-save")
       else
         column gap=5
-          text displayName size=22 weight=700 color="#17191C"
-          text `@${handle}` size=15 color="#6B7280"
-          text bio size=15 color="#17191C"
+          text displayName size=22 weight=700 color=theme.color.text.default
+          text `@${handle}` size=15 color=theme.color.text.secondary
+          text bio size=15 color=theme.color.text.default
           row gap=16 paddingTop=4
-            text `${followers} Followers` size=13 color="#6B7280" testId="sm-profile-follower-count"
-            text `${following} Following` size=13 color="#6B7280" testId="sm-profile-following-count"
+            text `${followers} Followers` size=13 color=theme.color.text.secondary testId="sm-profile-follower-count"
+            text `${following} Following` size=13 color=theme.color.text.secondary testId="sm-profile-following-count"

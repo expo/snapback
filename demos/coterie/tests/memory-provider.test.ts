@@ -1024,6 +1024,54 @@ describe('Coterie backendless provider', () => {
     }
   });
 
+  it('keeps a text-only post media-free across the next generated live-feed delivery', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const projection = configureFromProvider(provider);
+    const deliveries: FeedItem[][] = [];
+    const feed = listFeed({ mode: 'global', cursor: null }) as ContractQueryHandle<FeedItem>;
+    const subscription = feed.subscribe((rows) => deliveries.push([...rows]));
+    try {
+      const text = (await createPost({
+        body: '123',
+        imageRefs: [],
+        videoRefs: [],
+        parentId: null,
+      })) as DataMutationResult<{ id: string }>;
+      expect(text.ok).toBe(true);
+      if (!text.ok || !text.value) throw new Error('expected the text-only post to succeed');
+      expect(deliveries.at(-1)?.find((row) => row.postId === text.value!.id)).toMatchObject({
+        body: '123',
+        mediaKind: null,
+        mediaUrls: [],
+      });
+
+      const media = (await createPost({
+        body: '342',
+        imageRefs: ['media/img-01.png'],
+        videoRefs: [],
+        parentId: null,
+      })) as DataMutationResult<{ id: string }>;
+      expect(media.ok).toBe(true);
+      if (!media.ok || !media.value) throw new Error('expected the media post to succeed');
+
+      const redelivery = deliveries.at(-1) ?? [];
+      expect(redelivery.find((row) => row.postId === text.value!.id)).toMatchObject({
+        body: '123',
+        mediaKind: null,
+        mediaUrls: [],
+      });
+      expect(redelivery.find((row) => row.postId === media.value!.id)).toMatchObject({
+        body: '342',
+        mediaKind: 'images',
+        mediaUrls: ['/assets/fixtures/img-01.png'],
+      });
+      expect(deliveries.length).toBeGreaterThanOrEqual(3);
+    } finally {
+      subscription.dispose();
+      projection.dispose();
+    }
+  });
+
   it('delivers every declared M2 validation rejection', async () => {
     const { provider } = createCoterieMemoryHarness();
     const cases = [

@@ -758,3 +758,57 @@ Other things the build taught:
 - The census helper-write blind spot (LLP 0274, ticketed at M2)
   applies to most new M3 writes; operations are marked opaque
   accordingly.
+
+## 2026-08-16 — user-reported browser media and appearance corrections
+
+Two defects reported from the memory-provider web demo exposed presentation
+seams rather than another provider row-aliasing bug. A generated-binding live
+feed regression proves that a text-only post keeps `mediaKind: null` and an
+empty URL array before and after the following media-post delivery. The visual
+bleed came from putting variable-height feed cards inside Exact's fixed
+`estimateSize=220` virtual rows: a media card overflowed its row into the next
+card. Coterie now uses the documented non-virtual host-fed list for this
+heterogeneous feed. The recent mutable-row alias pattern did not strike again.
+
+The appearance model was split. Facet controls resolve the shared theme store's
+system preference, while Coterie's hand-authored shells, raw controls, borders,
+and text were literal light colors. Reading the Exact theming guide made the
+repair straightforward: Coterie now follows the resolved light/dark scheme with
+semantic Facet v2 tokens throughout, retaining only the frozen eight chat
+accents and their contrast foregrounds as literals. No linked Exact source was
+changed. Compared with a React app using a token-aware component library, the
+failure mode is familiar: raw DOM/native controls still need the same semantic
+palette discipline as library components.
+
+The red attachment was also useful evidence rather than a missing-file symptom:
+the selected shared `IMG 01` benchmark fixture is intentionally a red synthetic
+card, its public asset hash and served URL are correct, and the route projection
+binds that URL to the owning post. Feed image and video presentation now uses
+`contain` on themed media surfaces so the fixture's identifying content is not
+cropped away.
+
+## 2026-08-17 — appearance and regression-review completion
+
+The review's contrast calculations caught the remaining split between accent
+data and accent presentation. Keeping the eight chat values literal is useful
+for the frozen M5 choreography, but using those same bytes as foreground colors
+was not safe across Facet schemes. A single pure palette helper now derives
+light/dark foreground variants against the actual Coterie message and selection
+surfaces, chooses swatch ink from accent luminance, and owns separate person/chat
+fallback-avatar pairs. This followed Exact's documented `theme.scheme` palette
+idiom cleanly; the raw Contract views now read roles instead of scattering
+scheme branches. The one ergonomic cost is a Contract metadata sidecar for the
+otherwise ordinary pure TypeScript helper.
+
+The strengthened layout regression also exposed the useful boundary between
+source composition and a minimal harness. The harness still supplies a query
+and no-op actions, but it mounts the real `CoterieFeedList`, `CoterieFeedCard`,
+avatar, and feed-body components. That made media ownership, image/video
+`objectFit`, non-absolute rows, and the lowered `endreached` callback observable
+without browser automation.
+
+The same exercise confirmed a separate Exact/Coterie pagination seam outside
+the current fixture envelope: non-virtual list reach geometry mixes item count
+with pixel offsets, leaving the end edge sticky. It is recorded in
+`issues/20260817-coterie-feed-pagination-third-page-stall.md`; this review did
+not disguise that latent third-page failure as part of the two-page media fix.
