@@ -13587,6 +13587,38 @@ export class SnapbackClient {
       deliverIsolated(applicationOnUpdate, presentedRows, nextDetail);
     };
 
+    const captureOptimisticPublicationFence = () => Object.freeze({
+      viewGeneration: automaticOptimisticViewGeneration,
+      authorizationFence,
+      authorizationCapture: authorizationFence?.capture() ?? null,
+      authorityCapture: handleAuthorityCapture,
+    });
+
+    const publishOptimisticPresentationIfCurrent = async (publicationFence, detail) => {
+      const published = await client.commitAuthorityPublication(
+        publicationFence.authorityCapture,
+        () => {
+          // @ref LLP 0053#client-fences — an async optimistic reconciliation
+          //   may publish only under the exact query and authority generations
+          //   it captured before awaiting its rebase.
+          if (
+            disposed
+            || automaticOptimisticViewGeneration !== publicationFence.viewGeneration
+            || authorizationFence !== publicationFence.authorizationFence
+            || (
+              publicationFence.authorizationFence !== null
+              && !publicationFence.authorizationFence.isRenderable(
+                publicationFence.authorizationCapture,
+              )
+            )
+          ) return false;
+          publishOptimisticPresentation(detail);
+          return true;
+        },
+      );
+      return published.committed && published.value === true;
+    };
+
     const settlementWriteReflection = (layer, record, settlement) => {
       if (record === null || record === undefined) return null;
       const { replacements, unresolved } = settlementIdResolution(record, settlement);
@@ -13683,9 +13715,10 @@ export class SnapbackClient {
       authoritativeDelivery = false,
     } = {}) => {
       const view = automaticOptimisticView;
+      const publicationFence = captureOptimisticPublicationFence();
       if (view === null || disposed) {
         presentedRows = authoritativeRows;
-        publishOptimisticPresentation(detail);
+        await publishOptimisticPresentationIfCurrent(publicationFence, detail);
         return;
       }
       if (authoritativeDelivery) authoritativeDeliveryRevision += 1;
@@ -13709,7 +13742,7 @@ export class SnapbackClient {
         bridgingFirstSeenAtRevision.delete(identity);
         bridgingSettlementEvidence.delete(identity);
       }
-      publishOptimisticPresentation(detail);
+      await publishOptimisticPresentationIfCurrent(publicationFence, detail);
     };
 
     const ensureAutomaticOptimisticView = async () => {
@@ -13775,15 +13808,20 @@ export class SnapbackClient {
         return;
       }
       optimisticPresentationTail = optimisticPresentationTail.then(async () => {
-        await ensureAutomaticOptimisticView();
-        await reconcileAutomaticOptimisticView(
-          'authoritative-delivery',
-          detail,
-          { authoritativeDelivery: detail?.freshness !== 'retained' },
-        );
+        const fallbackPublicationFence = captureOptimisticPublicationFence();
+        try {
+          await ensureAutomaticOptimisticView();
+          await reconcileAutomaticOptimisticView(
+            'authoritative-delivery',
+            detail,
+            { authoritativeDelivery: detail?.freshness !== 'retained' },
+          );
+        } catch {
+          presentedRows = authoritativeRows;
+          await publishOptimisticPresentationIfCurrent(fallbackPublicationFence, detail);
+        }
       }).catch(() => {
-        presentedRows = authoritativeRows;
-        publishOptimisticPresentation(detail);
+        // Authority publication refusal and adapter failures are fail-closed.
       });
     };
 

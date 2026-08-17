@@ -4,6 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '@expo/snapback-contract/auth-coordinator';
+
 import { BROWSER_IR_LOCAL_EFFECT_CLASS } from './ir-evaluator.mjs';
 import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
 import { hex, jcsBytes, sha256 } from './rqs.mjs';
@@ -18,6 +23,48 @@ class SnapbackClient extends InspectingSnapbackClient {
       // ordinary lifecycle is qualified elsewhere and must not race them.
       __outboxDrainLifecycle: false,
       ...options,
+    });
+  }
+}
+
+const deferred = () => {
+  let resolve;
+  const promise = new Promise((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+};
+
+class DelayedRebaseSnapbackClient extends SnapbackClient {
+  constructor(baseUrl, options, rebaseControl) {
+    super(baseUrl, options);
+    this.rebaseControl = rebaseControl;
+  }
+
+  async __createGeneratedOptimisticMaterializationView(options) {
+    const view = await super.__createGeneratedOptimisticMaterializationView(options);
+    if (view === null) return null;
+    return Object.freeze({
+      ...view,
+      rebase: async (input = {}) => {
+        const outcome = await view.rebase(input);
+        if (
+          this.rebaseControl.armed
+          && input.cause === 'authoritative-delivery'
+        ) {
+          this.rebaseControl.armed = false;
+          this.rebaseControl.didStart = true;
+          try {
+            await this.rebaseControl.release.promise;
+            if (this.rebaseControl.outcome === 'failure') {
+              throw new Error('delayed optimistic rebase failed after quarantine');
+            }
+          } finally {
+            this.rebaseControl.didFinish = true;
+          }
+        }
+        return outcome;
+      },
     });
   }
 }
@@ -1489,6 +1536,52 @@ const authHandshake = Object.freeze({
   authorizedLease: null,
 });
 
+const coordinatorAuthHandshake = Object.freeze({
+  ...authHandshake,
+  transitionGeneration: 0,
+  clientProtocols: Object.freeze({
+    ...authHandshake.clientProtocols,
+    authorityDescriptor: 1,
+  }),
+  availability: Object.freeze({
+    ...authHandshake.availability,
+    queuedReplay: Object.freeze({
+      available: true,
+      minimumAuthorityDescriptorProtocol: 1,
+      reason: null,
+    }),
+  }),
+  authority: Object.freeze({
+    kind: 'humanSession',
+    userId: '018f0d90-7b12-7a22-8c33-445566778899',
+    sessionId: '018f0d90-7b13-7a22-8c33-445566778899',
+    isAuthenticated: true,
+  }),
+  deploymentIdentity: Object.freeze({
+    schemaVersion: 'snapback.v1',
+    authMode: 'sessions',
+    appId: ACTIVATION.appId,
+    schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+    bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+    inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+  }),
+});
+
+const coordinatorAuthCredential = () => ({
+  tokenType: 'Bearer',
+  token: 'sbs_generated_optimistic_coordinator',
+  refreshAfter: Date.now() + 60_000,
+  session: {
+    id: '018f0d90-7b13-7a22-8c33-445566778899',
+    userId: '018f0d90-7b12-7a22-8c33-445566778899',
+    provider: 'email-code',
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 120_000,
+    absoluteExpiresAt: Date.now() + 240_000,
+  },
+  authorityDescriptor: coordinatorAuthHandshake.authorityDescriptor,
+});
+
 const authQuery = (() => {
   const trusted = QUERY.artifacts.trustedCompositionActivation;
   return Object.freeze({
@@ -1502,24 +1595,43 @@ const authQuery = (() => {
   });
 })();
 
-const authBoundaryEnvelope = (scopeId) => ({
+const authObligation = (scopeId, revision = 1, minCommitVersion = 2) => ({
+  protocolVersion: 1,
+  scopeId,
+  revision,
+  maxDisposition: 'quarantine',
+  witness: {
+    authorization: { incarnation: AUTH_INCARNATION, epoch: 4 },
+    data: { versionStream: 'generated-optimistic-auth-stream', minCommitVersion },
+  },
+  retryEpisodeId: null,
+  ownerContinuityId: 'generated-optimistic-owner',
+});
+
+const authResolution = (pending, ackToken) => ({
+  protocolVersion: 1,
+  kind: 'snapshot',
+  scopeId: pending.scopeId,
+  revision: pending.revision,
+  witness: pending.witness,
+  maxDisposition: pending.maxDisposition,
+  ackToken,
+  ownerContinuityId: pending.ownerContinuityId,
+});
+
+const authProjectionEnvelope = ({ pending, resolution = null, snapshot = null }) => ({
   Durable: {
     payload: JSON.stringify({
       kind: 'authorization_invalidation',
-      obligation: {
-        protocolVersion: 1,
-        scopeId,
-        revision: 1,
-        maxDisposition: 'quarantine',
-        witness: {
-          authorization: { incarnation: AUTH_INCARNATION, epoch: 4 },
-          data: { versionStream: 'generated-optimistic-auth-stream', minCommitVersion: 2 },
-        },
-        retryEpisodeId: null,
-        ownerContinuityId: 'generated-optimistic-owner',
-      },
+      obligation: pending,
+      ...(resolution === null ? {} : { resolution }),
+      ...(snapshot === null ? {} : { snapshot }),
     }),
   },
+});
+
+const authBoundaryEnvelope = (scopeId) => authProjectionEnvelope({
+  pending: authObligation(scopeId),
 });
 
 const exerciseAuthorityBoundary = async ({ boundaryCallbackThrows }) => {
@@ -1664,4 +1776,219 @@ const exerciseAuthorityBoundary = async ({ boundaryCallbackThrows }) => {
 test('generated read-free insert cannot repaint after authorization quarantine or error', async () => {
   await exerciseAuthorityBoundary({ boundaryCallbackThrows: false });
   await exerciseAuthorityBoundary({ boundaryCallbackThrows: true });
+});
+
+test('AuthCoordinator quarantine fences an awaited optimistic rebase until proof resumes it', async (t) => {
+  for (const delayedOutcome of ['success', 'failure']) {
+    await t.test(`stale ${delayedOutcome} publication stays behind the blank`, async () => {
+      const originalFetch = globalThis.fetch;
+      const outbox = [];
+      const acknowledgements = [];
+      const updates = [];
+      const rebaseControl = {
+        armed: false,
+        didStart: false,
+        didFinish: false,
+        outcome: delayedOutcome,
+        release: deferred(),
+      };
+      let scopeId = null;
+      const directory = await mkdtemp(join(
+        tmpdir(),
+        `snapback-generated-coordinator-${delayedOutcome}-`,
+      ));
+      const store = createFileRqsResumeStore({
+        directory,
+        clientStoreId: `generated-coordinator-${delayedOutcome}`,
+      });
+      await store.whenLockSettled();
+      const coordinator = new AuthCoordinator({
+        appId: ACTIVATION.appId,
+        storage: createMemoryAuthCustodyStorage(),
+        broadcastChannelFactory: null,
+        hintStorage: null,
+      });
+      const client = new DelayedRebaseSnapbackClient(
+        'http://generated-optimistic-coordinator.test',
+        {
+          authCoordinator: coordinator,
+          authClientProtocol: 1,
+          authInvalidationProtocol: 1,
+          authorityDescriptorProtocol: 1,
+          clientStoreId: `generated-coordinator-${delayedOutcome}`,
+          rqsStore: store,
+          offlineQueue: true,
+        },
+        rebaseControl,
+      );
+      let handle = null;
+
+      globalThis.fetch = async (url, init = {}) => {
+        const path = new URL(url).pathname;
+        if (path === '/auth/exchange') return Response.json(coordinatorAuthCredential());
+        if (path === '/auth/session') {
+          const authenticated = new Headers(init.headers).get('authorization')
+            === 'Bearer sbs_generated_optimistic_coordinator';
+          return Response.json(authenticated
+            ? coordinatorAuthHandshake
+            : {
+                ...coordinatorAuthHandshake,
+                authority: {
+                  kind: 'anonymous', userId: null, sessionId: null, isAuthenticated: false,
+                },
+                authorityDescriptor: {
+                  ...coordinatorAuthHandshake.authorityDescriptor,
+                  sessionGeneration: 0,
+                },
+              });
+        }
+        if (path === '/connection/open') {
+          return Response.json({
+            connectionId: `generated-coordinator-${delayedOutcome}`,
+            connectionToken: `sct_generated_coordinator_${delayedOutcome}`,
+            ephemeralExpiryProtocol: 1,
+            wireVersion: 'snapback.v1',
+            authorizationInvalidation: {
+              protocolVersion: 1,
+              issuerId: authIssuer,
+              connectionGeneration: 2,
+              authorization: { incarnation: AUTH_INCARNATION, epoch: 4 },
+              versionStream: 'generated-optimistic-auth-stream',
+            },
+          });
+        }
+        if (path === '/live/listCards/subscribe') {
+          const body = JSON.parse(init.body);
+          scopeId = {
+            kind: 'subscription',
+            issuerId: authIssuer,
+            namespace: body.authorizationNamespace,
+            scopeSequence: 1,
+            connectionGeneration: 2,
+            subscriptionId: `generated-coordinator-subscription-${delayedOutcome}`,
+          };
+          return Response.json({
+            subscription_id: scopeId.subscriptionId,
+            snapshot: { rows: BASE_ROWS, version: 1 },
+            permission_epochs: {},
+            authorizationScope: scopeId,
+          });
+        }
+        if (path === '/mutation/createCard') {
+          throw new TypeError('offline generated mutation remains queued for proof-resume coverage');
+        }
+        if (path === `/outbox/generated-coordinator-${delayedOutcome}`) {
+          return Response.json(outbox.shift() ?? []);
+        }
+        if (path === '/live/authorization-invalidation/acknowledge') {
+          acknowledgements.push(JSON.parse(init.body).ackToken);
+          return Response.json({ outcome: 'discharged' });
+        }
+        if (path === '/live/listCards/unsubscribe') {
+          return Response.json({ subscription_id: scopeId?.subscriptionId, disposed: true });
+        }
+        throw new Error(`unexpected generated coordinator request: ${path}`);
+      };
+
+      try {
+        await client.authExchange({
+          challengeId: `generated-coordinator-${delayedOutcome}`,
+          code: '123456',
+        });
+        handle = await client.liveQuery(authQuery, {
+          connectionId: `generated-coordinator-${delayedOutcome}`,
+          onUpdate(rows, detail) {
+            updates.push({ rows: structuredClone(rows), kind: detail.kind });
+          },
+        });
+        const queuedMutation = await client.mutate(CREATE, {
+          clientMutationId: `generated-coordinator-mutation-${delayedOutcome}`,
+          args: { title: 'Protected prediction', position: 2 },
+        });
+        assert.equal(queuedMutation.status, 'queued');
+        await waitUntil(
+          () => handle.rows.some((row) => row.title === 'Protected prediction'),
+          `${delayedOutcome} protected prediction paint`,
+        );
+
+        rebaseControl.armed = true;
+        const firstPending = authObligation(scopeId, 1, 2);
+        outbox.push([authProjectionEnvelope({
+          pending: firstPending,
+          resolution: authResolution(
+            firstPending,
+            `ack_generated_coordinator_initial_${delayedOutcome}`,
+          ),
+          snapshot: {
+            subscriptionId: scopeId.subscriptionId,
+            function: 'listCards',
+            version: 2,
+            rows: BASE_ROWS,
+          },
+        })]);
+        await handle.poll();
+        await waitUntil(
+          () => rebaseControl.didStart,
+          `${delayedOutcome} authorization snapshot rebase start`,
+        );
+
+        const quarantinePending = authObligation(scopeId, 2, 3);
+        outbox.push([authProjectionEnvelope({ pending: quarantinePending })]);
+        await handle.poll();
+        await waitUntil(
+          () => updates.at(-1)?.kind === 'authorization_quarantine',
+          `${delayedOutcome} quarantine blank`,
+        );
+        assert.deepEqual(handle.rows, []);
+        assert.equal(handle.optimisticPresentation.status, 'none');
+        const publicationsAtBlank = updates.length;
+
+        rebaseControl.release.resolve();
+        await waitUntil(
+          () => rebaseControl.didFinish,
+          `${delayedOutcome} authorization snapshot rebase finish`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        assert.equal(
+          updates.length,
+          publicationsAtBlank,
+          `${delayedOutcome} stale rebase published over quarantine`,
+        );
+        assert.deepEqual(handle.rows, []);
+
+        outbox.push([authProjectionEnvelope({
+          pending: quarantinePending,
+          resolution: authResolution(
+            quarantinePending,
+            `ack_generated_coordinator_resume_${delayedOutcome}`,
+          ),
+          snapshot: {
+            subscriptionId: scopeId.subscriptionId,
+            function: 'listCards',
+            version: 3,
+            rows: BASE_ROWS,
+          },
+        })]);
+        await handle.poll();
+        await waitUntil(
+          () => acknowledgements.includes(`ack_generated_coordinator_resume_${delayedOutcome}`),
+          `${delayedOutcome} continued-authority acknowledgement`,
+        );
+        await waitUntil(
+          () => handle.rows.some((row) => row.title === 'Protected prediction'),
+          `${delayedOutcome} optimistic proof resume`,
+        );
+        assert.equal(handle.authorizationDisposition, 'retain');
+        assert.equal(handle.optimisticPresentation.status, 'predicted');
+      } finally {
+        rebaseControl.release.resolve();
+        try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
+        try { await client.close(); } catch { /* cleanup cannot mask assertions */ }
+        try { await coordinator.close(); } catch { /* cleanup cannot mask assertions */ }
+        try { await store.close(); } catch { /* cleanup cannot mask assertions */ }
+        await rm(directory, { recursive: true, force: true });
+        globalThis.fetch = originalFetch;
+      }
+    });
+  }
 });
