@@ -9,15 +9,22 @@
 // Resolution ladder:
 //   1. explicit `rqsStore` option — injected store or `null` opt-out;
 //   2. env `SNAPBACK_CLIENT_RQS_STORE=off` — disabled (test/ops escape);
-//   3. browser (IndexedDB + Web Locks) — the web arm;
-//   4. React Native with registered platform files — the native file arm;
-//   5. node (filesystem + a resolvable state directory) — the file arm,
+//   3. admitted app platform — its browser/native/memory arm, with durable
+//      application stores namespaced by the full app owner key;
+//   4. browser (IndexedDB + Web Locks) — the ambient web arm;
+//   5. React Native with registered platform files — the native file arm;
+//   6. node (filesystem + a resolvable state directory) — the file arm,
 //      under `SNAPBACK_CLIENT_RQS_DIR` or `~/.snapback/rqs`, keyed by the
 //      server origin so distinct servers never share a blob;
-//   6. otherwise — the in-memory arm (`durable: false`; no cold-boot or
+//   7. otherwise — the in-memory arm (`durable: false`; no cold-boot or
 //      restart-safe claim may be made over it).
 
-import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
+import { authCustodyOwnerKeyHash } from '@expo/snapback-contract/auth-coordinator';
+
+import {
+  RQS_STORE_DATABASE_NAME,
+  createIndexedDbRqsResumeStore,
+} from './rqs-store.mjs';
 import {
   createFileRqsResumeStore,
   RQS_STORE_GC_DEFAULT_MAX_AGE_MS,
@@ -147,6 +154,14 @@ const originIdentity = (baseUrl) => {
   }
 };
 
+// @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+// — the first-party browser participant follows the same full owner-key
+// isolation as auth custody. The digest is stable across contexts without
+// exposing the raw storage partition in the browser's database registry.
+const appOwnerDatabaseName = (ownerKey) => (
+  `${RQS_STORE_DATABASE_NAME}.owner.${authCustodyOwnerKeyHash(ownerKey)}`
+);
+
 const disabledResolution = () => ({
   store: null,
   info: Object.freeze({
@@ -157,12 +172,16 @@ const disabledResolution = () => ({
   }),
 });
 
-const resolveBrowserStore = ({ indexedDB, lockManager }) => {
+const resolveBrowserStore = ({
+  indexedDB,
+  lockManager,
+  databaseName = RQS_STORE_DATABASE_NAME,
+}) => {
   if (typeof indexedDB?.open !== 'function') return memoryFallback('indexeddb-unavailable');
   if (typeof lockManager?.request !== 'function') return memoryFallback('web-locks-unavailable');
   try {
     return resolvedStore(
-      createIndexedDbRqsResumeStore({ indexedDB, lockManager }),
+      createIndexedDbRqsResumeStore({ indexedDB, lockManager, databaseName }),
       'indexeddb',
       true,
       null,
@@ -195,15 +214,26 @@ const resolveNativeStore = (baseUrl) => {
   }
 };
 
-function resolveDefaultRqsStoreForEnvironment({ baseUrl, appPlatform = null } = {}) {
+function resolveDefaultRqsStoreForEnvironment({
+  baseUrl,
+  appPlatform = null,
+  appOwnerKey = null,
+} = {}) {
   if (env('SNAPBACK_CLIENT_RQS_STORE') === 'off') {
     return disabledResolution();
   }
   if (appPlatform !== null) {
     if (['browser', 'expo-web'].includes(appPlatform.kind)) {
+      if (appOwnerKey === null) {
+        throw new TypeError('default RQS browser app platform requires an app owner key');
+      }
       return resolveBrowserStore({
         indexedDB: appPlatform.indexedDB ?? globalThis.indexedDB,
         lockManager: appPlatform.lockManager ?? globalThis.navigator?.locks ?? null,
+        // `appPlatform.databaseName` belongs to auth-custody carrier
+        // injection. Queue ownership is derived only from LLP 0258's exact
+        // (canonical app id, storage partition) owner key.
+        databaseName: appOwnerDatabaseName(appOwnerKey),
       });
     }
     if (appPlatform.kind === 'expo-native') return resolveNativeStore(baseUrl);

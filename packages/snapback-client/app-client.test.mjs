@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { IDBFactory } from 'fake-indexeddb';
@@ -13,6 +16,7 @@ import {
   DEFAULT_AUTH_STORAGE_PARTITION,
   createSnapbackAppClient,
 } from './index.mjs';
+import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
 import {
   __adoptSupervisedBootstrapAuthority,
@@ -152,6 +156,15 @@ function replaceGlobal(name, value) {
     writable: true,
     value,
   });
+  return () => {
+    if (descriptor === undefined) delete globalThis[name];
+    else Object.defineProperty(globalThis, name, descriptor);
+  };
+}
+
+function unsetGlobal(name) {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
+  delete globalThis[name];
   return () => {
     if (descriptor === undefined) delete globalThis[name];
     else Object.defineProperty(globalThis, name, descriptor);
@@ -999,58 +1012,123 @@ test('browser durable custody restores the default record and keeps signed-in pa
   }
 });
 
-test('browser app-client defaults keep queue authority in the explicit platform store domain', async () => {
+test('browser app-client defaults ignore ambient Node file and unowned browser queue epochs', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-app-client-rqs-file-isolation-'));
+  const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
+  const previousSwitch = process.env.SNAPBACK_CLIENT_RQS_STORE;
   const server = installServer();
+  process.env.SNAPBACK_CLIENT_RQS_DIR = directory;
   delete process.env.SNAPBACK_CLIENT_RQS_STORE;
-  const ambientIndexedDB = new IDBFactory();
-  const ambientLockManager = createSerialLockManager();
-  const restoreIndexedDB = replaceGlobal('indexedDB', ambientIndexedDB);
-  const restoreNavigator = replaceGlobal('navigator', { locks: ambientLockManager });
-  let predecessorStore = null;
+  const restoreIndexedDB = unsetGlobal('indexedDB');
+  const restoreNavigator = replaceGlobal('navigator', undefined);
+  const platformIndexedDB = new IDBFactory();
+  const platformLockManager = createSerialLockManager();
+  let fileResolution = null;
+  let legacyUnownedBrowserStore = null;
+  let noLockAppClient = null;
   let appClient = null;
   try {
-    predecessorStore = createIndexedDbRqsResumeStore({
-      indexedDB: ambientIndexedDB,
-      lockManager: ambientLockManager,
-      broadcastChannelFactory: null,
+    assert.equal(globalThis.indexedDB, undefined);
+    fileResolution = resolveDefaultRqsStore({
+      baseUrl: 'http://127.0.0.1:4711',
     });
-    await predecessorStore.whenLockSettled();
+    assert.equal(fileResolution.info.implementation, 'file');
+    await fileResolution.store.whenLockSettled();
     assert.equal(
-      await predecessorStore.wipeForAuthorityTransition('prior-run:1->2', 2),
+      await fileResolution.store.wipeForAuthorityTransition('prior-run:1->2', 2),
       true,
     );
-    await predecessorStore.close();
-    predecessorStore = null;
+    await fileResolution.store.close();
+    fileResolution = null;
 
     const app = makeApp({ custody: 'durable-required' });
+    server.respond('/auth/password/signup', () => (
+      Response.json(server.credential({ codes: RECOVERY_CODES }))
+    ));
+
+    // This is the golden scaffold interleaving: no ambient IndexedDB and no
+    // platform Web Locks. The admitted browser platform must degrade its RQS
+    // participant to memory rather than reaching the host's Node file arm.
+    noLockAppClient = await createSnapbackAppClient({
+      app,
+      binding: makeBinding(app),
+      platform: {
+        kind: 'browser',
+        indexedDB: new IDBFactory(),
+        cryptoObject: webcrypto,
+        databaseName: 'snapback-app-client-node-file-interleaving-no-lock-test',
+      },
+    });
+    assert.deepEqual(
+      {
+        implementation: noLockAppClient.client.rqsStoreInfo.implementation,
+        reason: noLockAppClient.client.rqsStoreInfo.reason,
+      },
+      { implementation: 'memory', reason: 'web-locks-unavailable' },
+    );
+    await noLockAppClient.auth.signUpWithPassword({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    assert.equal(noLockAppClient.auth.currentPrincipal().status, 'authenticated');
+    await noLockAppClient.dispose();
+    noLockAppClient = null;
+
+    // Also poison the legacy fixed browser namespace so the same regression
+    // fails the incomplete appPlatform-only fix at 2d1167a96. A full-owner
+    // namespace sees neither this predecessor nor the Node file predecessor.
+    legacyUnownedBrowserStore = createIndexedDbRqsResumeStore({
+      indexedDB: platformIndexedDB,
+      lockManager: platformLockManager,
+      broadcastChannelFactory: null,
+    });
+    await legacyUnownedBrowserStore.whenLockSettled();
+    assert.equal(
+      await legacyUnownedBrowserStore.wipeForAuthorityTransition('legacy-browser:1->2', 2),
+      true,
+    );
+    await legacyUnownedBrowserStore.close();
+    legacyUnownedBrowserStore = null;
+
     const platform = {
       kind: 'browser',
-      indexedDB: new IDBFactory(),
-      lockManager: createSerialLockManager(),
+      indexedDB: platformIndexedDB,
+      lockManager: platformLockManager,
       cryptoObject: webcrypto,
-      databaseName: 'snapback-app-client-explicit-platform-domain-test',
+      databaseName: 'snapback-app-client-node-file-interleaving-test',
     };
     appClient = await createSnapbackAppClient({
       app,
       binding: makeBinding(app),
       platform,
     });
-    server.respond('/auth/password/signup', () => (
-      Response.json(server.credential({ codes: RECOVERY_CODES }))
-    ));
 
+    assert.notEqual(appClient.client.rqsStoreInfo.implementation, 'file');
+    assert.deepEqual(
+      {
+        implementation: appClient.client.rqsStoreInfo.implementation,
+        reason: appClient.client.rqsStoreInfo.reason,
+      },
+      { implementation: 'indexeddb', reason: null },
+    );
     await appClient.auth.signUpWithPassword({
       email: 'person@example.com',
       password: PASSWORD,
     });
-    assert.equal(appClient.client.rqsStoreInfo.implementation, 'indexeddb');
     assert.equal(appClient.auth.currentPrincipal().status, 'authenticated');
   } finally {
     await appClient?.dispose();
-    await predecessorStore?.close();
+    await noLockAppClient?.dispose();
+    await fileResolution?.store?.close();
+    await legacyUnownedBrowserStore?.close();
     restoreNavigator();
     restoreIndexedDB();
     server.restore();
+    if (previousDir === undefined) delete process.env.SNAPBACK_CLIENT_RQS_DIR;
+    else process.env.SNAPBACK_CLIENT_RQS_DIR = previousDir;
+    if (previousSwitch === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+    else process.env.SNAPBACK_CLIENT_RQS_STORE = previousSwitch;
+    rmSync(directory, { recursive: true, force: true });
   }
 });
 

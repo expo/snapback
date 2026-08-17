@@ -33,6 +33,15 @@ export declare function registeredNativeRqsFiles(): Readonly<NativeRqsFilesProvi
 
 export declare function resolveDefaultRqsStore(options?: {
   baseUrl?: string;
+  appPlatform?: Readonly<{
+    kind: 'browser' | 'expo-web' | 'expo-native' | 'memory';
+    indexedDB?: unknown;
+    lockManager?: unknown;
+  }> | null;
+  appOwnerKey?: Readonly<{
+    appId: string;
+    storagePartition: string;
+  }> | null;
 }): DefaultRqsStoreResolution;
 
 export declare function registerNativeRqsFiles(

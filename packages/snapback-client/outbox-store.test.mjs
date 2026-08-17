@@ -1514,7 +1514,7 @@ test('file arm migrates a v1 blob in place (entries kept, empty outbox)', async 
   await store.close();
 });
 
-test('default store resolution ladder', () => {
+test('default store resolution ladder', async () => {
   // Node with a state directory -> durable file store.
   const directory = mkdtempSync(join(tmpdir(), 'snapback-default-'));
   const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;
@@ -1526,7 +1526,16 @@ test('default store resolution ladder', () => {
     assert.equal(resolved.info.implementation, 'file');
     assert.equal(resolved.info.durable, true);
     assert.equal(resolved.info.source, 'default');
-    void resolved.store.close();
+    await resolved.store.close();
+    // An admitted application platform dispatches before the ambient Node
+    // file arm.
+    const appPlatform = resolveDefaultRqsStore({
+      baseUrl: 'http://127.0.0.1:4400',
+      appPlatform: { kind: 'memory' },
+    });
+    assert.equal(appPlatform.info.implementation, 'memory');
+    assert.equal(appPlatform.info.reason, 'volatile-platform');
+    await appPlatform.store.close();
     // Kill switch -> disabled, no store.
     process.env.SNAPBACK_CLIENT_RQS_STORE = 'off';
     const disabled = resolveDefaultRqsStore({ baseUrl: 'http://127.0.0.1:4400' });
@@ -1535,6 +1544,105 @@ test('default store resolution ladder', () => {
   } finally {
     if (previousDir === undefined) delete process.env.SNAPBACK_CLIENT_RQS_DIR;
     else process.env.SNAPBACK_CLIENT_RQS_DIR = previousDir;
+    if (previousSwitch === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+    else process.env.SNAPBACK_CLIENT_RQS_STORE = previousSwitch;
+  }
+});
+
+test('platform-admitted browser defaults isolate queue epochs by full app owner key', async () => {
+  const previousSwitch = process.env.SNAPBACK_CLIENT_RQS_STORE;
+  delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+  const indexedDB = new IDBFactory();
+  const lockManager = {
+    tails: new Map(),
+    request(name, _options, operation) {
+      const previous = this.tails.get(name) ?? Promise.resolve();
+      const result = previous.catch(() => {}).then(operation);
+      const tail = result.catch(() => {});
+      this.tails.set(name, tail);
+      return result.finally(() => {
+        if (this.tails.get(name) === tail) this.tails.delete(name);
+      });
+    },
+  };
+  const appPlatform = { kind: 'browser', indexedDB, lockManager };
+  const ownerA = {
+    appId: '018f0d90-7c20-7a22-8c33-445566778899',
+    storagePartition: 'default',
+  };
+  const ownerByPartition = {
+    ...ownerA,
+    storagePartition: 'preview',
+  };
+  const ownerByApp = {
+    appId: '018f0d90-7c28-7a22-8c33-445566778899',
+    storagePartition: 'default',
+  };
+  const opened = [];
+  const openOwner = async (appOwnerKey) => {
+    const resolved = resolveDefaultRqsStore({
+      baseUrl: 'http://127.0.0.1:4400',
+      appPlatform,
+      appOwnerKey,
+    });
+    opened.push(resolved.store);
+    assert.equal(resolved.info.implementation, 'indexeddb');
+    await resolved.store.whenLockSettled();
+    assert.equal(resolved.store.isWriter(), true);
+    return resolved.store;
+  };
+  try {
+    let store = await openOwner(ownerA);
+    assert.equal(await store.wipeForAuthorityTransition('owner-a:1->2', 2), true);
+    await store.outboxEnqueue({ id: 'owner-a-intent', function: 'ownerA' });
+    await store.close();
+
+    store = await openOwner(ownerByPartition);
+    assert.equal(
+      await store.wipeForAuthorityTransition('owner-partition:0->1', 1),
+      true,
+      'a distinct storage partition accepts its own epoch 1',
+    );
+    assert.equal(await store.wipeForAuthorityTransition('owner-partition:6->7', 7), true);
+    await store.outboxEnqueue({ id: 'owner-partition-intent', function: 'ownerPartition' });
+    await store.close();
+
+    store = await openOwner(ownerByApp);
+    assert.equal(
+      await store.wipeForAuthorityTransition('owner-app:0->1', 1),
+      true,
+      'a distinct app id accepts its own epoch 1',
+    );
+    assert.equal(await store.wipeForAuthorityTransition('owner-app:10->11', 11), true);
+    await store.close();
+
+    store = await openOwner(ownerA);
+    assert.equal(
+      await store.wipeForAuthorityTransition('owner-a:1->2', 2),
+      true,
+      'owner A still sees its own idempotent epoch rather than another owner successor',
+    );
+    assert.deepEqual(
+      (await store.outboxPending()).map(({ id }) => id),
+      ['owner-a-intent'],
+      'higher transitions in both other owner namespaces do not clear owner A',
+    );
+    await store.close();
+
+    store = await openOwner(ownerByPartition);
+    assert.equal(
+      await store.wipeForAuthorityTransition('owner-partition:6->7', 7),
+      true,
+      'the partition owner retains its own transition epoch',
+    );
+    assert.deepEqual(
+      (await store.outboxPending()).map(({ id }) => id),
+      ['owner-partition-intent'],
+      'the partition owner retains its own resident queue',
+    );
+    await store.close();
+  } finally {
+    await Promise.allSettled(opened.map((store) => store.close()));
     if (previousSwitch === undefined) delete process.env.SNAPBACK_CLIENT_RQS_STORE;
     else process.env.SNAPBACK_CLIENT_RQS_STORE = previousSwitch;
   }

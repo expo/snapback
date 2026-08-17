@@ -2795,6 +2795,7 @@ export class SnapbackClient {
     __clientDiagnosticsOptions = null,
     __devDiagnosticsReporterOptions = null,
     __defaultRqsStoreAppPlatform = null,
+    __defaultRqsStoreAppOwnerKey = null,
     // Deterministic package-test seam. Product callers omit this and use the
     // served `/inspect` capability manifest; it is intentionally undeclared
     // in the public TypeScript surface.
@@ -2892,6 +2893,7 @@ export class SnapbackClient {
         : resolveDefaultRqsStore({
             baseUrl: this.baseUrl,
             appPlatform: __defaultRqsStoreAppPlatform,
+            appOwnerKey: __defaultRqsStoreAppOwnerKey,
           });
       this.rqsStore = resolved.store;
       this.rqsStoreInfo = resolved.info;

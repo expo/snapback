@@ -963,10 +963,15 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
       authInvalidationProtocol: 1,
       authorityDescriptorProtocol: 1,
       rqsStore: preflighted.rqsStore,
-      // @ref LLP 0258#d2-one-bootstrap-owner-constructs-the-auth-bearing-application-client
-      // — every default participant is resolved from the owner's admitted
-      // platform; a Node-based browser harness is not a second custody domain.
+      // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+      // — every default participant is resolved from the admitted platform
+      // and full owner key; a Node browser harness is not a second custody
+      // domain, and two app partitions never share queue transition epochs.
       __defaultRqsStoreAppPlatform: preflighted.platform,
+      __defaultRqsStoreAppOwnerKey: Object.freeze({
+        appId: preflighted.app.identity.app,
+        storagePartition: preflighted.storagePartition,
+      }),
     });
     const restoredCapture = await awaitConstructionBoundary(
       owner.coordinator.synchronize(),
