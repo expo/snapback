@@ -21,37 +21,24 @@
     {
       "id": "membership-changes",
       "status": "implemented-local",
-      "witnesses": [
-        "tests/acceptance/headless.mjs",
-        "tests/acceptance/react-browser.mjs",
-        "tests/acceptance/contract-browser.mjs"
-      ]
+      "witness": "tests/acceptance/headless.mjs",
+      "scope": "generated invite/join/leave/changeRole/transferOwner/remove with post-commit receipts and a concurrent exact-one-owner witness"
     },
     {
       "id": "high-fan-out-rooms",
-      "status": "implemented-local-bounded",
-      "witness": "tests/acceptance/headless.mjs",
-      "limit": {
-        "activeRecipientsPerMessage": 32,
-        "hardApplicationCeiling": 64,
-        "messagesPerRoom": 256
-      },
-      "nonclaim": "single-process SQLite only; the local kernel refuses a 257th room message"
+      "status": "red",
+      "blocker": "LLP 0264 owner-write custody permits only the sender's host-stamped delivery; cross-recipient delivery needs an explicit governed write-policy sibling"
     },
     {
       "id": "unread-counts",
-      "status": "implemented-local",
-      "witness": "tests/acceptance/headless.mjs"
+      "status": "deferred-b2b",
+      "blocker": "the prior React/Contract product witnesses await migration to the generated authority profile namespace"
     },
     {
       "id": "pagination",
       "status": "implemented-local",
-      "witnesses": [
-        "tests/acceptance/headless.mjs",
-        "tests/acceptance/react-browser.mjs",
-        "tests/acceptance/contract-browser.mjs"
-      ],
-      "scope": "recipient inbox and membership-scoped room history use opaque bounded keyset pages"
+      "witness": "tests/acceptance/headless.mjs",
+      "scope": "authority roster pages use opaque caller/scope/generation-bound keyset cursors"
     },
     {
       "id": "search",
@@ -80,12 +67,8 @@
     },
     {
       "id": "complete-product-ui",
-      "status": "implemented-local-partial",
-      "witnesses": [
-        "tests/acceptance/react-browser.mjs",
-        "tests/acceptance/contract-browser.mjs"
-      ],
-      "nonclaim": "the local React and Contract surfaces cover the admitted room, owner-removal, membership-scoped history, messaging, and unread kernel; hosted deployment and every still-red product pressure remain absent"
+      "status": "red",
+      "blocker": "generated references work through ordinary clients and generic hooks, but the existing React/Contract products are not migrated and dedicated per-profile hooks remain open"
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "id": "team-chat",
   "title": "Team Chat — LLP 0063 Step 6 pressure app",
-  "description": "A local non-claiming Slack/Discord-shaped kernel that exercises protected rooms, owner removal, membership changes, bounded recipient fan-out, unread state, membership-scoped room history, and revocation.",
+  "description": "A local non-claiming Slack/Discord-shaped kernel that exercises protected rooms, generated authority profiles, canonical roster reads, owner-scoped delivery, and revocation.",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
   "systems": ["Auth", "RBAC", "Codegen", "Storage", "Realtime", "Testing"],
@@ -12,6 +12,7 @@
     "membershipDeclarations": true,
     "membershipRuleHelpers": true,
     "generatedMembershipWrites": true,
+    "authorityProfiles": true,
     "standardPatterns": true,
     "liveSubscriptions": true
   },
@@ -32,13 +33,13 @@
   },
   "surfaces": {
     "headlessLocalPressure": {
-      "requirement": "required-local-nonclaim",
+      "requirement": "blocked-b2b",
       "buildTargets": [],
       "runner": "node demos/team-chat/tests/acceptance/headless.mjs",
       "toolchain": "node>=24, cargo"
     },
     "reactLocalProduct": {
-      "requirement": "required-local-nonclaim",
+      "requirement": "blocked-b2b",
       "buildTargets": [
         "bun run --cwd demos/team-chat/surfaces/react typecheck",
         "bun run --cwd demos/team-chat/surfaces/react build"
@@ -59,31 +60,18 @@
   "acceptanceChecks": {
     "headlessLocalPressure": [
       "room bootstrap atomically seats the owner",
-      "an invitation does not grant room visibility until self-accept",
-      "a 32-recipient message fan-out commits one message and one private inbox row per active participant",
-      "unread state is recipient-owned, live, and clearable by room",
-      "opaque keyset cursors page a recipient inbox without overlap",
-      "opaque membership-scoped cursors traverse three bounded room-history pages and refuse cross-user, cross-room, and stale use",
-      "owner removal drops the protected room, membership seat, history custody, send authority, and later delivery at one cut",
-      "self-leave revokes protected room reads and purges that room from the former member's inbox"
+      "the generated profile namespace contains exactly the transition-supported operations",
+      "list and myRole expose only their public projections while pending and unrelated principals remain non-enumerating",
+      "opaque roster keyset cursors page without overlap and refuse cross-scope or cross-caller use",
+      "invite, join, changeRole, transferOwner, remove, and leave expose committed transition receipts without private row ids",
+      "two concurrent owner transfers admit one winner and preserve exactly one owner",
+      "message delivery reads the canonical authority roster without crossing owner-write custody"
     ],
     "reactLocalProduct": [
-      "three independent authority windows boot through the official React adapter",
-      "room creation and invitation acceptance work through product forms",
-      "messages and recipient-owned unread state update live",
-      "the complete UI traverses three bounded room-history pages",
-      "owner removal blanks room, seat, history, send authority, and later delivery",
-      "self-leave revokes the room and re-invitation restores access without retained inbox rows",
-      "unrelated authority remains empty"
+      "deferred: migrate the prior React product to generated authority-profile references; generic hooks accept them, while dedicated per-profile hooks remain open"
     ],
     "contractLocalProduct": [
-      "three independent authority windows boot compiled Contract over generated data links",
-      "room creation and invitation acceptance work through compiled actions",
-      "messages and recipient-owned unread state update through push with polling fallback disabled",
-      "the complete UI traverses three bounded room-history pages",
-      "owner removal blanks room, seat, history, send authority, and later delivery",
-      "self-leave visibly locks the protected query before explicit navigation and re-invitation restores access without retained inbox rows",
-      "unrelated authority remains empty"
+      "deferred: migrate the prior Contract product to the generated authority-profile references"
     ]
   },
   "capabilityGaps": [
@@ -92,19 +80,20 @@
     "notification delivery",
     "moderation and audit under LLP 0071",
     "hosted auth and trusted-single-tenant operations under LLP 0072",
+    "migration of the React and Contract products to generated authority operations plus any dedicated per-profile hook design",
     "claim-eligible hosted React and Contract deployments",
     "a complete product UI for every still-red pressure"
   ],
   "capabilityGapsBoundary": {
     "status": "current-demo-scope",
-    "asOf": "2026-08-10",
+    "asOf": "2026-08-16",
     "authority": "guide/capabilities.md",
     "reason": "These entries describe red pressures outside this local checkpoint, not current platform GAP rows."
   },
   "notClaiming": [
     "STEP6.CHAT completion",
     "sessions-mode or hosted authentication",
-    "horizontal or multi-process fan-out",
-    "that displayable roomParticipants rows are an authorization source"
+    "cross-recipient, horizontal, or multi-process fan-out",
+    "dedicated per-profile React/Expo hooks or a current React/Contract product witness"
   ]
 }

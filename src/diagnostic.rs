@@ -158,6 +158,15 @@ pub struct SnapbackError {
     ///   existing observation seam without widening public diagnostics.
     #[serde(default, skip)]
     private_failure: Option<crate::error_tracking::PrivateFailureContextV1>,
+    /// Host-private reads that produced a refusal before a mutation could
+    /// enter the ordinary commit carrier. They never change public refusal
+    /// bytes; retaining them keeps the authorization witness available to the
+    /// transaction/runtime seam instead of discarding it on `Err`.
+    ///
+    /// @ref LLP 0056#invalidation-the-llp-0053-mapping — negative membership
+    ///   observations remain captured witnesses on denial paths.
+    #[serde(default, skip)]
+    captured_read_dependencies: Vec<crate::storage::CapturedReadDependency>,
 }
 
 impl SnapbackError {
@@ -166,6 +175,7 @@ impl SnapbackError {
             diagnostic,
             trusted_permission_denial: false,
             private_failure: None,
+            captured_read_dependencies: Vec::new(),
         }
     }
 
@@ -190,6 +200,7 @@ impl SnapbackError {
             diagnostic: Diagnostic::error("SNAPBACK_AUTH_PERMISSION_DENIED", "auth", message),
             trusted_permission_denial: true,
             private_failure: None,
+            captured_read_dependencies: Vec::new(),
         }
     }
 
@@ -231,6 +242,36 @@ impl SnapbackError {
         &mut self,
     ) -> Option<crate::error_tracking::PrivateFailureContextV1> {
         self.private_failure.take()
+    }
+
+    pub(crate) fn with_captured_read_dependencies(
+        mut self,
+        dependencies: impl IntoIterator<Item = crate::storage::CapturedReadDependency>,
+    ) -> Self {
+        self.captured_read_dependencies.extend(dependencies);
+        self
+    }
+
+    /// Finalize one invocation refusal at the runtime boundary. Intermediate
+    /// layers must only `?`-propagate the host-private carrier: they must never
+    /// drain dependencies into a local vector that is then dropped with the
+    /// error. This chokepoint first merges the carrier into the live invocation
+    /// read set, then reattaches that complete set so any outer boundary keeps
+    /// the same witness by construction.
+    ///
+    /// @ref LLP 0056#invalidation-the-llp-0053-mapping — empty membership
+    ///   observations are ordinary matcher dependencies on every outcome.
+    pub(crate) fn finalize_invocation_refusal(
+        mut self,
+        invocation_reads: &mut Vec<crate::storage::CapturedReadDependency>,
+    ) -> Self {
+        for dependency in self.captured_read_dependencies.drain(..) {
+            if !invocation_reads.contains(&dependency) {
+                invocation_reads.push(dependency);
+            }
+        }
+        self.captured_read_dependencies = invocation_reads.clone();
+        self
     }
 
     pub fn sqlite(error: rusqlite::Error) -> Self {

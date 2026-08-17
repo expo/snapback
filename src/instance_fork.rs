@@ -2329,9 +2329,8 @@ impl EgressFamily {
             // not a derived-fork egress effect.
             | "permissions.allowsRole"
             | "permissions.requireRole"
-            | "authorityProfile.list"
-            | "authorityProfile.myRole"
-            | "authorityProfile.transition" => None,
+            | "authority.list"
+            | "authority.myRole" => None,
             _ => Some(Self::UnclassifiedHostOperation),
         }
     }
@@ -6425,6 +6424,10 @@ mod tests {
         fork.deny_derived_fork_host_op("runtime.now", 45).unwrap();
         fork.deny_derived_fork_host_op("mutation.settlement", 45)
             .unwrap();
+        fork.deny_derived_fork_host_op("authority.list", 45)
+            .unwrap();
+        fork.deny_derived_fork_host_op("authority.myRole", 45)
+            .unwrap();
         drop(fork);
         // Every refusal above left a durable, payload-free marker.
         let conn = Connection::open(&database).unwrap();
@@ -6515,6 +6518,8 @@ mod tests {
             EgressFamily::for_derived_host_op("permissions.allowsRole"),
             None
         );
+        assert_eq!(EgressFamily::for_derived_host_op("authority.list"), None);
+        assert_eq!(EgressFamily::for_derived_host_op("authority.myRole"), None);
     }
 
     #[tokio::test]

@@ -2074,7 +2074,7 @@ order: 5
 audience: agent-first
 capabilities: [auth.scoped-roles, authority.profile.v1]
 authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
-examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.test.mjs]
+examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -2119,10 +2119,12 @@ membership row id or generic table access.
 | profile-backed owner change | generated `transferOwner`; atomic promotion plus caller demotion |
 | profile-backed roster read | generated paginated `list` and caller-only `myRole`; no generic roster read |
 
-Without an authority profile, invitations still need an app-data invitation
-plus self-addressed membership transition. With a profile, generated `invite`
-creates only a declared pending role and `join` resolves only the authenticated
-caller's pending row inside the host.
+Without an authority profile, keep invitations in an ordinary app-data table
+whose privacy policy fits the product, or use a membership `pendingRole` that
+the invitee can finish through a self-addressed transition. A profiled
+membership instead generates `invite` and `join` when those exact other-insert
+and pending-to-active self transitions exist. Neither path exposes a private
+membership row id.
 
 ## Declare one roster for an application resource
 
@@ -2270,62 +2272,57 @@ incomparable visibility edit still requires LLP 0234's remotely-prior,
 content-bound approval and exact-set ratchet—generation rotation records the
 change but does not approve it.
 
-<!-- since: 0.1.24 unreleased -->
-
-> **Unreleased.** The generated transition and paginated-roster surface is
-> newer than the newest published closure, 0.1.23.
+<!-- since: 0.1.23 -->
 
 The qualified local, app-table-owned profile composes with ordinary table
-visibility, named handler admission, and these generated references:
+visibility, named handler admission, and a transition-derived generated
+namespace. Every profile has the live references `api.roomAccess.list` and
+`api.roomAccess.myRole`. Depending on the closed membership transitions,
+codegen also emits only the supported subset of `invite`, `join`, `leave`,
+`changeRole`, and `remove`. `transferOwner` is present whenever the profile has
+an active non-owner role and demotes the caller to active `admin` when present,
+otherwise to the first active non-owner role in declared hierarchy order, so a
+`lastHolder`-protected owner cannot be stranded merely because the lattice
+lacks `admin`; owner-only profiles omit it because no valid caller successor
+exists. It is the only generated operation that can change an owner.
 
-| Reference | Present when | Arguments |
-| --- | --- | --- |
-| `api.roomAccess.list` | always | `{ scopeId, limit?, after? }` |
-| `api.roomAccess.myRole` | always | `{ scopeId }` |
-| `api.roomAccess.invite` | an other-target pending-role insert exists | `{ scopeId, principal, role }` |
-| `api.roomAccess.join` | one unambiguous pending-to-active self transition exists | `{ scopeId, invitation }` |
-| `api.roomAccess.leave` | a non-owner self remove exists | `{ scopeId }` |
-| `api.roomAccess.changeRole` | a non-owner other-target role transition exists | `{ scopeId, principal, role }` |
-| `api.roomAccess.transferOwner` | always | `{ scopeId, principal }` |
-| `api.roomAccess.remove` | a non-owner other-target remove exists | `{ scopeId, principal }` |
+`list` takes `{ scopeId, page?: { after?, limit? } }`. It returns a bounded
+page projected to exactly `roster.visible`; the normal query response carries
+the next AEAD-sealed `sbpc2` cursor. The encrypted cursor keeps the private
+role/principal/row boundary unreadable while binding the app, declaration,
+scope, ordering, profile generation, caller authority, and active artifacts.
+It cannot be moved between scopes, callers, orderings, generations, or
+deployments. `myRole` takes `{ scopeId }`
+and returns the caller's `{ role, status }` row. Admission happens before
+cursor parsing: an outsider receives the invariant role denial and cannot use
+malformed or copied cursors as an existence oracle.
 
-Unsupported transition operations are absent from the generated API. `list`
-returns one page record whose `rows` contain exactly `roster.visible` and whose
-`after` is an opaque, profile/scope-bound continuation or `null`; each page is
-at most 100 rows. `myRole` returns zero or one `{ role, status }` row. Both are
-live queries, blank to an unauthorized caller, and capture negative membership
-lookups so joining, removal, or a role change wakes delivery.
+Generated mutations take public scope/principal/role values and resolve any
+private row identity in the host-owned transaction. They return `null` as the
+handler value. Once the transaction commits, the mutation settlement includes
+`authorityTransitions`: one receipt per changed subject with public
+predecessor/successor role and status, subject, scope, and invalidation
+disposition. `transferOwner` produces two receipts from one atomic commit.
+Preview and failed/refused attempts never fabricate committed receipts.
 
-Every mutation rechecks the transition matrix inside the authoritative
-transaction and returns one or two receipts with predecessor, successor,
-subject, scope, and invalidation disposition. `transferOwner` is the only
-operation that can change owner state: it promotes one active non-owner and
-demotes the current owner to `admin` atomically. Last-owner protection also
-runs at the final commit boundary.
+The `generatedAuthorityOperation` marker is currently trusted as deployment
+content; activation does not yet recompute it from the synthesized operation
+implementation. That verification is the open
+[marker-activation hardening ticket](repo:issues/20260816-generated-authority-op-marker-activation-verification.md).
 
-Use the generated references through the ordinary client and React lifecycle:
+The generated profile facade never projects a raw membership row or its `_id`.
+That is a boundary of the generated operations, not a blanket `ctx.db` denial:
+authored reads remain governed by the table's required explicit visibility
+policy. Team Chat's reconciled post-LLP-0264 witness declares it on the new,
+restricted `roomMembersV2` table while retaining installed v1 policy records
+inert; the RBAC demo composes membership visibility from the same profile IR.
 
-```tsx fragment reason="component and profile names vary by application"
-const roster = useSnapbackQuery(api.roomAccess.list, {
-  scopeId: roomId,
-  limit: 50,
-});
-const invite = useSnapbackMutation(api.roomAccess.invite);
-const transferOwner = useSnapbackMutation(api.roomAccess.transferOwner, {
-  queue: false,
-});
-
-await invite({ scopeId: roomId, principal: userId, role: 'invited' });
-await transferOwner({ scopeId: roomId, principal: nextOwnerId });
-```
-
-Queue-capable mutations expose `useSnapbackOutbox().mutationStatus` through
-the same LLP 0238 lifecycle as other generated mutations. Owner transfer may
-be made connectivity-required, as above, when the UI must observe settlement
-before handing off owner-only controls.
-
-Composition with membership-visible search or asset sharing still fails
-generation with
+These generated references ride the ordinary client surface. For example,
+`useSnapbackQuery(api.roomAccess.list, { scopeId, page })` and
+`useSnapbackMutation(api.roomAccess.invite)` work like other generated
+references. Dedicated per-profile React/Expo lifecycle hooks in the shape of
+LLP 0238 are still open; none are implied by the generic hooks accepting these
+references. Composition with membership-visible search or asset sharing fails generation with
 `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets fail
 with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
 
@@ -2573,6 +2570,9 @@ unconsented wrapper.
 The generated TypeScript surface brands principals and resource ids, emits
 closed role unions and insert/patch values, exposes `GeneratedPermissions` to
 queries and mutations, and exposes `GeneratedMembership` only to mutations.
+For authority profiles it additionally types the nested operation references,
+projected `ctx.authority.<profile>.list`/`myRole` reads, profile mutation
+helpers, and durable `AuthorityTransitionReceiptV1` settlements.
 
 ### One generated membership command per mutation
 
@@ -2688,9 +2688,10 @@ coordinator transition.
   separate per-user app-data feed only when the product needs pending or
   denormalized rows that are not the protected resource itself.
 - **Do not design administrator promotion/removal around private membership
-  row ids.** A qualified profile generates principal-addressed `changeRole`
-  and `remove` only when its transition matrix permits them; otherwise use
-  app-data invitations plus a self transition.
+  row ids.** V1 intentionally does not make those ids reachable. Use the
+  transition-derived authority-profile operations when the declaration admits
+  them; otherwise use app-data invitations plus a self transition or choose a
+  flow that does not require administrator mutation of a private seat.
 - **Do not create an app-data roster-id mirror just to leave or accept.** Use
   the declaration's self-addressed write methods.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
@@ -2705,9 +2706,10 @@ coordinator transition.
   offline.** Neither has the transactional/lease proof required by v1.
 - **Do not mirror a profiled membership into a second product roster.** The
   app-owned membership table is both product roster and authority relation.
-- **Do not infer search or asset sharing from `authorityProfile()`.** Generated
-  roster/role operations and their ordinary client hooks are qualified, but
-  membership-visible search and assets remain explicit generation refusals.
+- **Do not infer unsupported operations from `authorityProfile()`.** A missing
+  membership transition means the corresponding mutation reference is absent,
+  not a runtime no-op. React/Expo hooks, search sharing, asset sharing, hosted
+  profiles, and protected offline retention are still outside this surface.
 
 ---
 

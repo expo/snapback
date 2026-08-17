@@ -171,6 +171,19 @@ try {
   ));
   const validateLifecycle = new Ajv2020({ strict: false }).compile(lifecycleSchema);
   assert.equal(validateLifecycle(lifecycle), true, JSON.stringify(validateLifecycle.errors));
+  for (const [field, malformed] of [
+    ['referenceKinds', [{}]],
+    ['mutationSettlement', { bogus: true }],
+    ['operations', [{}]],
+  ]) {
+    const candidate = structuredClone(lifecycle);
+    candidate[field] = malformed;
+    assert.equal(
+      validateLifecycle(candidate),
+      false,
+      `${field} entries without the emitted closed shape must be refused`,
+    );
+  }
   assert.equal(lifecycle.schemaVersion, 'snapback.client-lifecycle.v1');
   assert.deepEqual(Object.keys(lifecycle.rows), [
     'anchors',
@@ -661,18 +674,7 @@ void directMutationWithoutImage; void commandWithRequiredImage; void commandWith
     'SNAPBACK_APP_DESCRIPTOR_BUDGET_EXCEEDED',
   ));
 
-  const insertionVariant = {
-    surfaces: descriptor.surfaces,
-    identity: descriptor.identity,
-    commands: descriptor.commands,
-    format: descriptor.format,
-    capabilities: descriptor.capabilities,
-    api: descriptor.api,
-    authoringProfile: descriptor.authoringProfile,
-    ...(descriptor.authBootstrap === undefined
-      ? {}
-      : { authBootstrap: descriptor.authBootstrap }),
-  };
+  const insertionVariant = Object.fromEntries(Object.entries(descriptor).reverse());
   assert.equal(
     canonicalizeAppDescriptorV1(insertionVariant),
     canonicalizeAppDescriptorV1(descriptor),

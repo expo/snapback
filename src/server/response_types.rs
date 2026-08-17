@@ -78,6 +78,12 @@ pub struct MutationResponse {
     pub version: u64,
     pub changed_count: usize,
     pub result: Value,
+    #[serde(
+        default,
+        rename = "authorityTransitions",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub authority_transitions: Vec<crate::storage::AuthorityTransitionReceiptV1>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ctx_ledger: Option<CtxAnswerLedger>,
     /// The exact server-derived authority cohort that owns this settlement.
@@ -242,6 +248,7 @@ impl MutationResponse {
             version,
             changed_count,
             result,
+            authority_transitions,
             ctx_ledger,
             settlement_mint_observations: _,
             settlement_time_observation: _,
@@ -251,6 +258,7 @@ impl MutationResponse {
             version,
             changed_count,
             result,
+            authority_transitions,
             ctx_ledger,
             authority_descriptor,
             receipt,

@@ -639,11 +639,11 @@ export function buildWritePolicyChecks({
       // authority-profile host seam. They are not generic ctx.db writers and
       // must not inherit the ordinary owner-write classifier merely because
       // their exact authority-table effects are declared in the manifest.
-      if (sourceFn.authorityProfileOperation !== undefined) {
+      if (sourceFn.generatedAuthorityOperation !== undefined) {
         if (census.opaque || census.sites.length > 0) {
           refusal(err, 'SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE', fn.name,
             'generated authority-profile operations cannot contain generic ctx.db writes',
-            { authorityProfileOperation: sourceFn.authorityProfileOperation });
+            { generatedAuthorityOperation: sourceFn.generatedAuthorityOperation });
         }
         continue;
       }

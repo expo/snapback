@@ -18,6 +18,11 @@ use std::path::{Path, PathBuf};
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use chacha20poly1305::{
+    XChaCha20Poly1305, XNonce,
+    aead::{Aead, KeyInit, Payload},
+};
+use hkdf::Hkdf;
 use hmac::{Hmac, Mac as _};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -115,6 +120,14 @@ pub mod refusal {
 /// Standard-pattern cursor wire prefix (LLP 0065: opaque and versioned).
 pub const STANDARD_PATTERN_CURSOR_WIRE_PREFIX: &str = "sbpc1";
 const STANDARD_PATTERN_CURSOR_MAC_DOMAIN: &str = "snapback.standard-pattern-cursor.v1";
+/// Confidential standard-pattern cursor prefix. Authority-roster cursors use
+/// this envelope because their keyset boundary contains host-private member
+/// ids and authority fields, not merely an opaque continuation identity.
+// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — generated
+// roster pagination must keep the canonical membership row boundary private.
+pub const SEALED_STANDARD_PATTERN_CURSOR_WIRE_PREFIX: &str = "sbpc2";
+const SEALED_STANDARD_PATTERN_CURSOR_PURPOSE: &[u8] =
+    b"snapback:standard-pattern-cursor:xchacha20:v2";
 
 /// The opaque `defineOwnedKeysetPages` continuation body. `binding` folds
 /// the app, the plan identity (function id, helper, profile, direction,
@@ -138,7 +151,8 @@ fn standard_pattern_cursor_mac(
     key_id: &str,
     body: &StandardPatternCursorBody,
 ) -> HmacSha256 {
-    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any key length");
+    let mut mac =
+        <HmacSha256 as hmac::Mac>::new_from_slice(key).expect("HMAC accepts any key length");
     put_string(&mut mac, STANDARD_PATTERN_CURSOR_MAC_DOMAIN);
     put_string(&mut mac, key_id);
     put_string(&mut mac, &body.app);
@@ -211,6 +225,102 @@ pub fn decode_and_verify_standard_pattern_cursor(
     standard_pattern_cursor_mac(key.secret.as_ref(), key_id, &body)
         .verify_slice(&mac_bytes)
         .map_err(|_| REFUSED)?;
+    if body.issued_at > now_ms || now_ms - body.issued_at > max_age_ms {
+        return Err(REFUSED);
+    }
+    Ok(body)
+}
+
+fn sealed_standard_pattern_cursor_key(root: &[u8], key_id: &str) -> Option<[u8; 32]> {
+    let hkdf = Hkdf::<Sha256>::new(Some(SEALED_STANDARD_PATTERN_CURSOR_PURPOSE), root);
+    let mut key = [0_u8; 32];
+    hkdf.expand(key_id.as_bytes(), &mut key).ok()?;
+    Some(key)
+}
+
+fn sealed_standard_pattern_cursor_aad(key_id: &str) -> Vec<u8> {
+    let mut aad = SEALED_STANDARD_PATTERN_CURSOR_PURPOSE.to_vec();
+    aad.extend_from_slice(&(SEALED_STANDARD_PATTERN_CURSOR_WIRE_PREFIX.len() as u32).to_be_bytes());
+    aad.extend_from_slice(SEALED_STANDARD_PATTERN_CURSOR_WIRE_PREFIX.as_bytes());
+    aad.extend_from_slice(&(key_id.len() as u32).to_be_bytes());
+    aad.extend_from_slice(key_id.as_bytes());
+    aad
+}
+
+/// Mint an AEAD-sealed standard-pattern cursor. The keyset body is encrypted
+/// as well as authenticated so private boundary fields never become a
+/// base64-decoding side channel.
+pub fn mint_sealed_standard_pattern_cursor(
+    root: &[u8],
+    key_id: &str,
+    body: &StandardPatternCursorBody,
+) -> Option<String> {
+    jcs(&body.boundary).ok()?;
+    let key = sealed_standard_pattern_cursor_key(root, key_id)?;
+    let cipher = XChaCha20Poly1305::new((&key).into());
+    let plaintext = serde_json::to_vec(body).ok()?;
+    let mut nonce = [0_u8; 24];
+    getrandom::fill(&mut nonce).ok()?;
+    let ciphertext = cipher
+        .encrypt(
+            XNonce::from_slice(&nonce),
+            Payload {
+                msg: &plaintext,
+                aad: &sealed_standard_pattern_cursor_aad(key_id),
+            },
+        )
+        .ok()?;
+    let mut payload = nonce.to_vec();
+    payload.extend_from_slice(&ciphertext);
+    let wire = format!(
+        "{SEALED_STANDARD_PATTERN_CURSOR_WIRE_PREFIX}.{key_id}.{}",
+        URL_SAFE_NO_PAD.encode(payload)
+    );
+    (wire.len() <= RELATIONAL_CURSOR_MAX_WIRE_BYTES).then_some(wire)
+}
+
+/// Decode an AEAD-sealed standard-pattern cursor. Every parser, key, AEAD,
+/// shape, and age failure collapses to the same cause-free refusal.
+pub fn decode_and_verify_sealed_standard_pattern_cursor(
+    token_wire: &str,
+    keyring: &ResumeKeyring,
+    now_ms: u64,
+    max_age_ms: u64,
+) -> Result<StandardPatternCursorBody, RelationalCursorRefusal> {
+    const REFUSED: RelationalCursorRefusal = RelationalCursorRefusal;
+    if token_wire.len() > RELATIONAL_CURSOR_MAX_WIRE_BYTES {
+        return Err(REFUSED);
+    }
+    let mut parts = token_wire.split('.');
+    let (Some(prefix), Some(key_id), Some(payload_part), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        return Err(REFUSED);
+    };
+    if prefix != SEALED_STANDARD_PATTERN_CURSOR_WIRE_PREFIX || ResumeKeyId::parse(key_id).is_err() {
+        return Err(REFUSED);
+    }
+    let payload = URL_SAFE_NO_PAD.decode(payload_part).map_err(|_| REFUSED)?;
+    if payload.len() < 24 + 16 {
+        return Err(REFUSED);
+    }
+    let key = keyring
+        .verification_key(key_id, now_ms)
+        .map_err(|_| REFUSED)?;
+    let derived = sealed_standard_pattern_cursor_key(key.secret.as_ref(), key_id).ok_or(REFUSED)?;
+    let cipher = XChaCha20Poly1305::new((&derived).into());
+    let (nonce, ciphertext) = payload.split_at(24);
+    let plaintext = cipher
+        .decrypt(
+            XNonce::from_slice(nonce),
+            Payload {
+                msg: ciphertext,
+                aad: &sealed_standard_pattern_cursor_aad(key_id),
+            },
+        )
+        .map_err(|_| REFUSED)?;
+    let body: StandardPatternCursorBody =
+        serde_json::from_slice(&plaintext).map_err(|_| REFUSED)?;
     if body.issued_at > now_ms || now_ms - body.issued_at > max_age_ms {
         return Err(REFUSED);
     }
@@ -680,7 +790,8 @@ fn put_optional_string(mac: &mut HmacSha256, value: Option<&str>) {
 /// never `bodyBytes`, so JSON serialization ambiguity cannot widen the
 /// forgery surface. `keyId` is outside the body but inside the transcript.
 fn token_mac(key: &[u8], key_id: &str, body: &ResumeTokenBody) -> HmacSha256 {
-    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any key length");
+    let mut mac =
+        <HmacSha256 as hmac::Mac>::new_from_slice(key).expect("HMAC accepts any key length");
     put_string(&mut mac, MAC_DOMAIN);
     put_string(&mut mac, key_id);
     put_string(&mut mac, &body.app);
@@ -739,7 +850,8 @@ pub struct RelationalCursorBody {
 }
 
 fn relational_cursor_mac(key: &[u8], key_id: &str, body: &RelationalCursorBody) -> HmacSha256 {
-    let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts any key length");
+    let mut mac =
+        <HmacSha256 as hmac::Mac>::new_from_slice(key).expect("HMAC accepts any key length");
     put_string(&mut mac, RELATIONAL_CURSOR_MAC_DOMAIN);
     put_string(&mut mac, key_id);
     put_string(&mut mac, &body.app);
@@ -1301,6 +1413,60 @@ pub fn decode_and_verify(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn sealed_standard_pattern_cursor_round_trips_without_decodable_private_boundary() {
+        const NOW: u64 = 10_000;
+        const PRIVATE_ID: &str = "roommembers_01k9m4x7p2q8we5rt3yu6a10s";
+        let ring = ResumeKeyring::in_memory(NOW);
+        let (key_id, key) = ring.active_current().expect("active cursor root");
+        let body = StandardPatternCursorBody {
+            app: "team-chat".to_owned(),
+            binding: "sha256:authority-binding".to_owned(),
+            boundary: json!({
+                "entries": [["role", "owner"], ["userId", "user_owner"]],
+                "id": PRIVATE_ID,
+            }),
+            issued_at: NOW,
+        };
+        let wire = mint_sealed_standard_pattern_cursor(key.as_ref(), &key_id, &body)
+            .expect("seal authority cursor");
+        let parts = wire.split('.').collect::<Vec<_>>();
+        assert_eq!(parts.len(), 3);
+        assert_eq!(parts[0], SEALED_STANDARD_PATTERN_CURSOR_WIRE_PREFIX);
+        let decoded_payload = URL_SAFE_NO_PAD.decode(parts[2]).expect("base64 payload");
+        for private in [PRIVATE_ID, "user_owner"] {
+            assert_ne!(
+                decoded_payload.as_slice(),
+                private.as_bytes(),
+                "cursor payload exactly exposed {private}"
+            );
+        }
+        assert!(serde_json::from_slice::<Value>(&decoded_payload).is_err());
+        assert_eq!(
+            decode_and_verify_sealed_standard_pattern_cursor(
+                &wire,
+                &ring,
+                NOW + 1,
+                RELATIONAL_CURSOR_MAX_AGE_MS,
+            )
+            .expect("open authority cursor"),
+            body,
+        );
+
+        let mut tampered = wire.into_bytes();
+        let last = tampered.last_mut().expect("wire byte");
+        *last = if *last == b'A' { b'B' } else { b'A' };
+        assert!(
+            decode_and_verify_sealed_standard_pattern_cursor(
+                &String::from_utf8(tampered).expect("ASCII wire"),
+                &ring,
+                NOW + 1,
+                RELATIONAL_CURSOR_MAX_AGE_MS,
+            )
+            .is_err()
+        );
+    }
 
     // The hand-rolled resumable SHA-256 core must be byte-identical to
     // `sha2::Sha256` — over the NIST vectors, odd chunkings, and

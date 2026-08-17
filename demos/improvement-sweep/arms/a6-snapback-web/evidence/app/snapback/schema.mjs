@@ -26,12 +26,20 @@ export const orgMembers = defineTable({
     { op: 'insert', by: ['none'], target: 'self', to: ['dispatcher', 'operator'] },
     { op: 'remove', by: ['self'], target: 'self', from: ['dispatcher', 'operator'] },
   ],
+}).visibility({
+  kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+  roles: ['dispatcher', 'operator'],
 });
 
 const schema = defineSchema({
   orgs: defineTable({
     name: v.string(),
-  }).sync(),
+  })
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: '_id',
+      roles: ['dispatcher', 'operator'],
+    })
+    .sync(),
 
   invites: defineTable({
     orgId: v.id('orgs'),
@@ -42,6 +50,10 @@ const schema = defineSchema({
   })
     .index('by_code', ['code'], { unique: true })
     .index('by_org', ['orgId'])
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   customers: defineTable({
@@ -52,6 +64,10 @@ const schema = defineSchema({
   })
     .index('by_org', ['orgId'])
     .index('by_org_name', ['orgId', 'name'], { unique: true })
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   // Job state machine:
@@ -84,6 +100,10 @@ const schema = defineSchema({
     .index('by_org', ['orgId'])
     .index('by_org_seq', ['orgId', 'seq'], { unique: true })
     .index('by_org_dedupe', ['orgId', 'dedupeKey'], { unique: true })
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   jobSteps: defineTable({
@@ -98,6 +118,10 @@ const schema = defineSchema({
     .index('by_job', ['jobId'])
     .index('by_job_seq', ['jobId', 'seq'], { unique: true })
     .index('by_org', ['orgId'])
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   // Workflow audit trail: append-only activity rows for every transition.
@@ -112,6 +136,10 @@ const schema = defineSchema({
   })
     .index('by_job_seq', ['jobId', 'seq'], { unique: true })
     .index('by_org', ['orgId'])
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   // Append-only attempt receipts: claim, release, retry-claim, timeout,
@@ -129,6 +157,10 @@ const schema = defineSchema({
   })
     .index('by_job_seq', ['jobId', 'seq'], { unique: true })
     .index('by_org', ['orgId'])
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   // External dispatch settlement ledger (idempotent by dedupeKey).
@@ -145,6 +177,10 @@ const schema = defineSchema({
   })
     .index('by_dedupe', ['dedupeKey'], { unique: true })
     .index('by_org', ['orgId'])
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   dispatchSettings: defineTable({
@@ -153,6 +189,10 @@ const schema = defineSchema({
     updatedAt: v.integer(),
   })
     .index('by_org', ['orgId'], { unique: true })
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher'],
+    })
     .sync(),
 
   // Recurring maintenance receipts (cron everyMs; deterministic ticks in
@@ -168,6 +208,10 @@ const schema = defineSchema({
   })
     .index('by_dedupe', ['dedupeKey'], { unique: true })
     .index('by_org', ['orgId'])
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   // One-off scheduled follow-up run receipts (jobs_one_off_v1 drain lands
@@ -182,6 +226,10 @@ const schema = defineSchema({
   })
     .index('by_dedupe', ['dedupeKey'], { unique: true })
     .index('by_org', ['orgId'])
+    .visibility({
+      kind: 'membership', declaration: 'orgMembers', resourceField: 'orgId',
+      roles: ['dispatcher', 'operator'],
+    })
     .sync(),
 
   orgMembers,

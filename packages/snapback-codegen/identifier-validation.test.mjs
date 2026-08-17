@@ -20,7 +20,9 @@ const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'd
 const defaultSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  todos: defineTable({ title: v.string(), completed: v.boolean() }).sync(),
+  todos: defineTable({ title: v.string(), completed: v.boolean() })
+    .visibility({ kind: 'public-read' })
+    .sync(),
 });
 `;
 
@@ -148,7 +150,7 @@ assertRejected(
     schemaSource: `
 import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '${defineUrl}';
 export default defineSchema(
-  { todos: defineTable({ title: v.string(), completed: v.boolean() }).sync() },
+  { todos: defineTable({ title: v.string(), completed: v.boolean() }).visibility({ kind: 'public-read' }).sync() },
   {
     ephemeral: defineEphemeral({
       cursors: ephemeral.collection({
@@ -175,7 +177,7 @@ assertRejected(
     schemaSource: `
 import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '${defineUrl}';
 export default defineSchema(
-  { todos: defineTable({ title: v.string(), completed: v.boolean() }).sync() },
+  { todos: defineTable({ title: v.string(), completed: v.boolean() }).visibility({ kind: 'public-read' }).sync() },
   { ephemeral: defineEphemeral({
     cursors: ephemeral.collection({
       scope: { roomId: v.string() }, value: v.string(), ttlMs: 1000,
@@ -204,7 +206,7 @@ const collection = () => ephemeral.collection({
   publish: allow.all(), subscribe: allow.all(),
 });
 export default defineSchema(
-  { todos: defineTable({ title: v.string(), completed: v.boolean() }).sync() },
+  { todos: defineTable({ title: v.string(), completed: v.boolean() }).visibility({ kind: 'public-read' }).sync() },
   { ephemeral: defineEphemeral({ cursors: collection(), cursorsPublish: collection() }) },
 );
 `,

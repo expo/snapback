@@ -1334,7 +1334,7 @@ impl IbexActionHost for DetachedActionHost {
                         FunctionRuntime::IbexModule(module) => module,
                         _ => unreachable!("detached nested mutation must be an Ibex module"),
                     };
-                    let executed = crate::runtime::with_runtime_log_telemetry(
+                    let mut executed = crate::runtime::with_runtime_log_telemetry(
                         telemetry.clone(),
                         correlation,
                         || match read {
@@ -1367,7 +1367,7 @@ impl IbexActionHost for DetachedActionHost {
                         name,
                         &input,
                         &binding,
-                        &executed,
+                        &mut executed,
                         host_identity.as_ref(),
                     )?;
                     let snapshot = snapback.authorization_reservation_snapshot()?;

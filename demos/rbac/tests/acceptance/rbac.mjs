@@ -209,6 +209,7 @@ async function drainLive(live) {
 }
 
 const messages = (live) => live.rows.map(({ message }) => message);
+const authorityTransitions = (output) => output.authorityTransitions ?? [];
 
 async function waitForMessages(live, expected, label) {
   const deadline = Date.now() + OPERATION_TIMEOUT_MS;
@@ -343,6 +344,19 @@ try {
   });
   const appId = createdApp.result;
   assert.equal(typeof appId, 'string', 'atomic bootstrap returns the application id');
+  const initialRoster = await alice.client.query('appAccess.list', {
+    args: { scopeId: appId, page: { limit: 1 } },
+  });
+  assert.deepEqual(
+    initialRoster.rows.map(({ userId, role }) => ({ userId, role })),
+    [{ userId: alice.credential.session.userId, role: 'owner' }],
+    'generated list projects the bootstrapped owner',
+  );
+  assert.deepEqual(
+    (await alice.client.query('appAccess.myRole', { args: { scopeId: appId } })).rows,
+    [{ role: 'owner', status: 'active' }],
+    'generated myRole projects the authenticated owner',
+  );
   await alice.client.mutate('postAnnouncement', {
     args: { appId, message: 'members only' },
   });
@@ -456,11 +470,19 @@ try {
   const invite = await alice.client.mutate('appAccess.invite', {
     args: { scopeId: appId, principal: bobUserId, role: 'invited' },
   });
-  assert.deepEqual(invite.result[0].successor, { role: 'invited', status: 'invited' });
+  assert.equal(invite.result, null);
+  assert.deepEqual(
+    authorityTransitions(invite)[0].successor,
+    { role: 'invited', status: 'invited' },
+  );
   const joined = await bob.client.mutate('appAccess.join', {
-    args: { scopeId: appId, invitation: 'invited' },
+    args: { scopeId: appId, invitation: 'member' },
   });
-  assert.deepEqual(joined.result[0].successor, { role: 'member', status: 'active' });
+  assert.equal(joined.result, null);
+  assert.deepEqual(
+    authorityTransitions(joined)[0].successor,
+    { role: 'member', status: 'active' },
+  );
   // The committed self-accept response is the exact boundary after which Bob may
   // become visible; every frame drained before it was checked as empty.
   bobLive.forbidVisibleRows = false;
@@ -475,6 +497,25 @@ try {
   );
   await drainLive(eveLive);
   assert.deepEqual(eveLive.rows, [], 'Bob membership invalidation crossed into Eve live state');
+
+  const transferred = await alice.client.mutate('appAccess.transferOwner', {
+    args: { scopeId: appId, principal: bobUserId },
+  });
+  assert.equal(transferred.result, null);
+  assert.deepEqual(
+    new Set(authorityTransitions(transferred).map(({ subject }) => subject)),
+    new Set([alice.credential.session.userId, bobUserId]),
+    'owner transfer receipts cover both changed subjects',
+  );
+  assert.deepEqual(
+    (await bob.client.query('appAccess.myRole', { args: { scopeId: appId } })).rows,
+    [{ role: 'owner', status: 'active' }],
+    'transferOwner promotes the target',
+  );
+  const transferredBack = await bob.client.mutate('appAccess.transferOwner', {
+    args: { scopeId: appId, principal: alice.credential.session.userId },
+  });
+  assert.equal(authorityTransitions(transferredBack).length, 2);
 
   await bob.client.mutate('postAnnouncement', {
     args: { appId, message: 'hello from bob' },
@@ -504,7 +545,8 @@ try {
 
   const bobInvalidationsBeforeLeave = bobLive.authorizationInvalidations;
   const leave = await bob.client.mutate('appAccess.leave', { args: { scopeId: appId } });
-  assert.equal(leave.result[0].successor, null);
+  assert.equal(leave.result, null);
+  assert.equal(authorityTransitions(leave)[0].successor, null);
   bobLive.forbidVisibleRows = true;
   await waitForMessages(bobLive, [], 'Bob self-leave did not revoke his live rows');
   assert(

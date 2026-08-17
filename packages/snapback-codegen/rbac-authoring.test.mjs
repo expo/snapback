@@ -1,15 +1,203 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate } from './index.mjs';
+import { canonicalJson } from './result-contracts.mjs';
 
 const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')).href;
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const dirs = [];
+
+const reviewedGenerationConsumerFileAllowlist = [
+  'src/membership_rules.rs',
+  'src/runtime.rs',
+  'src/storage/membership_plans.rs',
+  'src/storage/auth_agents.rs',
+  'src/storage.rs',
+];
+
+// Swept receiver binding list across the five reviewed files: membership data
+// is bound as `membership` or `declaration`, and profile data as `profile`.
+// `manifest` is the reviewer-demonstrated typed alias; scoped binding proof
+// keeps unrelated schema and ledger manifests outside this authority scan.
+const reviewedGenerationConsumerReceiverRoots = new Map([
+  ['membership', 'membership'],
+  ['declaration', 'membership'],
+  ['manifest', 'membership'],
+  ['profile', 'profile'],
+]);
+const scopedGenerationConsumerReceiverRoots = new Set(['declaration', 'manifest']);
+
+const rustCodeOnly = (source) => source
+  .replace(/r(#+)"[\s\S]*?"\1/gu, ' ')
+  .replace(/r"[^"\n]*"/gu, ' ')
+  .replace(/b?"(?:\\.|[^"\\])*"/gsu, ' ')
+  .replace(/'(?:\\.|[^'\\])'/gu, ' ')
+  .replace(/\/\*[\s\S]*?\*\//gu, ' ')
+  .replace(/\/\/.*$/gmu, ' ');
+
+const rustFieldToJson = (field) => field.replace(/_([a-z])/gu, (_match, letter) => letter.toUpperCase());
+
+const rustBraceRanges = (code) => {
+  const stack = [];
+  const ranges = [];
+  for (let index = 0; index < code.length; index += 1) {
+    if (code[index] === '{') stack.push(index);
+    if (code[index] === '}') {
+      const start = stack.pop();
+      if (start !== undefined) ranges.push({ start, end: index });
+    }
+  }
+  return ranges.sort((left, right) => left.start - right.start);
+};
+
+const generationConsumerBindingRanges = (code) => {
+  const braceRanges = rustBraceRanges(code);
+  const bindings = [];
+  const receiverPattern = [...reviewedGenerationConsumerReceiverRoots.keys()].join('|');
+  const typedBindingPattern = new RegExp(
+    `\\b(${receiverPattern})\\s*:\\s*&\\s*(?:'[a-z_][a-z0-9_]*\\s+)?(?:mut\\s+)?(?:crate\\s*::\\s*manifest\\s*::\\s*)?(MembershipManifest|AuthorityProfileV1)\\b`,
+    'gu',
+  );
+  for (const match of code.matchAll(typedBindingPattern)) {
+    const body = braceRanges.find(({ start }) => start > match.index);
+    if (body === undefined) continue;
+    bindings.push({
+      root: match[1],
+      kind: match[2] === 'MembershipManifest' ? 'membership' : 'profile',
+      start: body.start,
+      end: body.end,
+    });
+  }
+
+  const declarationAliasPattern = /\blet\s+Some\s*\(\s*\(\s*[a-z_][a-z0-9_]*\s*,\s*(declaration)\s*\)\s*\)\s*=\s*(?:(?:[a-z_][a-z0-9_]*\s*::\s*)*)find_declaration\s*\(/gu;
+  for (const match of code.matchAll(declarationAliasPattern)) {
+    const scope = braceRanges
+      .filter(({ start, end }) => start < match.index && match.index < end)
+      .at(-1);
+    if (scope === undefined) continue;
+    bindings.push({ root: match[1], kind: 'membership', start: match.index, end: scope.end });
+  }
+  return bindings;
+};
+
+const generationConsumerKindForAccess = (bindings, root, index) => {
+  if (!scopedGenerationConsumerReceiverRoots.has(root)) {
+    return reviewedGenerationConsumerReceiverRoots.get(root) ?? null;
+  }
+  const binding = bindings
+    .filter((candidate) => candidate.root === root && candidate.start <= index && index <= candidate.end)
+    .sort((left, right) => right.start - left.start)[0];
+  return binding?.kind ?? null;
+};
+
+const scanGenerationConsumerAccesses = (source) => {
+  const code = rustCodeOnly(source);
+  const accesses = new Set();
+  const bindings = generationConsumerBindingRanges(code);
+  const receiverPattern = [...reviewedGenerationConsumerReceiverRoots.keys()].join('|');
+  const accessPattern = new RegExp(
+    `\\b(${receiverPattern})((?:\\s*\\.\\s*[a-z_][a-z0-9_]*)+)`,
+    'gu',
+  );
+  for (const match of code.matchAll(accessPattern)) {
+    const root = match[1];
+    const fields = [...match[2].matchAll(/\.\s*([a-z_][a-z0-9_]*)/gu)]
+      .map((fieldMatch) => fieldMatch[1]);
+    const lastSegmentIsMethod = /^\s*\(/u.test(code.slice(match.index + match[0].length));
+    const [field] = fields;
+    const consumerKind = generationConsumerKindForAccess(bindings, root, match.index);
+    if (consumerKind === null) continue;
+    if (consumerKind === 'membership') {
+      if (lastSegmentIsMethod && fields.length === 1 && field === 'effective_id') {
+        accesses.add('membership.id');
+      } else if (lastSegmentIsMethod && fields.length === 1 && field === 'vocabulary') {
+        accesses.add('membership.roles');
+        accesses.add('membership.pending_roles');
+      } else if (fields.length > 1 || !lastSegmentIsMethod) {
+        accesses.add(`membership.${field}`);
+      }
+      continue;
+    }
+    const profileFields = lastSegmentIsMethod ? fields.slice(0, -1) : fields;
+    if (profileFields.length > 0) {
+      accesses.add(`profile.${profileFields.map(rustFieldToJson).join('.')}`);
+    }
+  }
+  // `TableManifest::field_affects_authorization` implements membership-table
+  // narrowing through MembershipManifest::incidental. Keep this accessor
+  // idiom visible even though the call site does not spell `membership`.
+  if (/\btable\s*\.\s*field_affects_authorization\s*\(/u.test(code)) {
+    accesses.add('membership.incidental');
+  }
+  return accesses;
+};
+
+const scanReviewedGenerationConsumerFiles = (sourceOverrides = new Map()) => {
+  const accesses = new Set();
+  for (const file of reviewedGenerationConsumerFileAllowlist) {
+    const source = sourceOverrides.get(file) ?? readFileSync(join(repoRoot, file), 'utf8');
+    for (const access of scanGenerationConsumerAccesses(source)) accesses.add(access);
+  }
+  return accesses;
+};
+
+const canonicalObjectPaths = (value, prefix = '', paths = new Set()) => {
+  if (value === null || typeof value !== 'object') return paths;
+  for (const [key, child] of Object.entries(value)) {
+    const path = prefix === '' ? key : `${prefix}.${key}`;
+    paths.add(path);
+    if (Array.isArray(child)) {
+      for (const entry of child) canonicalObjectPaths(entry, path, paths);
+    } else {
+      canonicalObjectPaths(child, path, paths);
+    }
+  }
+  return paths;
+};
+
+const generationHashBindingsForMembershipAccess = new Map([
+  ['membership.id', ['transitionPreconditions.membershipDeclarationId']],
+  ['membership.scope', ['scopeRelation']],
+  ['membership.principal', ['scopeRelation.principalKey']],
+  ['membership.resource', ['scopeRelation.resourceField']],
+  ['membership.resource_table', ['scopeRelation.resourceTable']],
+  ['membership.role', ['requiredIndexes']],
+  ['membership.roles', ['roleLattice']],
+  ['membership.pending_roles', ['statusPredicates.invited']],
+  ['membership.bootstrap_role', ['ownerBootstrapInvariant.bootstrapRole']],
+  ['membership.last_holder', ['ownerBootstrapInvariant.protectedLastHolderRole']],
+  ['membership.transitions', ['transitionPreconditions.matrix']],
+  ['membership.expiry', ['transitionPreconditions.expiryPresent']],
+  ['membership.principal_addressed_writes', ['transitionPreconditions.principalAddressedWritesRemove']],
+  ['membership.provenance', ['transitionPreconditions.provenance']],
+  ['membership.incidental', ['authorizationEventFields']],
+]);
+
+const uncoveredGenerationConsumerAccesses = (accesses, generationPreimage) => {
+  const hashedPaths = canonicalObjectPaths(generationPreimage);
+  return [...accesses].sort().filter((access) => {
+    // `generation` is the digest produced from the preimage, not an input that
+    // can be included in its own preimage.
+    if (access === 'profile.generation') return false;
+    const boundPaths = access.startsWith('profile.')
+      ? [access.slice('profile.'.length)]
+      : generationHashBindingsForMembershipAccess.get(access);
+    return boundPaths === undefined || boundPaths.some((path) => !hashedPaths.has(path));
+  });
+};
+
+const assertGenerationConsumerAccessesCovered = (accesses, generationPreimage) => assert.deepEqual(
+  uncoveredGenerationConsumerAccesses(accesses, generationPreimage),
+  [],
+  'a runtime authority consumer reads a field outside the generation hash — embed it before landing.',
+);
+
 const membershipValidationParity = JSON.parse(readFileSync(
   join(repoRoot, 'tests/fixtures/membership-validation-parity-v0.json'),
   'utf8',
@@ -323,6 +511,8 @@ const authorityProfileSchema = ({
   bootstrapRole = 'owner',
   consumerVisibility = true,
   duplicateProfile = false,
+  expiryField = false,
+  expiryPresent = false,
   hierarchy = "{ owner: ['admin', 'member'], admin: ['member'], member: [] }",
   indexName = null,
   lastHolderProtect = 'owner',
@@ -331,10 +521,12 @@ const authorityProfileSchema = ({
   membershipMutation = '',
   omitMembershipId = false,
   pendingRoles = ['invited'],
+  principalAddressedWritesRemove = null,
   principalValidator = 'v.principal()',
   profileBeforeMembership = false,
   profileExtra = '',
   profileName = 'eventMembers',
+  provenance = 'full',
   resourceValidator = "v.id('events')",
   roleField = 'role',
   roles = ['owner', 'admin', 'member'],
@@ -357,7 +549,11 @@ const authorityProfileSchema = ({
     pendingRoles: ${JSON.stringify(pendingRoles)},
     bootstrapRole: ${JSON.stringify(bootstrapRole)},
     lastHolder: { protect: ${JSON.stringify(lastHolderProtect)} },
-    provenance: 'full',
+    ${expiryPresent ? "expiry: { field: 'expiresAt', onExpiry: 'remove' }," : ''}
+    provenance: ${JSON.stringify(provenance)},
+    ${principalAddressedWritesRemove === null
+      ? ''
+      : `principalAddressedWrites: { remove: ${JSON.stringify(principalAddressedWritesRemove)} },`}
     transitions: ${JSON.stringify(transitions)},
   })`;
   const searchIndex = unsupportedComposition === 'search'
@@ -395,6 +591,7 @@ const eventMembersBase = defineTable({
   userId: ${principalValidator},
   ${roleField}: v.string(),
   displayName: v.optional(v.string()),
+  ${expiryField || expiryPresent ? 'expiresAt: v.optional(v.integer()),' : ''}
 })${indexName === null ? '' : `.index(${JSON.stringify(indexName)}, ['userId'])`};
 
 export const eventMembers = eventMembersBase${profileBeforeMembership ? `${profile}${membership}` : `${membership}${profile}`}
@@ -440,9 +637,8 @@ export const visibleNotes = defineLiveQuery({
 export const writeMembers = defineJsMutation({
   auth: 'authenticated',
   args: { title: v.string() },
-  source: 'bootstrap-handler.mjs',
-  exportName: 'bootstrapEvent',
   writes: ['eventMembers'],
+  handler: async (ctx, args) => ctx.membership.eventMembers.bootstrap({ title: args.title }),
 });
 
 export const memberSummary = defineJsLiveQuery({
@@ -780,6 +976,248 @@ export const publicEvents = defineLiveQuery({
       { role: 'admin', implies: ['admin', 'member'] },
       { role: 'member', implies: ['member'] },
     ]);
+    assert.deepEqual(profile.transitionPreconditions, {
+      source: 'membership.transitions',
+      membershipDeclarationId: 'eventMembers',
+      matrix: [
+        { op: 'insert', target: 'other', by: ['owner'], to: ['invited'] },
+        {
+          op: 'remove',
+          target: 'other',
+          by: ['owner'],
+          from: ['admin', 'invited', 'member'],
+        },
+        {
+          op: 'remove',
+          target: 'self',
+          by: ['self'],
+          from: ['admin', 'invited', 'member'],
+        },
+        {
+          op: 'setRole',
+          target: 'other',
+          by: ['owner'],
+          from: ['admin', 'member'],
+          to: ['admin', 'member'],
+        },
+        {
+          op: 'setRole',
+          target: 'self',
+          by: ['self'],
+          from: ['invited'],
+          to: ['member'],
+        },
+      ],
+      provenance: 'full',
+      expiryPresent: false,
+      principalAddressedWritesRemove: null,
+      ownerMutation: 'transfer-owner-only',
+    });
+
+    const generationPreimage = structuredClone(profile);
+    delete generationPreimage.generation;
+    assert.equal(
+      profile.generation,
+      `sha256:${createHash('sha256')
+        .update(`snapback:authority-profile:v1\n${canonicalJson(generationPreimage)}`)
+        .digest('hex')}`,
+      'the canonical generation preimage is the entire emitted profile minus generation',
+    );
+
+    // Reviewed generation-consumer file allowlist with access-lint. This scans
+    // each reviewer-pinned Rust file whole for direct field idioms rooted at
+    // the swept receiver set (plus effective_id, vocabulary, and
+    // field_affects_authorization) and checks them against the actual canonical
+    // preimage below. It catches direct idioms throughout these enumerated
+    // files. Residual: new files, helper indirection, and receiver identifiers
+    // outside the scanned root set.
+    const reviewedGenerationConsumerAccesses = scanReviewedGenerationConsumerFiles();
+    for (const access of [
+      'membership.id',
+      'membership.pending_roles',
+      'membership.expiry',
+      'membership.principal_addressed_writes',
+      'membership.provenance',
+      'membership.incidental',
+      'profile.membership.declaration',
+      'profile.roster.visibleFields',
+      'profile.ownerBootstrapInvariant.role',
+      'profile.generation',
+    ]) {
+      assert.ok(
+        reviewedGenerationConsumerAccesses.has(access),
+        `reviewed generation-consumer access scan finds ${access}`,
+      );
+    }
+    assertGenerationConsumerAccessesCovered(reviewedGenerationConsumerAccesses, generationPreimage);
+
+    const syntheticOutOfHashAccesses = scanGenerationConsumerAccesses(`
+fn synthetic_generation_consumer(membership: &MembershipManifest) {
+    let _ = membership.synthetic_out_of_hash;
+}
+`);
+    assert.throws(
+      () => assertGenerationConsumerAccessesCovered(syntheticOutOfHashAccesses, generationPreimage),
+      {
+        name: 'AssertionError',
+        message: /a runtime authority consumer reads a field outside the generation hash — embed it before landing\./u,
+      },
+      'the generation-consumer access-lint rejects a synthetic out-of-hash field access',
+    );
+
+    const enumeratedFileWithNewConsumer = reviewedGenerationConsumerFileAllowlist[0];
+    const syntheticNewFunctionAccesses = scanReviewedGenerationConsumerFiles(new Map([[
+      enumeratedFileWithNewConsumer,
+      `${readFileSync(join(repoRoot, enumeratedFileWithNewConsumer), 'utf8')}
+fn synthetic_new_generation_consumer(membership: &MembershipManifest) {
+    let _ = membership.synthetic_out_of_hash_from_new_function;
+}
+`,
+    ]]));
+    assert.throws(
+      () => assertGenerationConsumerAccessesCovered(syntheticNewFunctionAccesses, generationPreimage),
+      {
+        name: 'AssertionError',
+        message: /a runtime authority consumer reads a field outside the generation hash — embed it before landing\./u,
+      },
+      'the generation-consumer access-lint rejects a new function inside an enumerated file',
+    );
+
+    const syntheticManifestRootedAccesses = scanReviewedGenerationConsumerFiles(new Map([[
+      enumeratedFileWithNewConsumer,
+      `${readFileSync(join(repoRoot, enumeratedFileWithNewConsumer), 'utf8')}
+fn synthetic_manifest_rooted_generation_consumer(manifest: &MembershipManifest) {
+    let _ = manifest.synthetic_out_of_hash_from_manifest_receiver;
+}
+`,
+    ]]));
+    assert.ok(
+      syntheticManifestRootedAccesses.has('membership.synthetic_out_of_hash_from_manifest_receiver'),
+      'the generation-consumer access-lint scans a typed manifest receiver root',
+    );
+    assert.throws(
+      () => assertGenerationConsumerAccessesCovered(syntheticManifestRootedAccesses, generationPreimage),
+      {
+        name: 'AssertionError',
+        message: /a runtime authority consumer reads a field outside the generation hash — embed it before landing\./u,
+      },
+      'the generation-consumer access-lint rejects a manifest-rooted access inside an enumerated file',
+    );
+    for (const [member, mutate] of [
+      ['roleLattice[].implies', (candidate) => candidate.roleLattice[1].implies.pop()],
+      ['authorizationEventFields', (candidate) => candidate.authorizationEventFields.pop()],
+    ]) {
+      const changed = structuredClone(generationPreimage);
+      mutate(changed);
+      const changedGeneration = `sha256:${createHash('sha256')
+        .update(`snapback:authority-profile:v1\n${canonicalJson(changed)}`)
+        .digest('hex')}`;
+      assert.notEqual(
+        changedGeneration,
+        profile.generation,
+        `changing emitted ${member} content rotates the closed profile generation`,
+      );
+    }
+
+    const canonicalVocabulary = await run('export {};\n', authorityProfileSchema({
+      consumerVisibility: false,
+      hierarchy: "{ owner: ['editor', 'viewer'], viewer: [], editor: ['viewer'] }",
+      roles: ['owner', 'editor', 'viewer'],
+      transitions: [],
+    }));
+    assert.equal(
+      canonicalVocabulary.result.ok,
+      true,
+      JSON.stringify(canonicalVocabulary.result.diagnostics),
+    );
+    const canonicalVocabularySchema = JSON.parse(readFileSync(
+      join(canonicalVocabulary.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+
+    const reorderedVocabulary = await run('export {};\n', authorityProfileSchema({
+      consumerVisibility: false,
+      hierarchy: "{ owner: ['editor', 'viewer'], viewer: [], editor: ['viewer'] }",
+      roles: ['owner', 'viewer', 'editor'],
+      transitions: [],
+    }));
+    assert.equal(
+      reorderedVocabulary.result.ok,
+      true,
+      JSON.stringify(reorderedVocabulary.result.diagnostics),
+    );
+    const reorderedVocabularySchema = JSON.parse(readFileSync(
+      join(reorderedVocabulary.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    assert.deepEqual(
+      reorderedVocabularySchema.tables
+        .find(({ name }) => name === 'eventMembers')
+        .authorityProfile.roleLattice,
+      [
+        { role: 'owner', implies: ['editor', 'owner', 'viewer'] },
+        { role: 'editor', implies: ['editor', 'viewer'] },
+        { role: 'viewer', implies: ['viewer'] },
+      ],
+      'roleLattice is hierarchy-topological even when membership.roles is not',
+    );
+    const reorderedVocabularyProfile = reorderedVocabularySchema.tables
+      .find(({ name }) => name === 'eventMembers')
+      .authorityProfile;
+    assert.equal(
+      reorderedVocabularyProfile.generation,
+      canonicalVocabularySchema.tables
+        .find(({ name }) => name === 'eventMembers')
+        .authorityProfile.generation,
+      'an authorial vocabulary reorder that leaves the complete emitted profile unchanged preserves generation',
+    );
+
+    const editedHierarchy = await run('export {};\n', authorityProfileSchema({
+      consumerVisibility: false,
+      hierarchy: "{ owner: ['admin'], admin: ['member'], member: [] }",
+    }));
+    assert.equal(
+      editedHierarchy.result.ok,
+      true,
+      JSON.stringify(editedHierarchy.result.diagnostics),
+    );
+    const editedHierarchySchema = JSON.parse(readFileSync(
+      join(editedHierarchy.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    assert.equal(
+      editedHierarchySchema.tables
+        .find(({ name }) => name === 'eventMembers')
+        .authorityProfile.generation,
+      profile.generation,
+      'an authorial hierarchy edit with the same emitted implies closure preserves generation',
+    );
+
+    const prototypeNamedRole = await run('export {};\n', authorityProfileSchema({
+      consumerVisibility: false,
+      hierarchy: "{ owner: ['toString'] }",
+      roles: ['owner', 'toString'],
+      transitions: [],
+    }));
+    assert.equal(
+      prototypeNamedRole.result.ok,
+      true,
+      JSON.stringify(prototypeNamedRole.result.diagnostics),
+    );
+    const prototypeNamedRoleSchema = JSON.parse(readFileSync(
+      join(prototypeNamedRole.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    assert.deepEqual(
+      prototypeNamedRoleSchema.tables
+        .find(({ name }) => name === 'eventMembers')
+        .authorityProfile.roleLattice,
+      [
+        { role: 'owner', implies: ['owner', 'toString'] },
+        { role: 'toString', implies: ['toString'] },
+      ],
+      'an inherited Object.prototype name with no own hierarchy entry is a leaf role',
+    );
     assert.deepEqual(profile.authorizationEventFields, [
       'eventId',
       'userId',
@@ -900,20 +1338,89 @@ export const publicEvents = defineLiveQuery({
       /\.requireRole\(args\["eventId"\], "admin", "member", "owner"\)/u,
     );
     assert.equal(functionsByName['eventMembers.list'].kind, 'LiveQuery');
-    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /authorityProfile\["eventMembers"\]\.list/u);
-    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /limit: args\.limit/u);
-    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /after: args\.after/u);
-    assert.match(functionsByName['eventMembers.myRole'].runtime.IbexModule.source, /authorityProfile\["eventMembers"\]\.myRole/u);
-    assert.match(functionsByName['eventMembers.invite'].runtime.IbexModule.source, /\.transition\("invite"/u);
-    assert.match(functionsByName['eventMembers.transferOwner'].runtime.IbexModule.source, /\.transition\("transferOwner"/u);
-    assert.equal(functionsByName['eventMembers.invite'].kind, 'Mutation');
-    assert.equal(functionsByName['eventMembers.transferOwner'].authorityCreating, true);
+    assert.match(functionsByName['eventMembers.list'].runtime.IbexModule.source, /ctx\.authority\["eventMembers"\]\.list/u);
+    assert.equal(functionsByName['eventMembers.list'].argsContract.fields.find(({ name }) => name === 'page').required, false);
+    assert.doesNotMatch(functionsByName['eventMembers.list'].runtime.IbexModule.source, /\["_id"\]/u);
+    assert.match(functionsByName['eventMembers.myRole'].runtime.IbexModule.source, /ctx\.authority\["eventMembers"\]\.myRole/u);
+    assert.equal(functionsByName['eventMembers.transferOwner'].kind, 'Mutation');
+    assert.match(functionsByName['eventMembers.transferOwner'].runtime.IbexModule.source, /\.transferOwner\(args\.scopeId, args\.principal\)/u);
+    for (const operation of profile.operations.map(({ name }) => name)) {
+      const name = `eventMembers.${operation}`;
+      assert.deepEqual(functionsByName[name].generatedAuthorityOperation, {
+        id: 'eventMembers',
+        generation: profile.generation,
+        operation,
+      });
+    }
+    for (const name of ['eventById', 'visibleNotes', 'writeMembers', 'memberSummary', 'addNote']) {
+      assert.equal(
+        Object.hasOwn(functionsByName[name], 'generatedAuthorityOperation'),
+        false,
+        `${name} must not acquire generated-operation identity from its name or profile dependence`,
+      );
+    }
     const explicitApi = readFileSync(join(baseline.dir, 'generated', 'api.mjs'), 'utf8');
     const explicitApiTypes = readFileSync(join(baseline.dir, 'generated', 'api.d.ts'), 'utf8');
     assert.match(explicitApi, /references\["eventMembers"\] = \{ "list":/u);
     assert.match(explicitApi, /"changeRole": references\["eventMembers\.changeRole"\]/u);
     assert.match(explicitApiTypes, /readonly "eventMembers": Readonly<\{ "list":/u);
     assert.match(explicitApiTypes, /"transferOwner": GeneratedApi\["eventMembers\.transferOwner"\]/u);
+    const listTypeLine = explicitApiTypes.split('\n')
+      .find((line) => line.startsWith('  "eventMembers.list": FunctionReference<'));
+    const myRoleTypeLine = explicitApiTypes.split('\n')
+      .find((line) => line.startsWith('  "eventMembers.myRole": FunctionReference<'));
+    assert.match(
+      listTypeLine ?? '',
+      /"role": "admin" \| "member" \| "owner" \| "invited"/u,
+    );
+    assert.match(
+      myRoleTypeLine ?? '',
+      /"role": "admin" \| "member" \| "owner" \| "invited"; "status": "active" \| "invited"/u,
+    );
+    writeFileSync(join(baseline.dir, 'authority-consumer.ts'), `
+import type { FunctionResult, GeneratedApi } from './generated/api';
+
+type RosterRole = FunctionResult<GeneratedApi['eventMembers.list']>[number]['role'];
+type MyRoleStatus = FunctionResult<GeneratedApi['eventMembers.myRole']>[number]['status'];
+
+function exhaustRole(role: RosterRole): string {
+  switch (role) {
+    case 'owner': return role;
+    case 'admin': return role;
+    case 'member': return role;
+    case 'invited': return role;
+    default: {
+      const unreachable: never = role;
+      return unreachable;
+    }
+  }
+}
+
+function exhaustStatus(status: MyRoleStatus): string {
+  switch (status) {
+    case 'active': return status;
+    case 'invited': return status;
+    default: {
+      const unreachable: never = status;
+      return unreachable;
+    }
+  }
+}
+
+// @ts-expect-error Profile result roles are a closed literal union.
+const invalidRole: RosterRole = 'moderator';
+void invalidRole;
+void exhaustRole;
+void exhaustStatus;
+`);
+    execFileSync(join(repoRoot, 'node_modules/.bin/tsc'), [
+      '--noEmit',
+      '--strict',
+      '--target', 'es2022',
+      '--module', 'esnext',
+      '--moduleResolution', 'bundler',
+      'authority-consumer.ts',
+    ], { cwd: baseline.dir, stdio: 'pipe' });
     assert.equal(
       Object.hasOwn(functionsByName.publicEvents, 'authorityProfileDependence'),
       false,
@@ -959,6 +1466,7 @@ export const publicEvents = defineLiveQuery({
         `${unsupported} must not degrade into a runtime no-op`,
       );
     }
+    assert.equal(transitionFunctionsByName['eventMembers.changeRole'].kind, 'Mutation');
     assert.notEqual(
       transitionFunctionsByName.eventById.implementationHash,
       functionsByName.eventById.implementationHash,
@@ -968,6 +1476,182 @@ export const publicEvents = defineLiveQuery({
       transitionFunctionsByName.publicEvents.implementationHash,
       functionsByName.publicEvents.implementationHash,
       'profile edits preserve unrelated implementation identities',
+    );
+
+    const byRoleTransitions = structuredClone(authorityTransitions);
+    byRoleTransitions[0].by.push('admin');
+    const byRoleEdit = await run(sourceWithPublicWitness, authorityProfileSchema({
+      transitions: byRoleTransitions,
+    }));
+    assert.equal(byRoleEdit.result.ok, true, JSON.stringify(byRoleEdit.result.diagnostics));
+    const byRoleEditProfile = JSON.parse(readFileSync(
+      join(byRoleEdit.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    )).tables.find(({ name }) => name === 'eventMembers').authorityProfile;
+    assert.deepEqual(
+      byRoleEditProfile.operations,
+      profile.operations,
+      'adding an admitting caller role preserves the generated operation set',
+    );
+    assert.notDeepEqual(
+      byRoleEditProfile.transitionPreconditions.matrix,
+      profile.transitionPreconditions.matrix,
+      'the embedded matrix records the changed caller-role authorization',
+    );
+    assert.notEqual(
+      byRoleEditProfile.generation,
+      profile.generation,
+      'changing only one transition by-role set rotates the closed profile generation',
+    );
+
+    const provenanceEdit = await run(sourceWithPublicWitness, authorityProfileSchema({
+      provenance: 'creation',
+    }));
+    assert.equal(provenanceEdit.result.ok, true, JSON.stringify(provenanceEdit.result.diagnostics));
+    const provenanceEditProfile = JSON.parse(readFileSync(
+      join(provenanceEdit.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    )).tables.find(({ name }) => name === 'eventMembers').authorityProfile;
+    assert.equal(provenanceEditProfile.transitionPreconditions.provenance, 'creation');
+    assert.notEqual(
+      provenanceEditProfile.generation,
+      profile.generation,
+      'changing membership provenance from full to creation rotates the generation',
+    );
+
+    const expiryAbsent = await run(sourceWithPublicWitness, authorityProfileSchema({
+      expiryField: true,
+    }));
+    const expiryPresent = await run(sourceWithPublicWitness, authorityProfileSchema({
+      expiryField: true,
+      expiryPresent: true,
+    }));
+    assert.equal(expiryAbsent.result.ok, true, JSON.stringify(expiryAbsent.result.diagnostics));
+    assert.equal(expiryPresent.result.ok, true, JSON.stringify(expiryPresent.result.diagnostics));
+    const expiryAbsentProfile = JSON.parse(readFileSync(
+      join(expiryAbsent.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    )).tables.find(({ name }) => name === 'eventMembers').authorityProfile;
+    const expiryPresentProfile = JSON.parse(readFileSync(
+      join(expiryPresent.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    )).tables.find(({ name }) => name === 'eventMembers').authorityProfile;
+    assert.equal(expiryAbsentProfile.transitionPreconditions.expiryPresent, false);
+    assert.equal(expiryPresentProfile.transitionPreconditions.expiryPresent, true);
+    assert.notEqual(
+      expiryPresentProfile.generation,
+      expiryAbsentProfile.generation,
+      'adding membership expiry rotates the generation',
+    );
+
+    // A valid owner profile cannot author the LLP 0100 total remove carrier:
+    // its omitted `from` also ranges over owner, which the profile's separate
+    // transfer-only owner invariant correctly refuses. The LLP 0100 block
+    // below independently proves declaration emission. Here, flip the emitted
+    // scalar itself to pin the hash behavior without weakening owner custody.
+    const principalAddressedWritesPreimage = structuredClone(generationPreimage);
+    assert.equal(
+      principalAddressedWritesPreimage.transitionPreconditions.principalAddressedWritesRemove,
+      null,
+    );
+    principalAddressedWritesPreimage
+      .transitionPreconditions
+      .principalAddressedWritesRemove = true;
+    const principalAddressedWritesGeneration = `sha256:${createHash('sha256')
+      .update(`snapback:authority-profile:v1\n${canonicalJson(principalAddressedWritesPreimage)}`)
+      .digest('hex')}`;
+    assert.notEqual(
+      principalAddressedWritesGeneration,
+      profile.generation,
+      'enabling principalAddressedWrites.remove rotates the generation',
+    );
+
+    const reorderedTransitions = [...authorityTransitions].reverse().map((transition) => ({
+      ...transition,
+      by: [...transition.by].reverse(),
+      ...(transition.from === undefined ? {} : { from: [...transition.from].reverse() }),
+      ...(transition.to === undefined ? {} : { to: [...transition.to].reverse() }),
+      ...(transition.fields === undefined ? {} : { fields: [...transition.fields].reverse() }),
+    }));
+    const reorderedTransitionsResult = await run(
+      sourceWithPublicWitness,
+      authorityProfileSchema({ transitions: reorderedTransitions }),
+    );
+    assert.equal(
+      reorderedTransitionsResult.result.ok,
+      true,
+      JSON.stringify(reorderedTransitionsResult.result.diagnostics),
+    );
+    const reorderedTransitionsProfile = JSON.parse(readFileSync(
+      join(reorderedTransitionsResult.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    )).tables.find(({ name }) => name === 'eventMembers').authorityProfile;
+    assert.deepEqual(
+      reorderedTransitionsProfile.transitionPreconditions.matrix,
+      profile.transitionPreconditions.matrix,
+      'authorial row/set reorderings normalize to one embedded matrix',
+    );
+    assert.equal(
+      reorderedTransitionsProfile.generation,
+      profile.generation,
+      'authorial row/set reorderings preserve closed profile generation',
+    );
+
+    const ownerMember = await run('export {};\n', authorityProfileSchema({
+      consumerVisibility: false,
+      hierarchy: "{ owner: ['member'], member: [] }",
+      roles: ['owner', 'member'],
+      transitions: [],
+    }));
+    assert.equal(ownerMember.result.ok, true, JSON.stringify(ownerMember.result.diagnostics));
+    const ownerMemberSchema = JSON.parse(readFileSync(
+      join(ownerMember.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    const ownerMemberFunctions = JSON.parse(readFileSync(
+      join(ownerMember.dir, 'generated', 'functions.manifest.json'),
+      'utf8',
+    ));
+    assert.deepEqual(
+      ownerMemberSchema.tables
+        .find(({ name }) => name === 'eventMembers')
+        .authorityProfile.operations
+        .map(({ name }) => name),
+      ['list', 'myRole', 'transferOwner'],
+      'an owner/member lattice must retain a generated ownership recovery path',
+    );
+    assert(
+      ownerMemberFunctions.functions.some(({ name }) => name === 'eventMembers.transferOwner'),
+      'an owner/member lattice must emit the transferOwner function',
+    );
+
+    const ownerOnly = await run('export {};\n', authorityProfileSchema({
+      consumerVisibility: false,
+      hierarchy: '{ owner: [] }',
+      roles: ['owner'],
+      transitions: [],
+    }));
+    assert.equal(ownerOnly.result.ok, true, JSON.stringify(ownerOnly.result.diagnostics));
+    const ownerOnlySchema = JSON.parse(readFileSync(
+      join(ownerOnly.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    const ownerOnlyFunctions = JSON.parse(readFileSync(
+      join(ownerOnly.dir, 'generated', 'functions.manifest.json'),
+      'utf8',
+    ));
+    assert.deepEqual(
+      ownerOnlySchema.tables
+        .find(({ name }) => name === 'eventMembers')
+        .authorityProfile.operations
+        .map(({ name }) => name),
+      ['list', 'myRole'],
+      'an owner-only lattice must omit transferOwner because no caller successor exists',
+    );
+    assert.equal(
+      ownerOnlyFunctions.functions.find(({ name }) => name === 'eventMembers.transferOwner'),
+      undefined,
+      'an owner-only lattice must not emit the transferOwner function',
     );
 
     const roleFieldEdit = await run(sourceWithPublicWitness, authorityProfileSchema({
@@ -1045,15 +1729,6 @@ export const publicEvents = defineLiveQuery({
     [
       'ambiguous owner',
       { bootstrapRole: 'admin' },
-      'SNAPBACK_AUTHORITY_PROFILE_AMBIGUOUS_OWNER',
-    ],
-    [
-      'missing transfer demotion role',
-      {
-        roles: ['owner', 'member'],
-        hierarchy: "{ owner: ['member'], member: [] }",
-        transitions: [],
-      },
       'SNAPBACK_AUTHORITY_PROFILE_AMBIGUOUS_OWNER',
     ],
     [

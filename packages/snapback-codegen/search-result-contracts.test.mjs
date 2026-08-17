@@ -46,7 +46,7 @@ export const incidents = defineTable({
   summary: v.optional(v.string()),
   open: v.boolean(),
   updatedAt: v.integer(),
-}).searchIndex('search_incidents', {
+}).visibility({ kind: 'public-read' }).searchIndex('search_incidents', {
   semanticVersion: 'search-result-contract.v1',
   textFields: {
     title: { weight: 8, classification: 'public' },
@@ -157,7 +157,7 @@ export const searchIncidents = defineSearchQuery({
   );
   assert.match(
     apiTypes,
-    /searchIncidents: FunctionReference<'searchIncidents', 'Query', SearchRequestV1, SearchPageV1<\{ "open": boolean; "summary": null \| string; "title": string; "updatedAt": number \}, Id<"incidents">>>;/u,
+    /"searchIncidents": FunctionReference<"searchIncidents", 'Query', SearchRequestV1, SearchPageV1<\{ "open": boolean; "summary": null \| string; "title": string; "updatedAt": number \}, Id<"incidents">>, "snapback-explicit-v1">;/u,
   );
 
   const fixturePath = join(backend, 'search-types.fixture.ts');

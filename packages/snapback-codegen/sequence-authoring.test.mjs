@@ -105,8 +105,10 @@ try {
   writeFileSync(join(dir, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  orgs: defineTable({ name: v.string() }).sync(),
-  jobs: defineTable({ orgId: v.id('orgs'), sequence: v.integer(), sequenceLabel: v.string() }).sync(),
+  orgs: defineTable({ name: v.string() }).visibility({ kind: 'public-read' }).sync(),
+  jobs: defineTable({ orgId: v.id('orgs'), sequence: v.integer(), sequenceLabel: v.string() })
+    .visibility({ kind: 'public-read' })
+    .sync(),
 });
 `);
   writeFileSync(join(dir, 'functions.mjs'), `

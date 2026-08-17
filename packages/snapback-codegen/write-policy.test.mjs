@@ -179,14 +179,15 @@ test('generated authority-profile transitions bypass the generic writer classifi
     'appAccess.join',
     `globalThis.__snapbackHandlers = {
       async ['appAccess.join'](ctx, args) {
-        return ctx.authorityProfile.appAccess.transition('join', args);
+        await ctx.membership.appAccess.join(args.scopeId, args.invitation);
+        return null;
       },
     };`,
     { handlerForm: 'module' },
   );
   const sourceFn = {
     ...fn,
-    authorityProfileOperation: {
+    generatedAuthorityOperation: {
       id: 'appAccess', generation: 'sha256:test', operation: 'join',
     },
   };

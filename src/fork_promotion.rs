@@ -7286,6 +7286,7 @@ mod tests {
                 version: 6,
                 changed_count: 1,
                 result: json!({"ok": true}),
+                authority_transitions: Vec::new(),
                 ctx_ledger: None,
                 settlement_mint_observations: Vec::new(),
                 settlement_time_observation: None,

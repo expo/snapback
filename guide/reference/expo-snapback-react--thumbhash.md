@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:575b8c74c5fd0c7c6941523ef71a15b57442b885d01b
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:8c6f6df52d17e75a33bd5f414f137f2951d684feb07f6fde403d86a1cfa25c6f`.
+`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 

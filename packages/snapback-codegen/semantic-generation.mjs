@@ -393,6 +393,9 @@ const NORMALIZED_DECORATED_OPERATION_FIELD_DECISIONS = Object.freeze({
   trackedRefusals: 'include:trackedRefusals',
   authorizationDependence: 'include:authority',
   authorityProfileDependence: 'include:authority',
+  // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — changing
+  // generated-operation capability identity must invalidate semantic receipts.
+  generatedAuthorityOperation: 'include:authority',
   fieldBoundary: 'include:authority',
   elevatedDbCapabilities: 'include:authority',
   syncabilityClass: 'include:syncabilityClass',
@@ -445,6 +448,7 @@ function normalizedOperation(operation) {
       authorityProfileDependence: canonicalClone(
         operation?.authorityProfileDependence ?? [],
       ),
+      generatedAuthorityOperation: operation?.generatedAuthorityOperation ?? null,
     },
     reads: operation?.readSetSummary ?? null,
     writes: operation?.writeSetSummary ?? null,

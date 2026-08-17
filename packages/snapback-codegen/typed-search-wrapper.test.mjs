@@ -34,12 +34,12 @@ try {
   writeFileSync(join(backend, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
 
-export const rooms = defineTable({ name: v.string() });
+export const rooms = defineTable({ name: v.string() }).visibility({ kind: 'public-read' });
 export const roomMembers = defineTable({
   roomId: v.id('rooms'),
   userId: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'userId' }).membership({
   id: 'roomMembers',
   resource: 'roomId',
   principal: 'userId',
@@ -49,6 +49,11 @@ export const roomMembers = defineTable({
 export const messages = defineTable({
   roomId: v.id('rooms'),
   body: v.string(),
+}).visibility({
+  kind: 'membership',
+  declaration: 'roomMembers',
+  resourceField: 'roomId',
+  roles: ['member'],
 }).searchIndex('search_messages', {
   semanticVersion: 'typed-search-wrapper.v1',
   textFields: { body: { weight: 4, classification: 'private' } },
@@ -58,11 +63,12 @@ export const messages = defineTable({
     kind: 'membership',
     declaration: 'roomMembers',
     resourceField: 'roomId',
+    roles: ['member'],
   },
 });
 export const incidents = defineTable({
   title: v.string(),
-}).searchIndex('search_incidents', {
+}).visibility({ kind: 'public-read' }).searchIndex('search_incidents', {
   semanticVersion: 'typed-search-wrapper.v1',
   textFields: { title: { weight: 4, classification: 'public' } },
   storedFields: ['title'],

@@ -137,6 +137,7 @@
         "authority",
         "reads",
         "writes",
+        "writePolicy",
         "effects",
         "capabilities",
         "apiExposure",
@@ -161,6 +162,7 @@
         "authority": { "$ref": "#/$defs/authority" },
         "reads": { "type": ["object", "null"] },
         "writes": { "type": ["object", "null"] },
+        "writePolicy": { "type": ["object", "null"] },
         "effects": { "type": ["object", "null"] },
         "capabilities": { "type": "array", "items": { "type": "string" } },
         "apiExposure": { "type": ["object", "null"] },
@@ -187,7 +189,9 @@
         "authorityIndependent",
         "authorityCreating",
         "fieldBoundary",
-        "authorityProfileDependence"
+        "elevatedDbCapabilities",
+        "authorityProfileDependence",
+        "generatedAuthorityOperation"
       ],
       "properties": {
         "authRequirement": { "type": ["string", "null"] },
@@ -195,7 +199,34 @@
         "authorityIndependent": { "type": "boolean" },
         "authorityCreating": { "type": "boolean" },
         "fieldBoundary": { "type": ["object", "null"] },
-        "authorityProfileDependence": { "type": "array" }
+        "elevatedDbCapabilities": { "type": "array" },
+        "authorityProfileDependence": { "type": "array" },
+        "generatedAuthorityOperation": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "generation", "operation"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "generation": { "type": "string", "minLength": 1 },
+                "operation": {
+                  "enum": [
+                    "list",
+                    "myRole",
+                    "invite",
+                    "join",
+                    "leave",
+                    "changeRole",
+                    "transferOwner",
+                    "remove"
+                  ]
+                }
+              }
+            },
+            { "type": "null" }
+          ]
+        }
       }
     },
     "operationRetention": {

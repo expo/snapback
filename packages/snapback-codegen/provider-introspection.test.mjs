@@ -56,7 +56,7 @@ try {
   writeFileSync(join(backend, 'schema.mjs'), `
 import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '${defineUrl}';
 export default defineSchema({
-  todos: defineTable({ title: v.string() }).sync(),
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
 }, {
   ephemeral: defineEphemeral({
     cursors: ephemeral.collection({
@@ -141,7 +141,7 @@ export const editTodo = defineMutation({
   }
   const apiTypes = readFileSync(join(backend, 'generated', 'api.d.ts'), 'utf8');
   assert.match(apiTypes, /readonly __result\?: Result/);
-  assert.match(apiTypes, /aLive: FunctionReference<[^\n]+ReadonlyArray</);
+  assert.match(apiTypes, /"aLive": FunctionReference<[^\n]+ReadonlyArray</);
   const clientModule = join(packageRoot, '../../demos/_kit/client.mjs');
   writeFileSync(join(backend, 'ephemeral-types.fixture.ts'), `
 import { SnapbackClient } from ${JSON.stringify(clientModule)};

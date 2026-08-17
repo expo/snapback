@@ -252,7 +252,7 @@ try {
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
 export const documents = defineTable({
   embedding: v.vector(3), category: v.optional(v.string()), title: v.string(),
-}).vectorIndex('by_embedding', {
+}).visibility({ kind: 'public-read' }).vectorIndex('by_embedding', {
   semanticVersion: 'documents.embedding.v1', vectorField: 'embedding', metric: 'l2sq',
   fieldClassifications: { embedding: 'public', category: 'public', title: 'public' },
   equalityFilters: ['category'], storedFields: ['title'],

@@ -26,7 +26,7 @@ const backend = (schemaSource) => {
 const streakSchema = `
   import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
   export default defineSchema({
-    checkins: defineTable({ day: v.integer() }).sync(),
+    checkins: defineTable({ day: v.integer() }).visibility({ kind: 'public-read' }).sync(),
   });
 `;
 
@@ -37,14 +37,14 @@ const relaySchema = `
       board: v.string(),
       title: v.string(),
       done: v.boolean(),
-    }).sync(),
+    }).visibility({ kind: 'public-read' }).sync(),
   });
 `;
 
 const todoSchema = `
   import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
   export default defineSchema({
-    todos: defineTable({ title: v.string() }).sync(),
+    todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
   });
 `;
 

@@ -218,7 +218,9 @@ try {
   symlinkSync(packageDir, join(snapbackModules, 'snapback-codegen'), 'dir');
   writeFileSync(join(directory, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export const users = defineTable({ name: v.string() }).sync();
+export const users = defineTable({ name: v.string() })
+  .visibility({ kind: 'public-read' })
+  .sync();
 export default defineSchema({ users });
 `);
   writeFileSync(join(directory, 'functions.mjs'), `

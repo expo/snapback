@@ -8711,7 +8711,7 @@ async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() 
             .mutation_writes()
             .execute_mutation_idempotent(
                 &MutationPlan {
-            owner_write_checks: Vec::new(),
+                    owner_write_checks: Vec::new(),
                     steps: Vec::new(),
                     return_value: Some(ReturnValue::ChangedCount),
                 },
@@ -11581,7 +11581,7 @@ fn hosted_function_route_state() -> AppState {
             "appendNote",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "notes".to_owned(),
                     values: append_values,
@@ -22572,6 +22572,9 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_MEMBERSHIP_AXIS_COLLISION",
     "SNAPBACK_MEMBERSHIP_AXIS_FIELD_UNKNOWN",
     "SNAPBACK_MEMBERSHIP_OPERATION_INVALID",
+    // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — a
+    // forged or mismatched generated-operation identity is malformed input.
+    "SNAPBACK_GENERATED_AUTHORITY_OPERATION_INVALID",
     "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN",
     "SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES",
     "SNAPBACK_MEMBERSHIP_DUPLICATE_ROLE",
@@ -22634,9 +22637,6 @@ const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
     "SNAPBACK_AUTHORITY_PROFILE_INVALID",
     "SNAPBACK_AUTHORITY_PROFILE_REQUIRED",
     "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID",
-    "SNAPBACK_AUTHORITY_OPERATION_UNAVAILABLE",
-    "SNAPBACK_AUTHORITY_INVITATION_INVALID",
-    "SNAPBACK_AUTHORITY_ROLE_INVALID",
     "SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID",
     "SNAPBACK_AUTHORITY_ROSTER_PAGE_INVALID",
     "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_INACTIVE",

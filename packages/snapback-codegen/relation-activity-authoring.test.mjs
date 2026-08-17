@@ -32,7 +32,7 @@ import { defineSchema, defineTable, v } from '${defineUrl}';
 export const incidents = defineTable({
   ownerId: v.string(),
   title: v.string(),
-}).sync();
+}).visibility({ kind: 'public-read' }).sync();
 export const tasks = defineTable({
   incidentId: v.id('incidents'),
   incidentIncarnation: v.relationIncarnationOf({
@@ -45,7 +45,7 @@ export const tasks = defineTable({
   metadata: v.optional(v.json()),
 }).index('by_incident_position', [
   'incidentId', 'incidentIncarnation', 'position',
-]).sync();
+]).visibility({ kind: 'public-read' }).sync();
 export const activity = defineTable({
   incidentId: v.id('incidents'),
   incidentIncarnation: v.relationIncarnationOf({
@@ -62,7 +62,7 @@ export const activity = defineTable({
   occurredAt: v.integer(),
   mutationDigest: v.string(),
   detail: v.string(),
-}).sync();
+}).visibility({ kind: 'public-read' }).sync();
 export default defineSchema({ incidents, tasks, activity });
 `);
   const profileSource = `

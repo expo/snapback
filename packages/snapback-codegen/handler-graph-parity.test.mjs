@@ -69,18 +69,51 @@ const demoGoldens = {
     setCompleted: ['sha256:10b6d9a78c836a9e9b622753485960227585ef2392853a2f9e6f06f42718bc7f', 'sha256:b9a3c9eb89828254384ec0025e61bdc2313e006640cb8338ed35eba84b8f825c'],
   },
   'demos/rbac/snapback': {
-    createApp: ['sha256:13d9dee202bd1e8c1edbc0ce784717d23b0cbec40a5a1bf612c09e4e79a7d6af', 'sha256:0dde744f4decbe5aa7d146ecb64c2fa65c85456d7fe789d4a93f1d4ed31b5c90'],
-    listAnnouncements: ['sha256:e6c4c64237a0ec96f8da196b351f5dc3c52517358ca15ea3f16af8969b0a9569', null],
-    postAnnouncement: ['sha256:28db57ee13c70daeccfcd1803757ed7c6e6b008facb6ab1ec31f35ee57a8c227', 'sha256:6090fe79870d25224e107bd924ef02fa301c2486f78ac8eabc401c5e6d7d3b9c'],
-    'appAccess.list': ['sha256:89d2ac27c31d98e737024421b091b3a08112695b6f31dc8d044c31562ded536d', 'sha256:c725401309d0ecec4c5b8bf6d1cb441b70c8b04bd477af2b8ec36766d8d76cf4'],
-    'appAccess.myRole': ['sha256:2c4d28bf1f12083393c455937c1fb567fd05a11fa75fc37d03437a8c7af94a69', 'sha256:a61fe1c65a6a280b459839d9b6e2f5f8366c09ee5ecf5446965ac9ad7a191a7a'],
-    'appAccess.invite': ['sha256:26e5d416f4711bf53f5f13270907f33ccfc96067d6a2ef1c3e7cebb0cfd22da1', 'sha256:d75a33801b2da6d05b354513f7ab4c648d95677a036514eceebd9c08ef2ff91f'],
-    'appAccess.join': ['sha256:1ece5ab32cb37d5becba81d9ea3da579557fe1af99d3d1ab61f7a9c058b7e7e5', 'sha256:8da12272e52f2428f1de80c609042499811e3b1d63f5f0c985f37ea9aa6fe4f2'],
-    'appAccess.leave': ['sha256:68662511d76ce50520be4691f28d7712f10a7dd3a34a793c07ff9d96e5966a6a', 'sha256:eb934f4848130c6c98400b67339f361c3097d4942330017a643a9e80214b72ac'],
-    'appAccess.changeRole': ['sha256:4a8802d74b85b3d58246cdadbe2de5b646ad095a31571c5f100c361c4b6d0066', 'sha256:717d062b15d095169cffc9a8399dac05af56bf0f905b41678f1e5cc33936c287'],
-    'appAccess.transferOwner': ['sha256:a27bcfbb0b804d0ad6a643ca5e9d156dcc567db1f2e72e258ddbff25368edb31', 'sha256:a4839d7d7fa0264882bf689f6b2be2ed77f6e039bd448f0d9c2889c736a2c147'],
-    'appAccess.remove': ['sha256:0263774eb610f7f960cd9d935c256b417c3d8b2560cc76767bed9ddcc92badab', 'sha256:888f99a99d37cf3cc9cd4b8b1f0ef0d228f5a3734f13409703914d0b9c8cf8f7'],
-  },
+        'createApp': [
+            'sha256:1ef81edfa4a490a10fa3f7f5a1fff5a97989ef6893c17ac93b6e785f8ac36d9b',
+            'sha256:0dde744f4decbe5aa7d146ecb64c2fa65c85456d7fe789d4a93f1d4ed31b5c90'
+        ],
+        'listAnnouncements': [
+            'sha256:d061b5e75eaedb8945c1552074966af3bf19f7a70143dfac113689929f5b0d9c',
+            null
+        ],
+        'postAnnouncement': [
+            'sha256:76a101eff738f1c7d6627b5fc8847453ff633f1a235690f3f3375fead714c1f1',
+            'sha256:6090fe79870d25224e107bd924ef02fa301c2486f78ac8eabc401c5e6d7d3b9c'
+        ],
+        'appAccess.list': [
+            'sha256:bf5e014dca3d89eced780e24f98939869fe5499a92f6853ad1a8dfa97ced21c7',
+            'sha256:41dcdc7063ea1c392caa6fca921d69bf0c18f319174586072fc962bfe53b6c77'
+        ],
+        'appAccess.myRole': [
+            'sha256:630f4eb4a7f35be1b531a362897f2c8b77fa9751b981a222da274326f2c3a36c',
+            'sha256:2dead41c79000ba3310c8dd54467dc7486f347891a1ba9673645dd0f87f2828b'
+        ],
+        'appAccess.invite': [
+            'sha256:00d2866f600973682bb7abd6282d59edda0fe360b8537bc7b0a009bd7be78df4',
+            'sha256:d42ed83563f00cb0c4455f387d80e67446f9a1402ebc27e3f42cb15fc7042f47'
+        ],
+        'appAccess.join': [
+            'sha256:a8e1488e31b348f7372f3f72ce34d81cab4cc68ddddbbe5b7f3bcb9755ee07b7',
+            'sha256:4c0d6255b975025fb542efac8d897a7d9ebc92c8749f12017097971c21322a44'
+        ],
+        'appAccess.leave': [
+            'sha256:fc379c756a7a33d3733a14d57d522e18a1e8f3abf53b8ddeab4753b4e8f1f1b8',
+            'sha256:6d2fbf0dc7fda9f5e5c2abccd9e9bb2eff5485887d6483d742cfb30b5e394b0c'
+        ],
+        'appAccess.changeRole': [
+            'sha256:fbed58c033f885162c45ac8eeb1cd5211a5f41dcec188cf523f92f8547055250',
+            'sha256:3fcfd2f82b8c2db56311903400890f7160d90cf7c448ffa439106fb33499907a'
+        ],
+        'appAccess.transferOwner': [
+            'sha256:fc537c9e28e9c05bbb490008dd4bb2bd1f867dd17090f519f34dedf6fc2d23bf',
+            'sha256:c784ac5716a5daaf2778cd92560c674417f511d094048d16c5c6f48c4166a54b'
+        ],
+        'appAccess.remove': [
+            'sha256:97ceba65c889f8ff781023de05d9d7fd3571e374b2986a6cc90070116adc46ff',
+            'sha256:271403b2d33d42b2f0ae11b0d53498c3ba71e12fde26197a03941d58f08a3a7a'
+        ]
+    },
 };
 
 after(() => {

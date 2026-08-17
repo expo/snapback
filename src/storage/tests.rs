@@ -13905,6 +13905,7 @@ mod membership_write_tests {
         let mut schema = membership_schema();
         let table = &mut schema.tables[1];
         let membership = table.membership.as_mut().expect("membership declaration");
+        membership.id = Some("event_members".to_owned());
         let rename = |role: &mut String| {
             *role = match role.as_str() {
                 "host" => "owner",
@@ -13934,6 +13935,8 @@ mod membership_write_tests {
                 rename(role);
             }
         }
+        let transition_matrix =
+            crate::manifest::canonical_membership_transition_matrix(&membership.transitions);
         table.authority_profile = Some(
             serde_json::from_value(json!({
                 "version": 1,
@@ -13970,9 +13973,22 @@ mod membership_write_tests {
                 },
                 "transitionPreconditions": {
                     "source": "membership.transitions",
+                    "membershipDeclarationId": "event_members",
+                    "matrix": transition_matrix,
+                    "provenance": "full",
+                    "expiryPresent": true,
+                    "principalAddressedWritesRemove": null,
                     "ownerMutation": "transfer-owner-only"
                 },
-                "authorizationEventFields": ["eventId", "userId", "role"],
+                "authorizationEventFields": [
+                    "userId",
+                    "eventId",
+                    "role",
+                    "expiresAt",
+                    "grantedByActor",
+                    "grantedByEffective",
+                    "grantedByGrant"
+                ],
                 "subjectDerivation": {
                     "strategy": "membership-principal-resource-v1",
                     "principalField": "userId",
@@ -14015,6 +14031,91 @@ mod membership_write_tests {
             }))
             .expect("authority profile fixture"),
         );
+        table
+            .authority_profile
+            .as_mut()
+            .expect("authority profile fixture")
+            .operations = expected_authority_profile_operations(
+            table.membership.as_ref().expect("membership declaration"),
+        );
+        schema
+    }
+
+    fn owner_member_authority_profile_schema() -> SchemaManifest {
+        let mut schema = authority_profile_schema();
+        let table = &mut schema.tables[1];
+        let membership = table.membership.as_mut().expect("membership declaration");
+        membership.roles.retain(|role| role != "admin");
+        for transition in &mut membership.transitions {
+            transition.by.retain(|role| role != "admin");
+            if let Some(from) = &mut transition.from {
+                from.retain(|role| role != "admin");
+            }
+            if let Some(to) = &mut transition.to {
+                to.retain(|role| role != "admin");
+            }
+        }
+        membership.transitions.retain(|transition| {
+            !transition.by.is_empty()
+                && transition
+                    .from
+                    .as_ref()
+                    .is_none_or(|roles| !roles.is_empty())
+                && transition.to.as_ref().is_none_or(|roles| !roles.is_empty())
+        });
+        let profile = table
+            .authority_profile
+            .as_mut()
+            .expect("authority profile projection");
+        profile.role_lattice.retain(|role| role.role != "admin");
+        for role in &mut profile.role_lattice {
+            role.implies.retain(|implied| implied != "admin");
+        }
+        profile.transition_preconditions.matrix =
+            crate::manifest::canonical_membership_transition_matrix(&membership.transitions);
+        profile.operations = expected_authority_profile_operations(membership);
+        schema
+    }
+
+    fn owner_viewer_editor_authority_profile_schema() -> SchemaManifest {
+        let mut schema = authority_profile_schema();
+        let table = &mut schema.tables[1];
+        let membership = table.membership.as_mut().expect("membership declaration");
+        let rename = |role: &mut String| {
+            *role = match role.as_str() {
+                "admin" => "viewer",
+                "member" => "editor",
+                other => other,
+            }
+            .to_owned();
+        };
+        for role in &mut membership.roles {
+            rename(role);
+        }
+        for transition in &mut membership.transitions {
+            for role in &mut transition.by {
+                rename(role);
+            }
+            for role in transition.from.iter_mut().flatten() {
+                rename(role);
+            }
+            for role in transition.to.iter_mut().flatten() {
+                rename(role);
+            }
+        }
+        let transition_matrix =
+            crate::manifest::canonical_membership_transition_matrix(&membership.transitions);
+        let profile = table
+            .authority_profile
+            .as_mut()
+            .expect("authority profile projection");
+        profile.role_lattice = serde_json::from_value(json!([
+            { "role": "owner", "implies": ["editor", "owner", "viewer"] },
+            { "role": "editor", "implies": ["editor", "viewer"] },
+            { "role": "viewer", "implies": ["viewer"] }
+        ]))
+        .expect("topological role lattice");
+        profile.transition_preconditions.matrix = transition_matrix;
         schema
     }
 
@@ -14027,6 +14128,28 @@ mod membership_write_tests {
         db.activate_current_auth_catalog().expect("auth catalog");
         db.schema_seed().apply_schema(schema).expect("apply schema");
         db
+    }
+
+    fn authority_lattice_error(schema: SchemaManifest) -> SnapbackError {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        db.schema_seed()
+            .apply_schema(schema)
+            .expect_err("malformed authority lattice must refuse at manifest load")
+    }
+
+    fn assert_authority_lattice_reason(error: SnapbackError, property: &str) {
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID"
+        );
+        assert!(
+            error.diagnostic.details["reason"]
+                .as_str()
+                .is_some_and(|reason| reason.contains(property)),
+            "reason must name {property:?}: {:?}",
+            error.diagnostic.details
+        );
     }
 
     #[test]
@@ -14685,6 +14808,16 @@ mod membership_write_tests {
             .expect("query role")
     }
 
+    fn owner_count_for_scope(db: &LocalDatabase, event_id: &str) -> u64 {
+        db.conn
+            .query_row(
+                "SELECT count(*) FROM event_members WHERE eventId = ?1 AND role = 'owner'",
+                [event_id],
+                |row| row.get(0),
+            )
+            .expect("count owners in raced scope")
+    }
+
     fn invite(db: &mut LocalDatabase, host: &str, event_id: &str, invitee: &str) {
         let writer = user(host);
         let mut values = Map::new();
@@ -14750,19 +14883,27 @@ mod membership_write_tests {
     #[test]
     fn authority_profile_bootstrap_refuses_an_initial_owner() {
         let mut schema = authority_profile_schema();
-        schema.tables[1]
+        let table = &mut schema.tables[1];
+        let membership = table
             .membership
             .as_mut()
-            .expect("membership declaration")
-            .transitions
-            .push(MembershipTransition {
-                op: MembershipOp::Insert,
-                by: vec!["owner".to_owned()],
-                target: MembershipTarget::Other,
-                from: None,
-                to: Some(vec!["owner".to_owned()]),
-                fields: None,
-            });
+            .expect("membership declaration");
+        membership.transitions.push(MembershipTransition {
+            op: MembershipOp::Insert,
+            by: vec!["owner".to_owned()],
+            target: MembershipTarget::Other,
+            from: None,
+            to: Some(vec!["owner".to_owned()]),
+            fields: None,
+        });
+        let transition_matrix =
+            crate::manifest::canonical_membership_transition_matrix(&membership.transitions);
+        table
+            .authority_profile
+            .as_mut()
+            .expect("authority profile projection")
+            .transition_preconditions
+            .matrix = transition_matrix;
         let db = ready_db_with_schema(schema);
         let error = db
             .plan_membership_bootstrap_with_id(
@@ -14782,6 +14923,196 @@ mod membership_write_tests {
             "SNAPBACK_AUTHORITY_OWNER_MUTATION_REQUIRES_TRANSFER"
         );
         assert_eq!(error.diagnostic.details["declaration"], "event_members");
+    }
+
+    // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — an
+    //   outsider's generated invite refusal cannot disclose scope existence;
+    //   the caller and missing-resource reads remain host-private witnesses.
+    #[test]
+    fn authority_profile_invite_denial_is_scope_non_enumerating_and_captured() {
+        let (mut db, event_id, _, _, _) = authority_fixture();
+        let invite_values = |scope: &str| {
+            Map::from_iter([
+                ("userId".to_owned(), json!("dave")),
+                ("eventId".to_owned(), json!(scope)),
+                ("role".to_owned(), json!("invited")),
+            ])
+        };
+        let denied = |db: &mut LocalDatabase, scope: &str| {
+            let mut invocation_reads = Vec::new();
+            let error = crate::runtime::authorize_invocation_membership_commands(
+                db,
+                vec![BufferedMembershipCommand::insert(
+                    user("mallory"),
+                    "event_members".to_owned(),
+                    invite_values(scope),
+                )],
+                &mut invocation_reads,
+            )
+            .expect_err("outsider invite is refused at the invocation chokepoint");
+            (error, invocation_reads)
+        };
+        let (existing, existing_reads) = denied(&mut db, &event_id);
+        let (absent, absent_reads) = denied(&mut db, "absent-event");
+        assert_eq!(
+            serde_json::to_vec(&existing).unwrap(),
+            serde_json::to_vec(&absent).unwrap(),
+            "the complete public refusal payload is byte-identical"
+        );
+        assert_eq!(
+            serde_json::to_vec(&existing).unwrap(),
+            serde_json::to_vec(&crate::membership_rules::role_denial()).unwrap(),
+            "the write seam reuses the established non-enumerating role denial"
+        );
+        for dependencies in [&existing_reads, &absent_reads] {
+            assert_eq!(dependencies.len(), 1);
+            assert_eq!(dependencies[0].kind, CapturedReadKind::Query);
+            assert_eq!(dependencies[0].table.as_deref(), Some("event_members"));
+            assert_eq!(dependencies[0].result_count, Some(0));
+        }
+
+        // An unknown declaration refuses before any planner read exists. It
+        // still crosses the same chokepoint, but carries no dependency by
+        // construction rather than manufacturing an empty witness.
+        let mut early_reads = Vec::new();
+        crate::runtime::authorize_invocation_membership_commands(
+            &mut db,
+            vec![BufferedMembershipCommand::insert(
+                user("mallory"),
+                "missing_membership_declaration".to_owned(),
+                invite_values(&event_id),
+            )],
+            &mut early_reads,
+        )
+        .expect_err("unknown declaration refuses before plan construction");
+        assert!(early_reads.is_empty());
+
+        // Exercise the same pure capture→matcher harness as the B1 tests. A
+        // later seat for the denied caller intersects the dependency drained
+        // into the invocation before the denial surfaced, forcing a fresh
+        // evaluation instead of memoizing a stale refusal.
+        let writer = user("alice");
+        let grant = db
+            .membership_plans()
+            .plan_membership_insert(
+                &writer,
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("mallory")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("invited")),
+                ]),
+            )
+            .expect("owner grants the denied caller a seat");
+        let grant = db
+            .membership_plans()
+            .commit_membership_plan(&writer, grant)
+            .expect("concurrent caller grant commits");
+        let definition = crate::manifest::FunctionDefinition::new(
+            "deniedInviteEvaluation",
+            crate::manifest::FunctionKind::Query,
+            crate::manifest::FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                source: "export {};".to_owned(),
+                export: "deniedInviteEvaluation".to_owned(),
+            }),
+        );
+        assert!(
+            crate::live_matcher::live_subscription_may_be_affected(
+                &definition,
+                &user("mallory").handler_input(),
+                &existing_reads,
+                &grant.changes,
+            ),
+            "a caller-membership grant must wake the evaluation that observed the denial"
+        );
+    }
+
+    #[test]
+    fn admitted_membership_insert_reports_missing_scope_and_retains_both_witnesses() {
+        let mut db = ready_db();
+        let mut invocation_reads = Vec::new();
+        let error = crate::runtime::authorize_invocation_membership_commands(
+            &mut db,
+            vec![BufferedMembershipCommand::insert(
+                user("mallory"),
+                "event_members".to_owned(),
+                Map::from_iter([
+                    ("userId".to_owned(), json!("mallory")),
+                    ("eventId".to_owned(), json!("absent-event")),
+                    ("role".to_owned(), json!("guest")),
+                ]),
+            )],
+            &mut invocation_reads,
+        )
+        .expect_err("the declared none/self open join reaches the honest resource check");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
+        );
+        assert_eq!(invocation_reads.len(), 2);
+        assert_eq!(invocation_reads[0].kind, CapturedReadKind::Query);
+        assert_eq!(invocation_reads[0].table.as_deref(), Some("event_members"));
+        assert_eq!(invocation_reads[0].result_count, Some(0));
+        assert_eq!(invocation_reads[1].kind, CapturedReadKind::MissingRow);
+        assert_eq!(invocation_reads[1].table.as_deref(), Some("events"));
+        assert_eq!(invocation_reads[1].id.as_deref(), Some("absent-event"));
+    }
+
+    #[test]
+    fn member_id_operations_collapse_absent_and_unauthorized_target_refusals() {
+        let (db, event_id, _alice, bob, _) = authority_fixture();
+        let denied = |operation: CallerAuthorityOperation, caller: &str, target: &str| {
+            match operation {
+                CallerAuthorityOperation::SetRole => db
+                    .membership_plans_read()
+                    .plan_membership_set_role(&user(caller), "event_members", target, "member"),
+                CallerAuthorityOperation::Remove => db
+                    .membership_plans_read()
+                    .plan_membership_remove(&user(caller), "event_members", target),
+                CallerAuthorityOperation::Patch => db
+                    .membership_plans_read()
+                    .plan_membership_patch(
+                        &user(caller),
+                        "event_members",
+                        target,
+                        Map::from_iter([("expiresAt".to_owned(), json!(5_000))]),
+                    ),
+                CallerAuthorityOperation::Insert => unreachable!("insert is not member-id addressed"),
+            }
+            .expect_err("member-id operation must refuse")
+        };
+
+        for operation in [
+            CallerAuthorityOperation::SetRole,
+            CallerAuthorityOperation::Remove,
+            CallerAuthorityOperation::Patch,
+        ] {
+            let unauthorized_present = denied(operation, "mallory", &bob);
+            let admitted_caller_absent = denied(operation, "alice", "absent-member-id");
+            assert_eq!(
+                serde_json::to_vec(&unauthorized_present).unwrap(),
+                serde_json::to_vec(&admitted_caller_absent).unwrap(),
+                "{operation:?} must not disclose whether a member id resolves to a scope"
+            );
+            assert_eq!(
+                unauthorized_present.diagnostic.code,
+                "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+            );
+        }
+
+        let honest_missing = db
+            .plan_authority_change_role(
+                &user("alice"),
+                "event_members",
+                Some(&event_id),
+                "absent-principal",
+                "member",
+            )
+            .expect_err("caller-supplied scope establishes admission before target lookup");
+        assert_eq!(
+            honest_missing.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TARGET_MISSING"
+        );
     }
 
     #[test]
@@ -15046,6 +15377,578 @@ mod membership_write_tests {
     }
 
     #[test]
+    fn authority_profile_transfer_owner_uses_the_highest_available_non_owner_role() {
+        let mut db = ready_db_with_schema(owner_member_authority_profile_schema());
+        let (event_id, alice) = create_event(&mut db, "alice");
+        invite(&mut db, "alice", &event_id, "bob");
+        let bob = member_id(&db, &event_id, "bob");
+        set_role(&mut db, "bob", &bob, "member").expect("bob accepts invite");
+
+        let commit = transfer_owner(&mut db, "alice", &event_id, "bob")
+            .expect("owner transfers through an owner/member lattice");
+        assert_eq!(role_of(&db, &alice).as_deref(), Some("member"));
+        assert_eq!(role_of(&db, &bob).as_deref(), Some("owner"));
+        auth_agents::validate_protected_membership_final_state(
+            &db.conn,
+            db.schema(),
+            current_version_on(&db.conn).expect("current version"),
+        )
+        .expect("the transferred scope retains exactly one eligible owner");
+
+        let caller_receipt = commit
+            .authority_transitions
+            .iter()
+            .find(|receipt| receipt.subject == "alice")
+            .expect("caller demotion receipt");
+        assert_eq!(
+            caller_receipt
+                .predecessor
+                .as_ref()
+                .map(|state| state.role.as_str()),
+            Some("owner")
+        );
+        assert_eq!(
+            caller_receipt
+                .successor
+                .as_ref()
+                .map(|state| state.role.as_str()),
+            Some("member")
+        );
+        assert_eq!(caller_receipt.scope.as_deref(), Some(event_id.as_str()));
+    }
+
+    #[test]
+    fn authority_profile_transfer_owner_uses_hierarchy_order_not_role_vocabulary_order() {
+        let mut db = ready_db_with_schema(owner_viewer_editor_authority_profile_schema());
+        let (event_id, alice) = create_event(&mut db, "alice");
+        invite(&mut db, "alice", &event_id, "bob");
+        let bob = member_id(&db, &event_id, "bob");
+        set_role(&mut db, "bob", &bob, "editor").expect("bob accepts invite as editor");
+
+        let commit = transfer_owner(&mut db, "alice", &event_id, "bob")
+            .expect("owner transfers through an owner/editor/viewer lattice");
+        assert_eq!(role_of(&db, &alice).as_deref(), Some("editor"));
+        assert_eq!(role_of(&db, &bob).as_deref(), Some("owner"));
+        let caller_receipt = commit
+            .authority_transitions
+            .iter()
+            .find(|receipt| receipt.subject == "alice")
+            .expect("caller demotion receipt");
+        assert_eq!(
+            caller_receipt
+                .successor
+                .as_ref()
+                .map(|state| state.role.as_str()),
+            Some("editor"),
+            "the receipt and stored row agree on the hierarchy-highest successor"
+        );
+    }
+
+    #[test]
+    fn authority_profile_manifest_refuses_hand_reordered_role_lattice() {
+        let mut schema = owner_viewer_editor_authority_profile_schema();
+        schema.tables[1]
+            .authority_profile
+            .as_mut()
+            .expect("authority profile projection")
+            .role_lattice
+            .swap(1, 2);
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        let error = db
+            .schema_seed()
+            .apply_schema(schema)
+            .expect_err("manifest order is a trust boundary");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID"
+        );
+        assert_eq!(
+            error.diagnostic.details["actualOrder"],
+            json!(["owner", "viewer", "editor"])
+        );
+        assert_eq!(
+            error.diagnostic.details["expectedOrder"],
+            json!(["owner", "editor", "viewer"])
+        );
+    }
+
+    #[test]
+    fn authority_profile_manifest_refuses_admin_as_owner_bootstrap_invariant() {
+        for property in ["role", "bootstrapRole", "protectedLastHolderRole"] {
+            let mut schema = authority_profile_schema();
+            let invariant = &mut schema.tables[1]
+                .authority_profile
+                .as_mut()
+                .expect("authority profile projection")
+                .owner_bootstrap_invariant;
+            match property {
+                "role" => invariant.role = "admin".to_owned(),
+                "bootstrapRole" => invariant.bootstrap_role = "admin".to_owned(),
+                "protectedLastHolderRole" => {
+                    invariant.protected_last_holder_role = "admin".to_owned();
+                }
+                _ => unreachable!("closed property fixture"),
+            }
+            assert_authority_lattice_reason(
+                authority_lattice_error(schema),
+                &format!("ownerBootstrapInvariant.{property}"),
+            );
+        }
+    }
+
+    #[test]
+    fn authority_profile_manifest_refuses_every_membership_relationship_mismatch() {
+        for property in [
+            "membership.id",
+            "profile.id",
+            "membership.declaration",
+            "membership.manifestPath",
+            "membership.predicateIdentity",
+            "tablePolicy.identity",
+            "tablePolicy.membershipDeclaration",
+            "scopeRelation.table",
+            "membership.scope",
+            "scopeRelation.resourceField",
+            "scopeRelation.resourceTable",
+            "scopeRelation.principalKey",
+            "statusPredicates.active",
+            "statusPredicates.invited",
+            "roleLattice[].role/membership.roles",
+            "ownerBootstrapInvariant.bootstrapRole/membership.bootstrapRole",
+            "transitionPreconditions.source",
+            "transitionPreconditions.membershipDeclarationId",
+            "transitionPreconditions.matrix/membership.transitions",
+            "transitionPreconditions.provenance/membership.provenance",
+            "transitionPreconditions.expiryPresent/membership.expiry",
+            "transitionPreconditions.principalAddressedWritesRemove/membership.principalAddressedWrites.remove",
+            "transitionPreconditions.ownerMutation",
+            "authorizationEventFields",
+            "subjectDerivation.strategy",
+            "subjectDerivation.principalField",
+            "subjectDerivation.scopeField",
+            "roster.visibleFields",
+            "operations/membership.transitions",
+            "requiredIndexes.length",
+            "requiredIndexes._membership_pk.name",
+            "requiredIndexes._membership_pk.fields",
+            "requiredIndexes._membership_pk.unique",
+            "requiredIndexes._membership_pk.lookup",
+            "requiredIndexes._membership_reverse.name",
+            "requiredIndexes._membership_reverse.fields",
+            "requiredIndexes._membership_reverse.unique",
+            "requiredIndexes._membership_reverse.lookup",
+        ] {
+            let mut schema = authority_profile_schema();
+            let table = &mut schema.tables[1];
+            match property {
+                "membership.id" => {
+                    table.membership.as_mut().unwrap().id = None;
+                }
+                "profile.id" => {
+                    table.authority_profile.as_mut().unwrap().id = "otherProfile".to_owned();
+                }
+                "membership.declaration" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .membership
+                        .declaration = "otherProfile".to_owned();
+                }
+                "membership.manifestPath" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .membership
+                        .manifest_path = "tables.other.membership".to_owned();
+                }
+                "membership.predicateIdentity" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .membership
+                        .predicate_identity = "other-predicate.v1".to_owned();
+                }
+                "tablePolicy.identity" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .table_policy
+                        .identity = "other-policy.v1".to_owned();
+                }
+                "tablePolicy.membershipDeclaration" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .table_policy
+                        .membership_declaration = "otherProfile".to_owned();
+                }
+                "scopeRelation.table" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .scope_relation
+                        .table = "other_table".to_owned();
+                }
+                "membership.scope" => {
+                    let membership = table.membership.as_mut().unwrap();
+                    membership.scope = MembershipScope::App;
+                    membership.resource = None;
+                    membership.resource_table = None;
+                    membership.bootstrap_role = None;
+                    membership.last_holder = None;
+                }
+                "scopeRelation.resourceField" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .scope_relation
+                        .resource_field = "otherScope".to_owned();
+                }
+                "scopeRelation.resourceTable" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .scope_relation
+                        .resource_table = "other_resources".to_owned();
+                }
+                "scopeRelation.principalKey" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .scope_relation
+                        .principal_key = "otherPrincipal".to_owned();
+                }
+                "statusPredicates.active" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .status_predicates
+                        .active = "other.active".to_owned();
+                }
+                "statusPredicates.invited" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .status_predicates
+                        .invited = "other.invited".to_owned();
+                }
+                "roleLattice[].role/membership.roles" => {
+                    table.authority_profile.as_mut().unwrap().role_lattice[2].role =
+                        "ghost".to_owned();
+                }
+                "ownerBootstrapInvariant.bootstrapRole/membership.bootstrapRole" => {
+                    let membership = table.membership.as_mut().unwrap();
+                    membership.bootstrap_role = Some("admin".to_owned());
+                    membership.last_holder.as_mut().unwrap().protect = "admin".to_owned();
+                }
+                "transitionPreconditions.source" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .transition_preconditions
+                        .source = "other.transitions".to_owned();
+                }
+                "transitionPreconditions.membershipDeclarationId" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .transition_preconditions
+                        .membership_declaration_id = "otherProfile".to_owned();
+                }
+                "transitionPreconditions.matrix/membership.transitions" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .transition_preconditions
+                        .matrix[0]
+                        .by
+                        .push("admin".to_owned());
+                }
+                "transitionPreconditions.provenance/membership.provenance" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .transition_preconditions
+                        .provenance = Some(MembershipProvenance::Creation);
+                }
+                "transitionPreconditions.expiryPresent/membership.expiry" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .transition_preconditions
+                        .expiry_present = false;
+                }
+                "transitionPreconditions.principalAddressedWritesRemove/membership.principalAddressedWrites.remove" =>
+                {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .transition_preconditions
+                        .principal_addressed_writes_remove = Some(true);
+                }
+                "transitionPreconditions.ownerMutation" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .transition_preconditions
+                        .owner_mutation = "ordinary".to_owned();
+                }
+                "authorizationEventFields" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .authorization_event_fields
+                        .pop();
+                }
+                "subjectDerivation.strategy" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .subject_derivation
+                        .strategy = "other-strategy.v1".to_owned();
+                }
+                "subjectDerivation.principalField" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .subject_derivation
+                        .principal_field = "otherPrincipal".to_owned();
+                }
+                "subjectDerivation.scopeField" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .subject_derivation
+                        .scope_field = "otherScope".to_owned();
+                }
+                "roster.visibleFields" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .roster
+                        .visible_fields
+                        .push("missingField".to_owned());
+                }
+                "operations/membership.transitions" => {
+                    table.authority_profile.as_mut().unwrap().operations.pop();
+                }
+                "requiredIndexes.length" => {
+                    table
+                        .authority_profile
+                        .as_mut()
+                        .unwrap()
+                        .required_indexes
+                        .pop();
+                }
+                "requiredIndexes._membership_pk.name" => {
+                    table.authority_profile.as_mut().unwrap().required_indexes[0].name =
+                        "other_pk".to_owned();
+                }
+                "requiredIndexes._membership_pk.fields" => {
+                    table.authority_profile.as_mut().unwrap().required_indexes[0]
+                        .fields
+                        .reverse();
+                }
+                "requiredIndexes._membership_pk.unique" => {
+                    table.authority_profile.as_mut().unwrap().required_indexes[0].unique = false;
+                }
+                "requiredIndexes._membership_pk.lookup" => {
+                    table.authority_profile.as_mut().unwrap().required_indexes[0].lookup =
+                        "other-lookup".to_owned();
+                }
+                "requiredIndexes._membership_reverse.name" => {
+                    table.authority_profile.as_mut().unwrap().required_indexes[1].name =
+                        "other_reverse".to_owned();
+                }
+                "requiredIndexes._membership_reverse.fields" => {
+                    table.authority_profile.as_mut().unwrap().required_indexes[1]
+                        .fields
+                        .reverse();
+                }
+                "requiredIndexes._membership_reverse.unique" => {
+                    table.authority_profile.as_mut().unwrap().required_indexes[1].unique = true;
+                }
+                "requiredIndexes._membership_reverse.lookup" => {
+                    table.authority_profile.as_mut().unwrap().required_indexes[1].lookup =
+                        "other-lookup".to_owned();
+                }
+                _ => unreachable!("closed relationship fixture: {property}"),
+            }
+            assert_authority_lattice_reason(authority_lattice_error(schema), property);
+        }
+    }
+
+    #[test]
+    fn generated_authority_profile_manifests_validate_after_generation_rotation() {
+        for (name, source) in [
+            (
+                "rbac",
+                include_str!("../../demos/rbac/snapback/generated/schema.manifest.json"),
+            ),
+            (
+                "team-chat",
+                include_str!("../../demos/team-chat/snapback/generated/schema.manifest.json"),
+            ),
+        ] {
+            let schema: SchemaManifest = serde_json::from_str(source)
+                .unwrap_or_else(|error| panic!("{name} generated manifest parses: {error}"));
+            assert!(
+                schema
+                    .tables
+                    .iter()
+                    .any(|table| table.authority_profile.is_some()),
+                "{name} remains a generated authority-profile fixture"
+            );
+            validate_schema(&schema)
+                .unwrap_or_else(|error| panic!("{name} generated manifest validates: {error}"));
+        }
+    }
+
+    #[test]
+    fn authority_profile_manifest_refuses_implied_role_outside_vocabulary() {
+        let mut schema = owner_viewer_editor_authority_profile_schema();
+        schema.tables[1]
+            .authority_profile
+            .as_mut()
+            .unwrap()
+            .role_lattice[2]
+            .implies
+            .push("ghost".to_owned());
+        assert_authority_lattice_reason(authority_lattice_error(schema), "implies-vocabulary");
+    }
+
+    #[test]
+    fn authority_profile_manifest_refuses_missing_or_duplicate_self_inclusion() {
+        for duplicate in [false, true] {
+            let mut schema = owner_viewer_editor_authority_profile_schema();
+            let entry = &mut schema.tables[1]
+                .authority_profile
+                .as_mut()
+                .unwrap()
+                .role_lattice[2];
+            if duplicate {
+                entry.implies.push(entry.role.clone());
+            } else {
+                entry.implies.retain(|role| role != &entry.role);
+            }
+            assert_authority_lattice_reason(
+                authority_lattice_error(schema),
+                "self-inclusion",
+            );
+        }
+    }
+
+    #[test]
+    fn authority_profile_manifest_refuses_non_transitive_closure() {
+        let mut schema = owner_viewer_editor_authority_profile_schema();
+        schema.tables[1]
+            .authority_profile
+            .as_mut()
+            .unwrap()
+            .role_lattice[0]
+            .implies
+            .retain(|role| role != "viewer");
+        assert_authority_lattice_reason(authority_lattice_error(schema), "closure transitivity");
+    }
+
+    #[test]
+    fn authority_profile_manifest_refuses_mutual_implication_cycle() {
+        let mut schema = owner_viewer_editor_authority_profile_schema();
+        let lattice = &mut schema.tables[1]
+            .authority_profile
+            .as_mut()
+            .unwrap()
+            .role_lattice;
+        lattice[2].implies.push("editor".to_owned());
+        lattice[2].implies.sort();
+        assert_authority_lattice_reason(authority_lattice_error(schema), "acyclicity");
+    }
+
+    #[test]
+    fn authority_profile_manifest_refuses_owner_without_every_role() {
+        let mut schema = owner_viewer_editor_authority_profile_schema();
+        let lattice = &mut schema.tables[1]
+            .authority_profile
+            .as_mut()
+            .unwrap()
+            .role_lattice;
+        lattice[0].implies.retain(|role| role != "viewer");
+        lattice[1].implies.retain(|role| role != "viewer");
+        assert_authority_lattice_reason(authority_lattice_error(schema), "owner coverage");
+    }
+
+    #[test]
+    fn authority_profile_manifest_matches_codegen_utf16_lexical_tiebreak() {
+        let mut schema = owner_viewer_editor_authority_profile_schema();
+        let table = &mut schema.tables[1];
+        let membership = table.membership.as_mut().expect("membership declaration");
+        let rename = |role: &mut String| {
+            *role = match role.as_str() {
+                "viewer" => "\u{e000}",
+                "editor" => "\u{10000}",
+                other => other,
+            }
+            .to_owned();
+        };
+        for role in &mut membership.roles {
+            rename(role);
+        }
+        for transition in &mut membership.transitions {
+            for role in &mut transition.by {
+                rename(role);
+            }
+            for role in transition.from.iter_mut().flatten() {
+                rename(role);
+            }
+            for role in transition.to.iter_mut().flatten() {
+                rename(role);
+            }
+        }
+        let transition_matrix =
+            crate::manifest::canonical_membership_transition_matrix(&membership.transitions);
+        let profile = table
+            .authority_profile
+            .as_mut()
+            .expect("authority profile projection");
+        profile.transition_preconditions.matrix = transition_matrix;
+        profile.role_lattice = serde_json::from_value(json!([
+            { "role": "owner", "implies": ["owner", "\u{e000}", "\u{10000}"] },
+            { "role": "\u{10000}", "implies": ["\u{10000}"] },
+            { "role": "\u{e000}", "implies": ["\u{e000}"] }
+        ]))
+        .expect("UTF-16-ordered role lattice");
+
+        // JavaScript compares the supplementary-plane role's leading D800
+        // surrogate before E000. Rust scalar ordering is the reverse, so this
+        // pins the manifest validator to codegen's actual lexical contract.
+        ready_db_with_schema(schema);
+    }
+
+    #[test]
     fn transfer_owner_requires_the_declared_profile_and_active_target() {
         let mut plain = ready_db();
         let (event_id, _) = create_event(&mut plain, "alice");
@@ -15060,6 +15963,50 @@ mod membership_write_tests {
         assert_eq!(
             unsupported.diagnostic.details["declaration"],
             "event_members"
+        );
+
+        let mut owner_only_schema = owner_member_authority_profile_schema();
+        let expected_operations = {
+            let membership = owner_only_schema.tables[1]
+                .membership
+                .as_mut()
+                .expect("membership declaration");
+            membership.roles.retain(|role| role == "owner");
+            membership.transitions.clear();
+            expected_authority_profile_operations(membership)
+        };
+        let profile = owner_only_schema.tables[1]
+            .authority_profile
+            .as_mut()
+            .expect("authority profile projection");
+        profile.role_lattice.retain(|role| role.role == "owner");
+        profile.role_lattice[0]
+            .implies
+            .retain(|role| role == "owner");
+        profile.transition_preconditions.matrix = Vec::new();
+        profile.operations = expected_operations;
+        let mut owner_only = ready_db_with_schema(owner_only_schema);
+        let (owner_only_event, _) = create_event(&mut owner_only, "alice");
+        let no_successor = owner_only
+            .membership_plans()
+            .plan_membership_transfer_owner(
+                &user("alice"),
+                "event_members",
+                Some(&owner_only_event),
+                "bob",
+            )
+            .expect_err("an owner-only profile has no valid caller successor state");
+        assert_eq!(
+            no_successor.diagnostic.code,
+            "SNAPBACK_AUTHORITY_TRANSFER_OWNER_UNSUPPORTED"
+        );
+        assert!(
+            no_successor
+                .diagnostic
+                .message
+                .contains("no active non-owner role"),
+            "the refusal must name the missing successor role: {}",
+            no_successor.diagnostic.message
         );
 
         let (mut db, event_id, _, _, _) = authority_fixture();
@@ -15110,6 +16057,7 @@ mod membership_write_tests {
             .commit_membership_plan(&user("alice"), transfer)
             .expect_err("stale transfer loses to target removal");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        assert_eq!(owner_count_for_scope(&remove_first, &event_id), 1);
 
         // Transfer wins; the removal planned against an admin cannot delete
         // the now-protected owner row.
@@ -15132,6 +16080,7 @@ mod membership_write_tests {
             .expect_err("stale removal cannot delete the new owner");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
         assert_eq!(role_of(&transfer_first, &bob).as_deref(), Some("owner"));
+        assert_eq!(owner_count_for_scope(&transfer_first, &event_id), 1);
 
         for first in ["bob", "carol"] {
             let (mut db, event_id, _, bob, carol) = authority_fixture();
@@ -15170,6 +16119,7 @@ mod membership_write_tests {
                 role_of(&db, if first == "bob" { &bob } else { &carol }).as_deref(),
                 Some("owner")
             );
+            assert_eq!(owner_count_for_scope(&db, &event_id), 1, "{first} wins");
         }
     }
 
@@ -15214,11 +16164,13 @@ mod membership_write_tests {
 
     fn plan_remove_self(db: &LocalDatabase, principal: &str, event_id: &str) -> MembershipPlan {
         let mut authorized = db
-            .authorize_membership_commands(vec![BufferedMembershipCommand::remove_self(
-                user(principal),
-                "event_members".to_owned(),
-                Some(event_id.to_owned()),
-            )])
+            .authorize_membership_commands(
+                vec![BufferedMembershipCommand::remove_self(
+                    user(principal),
+                    "event_members".to_owned(),
+                    Some(event_id.to_owned()),
+                )],
+            )
             .expect("removeSelf resolves and plans from the pinned snapshot");
         assert_eq!(authorized.len(), 1);
         authorized.pop().expect("one plan").plan

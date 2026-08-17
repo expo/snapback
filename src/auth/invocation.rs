@@ -1705,6 +1705,10 @@ pub struct PreparedInvocation {
     /// @ref LLP 0135#12-allocation-surfaces — the manifest declaration is the
     ///   runtime ctx boundary authority.
     sequences: Vec<crate::manifest::SequenceDeclaration>,
+    /// Unforgeable codegen identity for a synthesized authority operation.
+    /// Runtime host seams consume this exact manifest fact; a matching export
+    /// name or dependency vector is insufficient.
+    generated_authority_operation: Option<crate::manifest::GeneratedAuthorityOperationV1>,
     /// Declared read/write table sets plus the declaration's source span,
     /// carried immutably for the strict-declaration runtime seams. Populated
     /// only for opaque (Ibex-module) handlers — HostPlan declared sets derive
@@ -1779,6 +1783,12 @@ impl PreparedInvocation {
 
     pub(crate) fn sequences(&self) -> &[crate::manifest::SequenceDeclaration] {
         &self.sequences
+    }
+
+    pub(crate) fn generated_authority_operation(
+        &self,
+    ) -> Option<&crate::manifest::GeneratedAuthorityOperationV1> {
+        self.generated_authority_operation.as_ref()
     }
 
     /// Declaration facts for the strict-conformance seams; `None` for
@@ -2101,6 +2111,7 @@ impl InvocationGate {
             declared_refusals: function.refusals.clone(),
             tracked_refusals: function.tracked_refusals.clone(),
             sequences: function.sequences.clone(),
+            generated_authority_operation: function.generated_authority_operation.clone(),
             strict_declaration_facts: matches!(
                 function.runtime,
                 crate::manifest::FunctionRuntime::IbexModule(_)
@@ -3145,7 +3156,7 @@ mod tests {
             "exposedMutation",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(crate::manifest::MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: Vec::new(),
                 return_value: None,
             })),

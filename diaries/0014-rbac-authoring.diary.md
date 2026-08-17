@@ -134,10 +134,10 @@ which was much easier to audit than a convention hidden in handler source.
 The hardest part was reconciling roster privacy with useful pagination. The
 page must expose only `roster.visible`, keep the continuation opaque and bound
 to one profile/scope, and capture both the caller admission and range read.
-Another surprise was that a required incidental display field prevents a
-generic `invite` operation: codegen cannot safely invent its value. Making
-such product metadata optional, or moving it to an ordinary profile table, is
-the honest workaround. The first rollout also found stale authoring fixtures
+Required invitation metadata is explicit rather than magical: fields named by
+the admitted insert transition's `fields` list become generated `invite`
+arguments, so codegen never invents their values. Product metadata outside
+that list belongs in an ordinary profile table. The first rollout also found stale authoring fixtures
 that predated the every-table-policy rule; those fixtures now declare their
 visibility rather than bypassing G1.
 
@@ -149,7 +149,8 @@ the role of RLS plus transition triggers, while the generated owner-transfer
 receipt and live dependency are first-class rather than separate SQL and
 client conventions. Snapback asks for a more explicit finite transition
 matrix, but this migration removed more handwritten authority code than it
-added.
+added. Dedicated per-profile React/Expo hooks are still open; this comparison
+uses the existing generic hooks with generated references.
 
 Membership-visible search and asset sharing remain intentionally refused, and
 the demo does not work around either with a mirrored roster. That keeps this

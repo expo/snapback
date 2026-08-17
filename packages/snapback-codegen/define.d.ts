@@ -588,6 +588,24 @@ export interface AuthorityProfileSpec<
   readonly roster: { readonly visible: readonly Field[] };
 }
 
+/** Durable post-commit receipt projected by a generated authority mutation. */
+export interface AuthorityMembershipStateV1 {
+  readonly role: string;
+  readonly status: 'active' | 'invited';
+}
+
+export interface AuthorityTransitionReceiptV1 {
+  readonly declaration: string;
+  readonly predecessor: AuthorityMembershipStateV1 | null;
+  readonly successor: AuthorityMembershipStateV1 | null;
+  readonly subject: string;
+  readonly scope: string | null;
+  readonly invalidationDisposition:
+    | 'global-authorization-epoch-advanced'
+    | 'no-authorization-event'
+    | 'preview-rolled-back';
+}
+
 type RolesOf<Spec extends MembershipSpec> =
   | Spec['roles'][number]
   | (Spec extends { pendingRoles: readonly (infer Role extends string)[] } ? Role : never);

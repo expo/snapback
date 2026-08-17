@@ -27,11 +27,11 @@ import { defineSchema, defineTable, v } from '${defineUrl}';
 export const books = defineTable({
   title: v.string(),
   authorSlug: v.string(),
-}).index('by_title', ['title']).sync();
+}).index('by_title', ['title']).visibility({ kind: 'public-read' }).sync();
 export const authors = defineTable({
   slug: v.string(),
   name: v.string(),
-}).index('by_slug', ['slug'], { unique: true }).sync();
+}).index('by_slug', ['slug'], { unique: true }).visibility({ kind: 'public-read' }).sync();
 export default defineSchema({ books, authors });
 `;
 
@@ -247,7 +247,7 @@ export const booksWithAuthors = defineRelationalQuery({
       label: 'declared read closure has an extra table',
       schema: baseSchema.replace(
         'export default defineSchema({ books, authors });',
-        "export const notes = defineTable({ body: v.string() });\nexport default defineSchema({ books, authors, notes });",
+        "export const notes = defineTable({ body: v.string() }).visibility({ kind: 'public-read' });\nexport default defineSchema({ books, authors, notes });",
       ),
       functions: jsDefinition({ reads: "['books', 'authors', 'notes']" }),
     },

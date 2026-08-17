@@ -17,7 +17,7 @@ use snapback::manifest::{
     AuthInput, AuthRequirement, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
     FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, MembershipManifest, MembershipOp,
     MembershipPrincipalAddressedWrites, MembershipProvenance, MembershipScope, MembershipTarget,
-    MembershipTransition, SchemaManifest, TableManifest,
+    MembershipTransition, SchemaManifest, TableManifest, TableVisibilityV1,
 };
 
 const SOURCE: &str = r#"
@@ -75,7 +75,11 @@ fn schema() -> SchemaManifest {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::Membership {
+                    declaration: "roomMembers".to_owned(),
+                    resource_field: "_id".to_owned(),
+                    roles: Some(vec!["owner".to_owned(), "member".to_owned()]),
+                }),
                 history: None,
             },
             TableManifest {
@@ -83,7 +87,9 @@ fn schema() -> SchemaManifest {
                 fields: vec![
                     FieldManifest {
                         name: "roomId".to_owned(),
-                        field_type: FieldType::String,
+                        field_type: FieldType::Id {
+                            table: "rooms".to_owned(),
+                        },
                         optional: false,
                     },
                     FieldManifest {
@@ -102,7 +108,11 @@ fn schema() -> SchemaManifest {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::Membership {
+                    declaration: "roomMembers".to_owned(),
+                    resource_field: "roomId".to_owned(),
+                    roles: Some(vec!["owner".to_owned()]),
+                }),
                 history: None,
             },
             TableManifest {
@@ -176,7 +186,11 @@ fn schema() -> SchemaManifest {
                 }),
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(TableVisibilityV1::Membership {
+                    declaration: "roomMembers".to_owned(),
+                    resource_field: "roomId".to_owned(),
+                    roles: Some(vec!["owner".to_owned(), "member".to_owned()]),
+                }),
                 history: None,
             },
         ],

@@ -79,6 +79,79 @@ fn unbound_local_snapback_defaults_governance_activation_to_prod() {
 }
 
 #[test]
+fn authored_profile_shaped_name_cannot_publish_authority_transition_receipts() {
+    let mut function = FunctionDefinition::new(
+        "roomMembers.invite",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: "globalThis.__snapbackHandlers = { fakeInvite() { return null; } };".to_owned(),
+            export: "fakeInvite".to_owned(),
+        }),
+    );
+    function.authority_profile_dependence = vec![crate::manifest::AuthorityProfileIdentityV1 {
+        id: "roomMembers".to_owned(),
+        generation: "sha256:profile-generation".to_owned(),
+    }];
+    assert!(function.generated_authority_operation.is_none());
+
+    let transition = crate::storage::AuthorityTransitionReceiptV1 {
+        declaration: "roomMembers".to_owned(),
+        predecessor: None,
+        successor: Some(crate::storage::AuthorityMembershipStateV1 {
+            role: "invited".to_owned(),
+            status: crate::storage::AuthorityMembershipStatusV1::Invited,
+        }),
+        subject: "user_invited".to_owned(),
+        scope: Some("rooms_01k9m4x7p2q8we5rt3yu6a10s".to_owned()),
+        invalidation_disposition:
+            crate::storage::AuthorityInvalidationDispositionV1::GlobalAuthorizationEpochAdvanced,
+    };
+    let commit = crate::storage::MutationCommit {
+        output: MutationOutput {
+            version: 1,
+            changed_count: 1,
+            result: Value::Null,
+            authority_transitions: vec![transition.clone()],
+            ctx_ledger: None,
+            settlement_mint_observations: Vec::new(),
+            settlement_time_observation: None,
+            settlement_sequence_allocations: Vec::new(),
+        },
+        changes: Vec::new(),
+        read_dependencies: Vec::new(),
+        write_dependencies: Vec::new(),
+        job_enqueues: Vec::new(),
+        job_changes: Vec::new(),
+        asset_changes: Vec::new(),
+        sequence_allocations: Vec::new(),
+        authorization: None,
+        authority_transitions: vec![transition],
+        network_egress: Default::default(),
+    };
+    let mut snapback = LocalSnapback::memory().expect("receipt-gate fixture");
+    snapback.functions = FunctionManifest {
+        functions: vec![function],
+        ..FunctionManifest::default()
+    };
+    let (result, _) = snapback.record_mutation_commit(
+        "roomMembers.invite",
+        "test",
+        None,
+        "mutation-authored-fake".to_owned(),
+        &MutationSettlement::default(),
+        Ok(commit),
+        false,
+    );
+    assert!(
+        result
+            .expect("the synthetic commit remains successful")
+            .authority_transitions
+            .is_empty(),
+        "an authored mutation cannot publish receipts merely by matching a generated name",
+    );
+}
+
+#[test]
 fn raw_schema_apply_cannot_bypass_governed_complete_pair_activation() {
     let mut snapback = LocalSnapback::memory().expect("governed local fixture");
     let mut schema = SchemaManifest::default();
@@ -110,6 +183,7 @@ fn replayed_mutation_commit_never_claims_dependency_capture() {
             version: 7,
             changed_count: 1,
             result: json!({"replayed": true}),
+            authority_transitions: Vec::new(),
             ctx_ledger: None,
             settlement_mint_observations: Vec::new(),
             settlement_time_observation: None,

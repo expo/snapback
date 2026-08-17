@@ -84,7 +84,9 @@ async function diagnosticFor(profile) {
 try {
   writeFileSync(join(backend, 'schema.mjs'), `
     import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
-    export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+    export default defineSchema({
+      todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+    });
   `);
   writeFileSync(join(backend, 'functions.mjs'), `
     import { defineAction, defineJsLiveQuery, defineJsMutation, defineJsQuery, results, v } from ${JSON.stringify(defineUrl)};

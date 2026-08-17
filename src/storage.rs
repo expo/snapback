@@ -2,17 +2,19 @@ use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{validate_collection_definitions, validate_collection_permission_backing};
 use crate::manifest::{
     AssetCollectionMutationPlanV1, AssetCollectionOperationV1, AuthInput, AuthMode,
-    CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION,
-    CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MembershipManifest,
-    MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
-    MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
-    OwnerWriteAbsentDispositionV1, OwnerWriteCheckV1,
-    PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
-    QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
-    ResultValueContract, SeedData, SettlementMintObservation, SettlementTimeObservation,
-    TableManifest, TableVisibilityV1, ValueExpr,
-    auth_fingerprint, effective_query_limit, is_user_identifier, replay_opaque_id_is_valid,
-    validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
+    AuthRequirement, AuthorityProfileHookV1, AuthorityProfileOperationNameV1,
+    AuthorityProfileOperationV1, AuthorityProfileTransitionOpV1, CLIENT_MUTATION_ACK_MAX_IDS,
+    CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest,
+    FieldType, FilterOp, FunctionKind, HandlerInput, MembershipManifest, MembershipOp,
+    MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput, MutationPlan,
+    MutationSettlement, MutationStep, OrderDirection, OrderExpr, OwnerWriteAbsentDispositionV1,
+    OwnerWriteCheckV1, PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX,
+    QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency,
+    ResultValueContract, ReturnValue, SchemaManifest, SeedData, SettlementMintObservation,
+    SettlementTimeObservation, TableManifest, TableVisibilityV1, ValueExpr, auth_fingerprint,
+    canonical_membership_transition_matrix, effective_query_limit, is_user_identifier,
+    replay_opaque_id_is_valid, validate_ctx_answer_ledger, validate_portable_timestamp_millis,
+    validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
@@ -969,8 +971,7 @@ pub(crate) struct BufferedCommitPayload {
     pub media_projection_proof: Option<crate::runtime::StagedMediaProjectionProofV1>,
     /// Independently reconstructed from the prepared invocation/request
     /// carrier; the storage boundary compares it with the proof before OCC.
-    pub expected_media_projection_binding:
-        Option<crate::runtime::MediaProjectionProofBindingV1>,
+    pub expected_media_projection_binding: Option<crate::runtime::MediaProjectionProofBindingV1>,
 }
 
 enum MediaProjectionProofAccess<'a> {
@@ -3062,9 +3063,7 @@ impl LocalDatabase {
                     MutationStep::InsertEach { .. } => Some(GenericTableWriteFormV1::InsertEach),
                     MutationStep::Patch { .. } => Some(GenericTableWriteFormV1::Patch),
                     MutationStep::Delete { .. } => Some(GenericTableWriteFormV1::Delete),
-                    MutationStep::DeleteWhere { .. } => {
-                        Some(GenericTableWriteFormV1::DeleteWhere)
-                    }
+                    MutationStep::DeleteWhere { .. } => Some(GenericTableWriteFormV1::DeleteWhere),
                     MutationStep::AssetCollection(_)
                     | MutationStep::AllocateSequence { .. }
                     | MutationStep::Get { .. }
@@ -3259,16 +3258,12 @@ impl LocalDatabase {
         for check in &plan.owner_write_checks {
             check_live()?;
             let (table_name, id_expr, write_form) = match &plan.steps[check.step_index] {
-                MutationStep::Patch { table, id, .. } => (
-                    table.as_str(),
-                    id,
-                    GenericTableWriteFormV1::Patch,
-                ),
-                MutationStep::Delete { table, id } => (
-                    table.as_str(),
-                    id,
-                    GenericTableWriteFormV1::Delete,
-                ),
+                MutationStep::Patch { table, id, .. } => {
+                    (table.as_str(), id, GenericTableWriteFormV1::Patch)
+                }
+                MutationStep::Delete { table, id } => {
+                    (table.as_str(), id, GenericTableWriteFormV1::Delete)
+                }
                 _ => unreachable!("owner-write preflight already bound carrier to point write"),
             };
             let table = schema_table(&schema, table_name)?;
@@ -3296,11 +3291,7 @@ impl LocalDatabase {
                 "owner write check id",
             )?;
             let old_row = get_document_from_tx(&tx, table, &id, next_version)?;
-            if !owner_row_matches(
-                old_row.as_ref(),
-                owner_field,
-                input.auth.user_id.as_deref(),
-            ) {
+            if !owner_row_matches(old_row.as_ref(), owner_field, input.auth.user_id.as_deref()) {
                 owner_write_refusal(&check.absent)?;
                 owner_absent_targets.insert((table.name.clone(), id));
             }
@@ -3386,11 +3377,9 @@ impl LocalDatabase {
                 } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
-                    let owner_field = generic_owner_write_field(
-                        table,
-                        GenericTableWriteFormV1::Insert,
-                    )?
-                    .map(str::to_owned);
+                    let owner_field =
+                        generic_owner_write_field(table, GenericTableWriteFormV1::Insert)?
+                            .map(str::to_owned);
                     // @ref LLP 0056 — a protected resource may not be created
                     //   without seating its bootstrap holder (bootstrap path
                     //   only); a HostPlan generic insert cannot do that.
@@ -3466,10 +3455,8 @@ impl LocalDatabase {
                 MutationStep::Patch { table, id, values } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
-                    let owner_field = generic_owner_write_field(
-                        table,
-                        GenericTableWriteFormV1::Patch,
-                    )?;
+                    let owner_field =
+                        generic_owner_write_field(table, GenericTableWriteFormV1::Patch)?;
                     if values.is_empty() {
                         continue;
                     }
@@ -3494,11 +3481,9 @@ impl LocalDatabase {
                             owner_field,
                             input.auth.user_id.as_deref(),
                         ) {
-                            let check = owner_write_check_for_step(
-                                &plan.owner_write_checks,
-                                step_index,
-                            )
-                            .expect("preflight proved the owner check carrier");
+                            let check =
+                                owner_write_check_for_step(&plan.owner_write_checks, step_index)
+                                    .expect("preflight proved the owner check carrier");
                             owner_write_refusal(&check.absent)?;
                             owner_absent_targets.insert((table.name.clone(), id));
                             continue;
@@ -3554,10 +3539,8 @@ impl LocalDatabase {
                 MutationStep::Delete { table, id } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
-                    let owner_field = generic_owner_write_field(
-                        table,
-                        GenericTableWriteFormV1::Delete,
-                    )?;
+                    let owner_field =
+                        generic_owner_write_field(table, GenericTableWriteFormV1::Delete)?;
                     let id = expect_string(
                         eval_expr(
                             id,
@@ -3579,11 +3562,9 @@ impl LocalDatabase {
                             owner_field,
                             input.auth.user_id.as_deref(),
                         ) {
-                            let check = owner_write_check_for_step(
-                                &plan.owner_write_checks,
-                                step_index,
-                            )
-                            .expect("preflight proved the owner check carrier");
+                            let check =
+                                owner_write_check_for_step(&plan.owner_write_checks, step_index)
+                                    .expect("preflight proved the owner check carrier");
                             owner_write_refusal(&check.absent)?;
                             owner_absent_targets.insert((table.name.clone(), id));
                             continue;
@@ -3648,13 +3629,12 @@ impl LocalDatabase {
                         )?,
                         "get id",
                     )?;
-                    let document = if owner_absent_targets
-                        .contains(&(table.name.clone(), id.clone()))
-                    {
-                        None
-                    } else {
-                        get_document_from_tx(&tx, table, &id, next_version)?
-                    };
+                    let document =
+                        if owner_absent_targets.contains(&(table.name.clone(), id.clone())) {
+                            None
+                        } else {
+                            get_document_from_tx(&tx, table, &id, next_version)?
+                        };
                     let dependency = match &document {
                         Some(_) => CapturedReadDependency {
                             kind: CapturedReadKind::Row,
@@ -3896,11 +3876,9 @@ impl LocalDatabase {
                 MutationStep::DeleteWhere { table, filter } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
-                    let owner_field = generic_owner_write_field(
-                        table,
-                        GenericTableWriteFormV1::DeleteWhere,
-                    )?
-                    .map(str::to_owned);
+                    let owner_field =
+                        generic_owner_write_field(table, GenericTableWriteFormV1::DeleteWhere)?
+                            .map(str::to_owned);
                     // Reuse the query WHERE builder so DeleteWhere filters share
                     // matcher/SQL semantics with reads (empty filter = clear).
                     let scan_plan = QueryPlan {
@@ -3993,11 +3971,9 @@ impl LocalDatabase {
                 } => {
                     enforce_identity_binding_write_seal(&schema, table)?;
                     let table = schema_table(&schema, table)?;
-                    let owner_field = generic_owner_write_field(
-                        table,
-                        GenericTableWriteFormV1::InsertEach,
-                    )?
-                    .map(str::to_owned);
+                    let owner_field =
+                        generic_owner_write_field(table, GenericTableWriteFormV1::InsertEach)?
+                            .map(str::to_owned);
                     let principal = if owner_field.is_some() {
                         Some(input.auth.user_id.as_deref().ok_or_else(|| {
                             SnapbackError::error(
@@ -4122,14 +4098,13 @@ impl LocalDatabase {
                             )?,
                             "document id",
                         )?;
-                        let mut document = if owner_absent_targets
-                            .contains(&(table.name.clone(), id.clone()))
-                        {
-                            Value::Null
-                        } else {
-                            get_document_from_tx(&tx, table, &id, next_version)?
-                                .unwrap_or(Value::Null)
-                        };
+                        let mut document =
+                            if owner_absent_targets.contains(&(table.name.clone(), id.clone())) {
+                                Value::Null
+                            } else {
+                                get_document_from_tx(&tx, table, &id, next_version)?
+                                    .unwrap_or(Value::Null)
+                            };
                         if !document.is_null() {
                             project_media_fields_on(&tx, table, &mut document)?;
                         }
@@ -4246,8 +4221,7 @@ impl LocalDatabase {
                     {
                         Value::Null
                     } else {
-                        get_document_from_tx(&tx, table, &id, next_version)?
-                            .unwrap_or(Value::Null)
+                        get_document_from_tx(&tx, table, &id, next_version)?.unwrap_or(Value::Null)
                     };
                     if !document.is_null() {
                         project_media_fields_on(&tx, table, &mut document)?;
@@ -4306,6 +4280,7 @@ impl LocalDatabase {
             version,
             changed_count: changes.len(),
             result,
+            authority_transitions: Vec::new(),
             ctx_ledger: Some(output_ledger),
             settlement_mint_observations: plan_ids.borrow().observations.clone(),
             settlement_time_observation: settlement_time.map(|policy| {
@@ -4453,10 +4428,7 @@ impl LocalDatabase {
             media_projection_proof,
             expected_media_projection_binding,
         } = payload;
-        let media_projection = match (
-            media_projection_proof,
-            expected_media_projection_binding,
-        ) {
+        let media_projection = match (media_projection_proof, expected_media_projection_binding) {
             (Some(proof), Some(expected)) => {
                 Some(MediaProjectionProofAccess::Owned { proof, expected })
             }
@@ -4851,10 +4823,9 @@ impl LocalDatabase {
                     }
                     let before = get_document_from_tx(&tx, table, &id, next_version)?;
                     if write_gate == MembershipWriteGate::Deny {
-                        if let Some(owner_field) = generic_owner_write_field(
-                            table,
-                            GenericTableWriteFormV1::Patch,
-                        )? {
+                        if let Some(owner_field) =
+                            generic_owner_write_field(table, GenericTableWriteFormV1::Patch)?
+                        {
                             if !owner_row_matches(
                                 before.as_ref(),
                                 owner_field,
@@ -4921,10 +4892,9 @@ impl LocalDatabase {
                     let table = schema_table(&schema, &table)?;
                     let document = get_document_from_tx(&tx, table, &id, next_version)?;
                     if write_gate == MembershipWriteGate::Deny {
-                        if let Some(owner_field) = generic_owner_write_field(
-                            table,
-                            GenericTableWriteFormV1::Delete,
-                        )? {
+                        if let Some(owner_field) =
+                            generic_owner_write_field(table, GenericTableWriteFormV1::Delete)?
+                        {
                             if !owner_row_matches(
                                 document.as_ref(),
                                 owner_field,
@@ -5167,10 +5137,11 @@ impl LocalDatabase {
             Some(_) => return Err(media_projection_unprovenanced()),
             None => None,
         };
-        let output = MutationOutput {
+        let mut output = MutationOutput {
             version,
             changed_count: changes.len(),
             result,
+            authority_transitions: Vec::new(),
             ctx_ledger: options.ctx_ledger,
             settlement_mint_observations: Vec::new(),
             settlement_time_observation: None,
@@ -5202,7 +5173,10 @@ impl LocalDatabase {
         let authority_transitions = authority_transition_drafts
             .into_iter()
             .map(|draft| draft.finish(authority_invalidation_disposition.clone()))
-            .collect();
+            .collect::<Vec<_>>();
+        if options.apply {
+            output.authority_transitions = authority_transitions.clone();
+        }
         if options.apply {
             check_live()?;
             let prepared_authorization_commit = prepare_authorization_commit_interlock(
@@ -5637,10 +5611,8 @@ impl LocalDatabase {
                     .collect::<rusqlite::Result<Vec<_>>>()?
             };
             for auth_fingerprint in auth_fingerprints {
-                let (records, bytes) = scan_client_mutation_retention_totals_for_auth(
-                    &tx,
-                    Some(&auth_fingerprint),
-                )?;
+                let (records, bytes) =
+                    scan_client_mutation_retention_totals_for_auth(&tx, Some(&auth_fingerprint))?;
                 save_client_mutation_auth_retention_counters(
                     &tx,
                     &auth_fingerprint,
@@ -9110,6 +9082,578 @@ fn validate_stored_structured_descriptor(
     Ok(())
 }
 
+fn expected_authority_profile_operations(
+    membership: &MembershipManifest,
+) -> Vec<AuthorityProfileOperationV1> {
+    let query = |name| AuthorityProfileOperationV1 {
+        name,
+        kind: FunctionKind::LiveQuery,
+        auth_requirement: AuthRequirement::Authenticated,
+        hooks: vec![AuthorityProfileHookV1::Query],
+        transition_ops: Vec::new(),
+    };
+    let mutation = |name, transition_op| AuthorityProfileOperationV1 {
+        name,
+        kind: FunctionKind::Mutation,
+        auth_requirement: AuthRequirement::Authenticated,
+        hooks: vec![
+            AuthorityProfileHookV1::Mutation,
+            AuthorityProfileHookV1::OutboxMutationStatus,
+        ],
+        transition_ops: vec![transition_op],
+    };
+    let active = membership.roles.iter().collect::<BTreeSet<_>>();
+    let pending = membership
+        .pending_roles
+        .iter()
+        .flatten()
+        .collect::<BTreeSet<_>>();
+    let transitions = &membership.transitions;
+    let has_role = |roles: Option<&Vec<String>>, vocabulary: &BTreeSet<&String>| {
+        roles.is_some_and(|roles| roles.iter().any(|role| vocabulary.contains(role)))
+    };
+    let excludes_owner = |roles: Option<&Vec<String>>| {
+        roles.is_none_or(|roles| roles.iter().all(|role| role != "owner"))
+    };
+
+    let mut operations = vec![
+        query(AuthorityProfileOperationNameV1::List),
+        query(AuthorityProfileOperationNameV1::MyRole),
+    ];
+    if transitions.iter().any(|transition| {
+        transition.op == MembershipOp::Insert
+            && transition.target == MembershipTarget::Other
+            && transition
+                .to
+                .as_ref()
+                .is_some_and(|roles| !roles.is_empty())
+    }) {
+        operations.push(mutation(
+            AuthorityProfileOperationNameV1::Invite,
+            AuthorityProfileTransitionOpV1::Insert,
+        ));
+    }
+    if transitions.iter().any(|transition| {
+        transition.op == MembershipOp::SetRole
+            && transition.target == MembershipTarget::Own
+            && has_role(transition.from.as_ref(), &pending)
+            && has_role(transition.to.as_ref(), &active)
+    }) {
+        operations.push(mutation(
+            AuthorityProfileOperationNameV1::Join,
+            AuthorityProfileTransitionOpV1::SetRole,
+        ));
+    }
+    if transitions.iter().any(|transition| {
+        transition.op == MembershipOp::Remove
+            && transition.target == MembershipTarget::Own
+            && transition.from.as_ref().is_some_and(|roles| {
+                roles
+                    .iter()
+                    .any(|role| role != "owner" && active.contains(role))
+            })
+    }) {
+        operations.push(mutation(
+            AuthorityProfileOperationNameV1::Leave,
+            AuthorityProfileTransitionOpV1::Remove,
+        ));
+    }
+    if transitions.iter().any(|transition| {
+        transition.op == MembershipOp::SetRole
+            && transition.target == MembershipTarget::Other
+            && excludes_owner(transition.from.as_ref())
+            && excludes_owner(transition.to.as_ref())
+            && transition
+                .to
+                .as_ref()
+                .is_some_and(|roles| !roles.is_empty())
+    }) {
+        operations.push(mutation(
+            AuthorityProfileOperationNameV1::ChangeRole,
+            AuthorityProfileTransitionOpV1::SetRole,
+        ));
+    }
+    if membership.roles.iter().any(|role| role == "owner") && membership.roles.len() > 1 {
+        operations.push(mutation(
+            AuthorityProfileOperationNameV1::TransferOwner,
+            AuthorityProfileTransitionOpV1::TransferOwner,
+        ));
+    }
+    if transitions.iter().any(|transition| {
+        transition.op == MembershipOp::Remove
+            && transition.target == MembershipTarget::Other
+            && excludes_owner(transition.from.as_ref())
+    }) {
+        operations.push(mutation(
+            AuthorityProfileOperationNameV1::Remove,
+            AuthorityProfileTransitionOpV1::Remove,
+        ));
+    }
+    operations
+}
+
+fn validate_authority_profile_role_lattice(table: &TableManifest) -> SnapbackResult<()> {
+    let Some(profile) = table.authority_profile.as_ref() else {
+        return Ok(());
+    };
+    let invalid = |reason: &str, expected_order: Vec<String>| {
+        SnapbackError::error(
+            "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID",
+            "auth",
+            format!(
+                "authority profile {} on table {} has a non-canonical role lattice: {reason}",
+                profile.id, table.name
+            ),
+        )
+        .with_details(json!({
+            "table": table.name,
+            "declaration": profile.id,
+            "actualOrder": profile
+                .role_lattice
+                .iter()
+                .map(|entry| entry.role.clone())
+                .collect::<Vec<_>>(),
+            "expectedOrder": expected_order,
+            "reason": reason,
+        }))
+    };
+    let relationship_invalid = |property: &str| {
+        invalid(
+            &format!(
+                "profile-membership relationship integrity: {property} must match codegen's canonical membership-backed projection"
+            ),
+            Vec::new(),
+        )
+    };
+    let Some(membership) = table.membership.as_ref() else {
+        return Err(relationship_invalid("membership"));
+    };
+
+    // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+    // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+    // — this manifest boundary independently checks every cross-reference
+    // emitted by codegen's membership-backed profile: `id`,
+    // `membership.declaration`, `tablePolicy.membershipDeclaration`, and the
+    // transition projection bind the explicitly pinned declaration id (profile
+    // tables never use the ordinary table-name fallback); membership
+    // path/predicate and table-policy
+    // identities bind their canonical sources; `scopeRelation` binds the
+    // table plus resource/principal axes and nominal resource table;
+    // `statusPredicates` binds active/pending role sources; the lattice
+    // vocabulary and reverse index bind the membership role axis; owner fields
+    // bind membership bootstrap/last-holder roles; transition preconditions
+    // bind the membership transition source, the complete canonical matrix,
+    // provenance mode, expiry presence, and principal-addressed remove opt-in;
+    // authorization event fields bind
+    // all non-incidental table fields plus enabled provenance; subject
+    // derivation binds the membership principal/scope axes; roster fields bind
+    // real table fields; `requiredIndexes` exactly describes the real
+    // generated unique and reverse membership indexes; and `operations`
+    // exactly reflects the admitted transition matrix plus active/pending role
+    // vocabulary. Profile-local hierarchy closure, wake-universe constants,
+    // and composition classes have no independent membership cross-reference;
+    // the closed generation binds
+    // their emitted content instead. No emitted profile↔membership relationship
+    // is trusted merely because codegen would ordinarily construct it.
+    let Some(declaration) = membership.id.as_deref() else {
+        return Err(relationship_invalid("membership.id"));
+    };
+    let manifest_path = format!("tables.{}.membership", table.name);
+    for (property, actual, expected) in [
+        ("profile.id", profile.id.as_str(), declaration),
+        (
+            "membership.declaration",
+            profile.membership.declaration.as_str(),
+            declaration,
+        ),
+        (
+            "membership.manifestPath",
+            profile.membership.manifest_path.as_str(),
+            manifest_path.as_str(),
+        ),
+        (
+            "membership.predicateIdentity",
+            profile.membership.predicate_identity.as_str(),
+            "snapback.membership-predicate.v1",
+        ),
+        (
+            "tablePolicy.identity",
+            profile.table_policy.identity.as_str(),
+            "snapback.table-visibility.v1",
+        ),
+        (
+            "tablePolicy.membershipDeclaration",
+            profile.table_policy.membership_declaration.as_str(),
+            declaration,
+        ),
+        (
+            "scopeRelation.table",
+            profile.scope_relation.table.as_str(),
+            table.name.as_str(),
+        ),
+        (
+            "statusPredicates.active",
+            profile.status_predicates.active.as_str(),
+            "membership.roles",
+        ),
+        (
+            "statusPredicates.invited",
+            profile.status_predicates.invited.as_str(),
+            "membership.pendingRoles",
+        ),
+        (
+            "transitionPreconditions.source",
+            profile.transition_preconditions.source.as_str(),
+            "membership.transitions",
+        ),
+        (
+            "transitionPreconditions.membershipDeclarationId",
+            profile
+                .transition_preconditions
+                .membership_declaration_id
+                .as_str(),
+            declaration,
+        ),
+        (
+            "transitionPreconditions.ownerMutation",
+            profile.transition_preconditions.owner_mutation.as_str(),
+            "transfer-owner-only",
+        ),
+        (
+            "subjectDerivation.strategy",
+            profile.subject_derivation.strategy.as_str(),
+            "membership-principal-resource-v1",
+        ),
+        (
+            "subjectDerivation.principalField",
+            profile.subject_derivation.principal_field.as_str(),
+            membership.principal.as_str(),
+        ),
+        (
+            "scopeRelation.principalKey",
+            profile.scope_relation.principal_key.as_str(),
+            membership.principal.as_str(),
+        ),
+    ] {
+        if actual != expected {
+            return Err(relationship_invalid(property));
+        }
+    }
+    if profile.transition_preconditions.matrix
+        != canonical_membership_transition_matrix(&membership.transitions)
+    {
+        return Err(relationship_invalid(
+            "transitionPreconditions.matrix/membership.transitions",
+        ));
+    }
+    if profile.transition_preconditions.provenance != membership.provenance {
+        return Err(relationship_invalid(
+            "transitionPreconditions.provenance/membership.provenance",
+        ));
+    }
+    if profile.transition_preconditions.expiry_present != membership.expiry.is_some() {
+        return Err(relationship_invalid(
+            "transitionPreconditions.expiryPresent/membership.expiry",
+        ));
+    }
+    if profile
+        .transition_preconditions
+        .principal_addressed_writes_remove
+        != membership
+            .principal_addressed_writes
+            .as_ref()
+            .map(|writes| writes.remove)
+    {
+        return Err(relationship_invalid(
+            "transitionPreconditions.principalAddressedWritesRemove/membership.principalAddressedWrites.remove",
+        ));
+    }
+    if membership.scope != MembershipScope::Resource {
+        return Err(relationship_invalid("membership.scope"));
+    }
+    let Some(resource_field) = membership.resource.as_deref() else {
+        return Err(relationship_invalid("scopeRelation.resourceField"));
+    };
+    let Some(resource_table) = membership.resource_table.as_deref() else {
+        return Err(relationship_invalid("scopeRelation.resourceTable"));
+    };
+    for (property, actual, expected) in [
+        (
+            "scopeRelation.resourceField",
+            profile.scope_relation.resource_field.as_str(),
+            resource_field,
+        ),
+        (
+            "scopeRelation.resourceTable",
+            profile.scope_relation.resource_table.as_str(),
+            resource_table,
+        ),
+        (
+            "subjectDerivation.scopeField",
+            profile.subject_derivation.scope_field.as_str(),
+            resource_field,
+        ),
+    ] {
+        if actual != expected {
+            return Err(relationship_invalid(property));
+        }
+    }
+
+    if membership.bootstrap_role.as_deref()
+        != Some(profile.owner_bootstrap_invariant.bootstrap_role.as_str())
+    {
+        return Err(relationship_invalid(
+            "ownerBootstrapInvariant.bootstrapRole/membership.bootstrapRole",
+        ));
+    }
+    if membership
+        .last_holder
+        .as_ref()
+        .map(|last| last.protect.as_str())
+        != Some(
+            profile
+                .owner_bootstrap_invariant
+                .protected_last_holder_role
+                .as_str(),
+        )
+    {
+        return Err(relationship_invalid(
+            "ownerBootstrapInvariant.protectedLastHolderRole/membership.lastHolder.protect",
+        ));
+    }
+    let incidental = membership.incidental.as_deref().unwrap_or(&[]);
+    let mut authorization_event_fields = table
+        .fields
+        .iter()
+        .map(|field| field.name.clone())
+        .filter(|field| !incidental.contains(field))
+        .collect::<Vec<_>>();
+    if membership.provenance.is_some() {
+        authorization_event_fields.extend(MEMBERSHIP_PROVENANCE_COLUMNS.map(str::to_owned));
+    }
+    if profile.authorization_event_fields != authorization_event_fields {
+        return Err(relationship_invalid("authorizationEventFields"));
+    }
+
+    let table_fields = table
+        .fields
+        .iter()
+        .map(|field| field.name.as_str())
+        .collect::<BTreeSet<_>>();
+    if profile.roster.visible_fields.is_empty()
+        || profile
+            .roster
+            .visible_fields
+            .iter()
+            .collect::<BTreeSet<_>>()
+            .len()
+            != profile.roster.visible_fields.len()
+        || profile
+            .roster
+            .visible_fields
+            .iter()
+            .any(|field| !table_fields.contains(field.as_str()))
+    {
+        return Err(relationship_invalid("roster.visibleFields"));
+    }
+
+    if profile.operations != expected_authority_profile_operations(membership) {
+        return Err(relationship_invalid("operations/membership.transitions"));
+    }
+
+    let (unique_name, unique_fields) =
+        membership_unique_index(table).expect("authority profile requires membership indexes");
+    let (reverse_name, reverse_fields) =
+        membership_reverse_index(table).expect("authority profile requires membership indexes");
+    let expected_indexes = [
+        (unique_name, unique_fields, true, "principal-in-scope-point"),
+        (
+            reverse_name,
+            reverse_fields,
+            false,
+            "protected-holders-and-scope-invalidation-range",
+        ),
+    ];
+    if profile.required_indexes.len() != expected_indexes.len() {
+        return Err(relationship_invalid("requiredIndexes.length"));
+    }
+    for (actual, (name, fields, unique, lookup)) in
+        profile.required_indexes.iter().zip(expected_indexes)
+    {
+        let prefix = format!("requiredIndexes.{name}");
+        if actual.name != name {
+            return Err(relationship_invalid(&format!("{prefix}.name")));
+        }
+        if actual.fields != fields {
+            return Err(relationship_invalid(&format!("{prefix}.fields")));
+        }
+        if actual.unique != unique {
+            return Err(relationship_invalid(&format!("{prefix}.unique")));
+        }
+        if actual.lookup != lookup {
+            return Err(relationship_invalid(&format!("{prefix}.lookup")));
+        }
+    }
+
+    let roles = profile
+        .role_lattice
+        .iter()
+        .map(|entry| entry.role.clone())
+        .collect::<Vec<_>>();
+    if roles.is_empty()
+        || roles.iter().any(|role| role.is_empty())
+        || roles.iter().collect::<BTreeSet<_>>().len() != roles.len()
+    {
+        return Err(invalid(
+            "role-vocabulary integrity: role entries must be non-empty and unique",
+            Vec::new(),
+        ));
+    }
+
+    let role_vocabulary = membership.roles.iter().cloned().collect::<BTreeSet<_>>();
+    let lattice_vocabulary = roles.iter().cloned().collect::<BTreeSet<_>>();
+    if lattice_vocabulary != role_vocabulary {
+        return Err(invalid(
+            "role-vocabulary integrity: roleLattice[].role/membership.roles must exactly match active membership roles",
+            Vec::new(),
+        ));
+    }
+
+    for (property, value) in [
+        (
+            "ownerBootstrapInvariant.role",
+            profile.owner_bootstrap_invariant.role.as_str(),
+        ),
+        (
+            "ownerBootstrapInvariant.bootstrapRole",
+            profile.owner_bootstrap_invariant.bootstrap_role.as_str(),
+        ),
+        (
+            "ownerBootstrapInvariant.protectedLastHolderRole",
+            profile
+                .owner_bootstrap_invariant
+                .protected_last_holder_role
+                .as_str(),
+        ),
+    ] {
+        if value != "owner" {
+            return Err(invalid(
+                &format!("owner-bootstrap integrity: {property} must be the literal \"owner\""),
+                Vec::new(),
+            ));
+        }
+    }
+
+    let mut implications = BTreeMap::new();
+    for entry in &profile.role_lattice {
+        if entry
+            .implies
+            .iter()
+            .any(|implied| !role_vocabulary.contains(implied))
+        {
+            return Err(invalid(
+                "implies-vocabulary integrity: every implied role must belong to the active role vocabulary",
+                Vec::new(),
+            ));
+        }
+        let implied_set = entry.implies.iter().cloned().collect::<BTreeSet<_>>();
+        if entry.implies.iter().filter(|role| *role == &entry.role).count() != 1
+            || implied_set.len() != entry.implies.len()
+        {
+            return Err(invalid(
+                "self-inclusion integrity: each role must imply itself exactly once and implication entries must be unique",
+                Vec::new(),
+            ));
+        }
+        implications.insert(entry.role.clone(), implied_set);
+    }
+
+    for (role, implied) in &implications {
+        for intermediate in implied {
+            let descendants = implications
+                .get(intermediate)
+                .expect("implied-role vocabulary was validated");
+            if !descendants.is_subset(implied) {
+                return Err(invalid(
+                    "closure transitivity: every role must include all roles implied by each of its implied roles",
+                    Vec::new(),
+                ));
+            }
+        }
+        if implied.iter().any(|other| {
+            other != role
+                && implications
+                    .get(other)
+                    .is_some_and(|other_implied| other_implied.contains(role))
+        }) {
+            return Err(invalid(
+                "acyclicity: distinct roles must not mutually imply one another",
+                Vec::new(),
+            ));
+        }
+    }
+
+    let owner_role = &profile.owner_bootstrap_invariant.role;
+    if !implications
+        .get(owner_role)
+        .is_some_and(|implied| role_vocabulary.is_subset(implied))
+    {
+        return Err(invalid(
+            "owner coverage: the declared owner must imply every active role",
+            Vec::new(),
+        ));
+    }
+
+    let mut ordered = profile
+        .role_lattice
+        .iter()
+        .map(|entry| {
+            (
+                entry.role.clone(),
+                implications
+                    .get(&entry.role)
+                    .expect("lattice role vocabulary was validated")
+                    .clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    ordered.sort_by(|(left_role, left_implies), (right_role, right_implies)| {
+        let left_strict_superset =
+            left_implies.len() > right_implies.len() && right_implies.is_subset(left_implies);
+        let right_strict_superset =
+            right_implies.len() > left_implies.len() && left_implies.is_subset(right_implies);
+        if left_strict_superset {
+            std::cmp::Ordering::Less
+        } else if right_strict_superset {
+            std::cmp::Ordering::Greater
+        } else {
+            right_implies
+                .len()
+                .cmp(&left_implies.len())
+                // Codegen's `compareCodeUnits` uses JavaScript string order.
+                // Match its UTF-16 code-unit tie-break exactly at this trust
+                // boundary, including supplementary-plane role names.
+                .then_with(|| crate::rqs_contract::cmp_utf16(left_role, right_role))
+        }
+    });
+    let expected_order = ordered
+        .into_iter()
+        .map(|(role, _)| role)
+        .collect::<Vec<_>>();
+    // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+    // — transferOwner selects the first active non-owner role. The manifest is
+    // a trust boundary, so it must preserve codegen's canonical hierarchy-
+    // topological order instead of letting hand-authored vector order choose
+    // the former owner's successor state.
+    if roles.first() != Some(&profile.owner_bootstrap_invariant.role) || roles != expected_order {
+        return Err(invalid(
+            "entries must be hierarchy-topological (strict supersets first, then larger implied sets, then lexical role)",
+            expected_order,
+        ));
+    }
+    Ok(())
+}
+
 fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
     validate_collection_definitions(&manifest.ephemeral_collections).map_err(|error| {
         SnapbackError::error(error.code.diagnostic_code(), "ephemeral", error.message)
@@ -9697,6 +10241,7 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
             &mut physical_index_names,
             &mut membership_declaration_ids,
         )?;
+        validate_authority_profile_role_lattice(table)?;
     }
 
     // Complete the nominal resource binding after every table name is known.
@@ -12995,6 +13540,15 @@ enum BufferedMembershipOp {
         resource: Option<String>,
         principal: String,
     },
+    ChangeRolePrincipal {
+        resource: Option<String>,
+        principal: String,
+        role: String,
+    },
+    RemoveAuthorityPrincipal {
+        resource: Option<String>,
+        principal: String,
+    },
     TransferOwner {
         resource: Option<String>,
         principal: String,
@@ -13130,6 +13684,40 @@ impl BufferedMembershipCommand {
             writer,
             table,
             op: BufferedMembershipOp::TransferOwner {
+                resource,
+                principal,
+            },
+        }
+    }
+
+    pub(crate) fn change_role_principal(
+        writer: MembershipWriter,
+        table: String,
+        resource: Option<String>,
+        principal: String,
+        role: String,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::ChangeRolePrincipal {
+                resource,
+                principal,
+                role,
+            },
+        }
+    }
+
+    pub(crate) fn remove_authority_principal(
+        writer: MembershipWriter,
+        table: String,
+        resource: Option<String>,
+        principal: String,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::RemoveAuthorityPrincipal {
                 resource,
                 principal,
             },
@@ -13623,11 +14211,22 @@ fn transition_denied(op: MembershipOp, class: &str, target: MembershipTarget) ->
     .with_detail("callerClass", class.to_owned())
 }
 
-fn target_row_missing(member_id: &str) -> SnapbackError {
+/// A raw member id carries no caller-supplied scope. Until a present target row
+/// supplies that scope, admission is indeterminable; therefore absence and a
+/// present row hidden from this caller share one invariant refusal payload.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
+///   host derives scope and caller class from the target row without turning
+///   row existence into a public oracle.
+fn member_id_transition_denied(op: MembershipOp) -> SnapbackError {
     membership_refusal(
-        "SNAPBACK_MEMBERSHIP_TARGET_MISSING",
-        format!("no membership row {member_id:?} exists"),
+        "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED",
+        format!(
+            "no declared transition authorizes member-id operation {:?}",
+            op.as_str()
+        ),
     )
+    .with_detail("op", op.as_str())
 }
 
 fn target_row_dependency(table: &str, row: &MembershipTargetRow) -> CapturedReadDependency {
@@ -13653,6 +14252,23 @@ fn resource_row_dependency(table: &str, id: &str, version: u64) -> CapturedReadD
         table: Some(table.to_owned()),
         id: Some(id.to_owned()),
         version: Some(version),
+        predicate: None,
+        rows: Vec::new(),
+        field: None,
+        value: None,
+        order: None,
+        limit: None,
+        result_count: None,
+        boundary: None,
+    }
+}
+
+fn resource_missing_dependency(table: &str, id: &str) -> CapturedReadDependency {
+    CapturedReadDependency {
+        kind: CapturedReadKind::MissingRow,
+        table: Some(table.to_owned()),
+        id: Some(id.to_owned()),
+        version: None,
         predicate: None,
         rows: Vec::new(),
         field: None,
@@ -14059,7 +14675,9 @@ pub(crate) fn enforce_asset_reference_changes(
                     .and_then(Value::as_str)
                     .ok_or_else(assets::media_projection_integrity)?;
                 let expected = assets::media_kind_for_detected_content_type(detected);
-                let stored = asset.media_kind.ok_or_else(assets::media_projection_integrity)?;
+                let stored = asset
+                    .media_kind
+                    .ok_or_else(assets::media_projection_integrity)?;
                 if stored != expected {
                     return Err(assets::media_projection_integrity());
                 }
@@ -14331,11 +14949,7 @@ pub(crate) fn asset_read_authorized(
     })
 }
 
-fn via_reference_edge_disclosed_v1(
-    _table: &TableManifest,
-    _field: &str,
-    _principal: &str,
-) -> bool {
+fn via_reference_edge_disclosed_v1(_table: &TableManifest, _field: &str, _principal: &str) -> bool {
     true
 }
 
@@ -17064,13 +17678,9 @@ fn materialize_provenanced_media_result_in_tx(
         {
             return Err(media_projection_unprovenanced());
         }
-        let mut source = get_document_from_tx(
-            tx,
-            table,
-            &occurrence.source_row_id,
-            maximum_version,
-        )?
-        .ok_or_else(media_projection_unprovenanced)?;
+        let mut source =
+            get_document_from_tx(tx, table, &occurrence.source_row_id, maximum_version)?
+                .ok_or_else(media_projection_unprovenanced)?;
         let physical_asset_id = source
             .get(source_field)
             .and_then(Value::as_str)
@@ -17128,8 +17738,7 @@ fn validate_staged_media_projection_binding(
 ) -> SnapbackResult<()> {
     if !crate::runtime::is_concrete_function_artifact_generation(
         &proof.binding.function_artifact_generation,
-    )
-        || &proof.binding != expected
+    ) || &proof.binding != expected
         || proof.result_contract_hash != expected.result_contract_hash
     {
         return Err(media_projection_unprovenanced());
@@ -17146,11 +17755,9 @@ fn validate_staged_media_projection_commit_identity(
     identity: Option<&ClientMutationIdentity>,
 ) -> SnapbackResult<()> {
     let expected = match identity {
-        Some(identity) => {
-            crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
-                identity.activity_digest(),
-            )
-        }
+        Some(identity) => crate::runtime::MediaProjectionClientMutationIdentityV1::ClientMutation(
+            identity.activity_digest(),
+        ),
         None => crate::runtime::MediaProjectionClientMutationIdentityV1::NoClientIdentity,
     };
     if proof.binding.client_mutation_identity != expected {
@@ -17233,8 +17840,8 @@ fn media_projection_related_facts_on(
         )
         .optional()?
         .ok_or_else(crate::assets::media_projection_integrity)?;
-    let record: crate::assets::AssetRecordV1 = serde_json::from_str(&asset.2)
-        .map_err(|_| crate::assets::media_projection_integrity())?;
+    let record: crate::assets::AssetRecordV1 =
+        serde_json::from_str(&asset.2).map_err(|_| crate::assets::media_projection_integrity())?;
     let record_kind = record
         .media_kind
         .ok_or_else(crate::assets::media_projection_integrity)?;
@@ -17257,8 +17864,7 @@ fn media_projection_related_facts_on(
         .and_then(|facts| facts.get("contentType"))
         .and_then(Value::as_str)
         .ok_or_else(crate::assets::media_projection_integrity)?;
-    let detected_kind =
-        crate::assets::media_kind_for_detected_content_type(detected_content_type);
+    let detected_kind = crate::assets::media_kind_for_detected_content_type(detected_content_type);
     if asset.0 != "ready"
         || record.availability != crate::assets::AssetAvailability::Ready
         || record_kind != column_kind
@@ -18576,8 +19182,7 @@ fn logical_client_mutation_retained_row_bytes_v4(
     match settlement_record_sequence {
         SqlValue::Integer(value)
             if value > 0
-                && u64::try_from(value)
-                    .is_ok_and(|value| value <= SEQUENCE_MAX_SAFE_INTEGER) => {}
+                && u64::try_from(value).is_ok_and(|value| value <= SEQUENCE_MAX_SAFE_INTEGER) => {}
         _ => {
             return Err(invalid_client_mutation_retention_state(
                 "retained settlement sequence is invalid for byte accounting",
@@ -18694,8 +19299,8 @@ fn settlement_integrity_error() -> SnapbackError {
 fn load_settlement_format_epoch_v1(
     conn: &Connection,
 ) -> SnapbackResult<(SettlementFormatEpochV1, u64)> {
-    let epoch_json = meta_text(conn, META_SETTLEMENT_FORMAT_EPOCH_V1)?
-        .ok_or_else(settlement_integrity_error)?;
+    let epoch_json =
+        meta_text(conn, META_SETTLEMENT_FORMAT_EPOCH_V1)?.ok_or_else(settlement_integrity_error)?;
     let epoch: SettlementFormatEpochV1 =
         serde_json::from_str(&epoch_json).map_err(|_| settlement_integrity_error())?;
     if epoch.store_scope_id.is_empty()
@@ -18705,10 +19310,7 @@ fn load_settlement_format_epoch_v1(
     }
     let next = optional_meta_u64(conn, META_SETTLEMENT_NEXT_SEQUENCE_V1)?
         .ok_or_else(settlement_integrity_error)?;
-    if next == 0
-        || next > SEQUENCE_MAX_SAFE_INTEGER
-        || next <= epoch.legacy_sequence_watermark
-    {
+    if next == 0 || next > SEQUENCE_MAX_SAFE_INTEGER || next <= epoch.legacy_sequence_watermark {
         return Err(settlement_integrity_error());
     }
     Ok((epoch, next))
@@ -18734,8 +19336,8 @@ fn initialize_settlement_format_epoch_v1(tx: &Transaction<'_>) -> SnapbackResult
                 return Err(settlement_integrity_error());
             }
             for (index, id) in ids.iter().enumerate() {
-                let sequence = u64::try_from(index + 1)
-                    .map_err(|_| settlement_integrity_error())?;
+                let sequence =
+                    u64::try_from(index + 1).map_err(|_| settlement_integrity_error())?;
                 tx.execute(
                     "UPDATE _snapback_client_mutations
                      SET settlement_format = ?1,
@@ -18753,8 +19355,8 @@ fn initialize_settlement_format_epoch_v1(tx: &Transaction<'_>) -> SnapbackResult
                 store_scope_id: Uuid::now_v7().to_string(),
                 legacy_sequence_watermark: watermark,
             };
-            let epoch_json = serde_json::to_string(&epoch)
-                .map_err(|_| settlement_integrity_error())?;
+            let epoch_json =
+                serde_json::to_string(&epoch).map_err(|_| settlement_integrity_error())?;
             tx.execute(
                 "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
                 params![META_SETTLEMENT_FORMAT_EPOCH_V1, epoch_json],
@@ -18859,8 +19461,8 @@ fn verify_retained_settlement_carrier_v1(
             serde_json::from_str(output_json).map_err(|_| settlement_integrity_error())
         }
         MEDIA_SETTLEMENT_FORMAT_V1 if !is_legacy => {
-            let seal_json = settlement_projection_seal_json
-                .ok_or_else(settlement_integrity_error)?;
+            let seal_json =
+                settlement_projection_seal_json.ok_or_else(settlement_integrity_error)?;
             let seal: SettlementProjectionSealV1 =
                 serde_json::from_str(seal_json).map_err(|_| settlement_integrity_error())?;
             if seal.settlement_store_scope_id != epoch.store_scope_id
@@ -18988,8 +19590,7 @@ fn record_client_mutation_result(
     // replay grammar. Refuse inside the surrounding transaction before an
     // invalid private sequence fact can commit application writes or a counter.
     validate_retained_sequence_allocations(&output.settlement_sequence_allocations)?;
-    let (settlement_epoch, settlement_record_sequence) =
-        load_settlement_format_epoch_v1(tx)?;
+    let (settlement_epoch, settlement_record_sequence) = load_settlement_format_epoch_v1(tx)?;
     let output_value = serde_json::to_value(output).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
@@ -19017,12 +19618,10 @@ fn record_client_mutation_result(
     };
     let settlement_projection_seal_json = settlement_media
         .map(|media| {
-            let plan_value = serde_json::to_value(&media.plan)
-                .map_err(|_| settlement_integrity_error())?;
-            let media_projection_profile_hash = sha256_domain_jcs(
-                b"snapback:media-projection-profile:v1\n",
-                &plan_value,
-            )?;
+            let plan_value =
+                serde_json::to_value(&media.plan).map_err(|_| settlement_integrity_error())?;
+            let media_projection_profile_hash =
+                sha256_domain_jcs(b"snapback:media-projection-profile:v1\n", &plan_value)?;
             let settlement_id = identity.activity_digest();
             let settlement_digest = sha256_domain_jcs(
                 b"",
@@ -19045,9 +19644,7 @@ fn record_client_mutation_result(
                 settlement_record_sequence,
                 settlement_digest,
             };
-            settlement_jcs(
-                &serde_json::to_value(seal).map_err(|_| settlement_integrity_error())?,
-            )
+            settlement_jcs(&serde_json::to_value(seal).map_err(|_| settlement_integrity_error())?)
         })
         .transpose()?;
     let output_bytes = output_json.len() as u64;
@@ -19087,8 +19684,7 @@ fn record_client_mutation_result(
         &output_json,
         Some(settlement_format),
         SqlValue::Integer(
-            i64::try_from(settlement_record_sequence)
-                .map_err(|_| settlement_integrity_error())?,
+            i64::try_from(settlement_record_sequence).map_err(|_| settlement_integrity_error())?,
         ),
         settlement_projection_seal_json.as_deref(),
     )?;
@@ -19155,8 +19751,7 @@ fn record_client_mutation_result(
             version_to_sql_integer(output.version)?,
             version_to_sql_integer(output.version)?,
             settlement_format,
-            i64::try_from(settlement_record_sequence)
-                .map_err(|_| settlement_integrity_error())?,
+            i64::try_from(settlement_record_sequence).map_err(|_| settlement_integrity_error())?,
             settlement_projection_seal_json,
         ],
     )?;

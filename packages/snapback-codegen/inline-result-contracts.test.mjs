@@ -19,7 +19,7 @@ const backend = () => {
         title: v.string(),
         metadata: v.optional(v.json()),
         photo: v.optional(v.assetRef()),
-      }).sync(),
+      }).visibility({ kind: 'public-read' }).sync(),
     });
   `);
   writeFileSync(join(dir, 'codegen.policy.json'), JSON.stringify({
@@ -121,7 +121,7 @@ try {
   assert.deepEqual(exact.resultContract.rows, { minItems: 1, maxItems: 1 });
   assert.match(
     readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8'),
-    /exactlyOne: FunctionReference<[^\n]+readonly \[/u,
+    /"exactlyOne": FunctionReference<[^\n]+readonly \[/u,
   );
   assert.match(
     readFileSync(join(dir, 'generated', 'provider-bindings.d.ts'), 'utf8'),
@@ -441,7 +441,7 @@ try {
   assert.equal(generated.ok, false);
   assert.match(
     JSON.stringify(generated.diagnostics),
-    /Query result must be results\.documents\(\.\.\.\), results\.records\(\.\.\.\)/u,
+    /Query cannot use value result contract/u,
   );
 
   writeFileSync(join(dir, 'functions.mjs'), `

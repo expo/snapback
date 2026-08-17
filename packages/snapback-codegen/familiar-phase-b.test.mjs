@@ -266,7 +266,7 @@ test('dual-profile todo fixtures normalize equally and emit lawful dotted surfac
   assert.notEqual(familiar.identities.generationId, explicit.identities.generationId);
   assert.equal(
     familiar.identities.normalizedContractId,
-    'sha256:55c1298713cf3f461b292be1fcaaf29b6819f99050a4ffb5d32adef615b6c849',
+    'sha256:ac25b4c219ee1162b82925a4283afe4235ca0a200a25c33c5989704a64e7c30d',
   );
   assert.equal(
     familiar.identities.normalizedSchemaId,

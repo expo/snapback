@@ -56,7 +56,10 @@ const APPLY_RESULT_SCHEMA_VERSION = 'snapback.declaration-suggestion-apply.v1';
 const ANALYSIS_DOMAIN = 'snapback-codegen/declaration-suggestion-analysis-input/v1';
 const APPLY_LOCK_FILE = '.declaration-suggestion.apply.lock';
 const VERIFY_RECEIPT_SCHEMA_VERSION = 'snapback.verify-receipt.v1';
-const REGISTERED_PATH_SCOPE = 'explicitly-registered-paths-only';
+const RUNTIME_EVIDENCE_SCOPES = new Set([
+  'explicitly-registered-paths-only',
+  'registered-or-repository-adapted-paths',
+]);
 const CONFORMANCE_STATUSES = new Set(['passed', 'partial', 'failed', 'not-claimed', 'blocked']);
 const VERIFY_PATH_KINDS = new Set(['success', 'failure', 'action', 'relational', 'search', 'snapshot-bundle']);
 let validateVerifyReceiptSchema = null;
@@ -475,7 +478,7 @@ function runtimeEvidenceAggregate(receipt) {
   const aggregate = conformanceStage.evidence?.conformance;
   if (
     !plainObject(aggregate)
-    || aggregate.scope !== REGISTERED_PATH_SCOPE
+    || !RUNTIME_EVIDENCE_SCOPES.has(aggregate.scope)
     || !CONFORMANCE_STATUSES.has(aggregate.status)
   ) throw new TypeError('verify receipt has no registered-path conformance aggregate');
   return { artifactStage, conformanceStage, aggregate };
