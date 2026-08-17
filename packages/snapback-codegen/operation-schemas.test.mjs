@@ -13,7 +13,9 @@ const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-operation-schemas-'));
 try {
   writeFileSync(join(dir, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+});
 `);
   writeFileSync(join(dir, 'functions.mjs'), `
 import { arg, defineMutation, patch, returnChangedCount, v } from '${defineUrl}';

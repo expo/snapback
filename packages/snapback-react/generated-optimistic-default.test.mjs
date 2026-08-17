@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { BROWSER_IR_LOCAL_EFFECT_CLASS } from '../snapback-client/ir-evaluator.mjs';
 import { SnapbackClient as InspectingSnapbackClient } from '../snapback-client/index.mjs';
 import { prepareReactBindingForClient } from '../snapback-client/react-binding.mjs';
+import { hex, jcsBytes, sha256 } from '../snapback-client/rqs.mjs';
 import { createFileRqsResumeStore } from '../snapback-client/rqs-store-file.mjs';
 import { createMemoryRqsResumeStore } from '../snapback-client/rqs-store-memory.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
@@ -27,6 +28,19 @@ class SnapbackClient extends InspectingSnapbackClient {
 }
 
 const digest = (character) => `sha256:${character.repeat(64)}`;
+const encoder = new TextEncoder();
+const concat = (...parts) => {
+  const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.length;
+  }
+  return bytes;
+};
+const hashRecord = (domain, value) => (
+  `sha256:${hex(sha256(concat(encoder.encode(domain), jcsBytes(value))))}`
+);
 const ACTIVATION = Object.freeze({
   schemaVersion: 'snapback.v1',
   appId: 'react-generated-optimistic-default',
@@ -93,27 +107,29 @@ const baseReference = (name, kind, resultContract, required = []) => ({
 });
 
 const queryObject = baseReference('cards', 'LiveQuery', cardsContract);
-queryObject.composition = Object.freeze({
-  planHash: digest('5'),
-  normalizedCompositePlan: Object.freeze({
-    format: 'snapback.normalized-composite-plan.v1',
-    profileId: 'single-node.v1',
-    nodes: Object.freeze([Object.freeze({
-      position: 0,
-      nodePlanHash: digest('6'),
-      nodePlan: Object.freeze({
-        format: 'snapback.node-plan.v1', classId: 'single_table_v1', classVersion: 1,
-        normalizedPlan: Object.freeze({
-          format: 'snapback.single-table-plan.v1',
-          query: Object.freeze({
-            table: 'cards', filters: Object.freeze([]),
-            membershipFilters: Object.freeze([]), limit: null,
-          }),
-        }),
-      }),
-    })]),
-    classification: Object.freeze({ retention: 'none' }),
+const queryNodePlan = Object.freeze({
+  format: 'snapback.node-plan.v1', classId: 'single_table_v1', classVersion: 1,
+  normalizedPlan: Object.freeze({
+    format: 'snapback.single-table-plan.v1',
+    query: Object.freeze({
+      table: 'cards', filters: Object.freeze([]),
+      membershipFilters: Object.freeze([]), limit: null,
+    }),
   }),
+});
+const queryNormalizedCompositePlan = Object.freeze({
+  format: 'snapback.normalized-composite-plan.v1',
+  profileId: 'single-node.v1',
+  nodes: Object.freeze([Object.freeze({
+    position: 0,
+    nodePlanHash: hashRecord('snapback:node-plan:v1:', queryNodePlan),
+    nodePlan: queryNodePlan,
+  })]),
+  classification: Object.freeze({ retention: 'none' }),
+});
+queryObject.composition = Object.freeze({
+  planHash: hashRecord('snapback:plan-hash:v1:', queryNormalizedCompositePlan),
+  normalizedCompositePlan: queryNormalizedCompositePlan,
   resultContract: cardsContract,
 });
 Object.defineProperty(queryObject, 'artifacts', {

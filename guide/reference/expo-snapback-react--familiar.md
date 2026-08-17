@@ -1,7 +1,7 @@
 ---
 title: API reference — @expo/snapback-react/familiar
 id: reference.api.expo.snapback.react.familiar
-order: 850
+order: 851
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-react/package.json, packages/snapback-react/familiar.d.mts]
@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:a4f540a344e862062a52b66eac473987d7a90aabbbff
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Canonical registry identity:
-`sha256:41cecf58cddf3f97ab609d248a6e7b450a8a5fae9856a439430a9aba411a882a`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 

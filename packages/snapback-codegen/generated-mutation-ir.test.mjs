@@ -16,8 +16,8 @@ import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
 export default defineSchema({
   cards: defineTable({
     title: v.string(), locked: v.boolean(), revision: v.integer(), position: v.integer(),
-    owner: v.optional(v.string()),
-  }).sync(),
+    owner: v.optional(v.string()), custodian: v.optional(v.principal()),
+  }).visibility({ kind: 'owner', field: 'custodian' }).sync(),
 });
 `);
   writeFileSync(join(root, 'functions.mjs'), `

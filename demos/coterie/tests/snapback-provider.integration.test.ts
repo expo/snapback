@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import {
   existsSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -21,7 +22,7 @@ import type {
 
 import { startServer } from '../../_kit/server-process.mjs';
 import { loadGeneratedJson } from '../snapback/generated-artifacts.mjs';
-import { installM1Fixtures } from '../snapback/seed-m1.mjs';
+import { installM2Fixtures } from '../snapback/seed-m2.mjs';
 import { coterieSurfaceManifest } from '../src/data/memory-provider.ts';
 import { createCoterieSnapbackProvider } from '../src/data/snapback-provider.ts';
 
@@ -31,7 +32,7 @@ const integrationTest = process.env.COTERIE_SNAPBACK_INTEGRATION === '1'
 const repoRoot = resolve(import.meta.dir, '..', '..', '..');
 const runtimeBinary = resolve(
   process.env.SNAPBACK_RUNTIME_BINARY
-    ?? '/Users/ccheever/projects/snapback/target/debug/snapback',
+    ?? join(repoRoot, 'target', 'debug', 'snapback'),
 );
 const aliceCredentials = {
   email: 'alice@example.com',
@@ -42,6 +43,24 @@ type Profile = {
   id: string;
   displayName: string;
   bio: string;
+  followers: number;
+  following: number;
+  followedByMe: boolean;
+};
+
+type FeedItem = {
+  id: string;
+  postId: string;
+  authorId: string;
+  avatarUrl: string | null;
+  body: string;
+  likeCount: number;
+  likedByMe: boolean;
+  replyCount: number;
+  repostedById: string | null;
+  nextCursor: string | null;
+  mediaKind: string | null;
+  mediaUrls: string[];
 };
 
 function mutationValue<T>(
@@ -177,7 +196,7 @@ async function loginAlice(provider: ContractDataProvider): Promise<void> {
 }
 
 integrationTest(
-  'Snapback adapter passes M1 conformance, fault cuts, and stream recovery',
+  'Snapback adapter passes M1+M2 conformance, live proofs, fault cuts, and recovery',
   async () => {
     expect(existsSync(runtimeBinary)).toBe(true);
     const scratch = mkdtempSync(join(tmpdir(), 'coterie-provider-'));
@@ -219,7 +238,7 @@ integrationTest(
         startupArtifacts: carrier,
         serverBinary: stagedRuntime,
       });
-      await installM1Fixtures({ baseUrl: server.baseUrl, runId: 'provider-integration' });
+      await installM2Fixtures({ baseUrl: server.baseUrl, runId: 'provider-integration' });
 
       const clientA = provider();
       const clientB = provider();
@@ -227,6 +246,63 @@ integrationTest(
       const clientBProfiles = readyStream<Profile[]>(clientB, 'listProfiles');
       subscriptions.add(clientBProfiles);
       await clientBProfiles.next((rows) => rows.some((row) => row.id === 'alice'));
+
+      const clientBFeed = readyStream<FeedItem[]>(
+        clientB,
+        'listFeed',
+        { mode: 'global', cursor: null },
+      );
+      subscriptions.add(clientBFeed);
+      await clientBFeed.next(() => true);
+
+      // This feed subscription deliberately has no accompanying listProfiles
+      // subscription. Its identity index is therefore the pre-signup snapshot.
+      const identityOnlyClient = provider();
+      await loginAlice(identityOnlyClient);
+      const identityOnlyFeed = readyStream<FeedItem[]>(
+        identityOnlyClient,
+        'listFeed',
+        { mode: 'global', cursor: null },
+      );
+      subscriptions.add(identityOnlyFeed);
+      await identityOnlyFeed.next(() => true);
+
+      // LLP 0034 D5 + LLP 0266 D4: after B's stream and waiters are armed,
+      // B performs no polling, refetch, mutation, or other action. A creates
+      // a post and then likes it; both committed states arrive by server push.
+      const liveBody = `M2 two-client live ${Date.now()}`;
+      const createdDelivery = clientBFeed.nextFuture((rows) => (
+        rows.some((row) => row.body === liveBody)
+      ));
+      const livePost = mutationValue<{ id: string }>(
+        await clientA.mutate('createPost', {
+          body: liveBody,
+          imageRefs: [],
+          videoRefs: [],
+          parentId: null,
+        }),
+        'client A createPost',
+      );
+      expect((await createdDelivery).find((row) => row.postId === livePost.id)?.body).toBe(liveBody);
+      const likedDelivery = clientBFeed.nextFuture((rows) => (
+        rows.some((row) => row.postId === livePost.id && row.likeCount === 1)
+      ));
+      mutationValue(
+        await clientA.mutate('setLike', {
+          postId: livePost.id,
+          liked: true,
+          mutationId: `m2-live-like-${Date.now()}`,
+        }),
+        'client A setLike',
+      );
+      const likedRows = await likedDelivery;
+      expect(likedRows.find((row) => row.postId === livePost.id)).toMatchObject({
+        likeCount: 1,
+        likedByMe: true,
+      });
+      process.stdout.write(
+        'COTERIE_SNAPBACK_M2_TWO_CLIENT_LIVE clientB observed clientA createPost + likeCount push; polling=disabled\n',
+      );
 
       // LLP 0266 D4: B observes a server push caused by A. B performs no
       // mutation, refresh, refetch, timer poll, or other action after this
@@ -247,6 +323,44 @@ integrationTest(
       );
       const twoClientRows = await observedByB;
       expect(twoClientRows.find((row) => row.id === 'alice')?.displayName).toBe(twoClientName);
+
+      const beforeDave = clientBProfiles.rows.at(-1)?.find((row) => row.id === 'dave');
+      if (!beforeDave) throw new Error('M2 fixture profile dave is missing');
+      const clearedDelivery = beforeDave.followedByMe
+        ? clientBProfiles.nextFuture((rows) => (
+            rows.some((row) => row.id === 'dave' && !row.followedByMe)
+          ))
+        : null;
+      mutationValue(
+        await clientA.mutate('setFollow', {
+          userId: 'dave',
+          following: false,
+          mutationId: 'integration-follow-clear',
+        }),
+        'setFollow clear precondition',
+      );
+      const clearedRows = clearedDelivery
+        ? await clearedDelivery
+        : clientBProfiles.rows.at(-1)!;
+      const clearedDave = clearedRows.find((row) => row.id === 'dave');
+      const clearedAlice = clearedRows.find((row) => row.id === 'alice');
+      if (!clearedDave || !clearedAlice) throw new Error('cleared follow projection is incomplete');
+      const followDelivery = clientBProfiles.nextFuture((rows) => (
+        rows.some((row) => row.id === 'dave' && row.followedByMe)
+      ));
+      mutationValue(
+        await clientA.mutate('setFollow', {
+          userId: 'dave',
+          following: true,
+          mutationId: 'integration-follow-set',
+        }),
+        'setFollow set',
+      );
+      const followedRows = await followDelivery;
+      const followedDave = followedRows.find((row) => row.id === 'dave');
+      expect(followedDave?.followers).toBe(clearedDave.followers + 1);
+      expect(followedRows.find((row) => row.id === 'alice')?.following)
+        .toBe(clearedAlice.following + 1);
 
       let updateSequence = 0;
       const fixture: DataProviderConformanceFixture = {
@@ -289,17 +403,202 @@ integrationTest(
           afterMutation: { status: 'ready', empty: false },
         },
       };
-      const conformance = await assertDataProviderConformance(fixture);
-      expect(conformance.ok).toBe(true);
-      expect(conformance.checks.find((check) => check.id === 'headless-boot')?.status).toBe('pass');
-      expect(conformance.checks.find((check) => check.id === 'initial-snapshot')?.status).toBe('pass');
-      expect(conformance.checks.find((check) => check.id === 'subscription-update')?.status).toBe('pass');
-      expect(conformance.checks.find((check) => check.id === 'subscription-disposal')?.status).toBe('pass');
+      const m1Conformance = await assertDataProviderConformance(fixture);
+      expect(m1Conformance.ok).toBe(true);
+      expect(m1Conformance.checks.find((check) => check.id === 'headless-boot')?.status).toBe('pass');
+      expect(m1Conformance.checks.find((check) => check.id === 'initial-snapshot')?.status).toBe('pass');
+      expect(m1Conformance.checks.find((check) => check.id === 'subscription-update')?.status).toBe('pass');
+      expect(m1Conformance.checks.find((check) => check.id === 'subscription-disposal')?.status).toBe('pass');
+
+      let m2ConformanceSequence = 0;
+      const m2Fixture: DataProviderConformanceFixture = {
+        name: 'coterie-snapback-m2',
+        capabilities: coterieSurfaceManifest.capabilities,
+        createProvider: () => clientB,
+        primaryQuery: {
+          name: 'listFeed',
+          args: { mode: 'global', cursor: null },
+          initial: { status: 'ready', empty: false },
+          async applySubscriptionUpdate() {
+            const body = `M2 conformance push ${++m2ConformanceSequence}`;
+            const delivery = clientBFeed.nextFuture((rows) => (
+              rows.some((row) => row.body === body)
+            ));
+            mutationValue(
+              await clientA.mutate('createPost', {
+                body,
+                imageRefs: [],
+                videoRefs: [],
+                parentId: null,
+              }),
+              'M2 conformance subscription update',
+            );
+            await delivery;
+          },
+          afterSubscriptionUpdate: { status: 'ready', empty: false },
+        },
+        mutation: {
+          name: 'createPost',
+          args: {
+            body: 'M2 conformance mutation',
+            imageRefs: [],
+            videoRefs: [],
+            parentId: null,
+          },
+          expectedResult: { ok: true },
+          afterMutation: { status: 'ready', empty: false },
+        },
+        failedMutation: {
+          name: 'createPost',
+          args: { body: '', imageRefs: [], videoRefs: [], parentId: null },
+          errorMessageIncludes: 'text-only posts cannot be empty',
+        },
+      };
+      const m2Conformance = await assertDataProviderConformance(m2Fixture);
+      expect(m2Conformance.ok).toBe(true);
       process.stdout.write(
-        `COTERIE_SNAPBACK_CONFORMANCE_SCOPE M1 listProfiles@2 + editProfile@1; `
-          + `${conformance.checks.filter((check) => check.status === 'pass').length} pass, `
-          + `${conformance.checks.filter((check) => check.status === 'skip').length} honest skip\n`,
+        'COTERIE_SNAPBACK_CONFORMANCE_SCOPE claimed allow-list=M1+M2; '
+          + 'formal probes=M1 listProfiles@2+editProfile@1, M2 listFeed@3+createPost@1; '
+          + `M1 ${m1Conformance.checks.filter((check) => check.status === 'pass').length} pass/`
+          + `${m1Conformance.checks.filter((check) => check.status === 'skip').length} skip; `
+          + `M2 ${m2Conformance.checks.filter((check) => check.status === 'pass').length} pass/`
+          + `${m2Conformance.checks.filter((check) => check.status === 'skip').length} skip; `
+          + 'suite has no milestone selector\n',
       );
+
+      const alicePosts = readyStream<Array<{ postId: string; authorId: string }>>(
+        clientB,
+        'listProfilePosts',
+        { userId: 'alice' },
+      );
+      subscriptions.add(alicePosts);
+      expect(await alicePosts.next((rows) => rows.some((row) => row.postId === livePost.id)))
+        .toContainEqual(expect.objectContaining({ postId: livePost.id, authorId: 'alice' }));
+
+      const thread = readyStream<Array<{
+        postId: string;
+        parentId: string | null;
+        threadRole: string;
+      }>>(clientB, 'listThread', { parentId: livePost.id });
+      subscriptions.add(thread);
+      await thread.next((rows) => rows[0]?.postId === livePost.id);
+      const reply = mutationValue<{ id: string }>(
+        await clientA.mutate('createPost', {
+          body: 'M2 integration direct reply',
+          imageRefs: [],
+          videoRefs: [],
+          parentId: livePost.id,
+        }),
+        'createPost reply',
+      );
+      expect(await thread.next((rows) => rows.some((row) => row.postId === reply.id)))
+        .toContainEqual(expect.objectContaining({
+          postId: reply.id,
+          parentId: livePost.id,
+          threadRole: 'direct-reply',
+        }));
+      expect(await clientA.mutate('setRepost', {
+        postId: reply.id,
+        reposted: true,
+        mutationId: 'integration-reply-repost',
+      })).toMatchObject({
+        ok: false,
+        error: { name: 'ReplyRepostForbiddenError' },
+      });
+
+      const repostDelivery = clientBFeed.nextFuture((rows) => rows.some((row) => (
+        row.postId === livePost.id && row.repostedById === 'alice'
+      )));
+      mutationValue(
+        await clientA.mutate('setRepost', {
+          postId: livePost.id,
+          reposted: true,
+          mutationId: 'integration-repost-set',
+        }),
+        'setRepost set',
+      );
+      expect(await repostDelivery).toContainEqual(expect.objectContaining({
+        postId: livePost.id,
+        repostedById: 'alice',
+      }));
+      mutationValue(
+        await clientA.mutate('setRepost', {
+          postId: livePost.id,
+          reposted: false,
+          mutationId: 'integration-repost-clear',
+        }),
+        'setRepost clear',
+      );
+
+      const imageBytes = await (await fetch(
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+      )).arrayBuffer();
+      const videoBytes = readFileSync(join(
+        repoRoot,
+        'benchmarks',
+        'fixtures',
+        'social-messenger',
+        'media',
+        'vid-01.mp4',
+      ));
+      const fetchBeforePostMedia = globalThis.fetch;
+      try {
+        globalThis.fetch = (async (input, init) => {
+          const url = new URL(
+            typeof input === 'string' || input instanceof URL ? input.toString() : input.url,
+          );
+          if (url.pathname === '/assets/fixtures/img-01.png') {
+            return new Response(imageBytes, {
+              status: 200,
+              headers: { 'content-type': 'image/png' },
+            });
+          }
+          if (url.pathname === '/assets/fixtures/vid-01.mp4') {
+            return new Response(new Uint8Array(videoBytes), {
+              status: 200,
+              headers: { 'content-type': 'video/mp4' },
+            });
+          }
+          return fetchBeforePostMedia(input, init);
+        }) as typeof fetch;
+        const imagePost = mutationValue<{ id: string }>(
+          await clientA.mutate('createPost', {
+            body: 'M2 image upload through postImageUpload',
+            imageRefs: ['media/img-01.png'],
+            videoRefs: [],
+            parentId: null,
+          }),
+          'createPost image',
+        );
+        const videoPost = mutationValue<{ id: string }>(
+          await clientA.mutate('createPost', {
+            body: 'M2 video upload through postVideoUpload',
+            imageRefs: [],
+            videoRefs: ['media/vid-01.mp4'],
+            parentId: null,
+          }),
+          'createPost video',
+        );
+        const mediaRows = await clientBFeed.next((rows) => (
+          rows.some((row) => (
+            row.postId === imagePost.id && row.mediaKind === 'images' && row.mediaUrls.length === 1
+          ))
+          && rows.some((row) => (
+            row.postId === videoPost.id && row.mediaKind === 'video' && row.mediaUrls.length === 1
+          ))
+        ));
+        const imageRow = mediaRows.find((row) => row.postId === imagePost.id)!;
+        const videoRow = mediaRows.find((row) => row.postId === videoPost.id)!;
+        expect(imageRow.mediaUrls[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/assets\/public\/[^/]+\/feed$/u);
+        expect(videoRow.mediaUrls[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/assets\/public\/[^/]+\/primary$/u);
+        expect(imageRow.avatarUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/assets\/public\/[^/]+\/thumb$/u);
+        for (const url of [imageRow.mediaUrls[0], videoRow.mediaUrls[0], imageRow.avatarUrl]) {
+          const response = await fetch(url!);
+          expect(response.ok).toBe(true);
+        }
+      } finally {
+        globalThis.fetch = fetchBeforePostMedia;
+      }
 
       const authClient = provider();
       const sessions = readyStream<Array<{ userId: string; token: string }>>(
@@ -398,6 +697,47 @@ integrationTest(
         signedUpSession[0]?.userId,
         signedUpProfile.find((row) => row.id === signup.userId)?.id,
       ])).toEqual(new Set([signup.userId]));
+
+      const identityBody = `M2 post-signup identity ${uniqueSuffix}`;
+      const identityPostDelivery = identityOnlyFeed.nextFuture((rows) => (
+        rows.some((row) => row.body === identityBody && row.authorId === signup.userId)
+      ));
+      const identityPost = mutationValue<{ id: string }>(
+        await authClient.mutate('createPost', {
+          body: identityBody,
+          imageRefs: [],
+          videoRefs: [],
+          parentId: null,
+        }),
+        'post-signup createPost identity projection',
+      );
+      expect(await identityPostDelivery).toContainEqual(expect.objectContaining({
+        postId: identityPost.id,
+        authorId: signup.userId,
+      }));
+      const identityRepostDelivery = identityOnlyFeed.nextFuture((rows) => (
+        rows.some((row) => row.postId === livePost.id && row.repostedById === signup.userId)
+      ));
+      mutationValue(
+        await authClient.mutate('setRepost', {
+          postId: livePost.id,
+          reposted: true,
+          mutationId: `post-signup-repost-${uniqueSuffix}`,
+        }),
+        'post-signup setRepost identity projection',
+      );
+      expect(await identityRepostDelivery).toContainEqual(expect.objectContaining({
+        postId: livePost.id,
+        repostedById: signup.userId,
+      }));
+      mutationValue(
+        await authClient.mutate('setRepost', {
+          postId: livePost.id,
+          reposted: false,
+          mutationId: `post-signup-unrepost-${uniqueSuffix}`,
+        }),
+        'post-signup setRepost cleanup',
+      );
 
       const failedSignupEmail = `failed-signup-${uniqueSuffix}@example.test`;
       const failedSignupProjection = provider({
@@ -731,8 +1071,8 @@ integrationTest(
 
       let refusedQuery: DataCellV2<unknown> | null = null;
       const refusedSubscription: DataSubscription = authClient.subscribe(
-        'listFeed',
-        { mode: 'global' },
+        'listChats',
+        {},
         (cell) => { refusedQuery = cell; },
       );
       refusedSubscription.dispose();
@@ -740,16 +1080,17 @@ integrationTest(
         status: 'error',
         error: {
           name: 'SnapbackMilestoneUnsupportedError',
-          message: 'snapback provider claims M1 only; listFeed arrives with M2/M3 — LLP 0266 D7 (M2)',
+          message: 'snapback provider claims M1+M2 plus provider discovery only; listChats is outside that claim — LLP 0266 D7 (M3)',
         },
       });
-      expect(await authClient.mutate('createPost', { body: 'not yet' })).toMatchObject({
+      expect(await authClient.mutate('sendMessage', { chatId: 'not-yet', body: 'not yet' }))
+        .toMatchObject({
         ok: false,
         error: {
           name: 'SnapbackMilestoneUnsupportedError',
-          message: 'snapback provider claims M1 only; createPost arrives with M2/M3 — LLP 0266 D7 (M2)',
+          message: 'snapback provider claims M1+M2 plus provider discovery only; sendMessage is outside that claim — LLP 0266 D7 (M3)',
         },
-      });
+        });
     } finally {
       for (const subscription of subscriptions) subscription.dispose();
       await Promise.allSettled([...providers].map((value) => value.close()));

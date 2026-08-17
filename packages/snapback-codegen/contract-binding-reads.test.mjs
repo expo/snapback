@@ -21,7 +21,9 @@ const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-reads-'));
 writeFileSync(join(dir, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  todos: defineTable({ title: v.string(), completed: v.boolean() }).sync(),
+  todos: defineTable({ title: v.string(), completed: v.boolean() })
+    .visibility({ kind: 'public-read' })
+    .sync(),
 });
 `);
 writeFileSync(join(dir, 'functions.mjs'), `

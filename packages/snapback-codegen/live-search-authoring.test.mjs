@@ -26,6 +26,7 @@ import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
 export const incidents = defineTable({
   title: v.string(), ownerId: v.principal(), status: v.string(),
 })
+  .visibility({ kind: 'public-read' })
   .searchIndex('search_public', {
     semanticVersion: 'live-search.public.v1',
     textFields: { title: { weight: 8, classification: 'public' } },
@@ -74,6 +75,7 @@ try {
   const incidents = defineTable({
     title: v.string(), ownerId: v.principal(), status: v.string(),
   })
+    .visibility({ kind: 'public-read' })
     .searchIndex('search_public', {
       semanticVersion: 'live-search.public.v1',
       textFields: { title: { weight: 8, classification: 'public' } },

@@ -1088,8 +1088,41 @@
     "AuthorityProfileTransitionPreconditionsV1": {
       "additionalProperties": false,
       "properties": {
+        "expiryPresent": {
+          "description": "Whether the membership declaration installs the host-owned expiry\nsweep. The sweep's detailed shape is validated on the canonical\nmembership declaration; its authority-relevant presence is generation\nbound here.",
+          "type": "boolean"
+        },
+        "matrix": {
+          "description": "Canonical copy of every transition row that runtime authorization may\nconsult. This makes the closed profile generation cover caller classes,\npredecessor/successor roles, and field-bound writes directly.",
+          "items": {
+            "$ref": "#/$defs/MembershipTransition"
+          },
+          "type": "array"
+        },
+        "membershipDeclarationId": {
+          "description": "The explicitly pinned membership declaration id. Profile-backed tables\nnever use the ordinary table-name fallback because that would let a\nrename retarget an authorization profile without rotating its declared\nstable identity.",
+          "type": "string"
+        },
         "ownerMutation": {
           "type": "string"
+        },
+        "principalAddressedWritesRemove": {
+          "description": "Exact closed `principalAddressedWrites.remove` value. `None` is emitted\nas JSON null and remains distinct from the only admitted value, `true`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MembershipProvenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Exact membership provenance mode consumed by delegated service-principal\nadmission and transition-log recording. `None` is emitted as JSON null,\nso absence cannot collapse into either declared mode."
         },
         "source": {
           "type": "string"
@@ -1097,6 +1130,9 @@
       },
       "required": [
         "source",
+        "membershipDeclarationId",
+        "matrix",
+        "expiryPresent",
         "ownerMutation"
       ],
       "type": "object"

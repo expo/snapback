@@ -388,6 +388,7 @@ export interface MutationOutput<Result> {
   readonly version: number;
   readonly changed_count: number;
   readonly result: Result;
+  readonly authorityTransitions?: readonly AuthorityTransitionReceiptV1[];
   readonly ctx_ledger?: unknown;
   readonly authorityDescriptor: AuthorityDescriptorV1;
   readonly receipt: Readonly<Record<string, unknown>>;
@@ -398,6 +399,23 @@ export interface MutationOutput<Result> {
     operationHash: `sha256:${string}`;
     settlementIdentity: string;
   }>;
+}
+
+export interface AuthorityMembershipStateV1 {
+  readonly role: string;
+  readonly status: 'active' | 'invited';
+}
+
+export interface AuthorityTransitionReceiptV1 {
+  readonly declaration: string;
+  readonly predecessor: AuthorityMembershipStateV1 | null;
+  readonly successor: AuthorityMembershipStateV1 | null;
+  readonly subject: string;
+  readonly scope: string | null;
+  readonly invalidationDisposition:
+    | 'global-authorization-epoch-advanced'
+    | 'no-authorization-event'
+    | 'preview-rolled-back';
 }
 
 export type MutationDispatchOutcome<Result> =

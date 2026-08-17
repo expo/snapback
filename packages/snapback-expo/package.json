@@ -30,6 +30,9 @@
     "config-plugin.cjs",
     "config-plugin.d.mts",
     "diagnostic-sanitization.mjs",
+    "expo-sqlite-carrier.mjs",
+    "expo-sqlite-carrier-publication.v1.json",
+    "expo-sqlite-target.mjs",
     "index.d.mts",
     "index.mjs",
     "lifecycle-source.mjs",
@@ -79,7 +82,12 @@
   },
   "dependencies": {
     "@expo/snapback-client": "workspace:*",
-    "@expo/snapback-react": "workspace:*"
+    "@expo/snapback-react": "workspace:*",
+    "expo-device": "~57.0.1",
+    "expo-sqlite": "~57.0.1"
+  },
+  "optionalDependencies": {
+    "@expo/snapback-expo-custody": "workspace:*"
   },
   "peerDependencies": {
     "expo": ">=57.0.0 <58.0.0",
@@ -110,6 +118,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node app-binding.test.mjs && node asset-source.test.mjs && node config-plugin.test.mjs && node provider.test.mjs && node provider-auth-bootstrap.test.mjs && node supervised-environment.test.mjs && node supervised-offline-fallback.test.mjs && node release-export-vocabulary.test.mjs && node activity-presence.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
+    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node app-binding.test.mjs && node asset-source.test.mjs && node config-plugin.test.mjs && node expo-sqlite-carrier.test.mjs && node provider.test.mjs && node provider-native-custody.test.mjs && node provider-auth-bootstrap.test.mjs && node supervised-environment.test.mjs && node supervised-offline-fallback.test.mjs && node release-export-vocabulary.test.mjs && node activity-presence.test.mjs && node package.test.mjs && node package-closure.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler types.fixture.ts"
   }
 }

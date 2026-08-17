@@ -27,6 +27,7 @@ import {
   activeReactBindingDeploymentIdentity,
   classifyRegeneratedReactReference,
 } from '../snapback-client/react-binding.mjs';
+import { runPreparedReactBindingGenerationHandoff } from '../snapback-client/react-binding-hmr.mjs';
 import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
   SnapbackProvider,
@@ -496,9 +497,58 @@ async function waitFor(predicate, label, attempts = 400) {
   delete globalThis.__DEV__;
 }
 
+// ---------------------------------------------------------------------------
+// 5. HMR reconstructs the same owner-derived authority-independent fact as
+//    ordinary binding preparation. The served owner fact is true while the
+//    regenerated public reference deliberately has no app-authored flag.
+// ---------------------------------------------------------------------------
+{
+  const derived = Object.freeze({ ...gen2.about, rqsEligible: true });
+  assert.equal(Object.hasOwn(derived, 'authorityIndependent'), false);
+  const served = functionsManifest('derived-retention', [derived]);
+  const target = Object.freeze({
+    schemaVersion: served.schemaVersion,
+    appId: APP_ID,
+    schemaHash: 'sha256:schema-derived-retention',
+    bundleHash: served.bundleHash,
+    inputsHash: served.inputsHash,
+  });
+  const binding = {
+    appId: APP_ID,
+    deploymentIdentity: generationStamp(generations.g1),
+    routesManifest: null,
+    routeManifestHash: null,
+    ephemeralDefinitionsById: new Map(),
+    queryGroupsById: new Map(),
+    client: {
+      async inspect() {
+        return {
+          schema: { schemaHash: target.schemaHash, ephemeralCollections: [] },
+          functions: served,
+          routeManifestHash: null,
+        };
+      },
+    },
+  };
+  let overlay = null;
+  const outcome = await runPreparedReactBindingGenerationHandoff({
+    binding,
+    target,
+    budget: { timeoutMs: 100, pollIntervalMs: 0 },
+    referenceSchemaVersion: 'snapback.v0',
+    publishOverlay(value) { overlay = value; },
+  });
+  assert.equal(outcome.ok, true);
+  assert.equal(
+    overlay?.authorityIndependentById.get(derived.id),
+    true,
+    'HMR re-admission dropped the served rqsEligible fact',
+  );
+}
+
 await flush();
 assert.deepEqual(uncaught, [], 'no uncaught exception or rejection escaped any scenario');
 
 console.log(
-  'hmr-generation-handoff.test.mjs: atomic dev handoff, mutation deferral, controlled reload, and strict production/foreign admission pass',
+  'hmr-generation-handoff.test.mjs: atomic dev handoff, derived retention, mutation deferral, controlled reload, and strict production/foreign admission pass',
 );

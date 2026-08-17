@@ -27,6 +27,39 @@ function readJson(request, limit = 256 * 1024) {
   });
 }
 
+const EXTENSION_RESULT_FIELDS = Object.freeze([
+  'schemaVersion',
+  'bundleIdentifier',
+  'extensionPointIdentifier',
+  'pid',
+  'code',
+  'reason',
+  'ioOccurred',
+  'atMs',
+]);
+
+function validExtensionResult(body) {
+  return body !== null
+    && typeof body === 'object'
+    && !Array.isArray(body)
+    && Object.keys(body).length === EXTENSION_RESULT_FIELDS.length
+    && EXTENSION_RESULT_FIELDS.every((field) => Object.hasOwn(body, field))
+    && body.schemaVersion === 'snapback.native-custody-extension.v1'
+    && typeof body.bundleIdentifier === 'string'
+    && body.bundleIdentifier.length > 0
+    && typeof body.extensionPointIdentifier === 'string'
+    && body.extensionPointIdentifier.length > 0
+    && Number.isSafeInteger(body.pid)
+    && body.pid > 0
+    && typeof body.code === 'string'
+    && body.code.length > 0
+    && typeof body.reason === 'string'
+    && body.reason.length > 0
+    && typeof body.ioOccurred === 'boolean'
+    && Number.isSafeInteger(body.atMs)
+    && body.atMs > 0;
+}
+
 export function createDirector({
   host = '127.0.0.1',
   port,
@@ -36,11 +69,13 @@ export function createDirector({
   const commands = [];
   const longPolls = [];
   const events = [];
+  const extensionResults = [];
   const results = new Map();
   const secretValues = new Set();
   const secretCounts = new Map();
   const requestLog = [];
   const eventWaiters = new Set();
+  const extensionResultWaiters = new Set();
   let sequence = 0;
   let currentConfig = config;
   const commandToken = 'native-custody-probes/harness/run-';
@@ -67,6 +102,16 @@ export function createDirector({
       eventWaiters.delete(waiter);
       clearTimeout(waiter.timer);
       waiter.resolve(event);
+    }
+  };
+  const publishExtensionResult = (result) => {
+    extensionResults.push(result);
+    const index = extensionResults.length - 1;
+    for (const waiter of [...extensionResultWaiters]) {
+      if (index < waiter.startIndex || !waiter.predicate(result)) continue;
+      extensionResultWaiters.delete(waiter);
+      clearTimeout(waiter.timer);
+      waiter.resolve(result);
     }
   };
   const server = createServer(async (request, response) => {
@@ -110,6 +155,18 @@ export function createDirector({
         reply(response, 200, { ok: true });
         return;
       }
+      if (request.method === 'POST' && url.pathname === '/extension-result') {
+        const body = await readJson(request, 64 * 1024);
+        if (!validExtensionResult(body)) {
+          logRequest(request, url.pathname, 400);
+          reply(response, 400, { ok: false });
+          return;
+        }
+        publishExtensionResult(Object.freeze({ ...body, receivedAtMs: Date.now() }));
+        logRequest(request, url.pathname, 200);
+        reply(response, 200, { ok: true });
+        return;
+      }
       if (request.method === 'POST' && url.pathname === '/secret') {
         const body = await readJson(request, 64 * 1024);
         if (
@@ -140,6 +197,7 @@ export function createDirector({
 
   return Object.freeze({
     events,
+    extensionResults,
     secretLiterals() { return Object.freeze([...secretValues]); },
     secretSummary() { return Object.freeze(Object.fromEntries(secretCounts)); },
     capturedLog() { return `${requestLog.join('\n')}\n`; },
@@ -169,6 +227,11 @@ export function createDirector({
         waiter.reject(new Error('director closed while waiting for an event'));
       }
       eventWaiters.clear();
+      for (const waiter of extensionResultWaiters) {
+        clearTimeout(waiter.timer);
+        waiter.reject(new Error('director closed while waiting for an extension result'));
+      }
+      extensionResultWaiters.clear();
       for (const response of longPolls.splice(0)) {
         if (!response.destroyed) reply(response, 204);
       }
@@ -200,6 +263,24 @@ export function createDirector({
           reject(new Error('director event wait timed out (heartbeat silence)'));
         }, timeoutMs);
         eventWaiters.add(waiter);
+      });
+    },
+    waitExtensionResult(predicate, startIndex = 0, timeoutMs = 45_000) {
+      const match = extensionResults.slice(startIndex).find(predicate);
+      if (match !== undefined) return Promise.resolve(match);
+      return new Promise((resolve, reject) => {
+        const waiter = {
+          predicate,
+          startIndex,
+          resolve,
+          reject,
+          timer: null,
+        };
+        waiter.timer = setTimeout(() => {
+          extensionResultWaiters.delete(waiter);
+          reject(new Error(`director extension result timed out after ${timeoutMs}ms`));
+        }, timeoutMs);
+        extensionResultWaiters.add(waiter);
       });
     },
   });

@@ -28,6 +28,32 @@
     },
     {
       "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "recipientId",
+          "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "recipientId",
+          "semanticVersion": "snapback.owner-write.v1"
+        }
+      },
+      "policyDigest": "sha256:66914df291700549259e10adab229ae41d3ae139433777c910b196b5310eceb7",
+      "provenanceHeadId": "deliveriesV2-new-restricted-20260816-v1",
+      "tableId": "deliveriesV2"
+    },
+    {
+      "normalizedPolicyBody": {
         "audienceDeclarationClosure": [
           {
             "id": "roomMembers",
@@ -76,6 +102,32 @@
         "audienceDeclarationClosure": [],
         "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
         "policy": {
+          "field": "authorId",
+          "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "authorId",
+          "semanticVersion": "snapback.owner-write.v1"
+        }
+      },
+      "policyDigest": "sha256:8090863a3c82398b64e695c68f5d54fbf8410d451e76a8d5cf93b888f37f63ae",
+      "provenanceHeadId": "messagesV2-new-restricted-20260816-v1",
+      "tableId": "messagesV2"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
           "field": "userId",
           "kind": "owner"
         },
@@ -96,6 +148,32 @@
       "policyDigest": "sha256:fd2d77be96b2c6fd9f6a3ad906727ea7ee0fe3a5a7993a32f4254f9524168e0c",
       "provenanceHeadId": "roomMembers-g1-20260816-v1",
       "tableId": "roomMembers"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userId",
+          "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userId",
+          "semanticVersion": "snapback.owner-write.v1"
+        }
+      },
+      "policyDigest": "sha256:fd2d77be96b2c6fd9f6a3ad906727ea7ee0fe3a5a7993a32f4254f9524168e0c",
+      "provenanceHeadId": "roomMembersV2-new-restricted-20260816-v1",
+      "tableId": "roomMembersV2"
     },
     {
       "normalizedPolicyBody": {
@@ -195,8 +273,34 @@
       "policyDigest": "sha256:dff3a372938f0abd2dd03ecf65b72e50e4dd3c7acc40c0ba756c3624e4c028c5",
       "provenanceHeadId": "rooms-g1-20260816-v1",
       "tableId": "rooms"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "createdBy",
+          "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "ordinary",
+          "dispositions": {
+            "delete": "owner-old-row-checked",
+            "delete-where": "owner-filtered",
+            "insert": "owner-host-stamped",
+            "insert-each": "owner-host-stamped",
+            "patch": "owner-old-row-checked"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "createdBy",
+          "semanticVersion": "snapback.owner-write.v1"
+        }
+      },
+      "policyDigest": "sha256:69cb27c17aaacd8a76baf2ae5427909ab76b187038df67ca4027d136d711f02a",
+      "provenanceHeadId": "roomsV2-new-restricted-20260816-v1",
+      "tableId": "roomsV2"
     }
   ],
-  "exactSetDigest": "sha256:775ebeee01af9a8b04fa827e8c650e230e8185df1d200b2e4e1af1d133694d2e",
+  "exactSetDigest": "sha256:c465c1ba7e07899e02e940a0a476f69e24ce4042b5b282c8382a7e36e93d7b6e",
   "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

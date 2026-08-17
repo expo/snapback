@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AppState,
   Platform,
+  Pressable,
   SafeAreaView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -63,6 +65,12 @@ export default function App() {
   });
   const pending = useRef<PendingBoot | null>(null);
   const generation = useRef(0);
+
+  const presentShareProbe = useCallback(() => {
+    void Share.share({ message: 'Snapback native custody share probe' }).catch((error) => {
+      setStatus(`share probe failed: ${error instanceof Error ? error.message : String(error)}`);
+    });
+  }, []);
 
   const settleBoot = useCallback(async (state: ExpoBootState) => {
     const waiter = pending.current;
@@ -189,6 +197,15 @@ export default function App() {
         <Text testID="probe-revision" style={styles.fact}>revision: {milestone.custodyRevision ?? 'none'}</Text>
         <Text testID="probe-bearer-sha" style={styles.fact}>bearer sha256: {milestone.bearerSha256Prefix}</Text>
         <Text testID="probe-principal" style={styles.fact}>principal: {milestone.principalId}</Text>
+        <Pressable
+          accessibilityLabel="Share probe"
+          accessibilityRole="button"
+          testID="probe-share-button"
+          style={({ pressed }) => [styles.shareButton, pressed && styles.shareButtonPressed]}
+          onPress={presentShareProbe}
+        >
+          <Text style={styles.shareButtonLabel}>Share probe</Text>
+        </Pressable>
         {request !== null && environment !== null ? (
           <SnapbackExpoProvider
             key={`${request.generation}:${request.mode}`}
@@ -247,4 +264,13 @@ const styles = StyleSheet.create({
   status: { color: '#f7c96b', fontSize: 15, fontWeight: '700' },
   success: { color: '#72e0a2', fontSize: 15, fontWeight: '800' },
   refusal: { color: '#ff8e86', fontSize: 13, fontWeight: '700' },
+  shareButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#76d7c4',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  shareButtonPressed: { opacity: 0.7 },
+  shareButtonLabel: { color: '#08131f', fontSize: 14, fontWeight: '800' },
 });

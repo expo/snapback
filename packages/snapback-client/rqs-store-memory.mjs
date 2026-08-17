@@ -93,6 +93,56 @@ export function createMemoryRqsResumeStore({
     }
   };
 
+  const commitAuthorityTransitionAsWriter = async (
+    authorityTransitionKey = null,
+    authorityTransitionEpoch = null,
+    options = undefined,
+  ) => {
+    if (!requireWriter()) return false;
+    const advanced = outboxOps.advanceAuthorizationAuthority(
+      state.outbox,
+      authorityTransitionKey,
+      authorityTransitionEpoch,
+      options,
+    );
+    if (advanced.result.status === 'authority-current') return true;
+    const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
+    if (storeMeta === null) return false;
+    state.entries.clear();
+    state.reactBindingReceipt = null;
+    state.materializations.clear();
+    state.pageSets.clear();
+    state.memberships.clear();
+    state.outbox = advanced.state;
+    state.storeMeta = storeMeta;
+    return true;
+  };
+  const authorityTransitionWipe = async (
+    authorityTransitionKey = null,
+    authorityTransitionEpoch = null,
+    options = undefined,
+  ) => {
+    requireOpen();
+    if (state.writer === instance) {
+      return commitAuthorityTransitionAsWriter(
+        authorityTransitionKey,
+        authorityTransitionEpoch,
+        options,
+      );
+    }
+    // Main's external-bearer contract needs the follower to report refusal so
+    // its caller installs a predecessor fence before waking the writer. Keyed
+    // coordinator transitions retain the lane's direct same-backing broker.
+    if (authorityTransitionKey === null) return false;
+    const request = state.authorityTransitionWipers.get(state.writer);
+    if (typeof request !== 'function') return false;
+    return request(authorityTransitionKey, authorityTransitionEpoch, options);
+  };
+  state.authorityTransitionWipers ??= new Map();
+  state.authorityTransitionWipers.set(instance, (...args) => (
+    withAuthorizationDispatch(() => commitAuthorityTransitionAsWriter(...args))
+  ));
+
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
   const materializationTransaction = (mode, operation) => import(
@@ -289,27 +339,13 @@ export function createMemoryRqsResumeStore({
 
     /// AuthCoordinator transitions clear retained/read projections while the
     /// per-record LLP 0043 custody matrix keeps ownership of outbox bytes.
-    async wipeForAuthorityTransition(
-      authorityTransitionKey = null,
-      authorityTransitionEpoch = null,
-    ) {
+    wipeForAuthorityTransition: authorityTransitionWipe,
+
+    requestAuthorityTransitionWipe(...args) {
       requireOpen();
-      const advanced = outboxOps.advanceAuthorizationAuthority(
-        state.outbox,
-        authorityTransitionKey,
-        authorityTransitionEpoch,
-      );
-      if (advanced.result.status === 'authority-current') return true;
-      const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
-      if (storeMeta === null) return false;
-      state.entries.clear();
-      state.reactBindingReceipt = null;
-      state.materializations.clear();
-      state.pageSets.clear();
-      state.memberships.clear();
-      state.outbox = advanced.state;
-      state.storeMeta = storeMeta;
-      return true;
+      const request = state.authorityTransitionWipers.get(state.writer);
+      if (typeof request !== 'function') return null;
+      return Object.freeze({ settlement: Promise.resolve().then(() => request(...args)) });
     },
 
     async resetCorruptStoreIdentity() {
@@ -696,6 +732,7 @@ export function createMemoryRqsResumeStore({
     async close() {
       if (closed) return;
       closed = true;
+      state.authorityTransitionWipers.delete(instance);
       if (state.writer !== instance) {
         writerLockListeners.clear();
         return;
@@ -734,6 +771,7 @@ export function createMemoryRqsStoreBacking({ clientStoreId = null, randomBytes 
     writer: null,
     waiters: [],
     authorizationDispatchTail: Promise.resolve(),
+    authorityTransitionWipers: new Map(),
   };
 }
 

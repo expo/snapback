@@ -6,8 +6,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/about.contract",
-      "routeGraphDigest": "sha256:08d88abfbd0c86d26047a8def29599c1e24b7363d7e08e2c3a7ae7c000308e9b",
-      "sourceVersion": "sha256:08d88abfbd0c86d26047a8def29599c1e24b7363d7e08e2c3a7ae7c000308e9b",
+      "routeGraphDigest": "sha256:dbef88a7b92f841a4050a9073f01df531124fd2e70a1d3432f20ecc3b6f4702b",
+      "sourceVersion": "sha256:dbef88a7b92f841a4050a9073f01df531124fd2e70a1d3432f20ecc3b6f4702b",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -15,8 +15,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chat/[id].contract",
-      "routeGraphDigest": "sha256:355ac287f0f74278663ed8906e971d2a7147a2f2ab31f08a79e902454bf41ad8",
-      "sourceVersion": "sha256:355ac287f0f74278663ed8906e971d2a7147a2f2ab31f08a79e902454bf41ad8",
+      "routeGraphDigest": "sha256:a1684ddd2326fd730746204c74eee87cd70e3148273512ee0b66825255d64a78",
+      "sourceVersion": "sha256:a1684ddd2326fd730746204c74eee87cd70e3148273512ee0b66825255d64a78",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -24,8 +24,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chat/[id]/settings.contract",
-      "routeGraphDigest": "sha256:05d832fb4f36c734b9fe0443a7f2f184f0e1056bc8d162f46971ac4507018d51",
-      "sourceVersion": "sha256:05d832fb4f36c734b9fe0443a7f2f184f0e1056bc8d162f46971ac4507018d51",
+      "routeGraphDigest": "sha256:b2d6fdf2b0c2c40785249513d995eea4d2579f69a9ba8f2edfd8419d7e05aca9",
+      "sourceVersion": "sha256:b2d6fdf2b0c2c40785249513d995eea4d2579f69a9ba8f2edfd8419d7e05aca9",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -33,8 +33,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chats.contract",
-      "routeGraphDigest": "sha256:8cb085213a34cce98dcff3f247a30e8197d924fe0825c3f6b7666314740d0d4a",
-      "sourceVersion": "sha256:8cb085213a34cce98dcff3f247a30e8197d924fe0825c3f6b7666314740d0d4a",
+      "routeGraphDigest": "sha256:8d636ef7f03301fe9bc265a187475348bd1d4b81dbe41042e69d1db7aa91f297",
+      "sourceVersion": "sha256:8d636ef7f03301fe9bc265a187475348bd1d4b81dbe41042e69d1db7aa91f297",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -42,8 +42,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/index.contract",
-      "routeGraphDigest": "sha256:e8d035e31d5f47a528b596bd312e5144af75493f63227f614c10f72cd13f0b32",
-      "sourceVersion": "sha256:e8d035e31d5f47a528b596bd312e5144af75493f63227f614c10f72cd13f0b32",
+      "routeGraphDigest": "sha256:243af4b491c7a8e332d13c5f21dd58b0a04d48121c5cb4d43292279499b41ca7",
+      "sourceVersion": "sha256:243af4b491c7a8e332d13c5f21dd58b0a04d48121c5cb4d43292279499b41ca7",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -51,8 +51,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/insights.contract",
-      "routeGraphDigest": "sha256:6201432b3a3607c6987dbe30bdb5e2eda11947326f2ae7220651dfa4a698dc49",
-      "sourceVersion": "sha256:6201432b3a3607c6987dbe30bdb5e2eda11947326f2ae7220651dfa4a698dc49",
+      "routeGraphDigest": "sha256:e41299660936358ab8099cbaa70988eed25cf2afc800a01d54b1517a67c6d74a",
+      "sourceVersion": "sha256:e41299660936358ab8099cbaa70988eed25cf2afc800a01d54b1517a67c6d74a",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -60,8 +60,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/media/[id].contract",
-      "routeGraphDigest": "sha256:df79efc75b9911488a7b7d6c535232b41d0beda9f257b495b13cb8479b00b287",
-      "sourceVersion": "sha256:df79efc75b9911488a7b7d6c535232b41d0beda9f257b495b13cb8479b00b287",
+      "routeGraphDigest": "sha256:c7f308ac926f54256b90472447ff20976346d605d49d9e930845dc6261b02118",
+      "sourceVersion": "sha256:c7f308ac926f54256b90472447ff20976346d605d49d9e930845dc6261b02118",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -69,8 +69,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/profile/[id].contract",
-      "routeGraphDigest": "sha256:d629f623c797e10571074a5e06ebf0a29dce611c0b1e8dedda9397f9411c4774",
-      "sourceVersion": "sha256:d629f623c797e10571074a5e06ebf0a29dce611c0b1e8dedda9397f9411c4774",
+      "routeGraphDigest": "sha256:d7af43acfa7a15d4b8899258cfcaffe68ed19c51d63456e18583fd7ccb557c93",
+      "sourceVersion": "sha256:d7af43acfa7a15d4b8899258cfcaffe68ed19c51d63456e18583fd7ccb557c93",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -78,8 +78,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/search.contract",
-      "routeGraphDigest": "sha256:2c53cf0b4de65592ea3fc7fbb028d6f21e9eb8cd344bc5051563923b764864ca",
-      "sourceVersion": "sha256:2c53cf0b4de65592ea3fc7fbb028d6f21e9eb8cd344bc5051563923b764864ca",
+      "routeGraphDigest": "sha256:5ec468bb9977c3d0e6bc2112f62c5a2396b0b520e6a00b28b363f2028d59d45f",
+      "sourceVersion": "sha256:5ec468bb9977c3d0e6bc2112f62c5a2396b0b520e6a00b28b363f2028d59d45f",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     }

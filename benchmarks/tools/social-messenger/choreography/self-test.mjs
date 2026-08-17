@@ -524,7 +524,7 @@ try {
   }
 
   const skippedSample = {
-    version: "0.3.0-m8",
+    version: "0.3.1-m8",
     runId: "00000000-0000-4000-8000-000000000000",
     recordedAt: "2026-08-10T00:00:00.000Z",
     type: "assertion",
@@ -543,7 +543,7 @@ try {
     },
   };
   const legacySummaryWithoutCause = {
-    version: "0.3.0-m8",
+    version: "0.3.1-m8",
     runId: "00000000-0000-4000-8000-000000000001",
     recordedAt: "2026-08-10T00:00:00.000Z",
     type: "segment-summary",

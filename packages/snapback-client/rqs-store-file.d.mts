@@ -29,6 +29,55 @@ export interface RqsFilesAdapter {
 
 export function createNodeFilesAdapter(): RqsFilesAdapter;
 
+export function legacyFileRqsStorePath(options: {
+  readonly directory: string;
+  readonly identity?: string | number | null;
+}): string;
+
+export function inspectLegacyFileRqsStore(options: {
+  readonly directory: string;
+  readonly files: RqsFilesAdapter;
+  readonly identity?: string | number | null;
+}): Promise<
+  | Readonly<{ status: 'absent'; pathIdentity: string }>
+  | Readonly<{ status: 'unreadable'; pathIdentity: string; error?: unknown }>
+  | Readonly<{
+      status: 'discardable' | 'pending-custody';
+      pathIdentity: string;
+      predecessorClientStoreId: string;
+      predecessorHandleKey: string;
+      custodyCount: number;
+    }>
+>;
+
+export function deleteLegacyFileRqsStore(options: {
+  readonly directory: string;
+  readonly files: RqsFilesAdapter;
+  readonly identity?: string | number | null;
+}): Promise<string>;
+
+export function acquireLegacyFileRqsStoreMigrationLease(options: {
+  readonly directory: string;
+  readonly files: RqsFilesAdapter;
+  readonly identity?: string | number | null;
+  readonly now?: () => number;
+}): Promise<
+  | Readonly<{
+      status: 'writer-active';
+      pathIdentity: string;
+      lockPath: string;
+      owner: Readonly<{ pid: number; instanceId?: string }> | null;
+    }>
+  | Readonly<{
+      status: 'acquired';
+      pathIdentity: string;
+      lockPath: string;
+      inspect(): ReturnType<typeof inspectLegacyFileRqsStore>;
+      deleteAndConfirmAbsent(): Promise<string>;
+      release(): Promise<void>;
+    }>
+>;
+
 /** Durable file-backed persisted RQS resume store for native/Node hosts. */
 export function createFileRqsResumeStore(options: {
   readonly directory: string;

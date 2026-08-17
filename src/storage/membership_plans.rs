@@ -11,29 +11,60 @@ fn authority_declaration_detail(
     )
 }
 
-fn require_transfer_owner_profile(
+fn transfer_owner_demotion_role(
     table: &TableManifest,
     membership: &MembershipManifest,
-) -> SnapbackResult<()> {
-    let valid = table.authority_profile.as_ref().is_some_and(|profile| {
+) -> SnapbackResult<String> {
+    let profile = table.authority_profile.as_ref();
+    let valid = profile.is_some_and(|profile| {
         profile.id == membership.effective_id(&table.name)
             && profile.owner_bootstrap_invariant.role == "owner"
             && profile.owner_bootstrap_invariant.bootstrap_role == "owner"
             && profile.owner_bootstrap_invariant.protected_last_holder_role == "owner"
+            && profile.role_lattice.iter().any(|role| role.role == "owner")
     }) && membership.roles.iter().any(|role| role == "owner")
-        && membership.roles.iter().any(|role| role == "admin")
         && membership.bootstrap_role.as_deref() == Some("owner")
         && membership
             .last_holder
             .as_ref()
             .is_some_and(|last| last.protect == "owner");
-    if valid {
-        return Ok(());
+    if !valid {
+        return Err(authority_declaration_detail(
+            membership_refusal(
+                "SNAPBACK_AUTHORITY_TRANSFER_OWNER_UNSUPPORTED",
+                "transferOwner requires an authority profile whose active vocabulary and role lattice contain owner and whose bootstrapRole/lastHolder role is owner",
+            ),
+            table,
+            membership,
+        ));
     }
+
+    let profile = profile.expect("validated authority profile");
+    let is_active = |candidate: &str| membership.roles.iter().any(|role| role == candidate);
+    if profile
+        .role_lattice
+        .iter()
+        .any(|role| role.role == "admin" && is_active(&role.role))
+    {
+        return Ok("admin".to_owned());
+    }
+    // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+    // — codegen emits, and manifest validation enforces, a canonical
+    // hierarchy-topological role-lattice order. In a profile without active
+    // `admin`, its first active non-owner role is therefore the deterministic
+    // highest available successor state for the former owner.
+    if let Some(role) = profile
+        .role_lattice
+        .iter()
+        .find(|role| role.role != "owner" && is_active(&role.role))
+    {
+        return Ok(role.role.clone());
+    }
+
     Err(authority_declaration_detail(
         membership_refusal(
             "SNAPBACK_AUTHORITY_TRANSFER_OWNER_UNSUPPORTED",
-            "transferOwner requires an authority profile whose active vocabulary contains owner and admin and whose bootstrapRole/lastHolder role is owner",
+            "transferOwner is unavailable because this owner-only authority profile has no active non-owner role for the caller's successor state",
         ),
         table,
         membership,
@@ -265,6 +296,26 @@ impl LocalDatabase {
                         resource.as_deref(),
                         &principal,
                     )?,
+                    BufferedMembershipOp::ChangeRolePrincipal {
+                        resource,
+                        principal,
+                        role,
+                    } => self.plan_authority_change_role(
+                        &command.writer,
+                        &command.table,
+                        resource.as_deref(),
+                        &principal,
+                        &role,
+                    )?,
+                    BufferedMembershipOp::RemoveAuthorityPrincipal {
+                        resource,
+                        principal,
+                    } => self.plan_authority_remove(
+                        &command.writer,
+                        &command.table,
+                        resource.as_deref(),
+                        &principal,
+                    )?,
                     BufferedMembershipOp::TransferOwner {
                         resource,
                         principal,
@@ -372,11 +423,11 @@ impl LocalDatabase {
         })
     }
 
-    /// Plan an `insert` transition (open-join, invite, ...). Reads the resource
-    /// row and captures it (referential integrity + insert-vs-teardown race),
-    /// derives the caller class over that resource, and matches the declared
-    /// matrix. Field-bound: a column outside the matched transition's `fields`
-    /// (e.g. an open-join seating its own far-future `expiresAt`) is refused.
+    /// Plan an `insert` transition (open-join, invite, ...). Derives and admits
+    /// the caller class first, then reads and captures the resource row
+    /// (referential integrity + insert-vs-teardown race). Field-bound: a column
+    /// outside the matched transition's `fields` (e.g. an open-join seating its
+    /// own far-future `expiresAt`) is refused.
     pub(super) fn plan_membership_insert(
         &self,
         writer: &MembershipWriter,
@@ -404,32 +455,10 @@ impl LocalDatabase {
                 None => None,
             };
 
-            let mut read_dependencies = Vec::new();
-
-            // Referential integrity: the resource row must exist, and we capture it
-            // so a concurrent teardown/delete linearizes at commit.
-            if let (Some(resource_id), Some(resource_table)) = (
-                inserted_resource.as_deref(),
-                membership.resource_table.as_deref(),
-            ) {
-                let version = read_resource_version(&self.conn, resource_table, resource_id)?
-                    .ok_or_else(|| {
-                        membership_refusal(
-                            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
-                            format!(
-                                "membership insert names resource {resource_id:?}, which does not \
-                             exist in {resource_table}"
-                            ),
-                        )
-                    })?;
-                read_dependencies.push(resource_row_dependency(
-                    resource_table,
-                    resource_id,
-                    version,
-                ));
-            }
-
             // Caller class over the inserted resource, and target self/other.
+            // This admission must precede the resource lookup: otherwise an
+            // outsider could distinguish an existing scope from an absent one
+            // by choosing an invite-shaped insert.
             let target = if inserted_principal == effective {
                 MembershipTarget::Own
             } else {
@@ -446,26 +475,71 @@ impl LocalDatabase {
                 Some(role) => MembershipCallerClass::Role(role),
                 None => MembershipCallerClass::None,
             };
-            read_dependencies.push(caller_dependency);
+            let matched = membership.transitions.iter().find(|transition| {
+                transition.op == MembershipOp::Insert
+                    && transition.target == target
+                    && transition.by.iter().any(|by| by == class.token())
+                    && matches_role_lists(transition, None, Some(&inserted_role))
+            });
+            let Some(matched) = matched else {
+                let denial = if table_manifest.authority_profile.is_some() {
+                    // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
+                    // — generated authority refusals are invariant across a
+                    // hidden and absent scope. The captured caller lookup is
+                    // host-private and does not alter those public bytes.
+                    crate::membership_rules::role_denial()
+                } else {
+                    transition_denied(MembershipOp::Insert, class.token(), target)
+                };
+                return Err(denial.with_captured_read_dependencies([caller_dependency]));
+            };
 
-            let matched = membership
-                .transitions
-                .iter()
-                .find(|transition| {
-                    transition.op == MembershipOp::Insert
-                        && transition.target == target
-                        && transition.by.iter().any(|by| by == class.token())
-                        && matches_role_lists(transition, None, Some(&inserted_role))
-                })
-                .ok_or_else(|| transition_denied(MembershipOp::Insert, class.token(), target))?;
+            let mut read_dependencies = vec![caller_dependency];
+
+            // Only an admitted caller reaches referential-integrity lookup.
+            // Both the present row and honest missing-row refusal retain a
+            // captured witness, so the denial path does not discard the read
+            // merely because it returns no membership plan.
+            if let (Some(resource_id), Some(resource_table)) = (
+                inserted_resource.as_deref(),
+                membership.resource_table.as_deref(),
+            ) {
+                let version = read_resource_version(&self.conn, resource_table, resource_id)
+                    .map_err(|error| {
+                        error.with_captured_read_dependencies(read_dependencies.clone())
+                    })?;
+                let Some(version) = version else {
+                    let mut denial_dependencies = read_dependencies.clone();
+                    denial_dependencies
+                        .push(resource_missing_dependency(resource_table, resource_id));
+                    return Err(membership_refusal(
+                        "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                        format!(
+                            "membership insert names resource {resource_id:?}, which does not \
+                             exist in {resource_table}"
+                        ),
+                    )
+                    .with_captured_read_dependencies(denial_dependencies));
+                };
+                read_dependencies.push(resource_row_dependency(
+                    resource_table,
+                    resource_id,
+                    version,
+                ));
+            }
 
             // Field-bound insert: only the axes and the matched transition's `fields`
             // may be written.
-            enforce_insert_fields(membership, matched, &values)?;
+            enforce_insert_fields(membership, matched, &values).map_err(|error| {
+                error.with_captured_read_dependencies(read_dependencies.clone())
+            })?;
 
             // Seating into a protected role requires an eligible principal — the set
             // can never be kept full with corpses.
-            self.require_eligible_if_protected(membership, &inserted_role, &inserted_principal)?;
+            self.require_eligible_if_protected(membership, &inserted_role, &inserted_principal)
+                .map_err(|error| {
+                    error.with_captured_read_dependencies(read_dependencies.clone())
+                })?;
 
             let id = crate::ids::mint_document(&table_manifest.name);
             Ok(MembershipPlan {
@@ -500,14 +574,7 @@ impl LocalDatabase {
             require_in_vocabulary(membership, to_role)?;
 
             let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
-                .ok_or_else(|| target_row_missing(member_id))?;
-            refuse_ordinary_profile_owner_change(
-                table_manifest,
-                membership,
-                Some(&row.role),
-                Some(to_role),
-                "setRole",
-            )?;
+                .ok_or_else(|| member_id_transition_denied(MembershipOp::SetRole))?;
             let (class, target, caller_dependency) = self.derive_class_and_target(
                 table_manifest,
                 membership,
@@ -516,7 +583,28 @@ impl LocalDatabase {
                 effective,
             )?;
 
-            let matched = membership
+            let admitted = membership.transitions.iter().any(|transition| {
+                transition.op == MembershipOp::SetRole
+                    && transition.target == target
+                    && transition.by.iter().any(|by| by == class.token())
+            });
+            if !admitted {
+                return Err(member_id_transition_denied(MembershipOp::SetRole));
+            }
+
+            // The row-derived scope has now admitted this exact caller and
+            // operation family. Only after that non-enumerating gate may a
+            // role-specific owner refusal reveal an honest target fact. The
+            // exact from/to transition remains closed below.
+            refuse_ordinary_profile_owner_change(
+                table_manifest,
+                membership,
+                Some(&row.role),
+                Some(to_role),
+                "setRole",
+            )?;
+
+            membership
                 .transitions
                 .iter()
                 .find(|transition| {
@@ -525,8 +613,7 @@ impl LocalDatabase {
                         && transition.by.iter().any(|by| by == class.token())
                         && matches_role_lists(transition, Some(&row.role), Some(to_role))
                 })
-                .ok_or_else(|| transition_denied(MembershipOp::SetRole, class.token(), target))?;
-            let _ = matched;
+                .ok_or_else(|| member_id_transition_denied(MembershipOp::SetRole))?;
 
             let mut read_dependencies = vec![target_row_dependency(&table_manifest.name, &row)];
             read_dependencies.extend(caller_dependency);
@@ -574,20 +661,33 @@ impl LocalDatabase {
             let effective = self.require_effective_principal(writer)?;
 
             let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
-                .ok_or_else(|| target_row_missing(member_id))?;
-            refuse_ordinary_profile_owner_change(
-                table_manifest,
-                membership,
-                Some(&row.role),
-                None,
-                "remove",
-            )?;
+                .ok_or_else(|| member_id_transition_denied(MembershipOp::Remove))?;
             let (class, target, caller_dependency) = self.derive_class_and_target(
                 table_manifest,
                 membership,
                 row.resource.as_deref(),
                 &row.principal,
                 effective,
+            )?;
+
+            let admitted = membership.transitions.iter().any(|transition| {
+                transition.op == MembershipOp::Remove
+                    && transition.target == target
+                    && transition.by.iter().any(|by| by == class.token())
+            });
+            if !admitted {
+                return Err(member_id_transition_denied(MembershipOp::Remove));
+            }
+
+            // Admission is scope-relative and the scope came from the target
+            // row, so target-specific owner facts stay behind the invariant
+            // member-id denial.
+            refuse_ordinary_profile_owner_change(
+                table_manifest,
+                membership,
+                Some(&row.role),
+                None,
+                "remove",
             )?;
 
             membership
@@ -599,7 +699,7 @@ impl LocalDatabase {
                         && transition.by.iter().any(|by| by == class.token())
                         && matches_role_lists(transition, Some(&row.role), None)
                 })
-                .ok_or_else(|| transition_denied(MembershipOp::Remove, class.token(), target))?;
+                .ok_or_else(|| member_id_transition_denied(MembershipOp::Remove))?;
 
             let mut read_dependencies = vec![target_row_dependency(&table_manifest.name, &row)];
             read_dependencies.extend(caller_dependency);
@@ -758,6 +858,190 @@ impl LocalDatabase {
         })
     }
 
+    /// Resolve a profile role change from its public `(scope, principal,
+    /// role)` spelling. Caller admission happens before target lookup so an
+    /// unauthorized caller cannot use the operation as a roster oracle; the
+    /// resolved private row id then enters the unchanged setRole planner.
+    ///
+    /// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
+    pub(super) fn plan_authority_change_role(
+        &self,
+        writer: &MembershipWriter,
+        table: &str,
+        resource: Option<&str>,
+        principal: &str,
+        role: &str,
+    ) -> SnapbackResult<MembershipPlan> {
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            if table_manifest.authority_profile.is_none() {
+                return Err(membership_refusal(
+                    "SNAPBACK_AUTHORITY_PROFILE_REQUIRED",
+                    "principal-addressed role changes require an authorityProfile declaration",
+                ));
+            }
+            validate_membership_scope_argument(membership, resource, "changeRole")?;
+            if principal.is_empty() {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID",
+                    "changeRole requires a non-empty target principal",
+                ));
+            }
+            require_in_vocabulary(membership, role)?;
+            if role == "owner" {
+                refuse_ordinary_profile_owner_change(
+                    table_manifest,
+                    membership,
+                    None,
+                    Some(role),
+                    "setRole",
+                )?;
+            }
+            let effective = self.require_effective_principal(writer)?;
+            let (caller_role, caller_dependency) = read_caller_role_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                resource,
+                effective,
+            )?;
+            let class = caller_role
+                .map(MembershipCallerClass::Role)
+                .unwrap_or(MembershipCallerClass::None);
+            let admitted = membership.transitions.iter().any(|transition| {
+                transition.op == MembershipOp::SetRole
+                    && transition.target == MembershipTarget::Other
+                    && transition.by.iter().any(|by| by == class.token())
+                    && transition
+                        .to
+                        .as_ref()
+                        .is_some_and(|roles| roles.iter().any(|to| to == role))
+                    && transition
+                        .from
+                        .as_ref()
+                        .is_none_or(|roles| roles.iter().all(|from| from != "owner"))
+            });
+            if !admitted {
+                return Err(transition_denied(
+                    MembershipOp::SetRole,
+                    class.token(),
+                    MembershipTarget::Other,
+                ));
+            }
+            if principal == effective {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_TARGET_SELF",
+                    "changeRole targets another principal; self transitions remain join/leave",
+                ));
+            }
+            let (target, target_dependency) = read_membership_pair_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                resource,
+                principal,
+            )?;
+            let Some((member_id, _)) = target else {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_TARGET_MISSING",
+                    "the target membership row does not exist",
+                ));
+            };
+            let mut plan = self.plan_membership_set_role(writer, table, &member_id, role)?;
+            plan.read_dependencies.push(caller_dependency);
+            plan.read_dependencies.push(target_dependency);
+            Ok(plan)
+        })
+    }
+
+    /// Profile-scoped removal accepts a public principal without requiring
+    /// LLP 0100's total-remove opt-in. The generated operation exists only
+    /// for explicit non-owner transitions, and the ordinary remove planner
+    /// remains the final authority (including the owner-transfer fence).
+    /// An authorized absent target is an idempotent captured no-op.
+    ///
+    /// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
+    pub(super) fn plan_authority_remove(
+        &self,
+        writer: &MembershipWriter,
+        table: &str,
+        resource: Option<&str>,
+        principal: &str,
+    ) -> SnapbackResult<MembershipPlan> {
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            if table_manifest.authority_profile.is_none() {
+                return Err(membership_refusal(
+                    "SNAPBACK_AUTHORITY_PROFILE_REQUIRED",
+                    "principal-addressed removal requires an authorityProfile declaration",
+                ));
+            }
+            validate_membership_scope_argument(membership, resource, "remove")?;
+            if principal.is_empty() {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID",
+                    "remove requires a non-empty target principal",
+                ));
+            }
+            let effective = self.require_effective_principal(writer)?;
+            let (caller_role, caller_dependency) = read_caller_role_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                resource,
+                effective,
+            )?;
+            let class = caller_role
+                .map(MembershipCallerClass::Role)
+                .unwrap_or(MembershipCallerClass::None);
+            let admitted = membership.transitions.iter().any(|transition| {
+                transition.op == MembershipOp::Remove
+                    && transition.target == MembershipTarget::Other
+                    && transition.by.iter().any(|by| by == class.token())
+                    && transition
+                        .from
+                        .as_ref()
+                        .is_some_and(|roles| roles.iter().all(|from| from != "owner"))
+            });
+            if !admitted {
+                return Err(transition_denied(
+                    MembershipOp::Remove,
+                    class.token(),
+                    MembershipTarget::Other,
+                ));
+            }
+            if principal == effective {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_TARGET_SELF",
+                    "remove targets another principal; self-removal remains leave",
+                ));
+            }
+            let (target, target_dependency) = read_membership_pair_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                resource,
+                principal,
+            )?;
+            match target {
+                Some((member_id, _)) => {
+                    let mut plan = self.plan_membership_remove(writer, table, &member_id)?;
+                    plan.read_dependencies.push(caller_dependency);
+                    plan.read_dependencies.push(target_dependency);
+                    Ok(plan)
+                }
+                None => Ok(MembershipPlan {
+                    writes: Vec::new(),
+                    read_dependencies: vec![caller_dependency, target_dependency],
+                    result: Value::Null,
+                    skipped_protected: Vec::new(),
+                }),
+            }
+        })
+    }
+
     /// Atomically move the profile's protected owner role from the effective
     /// principal to one active target member. This is a dedicated plan kind,
     /// not a transition-matrix spelling: ordinary insert/setRole/remove paths
@@ -765,7 +1049,8 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
     ///   — only a current owner may promote an active target and demote itself
-    ///   to admin in one membership plan/transaction.
+    ///   to the deterministic highest active non-owner role in one membership
+    ///   plan/transaction.
     pub(super) fn plan_membership_transfer_owner(
         &self,
         writer: &MembershipWriter,
@@ -776,7 +1061,7 @@ impl LocalDatabase {
         with_pinned_read_snapshot(&self.conn, |_conn| {
             let schema = self.schema.clone();
             let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
-            require_transfer_owner_profile(table_manifest, membership)?;
+            let caller_demotion_role = transfer_owner_demotion_role(table_manifest, membership)?;
             validate_membership_scope_argument(membership, resource, "transferOwner")?;
             if target_principal.is_empty() {
                 return Err(membership_refusal(
@@ -840,7 +1125,7 @@ impl LocalDatabase {
             let mut target_patch = Map::new();
             target_patch.insert(membership.role.clone(), Value::String("owner".to_owned()));
             let mut caller_patch = Map::new();
-            caller_patch.insert(membership.role.clone(), Value::String("admin".to_owned()));
+            caller_patch.insert(membership.role.clone(), Value::String(caller_demotion_role));
             Ok(MembershipPlan {
                 // Promote first inside the private transaction, then demote;
                 // the complete protected-holder evaluator judges the final
@@ -886,7 +1171,7 @@ impl LocalDatabase {
             let effective = self.require_effective_principal(writer)?;
 
             let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
-                .ok_or_else(|| target_row_missing(member_id))?;
+                .ok_or_else(|| member_id_transition_denied(MembershipOp::Patch))?;
             let (class, target, caller_dependency) = self.derive_class_and_target(
                 table_manifest,
                 membership,
@@ -895,9 +1180,22 @@ impl LocalDatabase {
                 effective,
             )?;
 
-            // A patch never touches the axes or the role (immutability; role changes
-            // go through setRole). Refuse before op matching so the error names the
-            // real cause.
+            // First establish scope-relative admission without consulting the
+            // requested fields. An absent row cannot establish a scope, so it
+            // must remain byte-identical to a present-but-hidden row.
+            let admitted = membership.transitions.iter().any(|transition| {
+                transition.op == MembershipOp::Patch
+                    && transition.target == target
+                    && transition.by.iter().any(|by| by == class.token())
+                    && matches_role_lists(transition, Some(&row.role), None)
+            });
+            if !admitted {
+                return Err(member_id_transition_denied(MembershipOp::Patch));
+            }
+
+            // A patch never touches the axes or the role (immutability; role
+            // changes go through setRole). Admission is established, so this
+            // can now name the caller-supplied invalid field honestly.
             for key in values.keys() {
                 if key == &membership.principal
                     || key == &membership.role
@@ -922,7 +1220,7 @@ impl LocalDatabase {
                             .keys()
                             .all(|key| transition.fields.iter().flatten().any(|field| field == key))
                 })
-                .ok_or_else(|| transition_denied(MembershipOp::Patch, class.token(), target))?;
+                .ok_or_else(|| member_id_transition_denied(MembershipOp::Patch))?;
             let _ = matched;
 
             Ok(MembershipPlan {

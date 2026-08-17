@@ -18,9 +18,11 @@ use crate::auth::invocation::{
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackError;
 use crate::manifest::{
-    AuthMode, FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest,
-    FunctionRuntime, HandlerInput, HandlerPlan, IbexModule, MutationPlan, MutationStep,
-    ReturnValue, SchemaManifest, TableManifest, ValueExpr,
+    AuthMode, ElevatedReadCapabilityV1, ElevatedReadFormV1, ElevatedReadTableCeilingV1,
+    FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+    HandlerInput, HandlerPlan, IbexModule, MutationPlan, MutationStep,
+    OwnerWriteAbsentDispositionV1, OwnerWriteCheckV1, ReturnValue, SchemaManifest, TableManifest,
+    TableVisibilityV1, ValueExpr,
 };
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
@@ -29,13 +31,13 @@ use std::path::Path;
 const SHAPE_HANDLERS: &str = r#"
 globalThis.__snapbackHandlers = {
   async mineOrPublic(ctx) {
-    const rows = await ctx.db.query('docs').collect();
+    const rows = await ctx.db.elevated.query('docs').collect();
     return rows.filter((row) => row.ownerId === ctx.auth.userId || row.isPublic === true);
   },
 
   async orgDocuments(ctx) {
-    const docs = await ctx.db.query('docs').collect();
-    const folders = await ctx.db.query('folders').collect();
+    const docs = await ctx.db.elevated.query('docs').collect();
+    const folders = await ctx.db.elevated.query('folders').collect();
     const memberships = await ctx.db.query('orgMembers').collect();
     const allowed = new Set(
       memberships
@@ -169,10 +171,17 @@ fn field(name: &str, field_type: FieldType) -> FieldManifest {
 
 fn table(
     name: &str,
-    fields: Vec<FieldManifest>,
+    mut fields: Vec<FieldManifest>,
     permission_backing: bool,
     permission_fields: Option<Vec<&str>>,
 ) -> TableManifest {
+    // @ref LLP 0264#d3-owner-inserts-are-host-stamped — principal-bearing
+    // ordinary acceptance rows use a dedicated host-stamped write owner so
+    // the tested ownerId/folder transitions remain application data.
+    let write_owned = matches!(name, "docs" | "folders");
+    if write_owned {
+        fields.push(field("rowOwner", FieldType::Principal));
+    }
     TableManifest {
         name: name.to_owned(),
         fields,
@@ -187,7 +196,17 @@ fn table(
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: if write_owned {
+            Some(TableVisibilityV1::Owner {
+                field: "rowOwner".to_owned(),
+            })
+        } else if permission_backing {
+            None
+        } else {
+            // `notes` is deliberately principal-free synthetic payload used
+            // only as a disjoint public-read control.
+            Some(TableVisibilityV1::PublicRead)
+        },
         history: None,
     }
 }
@@ -267,10 +286,28 @@ fn live_ibex(name: &str, tables: &[&str]) -> FunctionDefinition {
     function.read_set_summary.primary_table = tables.first().map(|table| (*table).to_owned());
     function.read_set_summary.tables = tables.iter().map(|table| (*table).to_owned()).collect();
     function.read_set_summary.mode = Some("handlerDeclared".to_owned());
+    let elevated_tables = match name {
+        "mineOrPublic" => vec!["docs".to_owned()],
+        "orgDocuments" => vec!["docs".to_owned(), "folders".to_owned()],
+        _ => Vec::new(),
+    };
+    if !elevated_tables.is_empty() {
+        function.elevated_db_capabilities = vec![ElevatedReadCapabilityV1 {
+            form: ElevatedReadFormV1::Query,
+            tables: ElevatedReadTableCeilingV1::Tables(elevated_tables),
+        }];
+    }
     function
 }
 
 fn insert_function(name: &str, table: &str, fields: &[&str]) -> FunctionDefinition {
+    let mut values = fields
+        .iter()
+        .map(|field| ((*field).to_owned(), ValueExpr::Arg((*field).to_owned())))
+        .collect::<BTreeMap<_, _>>();
+    if matches!(table, "docs" | "folders") {
+        values.insert("rowOwner".to_owned(), ValueExpr::AuthUserId);
+    }
     FunctionDefinition::new(
         name,
         FunctionKind::Mutation,
@@ -278,10 +315,7 @@ fn insert_function(name: &str, table: &str, fields: &[&str]) -> FunctionDefiniti
             owner_write_checks: Vec::new(),
             steps: vec![MutationStep::Insert {
                 table: table.to_owned(),
-                values: fields
-                    .iter()
-                    .map(|field| ((*field).to_owned(), ValueExpr::Arg((*field).to_owned())))
-                    .collect(),
+                values,
                 bind_id_as: Some("id".to_owned()),
             }],
             return_value: Some(ReturnValue::Binding("id".to_owned())),
@@ -294,7 +328,13 @@ fn patch_function(name: &str, table: &str, field: &str) -> FunctionDefinition {
         name,
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+            owner_write_checks: (table == "docs")
+                .then_some(OwnerWriteCheckV1 {
+                    step_index: 0,
+                    absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                })
+                .into_iter()
+                .collect(),
             steps: vec![MutationStep::Patch {
                 table: table.to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -310,7 +350,13 @@ fn delete_function(name: &str, table: &str) -> FunctionDefinition {
         name,
         FunctionKind::Mutation,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+            owner_write_checks: (table == "docs")
+                .then_some(OwnerWriteCheckV1 {
+                    step_index: 0,
+                    absent: OwnerWriteAbsentDispositionV1::NoEffect,
+                })
+                .into_iter()
+                .collect(),
             steps: vec![MutationStep::Delete {
                 table: table.to_owned(),
                 id: ValueExpr::Arg("id".to_owned()),
@@ -387,6 +433,29 @@ fn configure(mut snapback: LocalSnapback) -> LocalSnapback {
     snapback
         .apply_schema(schema)
         .expect("apply acceptance schema");
+    snapback
+        .auth_database_mut()
+        .activate_current_auth_catalog()
+        .expect("install acceptance auth catalog");
+    for (index, user) in ["alice", "bob", "carol"].into_iter().enumerate() {
+        let (session_id, authority_instance_id) = session_ids(user);
+        snapback
+            .auth_database_mut()
+            .auth_catalog()
+            .insert_email_session_for_test(
+                user,
+                &format!("acceptance-identity-{user}"),
+                session_id,
+                authority_instance_id,
+                &format!("{user}@acceptance.test"),
+                &[index as u8 + 1; 32],
+                1,
+                1,
+                4_000_000_000_000,
+                4_000_000_000_000,
+            )
+            .expect("insert acceptance session");
+    }
     let functions = acceptance_functions();
     assert_eq!(functions.app_id, CLIENT_REPLAY_APP_ID);
     assert_eq!(
@@ -397,6 +466,11 @@ fn configure(mut snapback: LocalSnapback) -> LocalSnapback {
         functions.inputs_hash.as_deref(),
         Some(CLIENT_REPLAY_INPUTS_HASH)
     );
+    let installed_schema = snapback.db.schema().clone();
+    snapback
+        .auth_database_mut()
+        .reconcile_auth_scope_bases_with_schema(&functions, &installed_schema)
+        .expect("install acceptance function scope bases");
     let diagnostics = snapback.load_functions(functions);
     assert!(
         diagnostics
@@ -1560,7 +1634,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     // Every fourth operation loses the destructive drain before reprojecting
     // the still-live level-triggered obligation.
     let mut random = 0x0053_c0de_u64;
-    let mut docs = Vec::<String>::new();
+    let mut docs = Vec::<(String, String)>::new();
     let mut random_observation = DeliveryObservation::default();
     let mut scheduled_randomized_loss_rounds = 0_u64;
     let mut randomized_all_query_convergence_rounds = 0_u64;
@@ -1574,9 +1648,10 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
             .wrapping_add(1_442_695_040_888_963_407);
         let choice = (random >> 32) % 10;
         if docs.is_empty() || choice < 4 {
+            let writer = if operation % 2 == 0 { "alice" } else { "bob" };
             let created = id(mutate(
                 &mut snapback,
-                if operation % 2 == 0 { "alice" } else { "bob" },
+                writer,
                 "createDoc",
                 json!({
                     "title": format!("random-{operation}"),
@@ -1585,15 +1660,15 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
                     "folderId": folder,
                 }),
             ));
-            docs.push(created);
+            docs.push((created, writer.to_owned()));
         } else {
             let index = (random as usize) % docs.len();
-            let doc = docs[index].clone();
+            let (doc, writer) = docs[index].clone();
             match choice {
                 4..=6 => {
                     mutate(
                         &mut snapback,
-                        "alice",
+                        &writer,
                         "setDocPublic",
                         json!({ "id": doc, "isPublic": random & 4 != 0 }),
                     );
@@ -1601,13 +1676,13 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
                 7..=8 => {
                     mutate(
                         &mut snapback,
-                        "bob",
+                        &writer,
                         "setDocOwner",
                         json!({ "id": doc, "ownerId": if random & 8 == 0 { "alice" } else { "bob" } }),
                     );
                 }
                 _ => {
-                    mutate(&mut snapback, "alice", "deleteDoc", json!({ "id": doc }));
+                    mutate(&mut snapback, &writer, "deleteDoc", json!({ "id": doc }));
                     docs.swap_remove(index);
                 }
             }

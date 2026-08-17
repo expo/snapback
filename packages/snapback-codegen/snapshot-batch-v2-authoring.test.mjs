@@ -13,18 +13,21 @@ const dir = mkdtempSync(join(tmpdir(), 'snapback-snapshot-batch-v2-'));
 try {
   writeFileSync(join(dir, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export const boards = defineTable({ ownerId: v.principal(), title: v.string() }).sync();
+export const boards = defineTable({ ownerId: v.principal(), title: v.string() })
+  .visibility({ kind: 'owner', field: 'ownerId' }).sync();
 export const cards = defineTable({
   boardId: v.id('boards'),
   boardIncarnation: v.relationIncarnationOf({ foreignKeyField: 'boardId', parentTable: 'boards' }),
   position: v.integer(),
   label: v.string(),
-}).index('by_board_position', ['boardId', 'boardIncarnation', 'position']).sync();
+}).index('by_board_position', ['boardId', 'boardIncarnation', 'position'])
+  .visibility({ kind: 'public-read' }).sync();
 export const events = defineTable({
   ownerId: v.principal(), actorSlug: v.string(), sequence: v.integer(), title: v.string(),
-}).index('by_owner_sequence', ['ownerId', 'sequence']).sync();
+}).index('by_owner_sequence', ['ownerId', 'sequence'])
+  .visibility({ kind: 'owner', field: 'ownerId' }).sync();
 export const actors = defineTable({ slug: v.string(), name: v.string() })
-  .index('by_slug', ['slug'], { unique: true }).sync();
+  .index('by_slug', ['slug'], { unique: true }).visibility({ kind: 'public-read' }).sync();
 export default defineSchema({ boards, cards, events, actors }, { auth: { mode: 'sessions' } });
 `);
   writeFileSync(join(dir, 'functions.mjs'), `

@@ -73,3 +73,61 @@ graduate before protected facts; absence of a proof stays an honest refusal.
   `freshness: 'retained'`; unproved completeness renders `unknown`/nothing.
 - Existing explicit options remain compatible during migration and cannot
   widen owner admission.
+
+## Resolution (draft — public-exact slice)
+
+Implemented LLP 0190 D3.2 / LLP 0270 rollout wave 3 only. Codegen and the
+local/Ibex server now derive `single_table_v1` / `rqsEligible` from a public,
+closed,
+ambient-free declarative single-table plan without consulting the app-authored
+`authorityIndependent` flag. That flag remains a compatible validated
+assertion for its existing uses and does not widen the owner proof. The
+owner-derived fact also selects the authority-independent live/bundle
+namespace and is carried in persisted React binding receipts.
+Cloudflare remains on its validated `authorityIndependent` conjunction; LLP
+0092 records that owner-derived port as a pending target row.
+
+On qualified browser IndexedDB and headless Node-file stores, a mounted query
+in this public-exact class automatically owns an active durable-retention
+request. No `persistResume`, `retainable`, `authorityIndependent`, or
+programmatic registration declaration is required. A fresh client can render
+the proof-validated result with `freshness: 'retained'` while the server is
+unreachable. Explicit durable `registerQuery` remains the API for demand that
+must exist with no mounted handle. Owner/class identity changes continue to
+rotate the generated composition/plan/QMK identity; predecessor bytes are not
+relabelled offline.
+
+Regression coverage pins that protected and opaque-handler declarations do
+not derive the public class, memory carriers do not request or claim durable
+retention, absent proof remains `unknown`/nothing, policy and authority
+barriers delete/refuse before render, expiry/corruption fail closed, and
+explicit public assertions reach only the same owner-admitted class.
+
+Status remains Open. LLP 0190 D3.6 / LLP 0270 rollout wave 5 is still required
+to make owner-admitted protected retention automatic after D3.3–D3.5. This
+slice does not change protected admission, lease custody, logout/user-switch
+semantics, Expo carrier qualification, or opaque-handler eligibility. It does
+close a pre-existing external-bearer implementation hole by invoking the same
+durable predecessor wipe on logout/user-switch even when no AuthCoordinator is
+present.
+
+---
+
+**Public-exact slice landed 2026-08-16** (LLP 0270 wave 3; LLP 0190 D3.2):
+codegen/host-derived eligibility (no app declaration) with owner-bound
+admission (recomputed plan/node hashes; signature-validated owner proof for
+no-lease commit AND render), default retention for mounted owner-admitted
+public-exact queries on qualified durable carriers (browser React,
+headless), external-bearer authority-transition wipe with a predecessor
+fence + writer-wake for shared-store followers, identity rotation, honest
+refusals. Demo witnesses migrated: metricsFeed/todosFeed are now the
+positive no-declaration witnesses; new opaque protected fixtures own the
+refusal boundary in both custody phases. Three-round dual-family review
+converged (codex r3 with live fence repro, grok r2 with hash-recomputation
+repro); an in-loop fence regression on the evaluation floor was caught by
+the full-suite rerun and fixed. Cloudflare remains flag-gated (LLP 0092
+scoped honestly). **Ticket stays OPEN for the protected slice (D3.6, LLP
+0270 wave 5)** — see the rollout order in LLP 0270. Expo remains gated on
+its carrier ticket. The Chrome witness was updated by inspection; its
+browser receipt re-run rides the next witness execution
+(playwright unavailable in this environment).

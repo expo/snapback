@@ -1474,6 +1474,17 @@
           ],
           "description": "Declared field-masking residual for an opaque JS query. This is not\nruntime enforcement and carries no noninterference guarantee."
         },
+        "generatedAuthorityOperation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GeneratedAuthorityOperationV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Definitive codegen identity for a synthesized authority operation.\nAuthors cannot supply the generator's private marker, so a matching\nfunction name or dependency vector is never sufficient authority."
+        },
         "handlerForm": {
           "default": null,
           "type": [
@@ -1837,6 +1848,40 @@
       },
       "required": [
         "semanticVersion"
+      ],
+      "type": "object"
+    },
+    "GeneratedAuthorityOperationKindV1": {
+      "description": "Closed identity of an authority-profile operation synthesized by codegen.\nThis is a manifest fact emitted from a module-private generator marker;\nfunction names and declared dependencies alone never grant this identity.",
+      "enum": [
+        "list",
+        "myRole",
+        "invite",
+        "join",
+        "leave",
+        "changeRole",
+        "transferOwner",
+        "remove"
+      ],
+      "type": "string"
+    },
+    "GeneratedAuthorityOperationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "generation": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "operation": {
+          "$ref": "#/$defs/GeneratedAuthorityOperationKindV1"
+        }
+      },
+      "required": [
+        "id",
+        "generation",
+        "operation"
       ],
       "type": "object"
     },

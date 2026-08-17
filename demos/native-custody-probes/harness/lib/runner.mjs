@@ -71,6 +71,31 @@ function p2Tuple({ facts, principal, credentialEntryCalls, protectedRead }) {
   });
 }
 
+export function iosShareExtensionProbeSatisfied(value, artifactBundleId) {
+  const shareBundleId = `${artifactBundleId}.share`;
+  return value.extension?.code === SINGLE_RUNTIME_REFUSAL
+    && value.extension?.ioOccurred === false
+    && value.extension?.extensionPointIdentifier === 'com.apple.share-services'
+    && value.extension?.bundleIdentifier === shareBundleId
+    && value.extension?.reason === 'app-extension'
+    && Number.isSafeInteger(value.extension?.pid)
+    && value.extension.pid !== value.mainApp?.pid
+    && Array.isArray(value.osObservedExtensionProcesses)
+    && value.osObservedExtensionProcesses.some(
+      // The OS witness is either a launchctl label carrying the appex bundle
+      // id or a host ps line carrying the appex executable path inside the
+      // installed app container; both attribute the pid to the extension.
+      (row) => row?.pid === value.extension.pid
+        && (row?.label?.includes(shareBundleId)
+          || row?.label?.includes('.appex')
+          || /nativecustodyprobesshare/iu.test(row?.label ?? '')),
+    )
+    && value.trigger?.mechanism === 'XCUITest-driven share sheet'
+    && value.trigger?.testTarget === 'NativeCustodyProbesUITests'
+    && value.trigger?.exitStatus === 0
+    && value.trigger?.timedOut === false;
+}
+
 export async function runNativeCustodyHarness({
   platform,
   options,
@@ -108,7 +133,6 @@ export async function runNativeCustodyHarness({
   let failureProbe = null;
   let overallVerdict = 'FAIL';
   let terminalError = null;
-  let p4IosIncomplete = false;
   let p2MissingClasses = [];
   let successfulProbeFlow = false;
   const email = options.email ?? `custody-${Date.now()}@example.test`;
@@ -246,6 +270,10 @@ export async function runNativeCustodyHarness({
         expectedArtifactFacts: {
           nativeBuildConfiguration: artifact.nativeBuildConfiguration ?? null,
           bundleDelivery: artifact.bundleDelivery ?? null,
+          ...(platform === 'ios' ? {
+            testExecutionArtifactBinding:
+              'inventoried build-for-testing products exercised by test-without-building',
+          } : {}),
         },
       });
       if (reusedFrom === null) {
@@ -261,6 +289,9 @@ export async function runNativeCustodyHarness({
       bundleId: artifactBundleId,
       buildMode: options.skipBuild ? 'verified-reuse' : 'built-this-run',
       artifact: Object.freeze({ ...artifact, sha256: artifactSha256 }),
+      exercisedAppBytes: platform === 'ios'
+        ? 'the inventoried build-for-testing products exercised by test-without-building'
+        : 'the inventoried application artifact installed and exercised by this run',
       reusedFrom,
       createdAt: new Date().toISOString(),
     });
@@ -275,14 +306,35 @@ export async function runNativeCustodyHarness({
       bundleId: artifactBundleId,
       claims: platform === 'android'
         ? ['P2 classified SIGKILL old-or-new restoration (coverage gated)', 'uninstall-clears-data']
-        : ['P2 classified SIGKILL old-or-new restoration (coverage gated)', 'keychain uninstall residue handling'],
+        : [
+            'P2 classified SIGKILL old-or-new restoration (coverage gated)',
+            'keychain uninstall residue handling',
+            'Share Extension single-runtime refusal before custody I/O',
+          ],
       notClaimed: platform === 'android'
         ? [
             'force-stop-mid-write (LLP 0263 A-3)',
             'backup/restore via bmgr (LLP 0263 A-9)',
             'device-to-device transfer',
+            'same-runtime background lifecycle execution and provider live-stream pause/resume',
           ]
-        : ['physical-device lock state', 'backup/restore', 'device-to-device transfer'],
+        : [
+            'simctl push cannot traverse Notification Service Extensions on iOS 26 simulators; the NSE remains built and embedded as built-but-not-invokable evidence',
+            'physical-device lock-state and file-protection windows',
+            'real securityd kill safety',
+            'extension/app interleaving and writer kill/suspension',
+            'encrypted backup restore and device-to-device migration',
+            'cross-process fencing, hardware custody, backup continuity, and sender-constrained auth',
+            'same-runtime background lifecycle execution and provider live-stream pause/resume',
+          ],
+      ...(platform === 'ios' ? {
+        extensionProbe: Object.freeze({
+          kind: 'Share Extension',
+          extensionPointIdentifier: 'com.apple.share-services',
+          trigger: 'XCUITest-driven share sheet',
+          notificationServiceExtension: 'built and embedded; simctl push cannot invoke its service stage on iOS 26 simulators',
+        }),
+      } : {}),
     });
     director.setConfig(Object.freeze({
       binding: backend.binding({
@@ -774,15 +826,98 @@ export async function runNativeCustodyHarness({
       );
       writer.setMetadata({ iosExtensionEvidence: extensionResult.external });
     } else {
-      p4IosIncomplete = true;
       await step(
-        'P4', 'extension refusal not exercised',
-        { nativeExtensionEvidence: 'required for PASS' },
-        () => command('refusalProbe'),
-        (value) => value.attempted === false
-          && value.diagnostic?.code
-            === 'SNAPBACK_AUTH_CUSTODY_EXTENSION_NATIVE_UNIT_FALLBACK_REQUIRED',
-        'INCOMPLETE',
+        'P4', 'share extension refusal',
+        {
+          schemaVersion: 'snapback.native-custody-extension.v1',
+          code: SINGLE_RUNTIME_REFUSAL,
+          ioOccurred: false,
+          extensionPointIdentifier: 'com.apple.share-services',
+          bundleIdentifier: `${artifactBundleId}.share`,
+          distinctMainAndExtensionPids: true,
+          triggerMechanism: 'XCUITest-driven share sheet',
+          uiTestExitStatus: 0,
+          extensionReportPidOsAttributed: true,
+        },
+        async () => {
+          const extensionResultStart = director.extensionResults.length;
+          // The XCUITest owns the app lifecycle: it relaunches the app to
+          // drive the sheet and terminates it when the test completes, so the
+          // distinct-PID witness must be sampled WHILE the drive is running,
+          // and the extension event must be awaited concurrently with the
+          // test-without-building xcodebuild run.
+          const triggerPromise = device.triggerShareExtensionViaXcuiTest();
+          let mainDuringDrive = null;
+          // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+          // — extension refusal is a security boundary, so a self-reported PID
+          // qualifies only when simulator launchd independently observed it.
+          const osObservedExtensionProcesses = new Map();
+          let sampling = true;
+          const sampler = (async () => {
+            while (sampling) {
+              const rows = await device.sampleShareExtensionDriveProcesses().catch(() => null);
+              if (rows?.main !== null && Number.isSafeInteger(rows?.main?.pid)) {
+                mainDuringDrive = rows.main;
+              }
+              for (const row of rows?.shareExtensions ?? []) {
+                if (Number.isSafeInteger(row?.pid) && typeof row?.label === 'string') {
+                  osObservedExtensionProcesses.set(`${row.pid}\0${row.label}`, row);
+                }
+              }
+              await delay(250);
+            }
+          })();
+          // Independent tight loop: extension processes live for seconds, and
+          // the launchctl-backed sampler above can stall that long per sample
+          // under xcodebuild load.
+          const fastSampler = typeof device.sampleShareExtensionHostPs === 'function'
+            ? (async () => {
+              while (sampling) {
+                for (const row of await device.sampleShareExtensionHostPs()) {
+                  osObservedExtensionProcesses.set(`${row.pid}\0${row.label}`, row);
+                }
+                await delay(200);
+              }
+            })()
+            : Promise.resolve();
+          let extension = null;
+          let extensionError = null;
+          try {
+            extension = await director.waitExtensionResult(
+              (event) => event.schemaVersion === 'snapback.native-custody-extension.v1',
+              extensionResultStart,
+              10 * 60_000,
+            );
+          } catch (error) {
+            extensionError = error;
+          }
+          const trigger = await triggerPromise;
+          sampling = false;
+          await sampler;
+          await fastSampler;
+          if (extensionError !== null) {
+            throw Object.assign(extensionError, { observed: { trigger } });
+          }
+          assertProbe(
+            mainDuringDrive !== null && Number.isSafeInteger(mainDuringDrive.pid),
+            'P4',
+            'main app PID was never observed while the XCUITest drive ran',
+            { trigger },
+          );
+          return Object.freeze({
+            trigger,
+            mainApp: Object.freeze({
+              pid: mainDuringDrive.pid,
+              launchLabel: mainDuringDrive.marker,
+              sampledDuringDrive: true,
+            }),
+            osObservedExtensionProcesses: Object.freeze([
+              ...osObservedExtensionProcesses.values(),
+            ]),
+            extension,
+          });
+        },
+        (value) => iosShareExtensionProbeSatisfied(value, artifactBundleId),
       );
     }
 
@@ -829,6 +964,16 @@ export async function runNativeCustodyHarness({
       });
     } else {
       const priorPrincipal = signIn.principal.userId;
+      // The XCUITest share-sheet drive owns and then terminates the app, so
+      // the witness must be relaunched before P5 issues commands.
+      await step(
+        'P5', 'relaunch after the share-extension drive',
+        { status: 'ready', principal: 'authenticated' },
+        relaunchAndBootstrap,
+        (value) => value.boot.status === 'ready'
+          && value.boot.principal?.status === 'authenticated'
+          && value.boot.principal.userId === priorPrincipal,
+      );
       const factsBeforeReinstall = await step(
         'P5', 'custody facts before keychain reinstall probe',
         { revision: 'integer', bearerSha256: 'sha256', phase: 'settled' },
@@ -954,9 +1099,7 @@ export async function runNativeCustodyHarness({
       ? 'FAIL'
       : p2MissingClasses.length > 0
         ? `INCOMPLETE (P2 missing ${p2MissingClasses.join(', ')})`
-        : p4IosIncomplete
-          ? 'PASS (P4-iOS INCOMPLETE: extension refusal not exercised)'
-          : 'PASS';
+        : 'PASS';
     let rendered = writer.renderFinal({ overallVerdict, failure: failureProbe });
     const receiptScan = scanEvidenceForLeaks(writer.directory, {
       forbiddenLiterals,

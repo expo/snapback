@@ -1,3 +1,4 @@
+use theme from "@exact/facet-contract"
 use FacetButton from "@exact/facet-contract/components/button.contract"
 use CoterieNavigation from "./app-navigation.contract"
 use CoterieBrand from "./brand.contract"
@@ -7,19 +8,21 @@ component CoterieAppHeader
     selected: string
     select: (value) => void
     logout: () => void
+    canLogout: boolean = false
 
   contract
     has node testId="coterie-app-header"
     has node testId="coterie-nav"
-    has node testId="sm-settings-logout"
+    when canLogout then has node testId="sm-settings-logout"
 
   view
-    column width="100%" background="#FFFFFF" testId="coterie-app-header"
-      header width="100%" padding=14 background="#FFFFFF" borderBottomWidth=1 borderColor="#E2E4E8"
+    column width="100%" background=theme.color.background.default testId="coterie-app-header"
+      header width="100%" padding=14 background=theme.color.background.default borderBottomWidth=1 borderColor=theme.color.border.default
         row width="100%" align="center" justify="space-between" gap=12
           CoterieBrand(compact=true)
           row align="center" gap=8
             link href="/about" label="About Coterie" testId="coterie-about-link"
-              text "About" size=13 color="#4F46E5"
-            FacetButton(label="Log out", variant="ghost", size="sm", press=logout, testId="sm-settings-logout")
+              text "About" size=13 color=theme.color.text.link
+            when canLogout
+              FacetButton(label="Log out", variant="ghost", size="sm", press=logout, testId="sm-settings-logout")
       CoterieNavigation(selected=selected, select=select)

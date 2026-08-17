@@ -11,6 +11,7 @@ import {
 } from '@expo/snapback-client';
 import {
   adoptSupervisedBootstrapAuthority,
+  createProviderValidatedExpoNativePlatform,
   createSnapbackAppClientWithBootstrapObserver,
 } from '@expo/snapback-client/app-client-internal';
 import { createAssetClient } from '@expo/snapback-client/assets';
@@ -34,6 +35,7 @@ import {
   expoAssetFetch,
 } from './asset-source.mjs';
 import { resolveSnapbackExpoLifecycleSource } from './lifecycle-source.mjs';
+import { acquireExpoSqliteDefaultRqsStore } from './expo-sqlite-carrier.mjs';
 
 const bootContext = createContext(null);
 const lifecycleContext = createContext(null);
@@ -77,6 +79,58 @@ function productionCondition() {
 const APPLICATION_AUTH_BOOTSTRAP_FORMAT = 'snapback.application-auth-bootstrap.v1';
 export const APPLICATION_AUTH_BOOTSTRAP_CAPABILITY = 'auth.application-bootstrap.v1';
 
+// @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+// — Android and iOS admission are frozen to the qualifying receipts at
+// demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android;
+// demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios.
+const QUALIFIED_NATIVE_AUTH_CUSTODY_OSES = Object.freeze(['android', 'ios']);
+
+const NATIVE_AUTH_CUSTODY_PACKAGE = '@expo/snapback-expo-custody';
+const NATIVE_AUTH_CUSTODY_SENTINEL = Object.freeze({
+  kind: 'expo-native-phase-2-evidence-required',
+});
+
+function causeCode(cause, fallback = null) {
+  const observed = cause?.diagnostic?.code ?? cause?.code;
+  return typeof observed === 'string' && observed.length > 0 ? observed : fallback;
+}
+
+function durableCustodyUnavailable(cause) {
+  const error = new Error(
+    'The generated policy requires native durable custody, but the optional custody module is unavailable.',
+  );
+  error.code = 'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE';
+  error.diagnostic = diagnostic(error.code, error.message, {
+    package: NATIVE_AUTH_CUSTODY_PACKAGE,
+    causeCode: causeCode(cause),
+  });
+  return error;
+}
+
+async function resolveNativeOperatingSystem(environment) {
+  if (typeof environment.resolveNativeAuthCustodyOperatingSystem === 'function') {
+    return environment.resolveNativeAuthCustodyOperatingSystem();
+  }
+  if (typeof require !== 'function') return 'unknown';
+  try {
+    // Expo's own optional DOM/webview loaders use a literal require inside a
+    // try block. Expo Metro enables allowOptionalDependencies, so this shape
+    // keeps an omitted peer out of non-native graphs while native app closures
+    // resolve the peer they already ship.
+    return require('react-native')?.Platform?.OS ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+async function resolveExpoSqliteRuntimeKind(environment) {
+  if (typeof environment.resolveExpoSqliteRuntimeKind === 'function') {
+    const kind = await environment.resolveExpoSqliteRuntimeKind();
+    return typeof kind === 'string' && kind.length > 0 ? kind : 'unsupported-host';
+  }
+  return 'main-app';
+}
+
 function firstPartyBootstrapOptIn(app) {
   // @ref LLP 0258#compatibility-and-migration — the v1 policy plus one ordinary
   // descriptor requirement is the least-invasive capability-gated opt-in.
@@ -94,10 +148,51 @@ async function resolveAppClientPlatform(environment, app) {
   if (app.authBootstrap.custody === 'volatile-explicit') {
     return Object.freeze({ kind: 'memory' });
   }
-  // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
-  // — native durable-required remains refused until Phase 2 has per-OS
-  // kill/relaunch and fencing evidence. Expo web uses IndexedDB above.
-  return Object.freeze({ kind: 'expo-native-phase-2-evidence-required' });
+  const operatingSystem = await resolveNativeOperatingSystem(environment);
+  if (!QUALIFIED_NATIVE_AUTH_CUSTODY_OSES.includes(operatingSystem)) {
+    return NATIVE_AUTH_CUSTODY_SENTINEL;
+  }
+  try {
+    let custodyModule;
+    if (typeof environment.resolveNativeAuthCustodyModule === 'function') {
+      custodyModule = await environment.resolveNativeAuthCustodyModule();
+    } else if (typeof require === 'function') {
+      // Keep this literal in the same guarded shape: Metro can bundle when the
+      // optional package is omitted, web never executes the native branch, and
+      // Expo Go's installed JS package can fail below as a typed native-unlinked
+      // refusal instead of crashing provider import.
+      custodyModule = require('@expo/snapback-expo-custody');
+    } else {
+      const error = new Error('native custody package resolution is unavailable');
+      error.code = 'ERR_MODULE_NOT_FOUND';
+      throw error;
+    }
+    const createNativeAuthCustodyStorage = custodyModule?.createNativeAuthCustodyStorage
+      ?? custodyModule?.default?.createNativeAuthCustodyStorage;
+    if (typeof createNativeAuthCustodyStorage !== 'function') {
+      const error = new TypeError(
+        'The optional native custody module does not expose createNativeAuthCustodyStorage().',
+      );
+      error.code = 'SNAPBACK_AUTH_CUSTODY_MODULE_INVALID';
+      throw error;
+    }
+    const authCustodyStorage = createNativeAuthCustodyStorage();
+    const authCustodyGrade = await authCustodyStorage.platformGrade();
+    if (
+      authCustodyGrade?.os === operatingSystem
+      && QUALIFIED_NATIVE_AUTH_CUSTODY_OSES.includes(authCustodyGrade.os)
+      && authCustodyGrade?.grade === 'single-runtime'
+    ) {
+      return createProviderValidatedExpoNativePlatform({
+        authCustodyStorage,
+        authCustodyGrade,
+        cryptoObject: globalThis.crypto,
+      });
+    }
+    return NATIVE_AUTH_CUSTODY_SENTINEL;
+  } catch (cause) {
+    throw durableCustodyUnavailable(cause);
+  }
 }
 
 function canonicalJson(value) {
@@ -175,11 +270,13 @@ export const defaultSnapbackExpoEnvironment = createSupervisedExpoEnvironment();
 export function createSnapbackExpoBoot({
   app,
   binding: bindingOverride = null,
+  rqsStore = undefined,
   environment = defaultSnapbackExpoEnvironment,
   createProvider = createSnapbackReactProvider,
   bindLifecycle = bindSnapbackAppLifecycle,
   createApplicationClient = createSnapbackAppClientWithBootstrapObserver,
   adoptSupervisedAuthority = adoptSupervisedBootstrapAuthority,
+  acquireDefaultRqsStore = acquireExpoSqliteDefaultRqsStore,
   now = () => Date.now(),
 } = {}) {
   const correlationId = `snapback-expo-boot-${++bootSequence}`;
@@ -201,6 +298,8 @@ export function createSnapbackExpoBoot({
   let cleanupPromise = null;
   let disposePromise = null;
   let admittedBindingAdmission = null;
+  let rqsStoreLease = null;
+  let resolvedRqsStore = rqsStore;
   const listeners = new Set();
   const controller = new AbortController();
 
@@ -274,6 +373,10 @@ export function createSnapbackExpoBoot({
       try { await applicationClient.dispose(); } catch { /* bootstrap owner retains diagnostics */ }
       applicationClient = null;
     }
+    if (rqsStoreLease) {
+      try { await rqsStoreLease.release(); } catch { /* store refusal is already reported */ }
+      rqsStoreLease = null;
+    }
   })();
 
   const projectApplicationBootstrap = () => {
@@ -326,6 +429,24 @@ export function createSnapbackExpoBoot({
       admittedBindingAdmission = admission;
       if (disposed) return state;
 
+      // Binding supplies the canonical origin. Acquire the provider default
+      // only after that point and before either client-construction branch;
+      // explicit stores (including null) bypass all native module loading.
+      if (rqsStore === undefined) {
+        const runtimeKind = await awaitBoundary(resolveExpoSqliteRuntimeKind(environment));
+        rqsStoreLease = await awaitBoundary(acquireDefaultRqsStore({
+          app,
+          binding: admittedBinding,
+          environment,
+          runtimeKind,
+        }), (lateLease) => lateLease?.release?.());
+        resolvedRqsStore = rqsStoreLease.resolution;
+      }
+      if (disposed) {
+        await cleanup();
+        return state;
+      }
+
       if (firstPartyBootstrapOptIn(app)) {
         const platform = await awaitBoundary(resolveAppClientPlatform(environment, app));
         applicationClient = await awaitBoundary(createApplicationClient(
@@ -335,6 +456,7 @@ export function createSnapbackExpoBoot({
             platform,
             now,
             signal: controller.signal,
+            rqsStore: resolvedRqsStore,
           },
           (snapshot) => {
             if (!disposed && snapshot.status !== 'ready') publish(snapshot);
@@ -428,6 +550,7 @@ export function createSnapbackExpoBoot({
           app,
           binding: admittedBinding,
           signal: controller.signal,
+          rqsStore: resolvedRqsStore,
         })), (lateAdoption) => lateAdoption?.dispose?.());
       } catch (error) {
         if (
@@ -700,6 +823,7 @@ export function SnapbackExpoProvider({
   app,
   binding = null,
   environment = defaultSnapbackExpoEnvironment,
+  rqsStore = undefined,
   fallback = null,
   children = null,
   outboxDrain = 'auto',
@@ -724,10 +848,10 @@ export function SnapbackExpoProvider({
         for (const listener of [...listeners]) listener();
       },
     });
-  }, [app, binding, environment]);
+  }, [app, binding, environment, rqsStore]);
   const active = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
-    const boot = createSnapbackExpoBoot({ app, binding, environment });
+    const boot = createSnapbackExpoBoot({ app, binding, environment, rqsStore });
     let current = true;
     const sync = () => {
       if (!current) return;
@@ -746,7 +870,7 @@ export function SnapbackExpoProvider({
       unsubscribe();
       void boot.dispose();
     };
-  }, [app, binding, environment, store]);
+  }, [app, binding, environment, rqsStore, store]);
   const state = active.state;
   const lifecycleValue = useMemo(() => Object.freeze({
     environment,

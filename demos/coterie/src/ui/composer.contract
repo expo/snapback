@@ -1,4 +1,6 @@
+use theme from "@exact/facet-contract"
 use FacetButton from "@exact/facet-contract/components/button.contract"
+use FacetDialog from "@exact/facet-contract/components/dialog.contract"
 use FacetInput from "@exact/facet-contract/components/input.contract"
 
 component CoterieComposer
@@ -6,25 +8,79 @@ component CoterieComposer
     variant: "post" | "reply" | "message" = "post"
     value: string
     resetFlip: boolean = false
+    quotedSenderName: string = null
+    quotedBodySnippet: string = null
+    mediaOptions = []
+    selectedImageRefs = []
+    selectedVideoRefs = []
+    canAttach: boolean = false
     change: (value) => void
     send: () => void
+    cancelQuote: () => void = null
+    selectMedia: (mediaRef, mediaKind) => void = null
+    removeMedia: (mediaRef, mediaKind) => void = null
+
+  state mediaPickerOpen = false
 
   derive isSocialPost = variant != "message"
   derive isReply = variant == "reply"
+  derive supportsMedia = variant == "post" && canAttach
+  derive hasMedia = selectedImageRefs.length > 0 || selectedVideoRefs.length > 0
   derive inputId = isSocialPost ? "sm-compose-input" : "sm-convo-input"
   derive sendId = isSocialPost ? "sm-compose-submit" : "sm-convo-send"
   derive placeholder = isReply ? "Write a reply" : isSocialPost ? "What's happening?" : "Message"
   derive sendLabel = isReply ? "Reply" : isSocialPost ? "Post" : "Send"
-  derive empty = value.trim() == ""
+  derive empty = value.trim() == "" && !hasMedia
+
+  action openMediaPicker writes mediaPickerOpen
+    mediaPickerOpen = true
+
+  action closeMediaPicker writes mediaPickerOpen
+    mediaPickerOpen = false
 
   contract
     has input
+    when quotedBodySnippet then has node testId="sm-convo-compose-quote"
+    when supportsMedia then has node testId="sm-compose-attach"
+    when mediaPickerOpen then has node testId="sm-compose-media-picker"
 
   view
-    row width="100%" align="center" gap=8 padding=10 background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" safeArea={ regions: ["keyboard"] }
-      column flex=1 minWidth=0 height=44 position="relative"
-        column position="absolute" top=0 left=0 right=0 opacity=resetFlip ? 1 : 0 inert=!resetFlip
-          FacetInput(value=value, placeholder=placeholder, label=placeholder, change=change, grow=1, disabled=!resetFlip, testId=resetFlip ? inputId : null)
-        column position="absolute" top=0 left=0 right=0 opacity=resetFlip ? 0 : 1 inert=resetFlip
-          FacetInput(value=value, placeholder=placeholder, label=placeholder, change=change, grow=1, disabled=resetFlip, testId=resetFlip ? null : inputId)
-      FacetButton(label=sendLabel, press=send, disabled=empty, size="sm", testId=sendId)
+    column width="100%" background=theme.color.background.default borderWidth=1 borderColor=theme.color.border.default safeArea={ regions: ["keyboard"] }
+      when quotedBodySnippet
+        row width="100%" align="center" justify="space-between" gap=8 paddingLeft=12 paddingRight=8 paddingTop=8 testId="sm-convo-compose-quote"
+          column minWidth=0 flex=1 borderLeftWidth=3 borderColor=theme.color.border.focus paddingLeft=8
+            text `Replying to ${quotedSenderName}` size=12 weight=600 color=theme.color.text.link numberOfLines=1
+            text quotedBodySnippet size=12 color=theme.color.text.secondary numberOfLines=1
+          FacetButton(label="Cancel reply", variant="ghost", size="sm", press=cancelQuote, testId="sm-convo-quote-cancel")
+      when hasMedia
+        column width="100%" gap=6 paddingLeft=10 paddingRight=10 paddingTop=10 testId="sm-compose-media-selection"
+          each option in mediaOptions key=option.id
+            when selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef)
+              row width="100%" align="center" gap=8 padding=8 radius=8 borderWidth=1 borderColor=theme.color.border.focus background=theme.color.background.selected testId=`sm-compose-media-selected-${option.id}`
+                when option.kind == "image"
+                  image src=option.url alt=option.label width=48 height=48 radius=6 objectFit="cover" testId=`sm-compose-media-preview-${option.id}`
+                else
+                  column width=48 height=48 align="center" justify="center" radius=6 background=theme.color.background.inverted testId=`sm-compose-media-preview-${option.id}`
+                    text "Video" size=11 weight=700 color=theme.color.button.primary.text
+                text option.label size=13 weight=600 color=theme.color.text.default flex=1
+                FacetButton(label=`Remove ${option.label}`, variant="ghost", size="sm", press=removeMedia(option.mediaRef, option.kind), testId=`sm-compose-media-remove-${option.id}`)
+      row width="100%" align="center" gap=8 padding=10
+        when supportsMedia
+          FacetButton(label="Attach media", variant="ghost", size="sm", press=openMediaPicker, testId="sm-compose-attach")
+        column flex=1 minWidth=0 height=44 position="relative"
+          column position="absolute" top=0 left=0 right=0 opacity=resetFlip ? 1 : 0 inert=!resetFlip
+            FacetInput(value=value, placeholder=placeholder, label=placeholder, change=change, grow=1, disabled=!resetFlip, testId=resetFlip ? inputId : null)
+          column position="absolute" top=0 left=0 right=0 opacity=resetFlip ? 0 : 1 inert=resetFlip
+            FacetInput(value=value, placeholder=placeholder, label=placeholder, change=change, grow=1, disabled=resetFlip, testId=resetFlip ? null : inputId)
+        FacetButton(label=sendLabel, press=send, disabled=empty, size="sm", testId=sendId)
+      when supportsMedia
+        FacetDialog(open=mediaPickerOpen, title="Attach media", description="Choose up to four images or one video.", dismiss=closeMediaPicker, cancelLabel="Done", testId="sm-compose-media-picker")
+          row width="100%" gap=8 wrap="wrap" testId="sm-compose-media-options"
+            each option in mediaOptions key=option.id
+              button press=selectMedia(option.mediaRef, option.kind) label=option.label accessibilitySelected=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) disabled=option.kind == "image" && selectedImageRefs.length >= 4 && !selectedImageRefs.includes(option.mediaRef) width=112 minHeight=118 padding=8 gap=6 radius=10 borderWidth=2 borderColor=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? theme.color.border.focus : theme.color.border.default background=selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? theme.color.background.selected : theme.color.background.default color=theme.color.text.default testId=`sm-compose-media-option-${option.id}`
+                when option.kind == "image"
+                  image src=option.url alt="" width="100%" aspectRatio=1 objectFit="cover" radius=7 testId=`sm-compose-media-thumbnail-${option.id}`
+                else
+                  column width="100%" aspectRatio=1 align="center" justify="center" radius=7 background=theme.color.background.inverted testId=`sm-compose-media-thumbnail-${option.id}`
+                    text "Video" size=13 weight=700 color=theme.color.button.primary.text
+                text selectedImageRefs.includes(option.mediaRef) || selectedVideoRefs.includes(option.mediaRef) ? `${option.label} · Selected` : option.label size=12 weight=600 color=theme.color.text.default align="center"

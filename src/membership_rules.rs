@@ -371,13 +371,6 @@ pub struct AuthorityMyRoleV1 {
     pub status: crate::storage::AuthorityMembershipStatusV1,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct AuthorityMembershipSubjectV1 {
-    pub member_id: String,
-    pub role: String,
-    pub status: crate::storage::AuthorityMembershipStatusV1,
-}
-
 fn authority_profile_declaration<'a>(
     schema: &'a SchemaManifest,
     declaration: &str,
@@ -668,71 +661,6 @@ pub fn authority_my_role(
         };
         Ok(CapturedMembershipReadOutcome::allowed(
             AuthorityMyRoleV1 { role, status },
-            vec![dependency],
-        ))
-    })
-}
-
-/// Resolve one profile subject without exposing the private membership row to
-/// application code. Generated transition operations use the returned row id
-/// only to construct a declaration-bound membership command; the captured
-/// lookup and central writer planner remain the enforcement boundary.
-pub fn authority_membership_subject(
-    db: &DbRead<'_>,
-    declaration: &str,
-    principal: &str,
-    resource: Option<&str>,
-) -> SnapbackResult<CapturedMembershipReadOutcome<AuthorityMembershipSubjectV1>> {
-    let declaration = declaration.to_owned();
-    let principal = principal.to_owned();
-    let resource = resource.map(str::to_owned);
-    db.with_pinned_read_view(move |db| {
-        let (table, membership, _profile) =
-            authority_profile_declaration(db.schema(), &declaration)?;
-        let binding = authority_resource_binding(membership, resource.as_deref())?;
-        let roles = membership
-            .vocabulary()
-            .map(str::to_owned)
-            .collect::<Vec<_>>();
-        let plan = membership_probe_plan(membership, &table.name, &principal, &binding, &roles);
-        let output = db.query_private_membership(&plan, &HandlerInput::default())?;
-        let ids = output
-            .rows
-            .iter()
-            .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
-            .collect();
-        let dependency = membership_capture_dependency(&plan, output.version, ids)?;
-        let Some(row) = output.rows.first() else {
-            return Ok(CapturedMembershipReadOutcome::denied(
-                role_denial(),
-                vec![dependency],
-            ));
-        };
-        let Some(member_id) = row.get("_id").and_then(Value::as_str) else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID",
-                "auth",
-                "authority membership subject lacks its host-owned row identity",
-            ));
-        };
-        let Some(role) = row.get(&membership.role).and_then(Value::as_str) else {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID",
-                "auth",
-                "authority membership subject lacks its declared role",
-            ));
-        };
-        let status = if membership.roles.iter().any(|candidate| candidate == role) {
-            crate::storage::AuthorityMembershipStatusV1::Active
-        } else {
-            crate::storage::AuthorityMembershipStatusV1::Invited
-        };
-        Ok(CapturedMembershipReadOutcome::allowed(
-            AuthorityMembershipSubjectV1 {
-                member_id: member_id.to_owned(),
-                role: role.to_owned(),
-                status,
-            },
             vec![dependency],
         ))
     })

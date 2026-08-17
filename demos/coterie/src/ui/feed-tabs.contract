@@ -1,3 +1,5 @@
+use theme from "@exact/facet-contract"
+
 component CoterieFeedTabs
   props
     selected: string
@@ -8,6 +10,6 @@ component CoterieFeedTabs
     has node testId="sm-feed-tab-global"
 
   view
-    row width="100%" background="#FFFFFF" borderBottomWidth=1 borderColor="#E2E4E8"
-      button "Following" press=select("following") accessibilitySelected=selected == "following" flex=1 padding=12 background="transparent" borderBottomWidth=selected == "following" ? 3 : 0 borderColor="#4F46E5" testId="sm-feed-tab-following"
-      button "Global" press=select("global") accessibilitySelected=selected == "global" flex=1 padding=12 background="transparent" borderBottomWidth=selected == "global" ? 3 : 0 borderColor="#4F46E5" testId="sm-feed-tab-global"
+    row width="100%" background=theme.color.background.default borderBottomWidth=1 borderColor=theme.color.border.default
+      button "Following" press=select("following") accessibilitySelected=selected == "following" flex=1 padding=12 background="transparent" color=theme.color.text.default borderBottomWidth=selected == "following" ? 3 : 0 borderColor=theme.color.border.focus testId="sm-feed-tab-following"
+      button "Global" press=select("global") accessibilitySelected=selected == "global" flex=1 padding=12 background="transparent" color=theme.color.text.default borderBottomWidth=selected == "global" ? 3 : 0 borderColor=theme.color.border.focus testId="sm-feed-tab-global"

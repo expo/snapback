@@ -99,7 +99,7 @@ export default defineSchema({
     quotedPreview: v.object({ author: v.string(), text: v.string() }),
     pollOptions: v.array(v.object({ label: v.string(), votes: v.integer() })),
     recipientSnapshot: v.array(v.principal(), { maxItems: 32 }),
-  }),
+  }).visibility({ kind: 'public-read' }),
 });
 `);
   assert.equal(native.ok, true, JSON.stringify(native.diagnostics));
@@ -199,6 +199,7 @@ export const rows = defineTable({
   payload: v.object({ label: v.string() }),
   embedding: v.vector(2),
 })
+  .visibility({ kind: 'public-read' })
   .index('by_payload', ['payload'])
   .searchIndex('search_rows', {
     semanticVersion: 'structured-refusal.v1',
@@ -228,11 +229,30 @@ export const matched = defineLiveQuery({
     'SCHEMA_STRUCTURED_INDEX_UNSUPPORTED',
     'SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID',
     'SNAPBACK_VECTOR_INDEX_INVALID',
+  ]) assert(observationCodes.has(code), `${code}: ${JSON.stringify(observation.diagnostics)}`);
+  const queryObservation = await compile(`
+export default defineSchema({
+  rows: defineTable({
+    title: v.string(),
+    payload: v.object({ label: v.string() }),
+  }).visibility({ kind: 'public-read' }),
+});
+`, `
+import { asc, defineLiveQuery, defineQuery, eq, lit } from ${JSON.stringify(defineUrl)};
+export const filtered = defineQuery({
+  table: 'rows', filter: [eq('payload', lit({ label: 'x' }))], order: [asc('payload')],
+});
+export const matched = defineLiveQuery({
+  table: 'rows', filter: [eq('payload', lit({ label: 'x' }))],
+});
+`);
+  const queryObservationCodes = new Set(queryObservation.diagnostics.map(({ code }) => code));
+  for (const code of [
     'SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE',
     'SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE',
-  ]) assert(observationCodes.has(code), `${code}: ${JSON.stringify(observation.diagnostics)}`);
+  ]) assert(queryObservationCodes.has(code), `${code}: ${JSON.stringify(queryObservation.diagnostics)}`);
   assert.equal(
-    observation.diagnostics.filter(({ code }) => (
+    queryObservation.diagnostics.filter(({ code }) => (
       code === 'SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE'
     )).length,
     2,

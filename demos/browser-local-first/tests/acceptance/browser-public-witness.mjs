@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-// Browser-carrier PUBLIC-query resolution witness.
+// Browser-carrier public-exact default-retention and opaque-refusal witness.
 //
 // @ref LLP 0043#milestone-1-retained-reads — persisted rows render first
 //   only as labeled retained state; an offline presentation never becomes current.
 // @ref LLP 0043#milestone-2-queued-mutation-replay — a non-empty outbox forces
 //   full resync before monotonic-sequence replay and durable settlement.
 // @ref LLP 0053#negative-deltas-are-obligations-positive-deltas-are-best-effort —
-//   auth-scoped function classification is mode-independent, but the sessions
+//   opaque-function classification is mode-independent, but the sessions
 //   server alone delivers authorization scope; neither phase logs in or leases.
 
 import assert from 'node:assert/strict';
@@ -189,6 +189,7 @@ const startupArtifactsPath = join(dbDir, 'sessions-startup-artifacts.json');
 const sessionsGeneratedRoot = join(demoRoot, 'snapback-sessions', 'generated');
 const sessionsSchemaManifest = readGeneratedJson(sessionsGeneratedRoot, 'schema.manifest.json');
 const sessionsFunctionsManifest = readGeneratedJson(sessionsGeneratedRoot, 'functions.manifest.json');
+const { default: sessionsApi } = await importGeneratedModule(sessionsGeneratedRoot, 'api.mjs');
 const startupArtifactsBytes = Buffer.from(
   `${JSON.stringify({
     formatVersion: 1,
@@ -670,11 +671,27 @@ try {
   page = await openPage(firstBrowser.context);
 
   await check('1.retained-current-labeling', async () => {
+    const defaultRetainedManifest = functionsManifest.functions.find(({ name }) => name === 'todosFeed');
+    const protectedManifest = functionsManifest.functions.find(({ name }) => name === 'protectedTodosFeed');
+    assert.ok(defaultRetainedManifest, 'real codegen omitted todosFeed');
+    assert.ok(protectedManifest, 'real codegen omitted protectedTodosFeed');
+    assert.equal(Object.hasOwn(api.todosFeed, 'authorityIndependent'), false,
+      'default-retention witness acquired an app declaration');
+    assert.equal(Object.hasOwn(api.todosFeed, 'retainable'), false,
+      'default-retention witness acquired an app retainable hint');
+    assert.equal(defaultRetainedManifest.requiredCapabilities.includes('single_table_v1'), true,
+      'owner codegen did not classify todosFeed as public-exact');
+    assert.equal(protectedManifest.handlerForm, 'inline',
+      'refusal witness stopped being an opaque owner handler');
+    assert.equal(protectedManifest.requiredCapabilities.includes('single_table_v1'), false,
+      'opaque refusal witness unexpectedly acquired public-exact proof');
     initialState = await waitForState(page, (state) => (
       state.query.freshness === 'current'
       && state.query.answerClass === 'authoritative'
       && state.query.version > 0
       && state.rows.length === 2
+      && state.query.retention?.retainable === true
+      && state.query.hookRetention?.retainable === true
       && state.storageWriter === true
       && state.protectedQuery.retention?.code === DEV_PROTECTED_RETENTION_CODE
       && state.protectedQuery.hookRetention?.code === DEV_PROTECTED_RETENTION_CODE
@@ -763,7 +780,7 @@ try {
     assert.equal(new URL(relaunchedState.href).origin, pageOrigin,
       'relaunch drifted from the fixed IndexedDB origin');
     const todoEvents = relaunchedState.timeline.filter((event) => (
-      event.kind === 'query-update' && event.name === 'todosByList'
+      event.kind === 'query-update' && event.name === 'todosFeed'
     ));
     assert.equal(todoEvents[0]?.handle?.freshness ?? todoEvents[0]?.detailFreshness, 'retained',
       'first relaunched query delivery was not retained');
@@ -827,7 +844,7 @@ try {
     const afterMarker = settledState.timeline.filter(({ ordinal }) => ordinal > marker.timelineOrdinal);
     const current = afterMarker.find((event) => (
       event.kind === 'query-update'
-      && event.name === 'todosByList'
+      && event.name === 'todosFeed'
       && event.handle?.freshness === 'current'
       && event.handle?.answerClass === 'authoritative'
     ));
@@ -1112,6 +1129,8 @@ try {
       'authority-independent hook positive control carried a refusal code in sessions mode');
     assert.equal(sessionsState.query.resumeHeld, true,
       'sessions server did not mint resume custody for the authority-independent query');
+    assert.notDeepEqual(api.todosFeed.expectedGeneration, sessionsApi.todosFeed.expectedGeneration,
+      'real generated owner identity did not rotate between dev and sessions artifacts');
 
     sessionsDom = await readDomSurface(page);
     assert.deepEqual(sessionsDom.protectedRetention, {
@@ -1123,6 +1142,10 @@ try {
     assert.equal(sessionsDom.query.connection, 'live');
 
     sessionsStorage = await page.evaluate(() => globalThis.snapbackBrowserLocalFirst.flushRetention());
+    assert.notEqual(preSessionsStorage.retainedEntry?.generation, sessionsStorage.retainedEntry?.generation,
+      'the sessions carrier reused the predecessor owner generation');
+    assert.match(sessionsStorage.retainedEntry?.generation ?? '', /^sha256:/,
+      'durable retained bytes omitted their owner-issued generation digest');
     for (const [phase, storage] of [
       ['before-sessions', preSessionsStorage],
       ['after-sessions', sessionsStorage],

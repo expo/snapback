@@ -156,3 +156,32 @@ the authoritative current snapshot to precede replay and settlement. No new
 guide gap surfaced in this change; the witness could reuse its existing
 receipt schema and eight-check structure, although its source identity must be
 re-minted by rerunning the qualified browser harness.
+
+## 2026-08-16 — no-declaration default and an honest opaque refusal
+
+The original protected probe, `todosFeed`, legitimately crossed into the
+public-exact class when the owner derivation stopped treating
+`authorityIndependent` as an application retention switch. The browser now
+mounts that no-declaration query as its primary IndexedDB path, so the Chrome
+SIGKILL/relaunch phase proves the new default through real codegen, the local
+host, Vite, React, and the browser carrier.
+
+The refusal leg moved to `protectedTodosFeed`, an anonymously callable inline
+JavaScript handler over the same public table. Its opacity prevents an exact
+single-table proof without making the query uncallable, so dev custody still
+reports `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` and sessions custody reports
+`SNAPBACK_RETENTION_NOT_RETAINABLE`; neither phase writes its IndexedDB key.
+The sessions phase also compares the generated dev/sessions identities and
+the owner-issued retained-entry generations, proving that the successor
+generation replaces rather than relabels the predecessor.
+
+This was more ergonomic than adding a synthetic “do not cache” option: the
+positive and negative cases now follow semantic query shape. It also reinforced
+that a real carrier witness is part of the feature surface, not an auxiliary
+test—changing the default without migrating its matrix made the old witness
+assert the opposite of the product contract.
+
+Both backend variants regenerated successfully. This sandbox cannot bind the
+loopback authority/Vite listeners, so the Chrome witness was updated and
+syntax-checked but not executed here; its qualified 8-check receipt must be
+re-minted in a browser-capable environment.

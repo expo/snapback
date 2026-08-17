@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:6fee42fc6e5faea23a84b4546d367b3b46bb8116ebf541698f4814695f7c2fc2
+reviewed-authorities-digest: sha256:5c1d6d246c233b4f592773af065ccd8a887ba43ff60c75fccf21e57c22279cf9
 ---
 
 # React Expo Online clients
@@ -30,7 +30,7 @@ local-first behavior or Parity.
 
 Everything on the React page applies here — this page covers only what is
 different on the RN carrier: the boot path, the crypto prerequisites, the
-store consequence, the offline queue, and reconnect honesty. In particular,
+store consequence, queue refusal, and reconnect honesty. In particular,
 optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
@@ -46,9 +46,13 @@ into the common application client and exposes `useSnapbackAuth()` plus
 for anonymous `ready`, signup and its one-time recovery projection, sign-in,
 restoration, sign-out, and user switch.
 
-Expo web has the shipped browser durable-custody evidence. Expo native does
-not: `durable-required` remains refused there until Phase-2 iOS/Android
-evidence lands, while a disposable native app may declare
+Expo web has the shipped browser durable-custody evidence. Both native OS
+paths are source-current at the exact iOS/Android + `single-runtime` tuples on
+their separate Phase-2 receipts, but remain UNPUBLISHED behind
+[the custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md). The iOS proof is
+share-sheet-kind-only; the built/embedded Notification Service Extension and
+`simctl push` service-stage invocation remain nonclaims. The cross-platform
+disposable template therefore remains
 `volatile-explicit` without claiming process-death restoration. Keep the
 [native threat-model page](../auth/native-apps.md) and
 [target-honesty page](../auth/targets.md) in view before changing that policy.
@@ -83,8 +87,8 @@ bin is correct only once `@expo/snapback-cli` is a dependency of the project
 you are standing in, as it is in the existing-app flow below.
 
 When adding Snapback to an **existing** standalone Expo 57 app, install the
-package roots that the app imports plus the native file, random, and picker
-modules used by the durable image path. Install the five Snapback roots
+package roots that the app imports plus the legacy file-store, random, and
+picker modules used by the template. Install the five Snapback roots
 together so the lock holds one coherent version vector — the newest
 published closure is the checked-in record in
 [`published-closure.json`](../published-closure.json):
@@ -645,7 +649,7 @@ constructing the client. Expo apps can hand `expo-crypto` directly to the
 store registration as shown below, without mutating `globalThis`; a global
 polyfill also works. Bare RN can use `react-native-get-random-values`.
 
-## The store: relaunch-durable on-device once the app registers its filesystem
+## The store: useful relaunch persistence, but no durable queue claim yet
 
 The client package never imports `expo-file-system` (Metro statically
 resolves every literal specifier reachable from the root, so a platform
@@ -694,8 +698,19 @@ release Hermes build — `demos/rn-durable-store-witness/`):
   `freshness: 'retained'` under an honest non-live connection fact.
   Protected (authority-scoped) queries are never cold-retained on this arm
   and their `handle.retention` names the refusal.
-- **A restart-durable offline queue:** queued mutations survive relaunch,
-  not just the process.
+- **No restart-safe queue claim:** the file adapter cannot publish mutation
+  settlement durably, so automatic queueing stays disabled. Explicit
+  `queue: true` refuses instead of weakening LLP 0043's custody cut.
+
+`SnapbackExpoProvider` now carries the no-ceremony Expo SQLite acquisition
+path and accepts `rqsStore` for explicit injection or `null` opt-out. At this
+code landing its packaged publication manifest is empty. On iOS and Android,
+an app without an already-registered legacy file carrier therefore reports
+`{ source: 'default', implementation: 'memory', durable: false, reason:
+'expo-sqlite-carrier-pending-qualification' }`. A registered legacy carrier
+remains unchanged. Real-device iOS and Android receipts must land before any
+target row can report `expo-sqlite`/`durable: true`; simulator and Node runs
+are supporting evidence only.
 
 Offline cold boot of the hook path follows the binding-receipt fallback on
 this carrier: a prior successful online preparation over the registered file
@@ -801,15 +816,16 @@ Two sharp edges, stated plainly:
   (`createExpoRqsResumeStore({ fileSystem })` is the packaged convenience
   for Expo modules).
 
-## The offline queue works on this carrier
+## The restart-safe offline queue is not yet available on this carrier
 
-With a store injected (or the default memory store) the LLP 0043 M2 queue
-engages on Expo: connectivity is classified by transport provenance — the
-fetch dispatch itself rejected, with no HTTP status, diagnostic, or receipt
-— independent of the rejection's constructor, so Expo's plain-`Error` fetch
-rejections queue exactly like undici's `TypeError` shape. Server-answered
-refusals and caller aborts never queue. With the registered file store
-above, the queue is also restart-durable. See
+The default memory store is volatile, and the registered Expo file store
+reports `durable: false`; neither one engages LLP 0043 M2 restart-safe queue
+custody. Explicit `queue: true` on either current fallback raises
+`SNAPBACK_OFFLINE_QUEUE_DURABILITY_REQUIRED` instead of accepting an intent it
+cannot publish durably. Transport failures are still classified by dispatch
+provenance (including Expo's plain-`Error` fetch rejection), but only an
+explicitly injected store whose durability contract is qualified can admit
+the queue; server-answered refusals and caller aborts never queue. See
 [offline and retention](../sync/offline-and-retention.md) for the mechanics
 and `useSnapbackOutbox()` for rendering the queued state.
 

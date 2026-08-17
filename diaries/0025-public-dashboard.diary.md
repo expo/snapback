@@ -52,3 +52,29 @@ operational rather than decorative.
 - This surface is newer than the published 0.1.15 package closure. The guide
   now says so explicitly instead of letting a package consumer infer support
   from a contributor-source example.
+
+## 2026-08-16 — public-exact retention becomes the default
+
+`metricsFeed` is now the demo's positive offline-retention witness precisely
+because it carries no `authorityIndependent` or `retainable` declaration. The
+closed public single-table plan gives codegen and the local host enough owner
+evidence to admit it. The former “omitting the flag refuses retention” lesson
+was therefore backwards after the derivation changed.
+
+The replacement negative fixture, `protectedMetricsFeed`, is an anonymously
+callable opaque JavaScript live query. That keeps the acceptance focused on
+the retention boundary: it reaches live execution, but codegen cannot certify
+the exact plan, so the host mints no RQS proof and the durable store remains
+empty. This is a cleaner teaching pair than two byte-near-identical public
+plans differentiated by a configuration switch.
+
+Compared with a React plus Supabase-style cache, the pleasant part is that the
+application owns no cache policy or identity key. The uncomfortable part was
+evidence migration: changing an admission default invalidated the demo's
+named negative fixture and the guide snippet at the same time. Keeping those
+snippets sourced from the acceptance made the contradiction mechanically
+visible once the fixture moved.
+
+Codegen succeeded locally. The Node acceptance could not execute in this
+sandbox because binding its loopback server failed with `listen EPERM`; no
+acceptance report was fabricated or hand-edited.

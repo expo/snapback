@@ -386,6 +386,7 @@ export const rqsEvictionOrder = (a, b) => (
 );
 
 const evictionOrder = rqsEvictionOrder;
+const authorityTransitionWipersByLockManager = new WeakMap();
 
 /**
  * IndexedDB-backed persisted RQS resume store under the same-origin Web-Lock
@@ -430,6 +431,12 @@ export function createIndexedDbRqsResumeStore({
   }
 
   const lockName = `snapback:rqs-store:${databaseName}`;
+  let authorityTransitionWipersByLock = authorityTransitionWipersByLockManager.get(lockManager);
+  if (authorityTransitionWipersByLock === undefined) {
+    authorityTransitionWipersByLock = new Map();
+    authorityTransitionWipersByLockManager.set(lockManager, authorityTransitionWipersByLock);
+  }
+  const authorityTransitionInstance = {};
   let databasePromise = null;
   let closed = false;
   let writer = false;
@@ -438,6 +445,7 @@ export function createIndexedDbRqsResumeStore({
   let pendingOutboxNormalization = false;
   let outboxNormalizationTask = null;
   let initialMeta = createInitialStoreMeta({ clientStoreId, randomBytes });
+  let authorityTransitionWipe = null;
   const writerLockListeners = new Set();
   const resolvedBroadcastChannelFactory = broadcastChannelFactory === undefined
     ? defaultBroadcastChannelFactory()
@@ -561,6 +569,10 @@ export function createIndexedDbRqsResumeStore({
       }
       writer = true;
       registerOutboxNormalizationBroker();
+      authorityTransitionWipersByLock.set(lockName, {
+        instance: authorityTransitionInstance,
+        request: (...args) => authorityTransitionWipe(...args),
+      });
       adjudicateLock();
       notifyWriterLock(true);
       void flushPendingReactBindingReceipt().catch((error) => {
@@ -779,6 +791,50 @@ export function createIndexedDbRqsResumeStore({
         storeError,
         transactionDone,
       ]));
+  };
+
+  authorityTransitionWipe = async (
+    authorityTransitionKey = null,
+    authorityTransitionEpoch = null,
+    options = undefined,
+  ) => {
+    if (closed) return false;
+    // The external-bearer follower path must install its local predecessor
+    // fence and request the elected writer. Keyed coordinator transitions are
+    // already inside the shared authorization-dispatch lock and may commit the
+    // IndexedDB transaction from either tab.
+    if (!writer && authorityTransitionKey === null) return false;
+    const db = await database();
+    const tx = db.transaction(ALL_STORES, 'readwrite');
+    const outboxStore = tx.objectStore(OUTBOX);
+    const { state: predecessorOutbox } = await readOutboxState(outboxStore);
+    const advanced = outboxOps.advanceAuthorizationAuthority(
+      predecessorOutbox,
+      authorityTransitionKey,
+      authorityTransitionEpoch,
+      options,
+    );
+    if (advanced.result.status === 'authority-current') {
+      await transactionDone(tx);
+      return true;
+    }
+    pendingReactBindingReceipt = null;
+    const nextMeta = wipeStoreMeta(
+      await readMetaFromStore(tx.objectStore(STORE_META)),
+      { randomBytes },
+    );
+    if (nextMeta === null) {
+      tx.abort();
+      throw storeError('SNAPBACK_RQS_STORE_CORRUPT', 'RQS store metadata is invalid');
+    }
+    for (const storeName of RESIDENT_STORES) {
+      if (storeName !== OUTBOX) tx.objectStore(storeName).clear();
+    }
+    outboxStore.put(advanced.state, OUTBOX_STATE_KEY);
+    outboxStore.delete(REACT_BINDING_RECEIPT_KEY);
+    tx.objectStore(STORE_META).put(nextMeta, RQS_STORE_META_KEY);
+    await transactionDone(tx);
+    return true;
   };
 
   return {
@@ -1339,40 +1395,15 @@ export function createIndexedDbRqsResumeStore({
       return true;
     },
 
-    async wipeForAuthorityTransition(
-      authorityTransitionKey = null,
-      authorityTransitionEpoch = null,
-    ) {
-      const db = await database();
-      const tx = db.transaction(ALL_STORES, 'readwrite');
-      const outboxStore = tx.objectStore(OUTBOX);
-      const { state: predecessorOutbox } = await readOutboxState(outboxStore);
-      const advanced = outboxOps.advanceAuthorizationAuthority(
-        predecessorOutbox,
-        authorityTransitionKey,
-        authorityTransitionEpoch,
-      );
-      if (advanced.result.status === 'authority-current') {
-        await transactionDone(tx);
-        return true;
-      }
-      pendingReactBindingReceipt = null;
-      const nextMeta = wipeStoreMeta(
-        await readMetaFromStore(tx.objectStore(STORE_META)),
-        { randomBytes },
-      );
-      if (nextMeta === null) {
-        tx.abort();
-        throw storeError('SNAPBACK_RQS_STORE_CORRUPT', 'RQS store metadata is invalid');
-      }
-      for (const storeName of RESIDENT_STORES) {
-        if (storeName !== OUTBOX) tx.objectStore(storeName).clear();
-      }
-      outboxStore.put(advanced.state, OUTBOX_STATE_KEY);
-      outboxStore.delete(REACT_BINDING_RECEIPT_KEY);
-      tx.objectStore(STORE_META).put(nextMeta, RQS_STORE_META_KEY);
-      await transactionDone(tx);
-      return true;
+    wipeForAuthorityTransition: authorityTransitionWipe,
+
+    requestAuthorityTransitionWipe(...args) {
+      if (closed) return null;
+      const owner = authorityTransitionWipersByLock.get(lockName);
+      if (!owner || typeof owner.request !== 'function') return null;
+      return Object.freeze({
+        settlement: Promise.resolve().then(() => owner.request(...args)),
+      });
     },
 
     /// Caller-authorized recovery for a database whose metadata/schema cannot
@@ -1452,6 +1483,10 @@ export function createIndexedDbRqsResumeStore({
       releaseLock?.();
       releaseLock = null;
       writer = false;
+      if (
+        authorityTransitionWipersByLock.get(lockName)?.instance
+          === authorityTransitionInstance
+      ) authorityTransitionWipersByLock.delete(lockName);
       notifyWriterLock(false);
       writerLockListeners.clear();
       if (wasWriter) await lockReleased;

@@ -1,10 +1,10 @@
 {
   "title": "public-dashboard / offline-local-first (JS arm)",
-  "passed": 9,
+  "passed": 4,
   "skipped": 0,
-  "failed": 0,
+  "failed": 5,
   "total": 9,
-  "ok": true,
+  "ok": false,
   "results": [
     {
       "name": "default persistence path resolves a durable store and persists the eligible query",
@@ -20,7 +20,7 @@
       }
     },
     {
-      "name": "non-eligible query refuses retention with a named reason (LLP 0053 boundary)",
+      "name": "opaque live query refuses retention with a named reason (LLP 0053 boundary)",
       "ok": true,
       "details": {
         "retention": {
@@ -44,107 +44,40 @@
     },
     {
       "name": "offline create/update queue durably with client-minted ids",
-      "ok": true,
-      "details": {
-        "queuedCreate": {
-          "queued": true,
-          "clientMutationIdPresent": true,
-          "sequence": 1
-        },
-        "queuedUpdate": {
-          "queued": true,
-          "clientMutationIdPresent": true,
-          "sequence": 2
-        }
+      "ok": false,
+      "error": "SNAPBACK_CLIENT_REFUSED: fetch failed",
+      "diagnostic": {
+        "schemaVersion": "snapback.client-diagnostic.v1",
+        "code": "SNAPBACK_CLIENT_REFUSED",
+        "severity": "error",
+        "subsystem": "client",
+        "message": "fetch failed",
+        "details": {}
       }
     },
     {
       "name": "a relaunch with pending intent renders retained pre-intent rows and withholds the resume token (outbox rule)",
-      "ok": true,
-      "details": {
-        "freshness": "retained",
-        "pendingIntentsAtSeed": 2,
-        "connection": "stale"
-      }
+      "ok": false,
+      "error": "the explicit pending-intent fact is on the handle: expected 2, got 0",
+      "diagnostic": null
     },
     {
       "name": "server restart settles the queued intent exactly-once through the outbox",
-      "ok": true,
-      "details": {
-        "rows": [
-          {
-            "_version": 2,
-            "dashboardId": "ops",
-            "label": "error_rate",
-            "value": 3
-          },
-          {
-            "_version": 1,
-            "dashboardId": "ops",
-            "label": "latency_ms",
-            "value": 42
-          },
-          {
-            "_version": 3,
-            "dashboardId": "ops",
-            "label": "uptime_pct",
-            "value": 98
-          }
-        ],
-        "diagnostics": [
-          "SNAPBACK_OFFLINE_MUTATION_QUEUED",
-          "SNAPBACK_OFFLINE_MUTATION_QUEUED",
-          "SNAPBACK_OFFLINE_MUTATION_REPLAYED",
-          "SNAPBACK_OFFLINE_MUTATION_REPLAYED"
-        ]
-      }
+      "ok": false,
+      "error": "timed out waiting for handle back to current",
+      "diagnostic": null
     },
     {
       "name": "duplicate delivery of a settled id returns the original settlement (exactly-once ledger)",
-      "ok": true,
-      "details": {
-        "duplicate": {
-          "version": 2,
-          "changedCount": 1,
-          "resultMatchesSettledCreate": true,
-          "authorityDescriptorVersion": 1,
-          "authoritySessionGeneration": 0,
-          "receipt": {
-            "kind": "mutation",
-            "mutation": "recordMetric",
-            "outcome": "confirmed",
-            "settlementLane": "replay-accept",
-            "claimFields": [
-              {
-                "fieldOrSlot": "runtime.now",
-                "disposition": "accepted"
-              },
-              {
-                "fieldOrSlot": "runtime.id[0]",
-                "disposition": "accepted"
-              }
-            ],
-            "rollbackReason": null,
-            "affectedTables": [
-              "metrics"
-            ],
-            "snapshotVersion": 2,
-            "transport": "http",
-            "correlation": null
-          }
-        }
-      }
+      "ok": false,
+      "error": "Cannot read properties of undefined (reading 'clientMutationId')",
+      "diagnostic": null
     },
     {
       "name": "fresh client instance (same process) after restart renders retained rows first, then settles current",
-      "ok": true,
-      "details": {
-        "updateKinds": [
-          "persisted",
-          "snapshot"
-        ],
-        "rows": 3
-      }
+      "ok": false,
+      "error": "offline-settled create present after relaunch",
+      "diagnostic": null
     },
     {
       "name": "claims match acceptance: no Parity claim, retained is marked, memory fallback declared",

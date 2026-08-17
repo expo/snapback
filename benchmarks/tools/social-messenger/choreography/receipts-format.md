@@ -1,6 +1,6 @@
 # Social-messenger choreography receipts
 
-Version `0.3.0-m8` writes newline-delimited JSON to `receipts.jsonl`. The same
+Version `0.3.1-m8` writes newline-delimited JSON to `receipts.jsonl`. The same
 objects are written to stdout with the literal prefix `STRUCTURED RECEIPT ` so
 an outer run harness can separate proof records from ordinary process output.
 Each line validates independently against `receipts.schema.json`.
@@ -30,6 +30,10 @@ fastest passing attempt by total `durationMs`; all attempts remain in the
 receipt. Metric-specific durations such as `visibleMs` and `expiresMs` remain
 under each attempt's `metrics` object. This is best-of-three flake control, not
 permission to discard measurements.
+
+For M3's `quoted-reply-excerpt-and-jump` assertion, each attempt's existing
+`timing.note` records whether the jump used `sm-convo-quote-preview` or the
+legacy `sm-convo-quote` fallback.
 
 ## Segment summaries and milestone green
 
@@ -85,7 +89,7 @@ The normative aggregation is:
    required assertion remains unimplemented. Optional skips therefore stay
    explicit without becoming silent failed attempts.
 2. `externalPass` is true when every external leg required for web green passes.
-   In `0.3.0-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
+   In `0.3.1-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
    `ios-simulator-m8` statuses are recorded in their matching summaries under
    `supplementalExternal` with `requiredForGreen:false`; they are distinct
    native/O4 artifacts governed by `simulator.md`.
@@ -96,7 +100,7 @@ The normative aggregation is:
    produce green.
 5. `nonGreenCause` is the closed recording convention for a non-green
    segment. It is optional on the schema (default `null` when omitted) so
-   existing `0.3.0-m8` receipts remain valid; the current emitter always
+   existing `0.3.0-m8` receipts remain valid; the `0.3.1-m8` emitter always
    writes it. Allowed values:
    - `null` — `green` is true. There is no second green label.
    - `required-unimplemented` — a required assertion was skipped.
@@ -131,5 +135,5 @@ Consumers must reject an unknown major receipt version and validate with the
 schema matching the declared version; unknown fields are rejected. Stable
 `(segment, assertion)` names must not be silently repurposed;
 changed semantics require a version bump. `nonGreenCause` is an optional
-additive field on `0.3.0-m8` segment summaries (default `null` when omitted);
+additive field on `0.3.1-m8` segment summaries (default `null` when omitted);
 it does not bump the receipt version.

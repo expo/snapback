@@ -5,19 +5,29 @@ import { dirname, resolve } from 'node:path';
 
 import { aggregateChoreography } from '../../../benchmarks/tools/social-messenger/choreography/choreography.mjs';
 import {
+  createGroup,
   createPost,
   editProfile,
+  listChats,
   listFeed,
+  listMessages,
   listProfiles,
+  listProviderClaims,
   listSession,
   login,
   logout,
+  markReceipt,
+  observeTyping,
+  openDm,
+  removeMember,
+  sendMessage,
   setFollow,
   setLike,
+  setTyping,
 } from '../src/data/generated/coterie.bindings.ts';
 import { bootCoterieProvider } from '../src/data/provider-factory.ts';
 import { resolveCoterieSnapbackUrl } from '../src/data/snapback-provider.ts';
-import { installM1Fixtures } from '../snapback/seed-m1.mjs';
+import { installM2Fixtures } from '../snapback/seed-m2.mjs';
 
 const CONTRACT_PATH = new URL(
   '../../../benchmarks/tools/social-messenger/CONTRACT.md',
@@ -66,6 +76,42 @@ function safeProviderName(value) {
   return normalized || 'unknown';
 }
 
+const STEP_REQUIRED_CLAIMS = Object.freeze({
+  'signed-out-precondition': ['listSession', 'logout'],
+  login: ['listSession', 'login'],
+  'profile-edit': ['editProfile'],
+  'profile-edit-observable': ['listProfiles', 'editProfile'],
+  'm2-boot-global-following-split': ['listFeed'],
+  'm2-create-text-global': ['listFeed', 'createPost'],
+  'm2-follow-following-projection': ['listFeed', 'setFollow'],
+  'm2-like-toggle-observable': ['listFeed', 'setLike'],
+  'm3-open-dm-deduplicated': ['listChats', 'openDm'],
+  'm3-send-text': ['listChats', 'openDm', 'listMessages', 'sendMessage'],
+  'm3-quoted-reply-preserves-source': [
+    'listChats',
+    'openDm',
+    'listMessages',
+    'login',
+    'sendMessage',
+  ],
+  'm3-receipts-monotonic': [
+    'listChats',
+    'openDm',
+    'listMessages',
+    'login',
+    'markReceipt',
+  ],
+  'm3-typing-lease-expires': [
+    'listChats',
+    'openDm',
+    'observeTyping',
+    'login',
+    'setTyping',
+  ],
+  'm3-group-create-and-admin-remove': ['listChats', 'login', 'createGroup', 'removeMember'],
+  logout: ['listSession', 'logout'],
+});
+
 async function loadAuthorities() {
   const [contractSource, personasSource] = await Promise.all([
     readFile(CONTRACT_PATH, 'utf8'),
@@ -75,9 +121,14 @@ async function loadAuthorities() {
     [...contractSource.matchAll(/`(sm-[a-z0-9-]+)`/gu)].map((match) => match[1]),
   );
   const personas = JSON.parse(personasSource);
-  const alice = personas.starter.find((persona) => persona.id === 'alice');
-  if (!alice) throw new Error('Alice is missing from the shared social-messenger personas');
-  return { contractIds, alice };
+  const starterById = new Map(personas.starter.map((persona) => [persona.id, persona]));
+  const alice = starterById.get('alice');
+  const bob = starterById.get('bob');
+  const carol = starterById.get('carol');
+  if (!alice || !bob || !carol) {
+    throw new Error('Alice, Bob, or Carol is missing from the shared social-messenger personas');
+  }
+  return { contractIds, alice, bob, carol };
 }
 
 function requireQueryHandle(value, name) {
@@ -160,6 +211,8 @@ async function runAcceptanceScenario({
   injectSignedOut,
   contractIds,
   alice,
+  bob,
+  carol,
   artifact,
   assertionReceipts,
   sensitiveValues,
@@ -167,6 +220,7 @@ async function runAcceptanceScenario({
   let boot = null;
   let loginStarted = false;
   let loginSessionToken = '';
+  let claimedOperations = new Set();
   const disposals = [];
   const cleanup = {
     scenario,
@@ -184,6 +238,22 @@ async function runAcceptanceScenario({
     }
     const step = { scenario, name, targetIds, status: 'running', details: null };
     artifact.steps.push(step);
+    const missingClaims = (STEP_REQUIRED_CLAIMS[name] ?? []).filter(
+      (operation) => !claimedOperations.has(operation),
+    );
+    if (missingClaims.length > 0) {
+      step.status = 'skipped-by-claim';
+      step.details = { missingClaims };
+      assertionReceipts.push({ implemented: false, required: false, status: 'skipped' });
+      artifact.assertions.push({
+        scenario,
+        name,
+        pass: null,
+        skippedByClaim: true,
+        missingClaims,
+      });
+      return;
+    }
     try {
       step.details = (await execute()) ?? null;
       step.status = 'passed';
@@ -201,7 +271,19 @@ async function runAcceptanceScenario({
 
   try {
     boot = bootCoterieProvider(requestedProvider);
+    const providerClaimsHandle = requireQueryHandle(
+      listProviderClaims({}),
+      'listProviderClaims',
+    );
+    const providerClaimsLog = createDeliveryLog('listProviderClaims');
+    disposals.push(providerClaimsHandle.subscribe((rows) => providerClaimsLog.push(rows)));
+    const providerClaimRows = await providerClaimsLog.waitFor();
+    claimedOperations = new Set(providerClaimRows.map((claim) => claim.name));
+    artifact.providerClaims[scenario] = providerClaimRows;
     if (injectSignedOut) {
+      if (!claimedOperations.has('logout')) {
+        throw new Error('injected-signed-out scenario requires a claimed logout operation');
+      }
       const value = requireObject(
         requireMutationSuccess(await logout({}), 'signed-out state injection'),
         'signed-out state injection',
@@ -296,6 +378,24 @@ async function runAcceptanceScenario({
     );
     requireNonEmptyString(loginSessionToken, 'recorded login sessionToken');
 
+    const loginAs = async (persona) => {
+      const value = requireObject(
+        requireMutationSuccess(
+          await login({ email: persona.email, password: persona.password }),
+          `login(${persona.id})`,
+        ),
+        `login(${persona.id})`,
+      );
+      loginSessionToken = requireNonEmptyString(value.sessionToken, `login(${persona.id}) token`);
+      rememberSensitiveValue(sensitiveValues, loginSessionToken);
+      await sessionLog.waitFor(
+        (rows) => rows.length === 1
+          && rows[0].userId === persona.id
+          && rows[0].token === loginSessionToken,
+      );
+      return value;
+    };
+
     const editedDisplayName = `Alice Acceptance Edit ${scenario}`;
     const editedBio = 'Edited by the Coterie M1 acceptance flow.';
     const deliveriesBeforeEdit = profileLog.deliveries.length;
@@ -359,7 +459,10 @@ async function runAcceptanceScenario({
       globalFeedHandle.subscribe((rows) => globalFeedLog.push(rows)),
       followingFeedHandle.subscribe((rows) => followingFeedLog.push(rows)),
     );
-    await Promise.all([globalFeedLog.waitFor(), followingFeedLog.waitFor()]);
+    await Promise.all([
+      globalFeedLog.waitFor((rows) => rows.length > 0),
+      followingFeedLog.waitFor((rows) => rows.length > 0),
+    ]);
 
     await runStep(
       'm2-boot-global-following-split',
@@ -378,7 +481,9 @@ async function runAcceptanceScenario({
         );
         if (!globalHasDave || followingHasDave) {
           throw new Error(
-            'boot feed split did not keep an unfollowed author in Global and out of Following',
+            'boot feed split did not keep an unfollowed author in Global and out of Following '
+              + `(globalHasDave=${globalHasDave}, followingHasDave=${followingHasDave}, `
+              + `globalRows=${globalRows.length}, followingRows=${followingRows.length})`,
           );
         }
         return {
@@ -456,6 +561,19 @@ async function runAcceptanceScenario({
         if (followingFeedLog.deliveries.length <= deliveriesBeforeFollow) {
           throw new Error('Following feed emitted no follow invalidation delivery');
         }
+        requireMutationSuccess(
+          await setFollow({
+            userId: 'dave',
+            following: false,
+            mutationId: `accept-follow-restore-dave-${scenario}`,
+          }),
+          'setFollow(restore precondition)',
+        );
+        await followingFeedLog.waitFor(
+          (delivery) => !delivery.some(
+            (post) => post.authorId === 'dave' && post.repostedById === null,
+          ),
+        );
         return {
           followedUserId: 'dave',
           directPostCount: rows.filter(
@@ -501,6 +619,215 @@ async function runAcceptanceScenario({
         unlikedObserved: unlikedRows.some((post) => post.postId === acceptancePostId),
       };
     });
+
+    const chatLog = createDeliveryLog('listChats');
+    if (claimedOperations.has('listChats')) {
+      const chatHandle = requireQueryHandle(listChats({}), 'listChats');
+      disposals.push(chatHandle.subscribe((rows) => chatLog.push(rows)));
+      await chatLog.waitFor();
+    }
+
+    let directChatId = '';
+    await runStep('m3-open-dm-deduplicated', ['sm-chats-item'], async () => {
+      const first = requireObject(
+        requireMutationSuccess(await openDm({ userId: bob.id }), 'openDm(first)'),
+        'openDm(first)',
+      );
+      const second = requireObject(
+        requireMutationSuccess(await openDm({ userId: bob.id }), 'openDm(second)'),
+        'openDm(second)',
+      );
+      directChatId = requireNonEmptyString(first.chatId, 'openDm chatId');
+      if (second.chatId !== directChatId || second.reused !== true) {
+        throw new Error('openDm did not return the canonical Alice/Bob conversation');
+      }
+      const rows = await chatLog.waitFor((delivery) =>
+        delivery.some((chat) => chat.id === directChatId),
+      );
+      if (rows.filter((chat) => chat.id === directChatId).length !== 1) {
+        throw new Error('deduplicated direct conversation was not unique in listChats');
+      }
+      return { chatIdPresent: true, reused: second.reused, uniqueProjection: true };
+    });
+
+    const messageLog = createDeliveryLog('listMessages(dm)');
+    const typingLog = createDeliveryLog('observeTyping(dm)');
+    if (directChatId && claimedOperations.has('listMessages')) {
+      const messageHandle = requireQueryHandle(
+        listMessages({ chatId: directChatId }),
+        'listMessages(dm)',
+      );
+      disposals.push(messageHandle.subscribe((rows) => messageLog.push(rows)));
+      await messageLog.waitFor();
+    }
+    if (directChatId && claimedOperations.has('observeTyping')) {
+      const typingHandle = requireQueryHandle(
+        observeTyping({ chatId: directChatId }),
+        'observeTyping(dm)',
+      );
+      disposals.push(typingHandle.subscribe((rows) => typingLog.push(rows)));
+      await typingLog.waitFor();
+    }
+
+    const acceptanceMessageBody = `Coterie M3 direct message ${scenario}`;
+    let acceptanceMessageId = '';
+    await runStep(
+      'm3-send-text',
+      ['sm-convo-input', 'sm-convo-send', 'sm-convo-bubble', 'sm-convo-receipt'],
+      async () => {
+        requireMutationSuccess(
+          await sendMessage({
+            chatId: directChatId,
+            body: acceptanceMessageBody,
+            quotedMessageId: null,
+          }),
+          'sendMessage(text)',
+        );
+        const rows = await messageLog.waitFor((delivery) =>
+          delivery.some((message) => message.body === acceptanceMessageBody),
+        );
+        const message = rows.find((candidate) => candidate.body === acceptanceMessageBody);
+        acceptanceMessageId = requireNonEmptyString(message?.id, 'sent message id');
+        if (!message?.mine || message.status !== 'sent') {
+          throw new Error('new direct message did not project as the sender\'s sent message');
+        }
+        return { messageIdPresent: true, bodyLength: [...acceptanceMessageBody].length };
+      },
+    );
+
+    const quoteBody = `Quoted reply ${scenario}`;
+    await runStep(
+      'm3-quoted-reply-preserves-source',
+      ['sm-convo-quote', 'sm-convo-quote-preview', 'sm-convo-bubble'],
+      async () => {
+        await loginAs(bob);
+        requireMutationSuccess(
+          await sendMessage({
+            chatId: directChatId,
+            body: quoteBody,
+            quotedMessageId: acceptanceMessageId,
+          }),
+          'sendMessage(quote)',
+        );
+        await loginAs(alice);
+        const rows = await messageLog.waitFor((delivery) => delivery.some(
+          (message) => message.body === quoteBody
+            && message.quotedMessageId === acceptanceMessageId,
+        ));
+        const reply = rows.find((message) => message.body === quoteBody);
+        if (
+          reply?.quotedMessageId !== acceptanceMessageId
+          || reply.quotedBodySnippet !== acceptanceMessageBody
+        ) {
+          throw new Error('quoted reply did not preserve its v7 source projection');
+        }
+        return { quotedMessageIdPreserved: true, quotedBodyPreserved: true };
+      },
+    );
+
+    await runStep('m3-receipts-monotonic', ['sm-convo-receipt'], async () => {
+      await loginAs(bob);
+      requireMutationSuccess(
+        await markReceipt({ chatId: directChatId, state: 'delivered' }),
+        'markReceipt(delivered)',
+      );
+      await loginAs(alice);
+      await messageLog.waitFor((delivery) => delivery.some(
+        (message) => message.id === acceptanceMessageId && message.status === 'delivered',
+      ));
+
+      await loginAs(bob);
+      requireMutationSuccess(
+        await markReceipt({ chatId: directChatId, state: 'read' }),
+        'markReceipt(read)',
+      );
+      requireMutationSuccess(
+        await markReceipt({ chatId: directChatId, state: 'delivered' }),
+        'markReceipt(non-regression)',
+      );
+      await loginAs(alice);
+      const rows = await messageLog.waitFor((delivery) => delivery.some(
+        (message) => message.id === acceptanceMessageId && message.status === 'read',
+      ));
+      const message = rows.find((candidate) => candidate.id === acceptanceMessageId);
+      if (message?.readCount !== 1 || message.deliveredCount !== 1) {
+        throw new Error('read receipt aggregate did not retain delivered/read counts');
+      }
+      return { statesObserved: ['sent', 'delivered', 'read'], regressionRefused: true };
+    });
+
+    await runStep('m3-typing-lease-expires', ['sm-convo-typing'], async () => {
+      await loginAs(bob);
+      requireMutationSuccess(
+        await setTyping({ chatId: directChatId, active: true }),
+        'setTyping(active)',
+      );
+      await loginAs(alice);
+      const visible = await typingLog.waitFor((rows) =>
+        rows.some((participant) => participant.userId === bob.id),
+      );
+      if (visible.length !== 1) {
+        throw new Error('typing observer projected an unexpected participant count');
+      }
+      let expiryProbe = 'wall-clock';
+      if (typeof boot.advanceClock === 'function') {
+        expiryProbe = 'provider-clock-capability';
+        boot.advanceClock(5000);
+      }
+      await typingLog.waitFor((rows) => rows.length === 0, 7000);
+      return {
+        appeared: true,
+        leaseMs: 5000,
+        expiryProbe,
+        expired: true,
+      };
+    });
+
+    let groupChatId = '';
+    await runStep(
+      'm3-group-create-and-admin-remove',
+      ['sm-chats-item', 'sm-convo-settings'],
+      async () => {
+        const created = requireObject(
+          requireMutationSuccess(
+            await createGroup({
+              name: `Acceptance crew ${scenario}`,
+              description: 'M3 deterministic group lifecycle.',
+              memberIds: [alice.id, bob.id, carol.id],
+            }),
+            'createGroup',
+          ),
+          'createGroup',
+        );
+        groupChatId = requireNonEmptyString(created.chatId, 'createGroup chatId');
+        await chatLog.waitFor((rows) => rows.some(
+          (chat) => chat.id === groupChatId && chat.memberIds.length === 3,
+        ));
+
+        await loginAs(bob);
+        const refused = await removeMember({ chatId: groupChatId, userId: carol.id });
+        if (refused?.ok !== false || refused.error?.name !== 'ChatAdminRequiredError') {
+          throw new Error('non-admin group removal was not refused with ChatAdminRequiredError');
+        }
+
+        await loginAs(alice);
+        requireMutationSuccess(
+          await removeMember({ chatId: groupChatId, userId: carol.id }),
+          'removeMember(admin)',
+        );
+        const rows = await chatLog.waitFor((delivery) => delivery.some(
+          (chat) => chat.id === groupChatId
+            && !chat.memberIds.includes(carol.id)
+            && chat.memberIds.length === 2,
+        ));
+        const group = rows.find((chat) => chat.id === groupChatId);
+        return {
+          groupIdPresent: true,
+          nonAdminRefused: true,
+          remainingMemberIds: group.memberIds,
+        };
+      },
+    );
 
     await runStep('logout', ['sm-settings-logout'], async () => {
       const value = requireObject(
@@ -549,13 +876,16 @@ async function main() {
   const requestedProvider = process.env.COTERIE_PROVIDER ?? 'memory';
   const artifactPath = resolve(
     process.env.COTERIE_ACCEPTANCE_ARTIFACT ??
-      `.data/acceptance/coterie-m2-${safeProviderName(requestedProvider)}.json`,
+      `.data/acceptance/coterie-provider-proof-${safeProviderName(requestedProvider)}.json`,
   );
   const artifact = {
-    schemaVersion: 'coterie.acceptance.v1',
-    milestone: 'm2',
+    schemaVersion: 'coterie.provider-proof.v1',
+    scope: 'provider-claimed-operations-through-m3',
     provider: requestedProvider,
-    mechanism: 'headless-generated-bindings',
+    mechanism: 'headless-generated-binding-provider-proof',
+    evidenceClass: 'binding-level-provider-proof',
+    mountedContractTree: false,
+    browserContextCount: 0,
     socketRequired: requestedProvider === 'snapback',
     authorities: {
       testIds: 'benchmarks/tools/social-messenger/CONTRACT.md',
@@ -563,6 +893,7 @@ async function main() {
       aggregation: 'benchmarks/tools/social-messenger/choreography/choreography.mjs',
     },
     scenarios: [],
+    providerClaims: {},
     steps: [],
     assertions: [],
     cleanup: [],
@@ -574,12 +905,12 @@ async function main() {
 
   try {
     if (requestedProvider === 'snapback') {
-      await installM1Fixtures({
+      await installM2Fixtures({
         baseUrl: resolveCoterieSnapbackUrl(),
         runId: `accept-${Date.now()}`,
       });
     }
-    const { contractIds, alice } = await loadAuthorities();
+    const { contractIds, alice, bob, carol } = await loadAuthorities();
     // @ref LLP 0266#d10-acceptance-harness-direction-for-oq2 — one
     // parameterized runner owns every provider lane and its boot-state probes.
     const scenarios = [
@@ -594,6 +925,8 @@ async function main() {
         injectSignedOut: scenario.injectSignedOut,
         contractIds,
         alice,
+        bob,
+        carol,
         artifact,
         assertionReceipts,
         sensitiveValues,
@@ -604,11 +937,11 @@ async function main() {
   } catch (error) {
     artifact.error = redactedErrorText(error, sensitiveValues);
   } finally {
-    const sharedAggregation = aggregateChoreography(assertionReceipts);
-    artifact.sharedAggregation = {
-      counts: sharedAggregation.counts,
-      assertionPass: sharedAggregation.browserPass,
-      reason: sharedAggregation.reason,
+    const bindingAggregation = aggregateChoreography(assertionReceipts);
+    artifact.bindingAggregation = {
+      counts: bindingAggregation.counts,
+      bindingPass: bindingAggregation.browserPass,
+      reason: bindingAggregation.reason,
     };
     await mkdir(dirname(artifactPath), { recursive: true });
     await writeFile(
@@ -617,9 +950,10 @@ async function main() {
       'utf8',
     );
     process.stdout.write(
-      `${artifact.pass ? 'PASS' : 'FAIL'} Coterie M2 acceptance (${requestedProvider})\n` +
+      `${artifact.pass ? 'PASS' : 'FAIL'} Coterie headless provider proof (${requestedProvider})\n` +
         `scenarios: ${artifact.scenarios.join(', ')}\n` +
         `steps: ${artifact.steps.filter((step) => step.status === 'passed').length}/${artifact.steps.length}\n` +
+        `skipped-by-claim: ${artifact.steps.filter((step) => step.status === 'skipped-by-claim').length}\n` +
         `artifact: ${artifactPath}\n`,
     );
     if (!artifact.pass) {

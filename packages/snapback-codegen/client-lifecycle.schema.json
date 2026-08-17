@@ -4,7 +4,26 @@
   "$comment": "@ref LLP 0247#d5-generated-lifecycle-metadata-owns-normalization-and-failure-tables — origin schema; LLP 0238 D7 may extend this artifact later.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["artifactKind", "schemaVersion", "appId", "inputsHash", "rows"],
+  "required": [
+    "artifactKind",
+    "schemaVersion",
+    "appId",
+    "inputsHash",
+    "authoredSourceHash",
+    "targetProfile",
+    "custody",
+    "surfaceFamilies",
+    "referenceKinds",
+    "handleStates",
+    "mutationSettlement",
+    "resourceIdentity",
+    "diagnostics",
+    "compatibilityAliases",
+    "futureClassM",
+    "operations",
+    "commands",
+    "rows"
+  ],
   "properties": {
     "artifactKind": { "const": "clientLifecycleManifest" },
     "schemaVersion": { "const": "snapback.client-lifecycle.v1" },
@@ -12,17 +31,21 @@
     "inputsHash": { "type": "string", "minLength": 1 },
     "authoredSourceHash": { "type": "string", "minLength": 1 },
     "targetProfile": { "type": "string", "minLength": 1 },
-    "custody": { "type": "object" },
-    "surfaceFamilies": { "$ref": "#/$defs/stringList" },
-    "referenceKinds": { "type": "array", "items": { "type": "object" } },
-    "handleStates": { "type": "object" },
-    "mutationSettlement": { "type": "object" },
-    "resourceIdentity": { "type": "object" },
-    "diagnostics": { "type": "array", "items": { "type": "object" } },
-    "compatibilityAliases": { "type": "array", "items": { "type": "object" } },
-    "futureClassM": { "type": "object" },
-    "operations": { "type": "array", "items": { "type": "object" } },
-    "commands": { "type": "array", "items": { "type": "object" } },
+    "custody": { "$ref": "#/$defs/custody" },
+    "surfaceFamilies": {
+      "type": "array",
+      "items": { "enum": ["query", "liveQuery", "mutate", "action", "commands"] },
+      "uniqueItems": true
+    },
+    "referenceKinds": { "type": "array", "items": { "$ref": "#/$defs/referenceKind" } },
+    "handleStates": { "$ref": "#/$defs/handleStates" },
+    "mutationSettlement": { "$ref": "#/$defs/mutationSettlement" },
+    "resourceIdentity": { "$ref": "#/$defs/resourceIdentity" },
+    "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/lifecycleDiagnostic" } },
+    "compatibilityAliases": { "type": "array", "items": { "$ref": "#/$defs/compatibilityAlias" } },
+    "futureClassM": { "$ref": "#/$defs/futureClassM" },
+    "operations": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+    "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } },
     "rows": {
       "type": "object",
       "additionalProperties": false,
@@ -435,6 +458,170 @@
         },
         "requiresApproval": { "type": "boolean" },
         "authorityEffect": { "type": "string", "minLength": 1 }
+      }
+    },
+    "custody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consumer", "storageClass", "committedProjectionRequired", "rationale"],
+      "properties": {
+        "consumer": { "const": "developer-tooling" },
+        "storageClass": { "const": "regenerable-cache" },
+        "committedProjectionRequired": { "const": false },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "referenceKind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "runtimeDiscriminant", "acceptedBy", "correctVerb", "auth",
+        "freshness", "retention", "stateCarrier", "guideAnchor"
+      ],
+      "properties": {
+        "kind": { "enum": ["Query", "LiveQuery", "Mutation", "Action", "Command"] },
+        "runtimeDiscriminant": { "type": "string", "minLength": 1 },
+        "acceptedBy": { "$ref": "#/$defs/stringList" },
+        "correctVerb": { "type": "string", "minLength": 1 },
+        "auth": { "type": "string", "minLength": 1 },
+        "freshness": { "type": "string", "minLength": 1 },
+        "retention": { "type": "string", "minLength": 1 },
+        "stateCarrier": { "type": "string", "minLength": 1 },
+        "guideAnchor": { "type": "string", "minLength": 1 }
+      }
+    },
+    "handleStates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["liveQueryHandle", "commandTask"],
+      "properties": {
+        "liveQueryHandle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nonterminalConnection", "terminalConnection", "disposalMeaning"],
+          "properties": {
+            "nonterminalConnection": { "$ref": "#/$defs/stringList" },
+            "terminalConnection": { "$ref": "#/$defs/stringList" },
+            "disposalMeaning": { "type": "string", "minLength": 1 }
+          }
+        },
+        "commandTask": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nonterminal", "terminal"],
+          "properties": {
+            "nonterminal": { "$ref": "#/$defs/stringList" },
+            "terminal": { "$ref": "#/$defs/stringList" }
+          }
+        }
+      }
+    },
+    "mutationSettlement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dispositions", "dispatch", "settlement", "terminal", "nonterminal"],
+      "properties": {
+        "dispositions": { "$ref": "#/$defs/stringList" },
+        "dispatch": { "type": "string", "minLength": 1 },
+        "settlement": { "type": "string", "minLength": 1 },
+        "terminal": { "$ref": "#/$defs/stringList" },
+        "nonterminal": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "resourceIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "ingredients"],
+      "properties": {
+        "version": { "const": "snapback.client-resource-key.v1" },
+        "ingredients": { "$ref": "#/$defs/stringList" }
+      }
+    },
+    "lifecycleDiagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "phase", "receivedField", "acceptedField", "remediationField", "guideAnchor"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "phase": { "type": "string", "minLength": 1 },
+        "receivedField": { "type": "string", "minLength": 1 },
+        "acceptedField": { "type": "string", "minLength": 1 },
+        "remediationField": { "type": "string", "minLength": 1 },
+        "guideAnchor": { "type": "string", "minLength": 1 }
+      }
+    },
+    "compatibilityAlias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current", "plannedCanonical", "emittedInRollout1", "removalEpoch"],
+      "properties": {
+        "current": { "type": "string", "minLength": 1 },
+        "plannedCanonical": { "type": "string", "minLength": 1 },
+        "emittedInRollout1": { "type": "boolean" },
+        "removalEpoch": { "type": "string", "minLength": 1 }
+      }
+    },
+    "futureClassM": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shippedInRollout1", "snapshotVersionMeaning", "forbiddenMeaning", "note"],
+      "properties": {
+        "shippedInRollout1": { "type": "boolean" },
+        "snapshotVersionMeaning": { "type": "string", "minLength": 1 },
+        "forbiddenMeaning": { "type": "string", "minLength": 1 },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semanticIdentity", "name", "kind", "runtimeDiscriminant", "implementationHash",
+        "argsContractHash", "resultContractHash", "authRequirement", "requiredCapabilities",
+        "legalVerbs", "correctVerb", "freshness", "retention", "delivery", "states", "guideAnchor"
+      ],
+      "properties": {
+        "semanticIdentity": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["Query", "LiveQuery", "Mutation", "Action"] },
+        "runtimeDiscriminant": { "type": "string", "minLength": 1 },
+        "implementationHash": { "type": "string", "minLength": 1 },
+        "argsContractHash": { "type": "string", "minLength": 1 },
+        "resultContractHash": { "type": "string", "minLength": 1 },
+        "authRequirement": { "type": "string", "minLength": 1 },
+        "requiredCapabilities": { "$ref": "#/$defs/stringList" },
+        "legalVerbs": { "$ref": "#/$defs/stringList" },
+        "correctVerb": { "type": "string", "minLength": 1 },
+        "freshness": { "type": "string", "minLength": 1 },
+        "retention": { "type": "string", "minLength": 1 },
+        "delivery": { "enum": ["read", "live", "mutation", "action"] },
+        "states": { "$ref": "#/$defs/stringList" },
+        "guideAnchor": { "type": "string", "minLength": 1 }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semanticIdentity", "name", "kind", "runtimeDiscriminant", "mutationIdentity",
+        "implementationHash", "authRequirement", "requiredCapabilities", "legalVerbs",
+        "correctVerb", "freshness", "retention", "states", "guideAnchor"
+      ],
+      "properties": {
+        "semanticIdentity": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "const": "Command" },
+        "runtimeDiscriminant": { "const": "asset-bearing-command.v1" },
+        "mutationIdentity": { "type": ["string", "null"] },
+        "implementationHash": { "type": ["string", "null"] },
+        "authRequirement": { "type": "string", "minLength": 1 },
+        "requiredCapabilities": { "$ref": "#/$defs/stringList" },
+        "legalVerbs": { "$ref": "#/$defs/stringList" },
+        "correctVerb": { "type": "string", "minLength": 1 },
+        "freshness": { "type": "string", "minLength": 1 },
+        "retention": { "type": "string", "minLength": 1 },
+        "states": { "$ref": "#/$defs/stringList" },
+        "guideAnchor": { "type": "string", "minLength": 1 }
       }
     },
     "functionIdentity": {

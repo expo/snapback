@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Snapback SQLite Qualification",
+    "slug": "snapback-expo-sqlite-carrier-probe",
+    "version": "1.0.0",
+    "scheme": "snapback-sqlite-probe",
+    "orientation": "portrait",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.snapback.exposqlitecarrierprobe",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.snapback.exposqlitecarrierprobe"
+    },
+    "plugins": ["expo-sqlite"]
+  }
+}

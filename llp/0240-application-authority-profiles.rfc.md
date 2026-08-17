@@ -6,11 +6,13 @@
 Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-16 (rollout steps 2–3: generated roster pagination,
-conditional invite/join/leave/change-role/remove operations, atomic owner
-transfer, ordinary client/React reference lifecycle, and same-IR table
-visibility are qualified locally; membership-visible search, assets, hosted
-profiles, and the external Clique rerun remain refused). 2026-08-15 (records the shipped local handler-admission and
+**Revised:** 2026-08-16 (reconciles landing A `824e3ef7f` and reviewed landing
+B `15c6829c2`: B's generated-operation contract, post-commit receipts, cursor
+custody, gating, and non-enumeration are canonical; A's RBAC table-visibility
+composition and per-profile operation vocabulary remain additive. Ordinary
+client and generic React hooks accept the generated references; dedicated
+per-profile LLP 0238 hooks, search/assets, hosted profiles, and the external
+Clique rerun remain open). 2026-08-15 (records the shipped local handler-admission and
 bounded `list`/`myRole` slice: Explicit and Familiar handlers declare the
 canonical membership predicate, generated reads use a captured non-terminal
 evaluation, mutations use its terminal twin, and removal blanks live delivery;
@@ -164,11 +166,15 @@ The inherited owner state machine is closed: the creation witness seats the
 effective principal as `owner`; for reads, owner implies admin/member and admin
 implies member. Ordinary role/leave/remove operations cannot change owners.
 Only a current owner may call `transferOwner`, which promotes an active target
-and demotes the caller to admin atomically. LLP 0056’s `lastHolder: owner`
-final-state and eligibility checks govern every writer and concurrent transfer,
-removal, import, and principal change. Resource deletion alone uses its deletion
-witness for same-transaction roster teardown; a live scope always retains an
-eligible owner.
+and atomically demotes the caller to active `admin` when present, otherwise to
+the first active non-owner role in declared hierarchy order. Profiles with no
+active non-owner role omit and refuse transfer because no valid caller successor
+exists; selecting the available successor prevents `lastHolder: owner` from
+permanently stranding an owner in a lattice such as `owner` plus `member`. LLP
+0056’s final-state and eligibility checks govern every writer and concurrent
+transfer, removal, import, and principal change. Resource deletion alone uses
+its deletion witness for same-transaction roster teardown; a live scope always
+retains an eligible owner.
 
 ### D2. Compile one authority IR for read and write decisions
 
@@ -210,6 +216,10 @@ or transition edit rotates the authority-profile generation, appears in
 semantic artifact diff, and invalidates/requalifies every dependent generated
 surface.
 
+The reviewed generation-consumer file allowlist has an access-lint for direct
+field idioms throughout each enumerated Rust file. Residual: new files, helper
+indirection, and receiver identifiers outside the scanned root set.
+
 The first local implementation exposes that identity to named handlers as a
 declaration-bound `membership` predicate. Codegen accepts only a direct,
 nominally typed resource argument, lowers the requested minimum roles through
@@ -242,32 +252,55 @@ api.roomAccess.remove(scopeId, principal)
 ```
 
 The descriptor chooses which operations exist. Unsupported transitions are
-absent, not runtime no-ops. Generated roster projections contain only fields
-explicitly marked visible; private membership metadata remains private. Public
+absent, not runtime no-ops. Codegen stamps each synthesized operation with a
+closed manifest identity; receipt publication and host-private principal/id
+marshalling require that identity, never a matching function name. Generated
+roster projections contain only fields explicitly marked visible, and their
+continuations AEAD-encrypt the complete private keyset boundary under the
+server's envelope-key custody. Private membership metadata therefore remains
+private across the generated facade. This is not a blanket `ctx.db` denial for
+an implicitly visible membership table; applications that require such a raw
+read boundary must also declare a supported table-visibility policy. Public
 participant profiles join through a separately declared bounded relation and
 never make the authority row itself public by accident.
 
 Every mutation returns an authority transition receipt with predecessor,
 successor, affected subject/scope, invalidation disposition, and stable refusal
-codes. React/Expo get hooks generated under LLP 0238’s reference/lifecycle
-vocabulary.
+codes. Its generated reference uses the ordinary client and generic React/Expo
+hooks; dedicated per-profile lifecycle hooks remain a separate LLP 0238-shaped
+client slice.
 
 Generated reads and refusals inherit LLP 0056’s non-enumeration contract. An
 unauthorized caller cannot distinguish an absent scope/member from one hidden
 by roster visibility; detailed existence, role, and transition traces stay on
 authenticated developer/admin inspection.
 
-As of the 2026-08-16 rollout-2 qualification, local app-owned profiles emit
-the complete applicable subset of the sketch above. `list` accepts a bounded
-`{ scopeId, limit?, after? }` page request, projects only `roster.visible`, and
-returns an opaque continuation bound to the profile and scope; `myRole`
-returns the server-derived caller's role/status. Both are live references and
-capture positive and negative membership dependencies. Mutation references
-are present only where `membership.transitions` proves the corresponding
-operation; `transferOwner` is always the dedicated two-seat planner rather
-than an ordinary transition row. Every reference uses the normal generated
-client and LLP 0238 hook lifecycle. An unsupported operation remains absent,
-not a runtime no-op.
+The qualified local server/codegen surface emits live references named
+`api.<profile>.list` and `api.<profile>.myRole`, plus exactly the subset of
+`invite`, `join`, `leave`, `changeRole`, and `remove` justified by the closed
+membership transition matrix. Any profile with `owner` and at least one active
+non-owner role admits the dedicated `transferOwner` operation; ordinary
+transitions still cannot mutate an owner. An unsupported transition leaves its
+operation absent rather than installing a runtime no-op.
+
+`list` accepts `{ scopeId, page?: { after?, limit? } }`, projects only
+`roster.visible`, and carries its next boundary through the AEAD-sealed `sbpc2`
+cursor envelope. The host-private keyset is bound to application, declaration,
+scope, ordering, profile generation, caller authority, and active artifact
+identity. Admission precedes cursor parsing, so an outsider cannot distinguish
+a malformed cursor or hidden scope from another role denial. `myRole` returns
+the server-derived caller's role/status projection. Both reads capture the
+membership dependency needed for live reauthorization.
+
+Generated mutations address scopes and principals publicly while private row
+resolution stays below the writer seam. Successful committed settlements carry
+`authorityTransitions` with predecessor/successor state, subject, scope, and
+invalidation disposition. The atomic owner transfer yields two same-commit
+receipts. Preview, conflict, denial, and other failed attempts do not fabricate
+post-commit receipts. Dedicated per-profile React/Expo lifecycle hooks remain
+the unimplemented D3 client slice; the function references and settlement types
+are available to the framework-neutral client and accepted by the ordinary
+generic React/Expo hooks.
 
 ### D4. Custom function-mediated authority has an honest declaration
 
@@ -424,15 +457,16 @@ protected retention. Accepting this RFC neither accepts nor blocks either one.
 1. **Facade lowering (implemented locally).** Project the existing LLP 0056 membership manifest and
    LLP 0231 policy IR into the profile identity; add no second evaluator and no
    offline retention.
-2. **Roster and role facade (implemented locally 2026-08-16).** Generate
-   paginated `list`/`myRole`, the transition-applicable mutation subset,
-   dedicated atomic `transferOwner`, common named-handler admission, and
-   ordinary generated client/React lifecycle in Explicit and Familiar.
-3. **Policy composition (table visibility implemented locally 2026-08-16).**
-   Profile-backed table membership policies close role hierarchy and
-   invalidation from the same authority IR. Strict/coarse custom-policy inputs
-   remain under D4. Membership-visible search remains refused until its own
-   later qualification; it was not silently pulled into this rollout step.
+2. **Roster and role facade (implemented locally except dedicated hooks and
+   external rerun).**
+   Generate opaque-paged `list`, `myRole`, the transition-derived mutations,
+   durable authority receipts, and common named-handler admission in Explicit
+   and Familiar. The references ride the ordinary client/generic hook surface;
+   dedicated per-profile LLP 0238 hooks and the external Clique rerun remain.
+3. **Policy composition (table visibility demonstrated locally).** The RBAC
+   witness feeds table visibility from the canonical IR and records the governed
+   transition ledger. Strict/coarse custom authorization, membership-visible
+   search, and asset composition remain refused/unimplemented.
 4. **Asset composition.** Enable it only after LLP 0239’s binding capability
    independently qualifies.
 5. **Published-package rerun.** Rebuild Clique’s roster,
@@ -445,8 +479,8 @@ refuse at generation rather than silently degrading authority.
 ### 2026-08-16 rollout record — steps 2 and 3
 
 The local profile manifest now pins every generated operation's kind,
-authentication requirement, legal React lifecycle, and backing transition
-vocabulary. The server admits that frozen surface, resolves private subjects
+authentication requirement, ordinary-client lifecycle compatibility, and
+backing transition vocabulary. The server admits that frozen surface, resolves private subjects
 without returning row ids, and hands one command to LLP 0056 inside the
 authoritative transaction. Owner creation/removal stays outside ordinary
 transitions; transfer promotes the target and demotes the caller atomically,
@@ -458,6 +492,17 @@ that profile's same membership fact, so role writes drive visibility and live
 invalidation without a mirrored app-wide roster. This closes rollout step 3's
 table-visibility class only. Steps 4–5 remain: asset composition is gated on
 LLP 0239's independent qualification, and Clique has not been rebuilt.
+
+The executable evidence anchors are Team Chat's ten-check headless acceptance
+at `demos/team-chat/tests/acceptance/headless.mjs` and RBAC's profile/policy
+acceptance at `demos/rbac/tests/acceptance/rbac.mjs`.
+
+Team Chat's post-reconciliation physical table is `roomMembersV2`: LLP 0264
+landed after B and correctly refuses removing or widening the installed v1
+policy closure in the same push. The v1 tables remain inert append-only
+governance history, while the restricted v2 root is the one active roster and
+authority source. This versioned migration does not reintroduce synchronized
+dual state.
 
 ## Acceptance
 

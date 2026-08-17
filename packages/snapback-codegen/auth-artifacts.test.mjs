@@ -16,6 +16,7 @@ import { defineAuth, defineSchema, defineTable, v } from './define.mjs';
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(packageDir, '../..');
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
+const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).href;
 const guideManifest = JSON.parse(readFileSync(
   join(packageDir, '..', '..', 'guide', 'guide-manifest.generated.json'),
   'utf8',
@@ -53,7 +54,10 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-const tables = `todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).index('by_title', ['title']).sync().permissionBacking(['title'])`;
+const tables = `
+todoPermissions: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).permissionBacking(['title']),
+todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).index('by_title', ['title']).sync()
+`;
 const devSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({ ${tables} });
@@ -286,8 +290,9 @@ assert.throws(
 
   assert.equal(schema.schemaVersion, 'snapback.v1');
   assert.deepEqual(schema.auth, { mode: 'sessions' });
-  assert.equal(schema.tables[0].permissionBacking, true);
-  assert.deepEqual(schema.tables[0].permissionFields, ['title']);
+  const permissionTable = schema.tables.find(({ name }) => name === 'todoPermissions');
+  assert.equal(permissionTable.permissionBacking, true);
+  assert.deepEqual(permissionTable.permissionFields, ['title']);
   assert(schema.requiredCapabilities.includes('auth.sessions.v1'));
   assert.equal(functions.schemaVersion, 'snapback.v1');
   assert.equal(schema.inputsHash, functions.inputsHash);
@@ -309,11 +314,7 @@ assert.throws(
   assert.equal(list.authorityIndependent, true);
   assert.equal(create.authRequirement, 'authenticated');
   assert.equal(Object.hasOwn(create, 'authorityIndependent'), false);
-  assert.equal(
-    create.authorityCreating,
-    true,
-    'declared writes to permission-backing tables derive the consent marker',
-  );
+  assert.equal(Object.hasOwn(create, 'authorityCreating'), false);
 
   // Contract and the codegen-owned review index are bound to the exact paired
   // schema/function identity and move with it. The Rust-owned capability keeps
@@ -1017,6 +1018,7 @@ const authProgram = defineAuth({
   version: 1,
   mechanisms: { emailCode: { kind: 'email-code', identityKind: 'email', provider: 'builtIn', delivery: 'mail' } },
   assuranceRequirements: {},
+  ${recoveryPolicySource}
   guestPolicy: { enabled: false },
   secretReferences: {},
   verifiedProvisioning: {
@@ -1025,8 +1027,11 @@ const authProgram = defineAuth({
   },
 });
 export default defineSchema({
-  users: defineTable({ sourceUserID: v.string() }).index('by_source', ['sourceUserID'], { unique: true }),
+  users: defineTable({ principal: v.principal(), sourceUserID: v.string() })
+    .visibility({ kind: 'owner', field: 'principal' })
+    .index('by_source', ['sourceUserID'], { unique: true }),
   identityBindings: defineTable({ principal: v.principal(), sourceUserID: v.string() })
+    .visibility({ kind: 'owner', field: 'principal' })
     .index('by_principal', ['principal'], { unique: true })
     .index('by_source', ['sourceUserID'], { unique: true }),
 }, { auth: { mode: 'sessions' }, authProgram });
@@ -1113,16 +1118,20 @@ import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
 const authProgram = defineAuth({
   version: 1,
   mechanisms: { emailCode: { kind: 'email-code', identityKind: 'email', provider: 'builtIn', delivery: 'mail' } },
-  assuranceRequirements: {}, guestPolicy: { enabled: false }, secretReferences: {},
+  assuranceRequirements: {}, ${recoveryPolicySource} guestPolicy: { enabled: false }, secretReferences: {},
   verifiedProvisioning: {
     handler: 'provisionBinding', requires: [], reads: ['roots'],
     writes: [{ table: 'identityBindings', mode: 'identity-binding', principalField: 'principal', identityField: 'sourceUserID' }],
   },
 });
 export const roots = defineTable({ principal: v.principal(), sourceUserID: v.string(), joinedKey: v.string() })
+  .visibility({ kind: 'owner', field: 'principal' })
   .index('by_joined', ['joinedKey']);
-export const joined = defineTable({ key: v.string() }).index('by_key', ['key'], { unique: true });
+export const joined = defineTable({ key: v.string() })
+  .visibility({ kind: 'public-read' })
+  .index('by_key', ['key'], { unique: true });
 export const identityBindings = defineTable({ principal: v.principal(), sourceUserID: v.string() })
+  .visibility({ kind: 'owner', field: 'principal' })
   .index('by_principal', ['principal'], { unique: true })
   .index('by_source', ['sourceUserID'], { unique: true });
 export default defineSchema({ roots, joined, identityBindings }, { auth: { mode: 'sessions' }, authProgram });
@@ -1145,13 +1154,13 @@ export const forged = defineMutation({ auth: 'authenticated', plan: insert('iden
 `,
     },
     {
-      role: 'synthesized data-resource writers',
+      role: 'synthesized standard-pattern writers',
       schema: `
 import { defineAuth, defineSchema, defineTable, v } from '${defineUrl}';
 const authProgram = defineAuth({
   version: 1,
   mechanisms: { emailCode: { kind: 'email-code', identityKind: 'email', provider: 'builtIn', delivery: 'mail' } },
-  assuranceRequirements: {}, guestPolicy: { enabled: false }, secretReferences: {},
+  assuranceRequirements: {}, ${recoveryPolicySource} guestPolicy: { enabled: false }, secretReferences: {},
   verifiedProvisioning: {
     handler: 'provisionBinding', requires: [], reads: [],
     writes: [{ table: 'identityBindings', mode: 'identity-binding', principalField: 'principal', identityField: 'principal' }],
@@ -1159,13 +1168,24 @@ const authProgram = defineAuth({
 });
 export const identityBindings = defineTable({ principal: v.principal(), label: v.string() })
   .index('by_principal', ['principal'], { unique: true })
-  .visibility({ kind: 'owner', field: 'principal' })
-  .data({ listIndex: 'by_principal' });
+  .visibility({ kind: 'owner', field: 'principal' });
 export default defineSchema({ identityBindings }, { auth: { mode: 'sessions' }, authProgram });
 `,
       functions: `
+import schema from './schema.mjs';
 import { defineAction } from '${defineUrl}';
+import { defineOwnedCrud } from '${patternsUrl}';
 export const provisionBinding = defineAction({ args: {}, auth: 'authenticated', handler: async () => null });
+export const { listBindings, getBinding, createBinding, updateBinding, deleteBinding } = defineOwnedCrud({
+  table: schema.tables.identityBindings,
+  names: {
+    list: 'listBindings', get: 'getBinding', create: 'createBinding',
+    update: 'updateBinding', delete: 'deleteBinding',
+  },
+  visibility: { kind: 'owner', field: 'principal' },
+  listIndex: 'by_principal',
+  discloseUniqueConflicts: ['by_principal'],
+});
 `,
     },
     {

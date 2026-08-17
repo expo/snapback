@@ -1,0 +1,568 @@
+{
+  "schemaVersion": "snapback.expo-sqlite-carrier-qualification.v1",
+  "verdict": "supporting-pass",
+  "supportingOnly": true,
+  "promotionalAuthority": false,
+  "qualificationMode": true,
+  "capabilityCells": [
+    {
+      "arm": "expo",
+      "carrier": "expo-sqlite",
+      "profile": "durable-fragments-v1",
+      "target": "node-supporting-only"
+    }
+  ],
+  "governingLlpAnchors": [
+    "LLP 0166 D1/D6/D9",
+    "LLP 0043 settlement publication",
+    "LLP 0053 identity fences",
+    "LLP 0189 claim gating",
+    "LLP 0270 D6"
+  ],
+  "startedAt": "2026-08-17T03:08:43.394Z",
+  "finishedAt": "2026-08-17T03:08:44.014Z",
+  "runId": "20260817T030843394Z-ece4f017",
+  "seed": "ece4f0175be3969c",
+  "git": {
+    "revision": "a2195de11f32f20e6fd338ac828ebc139ea9686b",
+    "dirtyPaths": [
+      "bun.lock",
+      "guide/capabilities.md",
+      "guide/clients/react-expo.md",
+      "guide/guide-flat.clients.generated.md",
+      "guide/guide-flat.generated.md",
+      "guide/guide-flat.meta.generated.md",
+      "guide/guide-flat.reference.generated.md",
+      "guide/guide-flat.sync.generated.md",
+      "guide/guide-manifest.generated.json",
+      "guide/reference/diagnostics-registry.json",
+      "guide/reference/diagnostics.md",
+      "guide/reference/expo-snapback-cli--verify.md",
+      "guide/reference/expo-snapback-client--agent-authority.md",
+      "guide/reference/expo-snapback-client--app-client-internal.md",
+      "guide/reference/expo-snapback-client--app-data.md",
+      "guide/reference/expo-snapback-client--argument-normalization.md",
+      "guide/reference/expo-snapback-client--assets.md",
+      "guide/reference/expo-snapback-client--canonical-client-value.md",
+      "guide/reference/expo-snapback-client--client-diagnostics.md",
+      "guide/reference/expo-snapback-client--commands.md",
+      "guide/reference/expo-snapback-client--diagnostic-error.md",
+      "guide/reference/expo-snapback-client--evaluation-floor.md",
+      "guide/reference/expo-snapback-client--external-store.md",
+      "guide/reference/expo-snapback-client--hosted-browser.md",
+      "guide/reference/expo-snapback-client--ir-evaluator.md",
+      "guide/reference/expo-snapback-client--lease-convergence.md",
+      "guide/reference/expo-snapback-client--local-read-admission.md",
+      "guide/reference/expo-snapback-client--materialization-store.md",
+      "guide/reference/expo-snapback-client--micro-core.md",
+      "guide/reference/expo-snapback-client--micro-live.md",
+      "guide/reference/expo-snapback-client--micro.md",
+      "guide/reference/expo-snapback-client--online.md",
+      "guide/reference/expo-snapback-client--optimistic-rebase.md",
+      "guide/reference/expo-snapback-client--outbox-shared.md",
+      "guide/reference/expo-snapback-client--push-installation-expo.md",
+      "guide/reference/expo-snapback-client--push-registry.md",
+      "guide/reference/expo-snapback-client--react-binding.md",
+      "guide/reference/expo-snapback-client--reference-kinds.md",
+      "guide/reference/expo-snapback-client--remediation.md",
+      "guide/reference/expo-snapback-client--result-transform.md",
+      "guide/reference/expo-snapback-client--rqs-preload.md",
+      "guide/reference/expo-snapback-client--rqs-registered.md",
+      "guide/reference/expo-snapback-client--rqs-store-default.md",
+      "guide/reference/expo-snapback-client--rqs-store-expo.md",
+      "guide/reference/expo-snapback-client--rqs-store-file.md",
+      "guide/reference/expo-snapback-client--rqs-store.md",
+      "guide/reference/expo-snapback-client--rqs.md",
+      "guide/reference/expo-snapback-client--search.md",
+      "guide/reference/expo-snapback-client--vector-search.md",
+      "guide/reference/expo-snapback-client.md",
+      "guide/reference/expo-snapback-codegen--ctx.md",
+      "guide/reference/expo-snapback-expo--app-binding.md",
+      "guide/reference/expo-snapback-expo--app.plugin.md",
+      "guide/reference/expo-snapback-expo--asset-source.md",
+      "guide/reference/expo-snapback-expo--config-plugin.md",
+      "guide/reference/expo-snapback-expo--supervised-environment.md",
+      "guide/reference/expo-snapback-expo.md",
+      "guide/reference/expo-snapback-react--core.md",
+      "guide/reference/expo-snapback-react--familiar.md",
+      "guide/reference/expo-snapback-react--thumbhash.md",
+      "guide/reference/expo-snapback-react.md",
+      "guide/reference/index.md",
+      "guide/reference/registry.json",
+      "guide/sync/offline-and-retention.md",
+      "issues/20260816-qualify-expo-local-first-carrier.md",
+      "packages/snapback-client/app-client-internal.d.mts",
+      "packages/snapback-client/app-client.d.mts",
+      "packages/snapback-client/app-client.mjs",
+      "packages/snapback-client/diagnostic-codes.d.mts",
+      "packages/snapback-client/index.mjs",
+      "packages/snapback-client/package.json",
+      "packages/snapback-client/rqs-store-default.d.mts",
+      "packages/snapback-client/rqs-store-default.mjs",
+      "packages/snapback-client/rqs-store-file.d.mts",
+      "packages/snapback-client/rqs-store-file.mjs",
+      "packages/snapback-client/rqs-store.d.mts",
+      "packages/snapback-expo/index.d.mts",
+      "packages/snapback-expo/package.json",
+      "packages/snapback-expo/package.test.mjs",
+      "packages/snapback-expo/provider.mjs",
+      "packages/snapback-expo/supervised-environment.mjs",
+      "scripts/check-package-test-inventory.mjs",
+      "scripts/fixtures/local-source-expo/package.json",
+      "demos/expo-local-first-carrier/",
+      "diaries/0090-expo-local-first-carrier.diary.md",
+      "guide/reference/expo-snapback-client--rqs-store-sqlite.md",
+      "packages/snapback-client/rqs-store-sqlite.d.mts",
+      "packages/snapback-client/rqs-store-sqlite.mjs",
+      "packages/snapback-client/rqs-store-sqlite.test.mjs",
+      "packages/snapback-expo/expo-sqlite-carrier-publication.v1.json",
+      "packages/snapback-expo/expo-sqlite-carrier.mjs",
+      "packages/snapback-expo/expo-sqlite-carrier.test.mjs",
+      "scripts/fixtures/local-source-expo/expo-sqlite-stub/"
+    ]
+  },
+  "claimSourceClosure": {
+    "packages/snapback-client/rqs-store-sqlite.mjs": "sha256:2cd2afb27a75e13789aa818dfbb18fc7a431bc9ffaed7cf1d8cd419c8e63772f",
+    "packages/snapback-client/outbox-shared.mjs": "sha256:5dc363686228854a953b7a857c7159718cfb3f9b1c168c2c4db87052ed9aba73",
+    "packages/snapback-client/rqs-store-meta.mjs": "sha256:481ca7006373501e9bf4ac3304b9789afdc939ba1ddaf4ffefa68ba85587bf67",
+    "packages/snapback-expo/expo-sqlite-carrier.mjs": "sha256:bba88c40b2951545f760810e5bbf098300bbd9f78394cb004bdbf17d842a52c8",
+    "packages/snapback-expo/provider.mjs": "sha256:495da2226adb1ee6e70ff5d9569b0da3d225ef699a55d38e775b420852f338dc",
+    "packages/snapback-expo/expo-sqlite-carrier-publication.v1.json": "sha256:2ad867da06afa2be5a928de818607846d842775bcba2cb9296d51703661a32d8",
+    "demos/expo-local-first-carrier/qualification-invariants.mjs": "sha256:49646f24c08d767ba6f2fcf1281986bba01210f3b875f70e0a370b391254f7dc",
+    "demos/expo-local-first-carrier/scripts/node-worker.mjs": "sha256:5169b84b0f42bdc6a91d8f1a732cfa7eca3aaabf682ecfa5b4df73975697c2d4",
+    "demos/expo-local-first-carrier/scripts/qualify-node.mjs": "sha256:b7a324a22eb1a6b4031c2ad495792f39ef1205ce82aafdc52ce7bbf243b0692d"
+  },
+  "packageArtifacts": [
+    {
+      "name": "@expo/snapback-expo",
+      "version": "0.1.0",
+      "sha256": "sha256:dfab72071b4ea38790077232858bf90a6df202f25134e2de6281be8703b95e18"
+    },
+    {
+      "name": "@expo/snapback-client",
+      "version": "0.1.0",
+      "sha256": "sha256:95bf2fab336b05d91aa25c7389498c9110043d76e8a196be087fadd0f1387b42"
+    },
+    {
+      "name": "node:sqlite",
+      "version": "3.53.1",
+      "sha256": "sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a"
+    }
+  ],
+  "jsBundleIdentity": {
+    "kind": "node-esm-entry-supporting-only",
+    "path": "demos/expo-local-first-carrier/scripts/qualify-node.mjs",
+    "sha256": "sha256:b7a324a22eb1a6b4031c2ad495792f39ef1205ce82aafdc52ce7bbf243b0692d"
+  },
+  "nativeBinaryIdentity": {
+    "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "sha256": "sha256:ee6fb0e015284d83a91e8ec5213f43a157f8a392b58555301682892ba928c04a"
+  },
+  "targetCell": {
+    "operatingSystem": "darwin",
+    "architecture": "arm64",
+    "distribution": "node-supporting-only",
+    "deviceClass": "host-process"
+  },
+  "sqlite": {
+    "version": "3.53.1",
+    "sourceId": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9",
+    "compileOptions": [
+      "ATOMIC_INTRINSICS=1",
+      "COMPILER=clang-16.0.0",
+      "DEFAULT_AUTOVACUUM",
+      "DEFAULT_CACHE_SIZE=-2000",
+      "DEFAULT_FILE_FORMAT=4",
+      "DEFAULT_JOURNAL_SIZE_LIMIT=-1",
+      "DEFAULT_MEMSTATUS=0",
+      "DEFAULT_MMAP_SIZE=0",
+      "DEFAULT_PAGE_SIZE=4096",
+      "DEFAULT_PCACHE_INITSZ=20",
+      "DEFAULT_RECURSIVE_TRIGGERS",
+      "DEFAULT_SECTOR_SIZE=4096",
+      "DEFAULT_SYNCHRONOUS=2",
+      "DEFAULT_WAL_AUTOCHECKPOINT=1000",
+      "DEFAULT_WAL_SYNCHRONOUS=2",
+      "DEFAULT_WORKER_THREADS=0",
+      "DIRECT_OVERFLOW_READ",
+      "ENABLE_COLUMN_METADATA",
+      "ENABLE_DBSTAT_VTAB",
+      "ENABLE_FTS3",
+      "ENABLE_FTS3_PARENTHESIS",
+      "ENABLE_FTS5",
+      "ENABLE_GEOPOLY",
+      "ENABLE_MATH_FUNCTIONS",
+      "ENABLE_PERCENTILE",
+      "ENABLE_PREUPDATE_HOOK",
+      "ENABLE_RBU",
+      "ENABLE_RTREE",
+      "ENABLE_SESSION",
+      "MALLOC_SOFT_LIMIT=1024",
+      "MAX_ATTACHED=10",
+      "MAX_COLUMN=2000",
+      "MAX_COMPOUND_SELECT=500",
+      "MAX_DEFAULT_PAGE_SIZE=8192",
+      "MAX_EXPR_DEPTH=1000",
+      "MAX_FUNCTION_ARG=1000",
+      "MAX_LENGTH=1000000000",
+      "MAX_LIKE_PATTERN_LENGTH=50000",
+      "MAX_MMAP_SIZE=0x7fff0000",
+      "MAX_PAGE_COUNT=0xfffffffe",
+      "MAX_PAGE_SIZE=65536",
+      "MAX_SQL_LENGTH=1000000000",
+      "MAX_TRIGGER_DEPTH=1000",
+      "MAX_VARIABLE_NUMBER=32766",
+      "MAX_VDBE_OP=250000000",
+      "MAX_WORKER_THREADS=8",
+      "MUTEX_PTHREADS",
+      "SYSTEM_MALLOC",
+      "TEMP_STORE=1",
+      "THREADSAFE=1"
+    ],
+    "pragmas": {
+      "lockingMode": "exclusive",
+      "journalMode": "wal",
+      "synchronous": 2,
+      "foreignKeys": 1,
+      "fullfsync": null
+    },
+    "databaseDirectoryClass": "temporary-host-filesystem"
+  },
+  "scenarios": [
+    {
+      "scenario": "atomic-fault-after-every-observed-sql-boundary",
+      "result": "pass",
+      "statementAndBoundaryCuts": 36,
+      "boundaries": [
+        "materialization:begin-immediate:before",
+        "materialization:begin-immediate",
+        "read-map:materializations:before",
+        "read-map:materializations",
+        "read-map:page_sets:before",
+        "read-map:page_sets",
+        "read-map:memberships:before",
+        "read-map:memberships",
+        "read-map:entries:before",
+        "read-map:entries",
+        "read:outbox:state:before",
+        "read:outbox:state",
+        "read:store_meta:state:before",
+        "read:store_meta:state",
+        "replace:materializations:clear:before",
+        "replace:materializations:clear",
+        "write:materializations:generation:before",
+        "write:materializations:generation",
+        "replace:page_sets:clear:before",
+        "replace:page_sets:clear",
+        "write:page_sets:generation:before",
+        "write:page_sets:generation",
+        "replace:memberships:clear:before",
+        "replace:memberships:clear",
+        "write:memberships:generation:before",
+        "write:memberships:generation",
+        "replace:entries:clear:before",
+        "replace:entries:clear",
+        "write:entries:generation:before",
+        "write:entries:generation",
+        "write:outbox:state:before",
+        "write:outbox:state",
+        "write:store_meta:state:before",
+        "write:store_meta:state",
+        "materialization:commit:before",
+        "materialization:commit"
+      ]
+    },
+    {
+      "scenario": "two-process-exclusive-owner-and-kill-takeover",
+      "result": "pass",
+      "loserCode": "SNAPBACK_EXPO_SQLITE_STORE_OWNER_UNAVAILABLE",
+      "sqliteSourceId": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9"
+    },
+    {
+      "scenario": "crash-recovery-at-every-named-phase",
+      "result": "pass",
+      "phaseCuts": 7,
+      "phases": [
+        "pending-durable-before-delivery",
+        "server-result-before-local-settlement",
+        "commit-loop",
+        "committed-before-callback",
+        "consumed-before-ack",
+        "ack-proof-before-local-removal",
+        "authority-wipe-before-successor"
+      ],
+      "realSigkillCuts": 7,
+      "openTransactionSigkillCuts": 1,
+      "phaseEvidence": [
+        {
+          "phase": "pending-durable-before-delivery",
+          "cutBoundary": "pending-durable-before-delivery",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "server-result-before-local-settlement",
+          "cutBoundary": "server-result-held-local-settlement-uncommitted",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "commit-loop",
+          "cutBoundary": "materialization:commit:before",
+          "insideTransaction": true,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "committed-before-callback",
+          "cutBoundary": "commit-resolved-before-host-callback",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "consumed-before-ack",
+          "cutBoundary": "settlement-consumed-before-ack-ready",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "ack-proof-before-local-removal",
+          "cutBoundary": "ack-proof-before-local-removal",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "authority-wipe-before-successor",
+          "cutBoundary": "authority-wipe:checkpoint-truncate:before",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        }
+      ]
+    },
+    {
+      "scenario": "kill-and-truncated-wal-copy",
+      "result": "pass",
+      "originalWalBytes": 24752,
+      "truncatedWalBytes": 12376,
+      "outcome": "recovered",
+      "recoveredGeneration": 1,
+      "recoveredInspection": {
+        "writer": true,
+        "corrupt": false,
+        "entries": 1,
+        "bytes": 1,
+        "maxBytes": 33554432,
+        "maxEntries": 256,
+        "facts": {
+          "profile": "durable-fragments-v1",
+          "schemaVersion": 1,
+          "databaseName": "qualification.sqlite",
+          "sqliteVersion": "3.53.1",
+          "sqliteSourceId": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9",
+          "compileOptions": [
+            "ATOMIC_INTRINSICS=1",
+            "COMPILER=clang-16.0.0",
+            "DEFAULT_AUTOVACUUM",
+            "DEFAULT_CACHE_SIZE=-2000",
+            "DEFAULT_FILE_FORMAT=4",
+            "DEFAULT_JOURNAL_SIZE_LIMIT=-1",
+            "DEFAULT_MEMSTATUS=0",
+            "DEFAULT_MMAP_SIZE=0",
+            "DEFAULT_PAGE_SIZE=4096",
+            "DEFAULT_PCACHE_INITSZ=20",
+            "DEFAULT_RECURSIVE_TRIGGERS",
+            "DEFAULT_SECTOR_SIZE=4096",
+            "DEFAULT_SYNCHRONOUS=2",
+            "DEFAULT_WAL_AUTOCHECKPOINT=1000",
+            "DEFAULT_WAL_SYNCHRONOUS=2",
+            "DEFAULT_WORKER_THREADS=0",
+            "DIRECT_OVERFLOW_READ",
+            "ENABLE_COLUMN_METADATA",
+            "ENABLE_DBSTAT_VTAB",
+            "ENABLE_FTS3",
+            "ENABLE_FTS3_PARENTHESIS",
+            "ENABLE_FTS5",
+            "ENABLE_GEOPOLY",
+            "ENABLE_MATH_FUNCTIONS",
+            "ENABLE_PERCENTILE",
+            "ENABLE_PREUPDATE_HOOK",
+            "ENABLE_RBU",
+            "ENABLE_RTREE",
+            "ENABLE_SESSION",
+            "MALLOC_SOFT_LIMIT=1024",
+            "MAX_ATTACHED=10",
+            "MAX_COLUMN=2000",
+            "MAX_COMPOUND_SELECT=500",
+            "MAX_DEFAULT_PAGE_SIZE=8192",
+            "MAX_EXPR_DEPTH=1000",
+            "MAX_FUNCTION_ARG=1000",
+            "MAX_LENGTH=1000000000",
+            "MAX_LIKE_PATTERN_LENGTH=50000",
+            "MAX_MMAP_SIZE=0x7fff0000",
+            "MAX_PAGE_COUNT=0xfffffffe",
+            "MAX_PAGE_SIZE=65536",
+            "MAX_SQL_LENGTH=1000000000",
+            "MAX_TRIGGER_DEPTH=1000",
+            "MAX_VARIABLE_NUMBER=32766",
+            "MAX_VDBE_OP=250000000",
+            "MAX_WORKER_THREADS=8",
+            "MUTEX_PTHREADS",
+            "SYSTEM_MALLOC",
+            "TEMP_STORE=1",
+            "THREADSAFE=1"
+          ],
+          "pragmas": {
+            "lockingMode": "exclusive",
+            "journalMode": "wal",
+            "synchronous": 2,
+            "foreignKeys": 1,
+            "fullfsync": null
+          }
+        },
+        "outbox": {
+          "pending": 1,
+          "failed": 0,
+          "stranded": 0,
+          "quarantined": 0,
+          "resultGone": 0,
+          "pendingAcknowledgements": 0
+        }
+      },
+      "classification": "supporting-only-not-power-loss-proof"
+    },
+    {
+      "scenario": "corruption-header-page-future-schema-bad-digest",
+      "result": "pass",
+      "cases": [
+        "header",
+        "page-truncation",
+        "future-schema",
+        "bad-row-digest"
+      ],
+      "exactCode": "SNAPBACK_EXPO_SQLITE_STORE_CORRUPT",
+      "originalBytesPreserved": true
+    },
+    {
+      "scenario": "quota-max-page-count-full-rollback",
+      "result": "pass",
+      "maxPageCount": 24,
+      "priorCommitSurvived": true,
+      "candidatePublished": false
+    },
+    {
+      "scenario": "same-js-realm-global-registry-coalescing",
+      "result": "pass",
+      "roots": 2,
+      "stores": 1
+    },
+    {
+      "scenario": "negative-control-deliberately-broken-store-is-rejected",
+      "result": "pass",
+      "expectedHarnessVerdict": "fail",
+      "observedHarnessVerdict": "fail",
+      "injectedViolations": [
+        "hybrid-generation",
+        "missing-host-watermark",
+        "partial-settlement",
+        "duplicate-server-execution",
+        "settlement-not-republished"
+      ]
+    }
+  ],
+  "scenarioTotals": {
+    "required": 8,
+    "passed": 8,
+    "failed": 0,
+    "namedCrashPhaseCuts": 7
+  },
+  "hostPublicationWatermarks": {
+    "model": "COMMIT-promise-resolution",
+    "observedHybridGenerations": 0
+  },
+  "serverExecutionSettlementIdentities": {
+    "modelOnly": true,
+    "secretsPresent": false
+  },
+  "rawLogHashes": {
+    "scenario-log.supporting.v1.json": "sha256:da3ec6d36e6df5b753cad85bc2583e9904badccefffd4a42cd2d879dc74bfdba"
+  },
+  "completeBatteryReference": {
+    "eligible": false,
+    "reason": "node-supporting-only",
+    "reference": "LLP 0189 D-6 complete battery",
+    "qualifiedCommit": "a2195de11f32f20e6fd338ac828ebc139ea9686b"
+  },
+  "limitations": [
+    "Node receipt is supporting-only and cannot activate an iOS or Android publication row.",
+    "Node does not exercise an Expo bridge, mobile VFS, F_FULLFSYNC effect, or real power interruption."
+  ]
+}

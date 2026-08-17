@@ -61,6 +61,86 @@
       ],
       "type": "object"
     },
+    "AuthorityInvalidationDispositionV1": {
+      "description": "Whether the exact commit advanced the durable authorization generation.\nPreview is explicit because dry-run executes the same storage plan but\nintentionally rolls it back.",
+      "enum": [
+        "global-authorization-epoch-advanced",
+        "no-authorization-event",
+        "preview-rolled-back"
+      ],
+      "type": "string"
+    },
+    "AuthorityMembershipStateV1": {
+      "additionalProperties": false,
+      "description": "The authority-relevant state of one membership row. Application-specific\nroster columns and host-private provenance deliberately stay out of the\ntransition receipt; the subject and scope are carried separately.\n\n@ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — mutation\n  receipts expose predecessor/successor authority state without making\n  private membership metadata application-visible.",
+      "properties": {
+        "role": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/AuthorityMembershipStatusV1"
+        }
+      },
+      "required": [
+        "role",
+        "status"
+      ],
+      "type": "object"
+    },
+    "AuthorityMembershipStatusV1": {
+      "enum": [
+        "active",
+        "invited"
+      ],
+      "type": "string"
+    },
+    "AuthorityTransitionReceiptV1": {
+      "additionalProperties": false,
+      "description": "One affected subject in a writer-seam membership commit. Atomic operations\nsuch as `transferOwner` return one receipt per changed subject, all carrying\nthe disposition of their shared commit.",
+      "properties": {
+        "declaration": {
+          "type": "string"
+        },
+        "invalidationDisposition": {
+          "$ref": "#/$defs/AuthorityInvalidationDispositionV1"
+        },
+        "predecessor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorityMembershipStateV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subject": {
+          "type": "string"
+        },
+        "successor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorityMembershipStateV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "declaration",
+        "subject",
+        "invalidationDisposition"
+      ],
+      "type": "object"
+    },
     "CtxAnswerLedger": {
       "description": "The ctx-answer ledger (LLP 0051 D1): the ordered answers the deterministic\nctx surface gave during one invocation. Record mode produces it; replay\nmode consumes it. Reads are never ledgered — `ctx.db` reads always\nre-evaluate against the executing tier's current view; the ledger pins\n*answers* only. This is LLP 0043 M2's captured replay environment as a\ndefined channel: LLP 0008 pins the client wire to exactly\n`{generatedIds, now}`; the auth fingerprint is server-retained and never\ncrosses the client wire.",
       "properties": {
@@ -524,6 +604,12 @@
     "authorityDescriptor": {
       "$ref": "#/$defs/AuthorityDescriptor",
       "description": "The exact server-derived authority cohort that owns this settlement.\nClients persist it with the ACK proof; it grants no authority."
+    },
+    "authorityTransitions": {
+      "items": {
+        "$ref": "#/$defs/AuthorityTransitionReceiptV1"
+      },
+      "type": "array"
     },
     "changed_count": {
       "format": "uint",

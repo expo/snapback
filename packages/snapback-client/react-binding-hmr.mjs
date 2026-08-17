@@ -164,7 +164,7 @@ async function rebuiltGenerationAdmission(
     queryArtifactsById.set(reference.id, queryArtifactHash(definition));
     authorityIndependentById.set(
       reference.id,
-      definition.authorityIndependent === true,
+      definition.rqsEligible === true || definition.authorityIndependent === true,
     );
     resultContractsById.set(reference.id, Object.freeze({
       hash: reference.resultContractHash,

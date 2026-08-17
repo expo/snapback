@@ -14,7 +14,9 @@ mkdirSync(backend, { recursive: true });
 try {
   writeFileSync(join(backend, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+});
 `);
   writeFileSync(join(backend, 'functions.mjs'), `
 import { arg, defineMutation, insert, returnBinding, v } from '${defineUrl}';

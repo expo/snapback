@@ -62,7 +62,8 @@ Scheme `sm-<area>-<element>`:
 `sm-chats-item`, `sm-chats-unread`, `sm-convo-input`, `sm-convo-send`,
 `sm-convo-bubble`, `sm-convo-typing`, `sm-convo-receipt`,
 `sm-convo-reaction`, `sm-convo-reaction-chip`, `sm-convo-react`,
-`sm-convo-quote`, `sm-convo-file`, `sm-convo-attach`, `sm-convo-media`,
+`sm-convo-quote`, `sm-convo-quote-preview`, `sm-convo-file`,
+`sm-convo-attach`, `sm-convo-media`,
 `sm-convo-edit`, `sm-convo-delete`, `sm-convo-tombstone`,
 `sm-convo-settings`, `sm-convo-viewonce-toggle`, `sm-convo-viewonce`,
 `sm-convo-error`, `sm-media-viewer-image`, `sm-media-viewer-video`,
@@ -113,14 +114,18 @@ The P2 choreography hardening also freezes these accessible-state semantics:
 - `sm-convo-react`, `sm-convo-edit`, and `sm-convo-delete` are the message
   actions; reaction choices use `sm-convo-reaction`, and visible aggregate
   chips use `sm-convo-reaction-chip`.
+- `sm-convo-quote` is the per-message Reply action;
+  `sm-convo-quote-preview` is the separately pressable quoted excerpt that
+  reveals its source message.
 - View-once uses `sm-convo-viewonce-toggle`, `sm-convo-viewonce`, the media
   viewer IDs, and a consumed/denied accessible state or `sm-convo-error`.
 
 ## Versioning
 
-The choreography subdirectory and the UI kit are both `0.3.0-m8`
-after the additive M8 surfaces (the choreography's P2 hardening
-history is retained in its README). Other P1 artifacts remain at
+The choreography subdirectory is `0.3.1-m8`; the patch separates the
+per-message Reply action from the quoted-excerpt jump selector. The UI kit
+remains `0.3.0-m8` after the additive M8 surfaces (the choreography's P2
+hardening history is retained in its README). Other P1 artifacts remain at
 their existing pre-freeze versions.
 The P3 freeze bumps the complete instrument to `1.0.0` and pins hashes in the
 brief.

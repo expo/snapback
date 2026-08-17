@@ -1,0 +1,174 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild test-without-building -workspace ios/NativeCustodyProbes.xcworkspace -scheme NativeCustodyProbes -destination id=582E5091-E6A6-4F2B-AB3F-045128875ECF -derivedDataPath /Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data "-only-testing:NativeCustodyProbesUITests" APP_PRODUCT_BUNDLE_IDENTIFIER=dev.snapback.custodyprobes NSE_PRODUCT_BUNDLE_IDENTIFIER=dev.snapback.custodyprobes.nse SHARE_PRODUCT_BUNDLE_IDENTIFIER=dev.snapback.custodyprobes.share UITEST_PRODUCT_BUNDLE_IDENTIFIER=dev.snapback.custodyprobes.uitests
+
+Build settings from command line:
+    APP_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes
+    NSE_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.nse
+    SHARE_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.share
+    UITEST_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.uitests
+
+2026-08-16 19:35:21.857 xcodebuild[52384:4315026]  DVTDeviceOperation: Encountered a build number "" that is incompatible with DVTBuildVersion.
+2026-08-16 19:35:21.885 xcodebuild[52384:4315026]  DVTDeviceOperation: Encountered a build number "" that is incompatible with DVTBuildVersion.
+2026-08-16 19:35:21.886 xcodebuild[52384:4314911] [MT] DVTDeviceOperation: Encountered a build number "" that is incompatible with DVTBuildVersion.
+2026-08-16 19:35:22.059 xcodebuild[52384:4314911] [MT] DVTDeviceOperation: Encountered a build number "" that is incompatible with DVTBuildVersion.
+2026-08-16 19:35:23.399876-0700 NativeCustodyProbesUITests-Runner[52468:4315279] [Default] Running tests...
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'All tests' started at 2026-08-16 19:35:23.901.
+Test Suite 'NativeCustodyProbesUITests.xctest' started at 2026-08-16 19:35:23.902.
+Test Suite 'NativeCustodyProbesUITests' started at 2026-08-16 19:35:23.902.
+Test Case '-[NativeCustodyProbesUITests.NativeCustodyProbesUITests testShareProbeInvokesCustodyExtension]' started.
+    t =     0.00s Start Test at 2026-08-16 19:35:23.902
+    t =     0.02s Set Up
+    t =     0.02s Open dev.snapback.custodyprobes
+    t =     0.02s     Launch dev.snapback.custodyprobes
+    t =     0.02s         Terminate dev.snapback.custodyprobes:52372
+objc[52468]: Class UIAccessibilityLoaderWebShared is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebCore.axbundle/WebCore (0x10b07c310) and /Library/Developer/CoreSimulator/Volumes/iOS_23F77/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.5.simruntime/Contents/Resources/RuntimeRoot/System/Library/AccessibilityBundles/WebKit.axbundle/WebKit (0x10772c398). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.
+2026-08-16 19:35:24.972 xcodebuild[52384:4314911] [MT] IDELaunchParametersSnapshot: The operation couldn’t be completed. (DebuggerLLDB.DebuggerVersionStore.StoreError error 0.)
+2026-08-16 19:35:24.972 xcodebuild[52384:4314911] [MT] IDELaunchParametersSnapshot: no debugger version
+    t =     1.69s         Setting up automation session
+    t =     2.19s         Wait for dev.snapback.custodyprobes to idle
+    t =     3.31s Waiting 30.0s for "probe-share-button" Button to exist
+    t =     4.34s     Checking `Expect predicate `existsNoRetry == 1` for object "probe-share-button" Button`
+    t =     4.34s         Checking existence of `"probe-share-button" Button`
+    t =     4.37s Tap "probe-share-button" Button
+    t =     4.37s     Wait for dev.snapback.custodyprobes to idle
+    t =     4.37s     Find the "probe-share-button" Button
+    t =     4.38s     Check for interrupting elements affecting "probe-share-button" Button
+    t =     4.40s     Synthesize event
+    t =     4.69s     Wait for dev.snapback.custodyprobes to idle
+    t =     5.19s Checking existence of `Any (First Match)`
+    t =     5.23s Checking existence of `Any (First Match)`
+    t =     5.26s Checking existence of `CollectionView (First Match)`
+    t =     5.29s Find the CollectionView (First Match)
+    t =     5.33s Checking existence of `Table (First Match)`
+    t =     5.36s Checking existence of `Sheet (First Match)`
+    t =     5.39s Checking existence of `CollectionView (First Match)`
+    t =     5.42s Checking existence of `Table (First Match)`
+    t =     5.43s Checking existence of `Sheet (First Match)`
+    t =     5.70s Checking existence of `Any (First Match)`
+    t =     5.75s Checking existence of `Any (First Match)`
+    t =     5.77s Checking existence of `CollectionView (First Match)`
+    t =     5.81s Find the CollectionView (First Match)
+    t =     5.84s Checking existence of `Table (First Match)`
+    t =     5.87s Checking existence of `Sheet (First Match)`
+    t =     5.91s Checking existence of `CollectionView (First Match)`
+    t =     5.93s Checking existence of `Table (First Match)`
+    t =     5.95s Checking existence of `Sheet (First Match)`
+    t =     6.22s Checking existence of `Any (First Match)`
+    t =     6.26s Checking existence of `Any (First Match)`
+    t =     6.28s Checking existence of `CollectionView (First Match)`
+    t =     6.31s Find the CollectionView (First Match)
+    t =     6.35s Checking existence of `Table (First Match)`
+    t =     6.38s Checking existence of `Sheet (First Match)`
+    t =     6.41s Checking existence of `CollectionView (First Match)`
+    t =     6.43s Checking existence of `Table (First Match)`
+    t =     6.45s Checking existence of `Sheet (First Match)`
+    t =     6.72s Checking existence of `Any (First Match)`
+    t =     6.78s Checking existence of `Any (First Match)`
+    t =     6.80s Checking existence of `CollectionView (First Match)`
+    t =     6.83s Find the CollectionView (First Match)
+    t =     6.87s Checking existence of `Table (First Match)`
+    t =     6.90s Checking existence of `Sheet (First Match)`
+    t =     6.93s Checking existence of `CollectionView (First Match)`
+    t =     6.95s Checking existence of `Table (First Match)`
+    t =     6.96s Checking existence of `Sheet (First Match)`
+    t =     7.23s Checking existence of `Any (First Match)`
+    t =     7.30s Checking existence of `Any (First Match)`
+    t =     7.32s Checking existence of `CollectionView (First Match)`
+    t =     7.35s Find the CollectionView (First Match)
+    t =     7.39s Checking existence of `Table (First Match)`
+    t =     7.42s Checking existence of `Sheet (First Match)`
+    t =     7.45s Checking existence of `CollectionView (First Match)`
+    t =     7.47s Checking existence of `Table (First Match)`
+    t =     7.49s Checking existence of `Sheet (First Match)`
+    t =     7.76s Checking existence of `Any (First Match)`
+    t =     7.79s Checking existence of `Any (First Match)`
+    t =     7.82s Checking existence of `Button (First Match)`
+    t =     7.85s Checking existence of `Button (First Match)`
+    t =     7.87s Checking existence of `CollectionView (First Match)`
+    t =     7.90s Find the CollectionView (First Match)
+    t =     7.94s Checking existence of `Table (First Match)`
+    t =     7.97s Checking existence of `Sheet (First Match)`
+    t =     8.00s Checking existence of `CollectionView (First Match)`
+    t =     8.01s Checking existence of `Table (First Match)`
+    t =     8.03s Checking existence of `Sheet (First Match)`
+    t =     8.31s Checking existence of `Any (First Match)`
+    t =     8.37s Checking existence of `Any (First Match)`
+    t =     8.39s Checking existence of `CollectionView (First Match)`
+    t =     8.42s Find the CollectionView (First Match)
+    t =     8.46s Checking existence of `Table (First Match)`
+    t =     8.49s Checking existence of `Sheet (First Match)`
+    t =     8.52s Checking existence of `CollectionView (First Match)`
+    t =     8.54s Checking existence of `Table (First Match)`
+    t =     8.56s Checking existence of `Sheet (First Match)`
+    t =     8.83s Checking existence of `Any (First Match)`
+    t =     8.90s Checking existence of `Any (First Match)`
+    t =     8.92s Checking existence of `CollectionView (First Match)`
+    t =     8.95s Find the CollectionView (First Match)
+    t =     8.99s Checking existence of `Table (First Match)`
+    t =     9.02s Checking existence of `Sheet (First Match)`
+    t =     9.05s Checking existence of `CollectionView (First Match)`
+    t =     9.07s Checking existence of `Table (First Match)`
+    t =     9.08s Checking existence of `Sheet (First Match)`
+    t =     9.36s Checking existence of `Any (First Match)`
+    t =     9.42s Checking existence of `Any (First Match)`
+    t =     9.44s Checking existence of `CollectionView (First Match)`
+    t =     9.47s Find the CollectionView (First Match)
+    t =     9.51s Checking existence of `Table (First Match)`
+    t =     9.54s Checking existence of `Sheet (First Match)`
+    t =     9.57s Checking existence of `CollectionView (First Match)`
+    t =     9.59s Checking existence of `Table (First Match)`
+    t =     9.61s Checking existence of `Sheet (First Match)`
+    t =     9.88s Checking existence of `Any (First Match)`
+    t =     9.94s Checking existence of `Any (First Match)`
+    t =     9.96s Checking existence of `CollectionView (First Match)`
+    t =     9.99s Find the CollectionView (First Match)
+    t =    10.03s Checking existence of `Table (First Match)`
+    t =    10.06s Checking existence of `Sheet (First Match)`
+    t =    10.09s Checking existence of `CollectionView (First Match)`
+    t =    10.11s Checking existence of `Table (First Match)`
+    t =    10.13s Checking existence of `Sheet (First Match)`
+    t =    10.40s Checking existence of `Any (First Match)`
+    t =    10.45s Checking existence of `Any (First Match)`
+    t =    10.47s Checking existence of `CollectionView (First Match)`
+    t =    10.50s Find the CollectionView (First Match)
+    t =    10.54s Checking existence of `Table (First Match)`
+    t =    10.58s Checking existence of `Sheet (First Match)`
+    t =    10.61s Checking existence of `CollectionView (First Match)`
+    t =    10.63s Checking existence of `Table (First Match)`
+    t =    10.64s Checking existence of `Sheet (First Match)`
+    t =    10.92s Checking existence of `Any (First Match)`
+    t =    10.97s Checking existence of `Any (First Match)`
+    t =    10.99s Checking existence of `CollectionView (First Match)`
+    t =    11.02s Find the CollectionView (First Match)
+    t =    11.05s Checking existence of `Table (First Match)`
+    t =    11.08s Checking existence of `Sheet (First Match)`
+    t =    11.12s Checking existence of `CollectionView (First Match)`
+    t =    11.13s Checking existence of `Table (First Match)`
+    t =    11.15s Checking existence of `Sheet (First Match)`
+    t =    11.43s Checking existence of `Any (First Match)`
+    t =    11.47s Find the Any (First Match)
+    t =    11.51s Tap "shareCell" Cell
+    t =    11.51s     Wait for dev.snapback.custodyprobes to idle
+    t =    11.51s     Find the "shareCell" Cell
+    t =    11.55s     Check for interrupting elements affecting "shareCell" Cell
+    t =    11.58s     Synthesize event
+    t =    11.87s     Wait for dev.snapback.custodyprobes to idle
+    t =    16.88s Tear Down
+Test Case '-[NativeCustodyProbesUITests.NativeCustodyProbesUITests testShareProbeInvokesCustodyExtension]' passed (17.118 seconds).
+Test Suite 'NativeCustodyProbesUITests' passed at 2026-08-16 19:35:41.021.
+	 Executed 1 test, with 0 failures (0 unexpected) in 17.118 (17.119) seconds
+Test Suite 'NativeCustodyProbesUITests.xctest' passed at 2026-08-16 19:35:41.021.
+	 Executed 1 test, with 0 failures (0 unexpected) in 17.118 (17.119) seconds
+Test Suite 'All tests' passed at 2026-08-16 19:35:41.021.
+	 Executed 1 test, with 0 failures (0 unexpected) in 17.118 (17.120) seconds
+2026-08-16 19:35:51.220 xcodebuild[52384:4314911] [MT] IDETestOperationsObserverDebug: 28.763 elapsed -- Testing started completed.
+2026-08-16 19:35:51.220 xcodebuild[52384:4314911] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-08-16 19:35:51.220 xcodebuild[52384:4314911] [MT] IDETestOperationsObserverDebug: 28.763 sec, +28.763 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Logs/Test/Test-NativeCustodyProbes-2026.08.16_19-35-22--0700.xcresult
+
+** TEST EXECUTE SUCCEEDED **
+
+Testing started

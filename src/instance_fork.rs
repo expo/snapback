@@ -2329,9 +2329,8 @@ impl EgressFamily {
             // not a derived-fork egress effect.
             | "permissions.allowsRole"
             | "permissions.requireRole"
-            | "authorityProfile.list"
-            | "authorityProfile.myRole"
-            | "authorityProfile.transition" => None,
+            | "authority.list"
+            | "authority.myRole" => None,
             _ => Some(Self::UnclassifiedHostOperation),
         }
     }
@@ -5580,6 +5579,8 @@ mod tests {
     }
 
     fn app_row_schema() -> crate::manifest::SchemaManifest {
+        // @ref LLP 0264#d2-v1-default-write-posture-by-policy-kind — this
+        // ordinary writable fixture declares its pre-existing public posture.
         crate::manifest::SchemaManifest {
             tables: vec![crate::manifest::TableManifest {
                 name: "items".to_owned(),
@@ -5605,7 +5606,7 @@ mod tests {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             }],
             ..crate::manifest::SchemaManifest::default()
@@ -6423,6 +6424,10 @@ mod tests {
         fork.deny_derived_fork_host_op("runtime.now", 45).unwrap();
         fork.deny_derived_fork_host_op("mutation.settlement", 45)
             .unwrap();
+        fork.deny_derived_fork_host_op("authority.list", 45)
+            .unwrap();
+        fork.deny_derived_fork_host_op("authority.myRole", 45)
+            .unwrap();
         drop(fork);
         // Every refusal above left a durable, payload-free marker.
         let conn = Connection::open(&database).unwrap();
@@ -6513,6 +6518,8 @@ mod tests {
             EgressFamily::for_derived_host_op("permissions.allowsRole"),
             None
         );
+        assert_eq!(EgressFamily::for_derived_host_op("authority.list"), None);
+        assert_eq!(EgressFamily::for_derived_host_op("authority.myRole"), None);
     }
 
     #[tokio::test]

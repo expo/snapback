@@ -25,7 +25,7 @@ const schemaSource = (extraField = '') => `
     userId: v.principal(),
     role: v.string(),
     note: v.optional(v.string()),
-  }).membership({
+  }).visibility({ kind: 'owner', field: 'userId' }).membership({
     id: 'orgMembers',
     principal: 'userId',
     resource: 'orgId',
@@ -38,7 +38,9 @@ const schemaSource = (extraField = '') => `
     ],
   });
   export default defineSchema({
-    orgs: defineTable({ name: v.string(), tagline: v.optional(v.string()) }).sync(),
+    orgs: defineTable({ name: v.string(), tagline: v.optional(v.string()) })
+      .visibility({ kind: 'public-read' })
+      .sync(),
     customers: defineTable({
       orgId: v.id('orgs'),
       name: v.string(),
@@ -46,7 +48,7 @@ const schemaSource = (extraField = '') => `
       createdAt: v.integer(),
       nickname: v.optional(v.string()),
       ${extraField}
-    }).index('by_org', ['orgId']).sync(),
+    }).index('by_org', ['orgId']).visibility({ kind: 'public-read' }).sync(),
     orgMembers,
   });
 `;
@@ -307,7 +309,9 @@ try {
   writeFileSync(join(root, 'schema.mjs'), `
     import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
     export default defineSchema({
-      conversations: defineTable({ memberHandles: v.array(v.string()) }).sync(),
+      conversations: defineTable({ memberHandles: v.array(v.string()) })
+        .visibility({ kind: 'public-read' })
+        .sync(),
     });
   `);
   generated = await generate(root);

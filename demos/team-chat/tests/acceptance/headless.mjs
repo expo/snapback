@@ -1,8 +1,8 @@
-// Team Chat local pressure acceptance.
+// Team Chat authority-profile acceptance.
 //
-// @ref LLP 0063#next-application-pressure-tests — this suite exercises the
-// implemented-local rows in pressure-profile.v1.json. It is not a STEP6.CHAT
-// production or hosted witness.
+// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — this is
+// the server/codegen witness for the generated profile namespace, opaque
+// roster custody, post-commit transition receipts, and exact-one-owner races.
 
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSuite, runAcceptance, assert, assertEqual, assertThrows } from '../../../_kit/harness.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
+import { AdminClient } from '../../../../packages/snapback-admin-client/index.mjs';
 import api from '../../snapback/generated/api.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -27,24 +28,76 @@ const receiptPressureRows = pressureProfile.pressures.filter(({ id }) =>
 const snapbackRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim();
 
 const OWNER = 'user_owner';
-const MEMBERS = Array.from(
-  { length: 31 },
-  (_, index) => `user_member_${String(index + 1).padStart(2, '0')}`,
-);
-const FIRST_MEMBER = MEMBERS[0];
+const FIRST = 'user_member_01';
+const SECOND = 'user_member_02';
+const THIRD = 'user_member_03';
 const UNRELATED = 'user_unrelated';
-const suite = createSuite('team-chat / local pressure kernel', { expectedChecks: 11 });
+const suite = createSuite('team-chat / generated authority profile', { expectedChecks: 10 });
 const cleanups = [];
 let server;
 let db;
+let admin;
 let roomId;
 let secondRoomId;
-let memberRoomLive;
-let memberSeatsLive;
-let preRemovalCursor;
+let currentOwner;
+const mutationEnvelopes = [];
+const privateRoomMemberIds = new Set();
 
-const mutate = (ref, args, userId) => db.mutate(ref, { args, userId });
+const transitions = (output) => output.authorityTransitions ?? [];
+const mutateOn = async (client, ref, args, userId) => {
+  const output = await client.mutate(ref, { args, userId });
+  mutationEnvelopes.push(structuredClone(output));
+  return output;
+};
+const mutate = (ref, args, userId) => mutateOn(db, ref, args, userId);
 const query = (ref, args, userId) => db.query(ref, { args, userId });
+const roleByPrincipal = (rows) => Object.fromEntries(rows.map(({ userId, role }) => [userId, role]));
+const refusalBytes = async (ref, args, userId, code, message) => {
+  const response = await fetch(`${server.baseUrl}/query/${encodeURIComponent(ref.name)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      args,
+      auth: SnapbackClient.auth(userId),
+      read_set: [],
+      expectedGeneration: ref.expectedGeneration,
+    }),
+  });
+  const payload = Buffer.from(await response.arrayBuffer());
+  assert(!response.ok, `${message}: request unexpectedly succeeded`);
+  let decoded;
+  try {
+    decoded = JSON.parse(payload.toString('utf8'));
+  } catch {
+    throw new Error(`${message}: refusal was not JSON`);
+  }
+  assertEqual(decoded?.diagnostic?.code, code, `${message}: refusal code`);
+  return payload;
+};
+const findExactPrivateRoomMemberId = (value, path = '$') => {
+  if (typeof value === 'string' && privateRoomMemberIds.has(value)) return { path, value };
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index += 1) {
+      const found = findExactPrivateRoomMemberId(value[index], `${path}[${index}]`);
+      if (found) return found;
+    }
+  } else if (value && typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      const found = findExactPrivateRoomMemberId(child, `${path}.${key}`);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+const collectPrivateRoomMemberIds = async () => {
+  const scan = await admin.scanTable('roomMembersV2', 500, 0);
+  assertEqual(scan.total, scan.rows.length, 'private roomMembersV2 probe was not exhaustive');
+  for (const row of scan.rows) {
+    assert(typeof row._id === 'string' && row._id.length > 0, 'private roomMembersV2 probe omitted _id');
+    privateRoomMemberIds.add(row._id);
+  }
+  assert(privateRoomMemberIds.size > 0, 'private roomMembersV2 probe found no ids');
+};
 
 await runAcceptance(suite, async () => {
   server = await startServer({
@@ -58,334 +111,300 @@ await runAcceptance(suite, async () => {
   });
   cleanups.push(() => server.stop());
   db = new SnapbackClient(server.baseUrl, server.clientOptions);
+  admin = new AdminClient(`${server.baseUrl}/_snapback/api`, { token: server.adminToken });
 
-  await suite.check('isolated server loads the committed team-chat artifacts', async () => {
+  await suite.check('isolated server loads the generated authority-profile artifacts', async () => {
     const schemaLoad = await db.loadSchema(generated('schema.manifest.json'));
     assertEqual(
       schemaLoad.diagnostics.filter(({ severity }) => severity === 'Error' || severity === 'Fatal'),
       [],
       'schema diagnostics',
     );
-    await db.loadFunctions(generated('functions.manifest.json'));
+    const functionsLoad = await db.loadFunctions(generated('functions.manifest.json'));
+    assertEqual(
+      functionsLoad.diagnostics.filter(({ severity }) => severity === 'Error' || severity === 'Fatal'),
+      [],
+      'function diagnostics',
+    );
     await db.reset();
-    const health = await db.health();
-    assert(health.ok, 'server health is not ok');
-    return {
-      launchRung: server.launch.rung,
-      identityVerdict: server.identity.verdict,
-    };
+    assert((await db.health()).ok, 'server health is not ok');
+    const state = await db.inspect();
+    const loadedNames = state.functions.functions.map(({ name }) => name);
+    assert(
+      loadedNames.includes('createRoom'),
+      `createRoom did not load: ${loadedNames.join(', ')}; response=${JSON.stringify(functionsLoad)}`,
+    );
+    for (const operation of [
+      'list', 'myRole', 'invite', 'join', 'leave', 'changeRole', 'transferOwner', 'remove',
+    ]) {
+      assert(api.roomMembersV2[operation]?.artifactKind === 'functionReference', `${operation} ref missing`);
+    }
+    return { launchRung: server.launch.rung, identityVerdict: server.identity.verdict };
   });
 
-  await suite.check('room bootstrap atomically creates the room and owner seat', async () => {
-    const created = await mutate(
-      api.createRoom,
-      { title: 'Compiler Club', displayName: 'Owner' },
-      OWNER,
-    );
-    assert(typeof created.result === 'string' && created.result.length > 0, 'room id missing');
-    roomId = created.result;
-    const room = await query(api.roomDetails, { roomId }, OWNER);
-    assertEqual(room.rows.map(({ title }) => title), ['Compiler Club'], 'owner room visibility');
-    const list = await query(api.listMyRooms, {}, OWNER);
+  await suite.check('bootstrap owner is visible through list and myRole without private fields', async () => {
+    roomId = (await mutate(api.createRoom, { title: 'Compiler Club' }, OWNER)).result;
+    secondRoomId = (await mutate(api.createRoom, { title: 'Cursor Boundary' }, OWNER)).result;
+    const roster = await query(api.roomMembersV2.list, { scopeId: roomId }, OWNER);
+    assertEqual(roster.rows, [{ userId: OWNER, role: 'owner' }], 'initial roster');
     assertEqual(
-      list.rows.map(({ status, displayName }) => [status, displayName]),
-      [['owner', 'Owner']],
-      'owner participant row',
+      (await query(api.roomMembersV2.myRole, { scopeId: roomId }, OWNER)).rows,
+      [{ role: 'owner', status: 'active' }],
+      'owner role projection',
     );
+    assert(!Object.hasOwn(roster.rows[0], '_id'), 'private membership id escaped');
+    assert(!Object.hasOwn(roster.rows[0], 'grantedByActor'), 'private provenance escaped');
     return { roomId };
   });
 
-  await suite.check('an invitation is visible product state but grants no room read', async () => {
-    await mutate(
-      api.inviteMember,
-      { roomId, userId: FIRST_MEMBER, displayName: 'Member 01' },
-      OWNER,
-    );
-    const list = await query(api.listMyRooms, {}, FIRST_MEMBER);
-    assertEqual(list.rows.map(({ status }) => status), ['invited'], 'invite card');
+  await suite.check('invite is receipted while pending authority remains non-enumerating', async () => {
+    const invited = await mutate(api.roomMembersV2.invite, {
+      scopeId: roomId,
+      principal: FIRST,
+      role: 'invited',
+    }, OWNER);
+    assertEqual(transitions(invited).length, 1, 'invite receipt count');
+    assertEqual(transitions(invited)[0].predecessor, null, 'invite predecessor');
+    assertEqual(transitions(invited)[0].successor, { role: 'invited', status: 'invited' }, 'invite successor');
     assertEqual(
-      (await query(api.roomDetails, { roomId }, FIRST_MEMBER)).rows,
-      [],
-      'pending invitation leaked the room',
+      (await query(api.roomMembersV2.myRole, { scopeId: roomId }, FIRST)).rows,
+      [{ role: 'invited', status: 'invited' }],
+      'pending caller role',
     );
+    await assertThrows(
+      () => query(api.roomMembersV2.list, { scopeId: roomId }, FIRST),
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+      'pending principal enumerated the roster',
+    );
+    await assertThrows(
+      () => query(api.roomMembersV2.list, {
+        scopeId: roomId,
+        page: { after: 'not-a-cursor', limit: 2 },
+      }, UNRELATED),
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+      'outsider learned cursor validity before role admission',
+    );
+    let absentScopeId = `${roomId.slice(0, -1)}${roomId.endsWith('0') ? '1' : '0'}`;
+    if (absentScopeId === secondRoomId) {
+      absentScopeId = `${roomId.slice(0, -1)}${roomId.endsWith('2') ? '3' : '2'}`;
+    }
+    const listUnauthorized = await refusalBytes(
+      api.roomMembersV2.list,
+      { scopeId: roomId },
+      UNRELATED,
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+      'outsider roster refusal',
+    );
+    const listAbsent = await refusalBytes(
+      api.roomMembersV2.list,
+      { scopeId: absentScopeId },
+      UNRELATED,
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+      'absent-scope roster refusal',
+    );
+    assert(listUnauthorized.equals(listAbsent), 'list non-enumeration refusal bytes differ');
+    const myRoleUnauthorized = await refusalBytes(
+      api.roomMembersV2.myRole,
+      { scopeId: roomId },
+      UNRELATED,
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+      'outsider myRole refusal',
+    );
+    const myRoleAbsent = await refusalBytes(
+      api.roomMembersV2.myRole,
+      { scopeId: absentScopeId },
+      UNRELATED,
+      'SNAPBACK_AUTH_PERMISSION_DENIED',
+      'absent-scope myRole refusal',
+    );
+    assert(myRoleUnauthorized.equals(myRoleAbsent), 'myRole non-enumeration refusal bytes differ');
+  });
+
+  await suite.check('join promotes invitations and returns only committed transition receipts', async () => {
+    const joined = await mutate(api.roomMembersV2.join, {
+      scopeId: roomId,
+      invitation: 'member',
+    }, FIRST);
+    assertEqual(transitions(joined).length, 1, 'join receipt count');
+    assertEqual(transitions(joined)[0].predecessor, { role: 'invited', status: 'invited' }, 'join predecessor');
+    assertEqual(transitions(joined)[0].successor, { role: 'member', status: 'active' }, 'join successor');
+    for (const principal of [SECOND, THIRD]) {
+      await mutate(api.roomMembersV2.invite, {
+        scopeId: roomId,
+        principal,
+        role: 'invited',
+      }, OWNER);
+      await mutate(api.roomMembersV2.join, {
+        scopeId: roomId,
+        invitation: 'member',
+      }, principal);
+    }
     assertEqual(
-      (await query(api.roomMessages, { roomId }, FIRST_MEMBER)).rows,
-      [],
-      'pending invitation leaked room messages',
+      (await query(api.roomMembersV2.myRole, { scopeId: roomId }, FIRST)).rows,
+      [{ role: 'member', status: 'active' }],
+      'joined caller role',
     );
   });
 
-  await suite.check('self-accept grants the protected room and live message surface', async () => {
-    memberRoomLive = await db.liveQuery(api.roomMessages, {
-      connectionId: 'team_chat_first_member_room',
-      args: { roomId },
-      userId: FIRST_MEMBER,
-    });
-    cleanups.push(() => memberRoomLive.dispose());
-    memberSeatsLive = await db.liveQuery('_snapback.myMemberships', {
-      connectionId: 'team_chat_first_member_seats',
-      args: { membership: 'roomMembers' },
-      userId: FIRST_MEMBER,
-    });
-    cleanups.push(() => memberSeatsLive.dispose());
-    assertEqual(memberRoomLive.rows, [], 'pending member live query must start empty');
-    assertEqual(
-      memberSeatsLive.rows.map(({ resource, role }) => [resource, role]),
-      [[roomId, 'invited']],
-      'pending invitation appears only in the caller-owned seat projection',
+  await suite.check('changeRole is transition-derived and its receipt names the public subject', async () => {
+    await assertThrows(
+      () => mutate(api.roomMembersV2.changeRole, {
+        scopeId: roomId,
+        principal: SECOND,
+        role: 'admin',
+      }, FIRST),
+      'SNAPBACK_MEMBERSHIP_TRANSITION_DENIED',
+      'plain member changed another member role',
     );
-    await mutate(api.acceptInvite, { roomId }, FIRST_MEMBER);
-    assertEqual(
-      (await query(api.roomDetails, { roomId }, FIRST_MEMBER)).rows.map(({ title }) => title),
-      ['Compiler Club'],
-      'accepted member room visibility',
+    await assertThrows(
+      () => mutate(api.roomMembersV2.changeRole, {
+        scopeId: roomId,
+        principal: SECOND,
+        role: 'owner',
+      }, OWNER),
+      'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED',
+      'ordinary role change created an owner',
     );
-    await mutate(api.sendMessage, { roomId, body: 'welcome' }, OWNER);
-    assertEqual(
-      (await memberRoomLive.poll()).map(({ body }) => body),
-      ['welcome'],
-      'accepted member live room message',
-    );
-    assertEqual(
-      (await memberSeatsLive.poll()).map(({ resource, role }) => [resource, role]),
-      [[roomId, 'member']],
-      'accepted membership appears in the host-owned self projection',
-    );
+    const changed = await mutate(api.roomMembersV2.changeRole, {
+      scopeId: roomId,
+      principal: FIRST,
+      role: 'admin',
+    }, OWNER);
+    assertEqual(transitions(changed).length, 1, 'changeRole receipt count');
+    assertEqual(transitions(changed)[0].subject, FIRST, 'changeRole subject');
+    assertEqual(transitions(changed)[0].predecessor.role, 'member', 'changeRole predecessor');
+    assertEqual(transitions(changed)[0].successor.role, 'admin', 'changeRole successor');
   });
 
-  await suite.check('the room admits the preregistered 32-recipient local cohort', async () => {
-    for (let index = 1; index < MEMBERS.length; index += 1) {
-      const userId = MEMBERS[index];
-      await mutate(
-        api.inviteMember,
-        { roomId, userId, displayName: `Member ${String(index + 1).padStart(2, '0')}` },
-        OWNER,
+  await suite.check('opaque roster cursors bind scope, caller, ordering, and generation', async () => {
+    await collectPrivateRoomMemberIds();
+    const page1 = await query(api.roomMembersV2.list, {
+      scopeId: roomId,
+      page: { limit: 2 },
+    }, OWNER);
+    assertEqual(page1.rows.length, 2, 'first roster page length');
+    assert(typeof page1.cursor === 'string', 'roster cursor is missing');
+    const cursorParts = page1.cursor.split('.');
+    assertEqual(cursorParts.length, 3, 'sealed roster cursor segment count');
+    assertEqual(cursorParts[0], 'sbpc2', 'sealed roster cursor version tag');
+    const decodedCursorPayload = Buffer.from(cursorParts[2], 'base64url');
+    for (const privateValue of [
+      ...privateRoomMemberIds, OWNER, FIRST, SECOND, THIRD, UNRELATED,
+    ]) {
+      assert(
+        !decodedCursorPayload.equals(Buffer.from(privateValue, 'utf8')),
+        `base64-decoded cursor payload exactly exposed ${privateValue}`,
       );
-      await mutate(api.acceptInvite, { roomId }, userId);
     }
-    const receipt = await mutate(api.sendMessage, { roomId, body: 'fan-out-32' }, OWNER);
-    assertEqual(receipt.result.recipients, 32, 'fan-out recipient count');
-    const unreadCounts = await Promise.all(MEMBERS.map(async (userId) => (
-      await query(api.unreadDeliveries, {}, userId)
-    ).rows.length));
-    assertEqual(
-      unreadCounts,
-      [2, ...Array.from({ length: 30 }, () => 1)],
-      'the original member receives both messages and the later cohort receives the fan-out message',
-    );
-    assertEqual(
-      (await query(api.unreadDeliveries, {}, OWNER)).rows.length,
-      0,
-      'sender deliveries are read',
-    );
-    return { activeRecipients: receipt.result.recipients };
-  });
-
-  await suite.check('room-at-a-time read settlement clears only the recipient inbox', async () => {
-    const cleared = await mutate(api.markRoomRead, { roomId }, FIRST_MEMBER);
-    assertEqual(cleared.result.changed, 2, 'changed unread rows');
-    assertEqual(
-      (await query(api.unreadDeliveries, {}, FIRST_MEMBER)).rows,
-      [],
-      'first member unread rows remain',
-    );
-    assertEqual(
-      (await query(api.unreadDeliveries, {}, MEMBERS[1])).rows.length,
-      1,
-      'another member unread state changed',
-    );
-  });
-
-  await suite.check('opaque recipient inbox cursors page without overlap', async () => {
-    for (let index = 0; index < 20; index += 1) {
-      await mutate(api.sendMessage, { roomId, body: `history-${String(index).padStart(2, '0')}` }, OWNER);
+    let decodedCursorJson = null;
+    try {
+      decodedCursorJson = JSON.parse(decodedCursorPayload.toString('utf8'));
+    } catch {
+      // Ciphertext is intentionally not JSON.
     }
-    const page1 = await query(api.firstInboxPage, {}, FIRST_MEMBER);
-    assertEqual(page1.rows.length, 10, 'first page length');
-    assert(typeof page1.cursor === 'string' && page1.cursor.startsWith('sbpc1.'), 'first cursor is opaque');
-    const page2 = await query(api.nextInboxPage, { after: page1.cursor }, FIRST_MEMBER);
-    assertEqual(page2.rows.length, 10, 'second page length');
-    assert(typeof page2.cursor === 'string' && page2.cursor.startsWith('sbpc1.'), 'second cursor is opaque');
-    const page3 = await query(api.nextInboxPage, { after: page2.cursor }, FIRST_MEMBER);
-    assertEqual(page3.rows.length, 2, 'terminal page length');
-    assertEqual(page3.cursor ?? null, null, 'terminal page cursor');
-    const ids = [...page1.rows, ...page2.rows, ...page3.rows].map(({ _id }) => _id);
-    assertEqual(new Set(ids).size, 22, 'pagination overlap');
+    assertEqual(decodedCursorJson, null, 'base64-decoded cursor exposed readable JSON');
+    const page2 = await query(api.roomMembersV2.list, {
+      scopeId: roomId,
+      page: { after: page1.cursor, limit: 2 },
+    }, OWNER);
+    assertEqual(page2.rows.length, 2, 'second roster page length');
+    assertEqual(page2.cursor ?? null, null, 'terminal roster cursor');
+    const principals = [...page1.rows, ...page2.rows].map(({ userId }) => userId);
+    assertEqual(new Set(principals).size, 4, 'roster pagination overlap');
     await assertThrows(
-      () => query(api.nextInboxPage, { after: page1.cursor }, MEMBERS[1]),
+      () => query(api.roomMembersV2.list, {
+        scopeId: secondRoomId,
+        page: { after: page1.cursor, limit: 2 },
+      }, OWNER),
       'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
-      'cross-recipient cursor must fail closed',
+      'cross-scope roster cursor was accepted',
     );
-    return { rows: ids.length, pages: 3 };
+    await assertThrows(
+      () => query(api.roomMembersV2.list, {
+        scopeId: roomId,
+        page: { after: page1.cursor, limit: 2 },
+      }, SECOND),
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'cross-caller roster cursor was accepted',
+    );
+    return { pages: 2, rows: principals.length };
   });
 
-  await suite.check('membership-scoped room history traverses three pages and fences cursor custody', async () => {
-    const page1 = await query(api.firstRoomMessagePage, { roomId }, FIRST_MEMBER);
-    assertEqual(page1.rows.length, 10, 'first room page length');
-    assert(typeof page1.cursor === 'string' && page1.cursor.startsWith('sbpc1.'), 'room cursor is opaque');
-    const page2 = await query(
-      api.nextRoomMessagePage,
-      { roomId, after: page1.cursor },
-      FIRST_MEMBER,
-    );
-    assertEqual(page2.rows.length, 10, 'second room page length');
-    const page3 = await query(
-      api.nextRoomMessagePage,
-      { roomId, after: page2.cursor },
-      FIRST_MEMBER,
-    );
-    assertEqual(page3.rows.length, 2, 'terminal room page length');
-    assertEqual(page3.cursor ?? null, null, 'terminal room cursor');
-    const ids = [...page1.rows, ...page2.rows, ...page3.rows].map(({ _id }) => _id);
-    assertEqual(new Set(ids).size, 22, 'room page overlap');
-    await assertThrows(
-      () => query(api.nextRoomMessagePage, { roomId, after: page1.cursor }, MEMBERS[1]),
-      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
-      'cross-user room cursor must fail closed',
-    );
-    secondRoomId = (await mutate(
-      api.createRoom,
-      { title: 'Other Room', displayName: 'Owner' },
-      OWNER,
-    )).result;
-    await assertThrows(
-      () => query(
-        api.nextRoomMessagePage,
-        { roomId: secondRoomId, after: page1.cursor },
-        FIRST_MEMBER,
-      ),
-      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
-      'cross-room cursor must fail closed',
-    );
-    preRemovalCursor = page1.cursor;
-    return { rows: ids.length, pages: 3, refusalCode: 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID' };
-  });
-
-  await suite.check('owner removal cuts room, seat, history cursor, delivery, and send authority together', async () => {
-    const removed = await mutate(
-      api.ownerRemoveMember,
-      { roomId, targetPrincipal: FIRST_MEMBER },
-      OWNER,
-    );
-    assertEqual(removed.result, null, 'principal-addressed removal result');
-    assertEqual(await memberRoomLive.poll(), [], 'protected room did not blank at removal cut');
-    assertEqual(await memberSeatsLive.poll(), [], 'self-membership seat did not drop at removal cut');
+  await suite.check('message delivery reads the canonical roster without crossing owner custody', async () => {
+    const sent = await mutate(api.sendMessage, { roomId, body: 'one roster' }, OWNER);
+    assertEqual(sent.result.rosterSize, 4, 'canonical roster read');
+    assertEqual(sent.result.recipients, 1, 'owner-stamped delivery count');
     assertEqual(
-      (await query(api.firstRoomMessagePage, { roomId }, FIRST_MEMBER)).rows,
+      (await query(api.unreadDeliveries, {}, FIRST)).rows.map(({ body }) => body),
       [],
-      'fresh former-member room-history page',
-    );
-    assertEqual(
-      (await query(api.firstInboxPage, {}, FIRST_MEMBER)).rows,
-      [],
-      'owner removal did not purge product delivery custody',
-    );
-    await assertThrows(
-      () => query(
-        api.nextRoomMessagePage,
-        { roomId, after: preRemovalCursor },
-        FIRST_MEMBER,
-      ),
-      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
-      'pre-removal cursor must fail closed',
-    );
-    await assertThrows(
-      () => mutate(api.sendMessage, { roomId, body: 'after owner removal' }, FIRST_MEMBER),
-      'SNAPBACK_AUTH_PERMISSION_DENIED',
-      'removed member send must be denied',
-    );
-    const fanout = await mutate(api.sendMessage, { roomId, body: 'after removal boundary' }, OWNER);
-    assertEqual(fanout.result.recipients, 31, 'removed member remained in fan-out');
-    assertEqual(
-      (await query(api.unreadDeliveries, {}, FIRST_MEMBER)).rows,
-      [],
-      'post-boundary delivery reached removed member',
-    );
-    const absentAgain = await mutate(
-      api.ownerRemoveMember,
-      { roomId, targetPrincipal: FIRST_MEMBER },
-      OWNER,
-    );
-    assertEqual(absentAgain.result, null, 'absent-target removal result differs');
-    await mutate(
-      api.inviteMember,
-      { roomId, userId: FIRST_MEMBER, displayName: 'Member 01 returns' },
-      OWNER,
-    );
-    await mutate(api.acceptInvite, { roomId }, FIRST_MEMBER);
-    await assertThrows(
-      () => query(
-        api.nextRoomMessagePage,
-        { roomId, after: preRemovalCursor },
-        FIRST_MEMBER,
-      ),
-      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
-      'rejoin revived pre-removal cursor',
-    );
-    return {
-      refusalCodes: [
-        'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
-        'SNAPBACK_AUTH_PERMISSION_DENIED',
-      ],
-    };
-  });
-
-  await suite.check('self-leave purges retained room deliveries and revokes room authority', async () => {
-    const left = await mutate(api.leaveRoom, { roomId }, FIRST_MEMBER);
-    assertEqual(left.result.removedDeliveries, 0, 'rejoined member acquired retained deliveries');
-    assertEqual(
-      (await query(api.firstInboxPage, {}, FIRST_MEMBER)).rows,
-      [],
-      'former member retained inbox',
-    );
-    assertEqual(
-      (await query(api.roomMessages, { roomId }, FIRST_MEMBER)).rows,
-      [],
-      'former member retained room history',
-    );
-    await assertThrows(
-      () => mutate(api.sendMessage, { roomId, body: 'after leave' }, FIRST_MEMBER),
-      'SNAPBACK_AUTH_PERMISSION_DENIED',
-      'former member send must be denied',
-    );
-    await mutate(
-      api.inviteMember,
-      { roomId, userId: FIRST_MEMBER, displayName: 'Member 01 returns' },
-      OWNER,
-    );
-    await mutate(api.acceptInvite, { roomId }, FIRST_MEMBER);
-    assertEqual(
-      (await query(api.roomDetails, { roomId }, FIRST_MEMBER)).rows.map(({ title }) => title),
-      ['Compiler Club'],
-      're-invited member room visibility',
+      'cross-owner delivery escaped the owner-write boundary',
     );
   });
 
-  await suite.check('subsequent fan-out includes the rejoined member and excludes unrelated principals', async () => {
-    const sent = await mutate(api.sendMessage, { roomId, body: 'remaining members' }, OWNER);
-    assertEqual(sent.result.recipients, 32, 'post-rejoin recipient count');
+  await suite.check('transferOwner commits its two authority transitions atomically', async () => {
+    const transferred = await mutate(api.roomMembersV2.transferOwner, {
+      scopeId: roomId,
+      principal: FIRST,
+    }, OWNER);
+    assertEqual(transitions(transferred).length, 2, 'transfer receipt count');
     assertEqual(
-      (await query(api.unreadDeliveries, {}, FIRST_MEMBER)).rows.map(({ body }) => body),
-      ['remaining members'],
-      'rejoined member inbox',
+      new Set(transitions(transferred).map(({ subject }) => subject)),
+      new Set([OWNER, FIRST]),
+      'transfer receipt subjects',
     );
-    assertEqual(
-      (await query(api.listMyRooms, {}, UNRELATED)).rows,
-      [],
-      'unrelated principal room list',
+    const roles = roleByPrincipal((await query(api.roomMembersV2.list, { scopeId: roomId }, FIRST)).rows);
+    assertEqual(roles[FIRST], 'owner', 'target did not become owner');
+    assertEqual(roles[OWNER], 'admin', 'predecessor owner did not become admin');
+    currentOwner = FIRST;
+  });
+
+  await suite.check('Rust two-plan owner-transfer race pins conflict and one owner in each raced database', async () => {
+    const raceProof = execFileSync('cargo', [
+      'test',
+      '--lib',
+      'storage::tests::membership_write_tests::transfer_owner_races_target_removal_and_concurrent_transfer_in_both_orders',
+      '--',
+      '--exact',
+      '--nocapture',
+    ], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env: { ...process.env, RUST_MIN_STACK: '16777216' },
+    });
+    assert(
+      /test storage::tests::membership_write_tests::transfer_owner_races_target_removal_and_concurrent_transfer_in_both_orders \.\.\. ok/u.test(raceProof),
+      'the exact two-plan kernel race did not pass',
     );
-    assertEqual(
-      (await query(api.roomMessages, { roomId }, UNRELATED)).rows,
-      [],
-      'unrelated principal room messages',
+    assert(/test result: ok\. 1 passed; 0 failed/u.test(raceProof), 'the two-plan race result count drifted');
+    return { loserCode: 'SNAPBACK_MUTATION_CONFLICT', ownerCardinalityWitness: 'Rust raced databases' };
+  });
+
+  await suite.check('remove and leave keep actual private row ids out of complete mutation envelopes', async () => {
+    const removable = OWNER;
+    const removed = await mutate(api.roomMembersV2.remove, {
+      scopeId: roomId,
+      principal: removable,
+    }, currentOwner);
+    assertEqual(transitions(removed).length, 1, 'remove receipt count');
+    assertEqual(transitions(removed)[0].successor, null, 'remove successor');
+
+    const afterRemove = (await query(api.roomMembersV2.list, { scopeId: roomId }, currentOwner)).rows;
+    const leaver = afterRemove.find(({ userId, role }) => userId !== currentOwner && role !== 'owner').userId;
+    const left = await mutate(api.roomMembersV2.leave, { scopeId: roomId }, leaver);
+    assertEqual(transitions(left).length, 1, 'leave receipt count');
+    assertEqual(transitions(left)[0].subject, leaver, 'leave subject');
+    assertEqual(transitions(left)[0].successor, null, 'leave successor');
+    const leaked = findExactPrivateRoomMemberId(mutationEnvelopes);
+    assert(
+      leaked === null,
+      `actual private membership row id escaped anywhere in mutation envelopes: ${JSON.stringify(leaked)}`,
     );
-    return { activeRecipients: sent.result.recipients };
   });
 }, {
   cleanups,
   reportExtra: {
     demo: 'team-chat',
-    profileId: 'team-chat/local-pressure-v0',
+    profileId: 'team-chat/authority-profile-b2a',
     targetProfile: 'local-dev-sqlite-ibex',
     snapbackRevision,
     generatedArtifactHashes: {
@@ -395,8 +414,12 @@ await runAcceptance(suite, async () => {
     },
     pressureRows: receiptPressureRows,
     refusalCodes: [
-      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
       'SNAPBACK_AUTH_PERMISSION_DENIED',
+      'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID',
+      'SNAPBACK_MEMBERSHIP_TRANSITION_DENIED',
+      'SNAPBACK_ARGUMENT_NORMALIZATION_FAILED',
+      'SNAPBACK_AUTHORITY_TRANSFER_OWNER_DENIED',
+      'SNAPBACK_MUTATION_CONFLICT',
     ],
     claimEligible: false,
     roadmapClaim: 'STEP6.CHAT',

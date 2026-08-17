@@ -471,7 +471,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -645,7 +646,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -731,7 +733,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -901,7 +904,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1055,7 +1059,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1278,7 +1283,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1448,7 +1454,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1597,7 +1604,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1753,7 +1761,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -1935,7 +1944,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -2089,7 +2099,8 @@
           "authorityProfileDependence": [],
           "authorizationDependence": [],
           "elevatedDbCapabilities": [],
-          "fieldBoundary": null
+          "fieldBoundary": null,
+          "generatedAuthorityOperation": null
         },
         "boundedSkew": null,
         "capabilities": [
@@ -2229,7 +2240,7 @@
     "authoringProfile",
     "appId"
   ],
-  "normalizedContractId": "sha256:3ac10e172e01771cfcfbbd693e08fe5037469c55ba6a3ff5e8195f9760babf2c",
+  "normalizedContractId": "sha256:8520f1047e30c5884c3f7ced5d5e3ce7dc4eb331231f5e0a7a8d7505420210a0",
   "normalizedSchemaId": "sha256:15decd1220e7fa07205660af4945c402bb2d18132637fd30f020c8ae1936bf96",
   "schemaVersion": "snapback.normalized-application-definition.v1"
 }

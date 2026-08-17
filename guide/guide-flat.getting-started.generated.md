@@ -104,7 +104,7 @@ storing `v.string()` and re-checking the domain in every writer:
     role: v.union([v.literal('crew'), v.literal('user')]),
     visibility: v.optional(v.union([v.literal('internal'), v.literal('public')])),
     title: v.string(),
-  }).index('by_role', ['role']).sync(),
+  }).index('by_role', ['role']).visibility({ kind: 'public-read' }).sync(),
 ```
 
 Two to seven unique string literals, each at most 64 UTF-8 bytes; authored

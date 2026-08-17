@@ -7,12 +7,13 @@ import {
 } from '@exact/contract/runtime';
 
 import manifestJson from './generated/coterie.manifest.json';
+import { coterieAvatarUrlForRef } from './avatar-refs.ts';
 import {
   COTERIE_IMAGE_URLS,
   COTERIE_VIDEO_URLS,
-  coterieAvatarUrlForRef,
 } from './coterie-fixtures.ts';
 import { queryAcrossTables, withMultiTableQueries } from './multi-table-query-boundary.ts';
+import { allCoterieProviderClaims } from './provider-claims.ts';
 import type {
   Chat,
   FeedItem,
@@ -20,9 +21,11 @@ import type {
   Message,
   Profile,
   ProfilePost,
+  ProviderClaim,
   SearchResult,
   Session,
   ThreadPost,
+  TypingParticipant,
 } from './generated/coterie.types.ts';
 
 export const coterieSurfaceManifest = manifestJson as unknown as ContractDataManifest;
@@ -92,6 +95,64 @@ interface RevokedSession extends Session {
   reason: 'logout' | 'replaced';
 }
 
+interface MessageReactionEvent {
+  actorId: string;
+  emoji: string;
+}
+
+type ReceiptState = 'sent' | 'delivered' | 'read';
+
+interface MemoryMessage {
+  id: string;
+  chatId: string;
+  senderId: string;
+  senderName: string;
+  body: string;
+  createdAt: string;
+  quotedMessageId: string | null;
+  reactionEvents: MessageReactionEvent[];
+  edited: boolean;
+  deleted: boolean;
+  recipientIds: string[];
+  droppedRecipientIds: string[];
+}
+
+interface MemoryChat {
+  id: string;
+  kind: 'dm' | 'group';
+  name: string | null;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  accentColor: string;
+  disappearing: string;
+  dmPairKey: string | null;
+}
+
+interface ChatMembership {
+  id: string;
+  chatId: string;
+  userId: string;
+  isAdmin: boolean;
+  active: boolean;
+  joinedAt: string;
+  historyThrough: string | null;
+}
+
+interface MessageReceipt {
+  id: string;
+  messageId: string;
+  userId: string;
+  state: ReceiptState;
+}
+
+interface MemoryTyping {
+  id: string;
+  chatId: string;
+  userId: string;
+  expiresAtMs: number;
+}
+
 const initialSession: Session[] = [
   {
     id: 'session-alice-0000',
@@ -127,6 +188,7 @@ const initialProfiles: Profile[] = [
     location: 'Oakland, CA',
     link: 'https://example.com/alice',
     avatarUrl: '/assets/fixtures/avatar-alice.png',
+    avatarRef: 'media/avatar-alice.png',
     followers: 4,
     following: 2,
     followedByMe: false,
@@ -140,6 +202,7 @@ const initialProfiles: Profile[] = [
     location: 'Berkeley, CA',
     link: 'https://example.com/bob',
     avatarUrl: '/assets/fixtures/avatar-bob.png',
+    avatarRef: 'media/avatar-bob.png',
     followers: 2,
     following: 2,
     followedByMe: true,
@@ -153,6 +216,7 @@ const initialProfiles: Profile[] = [
     location: 'San Francisco, CA',
     link: 'https://example.com/carol',
     avatarUrl: '/assets/fixtures/avatar-carol.png',
+    avatarRef: 'media/avatar-carol.png',
     followers: 1,
     following: 1,
     followedByMe: true,
@@ -166,6 +230,7 @@ const initialProfiles: Profile[] = [
     location: 'Portland, OR',
     link: 'https://example.com/dave',
     avatarUrl: '/assets/fixtures/avatar-dave.png',
+    avatarRef: 'media/avatar-dave.png',
     followers: 1,
     following: 1,
     followedByMe: false,
@@ -179,6 +244,7 @@ const initialProfiles: Profile[] = [
     location: 'Seattle, WA',
     link: 'https://example.com/erin',
     avatarUrl: '/assets/fixtures/avatar-erin.png',
+    avatarRef: 'media/avatar-erin.png',
     followers: 1,
     following: 2,
     followedByMe: false,
@@ -192,6 +258,7 @@ const initialProfiles: Profile[] = [
     location: 'Austin, TX',
     link: 'https://example.com/frank',
     avatarUrl: '/assets/fixtures/avatar-frank.png',
+    avatarRef: 'media/avatar-frank.png',
     followers: 1,
     following: 1,
     followedByMe: false,
@@ -205,6 +272,7 @@ const initialProfiles: Profile[] = [
     location: 'Chicago, IL',
     link: 'https://example.com/grace',
     avatarUrl: '/assets/fixtures/avatar-grace.png',
+    avatarRef: 'media/avatar-grace.png',
     followers: 2,
     following: 1,
     followedByMe: false,
@@ -218,6 +286,7 @@ const initialProfiles: Profile[] = [
     location: 'Brooklyn, NY',
     link: 'https://example.com/henry',
     avatarUrl: '/assets/fixtures/avatar-henry.png',
+    avatarRef: 'media/avatar-henry.png',
     followers: 0,
     following: 2,
     followedByMe: false,
@@ -332,63 +401,84 @@ const initialReposts: RepostEvent[] = [
   { postId: 'sp0019', actorId: 'bob', createdAt: '2026-01-01T00:01:07Z', mutationId: 'mr-bob-sp0019' },
 ];
 
-const initialChats: Chat[] = [
+const initialChats: MemoryChat[] = [
   {
     id: 'd-alice-bob',
-    title: 'Bob Bennett',
-    preview: 'On my way.',
+    kind: 'dm',
+    name: null,
+    description: null,
+    createdAt: '2026-01-01T00:01:08Z',
     updatedAt: '2026-01-01T00:01:17Z',
-    unreadCount: 0,
-    isGroup: false,
     accentColor: '#4F46E5',
     disappearing: 'off',
-    avatarUrl: '/assets/fixtures/avatar-bob.png',
+    dmPairKey: 'alice:bob',
   },
   {
     id: 'g-starter',
-    title: 'Weekend Plans',
-    preview: 'Locked in. See you Saturday.',
+    kind: 'group',
+    name: 'Weekend Plans',
+    description: 'Coffee, a walk, and dinner.',
+    createdAt: '2026-01-01T00:01:09Z',
     updatedAt: '2026-01-01T00:01:26Z',
-    unreadCount: 0,
-    isGroup: true,
     accentColor: '#0D9488',
     disappearing: 'off',
-    avatarUrl: null,
+    dmPairKey: null,
   },
+];
+
+const initialChatMemberships: ChatMembership[] = [
+  { id: 'mm-d-alice-bob-alice', chatId: 'd-alice-bob', userId: 'alice', isAdmin: false, active: true, joinedAt: '2026-01-01T00:01:08Z', historyThrough: null },
+  { id: 'mm-d-alice-bob-bob', chatId: 'd-alice-bob', userId: 'bob', isAdmin: false, active: true, joinedAt: '2026-01-01T00:01:08Z', historyThrough: null },
+  { id: 'mm-g-starter-alice', chatId: 'g-starter', userId: 'alice', isAdmin: true, active: true, joinedAt: '2026-01-01T00:01:09Z', historyThrough: null },
+  { id: 'mm-g-starter-bob', chatId: 'g-starter', userId: 'bob', isAdmin: false, active: true, joinedAt: '2026-01-01T00:01:09Z', historyThrough: null },
+  { id: 'mm-g-starter-carol', chatId: 'g-starter', userId: 'carol', isAdmin: false, active: true, joinedAt: '2026-01-01T00:01:10Z', historyThrough: null },
+  { id: 'mm-g-starter-dave', chatId: 'g-starter', userId: 'dave', isAdmin: false, active: true, joinedAt: '2026-01-01T00:01:11Z', historyThrough: null },
 ];
 
 const fixtureMessageRows = [
   ['sm0001', 'd-alice-bob', 'alice', 'Coffee after work?', '2026-01-01T00:01:12Z', null],
-  ['sm0002', 'd-alice-bob', 'bob', 'Yes. Corner place?', '2026-01-01T00:01:13Z', 'Coffee after work?'],
-  ['sm0003', 'd-alice-bob', 'alice', 'Exactly. Six thirty.', '2026-01-01T00:01:14Z', 'Yes. Corner place?'],
+  ['sm0002', 'd-alice-bob', 'bob', 'Yes. Corner place?', '2026-01-01T00:01:13Z', 'sm0001'],
+  ['sm0003', 'd-alice-bob', 'alice', 'Exactly. Six thirty.', '2026-01-01T00:01:14Z', 'sm0002'],
   ['sm0004', 'd-alice-bob', 'bob', 'I will bring the route map.', '2026-01-01T00:01:15Z', null],
   ['sm0005', 'd-alice-bob', 'alice', 'Perfect, see you there.', '2026-01-01T00:01:16Z', null],
-  ['sm0006', 'd-alice-bob', 'bob', 'On my way.', '2026-01-01T00:01:17Z', 'Perfect, see you there.'],
+  ['sm0006', 'd-alice-bob', 'bob', 'On my way.', '2026-01-01T00:01:17Z', 'sm0005'],
   ['sm0007', 'g-starter', 'alice', 'Saturday plan: coffee, lake, then noodles.', '2026-01-01T00:01:18Z', null],
-  ['sm0008', 'g-starter', 'carol', 'Coffee is a definite yes.', '2026-01-01T00:01:19Z', 'Saturday plan: coffee, lake, then noodles.'],
+  ['sm0008', 'g-starter', 'carol', 'Coffee is a definite yes.', '2026-01-01T00:01:19Z', 'sm0007'],
   ['sm0009', 'g-starter', 'dave', 'I can meet everyone at ten.', '2026-01-01T00:01:20Z', null],
   ['sm0010', 'g-starter', 'bob', 'The west trail is dry now.', '2026-01-01T00:01:21Z', null],
-  ['sm0011', 'g-starter', 'alice', 'West trail it is.', '2026-01-01T00:01:22Z', 'The west trail is dry now.'],
+  ['sm0011', 'g-starter', 'alice', 'West trail it is.', '2026-01-01T00:01:22Z', 'sm0010'],
   ['sm0012', 'g-starter', 'carol', 'I will bring snacks.', '2026-01-01T00:01:23Z', null],
   ['sm0013', 'g-starter', 'dave', 'Should I book dinner?', '2026-01-01T00:01:24Z', null],
-  ['sm0014', 'g-starter', 'bob', 'Please do, for four.', '2026-01-01T00:01:25Z', 'Should I book dinner?'],
+  ['sm0014', 'g-starter', 'bob', 'Please do, for four.', '2026-01-01T00:01:25Z', 'sm0013'],
   ['sm0015', 'g-starter', 'alice', 'Locked in. See you Saturday.', '2026-01-01T00:01:26Z', null],
 ] as const;
 
-const initialMessages: Message[] = fixtureMessageRows.map(
-  ([id, chatId, senderId, body, createdAt, quoteText]) => ({
+const initialMessages: MemoryMessage[] = fixtureMessageRows.map(
+  ([id, chatId, senderId, body, createdAt, quotedMessageId]) => ({
     id,
     chatId,
     senderId,
     senderName: profileById.get(senderId)?.displayName ?? senderId,
     body,
     createdAt,
-    mine: senderId === VIEWER_ID,
-    status: 'sent',
-    quoteText,
+    quotedMessageId,
+    reactionEvents: [],
     edited: false,
     deleted: false,
+    recipientIds: chatId === 'd-alice-bob'
+      ? [senderId === 'alice' ? 'bob' : 'alice']
+      : ['alice', 'bob', 'carol', 'dave'].filter((userId) => userId !== senderId),
+    droppedRecipientIds: [],
   }),
+);
+
+const initialMessageReceipts: MessageReceipt[] = initialMessages.flatMap((message) =>
+  message.recipientIds.map((userId) => ({
+    id: `mr-${message.id}-${userId}`,
+    messageId: message.id,
+    userId,
+    state: 'read' as const,
+  })),
 );
 
 const initialSearch: SearchResult[] = [
@@ -402,9 +492,9 @@ const initialSearch: SearchResult[] = [
   ...initialChats.map((chat) => ({
     id: chat.id,
     kind: 'chat',
-    title: chat.title,
-    subtitle: chat.isGroup ? 'Group conversation' : 'Direct conversation',
-    avatarUrl: chat.avatarUrl,
+    title: chat.kind === 'group' ? chat.name ?? 'Group' : 'Bob Bennett',
+    subtitle: chat.kind === 'group' ? 'Group conversation' : 'Direct conversation',
+    avatarUrl: chat.kind === 'group' ? null : '/assets/fixtures/avatar-bob.png',
   })),
 ];
 
@@ -426,13 +516,30 @@ const DECLARED_ERROR_CODES = {
   InvalidCredentialsError: 'invalid_credentials',
   LinkInvalidError: 'link_invalid',
   LocationInvalidError: 'location_invalid',
+  ChatAdminRequiredError: 'chat_admin_required',
+  ChatMemberAlreadyExistsError: 'chat_member_already_exists',
+  ChatMemberLimitError: 'chat_member_limit',
+  ChatMemberNotFoundError: 'chat_member_not_found',
+  ChatMembershipRequiredError: 'chat_membership_required',
+  ChatNotFoundError: 'chat_not_found',
+  DirectMessageSelfError: 'direct_message_self',
+  EmojiInvalidError: 'emoji_invalid',
+  GroupDescriptionInvalidError: 'group_description_invalid',
+  GroupMembersInvalidError: 'group_members_invalid',
+  GroupNameInvalidError: 'group_name_invalid',
+  GroupRequiredError: 'group_required',
   MediaMixInvalidError: 'media_mix_invalid',
   MediaReferenceInvalidError: 'media_reference_invalid',
+  MessageBodyInvalidError: 'message_body_invalid',
+  MessageNotFoundError: 'message_not_found',
   ParentPostNotFoundError: 'parent_post_not_found',
   PasswordTooShortError: 'password_too_short',
   PostBodyInvalidError: 'post_body_invalid',
   PostNotFoundError: 'post_not_found',
   ProfileNotFoundError: 'profile_not_found',
+  QuotedMessageInvalidError: 'quoted_message_invalid',
+  ReceiptStateInvalidError: 'receipt_state_invalid',
+  RemoveSelfInvalidError: 'remove_self_invalid',
   ReplyRepostForbiddenError: 'reply_repost_forbidden',
   SelfFollowInvalidError: 'self_follow_invalid',
   SessionRequiredError: 'session_required',
@@ -513,6 +620,211 @@ function validatedLink(value: unknown): string {
     // Fall through to the one declared rejection below.
   }
   return fail('LinkInvalidError', 'Link must be empty or an HTTP(S) URL.');
+}
+
+function validatedEmoji(value: unknown): string {
+  const emoji = String(value ?? '').normalize('NFC').trim();
+  const graphemes = [
+    ...new Intl.Segmenter('en-US', { granularity: 'grapheme' }).segment(emoji),
+  ];
+  if (
+    graphemes.length !== 1
+    || !/[\p{Extended_Pictographic}\p{Regional_Indicator}\u20E3]/u.test(emoji)
+  ) {
+    fail('EmojiInvalidError', 'Reaction must be one emoji grapheme.');
+  }
+  return emoji;
+}
+
+function quotedBodySnippet(message: MemoryMessage): string {
+  if (message.deleted) return 'This message was deleted';
+  const body = message.body.trim();
+  return body.length > 96 ? `${body.slice(0, 95)}…` : body;
+}
+
+const RECEIPT_RANK: Record<ReceiptState, number> = {
+  sent: 0,
+  delivered: 1,
+  read: 2,
+};
+
+function aggregateReceiptState(
+  message: MemoryMessage,
+  receipts: readonly MessageReceipt[],
+): { status: ReceiptState; recipientCount: number; deliveredCount: number; readCount: number } {
+  const dropped = new Set(message.droppedRecipientIds);
+  const required = message.recipientIds.filter((userId) => !dropped.has(userId));
+  const states = new Map(
+    receipts
+      .filter((receipt) => receipt.messageId === message.id)
+      .map((receipt) => [receipt.userId, receipt.state]),
+  );
+  const deliveredCount = required.filter(
+    (userId) => RECEIPT_RANK[states.get(userId) ?? 'sent'] >= RECEIPT_RANK.delivered,
+  ).length;
+  const readCount = required.filter(
+    (userId) => RECEIPT_RANK[states.get(userId) ?? 'sent'] >= RECEIPT_RANK.read,
+  ).length;
+  const status: ReceiptState = required.length === 0
+    ? 'read'
+    : readCount === required.length
+    ? 'read'
+    : deliveredCount === required.length
+      ? 'delivered'
+      : 'sent';
+  return { status, recipientCount: required.length, deliveredCount, readCount };
+}
+
+function visibleMessagesFor(
+  messages: readonly MemoryMessage[],
+  membership: ChatMembership,
+): MemoryMessage[] {
+  return messages.filter(
+    (message) => message.chatId === membership.chatId
+      && (membership.active
+        || (membership.historyThrough !== null && message.createdAt <= membership.historyThrough)),
+  );
+}
+
+function projectMessages(
+  messages: readonly MemoryMessage[],
+  receipts: readonly MessageReceipt[],
+  profiles: readonly Profile[],
+  viewerId: string | null,
+): Message[] {
+  const byId = new Map(messages.map((message) => [message.id, message]));
+  return messages.map((message) => {
+    const quoted = message.quotedMessageId
+      ? byId.get(message.quotedMessageId) ?? null
+      : null;
+    const aggregate = new Map<string, { count: number; reactedByMe: boolean }>();
+    for (const reaction of message.reactionEvents) {
+      const current = aggregate.get(reaction.emoji) ?? { count: 0, reactedByMe: false };
+      aggregate.set(reaction.emoji, {
+        count: current.count + 1,
+        reactedByMe: current.reactedByMe || reaction.actorId === viewerId,
+      });
+    }
+    const snippet = quoted ? quotedBodySnippet(quoted) : null;
+    const receipt = aggregateReceiptState(message, receipts);
+    return {
+      id: message.id,
+      chatId: message.chatId,
+      senderId: message.senderId,
+      senderName: message.senderName,
+      senderAvatarUrl: profiles.find((profile) => profile.id === message.senderId)?.avatarUrl ?? null,
+      body: message.body,
+      createdAt: message.createdAt,
+      mine: viewerId !== null && message.senderId === viewerId,
+      ...receipt,
+      quotedMessageId: message.quotedMessageId,
+      quotedSenderName: quoted?.senderName ?? null,
+      quotedBodySnippet: snippet,
+      // Kept for the additive v2 row shape; new UI reads the sender/body pair.
+      quoteText: snippet,
+      reactions: [...aggregate.entries()]
+        .sort(([left], [right]) => left.localeCompare(right, 'en-US'))
+        .map(([emoji, facts]) => ({ emoji, ...facts })),
+      edited: message.edited,
+      deleted: message.deleted,
+    };
+  });
+}
+
+function projectChats(
+  chats: readonly MemoryChat[],
+  memberships: readonly ChatMembership[],
+  messages: readonly MemoryMessage[],
+  receipts: readonly MessageReceipt[],
+  typing: readonly MemoryTyping[],
+  profiles: readonly Profile[],
+  viewerId: string,
+  nowMs: number,
+): Chat[] {
+  return chats.flatMap((chat) => {
+    const viewerMembership = memberships.find(
+      (membership) => membership.chatId === chat.id && membership.userId === viewerId,
+    );
+    if (!viewerMembership) return [];
+    const activeMemberships = memberships.filter(
+      (membership) => membership.chatId === chat.id && membership.active,
+    );
+    const visibleMessages = visibleMessagesFor(messages, viewerMembership);
+    const latest = visibleMessages.at(-1) ?? null;
+    const counterpartMembership = chat.kind === 'dm'
+      ? activeMemberships.find((membership) => membership.userId !== viewerId) ?? null
+      : null;
+    const counterpart = counterpartMembership
+      ? profiles.find((profile) => profile.id === counterpartMembership.userId) ?? null
+      : null;
+    const activeTyping = typing.filter(
+      (entry) => entry.chatId === chat.id
+        && entry.userId !== viewerId
+        && entry.expiresAtMs > nowMs
+        && activeMemberships.some((membership) => membership.userId === entry.userId),
+    );
+    const typingNames = activeTyping.map(
+      (entry) => profiles.find((profile) => profile.id === entry.userId)?.displayName ?? entry.userId,
+    );
+    const unreadCount = visibleMessages.filter((message) => {
+      if (
+        message.senderId === viewerId
+        || !message.recipientIds.includes(viewerId)
+        || message.droppedRecipientIds.includes(viewerId)
+      ) return false;
+      const state = receipts.find(
+        (receipt) => receipt.messageId === message.id && receipt.userId === viewerId,
+      )?.state ?? 'sent';
+      return RECEIPT_RANK[state] < RECEIPT_RANK.read;
+    }).length;
+    return [{
+      id: chat.id,
+      title: chat.kind === 'group' ? chat.name ?? 'Group' : counterpart?.displayName ?? 'Direct message',
+      description: chat.description,
+      preview: latest?.body ?? '',
+      updatedAt: latest?.createdAt ?? chat.updatedAt,
+      unreadCount,
+      isGroup: chat.kind === 'group',
+      kind: chat.kind,
+      memberIds: activeMemberships.map((membership) => membership.userId),
+      members: activeMemberships.map((membership) => {
+        const profile = profiles.find((candidate) => candidate.id === membership.userId);
+        return {
+          id: membership.userId,
+          displayName: profile?.displayName ?? membership.userId,
+          avatarUrl: profile?.avatarUrl ?? null,
+          isAdmin: membership.isAdmin,
+          isMe: membership.userId === viewerId,
+        };
+      }),
+      currentUserIsAdmin: viewerMembership.active && viewerMembership.isAdmin,
+      currentUserIsMember: viewerMembership.active,
+      typingHint: typingNames.length > 0 ? `${typingNames.join(', ')} typing...` : null,
+      latestReceiptStatus: latest?.senderId === viewerId
+        ? aggregateReceiptState(latest, receipts).status
+        : null,
+      accentColor: chat.accentColor,
+      disappearing: chat.disappearing,
+      avatarUrl: counterpart?.avatarUrl ?? null,
+    }];
+  }).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+function validatedGroupName(value: unknown): string {
+  const name = String(value ?? '').normalize('NFC').trim();
+  if (Array.from(name).length < 1 || Array.from(name).length > 50) {
+    fail('GroupNameInvalidError', 'Group name must contain 1-50 characters.');
+  }
+  return name;
+}
+
+function validatedGroupDescription(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const description = String(value).normalize('NFC').trim();
+  if (Array.from(description).length > 200) {
+    fail('GroupDescriptionInvalidError', 'Group description must contain at most 200 characters.');
+  }
+  return description || null;
 }
 
 function matchesWordPrefix(text: string, query: string): boolean {
@@ -745,6 +1057,55 @@ export interface CoterieMemoryHarness {
   provider: ContractDataProvider;
   boundary: ContractQueryBoundary;
   appendFixturePost(): FeedItem;
+  advanceClock(ms: number): void;
+}
+
+interface ScheduledClockWork {
+  deadlineMs: number;
+  callback: () => void;
+  timer: ReturnType<typeof setTimeout> | null;
+  canceled: boolean;
+}
+
+function createTypingClock(startMs: number) {
+  let logicalNowMs = startMs;
+  const scheduled = new Set<ScheduledClockWork>();
+  const run = (work: ScheduledClockWork): void => {
+    if (work.canceled) return;
+    work.canceled = true;
+    if (work.timer !== null) clearTimeout(work.timer);
+    scheduled.delete(work);
+    logicalNowMs = Math.max(logicalNowMs, work.deadlineMs);
+    work.callback();
+  };
+  return {
+    now: () => logicalNowMs,
+    schedule(delayMs: number, callback: () => void): (() => void) {
+      const work: ScheduledClockWork = {
+        deadlineMs: logicalNowMs + delayMs,
+        callback,
+        timer: null,
+        canceled: false,
+      };
+      work.timer = setTimeout(() => run(work), delayMs);
+      const timerWithUnref = work.timer as ReturnType<typeof setTimeout> & { unref?: () => void };
+      timerWithUnref.unref?.();
+      scheduled.add(work);
+      return () => {
+        if (work.canceled) return;
+        work.canceled = true;
+        if (work.timer !== null) clearTimeout(work.timer);
+        scheduled.delete(work);
+      };
+    },
+    advance(ms: number): void {
+      if (!Number.isFinite(ms) || ms < 0) throw new Error('Clock advance must be nonnegative.');
+      logicalNowMs += ms;
+      for (const work of [...scheduled].sort((left, right) => left.deadlineMs - right.deadlineMs)) {
+        if (work.deadlineMs <= logicalNowMs) run(work);
+      }
+    },
+  };
 }
 
 /**
@@ -759,8 +1120,13 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
   let postSequence = 0;
   let activitySequence = 0;
   let messageSequence = 0;
+  let chatSequence = 0;
+  let chatEventSequence = 0;
   let sessionSequence = 0;
   let revocationSequence = 0;
+  const processedReactionMutationIds = new Set<string>();
+  const typingClock = createTypingClock(Date.parse(FIXTURE_NOW));
+  const typingExpiryCancels = new Map<string, () => void>();
   let activeViewerId: string | null = VIEWER_ID;
   const boundary = withMultiTableQueries(createContractMockQueryBoundary({
     accounts: cloneRows(initialAccounts),
@@ -772,9 +1138,16 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
     likes: cloneRows(initialLikes),
     reposts: cloneRows(initialReposts),
     chats: cloneRows(initialChats),
+    chatMemberships: cloneRows(initialChatMemberships),
     messages: cloneRows(initialMessages),
+    messageReceipts: cloneRows(initialMessageReceipts),
+    ephemeralTyping: [],
     search: cloneRows(initialSearch),
   }));
+
+  const nextChatEventAt = (): string => new Date(
+    Date.parse(FIXTURE_NOW) + 60_000 + ++chatEventSequence * 1000,
+  ).toISOString();
 
   const requireActiveViewer = (): string => {
     const active = boundary.snapshot('sessions') as Session[];
@@ -782,6 +1155,57 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
       fail('SessionRequiredError', 'An active session is required.');
     }
     return activeViewerId;
+  };
+
+  const requireChat = (chatId: string): MemoryChat => {
+    const chat = (boundary.snapshot('chats') as MemoryChat[]).find(
+      (candidate) => candidate.id === chatId,
+    );
+    if (!chat) fail('ChatNotFoundError', 'Conversation was not found.');
+    return chat;
+  };
+
+  const requireCurrentMembership = (chatId: string, userId: string): ChatMembership => {
+    const membership = (boundary.snapshot('chatMemberships') as ChatMembership[]).find(
+      (candidate) => candidate.chatId === chatId
+        && candidate.userId === userId
+        && candidate.active,
+    );
+    if (!membership) {
+      fail('ChatMembershipRequiredError', 'Conversation membership is required.');
+    }
+    return membership;
+  };
+
+  const requireGroupAdmin = (chatId: string, userId: string): MemoryChat => {
+    const chat = requireChat(chatId);
+    if (chat.kind !== 'group') {
+      fail('GroupRequiredError', 'This operation requires a group conversation.');
+    }
+    const membership = requireCurrentMembership(chatId, userId);
+    if (!membership.isAdmin) fail('ChatAdminRequiredError', 'A group admin is required.');
+    return chat;
+  };
+
+  const clearTypingFor = (chatId: string, userId: string): void => {
+    const key = `${chatId}:${userId}`;
+    typingExpiryCancels.get(key)?.();
+    typingExpiryCancels.delete(key);
+    const existing = boundary.snapshot('ephemeralTyping') as MemoryTyping[];
+    if (!existing.some((entry) => entry.chatId === chatId && entry.userId === userId)) return;
+    boundary.write<MemoryTyping>('ephemeralTyping', (rows) => rows.filter(
+      (entry) => entry.chatId !== chatId || entry.userId !== userId,
+    ));
+  };
+
+  const dropRecipientRequirement = (chatId: string, userId: string): void => {
+    boundary.write<MemoryMessage>('messages', (rows) => rows.map((message) =>
+      message.chatId === chatId
+        && message.recipientIds.includes(userId)
+        && !message.droppedRecipientIds.includes(userId)
+        ? { ...message, droppedRecipientIds: [...message.droppedRecipientIds, userId] }
+        : message,
+    ));
   };
 
   const writeViewerProjections = (viewerId: string): void => {
@@ -796,9 +1220,6 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
             (edge) => edge.followerId === viewerId && edge.followedId === profile.id,
           ),
       })),
-    );
-    boundary.write<Message>('messages', (rows) =>
-      rows.map((message) => ({ ...message, mine: message.senderId === viewerId })),
     );
   };
 
@@ -887,15 +1308,95 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
           { key: `profile-posts:${String(args.userId)}` },
         ),
       listProfiles: (_args, queryBoundary) =>
-        queryBoundary.query<Profile>('profiles', (rows) => rows as Profile[], { key: 'profiles' }),
+        queryBoundary.query<Profile>(
+          'profiles',
+          (rows) => cloneRows(rows as Profile[]),
+          { key: 'profiles' },
+        ),
       listChats: (_args, queryBoundary) =>
-        queryBoundary.query<Chat>('chats', (rows) => rows as Chat[], { key: 'chats' }),
+        queryAcrossTables<Chat>(
+          queryBoundary,
+          ['chats', 'chatMemberships', 'messages', 'messageReceipts', 'ephemeralTyping', 'profiles', 'sessions'],
+          () => {
+            const viewerId = (queryBoundary.snapshot('sessions') as Session[])[0]?.userId;
+            return viewerId === undefined ? [] : projectChats(
+              queryBoundary.snapshot('chats') as MemoryChat[],
+              queryBoundary.snapshot('chatMemberships') as ChatMembership[],
+              queryBoundary.snapshot('messages') as MemoryMessage[],
+              queryBoundary.snapshot('messageReceipts') as MessageReceipt[],
+              queryBoundary.snapshot('ephemeralTyping') as MemoryTyping[],
+              queryBoundary.snapshot('profiles') as Profile[],
+              viewerId,
+              typingClock.now(),
+            );
+          },
+          { key: 'chats' },
+        ),
       listMessages: (args, queryBoundary) =>
-        queryBoundary.query<Message>(
-          'messages',
-          (rows) => (rows as Message[]).filter((message) => message.chatId === args.chatId),
+        queryAcrossTables<Message>(
+          queryBoundary,
+          ['chats', 'messages', 'messageReceipts', 'chatMemberships', 'profiles', 'sessions'],
+          () => {
+            const chatId = String(args.chatId);
+            const viewerId = (queryBoundary.snapshot('sessions') as Session[])[0]?.userId;
+            if (viewerId === undefined) return [];
+            const chats = queryBoundary.snapshot('chats') as MemoryChat[];
+            if (!chats.some((chat) => chat.id === chatId)) {
+              fail('ChatNotFoundError', 'Conversation was not found.');
+            }
+            const membership = (queryBoundary.snapshot('chatMemberships') as ChatMembership[]).find(
+              (candidate) => candidate.chatId === chatId && candidate.userId === viewerId,
+            );
+            if (!membership) {
+              fail('ChatMembershipRequiredError', 'Conversation membership is required.');
+            }
+            return projectMessages(
+              visibleMessagesFor(queryBoundary.snapshot('messages') as MemoryMessage[], membership),
+              queryBoundary.snapshot('messageReceipts') as MessageReceipt[],
+              queryBoundary.snapshot('profiles') as Profile[],
+              viewerId,
+            );
+          },
           { key: `messages:${String(args.chatId)}` },
         ),
+      observeTyping: (args, queryBoundary) =>
+        queryAcrossTables<TypingParticipant>(
+          queryBoundary,
+          ['ephemeralTyping', 'chatMemberships', 'profiles', 'sessions'],
+          () => {
+            const chatId = String(args.chatId);
+            const viewerId = (queryBoundary.snapshot('sessions') as Session[])[0]?.userId;
+            if (viewerId === undefined) return [];
+            requireChat(chatId);
+            const memberships = queryBoundary.snapshot('chatMemberships') as ChatMembership[];
+            const viewerMembership = memberships.find(
+              (membership) => membership.chatId === chatId && membership.userId === viewerId,
+            );
+            if (!viewerMembership) {
+              fail('ChatMembershipRequiredError', 'Conversation membership is required.');
+            }
+            if (!viewerMembership.active) return [];
+            const profiles = queryBoundary.snapshot('profiles') as Profile[];
+            return (queryBoundary.snapshot('ephemeralTyping') as MemoryTyping[])
+              .filter((entry) => entry.chatId === chatId
+                && entry.userId !== viewerId
+                && entry.expiresAtMs > typingClock.now()
+                && memberships.some((membership) => membership.chatId === chatId
+                  && membership.userId === entry.userId
+                  && membership.active))
+              .map((entry) => ({
+                id: entry.id,
+                chatId,
+                userId: entry.userId,
+                displayName: profiles.find((profile) => profile.id === entry.userId)?.displayName
+                  ?? entry.userId,
+                expiresAt: new Date(entry.expiresAtMs).toISOString(),
+              }));
+          },
+          { key: `typing:${String(args.chatId)}` },
+        ),
+      listProviderClaims: (_args, _queryBoundary): ProviderClaim[] =>
+        allCoterieProviderClaims(),
       searchSocial: (args, queryBoundary) =>
         queryBoundary.query<SearchResult>(
           'search',
@@ -944,6 +1445,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
           location: '',
           link: '',
           avatarUrl: null,
+          avatarRef: null,
           followers: 0,
           following: 0,
           followedByMe: false,
@@ -1177,7 +1679,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
               : profile,
           ),
         );
-        queryBoundary.write<Message>('messages', (rows) =>
+        queryBoundary.write<MemoryMessage>('messages', (rows) =>
           rows.map((message) =>
             message.senderId === viewerId ? { ...message, senderName: displayName } : message,
           ),
@@ -1202,7 +1704,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
         }
         queryBoundary.write<Profile>('profiles', (rows) =>
           rows.map((profile) =>
-            profile.id === viewerId ? { ...profile, avatarUrl } : profile,
+            profile.id === viewerId ? { ...profile, avatarUrl, avatarRef } : profile,
           ),
         );
         queryBoundary.write<SearchResult>('search', (rows) =>
@@ -1212,53 +1714,355 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
               : result,
           ),
         );
-        queryBoundary.write<Chat>('chats', (rows) =>
-          rows.map((chat) =>
-            !chat.isGroup && chat.id.includes(viewerId) ? { ...chat, avatarUrl } : chat,
-          ),
-        );
         return { avatarUrl };
+      },
+      openDm: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const userId = String(args.userId);
+        if (userId === viewerId) {
+          fail('DirectMessageSelfError', 'A direct conversation requires another user.');
+        }
+        if (!(queryBoundary.snapshot('profiles') as Profile[]).some((profile) => profile.id === userId)) {
+          fail('ProfileNotFoundError', 'The profile does not exist.');
+        }
+        const pair = [viewerId, userId].sort();
+        const pairKey = pair.join(':');
+        const existing = (queryBoundary.snapshot('chats') as MemoryChat[]).find(
+          (chat) => chat.kind === 'dm' && chat.dmPairKey === pairKey,
+        );
+        if (existing) return { chatId: existing.id, reused: true };
+        const createdAt = nextChatEventAt();
+        const id = `d-${pair.join('-')}`;
+        queryBoundary.write<MemoryChat>('chats', (rows) => [...rows, {
+          id,
+          kind: 'dm',
+          name: null,
+          description: null,
+          createdAt,
+          updatedAt: createdAt,
+          accentColor: '#4F46E5',
+          disappearing: 'off',
+          dmPairKey: pairKey,
+        }]);
+        queryBoundary.write<ChatMembership>('chatMemberships', (rows) => [
+          ...rows,
+          ...pair.map((memberId) => ({
+            id: `mm-${id}-${memberId}`,
+            chatId: id,
+            userId: memberId,
+            isAdmin: false,
+            active: true,
+            joinedAt: createdAt,
+            historyThrough: null,
+          })),
+        ]);
+        return { chatId: id, reused: false };
+      },
+      createGroup: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const name = validatedGroupName(args.name);
+        const description = validatedGroupDescription(args.description);
+        const memberIds = Array.isArray(args.memberIds)
+          ? args.memberIds.map((value) => String(value))
+          : [];
+        const uniqueMemberIds = [...new Set(memberIds)];
+        if (
+          memberIds.length !== uniqueMemberIds.length
+          || uniqueMemberIds.length < 2
+          || uniqueMemberIds.length > 50
+          || !uniqueMemberIds.includes(viewerId)
+        ) {
+          fail(
+            'GroupMembersInvalidError',
+            'A group requires 2-50 unique members including its creator.',
+          );
+        }
+        const profileIds = new Set(
+          (queryBoundary.snapshot('profiles') as Profile[]).map((profile) => profile.id),
+        );
+        if (uniqueMemberIds.some((userId) => !profileIds.has(userId))) {
+          fail('ProfileNotFoundError', 'The profile does not exist.');
+        }
+        const createdAt = nextChatEventAt();
+        const id = `g-coterie-${String(++chatSequence).padStart(4, '0')}`;
+        queryBoundary.write<MemoryChat>('chats', (rows) => [...rows, {
+          id,
+          kind: 'group',
+          name,
+          description,
+          createdAt,
+          updatedAt: createdAt,
+          accentColor: '#0D9488',
+          disappearing: 'off',
+          dmPairKey: null,
+        }]);
+        queryBoundary.write<ChatMembership>('chatMemberships', (rows) => [
+          ...rows,
+          ...uniqueMemberIds.map((userId) => ({
+            id: `mm-${id}-${userId}`,
+            chatId: id,
+            userId,
+            isAdmin: userId === viewerId,
+            active: true,
+            joinedAt: createdAt,
+            historyThrough: null,
+          })),
+        ]);
+        return { chatId: id };
+      },
+      addMember: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const chatId = String(args.chatId);
+        const userId = String(args.userId);
+        requireGroupAdmin(chatId, viewerId);
+        if (!(queryBoundary.snapshot('profiles') as Profile[]).some((profile) => profile.id === userId)) {
+          fail('ProfileNotFoundError', 'The profile does not exist.');
+        }
+        const memberships = queryBoundary.snapshot('chatMemberships') as ChatMembership[];
+        const current = memberships.find(
+          (membership) => membership.chatId === chatId && membership.userId === userId,
+        );
+        if (current?.active) {
+          fail('ChatMemberAlreadyExistsError', 'That profile is already a group member.');
+        }
+        if (memberships.filter((membership) => membership.chatId === chatId && membership.active).length >= 50) {
+          fail('ChatMemberLimitError', 'A group may contain at most 50 members.');
+        }
+        const joinedAt = nextChatEventAt();
+        queryBoundary.write<ChatMembership>('chatMemberships', (rows) => current
+          ? rows.map((membership) => membership.id === current.id
+            ? { ...membership, active: true, isAdmin: false, joinedAt, historyThrough: null }
+            : membership)
+          : [...rows, {
+              id: `mm-${chatId}-${userId}`,
+              chatId,
+              userId,
+              isAdmin: false,
+              active: true,
+              joinedAt,
+              historyThrough: null,
+            }]);
+      },
+      removeMember: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const chatId = String(args.chatId);
+        const userId = String(args.userId);
+        requireGroupAdmin(chatId, viewerId);
+        if (userId === viewerId) {
+          fail('RemoveSelfInvalidError', 'Use leave chat to remove yourself.');
+        }
+        const target = (queryBoundary.snapshot('chatMemberships') as ChatMembership[]).find(
+          (membership) => membership.chatId === chatId
+            && membership.userId === userId
+            && membership.active,
+        );
+        if (!target) {
+          fail('ChatMemberNotFoundError', 'That profile is not a current group member.');
+        }
+        const historyThrough = nextChatEventAt();
+        queryBoundary.write<ChatMembership>('chatMemberships', (rows) => rows.map(
+          (membership) => membership.id === target.id
+            ? { ...membership, active: false, isAdmin: false, historyThrough }
+            : membership,
+        ));
+        dropRecipientRequirement(chatId, userId);
+        clearTypingFor(chatId, userId);
+      },
+      promoteAdmin: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const chatId = String(args.chatId);
+        const userId = String(args.userId);
+        requireGroupAdmin(chatId, viewerId);
+        const target = (queryBoundary.snapshot('chatMemberships') as ChatMembership[]).find(
+          (membership) => membership.chatId === chatId
+            && membership.userId === userId
+            && membership.active,
+        );
+        if (!target) {
+          fail('ChatMemberNotFoundError', 'That profile is not a current group member.');
+        }
+        if (target.isAdmin) return;
+        queryBoundary.write<ChatMembership>('chatMemberships', (rows) => rows.map(
+          (membership) => membership.id === target.id
+            ? { ...membership, isAdmin: true }
+            : membership,
+        ));
+      },
+      leaveChat: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const chatId = String(args.chatId);
+        const chat = requireChat(chatId);
+        if (chat.kind !== 'group') {
+          fail('GroupRequiredError', 'This operation requires a group conversation.');
+        }
+        const membership = requireCurrentMembership(chatId, viewerId);
+        const historyThrough = nextChatEventAt();
+        queryBoundary.write<ChatMembership>('chatMemberships', (rows) => rows.map(
+          (candidate) => candidate.id === membership.id
+            ? { ...candidate, active: false, isAdmin: false, historyThrough }
+            : candidate,
+        ));
+        dropRecipientRequirement(chatId, viewerId);
+        clearTypingFor(chatId, viewerId);
       },
       sendMessage: (args, queryBoundary) => {
         const viewerId = requireActiveViewer();
         const body = String(args.body ?? '').trim();
-        if (!body) throw new Error('Message text cannot be empty.');
+        if (Array.from(body).length < 1 || Array.from(body).length > 2000) {
+          fail('MessageBodyInvalidError', 'Message text must contain 1-2000 characters.');
+        }
         const chatId = String(args.chatId);
-        const chatExists = (queryBoundary.snapshot('chats') as Chat[]).some(
-          (chat) => chat.id === chatId,
-        );
-        if (!chatExists) throw new Error(`Unknown conversation ${chatId}`);
+        requireChat(chatId);
+        requireCurrentMembership(chatId, viewerId);
+        const quotedMessageId = args.quotedMessageId === null || args.quotedMessageId === undefined
+          ? null
+          : String(args.quotedMessageId);
+        const quotedMessage = quotedMessageId === null
+          ? null
+          : (queryBoundary.snapshot('messages') as MemoryMessage[]).find(
+              (candidate) => candidate.id === quotedMessageId,
+            ) ?? null;
+        if (quotedMessageId !== null && quotedMessage?.chatId !== chatId) {
+          fail(
+            'QuotedMessageInvalidError',
+            'Quoted message must exist in this conversation.',
+          );
+        }
         const profile = (queryBoundary.snapshot('profiles') as Profile[]).find(
           (row) => row.id === viewerId,
         );
-        const createdAt = new Date(
-          Date.parse(FIXTURE_NOW) + 60_000 + ++messageSequence * 1000,
-        ).toISOString();
-        const message: Message = {
-          id: `coterie-local-message-${String(messageSequence).padStart(4, '0')}`,
+        const createdAt = nextChatEventAt();
+        const recipientIds = (queryBoundary.snapshot('chatMemberships') as ChatMembership[])
+          .filter((membership) => membership.chatId === chatId
+            && membership.active
+            && membership.userId !== viewerId)
+          .map((membership) => membership.userId);
+        const message: MemoryMessage = {
+          id: `coterie-local-message-${String(++messageSequence).padStart(4, '0')}`,
           chatId,
           senderId: viewerId,
           senderName: profile?.displayName ?? viewerId,
           body,
           createdAt,
-          mine: true,
-          status: 'sent',
-          quoteText: null,
+          quotedMessageId,
+          reactionEvents: [],
           edited: false,
           deleted: false,
+          recipientIds,
+          droppedRecipientIds: [],
         };
-        queryBoundary.write<Message>('messages', (rows) => [...rows, message]);
-        queryBoundary.write<Chat>('chats', (rows) =>
+        queryBoundary.write<MemoryMessage>('messages', (rows) => [...rows, message]);
+        queryBoundary.write<MessageReceipt>('messageReceipts', (rows) => [
+          ...rows,
+          ...recipientIds.map((userId) => ({
+            id: `mr-${message.id}-${userId}`,
+            messageId: message.id,
+            userId,
+            state: 'sent' as const,
+          })),
+        ]);
+        queryBoundary.write<MemoryChat>('chats', (rows) =>
           rows.map((chat) =>
-            chat.id === chatId ? { ...chat, preview: body, updatedAt: createdAt } : chat,
+            chat.id === chatId ? { ...chat, updatedAt: createdAt } : chat,
           ),
         );
+        clearTypingFor(chatId, viewerId);
         return { id: message.id };
+      },
+      setTyping: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const chatId = String(args.chatId);
+        requireChat(chatId);
+        requireCurrentMembership(chatId, viewerId);
+        if (!Boolean(args.active)) {
+          clearTypingFor(chatId, viewerId);
+          return;
+        }
+        const key = `${chatId}:${viewerId}`;
+        typingExpiryCancels.get(key)?.();
+        const expiresAtMs = typingClock.now() + 5000;
+        queryBoundary.write<MemoryTyping>('ephemeralTyping', (rows) => [
+          ...rows.filter((entry) => entry.id !== key),
+          { id: key, chatId, userId: viewerId, expiresAtMs },
+        ]);
+        typingExpiryCancels.set(key, typingClock.schedule(5000, () => {
+          typingExpiryCancels.delete(key);
+          boundary.write<MemoryTyping>('ephemeralTyping', (rows) => rows.filter(
+            (entry) => entry.id !== key || entry.expiresAtMs !== expiresAtMs,
+          ));
+        }));
+      },
+      markReceipt: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const chatId = String(args.chatId);
+        requireChat(chatId);
+        requireCurrentMembership(chatId, viewerId);
+        const state = String(args.state) as ReceiptState;
+        if (state !== 'delivered' && state !== 'read') {
+          fail('ReceiptStateInvalidError', 'Receipt state must be delivered or read.');
+        }
+        const messageIds = new Set(
+          (queryBoundary.snapshot('messages') as MemoryMessage[])
+            .filter((message) => message.chatId === chatId
+              && message.senderId !== viewerId
+              && message.recipientIds.includes(viewerId)
+              && !message.droppedRecipientIds.includes(viewerId))
+            .map((message) => message.id),
+        );
+        const currentReceipts = queryBoundary.snapshot('messageReceipts') as MessageReceipt[];
+        const changes = currentReceipts.some((receipt) => messageIds.has(receipt.messageId)
+          && receipt.userId === viewerId
+          && RECEIPT_RANK[receipt.state] < RECEIPT_RANK[state]);
+        if (!changes) return;
+        queryBoundary.write<MessageReceipt>('messageReceipts', (rows) => rows.map((receipt) =>
+          messageIds.has(receipt.messageId)
+            && receipt.userId === viewerId
+            && RECEIPT_RANK[receipt.state] < RECEIPT_RANK[state]
+            ? { ...receipt, state }
+            : receipt,
+        ));
+      },
+      setMessageReaction: (args, queryBoundary) => {
+        const viewerId = requireActiveViewer();
+        const chatId = String(args.chatId);
+        requireChat(chatId);
+        requireCurrentMembership(chatId, viewerId);
+        const messageId = String(args.messageId);
+        const message = (queryBoundary.snapshot('messages') as MemoryMessage[]).find(
+          (candidate) => candidate.id === messageId && candidate.chatId === chatId,
+        );
+        if (!message) {
+          fail('MessageNotFoundError', 'Message was not found in this conversation.');
+        }
+        const emoji = validatedEmoji(args.emoji);
+        const reacted = Boolean(args.reacted);
+        const mutationKey = `${viewerId}:${String(args.mutationId)}`;
+        if (processedReactionMutationIds.has(mutationKey)) return;
+        queryBoundary.write<MemoryMessage>('messages', (rows) =>
+          rows.map((candidate) => {
+            if (candidate.id !== messageId) return candidate;
+            const current = candidate.reactionEvents.find(
+              (reaction) => reaction.actorId === viewerId,
+            );
+            if (reacted && current?.emoji === emoji) return candidate;
+            if (!reacted && current?.emoji !== emoji) return candidate;
+            const withoutViewer = candidate.reactionEvents.filter(
+              (reaction) => reaction.actorId !== viewerId,
+            );
+            return {
+              ...candidate,
+              reactionEvents: reacted
+                ? [...withoutViewer, { actorId: viewerId, emoji }]
+                : withoutViewer,
+            };
+          }),
+        );
+        processedReactionMutationIds.add(mutationKey);
       },
       setChatAccent: (args, queryBoundary) => {
         const color = String(args.color);
         if (!ACCENT_COLORS.has(color)) throw new Error(`Unsupported accent ${color}`);
-        queryBoundary.write<Chat>('chats', (rows) =>
+        queryBoundary.write<MemoryChat>('chats', (rows) =>
           rows.map((chat) =>
             chat.id === args.chatId ? { ...chat, accentColor: color } : chat,
           ),
@@ -1269,7 +2073,7 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
         if (!DISAPPEARING_VALUES.has(value)) {
           throw new Error(`Unsupported disappearing setting ${value}`);
         }
-        queryBoundary.write<Chat>('chats', (rows) =>
+        queryBoundary.write<MemoryChat>('chats', (rows) =>
           rows.map((chat) =>
             chat.id === args.chatId ? { ...chat, disappearing: value } : chat,
           ),
@@ -1281,6 +2085,9 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
   return {
     provider,
     boundary,
+    advanceClock(ms) {
+      typingClock.advance(ms);
+    },
     appendFixturePost() {
       const item: MemoryPost = {
         ...initialPosts.find((post) => post.id === 'sp0001')!,

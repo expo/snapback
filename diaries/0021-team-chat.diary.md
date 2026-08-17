@@ -231,3 +231,57 @@ migration ticket owns that dependency. Compared with Convex or Supabase, this
 is more ceremony, but the failure is honest: application code cannot borrow a
 recipient's read identity as write authority merely because the fan-out is
 useful.
+
+## 2026-08-16 — LLP 0240 D3 canonical-roster migration
+
+The server/codegen slice moved Team Chat from its synchronized
+`roomMembers`/`roomParticipants` pair to one active profiled `roomMembersV2`
+relation. LLP 0264 landed after the original D3 branch and makes removal or
+same-push widening of every installed v1 policy fail closed. The reconciliation
+therefore retains the v1 room/member/participant/message/delivery declarations
+as inert governance history and adds restricted v2 roots; no current function
+reads or writes the v1 tables.
+The profile's closed transitions now generate `list`, `myRole`, `invite`,
+`join`, `leave`, `changeRole`, `transferOwner`, and `remove`. The headless
+receipt covers all eight references, private-field projection, opaque roster
+pagination, post-commit transition receipts, and two concurrent owner-transfer
+attempts with one winner and one stable refusal.
+
+### What felt good
+
+- Retiring the display roster removed every mutation-side synchronization
+  obligation. Message delivery reads the canonical relation through
+  `ctx.authority.roomMembersV2.list`, while row ids and provenance never enter
+  handler or client data. LLP 0264 still correctly limits the generic owner
+  insert to the sender; cross-recipient fan-out remains an explicit gap.
+- Transition-derived generation makes policy review tangible. Adding the two
+  owner-driven member/admin transitions created `changeRole`; declarations
+  without them do not receive that reference.
+- The opaque cursor reused Snapback's existing envelope and transported no
+  private boundary fields. Cross-room and cross-caller replay both refused
+  without application-authored signing or parsing.
+- Owner transfer's two receipts were materially easier to assert than
+  reconstructing state changes from a second query, and the concurrent case
+  kept exactly one owner without application locking.
+
+### Friction and boundary
+
+- Adding `admin` to the active hierarchy required updating every existing
+  exact-role-set query admission. On the reconciled post-LLP-0264 mainline,
+  that change also correctly refused as a same-push widening of the installed
+  v1 audience closure. Adding a new restricted v2 relation preserved the
+  ratchet without inventing a remotely-prior approval.
+- The generated references work through the ordinary client and generic React
+  hooks, but dedicated per-profile LLP 0238-shaped hooks do not exist yet.
+  Team Chat's older React/Contract product acceptances still need migration and
+  remain deferred rather than silently treated as current.
+- A profile operation's public `null` handler result and its durable settlement
+  receipt are two different moments. Acceptance had to inspect
+  `authorityTransitions` on the committed mutation response; synthesizing an
+  optimistic receipt would have hidden conflicts and denials.
+
+Compared with React plus Convex or Supabase, this is more constrained: the
+role state machine and operation vocabulary must be declared up front. In
+return, the app no longer maintains a roster join, cursor secret, role-change
+transaction, or last-owner lock. The remaining frontend work is an adapter and
+product-surface problem, not another authorization implementation.

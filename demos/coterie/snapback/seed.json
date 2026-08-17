@@ -1,5 +1,5 @@
 {
-  "seedVersion": "coterie-m2-v1",
+  "seedVersion": "coterie-m3-v2",
   "tables": {
     "profiles": [],
     "posts": [],
@@ -8,6 +8,10 @@
     "feedEvents": [],
     "follows": [],
     "likes": [],
-    "reposts": []
+    "reposts": [],
+    "conversations": [],
+    "conversationMembers": [],
+    "messages": [],
+    "messageReceipts": []
   }
 }

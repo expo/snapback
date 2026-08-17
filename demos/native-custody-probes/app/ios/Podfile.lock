@@ -1894,7 +1894,11 @@ PODS:
     - ReactNativeDependencies
   - ReactNativeDependencies (0.86.0)
   - SnapbackExpoCustody (0.1.0):
+    - SnapbackExpoCustody/ExpoModule (= 0.1.0)
+  - SnapbackExpoCustody/Core (0.1.0)
+  - SnapbackExpoCustody/ExpoModule (0.1.0):
     - ExpoModulesCore
+    - SnapbackExpoCustody/Core
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -1985,6 +1989,7 @@ DEPENDENCIES:
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - "SnapbackExpoCustody (from `../node_modules/@expo/snapback-expo-custody/ios`)"
+  - "SnapbackExpoCustody/Core (from `../node_modules/@expo/snapback-expo-custody/ios`)"
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 EXTERNAL SOURCES:
@@ -2250,9 +2255,9 @@ SPEC CHECKSUMS:
   ReactCodegen: afe0d436ee089d7bea6418429d8312b1d23a6801
   ReactCommon: d5c1bb4427bf51c443de5926aac332c89ddd9363
   ReactNativeDependencies: fa0a54b3f5319ae0e3b9aff32bfee7a424b88e66
-  SnapbackExpoCustody: 687f8c7ef924e5cd2d6552e21ac2b172eb5c30aa
+  SnapbackExpoCustody: 8612d36f62057552cdb1c07b3c0398516198a4a3
   Yoga: fe50ab299e578f397fef753cf309c6703a4db29b
 
-PODFILE CHECKSUM: 31b231e85cd170310621bbb3c01cceefba2ba973
+PODFILE CHECKSUM: b848768dd33c032db63fc8bf670c8824f27e5a92
 
 COCOAPODS: 1.17.0

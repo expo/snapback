@@ -8,6 +8,10 @@ import {
   sanitizePublicDiagnostic,
   sanitizePublicRemediations,
 } from './diagnostic-sanitization.mjs';
+import {
+  resolveDefaultExpoSqliteOperatingSystem,
+  resolveDefaultExpoSqliteTarget,
+} from './expo-sqlite-target.mjs';
 
 export const SUPERVISED_EXCHANGE_FORMAT = 'snapback.expo-supervised-exchange.v1';
 export const SUPERVISED_EXCHANGE_PATH = supervisedExchangePath();
@@ -303,6 +307,8 @@ export function createSupervisedExpoEnvironment({
   clientOptions = {},
   runtimePlatform,
   nativeLaunchEnvironment,
+  resolveExpoSqliteReactNativeModule,
+  resolveExpoDeviceModule,
   bindingCache = createDefaultSupervisedBindingCache(),
   onDiagnostic,
 } = {}) {
@@ -519,6 +525,21 @@ export function createSupervisedExpoEnvironment({
     ...(resolveAppState === undefined ? {} : { resolveAppState }),
     ...(developmentSync === undefined ? {} : { developmentSync }),
     ...(onDiagnostic === undefined ? {} : { onDiagnostic }),
+    resolveExpoSqliteOperatingSystem() {
+      return resolveDefaultExpoSqliteOperatingSystem({
+        resolveReactNativeModule: resolveExpoSqliteReactNativeModule,
+      });
+    },
+    async resolveExpoSqliteTarget() {
+      const operatingSystem = await resolveDefaultExpoSqliteOperatingSystem({
+        resolveReactNativeModule: resolveExpoSqliteReactNativeModule,
+      });
+      return resolveDefaultExpoSqliteTarget({
+        operatingSystem,
+        resolveReactNativeModule: resolveExpoSqliteReactNativeModule,
+        resolveExpoDeviceModule,
+      });
+    },
     resolveDevIdentityCapability({ signal } = {}) {
       return resolveDevIdentityCapability(signal);
     },
@@ -588,7 +609,7 @@ export function createSupervisedExpoEnvironment({
         refreshAfterMs: Number.MAX_SAFE_INTEGER,
       });
     },
-    async adoptAuthority({ binding, signal }) {
+    async adoptAuthority({ binding, signal, rqsStore }) {
       const key = bindingKey(binding);
       const storedExchange = exchanges.get(key);
       const cached = storedExchange === undefined ? offlineFallbacks.get(key) : null;
@@ -599,6 +620,9 @@ export function createSupervisedExpoEnvironment({
           bearerToken: null,
           clientStoreId: clientOptions.clientStoreId
             ?? `snapback-expo-${binding.provenance.supervisorGeneration}`,
+          rqsStore: Object.hasOwn(clientOptions, 'rqsStore')
+            ? clientOptions.rqsStore
+            : rqsStore,
         });
         adopted = {
           binding,
@@ -635,6 +659,9 @@ export function createSupervisedExpoEnvironment({
         authorizedLeaseProtocol: 1,
         clientStoreId: resolvedClientOptions.clientStoreId
           ?? `snapback-expo-${binding.provenance.supervisorGeneration}`,
+        rqsStore: Object.hasOwn(resolvedClientOptions, 'rqsStore')
+          ? resolvedClientOptions.rqsStore
+          : rqsStore,
       });
       let facts;
       try {

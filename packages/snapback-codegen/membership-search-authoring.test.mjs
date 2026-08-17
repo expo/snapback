@@ -28,13 +28,13 @@ const schemaSource = ({
 } = {}) => `
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
 
-export const rooms = defineTable({ name: v.string() });
+export const rooms = defineTable({ name: v.string() }).visibility({ kind: 'public-read' });
 
 export const roomMembers = defineTable({
   ${appScoped ? '' : "roomId: v.id('rooms'),"}
   userId: v.principal(),
   role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'userId' }).membership({
   id: 'roomMembers',
   ${appScoped ? "scope: 'app'," : "resource: 'roomId',"}
   principal: 'userId',
@@ -47,7 +47,12 @@ export const messages = defineTable({
   roomId: v.id('rooms'),
   ownerId: v.principal(),
   body: v.string(),
-}).searchIndex('search_messages', {
+}).visibility(${owner
+    ? "{ kind: 'owner', field: 'ownerId' }"
+    : (appScoped || declaration !== 'roomMembers' || roles !== "['member']" || extraVisibility
+      ? "{ kind: 'public-read' }"
+      : `{ kind: 'membership', declaration: ${declaration}, resourceField: 'roomId', roles: ${roles} }`)})
+  .searchIndex('search_messages', {
   semanticVersion: 'membership-search-authoring.v1',
   textFields: { body: { weight: 4, classification: 'private' } },
   fieldClassifications: { ${owner ? "ownerId: 'private'" : "roomId: 'private'"} },
@@ -145,7 +150,7 @@ try {
     const apiTypes = readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8');
     assert.match(
       apiTypes,
-      /searchMessages: FunctionReference<'searchMessages', 'Query', SearchRequestV1 & \{ roomId: Id<'rooms'> \},/u,
+      /"searchMessages": FunctionReference<"searchMessages", 'Query', SearchRequestV1 & \{ roomId: Id<'rooms'> \},/u,
     );
 
     const snapbackModules = join(dir, 'node_modules', '@expo');
@@ -216,7 +221,7 @@ void missing;
 
   {
     const { result } = await run({ schema: schemaSource({ declaration: "'missingMembers'" }) });
-    assertRefused(result, /names unknown declaration missingMembers/u, 'unknown declaration');
+    assertRefused(result, /names unknown (?:membership )?declaration missingMembers/u, 'unknown declaration');
   }
 
   {

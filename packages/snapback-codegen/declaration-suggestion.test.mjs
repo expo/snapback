@@ -192,7 +192,7 @@ function writeRuntimeReceipt(backend, {
   const aggregate = noRegisteredPaths ? {
     status: 'not-claimed',
     disposition: 'no-registered-acceptance-paths',
-    scope: 'explicitly-registered-paths-only',
+    scope: 'registered-or-repository-adapted-paths',
     limitationReason,
     complete: false,
     expectedPaths: 0,
@@ -204,7 +204,7 @@ function writeRuntimeReceipt(backend, {
   } : {
     status: underDeclarations.length > 0 ? 'failed' : 'passed',
     disposition: 'registered-path-aggregate-v0',
-    scope: 'explicitly-registered-paths-only',
+    scope: 'registered-or-repository-adapted-paths',
     limitationReason,
     complete: true,
     expectedPaths: 1,
@@ -269,7 +269,11 @@ function writeRuntimeReceipt(backend, {
     stages: [
       stage('artifact-freshness', 'passed', { identity: generatedIdentity(backend) }),
       stage('runtime-readiness', 'passed', {}),
-      stage('admission-and-conformance', admissionStatus, { admissionMode: 'generated-artifact-local-admission', conformance: aggregate }),
+      stage('admission-and-conformance', admissionStatus, {
+        admissionMode: 'generated-artifact-local-admission',
+        servedTarget: null,
+        conformance: aggregate,
+      }),
       stage('capability-resolution', 'passed', {}),
       stage('acceptance-profiles', 'passed', { profiles: acceptanceProfiles }),
     ],
@@ -559,11 +563,23 @@ try {
     null,
     'the real verify producer must exercise the null-functionId identity join',
   );
-  const runtimeSuggestion = onlySuggestion(runtimeWitnessed, 'literalResult').suggestion;
+  const runtimeSuggestionResult = suggestDeclarations({
+    backendDir: runtimeWitnessed,
+    operation: 'literalResult',
+    runtimeEvidenceReceiptPaths: [producedRuntime.path],
+  });
+  equal(runtimeSuggestionResult.ok, true, JSON.stringify(runtimeSuggestionResult.diagnostics));
+  equal(runtimeSuggestionResult.suggestions.length, 1);
+  const [runtimeSuggestion] = runtimeSuggestionResult.suggestions;
   equal(validateProtocol(runtimeSuggestion), true, JSON.stringify(validateProtocol.errors));
+  equal(
+    runtimeSuggestion.runtimeEvidenceReceipts.length,
+    1,
+    JSON.stringify(runtimeSuggestionResult.diagnostics),
+  );
   equal(runtimeSuggestion.runtimeEvidenceReceipts[0].evidenceClass, 'runtime-witnessed');
   equal(runtimeSuggestion.runtimeEvidenceReceipts[0].aggregate.status, 'failed');
-  equal(runtimeSuggestion.runtimeEvidenceReceipts[0].aggregate.scope, 'explicitly-registered-paths-only');
+  equal(runtimeSuggestion.runtimeEvidenceReceipts[0].aggregate.scope, 'registered-or-repository-adapted-paths');
   equal(runtimeSuggestion.dependencyChanges.mode, 'addition-only');
   equal(runtimeSuggestion.dependencyChanges.completeSetClaim, false);
   deepEqual(
@@ -575,7 +591,7 @@ try {
     && entry.profileId === 'runtime-profile'
     && entry.pathId === 'literal-result'
     && entry.provenance === 'complete'
-    && entry.scope === 'explicitly-registered-paths-only'
+    && entry.scope === 'registered-or-repository-adapted-paths'
   )));
   check(runtimeSuggestion.patch.unifiedDiff.includes('reads: ["secrets"]'));
   check(runtimeSuggestion.patch.unifiedDiff.includes('writes: ["todos", "audit"]'));
@@ -613,7 +629,7 @@ try {
   writeRuntimeReceipt(noRegisteredPaths, { noRegisteredPaths: true });
   const noClaimSuggestion = onlySuggestion(noRegisteredPaths, 'storedWithComputed').suggestion;
   equal(noClaimSuggestion.runtimeEvidenceReceipts[0].aggregate.status, 'not-claimed');
-  equal(noClaimSuggestion.runtimeEvidenceReceipts[0].aggregate.scope, 'explicitly-registered-paths-only');
+  equal(noClaimSuggestion.runtimeEvidenceReceipts[0].aggregate.scope, 'registered-or-repository-adapted-paths');
   equal(noClaimSuggestion.runtimeEvidenceReceipts[0].aggregate.expectedPaths, 0);
   equal(noClaimSuggestion.dependencyChanges.completeSetClaim, false);
   deepEqual(noClaimSuggestion.dependencyChanges.additions, []);

@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, HandlerInput, MembershipExpiry, MembershipLastHolder,
     MembershipManifest, MembershipOp, MembershipScope, MembershipTarget, MembershipTransition,
-    MutationPlan, MutationStep, SchemaManifest, TableManifest, ValueExpr,
+    MutationPlan, MutationStep, SchemaManifest, TableManifest, TableVisibilityV1, ValueExpr,
 };
 use snapback::storage::{LocalDatabase, MembershipWriter};
 use std::collections::BTreeMap;
@@ -48,7 +48,7 @@ fn events_table() -> TableManifest {
         membership: None,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility: Some(TableVisibilityV1::PublicRead),
         history: None,
     }
 }
@@ -79,6 +79,9 @@ fn base_membership() -> MembershipManifest {
 /// `v.principal()` and `eventId` is `v.id("events")`; the axes are non-null;
 /// `expiresAt` is a non-axis column.
 fn members_table(membership: Option<MembershipManifest>) -> TableManifest {
+    let visibility = membership
+        .is_none()
+        .then_some(TableVisibilityV1::PublicRead);
     TableManifest {
         name: "event_members".to_owned(),
         fields: vec![
@@ -104,7 +107,7 @@ fn members_table(membership: Option<MembershipManifest>) -> TableManifest {
         membership,
         authority_profile: None,
         asset_sharing: None,
-        visibility: None,
+        visibility,
         history: None,
     }
 }
@@ -146,7 +149,7 @@ fn insert_row(db: &mut LocalDatabase, table: &str, values: &[(&str, Value)]) {
     db.mutation_writes()
         .execute_mutation(
             &MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: table.to_owned(),
                     values,

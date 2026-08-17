@@ -5500,6 +5500,7 @@ mod tests {
             version: 2,
             changed_count: 1,
             result: changed_row.row.clone().expect("post image"),
+            authority_transitions: Vec::new(),
             ctx_ledger: Some(ctx.clone()),
             settlement_mint_observations: Vec::new(),
             settlement_time_observation: None,
@@ -5831,6 +5832,7 @@ mod tests {
             version: 3,
             changed_count: 1,
             result: create_row.row.clone().expect("create result"),
+            authority_transitions: Vec::new(),
             ctx_ledger: Some(create_ctx.clone()),
             settlement_mint_observations: vec![crate::manifest::SettlementMintObservation {
                 id: "todo-create".to_owned(),

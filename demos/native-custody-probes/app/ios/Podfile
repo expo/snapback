@@ -65,3 +65,11 @@ target 'NativeCustodyProbes' do
     )
   end
 end
+
+target 'NativeCustodyProbesNSE' do
+  pod 'SnapbackExpoCustody/Core', :path => '../node_modules/@expo/snapback-expo-custody/ios'
+end
+
+target 'NativeCustodyProbesShare' do
+  pod 'SnapbackExpoCustody/Core', :path => '../node_modules/@expo/snapback-expo-custody/ios'
+end

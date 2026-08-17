@@ -67,7 +67,7 @@ pub(crate) fn schema() -> SchemaManifest {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
             TableManifest {
@@ -83,7 +83,7 @@ pub(crate) fn schema() -> SchemaManifest {
                 membership: None,
                 authority_profile: None,
                 asset_sharing: None,
-                visibility: None,
+                visibility: Some(crate::manifest::TableVisibilityV1::PublicRead),
                 history: None,
             },
         ],

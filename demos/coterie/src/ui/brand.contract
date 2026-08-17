@@ -1,3 +1,5 @@
+use theme from "@exact/facet-contract"
+
 component CoterieBrand
   props
     compact: boolean = false
@@ -9,6 +11,6 @@ component CoterieBrand
     row align="center" gap=10 testId="coterie-brand"
       image src="/assets/coterie-mark.png" alt="Coterie" width=compact ? 34 : 48 height=compact ? 34 : 48 objectFit="contain" testId="coterie-mark"
       column gap=0
-        text "Coterie" size=compact ? 20 : 28 weight=800 color="#17191C"
+        text "Coterie" size=compact ? 20 : 28 weight=800 color=theme.color.text.default
         when !compact
-          text "A smaller social circle" size=12 color="#6B7280"
+          text "A smaller social circle" size=12 color=theme.color.text.secondary

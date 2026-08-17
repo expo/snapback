@@ -22,9 +22,11 @@ function backend({ schema, functions, handler }) {
 const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  todos: defineTable({ ownerId: v.string(), title: v.string() })
+  todos: defineTable({ ownerId: v.principal(), title: v.string() })
     .permissionBacking(['ownerId'])
+    .visibility({ kind: 'owner', field: 'ownerId' })
     .sync(),
+  audit: defineTable({ message: v.string() }).visibility({ kind: 'public-read' }),
 });
 `;
 
@@ -106,7 +108,7 @@ export const protectedJs = defineJsLiveQuery({
 export const writeWithClock = defineJsMutation({
   source: 'handler.js',
   exportName: 'writeWithClock',
-  writes: ['todos'],
+  writes: ['audit'],
 });
 `;
   const handler = `globalThis.__snapbackHandlers = {

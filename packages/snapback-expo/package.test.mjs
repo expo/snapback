@@ -49,7 +49,17 @@ assert.doesNotMatch(webAppStateSource, /import\('react-native'\)/u);
 assert.deepEqual(Object.keys(manifest.dependencies).sort(), [
   '@expo/snapback-client',
   '@expo/snapback-react',
+  'expo-device',
+  'expo-sqlite',
 ]);
+assert.equal(manifest.dependencies['expo-device'], '~57.0.1');
+assert.equal(manifest.dependencies['expo-sqlite'], '~57.0.1');
+assert.equal(files.has('expo-sqlite-carrier.mjs'), true);
+assert.equal(files.has('expo-sqlite-carrier-publication.v1.json'), true);
+assert.equal(files.has('expo-sqlite-target.mjs'), true);
+assert.deepEqual(manifest.optionalDependencies, {
+  '@expo/snapback-expo-custody': 'workspace:*',
+});
 assert.equal(manifest.publishConfig.access, 'public');
 assert.equal(
   require('@expo/snapback-expo'),
@@ -59,6 +69,7 @@ assert.equal(
 assert.equal(typeof packageEntry.SnapbackExpoProvider, 'function');
 assert.equal(typeof packageEntry.createSnapbackExpoBoot, 'function');
 assert.equal(typeof packageEntry.createSupervisedExpoEnvironment, 'function');
+assert.equal(typeof packageEntry.resolveDefaultExpoSqliteTarget, 'function');
 assert.equal(typeof packageEntry.createExpoAssetSourceAdapter, 'function');
 assert.equal(typeof packageEntry.adaptExpoAssetSource, 'function');
 assert.equal(typeof packageEntry.useSnapbackQuery, 'function');
@@ -90,6 +101,8 @@ const productionSources = [
   'asset-source.mjs',
   'activity-presence.mjs',
   'lifecycle-source.mjs',
+  'expo-sqlite-carrier.mjs',
+  'expo-sqlite-target.mjs',
 ]
   .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
   .join('\n');
@@ -104,5 +117,12 @@ for (const forbidden of [
 ]) {
   assert(!productionSources.includes(forbidden), `production graph mentions forbidden closure ${forbidden}`);
 }
+const carrierSource = readFileSync(new URL('./expo-sqlite-carrier.mjs', import.meta.url), 'utf8');
+assert.match(carrierSource, /require\('expo-sqlite'\)/u, 'Expo package owns the guarded native import');
+assert.doesNotMatch(
+  readFileSync(new URL('../snapback-client/index.mjs', import.meta.url), 'utf8'),
+  /expo-sqlite/u,
+  'the universal client root does not import the native Expo module',
+);
 
 console.log('package.test.mjs: exports, public-only dependencies, React aliases, and production closure pass');

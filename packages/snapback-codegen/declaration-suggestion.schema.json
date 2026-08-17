@@ -94,7 +94,12 @@
       "properties": {
         "status": { "enum": ["passed", "partial", "failed", "not-claimed", "blocked"] },
         "disposition": { "type": "string", "minLength": 1 },
-        "scope": { "const": "explicitly-registered-paths-only" },
+        "scope": {
+          "enum": [
+            "explicitly-registered-paths-only",
+            "registered-or-repository-adapted-paths"
+          ]
+        },
         "limitationReason": { "type": "string", "minLength": 1 },
         "complete": { "type": "boolean" },
         "expectedPaths": { "type": "integer", "minimum": 0 },
@@ -134,7 +139,12 @@
         "functionId": { "type": "string", "minLength": 1 },
         "dependencyClass": { "enum": ["read", "write"] },
         "provenance": { "const": "complete" },
-        "scope": { "const": "explicitly-registered-paths-only" },
+        "scope": {
+          "enum": [
+            "explicitly-registered-paths-only",
+            "registered-or-repository-adapted-paths"
+          ]
+        },
         "aggregateStatus": { "enum": ["passed", "partial", "failed", "not-claimed", "blocked"] },
         "limitationReason": { "type": "string", "minLength": 1 }
       }

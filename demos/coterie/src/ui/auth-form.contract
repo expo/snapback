@@ -1,3 +1,4 @@
+use theme from "@exact/facet-contract"
 use FacetButton from "@exact/facet-contract/components/button.contract"
 use FacetInput from "@exact/facet-contract/components/input.contract"
 use CoterieBrand from "./brand.contract"
@@ -17,14 +18,14 @@ component CoterieAuthForm
     has node testId="sm-auth-submit"
 
   view
-    column width="100%" maxWidth=420 alignSelf="center" gap=18 padding=24 background="#FFFFFF" radius=16 borderWidth=1 borderColor="#E2E4E8" testId="sm-auth-form"
+    column width="100%" maxWidth=420 alignSelf="center" gap=18 padding=24 background=theme.color.background.card radius=16 borderWidth=1 borderColor=theme.color.border.default testId="sm-auth-form"
       CoterieBrand()
       column gap=8
-        text "Welcome back" size=22 weight=700 color="#17191C"
-        text "Sign in to your circle" size=13 color="#6B7280"
+        text "Welcome back" size=22 weight=700 color=theme.color.text.default
+        text "Sign in to your circle" size=13 color=theme.color.text.secondary
       FacetInput(value=email, label="Email", placeholder="you@example.com", change=changeEmail, testId="sm-auth-email")
       column gap=6
-        input value=password change=changePassword label="Password" placeholder="Password" secure=true width="100%" padding=12 radius=8 borderWidth=1 borderColor="#E2E4E8" testId="sm-auth-password"
+        input value=password change=changePassword label="Password" placeholder="Password" secure=true width="100%" padding=12 radius=8 borderWidth=1 borderColor=theme.color.border.default background=theme.color.background.default color=theme.color.text.default testId="sm-auth-password"
       when errorText
-        text errorText size=13 color="#DC2626" testId="sm-auth-error"
+        text errorText size=13 color=theme.color.text.danger testId="sm-auth-error"
       FacetButton(label="Sign in", press=submit, testId="sm-auth-submit")

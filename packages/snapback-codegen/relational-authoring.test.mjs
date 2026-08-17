@@ -172,6 +172,7 @@ export const books = defineTable({
   available: v.boolean(),
 })
   .index('by_owner_title', ['ownerId', 'title'])
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .sync();
 export const authors = defineTable({
   slug: v.string(),
@@ -180,6 +181,7 @@ export const authors = defineTable({
   ownerId: v.principal(),
 })
   .index('by_slug', ['slug'], { unique: true })
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .sync();
 export default defineSchema({ books, authors }, { auth: { mode: 'sessions' } });
 `);

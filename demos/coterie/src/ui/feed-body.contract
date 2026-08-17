@@ -1,3 +1,4 @@
+use theme from "@exact/facet-contract"
 use linkifyPostBody from "./feed-text.ts"
 
 component CoterieFeedBody
@@ -11,6 +12,6 @@ component CoterieFeedBody
       each segment in segments key=segment.id
         when segment.href
           link href=segment.href label=`Open ${segment.href}` testId=segment.testId
-            text segment.text size=15 color="#4F46E5"
+            text segment.text size=15 color=theme.color.text.link
         else
-          text segment.text size=15 color="#17191C"
+          text segment.text size=15 color=theme.color.text.default

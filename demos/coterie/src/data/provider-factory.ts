@@ -1,7 +1,10 @@
 import type { ContractDataProvider } from '@exact/contract/runtime';
 
 import { configureFromProvider } from './generated/coterie.bindings.ts';
-import { createCoterieMemoryProvider } from './memory-provider.ts';
+import {
+  createCoterieMemoryHarness,
+  createCoterieMemoryProvider,
+} from './memory-provider.ts';
 import { createCoterieSnapbackProvider } from './snapback-provider.ts';
 
 type ProviderFactory = () => ContractDataProvider;
@@ -21,6 +24,7 @@ export const COTERIE_PROVIDER_NAMES = Object.freeze(
 
 export interface CoterieProviderBoot {
   provider: ContractDataProvider;
+  advanceClock?: (ms: number) => void;
   dispose(): void;
 }
 
@@ -40,10 +44,12 @@ export function bootCoterieProvider(
   requested?: string | null,
 ): CoterieProviderBoot {
   const selected = resolveCoterieProviderName(requested);
-  const provider = coterieProviderRegistry[selected]();
+  const memoryHarness = selected === 'memory' ? createCoterieMemoryHarness() : null;
+  const provider = memoryHarness?.provider ?? coterieProviderRegistry[selected]();
   const projection = configureFromProvider(provider);
   return {
     provider,
+    ...(memoryHarness ? { advanceClock: (ms: number) => memoryHarness.advanceClock(ms) } : {}),
     dispose: () => {
       projection.dispose();
       if ('dispose' in provider && typeof provider.dispose === 'function') {

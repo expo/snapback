@@ -23,7 +23,7 @@ const dirs = [];
 const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  todos: defineTable({ title: v.string() }).sync(),
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
 });
 `;
 

@@ -69,7 +69,7 @@ export default defineSchema({
     role: v.union([v.literal('crew'), v.literal('user')]),
     visibility: v.optional(v.union([v.literal('internal'), v.literal('public')])),
     title: v.string(),
-  }).index('by_role', ['role']).sync(),
+  }).index('by_role', ['role']).visibility({ kind: 'public-read' }).sync(),
 });
 `, `
 import { defineQuery } from '${defineUrl}';
@@ -135,12 +135,14 @@ export default defineSchema({
 `);
   await structuredSchema(`
 export default defineSchema({
-  rows: defineTable({ state: v.union([v.literal('a'), v.integer()]) }),
+  rows: defineTable({ state: v.union([v.literal('a'), v.integer()]) })
+    .visibility({ kind: 'public-read' }),
 });
 `);
   await structuredSchema(`
 export default defineSchema({
-  rows: defineTable({ state: v.union([v.literal(1), v.literal(2)]) }),
+  rows: defineTable({ state: v.union([v.literal(1), v.literal(2)]) })
+    .visibility({ kind: 'public-read' }),
 });
 `);
   await invalidSchema(`
@@ -176,7 +178,7 @@ export default defineSchema({
       v.literal('a'), v.literal('b'), v.literal('c'), v.literal('d'),
       v.literal('e'), v.literal('f'), v.literal('g'),
     ])),
-  }),
+  }).visibility({ kind: 'public-read' }),
 });
 `, `
 import { defineQuery } from '${defineUrl}';

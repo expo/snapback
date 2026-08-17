@@ -25,7 +25,9 @@ const guideManifest = JSON.parse(readFileSync(
 const dirs = [];
 const validSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
+export default defineSchema({
+  todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
+});
 `;
 
 // LLP 0010's no-silent-drops rule applies uniformly to the three primary
@@ -292,7 +294,7 @@ export const probe = defineAction({
     schema: `
 import { definePushSeam, defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema(
-  { todos: defineTable({ title: v.string() }) },
+  { todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }) },
   {
     auth: { mode: 'sessions' },
     pushSeam: definePushSeam({
@@ -333,7 +335,7 @@ export default defineSchema(
     schema: `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema(
-  { todos: defineTable({ title: v.string() }).sync() },
+  { todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync() },
   { strictDeclarations: true },
 );
 `,
@@ -355,7 +357,7 @@ export default defineSchema(
     schema: `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema(
-  { todos: defineTable({ title: v.string() }).sync() },
+  { todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync() },
   { strictDeclarations: false },
 );
 `,
@@ -370,7 +372,7 @@ export default defineSchema(
     schema: `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema(
-  { todos: defineTable({ title: v.string() }).sync() },
+  { todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync() },
   { strictDeclarations: 'yes' },
 );
 `,
@@ -391,7 +393,7 @@ export default defineSchema(
 import { definePushSeam, defineSchema, defineTable, v } from '${defineUrl}';
 const eventMembers = defineTable({
   principal: v.principal(), eventId: v.id('events'), role: v.string(),
-}).membership({
+}).visibility({ kind: 'owner', field: 'principal' }).membership({
   id: 'event_members', principal: 'principal', resource: 'eventId', role: 'role',
   roles: ['host', 'guest'], transitions: [],
 });
@@ -411,7 +413,10 @@ export const pushSeam = definePushSeam({
   uses: ['expoPushAccessToken'],
   ledger: { retentionMs: 2592000000 },
 });
-export default defineSchema({ events: defineTable({ name: v.string() }), eventMembers }, {
+export default defineSchema({
+  events: defineTable({ name: v.string() }).visibility({ kind: 'public-read' }),
+  eventMembers,
+}, {
   auth: { mode: 'sessions' }, pushSeam,
 });
 `,
@@ -591,7 +596,7 @@ export default defineSchema({
   todos: defineTable({
     title: v.string(),
     replyToId: v.optional(v.id('todos')),
-  }),
+  }).visibility({ kind: 'public-read' }),
 });
 `;
   const diagnostics = await invalidCase({
@@ -748,7 +753,7 @@ export default defineSchema({ todos: defineTable({ title: v.string() }).index('b
   const result = await validCase({
     schema: `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: v.principal() }).index('by_event_user', ['eventId', 'userId'], { unique: true }) });
+export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: v.principal() }).index('by_event_user', ['eventId', 'userId'], { unique: true }).visibility({ kind: 'public-read' }) });
 `,
     functions: 'export const nothing = 0;\n',
   });
@@ -760,7 +765,7 @@ export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: 
   const result = await validCase({
     schema: `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: v.optional(v.principal()) }).index('by_event_user', ['eventId', 'userId'], { unique: true }) });
+export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: v.optional(v.principal()) }).index('by_event_user', ['eventId', 'userId'], { unique: true }).visibility({ kind: 'public-read' }) });
 `,
     functions: 'export const nothing = 0;\n',
   });
@@ -1307,8 +1312,9 @@ export const listTodos = defineJsLiveQuery({
 
 const structuredRouteSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export const boards = defineTable({ title: v.string() });
-export const cells = defineTable({ boardId: v.id('boards'), title: v.string() }).sync();
+export const boards = defineTable({ title: v.string() }).visibility({ kind: 'public-read' });
+export const cells = defineTable({ boardId: v.id('boards'), title: v.string() })
+  .visibility({ kind: 'public-read' }).sync();
 export default defineSchema({ boards, cells });
 `;
 
@@ -1827,7 +1833,7 @@ export const incidents = defineTable({
   title: v.string(),
   status: v.string(),
   owner: v.principal(),
-}).searchIndex('search_incidents', {
+}).visibility({ kind: 'owner', field: 'owner' }).searchIndex('search_incidents', {
   semanticVersion: 'incidents.v1',
   textFields: { title: { weight: 8, classification: 'private' } },
   fieldClassifications: { owner: 'private', status: 'private' },
@@ -1997,7 +2003,7 @@ export const unsafeWrite = defineJsMutation({
   });
   assert(
     diagnostics.some((diagnostic) => (
-      diagnostic.code === 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN'
+      diagnostic.code === 'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE'
       && /patch is not a ctx\.db\.elevated member.*writes are never available/.test(
         `${diagnostic.message ?? ''} ${JSON.stringify(diagnostic.details ?? {})}`,
       )
@@ -2061,6 +2067,7 @@ export const impossiblePage = defineJsQuery({
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
   todos: defineTable({ title: v.string() })
+    .visibility({ kind: 'public-read' })
     .history({ retainMs: 60000, maxVersionsPerRecord: 12 }),
 });
 `,
@@ -2098,6 +2105,7 @@ export default defineSchema({
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
   todos: defineTable({ title: v.string() })
+    .visibility({ kind: 'public-read' })
     .history({ retainMs: 0, maxVersionsPerRecord: 12 }),
 });
 `,
@@ -2168,7 +2176,8 @@ export default defineSchema({
     count: v.integer(),
   })
     .index('byTenantSlug', ['tenant', 'slug'], { unique: true })
-    .index('byCount', ['count']),
+    .index('byCount', ['count'])
+    .visibility({ kind: 'public-read' }),
 });
 `;
   const batchFunctions = (body) => `

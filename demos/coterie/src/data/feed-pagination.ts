@@ -27,6 +27,8 @@ export interface CoterieFeedState {
   liveHeadDeliverySequence: number;
   patches: FeedMutationPatch[];
   composeText: string;
+  composeImageRefs: string[];
+  composeVideoRefs: string[];
   composeResetFlip: boolean;
   email: string;
   password: string;
@@ -47,6 +49,18 @@ export type CoterieFeedTransition =
   | { kind: 'commit-older-page'; generation: number; requestedCursor: string | null }
   | { kind: 'discard-older-page'; generation: number; requestedCursor: string | null }
   | { kind: 'set-compose-text'; generation: number; value: string }
+  | {
+      kind: 'toggle-compose-media';
+      generation: number;
+      mediaRef: string;
+      mediaKind: 'image' | 'video';
+    }
+  | {
+      kind: 'remove-compose-media';
+      generation: number;
+      mediaRef: string;
+      mediaKind: 'image' | 'video';
+    }
   | { kind: 'publish-began'; generation: number }
   | { kind: 'publish-settled'; generation: number; ok: boolean }
   | {
@@ -99,6 +113,8 @@ export function createCoterieFeedState(): CoterieFeedState {
     liveHeadDeliverySequence: 0,
     patches: [],
     composeText: '',
+    composeImageRefs: [],
+    composeVideoRefs: [],
     composeResetFlip: false,
     email: 'alice@example.com',
     password: 'Alice!Clique2026',
@@ -338,11 +354,49 @@ export function reduceCoterieFeedState(
     case 'set-compose-text':
       return { ...state, composeText: transition.value };
 
+    case 'toggle-compose-media':
+      if (transition.mediaKind === 'video') {
+        return state.composeVideoRefs.includes(transition.mediaRef)
+          ? { ...state, composeVideoRefs: [] }
+          : { ...state, composeImageRefs: [], composeVideoRefs: [transition.mediaRef] };
+      }
+      if (state.composeImageRefs.includes(transition.mediaRef)) {
+        return {
+          ...state,
+          composeImageRefs: state.composeImageRefs.filter(
+            (mediaRef) => mediaRef !== transition.mediaRef,
+          ),
+        };
+      }
+      if (state.composeImageRefs.length >= 4) return state;
+      return {
+        ...state,
+        composeImageRefs: [...state.composeImageRefs, transition.mediaRef],
+        composeVideoRefs: [],
+      };
+
+    case 'remove-compose-media':
+      return transition.mediaKind === 'video'
+        ? {
+            ...state,
+            composeVideoRefs: state.composeVideoRefs.filter(
+              (mediaRef) => mediaRef !== transition.mediaRef,
+            ),
+          }
+        : {
+            ...state,
+            composeImageRefs: state.composeImageRefs.filter(
+              (mediaRef) => mediaRef !== transition.mediaRef,
+            ),
+          };
+
     case 'publish-began':
       return {
         ...state,
         generation: state.generation + 1,
         composeText: '',
+        composeImageRefs: [],
+        composeVideoRefs: [],
         composeResetFlip: !state.composeResetFlip,
       };
 

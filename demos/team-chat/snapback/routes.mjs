@@ -11,7 +11,6 @@ export default defineRoutes([
   {
     route: '/',
     queries: [
-      { function: 'listMyRooms', args: {} },
       { function: 'unreadDeliveries', args: {} },
     ],
   },

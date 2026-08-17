@@ -160,7 +160,6 @@ mod single_table_v1_tests {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
         );
         function.auth_requirement = Some(AuthRequirement::Public);
-        function.authority_independent = true;
         function.args_contract = Some(FunctionArgsContract {
             fields: vec![
                 ResultObjectFieldContract {
@@ -251,6 +250,7 @@ mod single_table_v1_tests {
     #[test]
     fn normalization_and_identity_match_the_codegen_golden() {
         let mut function = eligible_function();
+        assert!(!function.authority_independent, "fixture carries no app assertion");
         let normalized = single_table_plan_v1(&function)
             .expect("normalization succeeds")
             .expect("derived predicate selects the class");
@@ -278,6 +278,7 @@ mod single_table_v1_tests {
             identity.plan_hash,
             "sha256:5adc42769ab270a7deb6813bf9256316e7b38b98945faadea82f8b49f0247324"
         );
+        assert!(owner_admits_authority_independence(&function));
         let node = &identity.normalized_composite_plan["nodes"][0]["nodePlan"];
         assert_eq!(node["classId"], "single_table_v1");
         assert_eq!(node["capability"]["live"]["delivery"], "live_delta");
@@ -358,8 +359,12 @@ mod single_table_v1_tests {
             );
         }
 
+        let mut explicit = eligible_function();
+        explicit.authority_independent = true;
+        assert!(single_table_plan_v1(&explicit).unwrap().is_some());
+
         let mut ineligible = eligible_function();
-        ineligible.authority_independent = false;
+        ineligible.auth_requirement = Some(AuthRequirement::OptionalUser);
         assert!(single_table_plan_v1(&ineligible).unwrap().is_none());
         assert!(
             single_node_identity_v1(&ineligible, None)
@@ -2265,6 +2270,15 @@ pub enum MembershipTarget {
     Other,
 }
 
+impl MembershipTarget {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Own => "self",
+            Self::Other => "other",
+        }
+    }
+}
+
 /// One row of the closed, declaration-level transition matrix (`op` × caller
 /// class × self/other × `from`→`to`, or `patch` × `fields`). Manifest loading
 /// **shape-validates** every entry — chiefly that no unknown role hides in
@@ -2274,7 +2288,7 @@ pub enum MembershipTarget {
 ///
 /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
 ///   policy is declared, closed by default, and enforced by the host.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MembershipTransition {
     pub op: MembershipOp,
@@ -2404,6 +2418,68 @@ impl MembershipManifest {
     }
 }
 
+fn compare_utf16_vectors(left: &[String], right: &[String]) -> std::cmp::Ordering {
+    left.iter()
+        .zip(right)
+        .map(|(left, right)| crate::rqs_contract::cmp_utf16(left, right))
+        .find(|ordering| !ordering.is_eq())
+        .unwrap_or_else(|| left.len().cmp(&right.len()))
+}
+
+fn compare_optional_utf16_vectors(
+    left: Option<&Vec<String>>,
+    right: Option<&Vec<String>>,
+) -> std::cmp::Ordering {
+    match (left, right) {
+        (None, None) => std::cmp::Ordering::Equal,
+        (None, Some(_)) => std::cmp::Ordering::Less,
+        (Some(_), None) => std::cmp::Ordering::Greater,
+        (Some(left), Some(right)) => compare_utf16_vectors(left, right),
+    }
+}
+
+/// Canonical, order-stable copy of a membership transition matrix. The row
+/// order is semantically irrelevant (rows authorize rather than select), and
+/// `by`/`from`/`to`/`fields` are sets. Authority-profile identity therefore
+/// sorts every set and then every complete row by the closed semantic tuple,
+/// preserving duplicates so the embedded matrix remains an exact projection.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
+///   complete matrix, including caller classes and field coverage, is the
+///   runtime authorization policy.
+pub(crate) fn canonical_membership_transition_matrix(
+    transitions: &[MembershipTransition],
+) -> Vec<MembershipTransition> {
+    let mut canonical = transitions.to_vec();
+    for transition in &mut canonical {
+        transition
+            .by
+            .sort_by(|left, right| crate::rqs_contract::cmp_utf16(left, right));
+        for values in [
+            &mut transition.from,
+            &mut transition.to,
+            &mut transition.fields,
+        ] {
+            if let Some(values) = values {
+                values.sort_by(|left, right| crate::rqs_contract::cmp_utf16(left, right));
+            }
+        }
+    }
+    canonical.sort_by(|left, right| {
+        crate::rqs_contract::cmp_utf16(left.op.as_str(), right.op.as_str())
+            .then_with(|| {
+                crate::rqs_contract::cmp_utf16(left.target.as_str(), right.target.as_str())
+            })
+            .then_with(|| compare_utf16_vectors(&left.by, &right.by))
+            .then_with(|| compare_optional_utf16_vectors(left.from.as_ref(), right.from.as_ref()))
+            .then_with(|| compare_optional_utf16_vectors(left.to.as_ref(), right.to.as_ref()))
+            .then_with(|| {
+                compare_optional_utf16_vectors(left.fields.as_ref(), right.fields.as_ref())
+            })
+    });
+    canonical
+}
+
 /// Stable identity of one authority-profile generation. Function manifests
 /// carry this beside their ordinary authorization dimensions so a role-field
 /// or transition edit is visible to dependent artifact review without
@@ -2413,6 +2489,51 @@ impl MembershipManifest {
 pub struct AuthorityProfileIdentityV1 {
     pub id: String,
     pub generation: String,
+}
+
+/// Closed identity of an authority-profile operation synthesized by codegen.
+/// This is a manifest fact emitted from a module-private generator marker;
+/// function names and declared dependencies alone never grant this identity.
+// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — private
+// transition marshalling is capability-gated by generated operation identity.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum GeneratedAuthorityOperationKindV1 {
+    List,
+    MyRole,
+    Invite,
+    Join,
+    Leave,
+    ChangeRole,
+    TransferOwner,
+    Remove,
+}
+
+impl GeneratedAuthorityOperationKindV1 {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::List => "list",
+            Self::MyRole => "myRole",
+            Self::Invite => "invite",
+            Self::Join => "join",
+            Self::Leave => "leave",
+            Self::ChangeRole => "changeRole",
+            Self::TransferOwner => "transferOwner",
+            Self::Remove => "remove",
+        }
+    }
+
+    pub fn is_mutation(self) -> bool {
+        !matches!(self, Self::List | Self::MyRole)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GeneratedAuthorityOperationV1 {
+    pub id: String,
+    pub generation: String,
+    pub operation: GeneratedAuthorityOperationKindV1,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2465,6 +2586,27 @@ pub struct AuthorityProfileOwnerBootstrapInvariantV1 {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorityProfileTransitionPreconditionsV1 {
     pub source: String,
+    /// The explicitly pinned membership declaration id. Profile-backed tables
+    /// never use the ordinary table-name fallback because that would let a
+    /// rename retarget an authorization profile without rotating its declared
+    /// stable identity.
+    pub membership_declaration_id: String,
+    /// Canonical copy of every transition row that runtime authorization may
+    /// consult. This makes the closed profile generation cover caller classes,
+    /// predecessor/successor roles, and field-bound writes directly.
+    pub matrix: Vec<MembershipTransition>,
+    /// Exact membership provenance mode consumed by delegated service-principal
+    /// admission and transition-log recording. `None` is emitted as JSON null,
+    /// so absence cannot collapse into either declared mode.
+    pub provenance: Option<MembershipProvenance>,
+    /// Whether the membership declaration installs the host-owned expiry
+    /// sweep. The sweep's detailed shape is validated on the canonical
+    /// membership declaration; its authority-relevant presence is generation
+    /// bound here.
+    pub expiry_present: bool,
+    /// Exact closed `principalAddressedWrites.remove` value. `None` is emitted
+    /// as JSON null and remains distinct from the only admitted value, `true`.
+    pub principal_addressed_writes_remove: Option<bool>,
     pub owner_mutation: String,
 }
 
@@ -2638,6 +2780,25 @@ mod authority_profile_manifest_tests {
             },
             "transitionPreconditions": {
                 "source": "membership.transitions",
+                "membershipDeclarationId": "eventMembers",
+                "matrix": [
+                    {
+                        "op": "insert",
+                        "by": ["owner"],
+                        "target": "other",
+                        "to": ["invited"]
+                    },
+                    {
+                        "op": "setRole",
+                        "by": ["self"],
+                        "target": "self",
+                        "from": ["invited"],
+                        "to": ["member"]
+                    }
+                ],
+                "provenance": "full",
+                "expiryPresent": false,
+                "principalAddressedWritesRemove": null,
                 "ownerMutation": "transfer-owner-only"
             },
             "authorizationEventFields": ["eventId", "userId", "role"],
@@ -3066,8 +3227,7 @@ impl FunctionManifest {
                                     .cloned()
                                     .collect::<BTreeSet<_>>()
                                     .into_iter()
-                                    .collect::<Vec<_>>() =>
-                    {}
+                                    .collect::<Vec<_>>() => {}
                     _ => {
                         return Err(SnapbackError::error(
                             "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
@@ -3076,6 +3236,31 @@ impl FunctionManifest {
                         )
                         .with_details(serde_json::json!({ "function": function.name })));
                     }
+                }
+            }
+            if let Some(generated) = &function.generated_authority_operation {
+                let expected_name = format!("{}.{}", generated.id, generated.operation.as_str());
+                let expected_kind = if generated.operation.is_mutation() {
+                    FunctionKind::Mutation
+                } else {
+                    FunctionKind::LiveQuery
+                };
+                let dependence = AuthorityProfileIdentityV1 {
+                    id: generated.id.clone(),
+                    generation: generated.generation.clone(),
+                };
+                if function.name != expected_name
+                    || function.kind != expected_kind
+                    || !function.authority_profile_dependence.contains(&dependence)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_GENERATED_AUTHORITY_OPERATION_INVALID",
+                        "runtime",
+                        format!(
+                            "function {} carries an inconsistent generated authority-operation identity",
+                            function.name
+                        ),
+                    ));
                 }
             }
             if function.stream && function.kind != FunctionKind::Action {
@@ -4852,7 +5037,8 @@ fn validate_result_contract_definition(function: &FunctionDefinition) -> Snapbac
     if let Some(contract) = value_contract {
         let mut object_fields = 0;
         validate_result_value_contract(function, contract, 0, &mut object_fields)?;
-        if matches!(function.kind, FunctionKind::Action) && value_contract_contains_media(contract) {
+        if matches!(function.kind, FunctionKind::Action) && value_contract_contains_media(contract)
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE",
                 "assets",
@@ -4973,7 +5159,8 @@ pub(crate) fn value_contract_contains_media(contract: &ResultValueContract) -> b
     match contract {
         ResultValueContract::MediaRefV1 { .. } => true,
         ResultValueContract::Array { element, .. } => value_contract_contains_media(element),
-        ResultValueContract::Tuple { elements } | ResultValueContract::Union { variants: elements } => {
+        ResultValueContract::Tuple { elements }
+        | ResultValueContract::Union { variants: elements } => {
             elements.iter().any(value_contract_contains_media)
         }
         ResultValueContract::Object { fields, .. } => fields
@@ -5451,15 +5638,15 @@ fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
 }
 
 /// The derived, never-authored `rqsEligible` served-manifest predicate
-/// (LLP 0090 Authorization scope; LLP 0092 §0C.2): declared
-/// `authorityIndependent` (entailing `public`) AND the LLP 0053
-/// closed-inputs/retainable proof — HostPlan query runtime, no ambient or
-/// membership dependency, and a complete `singleTable` read summary whose
-/// table set equals the plan's. Evaluated non-erroringly: a query failing the
-/// proof is simply not eligible, never a load error. Returns the digest kind
-/// the eligible query's `contentDigest` takes (LLP 0091 §0A.4's selector:
-/// DK-3-analyzable unordered → `mset1`; ordered/limited replace-only →
-/// `seq1`).
+/// (LLP 0270 D1/D2; LLP 0092 §0C.2): public application semantics AND the
+/// host-owned LLP 0053 closed-inputs proof — HostPlan query runtime, no ambient
+/// or membership dependency, and a complete `singleTable` read summary whose
+/// table set equals the plan's. The app-authored `authorityIndependent` flag
+/// is deliberately not an input to this public-exact retention admission.
+/// Evaluated non-erroringly: a query failing the proof is simply not eligible,
+/// never a load error. Returns the digest kind the eligible query's
+/// `contentDigest` takes (LLP 0091 §0A.4's selector: DK-3-analyzable unordered
+/// → `mset1`; ordered/limited replace-only → `seq1`).
 ///
 /// Everything keyed on the predicate — token minting, bundle `resume`
 /// presence, Channel B persistence, D1.1 admission — reads this one derived
@@ -5472,9 +5659,6 @@ pub fn rqs_eligible_digest_kind(
     // — media projection reads protected asset metadata in addition to the
     // app table, so it cannot inhabit the current exact one-table RQS class.
     if result_contract_contains_media(&function.result_contract) {
-        return None;
-    }
-    if !function.authority_independent {
         return None;
     }
     if function.kind != FunctionKind::LiveQuery {
@@ -5521,6 +5705,16 @@ pub fn rqs_eligible_digest_kind(
     } else {
         crate::rqs_contract::DigestKind::Seq1
     })
+}
+
+/// Owner-admitted authority independence used by live lifecycle and bundle
+/// namespace selection. Explicit validated declarations retain their existing
+/// meaning; the public-exact class additionally derives the fact from the
+/// closed host plan. No client/app assertion can widen this predicate.
+// @ref LLP 0270#d1-default-is-automatic-request-plus-owner-admission — the
+// owner proof, not local configuration, selects the authority-independent lane.
+pub fn owner_admits_authority_independence(function: &FunctionDefinition) -> bool {
+    function.authority_independent || rqs_eligible_digest_kind(function).is_some()
 }
 
 pub(crate) fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
@@ -9214,6 +9408,16 @@ pub struct FunctionDefinition {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub authority_profile_dependence: Vec<AuthorityProfileIdentityV1>,
+    /// Definitive codegen identity for a synthesized authority operation.
+    /// Authors cannot supply the generator's private marker, so a matching
+    /// function name or dependency vector is never sufficient authority.
+    #[serde(
+        default,
+        rename = "generatedAuthorityOperation",
+        alias = "generated_authority_operation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub generated_authority_operation: Option<GeneratedAuthorityOperationV1>,
     #[serde(default, rename = "syncabilityClass", alias = "syncability_class")]
     pub syncability_class: Option<String>,
     #[serde(default, rename = "readSetSummary", alias = "read_set_summary")]
@@ -9302,6 +9506,7 @@ impl FunctionDefinition {
             tracked_refusals: Vec::new(),
             authorization_dependence: Vec::new(),
             authority_profile_dependence: Vec::new(),
+            generated_authority_operation: None,
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
             write_set_summary: DependencySummary::default(),
@@ -9869,6 +10074,11 @@ pub struct PublicFunctionDefinition {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub authority_profile_dependence: Vec<AuthorityProfileIdentityV1>,
+    #[serde(
+        rename = "generatedAuthorityOperation",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub generated_authority_operation: Option<GeneratedAuthorityOperationV1>,
     #[serde(rename = "syncabilityClass")]
     pub syncability_class: Option<String>,
     #[serde(rename = "readSetSummary")]
@@ -10093,6 +10303,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             tracked_refusals: _,
             authorization_dependence,
             authority_profile_dependence,
+            generated_authority_operation,
             syncability_class,
             read_set_summary,
             write_set_summary,
@@ -10130,6 +10341,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             retention_class,
             authorization_dependence,
             authority_profile_dependence,
+            generated_authority_operation,
             syncability_class,
             read_set_summary,
             write_set_summary,
@@ -11006,8 +11218,7 @@ impl ValueExpr {
             Self::Binding(_) | Self::RuntimeId | Self::MembershipExists(_) => false,
             Self::Field { base, .. } => base.owner_write_check_preflight_safe(),
             Self::Binary { left, right, .. } => {
-                left.owner_write_check_preflight_safe()
-                    && right.owner_write_check_preflight_safe()
+                left.owner_write_check_preflight_safe() && right.owner_write_check_preflight_safe()
             }
             Self::Unary { expr, .. } => expr.owner_write_check_preflight_safe(),
             Self::If { cond, then, r#else } => {
@@ -11018,9 +11229,7 @@ impl ValueExpr {
             Self::Concat(values) | Self::Call { args: values, .. } => {
                 values.iter().all(Self::owner_write_check_preflight_safe)
             }
-            Self::Record { fields } => {
-                fields.values().all(Self::owner_write_check_preflight_safe)
-            }
+            Self::Record { fields } => fields.values().all(Self::owner_write_check_preflight_safe),
             Self::Arg(_)
             | Self::Args
             | Self::AuthUserId
@@ -11990,6 +12199,18 @@ pub struct MutationOutput {
     pub version: u64,
     pub changed_count: usize,
     pub result: Value,
+    /// Durable post-commit authority transitions for a generated
+    /// authority-profile mutation. Storage records this beside the exact
+    /// settlement so replay reproduces the original receipt; Local strips it
+    /// from non-generated mutation responses.
+    ///
+    /// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
+    #[serde(
+        default,
+        rename = "authorityTransitions",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub authority_transitions: Vec<crate::storage::AuthorityTransitionReceiptV1>,
     /// The recorded ctx-answer ledger for this invocation (LLP 0051 D1).
     /// Present for mutations in both executable tiers (record mode records;
     /// replay mode echoes the consumed ledger). HostPlan and Ibex share the
@@ -12522,9 +12743,7 @@ impl TargetCapabilityId {
             // only targets registering the atomic settlement ledger may
             // advertise the outbox replay prerequisite. Cloudflare/default
             // facts remain false even though that target accepts mutations.
-            Self::OfflineMutationReplay => {
-                facts.client_mutation_settlement_ledger_registered
-            }
+            Self::OfflineMutationReplay => facts.client_mutation_settlement_ledger_registered,
             Self::MutationReadSetValidation => {
                 manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
                     && facts.mutation_read_set_validator_registered
@@ -16510,7 +16729,7 @@ mod approval_manifest_tests {
             name,
             kind,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: Vec::new(),
                 return_value: None,
             })),
@@ -19557,7 +19776,7 @@ mod membership_manifest_grammar_tests {
                 maximum_application_writes: 2,
             },
             mutation: MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![
                     MutationStep::Get {
                         table: "incidents".to_owned(),
@@ -19888,7 +20107,7 @@ mod membership_manifest_grammar_tests {
             "genericAllocation",
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::AllocateSequence {
                     counter: "taskPositions".to_owned(),
                     scope: ValueExpr::Arg("incidentId".to_owned()),

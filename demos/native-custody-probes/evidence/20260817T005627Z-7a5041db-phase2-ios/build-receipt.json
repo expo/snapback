@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "snapback.native-custody-build.v1",
+  "runId": "7a5041db",
+  "platform": "ios",
+  "bundleId": "dev.snapback.custodyprobes",
+  "buildMode": "verified-reuse",
+  "artifact": {
+    "kind": "app-bundle",
+    "path": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Build/Products/Debug-iphonesimulator/NativeCustodyProbes.app",
+    "binaryPath": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Build/Products/Debug-iphonesimulator/NativeCustodyProbes.app/NativeCustodyProbes",
+    "bundleId": "dev.snapback.custodyprobes",
+    "nativeBuildConfiguration": "Debug",
+    "bundleDelivery": "metro",
+    "appPathOverride": null,
+    "codesign": "dev.snapback.custodyprobes",
+    "notificationServiceExtension": {
+      "kind": "notification-service-extension",
+      "path": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Build/Products/Debug-iphonesimulator/NativeCustodyProbes.app/PlugIns/NativeCustodyProbesNSE.appex",
+      "bundleId": "dev.snapback.custodyprobes.nse",
+      "binaryPath": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Build/Products/Debug-iphonesimulator/NativeCustodyProbes.app/PlugIns/NativeCustodyProbesNSE.appex/NativeCustodyProbesNSE",
+      "codesign": "dev.snapback.custodyprobes.nse",
+      "sha256": "sha256:96a2ec0c94e71ec4d3b29ab313264b46a3c1be8a951ee6698460b16507234a5a",
+      "inventoryFormat": "snapback.ios-app-bundle-inventory.v1",
+      "inventoryFileCount": 5,
+      "evidencePosture": "built-and-embedded; simctl push is structurally non-invokable on iOS 26 simulators"
+    },
+    "shareExtension": {
+      "kind": "share-extension",
+      "path": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Build/Products/Debug-iphonesimulator/NativeCustodyProbes.app/PlugIns/NativeCustodyProbesShare.appex",
+      "bundleId": "dev.snapback.custodyprobes.share",
+      "binaryPath": "/Users/ccheever/projects/snapback-lanes/p2probes/demos/native-custody-probes/app/.build/ios-derived-data/Build/Products/Debug-iphonesimulator/NativeCustodyProbes.app/PlugIns/NativeCustodyProbesShare.appex/NativeCustodyProbesShare",
+      "codesign": "dev.snapback.custodyprobes.share",
+      "sha256": "sha256:278d26d0dd4135bb6f13663c779c197723085a4ad3d3f12dd59d542f43471586",
+      "inventoryFormat": "snapback.ios-app-bundle-inventory.v1",
+      "inventoryFileCount": 5
+    },
+    "sha256": "sha256:0975f6bfd81be0ca8a76b23584ab5e4b7b25d2701d65e517022930392778a1b2",
+    "inventoryFormat": "snapback.ios-app-bundle-inventory.v1",
+    "inventoryFileCount": 80
+  },
+  "reusedFrom": {
+    "path": "20260817T003732Z-60215135-phase2-ios/build-receipt.json",
+    "sha256": "sha256:5412c4edadb8213708862751e20c72375b97839b5ae6d979550c3d20ae14fa4a"
+  },
+  "createdAt": "2026-08-17T00:56:34.735Z"
+}

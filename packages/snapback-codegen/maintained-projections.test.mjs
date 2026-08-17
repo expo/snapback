@@ -249,12 +249,14 @@ export const books = defineTable({
 })
   .index('by_owner_title', ['ownerId', 'title'], { unique: true })
   .index('by_author', ['authorSlug'])
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .sync();
 export const authors = defineTable({
   slug: v.string(),
   name: v.string(),
 })
   .index('by_slug', ['slug'], { unique: true })
+  .visibility({ kind: 'public-read' })
   .sync();
 export const bookCards = defineTable({
   ownerId: v.principal(),
@@ -262,6 +264,7 @@ export const bookCards = defineTable({
   authorName: v.optional(v.string()),
 })
   .index('cards_by_owner', ['ownerId'])
+  .visibility({ kind: 'owner', field: 'ownerId' })
   .sync();
 export default defineSchema(
   { books, authors, bookCards },

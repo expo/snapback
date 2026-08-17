@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "snapback.expo-sqlite-carrier-qualification.raw.v1",
+  "sqliteSourceId": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9",
+  "runId": "20260817T022635464Z-f68e8aa2",
+  "seed": "f68e8aa2b9249cc9",
+  "results": [
+    {
+      "scenario": "atomic-fault-after-every-observed-sql-boundary",
+      "result": "pass",
+      "statementAndBoundaryCuts": 18,
+      "boundaries": [
+        "materialization:begin-immediate",
+        "read-map:materializations",
+        "read-map:page_sets",
+        "read-map:memberships",
+        "read-map:entries",
+        "read:outbox:state",
+        "read:store_meta:state",
+        "replace:materializations:clear",
+        "write:materializations:generation",
+        "replace:page_sets:clear",
+        "write:page_sets:generation",
+        "replace:memberships:clear",
+        "write:memberships:generation",
+        "replace:entries:clear",
+        "write:entries:generation",
+        "write:outbox:state",
+        "write:store_meta:state",
+        "materialization:commit"
+      ]
+    },
+    {
+      "scenario": "two-process-exclusive-owner-and-kill-takeover",
+      "result": "pass",
+      "loserCode": "SNAPBACK_EXPO_SQLITE_STORE_OWNER_UNAVAILABLE",
+      "sqliteSourceId": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9"
+    },
+    {
+      "scenario": "crash-recovery-at-every-named-phase",
+      "result": "pass",
+      "phaseCuts": 7,
+      "phases": [
+        "pending-durable-before-delivery",
+        "server-result-before-local-settlement",
+        "commit-loop",
+        "committed-before-callback",
+        "consumed-before-ack",
+        "ack-proof-before-local-removal",
+        "authority-wipe-before-successor"
+      ]
+    },
+    {
+      "scenario": "kill-and-truncated-wal-copy",
+      "result": "pass",
+      "originalWalBytes": 82432,
+      "truncatedWalBytes": 41216,
+      "outcome": "recovered",
+      "classification": "supporting-only-not-power-loss-proof"
+    },
+    {
+      "scenario": "corruption-header-page-future-schema-bad-digest",
+      "result": "pass",
+      "cases": [
+        "header",
+        "page-truncation",
+        "future-schema",
+        "bad-row-digest"
+      ],
+      "exactCode": "SNAPBACK_EXPO_SQLITE_STORE_CORRUPT",
+      "originalBytesPreserved": true
+    },
+    {
+      "scenario": "quota-max-page-count-full-rollback",
+      "result": "pass",
+      "maxPageCount": 24,
+      "priorCommitSurvived": true,
+      "candidatePublished": false
+    },
+    {
+      "scenario": "same-js-realm-global-registry-coalescing",
+      "result": "pass",
+      "roots": 2,
+      "stores": 1
+    }
+  ]
+}

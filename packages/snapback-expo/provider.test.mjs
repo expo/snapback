@@ -339,6 +339,9 @@ const surfaceBoot = createSnapbackExpoBoot({
   environment: Object.freeze({
     format: 'snapback.expo-environment.v1',
     appState: appStateHarness(),
+    resolveAppClientPlatform: async () => Object.freeze({
+      kind: 'expo-native-phase-2-evidence-required',
+    }),
     resolveBinding: async () => ({
       binding: conversationBinding,
       admission: { delivery: { channel: 'local-supervised-ipc' } },

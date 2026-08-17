@@ -300,6 +300,7 @@ for (const carrier of ['file', 'indexeddb']) {
   test(`single-table legacy adoption atomically switches stores and waits for outbox on ${carrier}`, async (t) => {
     const handle = await setupCarrier(t, carrier, `single-table-adoption-${carrier}`);
     const fixture = makeFixture(`single-table-adoption-${carrier}`);
+    fixture.context.nodes[0].classId = 'single_table_v1';
     fixture.context.retentionAuthority = 'rqs-authority-independent-snapshot-v1';
     fixture.context.leaseStatus = 'not-required';
     fixture.context.authorizedLeaseHash = null;
@@ -347,6 +348,7 @@ for (const carrier of ['file', 'indexeddb']) {
     });
 
     const blockedFixture = makeFixture(`single-table-adoption-blocked-${carrier}`);
+    blockedFixture.context.nodes[0].classId = 'single_table_v1';
     blockedFixture.context.retentionAuthority = 'rqs-authority-independent-snapshot-v1';
     blockedFixture.context.leaseStatus = 'not-required';
     blockedFixture.context.authorizedLeaseHash = null;
@@ -398,6 +400,36 @@ for (const carrier of ['file', 'indexeddb']) {
     });
   });
 }
+
+test('lease-free retention refuses a signed proof for a non-public-exact class', async (t) => {
+  const handle = await setupCarrier(t, 'file', 'independent-class-refusal');
+  const fixture = makeFixture('independent-class-refusal');
+  fixture.context.retentionAuthority = 'rqs-authority-independent-snapshot-v1';
+  fixture.context.leaseStatus = 'not-required';
+  fixture.context.authorizedLeaseHash = null;
+  const store = await openSemantic(handle, fixture);
+  let record = await store.initialize(fixture.address, fixture.identities, null);
+  record = await store.beginEstablishment(
+    fixture.address,
+    { kind: 'page', input: { kind: 'first' } },
+    fence(record),
+  );
+  const signedProtected = fixture.makeProof(record);
+  fixture.context.authorizationWitness = signedProtected.witness;
+  await assert.rejects(
+    store.commitPage(
+      fixture.address,
+      {
+        ...fixture.fragmentFor(signedProtected, 'retained'),
+        authorizedLeaseHash: null,
+      },
+      signedProtected.proof,
+      null,
+      fence(record),
+    ),
+    (error) => error?.code === 'SNAPBACK_COMPLETENESS_LEASE_INVALID',
+  );
+});
 
 test('A5 installs Rust-server golden proof bytes and rejects binding near misses', async (t) => {
   const fixture = JSON.parse(await readFile(

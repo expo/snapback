@@ -1227,6 +1227,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_AXIS_COLLISION"
         | "SNAPBACK_MEMBERSHIP_AXIS_FIELD_UNKNOWN"
         | "SNAPBACK_MEMBERSHIP_OPERATION_INVALID"
+        // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — a
+        // forged generated-operation marker is a malformed function artifact.
+        | "SNAPBACK_GENERATED_AUTHORITY_OPERATION_INVALID"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN"
         | "SNAPBACK_MEMBERSHIP_CONFUSABLE_ROLES"
         | "SNAPBACK_MEMBERSHIP_DUPLICATE_ROLE"
@@ -1303,9 +1306,6 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTHORITY_PROFILE_INVALID"
         | "SNAPBACK_AUTHORITY_PROFILE_REQUIRED"
         | "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID"
-        | "SNAPBACK_AUTHORITY_OPERATION_UNAVAILABLE"
-        | "SNAPBACK_AUTHORITY_INVITATION_INVALID"
-        | "SNAPBACK_AUTHORITY_ROLE_INVALID"
         | "SNAPBACK_AUTHORITY_ROSTER_CURSOR_INVALID"
         | "SNAPBACK_AUTHORITY_ROSTER_PAGE_INVALID"
         | "SNAPBACK_AUTHORITY_TRANSFER_OWNER_TARGET_INACTIVE"

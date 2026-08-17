@@ -12,14 +12,15 @@
 // browser with the backend down "yielded no authenticated application shell
 // and zero retained query rows." This suite proves, on the scored JS arm
 // with its DEFAULT persistence paths (no injected store):
-//   1. retained render with data (the retainable rqsEligible subset) by a
+//   1. retained render with data for a real codegen-derived public-exact query
+//      carrying no authorityIndependent/retainable declaration, by a
 //      FRESH CLIENT INSTANCE IN THE SAME PROCESS — not a cold boot; this
 //      suite never restarts the client process — after server
 //      restart + client relaunch — including with the backend unreachable;
 //   2. warm-session offline create/update settling exactly-once on resume
 //      through the LLP 0043 M2 outbox;
-//   3. the retainability boundary refused with clarity (LLP 0053): a
-//      non-eligible query names WHY it will not act local-first;
+//   3. the retainability boundary refused with clarity (LLP 0053): an opaque
+//      JS live query names WHY it will not act local-first;
 //   4. the LLP 0090 D3 outbox rule with its 2026-08-01 rendering-side note:
 //      a relaunch with pending intent still renders the retained PRE-intent
 //      rows (marked, with the explicit pending-intent fact) while the resume
@@ -122,7 +123,14 @@ await runAcceptance(suite, async () => {
     assertEqual(clientA.rqsStoreInfo.source, 'default', 'store source');
     assertEqual(clientA.rqsStoreInfo.implementation, 'file', 'store implementation');
     assertEqual(clientA.rqsStoreInfo.durable, true, 'store durability');
-    handleA = await clientA.liveQuery('dashboardMetrics', {
+    const generatedFeed = generated('functions.manifest.json').functions.find(
+      ({ name }) => name === 'metricsFeed',
+    );
+    assertEqual(Object.hasOwn(generatedFeed, 'authorityIndependent'), false,
+      'the real generated query carries no app-authored authority assertion');
+    assertEqual(Object.hasOwn(generatedFeed, 'retainable'), false,
+      'the real generated query carries no retainability declaration');
+    handleA = await clientA.liveQuery('metricsFeed', {
       connectionId: 'offline-arm-a',
       args: { dashboardId: 'ops' },
       transport: 'stream',
@@ -137,8 +145,8 @@ await runAcceptance(suite, async () => {
     return { store: { ...clientA.rqsStoreInfo }, entries: inspection.entries };
   });
 
-  await suite.check('non-eligible query refuses retention with a named reason (LLP 0053 boundary)', async () => {
-    const feed = await clientA.liveQuery('metricsFeed', {
+  await suite.check('opaque live query refuses retention with a named reason (LLP 0053 boundary)', async () => {
+    const feed = await clientA.liveQuery('protectedMetricsFeed', {
       connectionId: 'offline-arm-a',
       args: { dashboardId: 'ops' },
     });
@@ -146,7 +154,7 @@ await runAcceptance(suite, async () => {
       assertEqual(feed.retention?.retainable, false, 'refused retainability');
       assertEqual(feed.retention?.code, 'SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE', 'refusal code');
       const entry = await clientA.rqsStore.load(
-        rqsEntryKey('metricsFeed', { dashboardId: 'ops' }),
+        rqsEntryKey('protectedMetricsFeed', { dashboardId: 'ops' }),
       );
       assertEqual(entry, null, 'nothing persisted for the refused query');
       return { retention: { ...feed.retention, store: undefined } };
@@ -166,7 +174,7 @@ await runAcceptance(suite, async () => {
   const updatesB = [];
   await suite.check('fresh client instance (same process) with the backend down renders retained rows (Diary 0027 comparator)', async () => {
     clientB = openClient();
-    handleB = await clientB.liveQuery('dashboardMetrics', {
+    handleB = await clientB.liveQuery('metricsFeed', {
       connectionId: 'offline-arm-b',
       args: { dashboardId: 'ops' },
       transport: 'stream',
@@ -221,7 +229,7 @@ await runAcceptance(suite, async () => {
     // — the frozen Diary 0027 field-notebook scenario.
     const bystander = new SnapbackClient(server.baseUrl, server.clientOptions);
     try {
-      const handle = await bystander.liveQuery('dashboardMetrics', {
+      const handle = await bystander.liveQuery('metricsFeed', {
         connectionId: 'offline-arm-rule',
         args: { dashboardId: 'ops' },
       });
@@ -308,7 +316,7 @@ await runAcceptance(suite, async () => {
       () => handleB.rows.filter((row) => row.label === 'error_rate').length === 1,
       { label: 'no ghost duplicate row' },
     );
-    const probe = await clientB.liveQuery('metricsFeed', {
+    const probe = await clientB.liveQuery('dashboardMetrics', {
       connectionId: 'offline-arm-b',
       args: { dashboardId: 'ops' },
     });
@@ -354,7 +362,7 @@ await runAcceptance(suite, async () => {
   await suite.check('fresh client instance (same process) after restart renders retained rows first, then settles current', async () => {
     const clientC = openClient();
     const updates = [];
-    const handleC = await clientC.liveQuery('dashboardMetrics', {
+    const handleC = await clientC.liveQuery('metricsFeed', {
       connectionId: 'offline-arm-c',
       args: { dashboardId: 'ops' },
       transport: 'stream',

@@ -1,5 +1,6 @@
-// @ref LLP 0043#milestone-1-retained-reads — only the explicitly public,
-// authority-independent list query participates in cold retained display.
+// @ref LLP 0043#milestone-1-retained-reads — public-exact list queries
+// participate in cold retained display from owner proof; the default witness
+// carries no retention declaration.
 // @ref LLP 0053#the-authorization-event-universe-closed — authUserId() makes myTodos
 // authority-scoped; this JS arm must refuse durable retention without leases.
 
@@ -7,6 +8,7 @@ import {
   arg,
   asc,
   authUserId,
+  defineJsLiveQuery,
   defineLiveQuery,
   defineMutation,
   eq,
@@ -38,14 +40,8 @@ export const myTodos = defineLiveQuery({
   auth: 'public',
 });
 
-// The protected-retention probe. Deliberately NOT authorityIndependent, and
-// anonymous-admissible (no authUserId(): an anonymous sessions caller can
-// subscribe it, unlike myTodos which refuses SNAPBACK_AUTH_USER_MISSING
-// before any retention classification). The SAME declaration classifies
-// SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE under dev custody (no authorization
-// scope is ever minted there) and SNAPBACK_RETENTION_NOT_RETAINABLE under
-// sessions mode, where every non-authorityIndependent subscription is
-// auth-scoped (LLP 0053's protected class).
+// Default public-exact retention witness: no authorityIndependent or
+// retainable declaration. Codegen/the host derive the exact class.
 export const todosFeed = defineLiveQuery({
   table: 'todos',
   args: { listId: v.string() },
@@ -53,6 +49,21 @@ export const todosFeed = defineLiveQuery({
   order: [asc('title')],
   index: 'by_list_title',
   auth: 'public',
+});
+
+// Protected-retention refusal probe. Opaque JavaScript remains auth-scoped
+// under the new derivation but is still anonymous-callable, so both custody
+// phases can observe the retention boundary instead of failing earlier on a
+// missing authUserId().
+export const protectedTodosFeed = defineJsLiveQuery({
+  args: { listId: v.string() },
+  result: results.documents('todos'),
+  reads: ['todos'],
+  auth: 'public',
+  handler: async (ctx, args) => {
+    const rows = await ctx.db.query('todos').take(1024).collect();
+    return rows.filter((row) => row.listId === args.listId);
+  },
 });
 
 export const addTodo = defineMutation({

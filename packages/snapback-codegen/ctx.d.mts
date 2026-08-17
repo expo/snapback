@@ -301,11 +301,13 @@ export interface QueryContext<
   Permissions = Record<string, never>,
   Assets = unknown,
   Runtime extends RuntimeContext = RuntimeContext,
+  Authority = Record<string, never>,
 > {
   readonly db: QueryDatabase<Schema>;
   readonly permissions: Permissions;
   readonly auth: Auth;
   readonly runtime: Runtime;
+  readonly authority: Authority;
   readonly assets: Assets;
   isDirectHuman(): boolean;
   refuse(code: string, details?: unknown): never;
@@ -322,7 +324,8 @@ export interface MutationContext<
   Jobs extends JobsContext = JobsContext,
   Sequence extends SequenceContext = SequenceContext,
   Mutation extends MutationIdentityContext = MutationIdentityContext,
-> extends QueryContext<Schema, Auth, Permissions, Assets, Runtime> {
+  Authority = Record<string, never>,
+> extends QueryContext<Schema, Auth, Permissions, Assets, Runtime, Authority> {
   readonly db: MutationDatabase<Schema>;
   readonly membership: Membership;
   readonly jobs: Jobs;

@@ -1,0 +1,6 @@
+{
+  "name": "expo-sqlite",
+  "version": "57.0.1",
+  "type": "module",
+  "exports": "./index.mjs"
+}

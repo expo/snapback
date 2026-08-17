@@ -826,6 +826,36 @@ test('expo-native durable admission requires an adapter-reported qualifying grad
       'test-single-runtime-queue',
     );
     await client.dispose();
+
+    let providerThreadedProbeCalls = 0;
+    const providerThreadedStorage = {
+      ...createMemoryAuthCustodyStorage(),
+      async platformGrade() {
+        providerThreadedProbeCalls += 1;
+        throw new Error('the provider-threaded grade must prevent a second probe');
+      },
+    };
+    const providerThreadedClient = await createSnapbackAppClient({
+      app,
+      binding: makeBinding(app),
+      storagePartition: 'provider-threaded-grade-test',
+      platform: publishedAppClientInternal.createProviderValidatedExpoNativePlatform({
+        authCustodyStorage: providerThreadedStorage,
+        authCustodyGrade: {
+          os: 'android',
+          grade: 'single-runtime',
+          mechanism: 'test-provider-validated-grade',
+        },
+        cryptoObject: webcrypto,
+      }),
+    });
+    assert.equal(providerThreadedProbeCalls, 0);
+    assert.equal(providerThreadedClient.bootstrapState().status, 'ready');
+    assert.equal(
+      providerThreadedClient.bootstrapState().custody.mechanism,
+      'test-provider-validated-grade',
+    );
+    await providerThreadedClient.dispose();
   } finally {
     server.restore();
   }

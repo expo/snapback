@@ -154,6 +154,84 @@ export default defineSchema(
       .index('by_page_key', ['pageKey'], { unique: true })
       .visibility({ kind: 'public-read' })
       .sync(),
+
+    conversations: defineTable({
+      ownerId: v.principal(),
+      kind: v.string(),
+      dmPairKey: v.optional(v.string()),
+      fixtureId: v.optional(v.string()),
+      fixtureDigest: v.optional(v.string()),
+      groupName: v.optional(v.string()),
+      groupDescription: v.optional(v.string()),
+      creatorProfileId: v.id('profiles'),
+      nextEventSequence: v.integer(),
+      lastMessageId: v.optional(v.id('messages')),
+      lastMessageAt: v.integer(),
+      createdAt: v.integer(),
+    })
+      .index('by_dm_pair', ['dmPairKey'], { unique: true })
+      .index('by_fixture_id', ['fixtureId'], { unique: true })
+      .index('by_last_message', ['lastMessageAt'])
+      .visibility({ kind: 'public-read' }),
+
+    conversationMembers: defineTable({
+      ownerId: v.principal(),
+      conversationId: v.id('conversations'),
+      profileId: v.id('profiles'),
+      role: v.string(),
+      joinedAt: v.integer(),
+      joinedSequence: v.integer(),
+      isCurrent: v.boolean(),
+      isLatest: v.boolean(),
+      removedAt: v.optional(v.integer()),
+      removedSequence: v.optional(v.integer()),
+      activeKey: v.string(),
+      fixtureMutationId: v.optional(v.string()),
+      fixtureDigest: v.optional(v.string()),
+    })
+      .index('by_active_key', ['activeKey'], { unique: true })
+      .index('by_current_conversation', ['conversationId', 'isCurrent'])
+      .index('by_latest_profile', ['profileId', 'isLatest'])
+      .index('by_conversation', ['conversationId'])
+      .index('by_profile', ['profileId'])
+      .index('by_profile_conversation', ['profileId', 'conversationId', 'joinedSequence'])
+      .index('by_fixture_mutation', ['fixtureMutationId'], { unique: true })
+      .visibility({ kind: 'public-read' }),
+
+    messages: defineTable({
+      ownerId: v.principal(),
+      conversationId: v.id('conversations'),
+      senderProfileId: v.id('profiles'),
+      fixtureId: v.optional(v.string()),
+      fixtureDigest: v.optional(v.string()),
+      body: v.string(),
+      quotedMessageId: v.optional(v.id('messages')),
+      recipientCount: v.integer(),
+      sequence: v.integer(),
+      pageKey: v.string(),
+      createdAt: v.integer(),
+    })
+      .index('by_conversation_page', ['conversationId', 'pageKey'], { unique: true })
+      .index('by_fixture_id', ['fixtureId'], { unique: true })
+      .index('by_sender_page', ['senderProfileId', 'pageKey'])
+      .visibility({ kind: 'public-read' }),
+
+    messageReceipts: defineTable({
+      ownerId: v.principal(),
+      conversationId: v.id('conversations'),
+      messageId: v.id('messages'),
+      recipientMemberId: v.id('conversationMembers'),
+      recipientProfileId: v.id('profiles'),
+      status: v.string(),
+      statusRank: v.integer(),
+      deliveredAt: v.optional(v.integer()),
+      readAt: v.optional(v.integer()),
+    })
+      .index('by_message', ['messageId'])
+      .index('by_message_recipient', ['messageId', 'recipientMemberId'], { unique: true })
+      .index('by_recipient_message', ['recipientProfileId', 'messageId'])
+      .index('by_conversation_recipient', ['conversationId', 'recipientProfileId'])
+      .visibility({ kind: 'public-read' }),
   },
   {
     auth: { mode: 'sessions' },

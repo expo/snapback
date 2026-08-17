@@ -1,4 +1,3 @@
-use crate::contract_types::ServerProfile;
 use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{
     AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
@@ -27,6 +26,7 @@ use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDisposition,
 };
 use crate::config::{ConfigStore, VerificationRecord};
+use crate::contract_types::ServerProfile;
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
     LocalCronRuntime, validate_cron_manifest,
@@ -57,9 +57,9 @@ use crate::manifest::{
     FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionRuntime,
     HandlerInput, HandlerPlan, MutationOutput, MutationSettlement, MutationStep,
     PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane,
-    SettlementMintObservation, SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
-    ValueExpr, auth_fingerprint, ctx_ledger_version, legacy_auth_fingerprint,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane, SettlementMintObservation,
+    SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
+    ctx_ledger_version, legacy_auth_fingerprint,
 };
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
@@ -1774,9 +1774,8 @@ fn expected_media_projection_binding(
         executed.media_projection_scope.as_ref(),
     ) {
         (Some(_), Some(scope)) => {
-            let mut binding = crate::runtime::expected_media_projection_proof_binding(
-                prepared, input, scope,
-            )?;
+            let mut binding =
+                crate::runtime::expected_media_projection_proof_binding(prepared, input, scope)?;
             // @ref LLP 0244#d1-one-authoritative-media-result-materialization-cut
             // — expected proof authority comes from the exact identity passed
             // separately to storage, not a possibly absent request projection.
@@ -3272,6 +3271,10 @@ impl Default for RqsReplayPolicy {
 /// [`crate::manifest::rqs_eligible_digest_kind`].
 fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs_contract::DigestKind> {
     crate::manifest::rqs_eligible_digest_kind(function)
+}
+
+fn owner_admits_authority_independence(function: &FunctionDefinition) -> bool {
+    crate::manifest::owner_admits_authority_independence(function)
 }
 
 /// The reserved system live query projecting one asset record (LLP 0044
@@ -6977,8 +6980,8 @@ impl LocalSnapback {
         else {
             return Ok(None);
         };
-        let (_, observed) = crate::api_envelope::parse_and_validate(canonical.as_bytes())
-            .map_err(|refusal| {
+        let (_, observed) =
+            crate::api_envelope::parse_and_validate(canonical.as_bytes()).map_err(|refusal| {
                 SnapbackError::error(
                     "SNAPBACK_APP_API_STATE_PARSE_FAILED",
                     "app-api",
@@ -12624,14 +12627,14 @@ impl LocalSnapback {
                                     self.db
                                         .mutation_writes()
                                         .dry_run_media_command_mutation_with_settlement_time(
-                                            plan,
-                                            &input,
-                                            identity
-                                                .as_ref()
-                                                .expect("validated media command carries a mutation identity"),
-                                            media_command,
-                                            settlement_time.as_ref(),
-                                        )?
+                                        plan,
+                                        &input,
+                                        identity.as_ref().expect(
+                                            "validated media command carries a mutation identity",
+                                        ),
+                                        media_command,
+                                        settlement_time.as_ref(),
+                                    )?
                                 } else {
                                     self.db
                                         .mutation_writes()
@@ -12659,7 +12662,7 @@ impl LocalSnapback {
                                 )
                             }
                             FunctionRuntime::IbexModule(module) => {
-                                let executed = crate::runtime::execute_ibex_mutation_prepared(
+                                let mut executed = crate::runtime::execute_ibex_mutation_prepared(
                                     module,
                                     input.clone(),
                                     &prepared,
@@ -12674,10 +12677,8 @@ impl LocalSnapback {
                                         &executed,
                                         identity.as_ref(),
                                     )?;
-                                let membership_plans = self
-                                    .db
-                                    .membership_plans()
-                                    .authorize_membership_commands(executed.membership_commands)?;
+                                let membership_plans =
+                                    executed.authorize_membership_commands(&mut self.db)?;
                                 // Callee admission for buffered enqueues happens before
                                 // any commit work: an inadmissible callee fails the whole
                                 // mutation (rollback schedules nothing).
@@ -12710,13 +12711,13 @@ impl LocalSnapback {
                                     self.db
                                         .mutation_writes()
                                         .dry_run_media_command_buffered_payload(
-                                            &input,
-                                            &payload,
-                                            identity
-                                                .as_ref()
-                                                .expect("validated media command carries a mutation identity"),
-                                            media_command,
-                                        )?
+                                        &input,
+                                        &payload,
+                                        identity.as_ref().expect(
+                                            "validated media command carries a mutation identity",
+                                        ),
+                                        media_command,
+                                    )?
                                 } else {
                                     self.db
                                         .mutation_writes()
@@ -13039,6 +13040,17 @@ impl LocalSnapback {
         result: SnapbackResult<MutationCommit>,
         retain: bool,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
+        // — only a codegen-stamped generated mutation may publish the
+        // post-commit authority-transition side channel. Matching names and
+        // profile dependencies are deliberately insufficient.
+        let expose_authority_transitions = self.functions.function(name).is_some_and(|function| {
+            function.kind == FunctionKind::Mutation
+                && function
+                    .generated_authority_operation
+                    .as_ref()
+                    .is_some_and(|identity| identity.operation.is_mutation())
+        });
         // affectedTables from DECLARED writes; a function that declares none
         // yields an EXPLICITLY-unknown receipt (`affectedTables: null`),
         // never a silently-empty list (LLP 0034 §3.2 / Exact 0263 honesty).
@@ -13057,21 +13069,26 @@ impl LocalSnapback {
             sequence_allocations,
             result,
         ) = match result {
-            Ok(commit) => (
-                MutationReceiptOutcome::Confirmed,
-                None,
-                Some(commit.output.version),
-                settlement_claim_ledger(
-                    settlement,
-                    commit.output.ctx_ledger.as_ref(),
-                    &commit.output.settlement_mint_observations,
-                    commit.output.settlement_time_observation.as_ref(),
-                ),
-                settlement_id_map(settlement, &commit.output.settlement_mint_observations),
-                commit.job_enqueues.clone(),
-                commit.sequence_allocations.clone(),
-                Ok(commit),
-            ),
+            Ok(mut commit) => {
+                if !expose_authority_transitions {
+                    commit.output.authority_transitions.clear();
+                }
+                (
+                    MutationReceiptOutcome::Confirmed,
+                    None,
+                    Some(commit.output.version),
+                    settlement_claim_ledger(
+                        settlement,
+                        commit.output.ctx_ledger.as_ref(),
+                        &commit.output.settlement_mint_observations,
+                        commit.output.settlement_time_observation.as_ref(),
+                    ),
+                    settlement_id_map(settlement, &commit.output.settlement_mint_observations),
+                    commit.job_enqueues.clone(),
+                    commit.sequence_allocations.clone(),
+                    Ok(commit),
+                )
+            }
             Err(error) => match self.db.versions_read().current_version() {
                 Ok(version) => (
                     MutationReceiptOutcome::Rejected,
@@ -13436,7 +13453,7 @@ impl LocalSnapback {
                     }
                 }
                 FunctionRuntime::IbexModule(module) => {
-                    let executed = crate::runtime::with_runtime_log_telemetry(
+                    let mut executed = crate::runtime::with_runtime_log_telemetry(
                         self.telemetry.clone(),
                         correlation.clone(),
                         || {
@@ -13457,10 +13474,8 @@ impl LocalSnapback {
                         identity.as_ref(),
                     )?;
                     crate::result_contract::validate_handler_result(&function, &executed.result)?;
-                    let membership_plans = self
-                        .db
-                        .membership_plans()
-                        .authorize_membership_commands(executed.membership_commands)?;
+                    let membership_plans =
+                        executed.authorize_membership_commands(&mut self.db)?;
                     let producer_mutation_id = receipt_mutation_id
                         .map(ToOwned::to_owned)
                         .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
@@ -13812,7 +13827,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
         binding: DetachedMutationBinding,
-        executed: ExecutedIbexMutation,
+        mut executed: ExecutedIbexMutation,
         identity: Option<ClientMutationIdentity>,
         check_live: Check,
         before_commit: BeforeCommit,
@@ -13849,10 +13864,7 @@ impl LocalSnapback {
             &executed,
             identity.as_ref(),
         )?;
-        let membership_plans = self
-            .db
-            .membership_plans()
-            .authorize_membership_commands(executed.membership_commands)?;
+        let membership_plans = executed.authorize_membership_commands(&mut self.db)?;
         // Action-hosted nested mutations may enqueue (LLP 0070: actions
         // enqueue follow-up work only through an explicit mutation). The
         // nested commit mints its own producer identity in the receipt id
@@ -14428,7 +14440,8 @@ impl LocalSnapback {
         if body.query_artifact != query_artifact {
             return Err(refusal::QUERY_MISMATCH);
         }
-        let args_hash = crate::rqs_contract::args_hash(args).map_err(|_| refusal::QUERY_MISMATCH)?;
+        let args_hash =
+            crate::rqs_contract::args_hash(args).map_err(|_| refusal::QUERY_MISMATCH)?;
         if body.args_hash != args_hash {
             return Err(refusal::QUERY_MISMATCH);
         }
@@ -14761,13 +14774,17 @@ impl LocalSnapback {
                         .get(query_index)
                         .and_then(Option::as_ref);
                     if authority.active_mode() == AuthMode::Sessions {
-                        if function.authority_independent && supplied_namespace.is_some() {
+                        if owner_admits_authority_independence(&function)
+                            && supplied_namespace.is_some()
+                        {
                             return Err(refuse(
                                 code::ENTRY_INVALID,
                                 "authority-independent registered children require a null authorization namespace",
                             ));
                         }
-                        if !function.authority_independent && supplied_namespace.is_none() {
+                        if !owner_admits_authority_independence(&function)
+                            && supplied_namespace.is_none()
+                        {
                             return Err(refuse(
                                 code::ENTRY_INVALID,
                                 "auth-scoped registered children require an authorization namespace",
@@ -14810,9 +14827,10 @@ impl LocalSnapback {
                         // predicate and nothing else (LLP 0092 §0D.1).
                         let resume = rqs_eligibility(&function).and_then(|kind| {
                             let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
-                            let query_artifact = serde_json::to_value(&function)
-                                .ok()
-                                .and_then(|value| crate::rqs_contract::query_artifact_hash(&value).ok())?;
+                            let query_artifact =
+                                serde_json::to_value(&function).ok().and_then(|value| {
+                                    crate::rqs_contract::query_artifact_hash(&value).ok()
+                                })?;
                             let args_hash = crate::rqs_contract::args_hash(&args).ok()?;
                             snapback.mint_resume_wire(
                                 &query_artifact,
@@ -15019,13 +15037,19 @@ impl LocalSnapback {
                         "read-only mixed children require a null authorization namespace",
                     ));
                 }
-                if admission.live && function.authority_independent && namespace.is_some() {
+                if admission.live
+                    && owner_admits_authority_independence(&function)
+                    && namespace.is_some()
+                {
                     return Err(refuse(
                         code::ENTRY_INVALID,
                         "authority-independent live children require a null authorization namespace",
                     ));
                 }
-                if admission.live && !function.authority_independent && namespace.is_none() {
+                if admission.live
+                    && !owner_admits_authority_independence(&function)
+                    && namespace.is_none()
+                {
                     return Err(refuse(
                         code::ENTRY_INVALID,
                         "auth-scoped live children require an authorization namespace",
@@ -15212,9 +15236,10 @@ impl LocalSnapback {
                     let rows = invocation.output.rows;
                     let resume = rqs_eligibility(&function).and_then(|kind| {
                         let digest = crate::rqs::ResultDigest::from_rows(kind, &rows).ok()?;
-                        let query_artifact = serde_json::to_value(&function)
-                            .ok()
-                            .and_then(|value| crate::rqs_contract::query_artifact_hash(&value).ok())?;
+                        let query_artifact =
+                            serde_json::to_value(&function).ok().and_then(|value| {
+                                crate::rqs_contract::query_artifact_hash(&value).ok()
+                            })?;
                         let args_hash = crate::rqs_contract::args_hash(&args).ok()?;
                         self.mint_resume_wire(
                             &query_artifact,
@@ -15742,8 +15767,8 @@ impl LocalSnapback {
         // auth-scoped live subscription is admitted only when its connection
         // negotiated the exact protocol and supplied a stable query namespace.
         self.touch_connection(&input.connection_id, now_millis());
-        let auth_scoped =
-            authority.active_mode() == AuthMode::Sessions && !function.authority_independent;
+        let auth_scoped = authority.active_mode() == AuthMode::Sessions
+            && !owner_admits_authority_independence(&function);
         if auth_scoped && self.auth_invalidation.is_none() {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -18402,7 +18427,7 @@ impl LocalSnapback {
         name: &str,
         input: &HandlerInput,
         binding: &DetachedMutationBinding,
-        executed: &ExecutedIbexMutation,
+        executed: &mut ExecutedIbexMutation,
         identity: Option<&ClientMutationIdentity>,
     ) -> SnapbackResult<crate::storage::AuthorizationCommitPreflight> {
         binding
@@ -18430,25 +18455,25 @@ impl LocalSnapback {
             executed,
             identity,
         )?;
-        let membership_plans = self
+        let membership_plans = executed.preview_membership_commands(&mut self.db)?;
+        let preview = self
             .db
-            .membership_plans()
-            .authorize_membership_commands(executed.membership_commands.clone())?;
-        let preview = self.db.mutation_writes().dry_run_buffered_writes_with_jobs(
-            &canonical_input,
-            executed.writes.clone(),
-            executed.sequence_allocations.clone(),
-            membership_plans,
-            executed.reads.clone(),
-            executed.result.clone(),
-            executed.ctx_ledger.clone(),
-            Vec::new(),
-            None,
-            executed.asset_admissions.clone(),
-            executed.asset_grant_ops.clone(),
-            executed.media_projection_proof.as_ref(),
-            expected_media_projection_binding.as_ref(),
-        )?;
+            .mutation_writes()
+            .dry_run_buffered_writes_with_jobs(
+                &canonical_input,
+                executed.writes.clone(),
+                executed.sequence_allocations.clone(),
+                membership_plans,
+                executed.reads.clone(),
+                executed.result.clone(),
+                executed.ctx_ledger.clone(),
+                Vec::new(),
+                None,
+                executed.asset_admissions.clone(),
+                executed.asset_grant_ops.clone(),
+                executed.media_projection_proof.as_ref(),
+                expected_media_projection_binding.as_ref(),
+            )?;
         Ok(self.authorization_commit_preflight_for_changes(preview.changes))
     }
     /// Validate declared config entries fail-closed, validate per-function
@@ -22434,7 +22459,7 @@ impl LocalSnapback {
     pub(crate) fn function_is_authority_independent(&self, name: &str) -> bool {
         self.functions
             .function(name)
-            .is_some_and(|function| function.authority_independent)
+            .is_some_and(owner_admits_authority_independence)
     }
 
     /// A handle to the lock-free read lane. Cloneable; shares the manifest
@@ -29623,9 +29648,7 @@ fn validate_function_schema_references(
                                             field,
                                             media,
                                         ),
-                                        FieldType::AssetRef { .. } => {
-                                            ResultValueContract::AssetRef
-                                        }
+                                        FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
                                         FieldType::Json
                                         | FieldType::Structured { .. }
                                         | FieldType::RelationIncarnation { .. } => {
@@ -30872,7 +30895,8 @@ fn snapshot_batch_authority_partition_digest(
         "providerId": provider_id,
         "delegation": delegation,
     });
-    let canonical = crate::rqs_contract::jcs(&record).map_err(|_| snapshot_batch_cursor_invalid())?;
+    let canonical =
+        crate::rqs_contract::jcs(&record).map_err(|_| snapshot_batch_cursor_invalid())?;
     let mut digest = Sha256::new();
     digest.update(b"snapback:authority-partition:v1:");
     digest.update(canonical.as_bytes());
@@ -32233,21 +32257,22 @@ fn execute_query_invocation(
                 } => Some(user_id.as_str()),
                 _ => None,
             };
-            let release_policy_digest =
-                crate::rqs_contract::sha256_identity(&serde_json::to_value(function).map_err(|_| {
+            let release_policy_digest = crate::rqs_contract::sha256_identity(
+                &serde_json::to_value(function).map_err(|_| {
                     SnapbackError::error(
                         "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
                         "search",
                         "search release policy does not serialize",
                     )
-                })?)
-                .map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
-                        "search",
-                        "search release policy is not canonicalizable",
-                    )
-                })?;
+                })?,
+            )
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+                    "search",
+                    "search release policy is not canonicalizable",
+                )
+            })?;
             let stream_epoch = prepared
                 .authority()
                 .authorization_stream_incarnation()
@@ -33061,6 +33086,7 @@ fn execute_query_invocation(
                     warm_vms
                 },
                 protected_query_profile,
+                cursor_authority,
             )?;
             let mut read_dependencies = run.read_dependencies;
             add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);

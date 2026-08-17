@@ -203,7 +203,7 @@ test('NormalizedApplicationDefinitionV1 has a frozen canonical golden vector', (
   assert.equal(canonicalGenerationJson(artifact.definition).includes('deployment-one'), false);
   assert.equal(
     artifact.normalizedContractId,
-    'sha256:30495623d163f250679603a35a58b4375e6cb42f1733d934f2a7fcc95aea7938',
+    'sha256:2ca969b3fc74fff35a1a732f4732aa7a0de9332df4c9d69050c7420a70b02f8f',
   );
   assert.equal(
     artifact.normalizedSchemaId,
@@ -262,7 +262,7 @@ test('explicit-profile default omission preserves the todo semantic identity', (
   assert.equal(explicitIds.semanticId, omittedIds.semanticId);
   assert.equal(
     explicitIds.semanticId,
-    'sha256:9166e295f5d6901b63b08406e5551245275fbcb8f0d65ce630dd90e86afffdb9',
+    'sha256:ae9972a2d0fb5257ed3492dacb2bf42671a1d2894180fa0d34cbef79079ece83',
   );
   assert.deepEqual(
     completeGenerationIdentities({
@@ -373,7 +373,10 @@ test('generation emits normalized definition and profile custody; invalid policy
   writeFileSync(join(root, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
 export default defineSchema({
-  todos: defineTable({ title: v.string() }).index('by_title', ['title']).sync(),
+  todos: defineTable({ title: v.string() })
+    .index('by_title', ['title'])
+    .visibility({ kind: 'public-read' })
+    .sync(),
 });
 `);
   writeFileSync(join(root, 'functions.mjs'), `

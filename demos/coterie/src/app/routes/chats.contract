@@ -1,14 +1,31 @@
 use navigate from "@exact/router/contract"
+use theme from "@exact/facet-contract"
+use FacetButton from "@exact/facet-contract/components/button.contract"
+use FacetInput from "@exact/facet-contract/components/input.contract"
 use CoterieAppHeader from "../../ui/app-header.contract"
 use CoterieChatListRow from "../../ui/chat-list-row.contract"
+use createCoterieChatState from "../../data/chat-state.ts"
+use reduceCoterieChatState from "../../data/chat-state.ts"
+use createGroup from "../../data/generated/coterie.bindings.ts"
 use listChats from "../../data/generated/coterie.bindings.ts"
+use listProfiles from "../../data/generated/coterie.bindings.ts"
+use listProviderClaims from "../../data/generated/coterie.bindings.ts"
 use listSession from "../../data/generated/coterie.bindings.ts"
 use logout from "../../data/generated/coterie.bindings.ts"
+use openDm from "../../data/generated/coterie.bindings.ts"
 
 component CoterieChatsRoute
+  state chatState = createCoterieChatState()
   query session = listSession({})
   query chats = listChats({})
+  query profiles = listProfiles({})
+  query providerClaims = listProviderClaims({})
+  derive canLogout = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "logout")
+  derive canOpenDm = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "openDm")
+  derive canCreateGroup = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "createGroup")
   mutation logoutMutation = logout
+  mutation openDmMutation = openDm
+  mutation createGroupMutation = createGroup
 
   action choosePrimary(next)
     if next == "feed"
@@ -23,37 +40,106 @@ component CoterieChatsRoute
   action openChat(chatId)
     navigate({ to: "/chat/[id]", params: { id: chatId } })
 
+  action openDirectMessage(userId) writes chatState mutates openDmMutation
+    let intentGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "async-intent-began", generation: intentGeneration })
+    let startedGeneration = chatState.generation
+    let result = await openDmMutation({ userId: userId })
+    if result.ok && chatState.generation == startedGeneration
+      navigate({ to: "/chat/[id]", params: { id: result.value.chatId } })
+
+  action seedGroupCreator(userId) writes chatState
+    let startedGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "seed-group-creator", generation: startedGeneration, userId: userId })
+
+  action setGroupName(value) writes chatState
+    let startedGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "set-group-name", generation: startedGeneration, value: value })
+
+  action setGroupDescription(value) writes chatState
+    let startedGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "set-group-description", generation: startedGeneration, value: value })
+
+  action toggleGroupMember(userId) writes chatState
+    let startedGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "toggle-group-member", generation: startedGeneration, userId: userId })
+
+  action submitGroup(viewerId) writes chatState mutates createGroupMutation
+    let draftName = chatState.groupName
+    let draftDescription = chatState.groupDescription
+    let draftMemberIds = chatState.selectedMemberIds
+    let name = draftName.trim()
+    let description = draftDescription.trim()
+    let memberIds = draftMemberIds.includes(viewerId) ? draftMemberIds : [...draftMemberIds, viewerId]
+    let draftGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "group-create-began", generation: draftGeneration, creatorId: viewerId })
+    let startedGeneration = chatState.generation
+    let result = await createGroupMutation({ name: name, description: description == "" ? null : description, memberIds: memberIds })
+    chatState = reduceCoterieChatState(chatState, { kind: "group-create-settled", generation: startedGeneration, ok: result.ok, groupName: draftName, groupDescription: draftDescription, selectedMemberIds: draftMemberIds })
+    if result.ok && chatState.generation == startedGeneration
+      navigate({ to: "/chat/[id]", params: { id: result.value.chatId } })
+
   action signOut mutates logoutMutation
     await logoutMutation({})
+
+  task groupCreatorDelivery when [session]
+    if session.status == "ready" && session.value.length > 0
+      seedGroupCreator(session.value[0].userId)
+
+  task groupCreatorInitial mount
+    if session.status == "ready" && session.value.length > 0
+      seedGroupCreator(session.value[0].userId)
 
   contract
     has node testId="coterie-root"
     has node testId="sm-chats-item"
 
   view
-    main width="100%" minHeight="100%" background="#F4F5F7" testId="coterie-root"
+    main width="100%" minHeight="100%" background=theme.color.background.subtle testId="coterie-root"
       async session
         loading
           skeleton width="100%" height=180
         error problem
-          text `${problem}` size=13 color="#DC2626" padding=16
+          text `${problem}` size=13 color=theme.color.text.danger padding=16
         empty
           column width="100%" maxWidth=520 alignSelf="center" padding=24 gap=12
-            text "Your backendless session ended." size=17 weight=600 color="#17191C"
+            text "Your backendless session ended." size=17 weight=600 color=theme.color.text.default
             link href="/" label="Return to sign in" testId="coterie-return-sign-in"
-              text "Return to sign in" size=14 color="#4F46E5"
+              text "Return to sign in" size=14 color=theme.color.text.link
         ready activeSessions
-          column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background="#FFFFFF" borderWidth=1 borderColor="#E2E4E8" testId="coterie-shell"
-            CoterieAppHeader(selected="chats", select=choosePrimary, logout=signOut)
+          column width="100%" maxWidth=760 flex=1 minHeight=0 alignSelf="center" background=theme.color.background.default borderWidth=1 borderColor=theme.color.border.default testId="coterie-shell"
+            CoterieAppHeader(selected="chats", select=choosePrimary, canLogout=canLogout, logout=signOut)
             scroll flex=1 width="100%"
+              when canOpenDm || canCreateGroup
+                column width="100%" padding=14 gap=14 borderBottomWidth=1 borderColor=theme.color.border.default background=theme.color.background.subtle
+                  when canOpenDm
+                    async profiles
+                      ready profileRows
+                        column gap=7
+                          text "Start a direct message" size=14 weight=700 color=theme.color.text.default
+                          row gap=7 wrap="wrap"
+                            each profile in profileRows key=profile.id
+                              when !profile.isMe
+                                FacetButton(label=profile.displayName, variant="secondary", size="sm", press=openDirectMessage(profile.id), testId="coterie-open-dm")
+                  when canCreateGroup
+                    column gap=8 testId="coterie-create-group"
+                      text "Create a group" size=14 weight=700 color=theme.color.text.default
+                      FacetInput(value=chatState.groupName, placeholder="Group name", label="Group name", change=setGroupName, testId="coterie-group-name")
+                      FacetInput(value=chatState.groupDescription, placeholder="Description (optional)", label="Group description", change=setGroupDescription, testId="coterie-group-description")
+                      async profiles
+                        ready profileRows
+                          row gap=7 wrap="wrap"
+                            each profile in profileRows key=profile.id
+                              button profile.displayName press=toggleGroupMember(profile.id) disabled=profile.isMe label=`Include ${profile.displayName}` accessibilitySelected=profile.isMe || chatState.selectedMemberIds.includes(profile.id) padding=8 radius=8 borderWidth=1 borderColor=profile.isMe || chatState.selectedMemberIds.includes(profile.id) ? theme.color.border.focus : theme.color.border.default background=profile.isMe || chatState.selectedMemberIds.includes(profile.id) ? theme.color.background.selected : theme.color.background.default color=theme.color.text.default testId="coterie-group-member"
+                      FacetButton(label="Create group", size="sm", press=submitGroup(activeSessions[0].userId), disabled=chatState.groupName.trim() == "" || chatState.selectedMemberIds.length < 2, testId="coterie-group-create")
               async chats
                 loading
                   skeleton width="100%" height=180
                 error problem
-                  text `${problem}` size=13 color="#DC2626" padding=16
+                  text `${problem}` size=13 color=theme.color.text.danger padding=16
                 empty
-                  text "No conversations" size=13 color="#6B7280" padding=16
+                  text "No conversations" size=13 color=theme.color.text.secondary padding=16
                 ready chatRows
                   list width="100%" label="Conversations"
                     each chat in chatRows key=chat.id
-                      CoterieChatListRow(id=chat.id, title=chat.title, preview=chat.preview, timestamp=chat.updatedAt, unreadCount=chat.unreadCount, avatarUrl=chat.avatarUrl, accentColor=chat.accentColor, press=openChat)
+                      CoterieChatListRow(id=chat.id, title=chat.title, preview=chat.preview, timestamp=chat.updatedAt, unreadCount=chat.unreadCount, avatarUrl=chat.avatarUrl, accentColor=chat.accentColor, typingHint=chat.typingHint, receiptStatus=chat.latestReceiptStatus, press=openChat)

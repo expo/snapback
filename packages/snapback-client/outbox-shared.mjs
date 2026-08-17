@@ -714,6 +714,25 @@ const rebaseAuthorizationFencesAfterProof = (records, authorizationQueue) => Obj
   )),
 );
 
+// Main's external-bearer wiper preserves outbox custody. Records that
+// carry no authority descriptor, principal scope, or custody lineage are not a
+// predecessor authority's records to disposition; keep that pre-existing
+// contract for still-pending intent while moving its authorization CAS stamp
+// into the newly advanced queue. Terminal/quarantined state, keyed coordinator
+// transitions, and every authority-scoped record keep the predecessor stamp
+// until their owning proof or reconcileCustody decides strand/delete/adopt.
+const rebaseUnscopedAuthorizationFences = (records, authorizationQueue) => Object.fromEntries(
+  Object.entries(records).map(([id, record]) => (
+    record.status === 'pending' && !isFencedRecord(record)
+      ? [id, {
+        ...record,
+        authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+        authorizationQueueGeneration: authorizationQueue.generation,
+      }]
+      : [id, record]
+  )),
+);
+
 const authorizationQueueResult = (authorizationQueue, extra = {}) => Object.freeze({
   ...extra,
   authorityGeneration: authorizationQueue.authorityGeneration,
@@ -1116,6 +1135,7 @@ export const outboxOps = {
     state,
     authorityTransitionKey = null,
     authorityTransitionEpoch = null,
+    { rebaseUnscopedPending = false } = {},
   ) {
     const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
     if (
@@ -1176,7 +1196,13 @@ export const outboxOps = {
       resolvedByToken: {},
     };
     return {
-      state: { ...state, authorizationQueue },
+      state: {
+        ...state,
+        authorizationQueue,
+        records: rebaseUnscopedPending
+          ? rebaseUnscopedAuthorizationFences(state.records, authorizationQueue)
+          : state.records,
+      },
       result: authorizationQueueResult(authorizationQueue, { status: 'authority-advanced' }),
     };
   },

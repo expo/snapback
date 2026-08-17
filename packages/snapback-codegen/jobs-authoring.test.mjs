@@ -19,7 +19,9 @@ const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-jobs-'));
 try {
   writeFileSync(join(dir, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
-export default defineSchema({ events: defineTable({ name: v.string() }).sync() });
+export default defineSchema({
+  events: defineTable({ name: v.string() }).visibility({ kind: 'public-read' }).sync(),
+});
 `);
   writeFileSync(join(dir, 'handlers.mjs'), `
 globalThis.__snapbackHandlers = {

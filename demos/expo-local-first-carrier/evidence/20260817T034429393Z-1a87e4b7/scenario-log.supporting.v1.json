@@ -1,0 +1,313 @@
+{
+  "schemaVersion": "snapback.expo-sqlite-carrier-qualification.raw.v1",
+  "sqliteSourceId": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9",
+  "runId": "20260817T034429393Z-1a87e4b7",
+  "seed": "1a87e4b777c1ab9f",
+  "results": [
+    {
+      "scenario": "atomic-fault-after-every-observed-sql-boundary",
+      "result": "pass",
+      "statementAndBoundaryCuts": 36,
+      "boundaries": [
+        "materialization:begin-immediate:before",
+        "materialization:begin-immediate",
+        "read-map:materializations:before",
+        "read-map:materializations",
+        "read-map:page_sets:before",
+        "read-map:page_sets",
+        "read-map:memberships:before",
+        "read-map:memberships",
+        "read-map:entries:before",
+        "read-map:entries",
+        "read:outbox:state:before",
+        "read:outbox:state",
+        "read:store_meta:state:before",
+        "read:store_meta:state",
+        "replace:materializations:clear:before",
+        "replace:materializations:clear",
+        "write:materializations:generation:before",
+        "write:materializations:generation",
+        "replace:page_sets:clear:before",
+        "replace:page_sets:clear",
+        "write:page_sets:generation:before",
+        "write:page_sets:generation",
+        "replace:memberships:clear:before",
+        "replace:memberships:clear",
+        "write:memberships:generation:before",
+        "write:memberships:generation",
+        "replace:entries:clear:before",
+        "replace:entries:clear",
+        "write:entries:generation:before",
+        "write:entries:generation",
+        "write:outbox:state:before",
+        "write:outbox:state",
+        "write:store_meta:state:before",
+        "write:store_meta:state",
+        "materialization:commit:before",
+        "materialization:commit"
+      ]
+    },
+    {
+      "scenario": "two-process-exclusive-owner-and-kill-takeover",
+      "result": "pass",
+      "loserCode": "SNAPBACK_EXPO_SQLITE_STORE_OWNER_UNAVAILABLE",
+      "sqliteSourceId": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9"
+    },
+    {
+      "scenario": "crash-recovery-at-every-named-phase",
+      "result": "pass",
+      "phaseCuts": 7,
+      "phases": [
+        "pending-durable-before-delivery",
+        "server-result-before-local-settlement",
+        "commit-loop",
+        "committed-before-callback",
+        "consumed-before-ack",
+        "ack-proof-before-local-removal",
+        "authority-wipe-before-successor"
+      ],
+      "realSigkillCuts": 7,
+      "openTransactionSigkillCuts": 1,
+      "phaseEvidence": [
+        {
+          "phase": "pending-durable-before-delivery",
+          "cutBoundary": "pending-durable-before-delivery",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "server-result-before-local-settlement",
+          "cutBoundary": "server-result-held-local-settlement-uncommitted",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "commit-loop",
+          "cutBoundary": "materialization:commit:before",
+          "insideTransaction": true,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "committed-before-callback",
+          "cutBoundary": "commit-resolved-before-host-callback",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "consumed-before-ack",
+          "cutBoundary": "settlement-consumed-before-ack-ready",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "ack-proof-before-local-removal",
+          "cutBoundary": "ack-proof-before-local-removal",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        },
+        {
+          "phase": "authority-wipe-before-successor",
+          "cutBoundary": "authority-wipe:checkpoint-truncate:before",
+          "insideTransaction": false,
+          "evaluatedInvariants": [
+            "old-or-new-whole-generation",
+            "all-reported-host-watermarks-present",
+            "no-partial-settlement",
+            "one-writer",
+            "predecessor-non-renderable-and-handle-key-rotated",
+            "same-client-mutation-id-pending-or-settled",
+            "server-execute-at-most-once",
+            "settlement-republished-then-ack-removed"
+          ],
+          "serverExecutionCount": 1
+        }
+      ]
+    },
+    {
+      "scenario": "kill-and-truncated-wal-copy",
+      "result": "pass",
+      "originalWalBytes": 24752,
+      "truncatedWalBytes": 12376,
+      "outcome": "recovered",
+      "recoveredGeneration": 1,
+      "recoveredInspection": {
+        "writer": true,
+        "corrupt": false,
+        "entries": 1,
+        "bytes": 1,
+        "maxBytes": 33554432,
+        "maxEntries": 256,
+        "facts": {
+          "profile": "durable-fragments-v1",
+          "schemaVersion": 1,
+          "databaseName": "qualification.sqlite",
+          "sqliteVersion": "3.53.1",
+          "sqliteSourceId": "2026-05-05 10:34:17 c88b22011a54b4f6fbd149e9f8e4de77658ce58143a1af0e3785e4e6475127e9",
+          "compileOptions": [
+            "ATOMIC_INTRINSICS=1",
+            "COMPILER=clang-16.0.0",
+            "DEFAULT_AUTOVACUUM",
+            "DEFAULT_CACHE_SIZE=-2000",
+            "DEFAULT_FILE_FORMAT=4",
+            "DEFAULT_JOURNAL_SIZE_LIMIT=-1",
+            "DEFAULT_MEMSTATUS=0",
+            "DEFAULT_MMAP_SIZE=0",
+            "DEFAULT_PAGE_SIZE=4096",
+            "DEFAULT_PCACHE_INITSZ=20",
+            "DEFAULT_RECURSIVE_TRIGGERS",
+            "DEFAULT_SECTOR_SIZE=4096",
+            "DEFAULT_SYNCHRONOUS=2",
+            "DEFAULT_WAL_AUTOCHECKPOINT=1000",
+            "DEFAULT_WAL_SYNCHRONOUS=2",
+            "DEFAULT_WORKER_THREADS=0",
+            "DIRECT_OVERFLOW_READ",
+            "ENABLE_COLUMN_METADATA",
+            "ENABLE_DBSTAT_VTAB",
+            "ENABLE_FTS3",
+            "ENABLE_FTS3_PARENTHESIS",
+            "ENABLE_FTS5",
+            "ENABLE_GEOPOLY",
+            "ENABLE_MATH_FUNCTIONS",
+            "ENABLE_PERCENTILE",
+            "ENABLE_PREUPDATE_HOOK",
+            "ENABLE_RBU",
+            "ENABLE_RTREE",
+            "ENABLE_SESSION",
+            "MALLOC_SOFT_LIMIT=1024",
+            "MAX_ATTACHED=10",
+            "MAX_COLUMN=2000",
+            "MAX_COMPOUND_SELECT=500",
+            "MAX_DEFAULT_PAGE_SIZE=8192",
+            "MAX_EXPR_DEPTH=1000",
+            "MAX_FUNCTION_ARG=1000",
+            "MAX_LENGTH=1000000000",
+            "MAX_LIKE_PATTERN_LENGTH=50000",
+            "MAX_MMAP_SIZE=0x7fff0000",
+            "MAX_PAGE_COUNT=0xfffffffe",
+            "MAX_PAGE_SIZE=65536",
+            "MAX_SQL_LENGTH=1000000000",
+            "MAX_TRIGGER_DEPTH=1000",
+            "MAX_VARIABLE_NUMBER=32766",
+            "MAX_VDBE_OP=250000000",
+            "MAX_WORKER_THREADS=8",
+            "MUTEX_PTHREADS",
+            "SYSTEM_MALLOC",
+            "TEMP_STORE=1",
+            "THREADSAFE=1"
+          ],
+          "pragmas": {
+            "lockingMode": "exclusive",
+            "journalMode": "wal",
+            "synchronous": 2,
+            "foreignKeys": 1,
+            "fullfsync": null
+          }
+        },
+        "outbox": {
+          "pending": 1,
+          "failed": 0,
+          "stranded": 0,
+          "quarantined": 0,
+          "resultGone": 0,
+          "pendingAcknowledgements": 0
+        }
+      },
+      "classification": "supporting-only-not-power-loss-proof"
+    },
+    {
+      "scenario": "corruption-header-page-future-schema-bad-digest",
+      "result": "pass",
+      "cases": [
+        "header",
+        "page-truncation",
+        "future-schema",
+        "bad-row-digest"
+      ],
+      "exactCode": "SNAPBACK_EXPO_SQLITE_STORE_CORRUPT",
+      "originalBytesPreserved": true
+    },
+    {
+      "scenario": "quota-max-page-count-full-rollback",
+      "result": "pass",
+      "maxPageCount": 24,
+      "priorCommitSurvived": true,
+      "candidatePublished": false
+    },
+    {
+      "scenario": "same-js-realm-global-registry-coalescing",
+      "result": "pass",
+      "roots": 2,
+      "stores": 1
+    },
+    {
+      "scenario": "negative-control-deliberately-broken-store-is-rejected",
+      "result": "pass",
+      "expectedHarnessVerdict": "fail",
+      "observedHarnessVerdict": "fail",
+      "storeImplementation": "drop-generation-membership-write",
+      "cutBoundary": "pending-durable-before-delivery",
+      "failureMessage": "old/new generation is hybrid: [1,1,1,null]\n\n2 !== 1\n",
+      "pipeline": "child-worker-store-write->SIGKILL->recovery->settlement/ACK->observation->verdict"
+    }
+  ]
+}

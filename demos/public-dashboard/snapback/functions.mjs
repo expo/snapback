@@ -5,6 +5,7 @@ import {
   arg,
   argsRoot,
   asc,
+  defineJsLiveQuery,
   defineLiveQuery,
   defineMutation,
   eq,
@@ -13,6 +14,7 @@ import {
   patch,
   returnBinding,
   returnChangedCount,
+  results,
   v,
 } from '../../_kit/define.mjs';
 
@@ -45,10 +47,9 @@ export const dashboardMetricsByContext = defineLiveQuery({
   publicInline: true,
 });
 
-// Deliberately NOT declared authority-independent: the server mints no RQS
-// resume token for it, so it is the demo's non-retainable subscription — the
-// LLP 0129 Phase 0 offline acceptance proves the refuse-with-clarity path
-// (retention refused with a named reason, never silent local-first).
+// Public-exact default-retention witness: there is deliberately no
+// authorityIndependent or retainable switch. Codegen and the host derive the
+// closed single-table class, and the acceptance proves it survives relaunch.
 export const metricsFeed = defineLiveQuery({
   table: 'metrics',
   args: { dashboardId: v.string() },
@@ -56,6 +57,20 @@ export const metricsFeed = defineLiveQuery({
   order: [asc('label')],
   index: 'by_dashboard',
   auth: 'public',
+});
+
+// Named refusal fixture: opaque JavaScript cannot carry the exact public plan
+// proof, even though the rows themselves are public and the handler is callable
+// anonymously. It stays online-only in both custody modes.
+export const protectedMetricsFeed = defineJsLiveQuery({
+  args: { dashboardId: v.string() },
+  result: results.documents('metrics'),
+  reads: ['metrics'],
+  auth: 'public',
+  handler: async (ctx, args) => {
+    const rows = await ctx.db.query('metrics').take(1024).collect();
+    return rows.filter((row) => row.dashboardId === args.dashboardId);
+  },
 });
 
 // Metric ingestion (LLP 0129 Phase 0): the offline acceptance drives a warm-

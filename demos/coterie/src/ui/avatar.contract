@@ -1,12 +1,19 @@
+use theme from "@exact/facet-contract"
+use coterieAvatarBackground from "./coterie-colors.ts"
+use coterieAvatarForeground from "./coterie-colors.ts"
+
 component CoterieAvatar
   props
     name: string
     src: string = null
     size: number = 40
     accent: string = "#4F46E5"
+    tone: string = "accent"
     testId: string = null
 
   derive initial = name.slice(0, 1).toUpperCase()
+  derive fallbackBackground = coterieAvatarBackground(tone, accent, theme.scheme)
+  derive fallbackForeground = coterieAvatarForeground(tone, accent, theme.scheme)
 
   contract
     has node
@@ -14,8 +21,8 @@ component CoterieAvatar
     when !src then has text
 
   view
-    column width=size height=size radius=size / 2 overflow="hidden" align="center" justify="center" background=src ? "#E8EAEE" : accent testId=testId
+    column width=size height=size radius=size / 2 overflow="hidden" align="center" justify="center" background=src ? theme.color.background.element : fallbackBackground testId=testId
       when src
         image src=src alt=name width=size height=size objectFit="cover"
       else
-        text initial size=size * 0.4 weight=700 color="#FFFFFF"
+        text initial size=size * 0.4 weight=700 color=fallbackForeground

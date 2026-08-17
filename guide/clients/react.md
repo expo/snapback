@@ -256,8 +256,10 @@ returned by `snapback guide QueryState`.
   switch on all four when rendering freshness exhaustively;
 - `retention`: the headless handle's refuse-with-clarity retainability fact
   (`{ retainable, code, reason, store }`, `null` until classified) — see
-  [offline retention](../sync/offline-and-retention.md) for the opt-in that
-  makes a query retainable.
+  [offline retention](../sync/offline-and-retention.md). On a qualified
+  IndexedDB or Node-file store, a mounted owner-admitted public-exact query
+  requests durable retention by default; protected and unproved queries keep
+  their existing explicit/refusal behavior.
 
 Same-reference, same-argument siblings under one provider share one store and
 one upstream subscription while retaining independent React consumers.
@@ -738,10 +740,13 @@ Parity merely because it can retain data while a connection is stale.
 ## Render offline facts honestly
 
 The hooks project the headless client's own offline facts — they surface,
-never invent. An offline cold boot of a retainable query renders its
-persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
-(never `'ready'`), holding the `stale` connection axis, and settles to
-`freshness: 'current'` when the authoritative answer arrives:
+never invent. For a mounted declarative public-exact query, codegen and the
+host derive admission; `useSnapbackQuery` requests retention automatically,
+without `authorityIndependent`, `retainable`, or `persistResume` application
+options. An offline cold boot of an admitted query renders its persisted rows
+with `freshness: 'retained'` and `status: 'refreshing'` (never `'ready'`),
+holding the `stale` connection axis, and settles to `freshness: 'current'` when
+the authoritative answer arrives:
 
 ```js source=packages/snapback-react/offline.test.mjs
   await act(async () => {
@@ -754,6 +759,11 @@ persisted rows with `freshness: 'retained'` and `status: 'refreshing'`
   assert.equal(latest.connection, 'stale');
   assert.equal(latest.retention?.retainable, true);
 ```
+
+This default is limited to public exact facts on a qualified durable carrier.
+Protected queries retain only through their existing explicit lease-backed
+path; opaque handlers, unproved plans, and memory storage refuse rather than
+rendering stored bytes. Expo does not inherit this carrier claim yet.
 
 For a durable writer store, `SnapbackProvider` configures the client's platform
 drain and defaults `outboxDrain="auto"`. It wakes on queued relinquishment, restored

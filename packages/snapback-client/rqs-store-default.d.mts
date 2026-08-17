@@ -23,6 +23,14 @@ export interface DefaultRqsStoreResolution {
   readonly info: DefaultRqsStoreInfo;
 }
 
+export declare const DEFAULT_RQS_STORE_RESOLUTION_BRAND: unique symbol;
+
+export declare function brandDefaultRqsStoreResolution<T extends DefaultRqsStoreResolution>(
+  resolution: T,
+): T;
+export declare function isDefaultRqsStoreResolution(value: unknown): boolean;
+export declare function registeredNativeRqsFiles(): Readonly<NativeRqsFilesProvider> | null;
+
 export declare function resolveDefaultRqsStore(options?: {
   baseUrl?: string;
 }): DefaultRqsStoreResolution;

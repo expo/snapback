@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:2dc2739723561bb726d1f38029d6f76e37c8d3680efe9467a52911e93f65299b
+reviewed-authorities-digest: sha256:1d0ef691c71c6e84568069a4adeb495c7139f83d28d71e97180eb21177908ebf
 ---
 
 # Email and password
@@ -277,14 +277,17 @@ export default function App() {
 ```
 
 **Expo web** selects the shipped browser IndexedDB/Web Locks carrier and has
-the same durable reload restoration as React web. **Expo native does not yet
-have Phase-2 durable-custody evidence.** A native `durable-required` program
-therefore refuses before credential entry rather than falling back to memory.
-The disposable `expo-chat` template opts into `custody:
-'volatile-explicit'`, which can exercise signup/sign-in/sign-out but cannot
-claim restoration after process death or supported relaunch. Do not change it
-to `durable-required` until the iOS or Android capability row has its own
-evidence. Read [Authenticate a native app](./native-apps.md) for the native
+the same durable reload restoration as React web. **Both native OS paths are
+source-current at the exact iOS/Android + `single-runtime` tuples, but the
+package closure remains UNPUBLISHED** behind
+[the custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md);
+neither path falls back to memory. The iOS receipt proves only the share-sheet extension kind. Its
+built/embedded Notification Service Extension remains a nonclaim because
+simulator `simctl push` cannot invoke that service stage. The disposable
+cross-platform `expo-chat` template
+therefore keeps `custody: 'volatile-explicit'`: it can exercise
+signup/sign-in/sign-out but cannot claim process-death restoration or supported
+relaunch. Read [Authenticate a native app](./native-apps.md) for the native
 broker and custody threat boundary, and [Targets](./targets.md) before making
 any hosted or production claim.
 
@@ -495,6 +498,9 @@ These are not shipped, and Snapback says so rather than pretending:
 - **Do not implement user switch as sign-in over an authenticated principal.**
   Sign out, wait for settled anonymous, then enter the successor account.
 - **Do not infer Expo-native restoration from browser or Expo-web evidence.**
-  Native durable custody remains Phase-2 evidence-gated per OS.
+  The source-current iOS and Android `single-runtime` arms have separate
+  Phase-2 receipts and both remain unpublished behind the
+  [custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md). The iOS extension evidence
+  is share-sheet-kind-only; NSE/`simctl push` remains a nonclaim.
 - **Do not generalize this local bearer journey into hosted or
   sender-constrained auth.** Check [Targets](./targets.md) first.

@@ -1322,40 +1322,26 @@
             }
           })
         : Object.create(null);
-      // Profile roster reads are host-private because they bypass ordinary
-      // membership-table visibility only after profile admission and capture.
-      // Application handlers receive no generic membership-table read; codegen
-      // emits calls to this declaration-bound bridge for list/myRole refs.
-      // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface
-      ctx.authorityProfile = (typeof Proxy === "function")
+      // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — the
+      // generated facade hands only declaration/scope/page values to the
+      // host. Private row ids, ordering boundaries, and projection fields are
+      // never represented in application JavaScript.
+      ctx.authority = (typeof Proxy === "function")
         ? new Proxy(Object.create(null), {
             get: function(_target, declaration) {
               if (typeof declaration !== "string") { return undefined; }
               return {
-                list: function(resource, page) {
-                  page = page || {};
-                  return host("authorityProfile.list", {
+                list: function(scopeId, page) {
+                  return host("authority.list", {
                     declaration: declaration,
-                    resource: resource,
-                    limit: page.limit === undefined ? 100 : page.limit,
-                    after: page.after === undefined ? null : page.after
+                    scopeId: scopeId,
+                    page: page === undefined ? null : page
                   });
                 },
-                myRole: function(resource) {
-                  return host("authorityProfile.myRole", {
+                myRole: function(scopeId) {
+                  return host("authority.myRole", {
                     declaration: declaration,
-                    resource: resource
-                  });
-                },
-                transition: function(operation, values) {
-                  values = values || {};
-                  return host("authorityProfile.transition", {
-                    declaration: declaration,
-                    operation: operation,
-                    resource: values.resource,
-                    principal: values.principal === undefined ? null : values.principal,
-                    role: values.role === undefined ? null : values.role,
-                    invitation: values.invitation === undefined ? null : values.invitation
+                    scopeId: scopeId
                   });
                 }
               };
@@ -1382,6 +1368,13 @@
                     });
                   },
                   insert: function(values) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "insert",
+                      values: values || {}
+                    });
+                  },
+                  invite: function(values) {
                     return host("membership.write", {
                       declaration: declaration,
                       operation: "insert",
@@ -1423,7 +1416,22 @@
                       role: role
                     });
                   },
+                  join: function(resource, invitation) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "setSelfRole",
+                      resource: resource === undefined ? null : resource,
+                      role: invitation
+                    });
+                  },
                   removeSelf: function(resource) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "removeSelf",
+                      resource: resource === undefined ? null : resource
+                    });
+                  },
+                  leave: function(resource) {
                     return host("membership.write", {
                       declaration: declaration,
                       operation: "removeSelf",
@@ -1450,6 +1458,31 @@
                     return host("membership.write", {
                       declaration: declaration,
                       operation: "removePrincipal",
+                      resource: resource === undefined ? null : resource,
+                      principal: principal
+                    });
+                  },
+                  changeRole: function(resource, principal, role) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "changeRolePrincipal",
+                      resource: resource === undefined ? null : resource,
+                      principal: principal,
+                      role: role
+                    });
+                  },
+                  transferOwner: function(resource, principal) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "transferOwner",
+                      resource: resource === undefined ? null : resource,
+                      principal: principal
+                    });
+                  },
+                  removeAuthorityPrincipal: function(resource, principal) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "removeAuthorityPrincipal",
                       resource: resource === undefined ? null : resource,
                       principal: principal
                     });

@@ -58,7 +58,8 @@ try {
   writeFileSync(join(dir, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  events: defineTable({ capturedAt: v.integer(), observedAt: v.integer() }).sync(),
+  events: defineTable({ capturedAt: v.integer(), observedAt: v.integer() })
+    .visibility({ kind: 'public-read' }).sync(),
 });
 `);
   writeFileSync(join(dir, 'functions.mjs'), `

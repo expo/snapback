@@ -6,6 +6,7 @@ import { test } from 'node:test';
 
 import { BROWSER_IR_LOCAL_EFFECT_CLASS } from './ir-evaluator.mjs';
 import { SnapbackClient as InspectingSnapbackClient } from './index.mjs';
+import { hex, jcsBytes, sha256 } from './rqs.mjs';
 import { createFileRqsResumeStore } from './rqs-store-file.mjs';
 import { rewriteOptimisticLayerIdsV1 } from './settlement-id-resolution.mjs';
 
@@ -22,6 +23,19 @@ class SnapbackClient extends InspectingSnapbackClient {
 }
 
 const digest = (character) => `sha256:${character.repeat(64)}`;
+const encoder = new TextEncoder();
+const concat = (...parts) => {
+  const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.length;
+  }
+  return bytes;
+};
+const hashRecord = (domain, value) => (
+  `sha256:${hex(sha256(concat(encoder.encode(domain), jcsBytes(value))))}`
+);
 const STORE_ID = 'generated-optimistic-default-store';
 const ACTIVATION = Object.freeze({
   schemaVersion: 'snapback.v1',
@@ -57,7 +71,32 @@ const QUERY_RESULT = Object.freeze({
     )),
   }),
 });
-const queryReference = ({ filtered = false } = {}) => Object.freeze({
+const queryReference = ({ filtered = false } = {}) => {
+  const nodePlan = Object.freeze({
+    format: 'snapback.node-plan.v1',
+    classId: 'single_table_v1',
+    classVersion: 1,
+    normalizedPlan: Object.freeze({
+      format: 'snapback.single-table-plan.v1',
+      query: Object.freeze({
+        table: 'cards',
+        filters: Object.freeze(filtered ? [Object.freeze({ field: 'archived' })] : []),
+        membershipFilters: Object.freeze([]),
+        limit: null,
+      }),
+    }),
+  });
+  const normalizedCompositePlan = Object.freeze({
+    format: 'snapback.normalized-composite-plan.v1',
+    profileId: 'single-node.v1',
+    nodes: Object.freeze([Object.freeze({
+      position: 0,
+      nodePlanHash: hashRecord('snapback:node-plan:v1:', nodePlan),
+      nodePlan,
+    })]),
+    classification: Object.freeze({ retention: 'none' }),
+  });
+  return Object.freeze({
   artifactKind: 'functionReference',
   schemaVersion: 'snapback.v1',
   appId: ACTIVATION.appId,
@@ -72,30 +111,8 @@ const queryReference = ({ filtered = false } = {}) => Object.freeze({
     type: 'object', additionalProperties: false, properties: Object.freeze({}),
   }),
   composition: Object.freeze({
-    planHash: digest('4'),
-    normalizedCompositePlan: Object.freeze({
-      format: 'snapback.normalized-composite-plan.v1',
-      profileId: 'single-node.v1',
-      nodes: Object.freeze([Object.freeze({
-        position: 0,
-        nodePlanHash: digest('b'),
-        nodePlan: Object.freeze({
-          format: 'snapback.node-plan.v1',
-          classId: 'single_table_v1',
-          classVersion: 1,
-          normalizedPlan: Object.freeze({
-            format: 'snapback.single-table-plan.v1',
-            query: Object.freeze({
-              table: 'cards',
-              filters: Object.freeze(filtered ? [Object.freeze({ field: 'archived' })] : []),
-              membershipFilters: Object.freeze([]),
-              limit: null,
-            }),
-          }),
-        }),
-      })]),
-      classification: Object.freeze({ retention: 'none' }),
-    }),
+    planHash: hashRecord('snapback:plan-hash:v1:', normalizedCompositePlan),
+    normalizedCompositePlan,
     resultContract: QUERY_RESULT,
   }),
   artifacts: Object.freeze({
@@ -117,7 +134,8 @@ const queryReference = ({ filtered = false } = {}) => Object.freeze({
       }),
     }),
   }),
-});
+  });
+};
 const QUERY = queryReference();
 const FILTERED_QUERY = queryReference({ filtered: true });
 

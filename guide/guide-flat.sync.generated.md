@@ -52,11 +52,10 @@ hold:
 - it is a **declarative** `defineLiveQuery` over **one table**
   (`defineJsLiveQuery` handlers are never eligible — an opaque handler
   cannot carry the closed-inputs proof);
-- it declares **both** `auth: 'public'` and `authorityIndependent: true`
-  (in a sessions-mode app, a query without both is authority-scoped by
-  default and classifies `SNAPBACK_RETENTION_NOT_RETAINABLE` — this is the
-  natural shape of a private chat query, and it is the usual reason a chat
-  app sees no retention);
+- it declares `auth: 'public'`; codegen and the host prove authority
+  independence from the complete closed plan. No app-authored
+  `authorityIndependent` or `retainable` retention switch is required. A
+  protected query remains authority-scoped and does not enter this class;
 - its plan reads no membership, `authUserId()`, time, or randomness inputs.
 
 **Explicit args do not break eligibility.** An args-filtered query — for
@@ -69,16 +68,16 @@ subscribes with `args: { dashboardId: 'ops' }` and asserts
 `retainable: true` plus a minted resume token, and the same args-filtered
 shape was re-verified 2026-08-07 against the published `0.1.12` packages in
 both dev and sessions modes. If your args-filtered query classifies
-retention `none`, the missing declarations or an ineligible plan — never
-the args — are the cause, and the handle's `retention.reason` names which
-layer refused.
+retention `none`, missing public semantics, an ineligible plan, or an
+unqualified carrier — never the args or stored bytes — is the cause, and the
+handle's `retention.reason` names which layer refused.
 
 | Workload shape | Route | Survival rules |
 | --- | --- | --- |
-| Public single-table live query, args-less **or** filtered by explicit `arg(...)` | Platform retention: declare `auth: 'public'` + `authorityIndependent: true` ([opt-in section](#opt-a-live-query-into-cold-retention-rqseligible)) | Persisted per `(query, args)` in the client store; fresh client re-renders it `freshness: 'retained'`, backend unreachable included; subscribe demand is volatile (dispose releases it); a non-empty outbox withholds resume and reprojects only read-admitted generated operations — full resync first |
+| Public single-table live query, args-less **or** filtered by explicit `arg(...)` | Default platform retention: declare `auth: 'public'`; codegen/the host derive the exact class ([eligibility section](#default-cold-retention-for-public-exact-live-queries-rqseligible)) | A mounted React/headless query automatically requests durable retention on a qualified IndexedDB/Node-file store, per `(query, args)`; fresh client re-renders it `freshness: 'retained'`, backend unreachable included. Disposing releases mounted demand; use `registerQuery` only for background demand with no live handle. A non-empty outbox withholds resume and reprojects only read-admitted generated operations — full resync first |
 | Public data queried through many argument values, one retained payload wanted | Client-side filter over an args-less (or coarser-keyed) retained query ([viewer-facts section](#retain-public-viewer-facts-by-argument-not-authority)) | Same as platform retention, with one entry instead of one per argument value; derive the per-key fact from canonical rows on the client |
 | Protected generated live query — the natural private-chat shape under sessions | Declare `retainable: true`; the JS and Contract arms use lease-backed custody ([authorized leases](../auth/protecting-data.md#authorized-leases-bound-unreachable-honest-clients)) | Rows render retained only under a valid `AuthorizedLease`; merely offering the lease protocol does not promote non-retainable queries or call its endpoint. Equality with the client deadline is expired, and invalid/mismatched custody is transactionally deleted before exposure. The JS package proves a fresh-client cold handoff; the independent real-process restart witness remains a GAP |
-| Owner-scoped generated relational composite | LLP 0166 materialization store + hydration bridge ([store section](#render-retained-rows-proof-validated-after-relaunch-the-materialization-bridge)) | Proof-revalidated `authoritative`/`retained` relaunch answers; demand comes from registrations — a live handle is an `active` registration reaped at restart, `registerQuery` with `retentionRequest: 'durable'` survives restart |
+| Owner-scoped generated relational composite | LLP 0166 materialization store + hydration bridge ([store section](#render-retained-rows-proof-validated-after-relaunch-the-materialization-bridge)) | Proof-revalidated `authoritative`/`retained` relaunch answers; protected retention remains explicitly lease-gated. This public-exact default does not widen it |
 | Demand that must survive a restart with no mounted handle | `registerQuery` programmatic durable registration ([registration section](#keep-a-generated-query-registered-without-a-live-handle)) | Durable across restarts; owner-admitted — a non-retainable query refuses instead of silently dropping durability; release is idempotent |
 | Snapshot-batch composite (`snapshot-batch.v1`/`v2`) | None — deliberately volatile, retention `none` | Payload removed at the next writer maintenance pass; never infer renderability from stored bytes |
 
@@ -100,6 +99,13 @@ IndexedDB store in browsers, a durable file store on node, and an in-memory
 fallback elsewhere, reporting the resolved implementation and durability on
 `client.rqsStoreInfo` (pass `rqsStore: null` or set
 `SNAPBACK_CLIENT_RQS_STORE=off` to opt out).
+
+The Expo provider resolves its platform default only after binding supplies
+the canonical origin. The SQLite carrier code is present, but the packaged
+target manifest is empty pending separate real-device iOS and Android
+qualification. Without a registered legacy file carrier, Expo therefore uses
+memory and reports `expo-sqlite-carrier-pending-qualification`; it does not
+queue or claim retained cold-boot facts at this stage.
 
 ### Branch on a persisted binding receipt at offline cold boot
 
@@ -546,10 +552,13 @@ compacted bookkeeping stubs after an explicitly driven maintenance pass.
 
 ### Keep a generated query registered without a live handle
 
-Active live queries still register demand automatically — subscribing is the
-`active` registration, and disposing the handle releases it. For demand that
-must survive a process restart without a mounted handle, use the public
-programmatic API. The application owns a stable, store-scoped
+Active live queries register demand automatically — subscribing is the
+`active` registration, and disposing the handle releases it. For an
+owner-admitted public-exact query, that mounted registration automatically
+requests durable retention on a qualified store; it does not persist a
+programmatic registration record. Use the public programmatic API only for
+background demand that must remain registered across a process restart with
+no mounted handle. The application owns a stable, store-scoped
 `registrationId`; Snapback derives the qmk1 address and authority partition
 from the generated reference and current owner snapshot:
 
@@ -598,36 +607,41 @@ with `SNAPBACK_MATERIALIZATION_STORAGE_PROFILE_GAP` naming
 against v3; a future file blob is preserved in place and refused with
 `SNAPBACK_RQS_STORE_CORRUPT`.
 
-## Opt a live query into cold retention (`rqsEligible`)
+## Default cold retention for public-exact live queries (`rqsEligible`)
 
-Cold retention is **per-query and opt-in by declaration** — a Snapback app
-gets ZERO offline retention until at least one live query declares
-eligibility. The default is refuse-with-clarity, not silent persistence: in
-a sessions-mode app even a plain declarative live query over a table with no
-private rows is authority-scoped by default, its handle reports
-`retention: { retainable: false, code: 'SNAPBACK_RETENTION_NOT_RETAINABLE' }`,
-and nothing ever persists — so the cold-boot claims above silently never
-engage until you declare the opt-in below.
+Cold retention is **the default for the owner-admitted public-exact class**.
+On a qualified browser IndexedDB or headless Node-file store, every mounted
+query in that class requests and maintains durable retention automatically;
+the app does not set `persistResume`, `retainable`, or
+`authorityIndependent` for this purpose. A fresh client can therefore render
+the proof-verified facts with `freshness: 'retained'` while the server is
+unreachable. The current Expo default is not part of this claim: SQLite
+remains behind an empty real-device publication manifest, and its fallback
+reports volatile.
+This no-declaration derivation is implemented on the local/Ibex host. The
+Cloudflare coordinator still requires a validated
+`authorityIndependent: true` flag alongside the same closed-plan proof;
+removing that flag is an explicit pending LLP 0092 target row.
 
-The opt-in is two declaration facts on a **declarative** live query
-(`defineLiveQuery`):
+Eligibility starts with a **declarative** `defineLiveQuery` whose application
+semantics declare `auth: 'public'`. Codegen and the host then independently
+prove that the operation is a closed single-table plan with no membership,
+`authScopeField`, `authUserId()`, time, randomness, config, or opaque handler
+input. From that proof the owner derives `rqsEligible` and mints resume tokens
+— there is no authored `rqsEligible` field, and app-authored
+`authorityIndependent: true` is not an admission input. That existing flag
+remains a compatible, validated assertion for surfaces codegen cannot derive
+and for `publicInline`, but it cannot make an unproved plan retention-eligible.
+A query failing the proof continues online and reports a stable refusal; bytes
+already in a store never manufacture eligibility (LLP 0090).
 
-- `auth: 'public'` — the query is invocable without a resolved user;
-- `authorityIndependent: true` — the trusted declaration that the complete
-  result, for the same database state and explicit arguments, is identical for
-  every caller. Codegen accepts it only on a public, ambient-free plan; it is
-  refused on queries with `authScopeField`, `membership`, `authUserId()`
-  filters, or time/randomness reads.
-
-From those facts plus the closed-inputs proof (single-table plan whose read
-summary equals the plan's table), the server derives the `rqsEligible`
-predicate and mints resume tokens — there is no authored `rqsEligible`
-field, and a query failing the proof is simply not eligible, never a load
-error (LLP 0090). The same predicate now derives LLP 0157's
+The same owner predicate derives LLP 0157's
 `single_table_v1@1` node class; codegen adds that experimental target
 requirement automatically, while multi-node composition remains closed and
 the 1,024 examined-entry refusal applies only during QMK establishment. The
-eligible query in the public-dashboard demo:
+eligible query in the public-dashboard demo still carries an explicit
+assertion because `publicInline` separately requires it, not because retention
+does:
 
 ```js source=demos/public-dashboard/snapback/functions.mjs
 export const dashboardMetrics = defineLiveQuery({
@@ -642,17 +656,16 @@ export const dashboardMetrics = defineLiveQuery({
 });
 ```
 
-(`publicInline: true` is the separate snapshot-inlining disclosure
-permission for HTML boot — see
-[snapshot bundles](../realtime/snapshot-bundles.md) — and is **not**
-required for retention.)
+(`publicInline: true` is the separate snapshot-inlining disclosure permission
+for HTML boot — see [snapshot bundles](../realtime/snapshot-bundles.md) — and
+neither it nor `authorityIndependent: true` is required for retention.)
 
 ### Retain public viewer facts by argument, not authority
 
-`authorityIndependent` does **not** require one result for every possible
-argument value. Explicit `arg(...)` values are part of the query identity, not
-ambient authority, so a caller-selected viewer key can still qualify when the
-rest of the plan satisfies the proof:
+Owner-derived authority independence does **not** require one result for every
+possible argument value. Explicit `arg(...)` values are part of query
+identity, not ambient authority, so a caller-selected viewer key can still
+qualify when the rest of the plan satisfies the proof:
 
 - `eq('userHandle', arg('handle'))` can be `rqsEligible` and cold-retained;
 - `eq('userHandle', authUserId())` depends on server authority and is never
@@ -663,9 +676,8 @@ rest of the plan satisfies the proof:
   declaration truthfully reports `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`.
   Either way nothing persists. (An `authUserId()` filter also refuses an
   anonymous sessions caller outright with `SNAPBACK_AUTH_USER_MISSING`; a
-  plain non-`authorityIndependent` public query is the anonymous-admissible
-  shape that exhibits the sessions-mode `NOT_RETAINABLE` classification —
-  see `demos/browser-local-first/snapback/functions.mjs` `todosFeed`.)
+  protected public-admissible query that lacks the owner proof exhibits the
+  sessions-mode `NOT_RETAINABLE` classification.)
 
 For a public social feed, split the data into two retainable live queries:
 keep posts and their public `likeCount` in the timeline, keep public like rows
@@ -704,9 +716,9 @@ proves the exact legacy identity or performs a fresh sync, then switches into
 QMK custody in one atomic same-domain transaction. It never relabels in place,
 never adopts while offline, and never drops pending outbox intent.
 
-The handle tells you whether the opt-in took: `handle.retention` is the
-refuse-with-clarity classification, and an eligible query holds a
-server-minted resume token:
+The handle tells you whether owner admission took: `handle.retention` is the
+refuse-with-clarity classification, and an eligible query holds a server-minted
+resume token:
 
 ```js source=demos/public-dashboard/tests/acceptance/offline-local-first.mjs
     assertEqual(handleA.freshness, 'current', 'fresh subscribe is authoritative');
@@ -724,13 +736,13 @@ A query that does not qualify names why instead of silently acting online:
 The refusal codes: `SNAPBACK_RETENTION_NOT_RETAINABLE` (authority-scoped —
 protected retention is the lease machinery's, below),
 `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` (the server minted no token: not an
-authority-independent closed-inputs declarative query), and
+owner-proved public exact closed-inputs declarative query), and
 `SNAPBACK_RETENTION_STORE_DISABLED` (eligible, but this client opted out of
 persistence). For `SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE`, the fact's `reason`
 names which eligibility layer refused, derived from the generated
-reference's retention classification: the declaration never opted in (no
-retention class — missing `auth: 'public'`/`authorityIndependent`, a JS
-handler, or a non-single-table plan), the class is volatile by design
+reference's retention classification: codegen could not derive the class
+(missing `auth: 'public'`, a JS handler, an ambient input, or a
+non-single-table plan), the class is volatile by design
 (snapshot batches, non-retainable composites), or the declaration is
 eligible but this target did not activate the class.
 
@@ -755,7 +767,7 @@ That test deliberately uses a string query reference and omits the authorized
 lease protocol. It proves fail-closed behavior, not a universal ban on
 protected JS retention.
 
-Two neighbors that are **not** this opt-in:
+Two neighbors that are **not** this public-exact default:
 
 - `defineJsLiveQuery` handlers are never `rqsEligible` — an opaque JS
   handler cannot carry the closed-inputs proof, so JS live queries stay
@@ -938,10 +950,11 @@ proofs. An authority change therefore retains the predecessor proof rather
 than leaking its id into, or deleting it under, the successor. A volatile
 memory fallback reports `durable: false`, does not auto-queue, and refuses
 `queue: true` with `SNAPBACK_OFFLINE_QUEUE_DISABLED` before network
-dispatch. The current Expo file adapter makes the
-same conservative report because its File/Directory API exposes no fsync cut
-and has a non-atomic compatibility replacement; it can cache RQS rows but does
-not own durable settlement publication.
+dispatch. Expo makes the same conservative report at this landing: the legacy
+File/Directory adapter lacks an fsync/atomic-replace cut, while the new SQLite
+carrier has no published real-device target row yet. Either path may support
+Online operation, but neither owns durable settlement publication until the
+SQLite receipt and manifest row land for that exact target cell.
 
 Deploying a bundle that removes or renames the mutation does not strand an
 already committed result. Until ACK, the server can recover it through the

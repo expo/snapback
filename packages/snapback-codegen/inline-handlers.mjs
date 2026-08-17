@@ -1450,8 +1450,8 @@ export function extractInlineHandlers(source, {
         const key = propertyName(member.name);
         if (key) fields.set(key, member);
       }
+      const problem = invalidHandlerMembers[0] ?? directHandlerMembers[1] ?? { details: {} };
       if (invalidHandlerMembers.length > 0 || directHandlerMembers.length > 1) {
-        const problem = invalidHandlerMembers[0] ?? directHandlerMembers[1];
         diagnostics.push(diagnostic(
           'SNAPBACK_INLINE_HANDLER_DIRECT_LITERAL_REQUIRED',
           `${name} handler must be one direct, non-computed data property`,

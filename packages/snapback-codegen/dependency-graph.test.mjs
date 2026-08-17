@@ -44,8 +44,8 @@ function makeBackend() {
 import { defineSchema, defineTable } from '${defineUrl}';
 import { titleValidator } from './schema-helper.mjs';
 export default defineSchema({
-  todos: defineTable({ title: titleValidator }).sync(),
-  notes: defineTable({ title: titleValidator }).sync(),
+  todos: defineTable({ title: titleValidator }).visibility({ kind: 'public-read' }).sync(),
+  notes: defineTable({ title: titleValidator }).visibility({ kind: 'public-read' }).sync(),
 });
 `);
   writeFileSync(join(dir, 'functions.mjs'), `

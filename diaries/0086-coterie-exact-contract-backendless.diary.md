@@ -510,3 +510,305 @@ the client work:
   silently truncating; fixture ensure-ops stay owner-checked but cannot
   be hidden from first-party generated bindings — the adapter lane must
   not map them (recorded so D7 freezing never absorbs seed ops).
+
+## 2026-08-16 — Quoted replies, message reactions, and avatar picker
+
+This slice made the partial-provider seam visible in a useful way. Quoted
+reply and reaction buttons cannot honestly exist in the Snapback M1 lane, even
+though they are present in the one shared Coterie declaration. A new
+`listProviderClaims` query reports operation names and compatibility tokens;
+the Contract routes derive affordance visibility from those rows. Memory
+claims the complete surface it implements, while the Snapback adapter returns
+its existing M1 allow-list and still refuses every unclaimed call loudly. The
+UI never reads provider identity. That felt better than either scattering
+`COTERIE_PROVIDER` checks through presentation code or leaving dead controls:
+an unavailable reply, reaction, or avatar action is simply absent.
+
+The memory provider work was pleasantly direct. `sendMessage` stores an
+optional same-chat quote identity, while `listMessages` resolves the sender
+and a short preview at projection time so a deleted source becomes a safe
+tombstone instead of leaking its old text. Reaction state is stored as one
+actor event and projected as sorted per-emoji counts plus `reactedByMe`.
+`setMessageReaction` is set-state rather than toggle-state, so a repeated
+delivery does not reverse intent or double-count. The starter quote edges copy
+the six quote actions from `starter-m3.log` exactly; that log has no reaction
+actions, so this slice did not invent fixture reactions.
+
+Contract's plain props and leaf-event currying again made the portable UI
+small: the same message component now carries quote previews, reaction chips,
+the choice tray, and compose-with-quote cancellation with the frozen `sm-*`
+selectors. The sharper limitation was avatar input. Contract still has no
+file-input primitive, so Coterie cannot expose the Snapback adapter's real
+upload path from a portable `.contract` form. The honest interim UI is a
+picker over the eight committed persona references. A file-input primitive
+would remove that benchmark-specific vocabulary and let the same screen
+exercise real media selection on web and native.
+
+The post composer reached the same conclusion for media: reusing the M2
+fixture-ref-to-served-URL maps made a small, honest picker much easier than
+pretending Contract had a portable upload control. Reducer-owned selection
+keeps the four-image/one-video rule visible before mutation, while the provider
+still enforces the declared boundary. `listProviderClaims` also made this
+additive control clean—the Snapback M1 lane simply has no attach button, with
+no provider-name branch in the Contract tree.
+
+That picker immediately revisited an earlier lane seam discovery: the v5
+memory provider accepted only Alice and Bob refs while the concurrent v6 lane
+expands `setAvatar@2` to all eight and also invalidates chats. The mismatch is
+recorded in `issues/20260816-coterie-setavatar-seam-mismatch.md`. Structuring
+the vocabulary as one `COTERIE_AVATAR_REFS` constant made the rebase repair a
+one-line string-set change, and the pre-v6 test classifies whichever refs the
+installed provider accepts instead of pretending all eight already work. The
+post-rebase proof must require all eight. This was useful seam friction: the
+provider-neutral declaration and tests exposed divergent `avatarRef` meaning
+before the UI could accidentally encode one lane's private vocabulary.
+
+Compared with React plus Convex or Supabase, the claims query adds explicit
+schema and generated-binding ceremony that a direct hook would often replace
+with a feature flag or backend check. In return, capability visibility is data
+on the same typed seam as the feature itself, adapter refusals can be checked
+against advertised claims, and the presentation layer stays portable. The
+trade remains favorable for this benchmark, where honest interchangeability
+is the point rather than an incidental abstraction.
+
+The v7 dual review caught two concrete client/provider bugs before landing.
+Message actions had been rendered beside their bubble, so the frozen
+choreography's bubble-scoped quote/reaction locators could not reach them; the
+actions, picker anchors, and chips now live inside the bubble, and quoted
+excerpts jump to their source. It also caught a direct-message avatar update
+keyed by membership rather than displayed counterpart: Alice changing her own
+avatar could overwrite the row that displays Bob. The projection now updates
+only rows that display the changed persona and leaves group rows unchanged.
+
+## 2026-08-16 — Snapback `ContractDataProvider` adapter growth (M2)
+
+Growing the adapter from M1 to the frozen M1+M2 claim kept the public seam
+clean: Coterie's Contract routes did not change, the v7 declaration stayed
+byte-for-byte frozen, and the adapter mapped the generated `globalFeed`,
+`followingFeed`, `thread`, `profilePosts`, `createPost`, `setFollow`, `setLike`,
+and `setRepost` references directly. Client B observed client A's post and
+subsequent like-count change over stream transport with polling disabled, so
+the live-query ownership rule remained legible in the proof.
+
+The awkward part was projection composition. `listProfiles@2` is one list but
+Snapback's `profileStats` is keyed to one profile, so the adapter retains a
+stats stream per visible profile, joins the snapshots, and fans authoritative
+updates back to every Exact observer. Publishing while those streams were
+still opening briefly exposed zero counts; rebuilding all streams after an
+unrelated profile edit then hit auth establishment throttling. The stable form
+gates the first ready cell on the complete stats snapshot and reconciles
+streams only when profile IDs enter or leave. A backend list-shaped stats
+projection, or a first-class generated multi-query composition, would make
+this much less machinery for a `ContractDataProvider`.
+
+The two cursor vocabularies fit after making the translation explicit.
+Coterie's cursor carries `{v, mode, sortAt, eventId}` while the backend accepts
+`<16-digit-ms>:<event-id>` as `pageKey`; the adapter checks the timestamp both
+directions and rejects malformed or cross-mode tokens before opening a stream.
+The backend returns only 20 rows rather than a 21st overflow witness, so a full
+page conservatively carries a next cursor and a short page terminates. This is
+workable keyset behavior, but the page-boundary fact is less direct than the
+memory provider's 21-row lookahead.
+
+Committed composer refs also mapped predictably: resolve the shared fixture
+URL, sniff bytes, hash them, reuse an owner/kind/digest asset mapping, upload
+through `postImageUpload` or `postVideoUpload`, then call `createPost`. That is
+more ceremony than a direct Convex storage URL or Supabase bucket write, but
+the upload intent makes custody and attachment admission explicit while the
+fixture vocabulary remains provider-neutral.
+
+The reply-repost rule belongs at the backend mutation boundary. `setRepostCore`
+now refuses any post with a parent through the declared
+`REPLY_REPOST_FORBIDDEN` application code, and both the user mutation and
+fixture ensure path declare that code. The adapter maps it directly to
+`ReplyRepostForbiddenError` and no longer opens the bounded `thread` query as a
+preflight. Besides removing a redundant round trip, this matters for an
+original with more than 1,023 direct replies: the thread projection correctly
+refuses its overflow witness, while reposting the original remains a bounded
+single-post mutation. No `ensureFixture*` or `getMyFixture*` operation was
+mapped—the seed installer remains a separate program surface.
+
+Review also found two projection boundaries worth making explicit. Asset URLs
+must use renditions guaranteed by their upload declarations (`feed` for post
+images, `primary` for post video, `thumb` for avatars); a generic thumbnail
+helper produced non-existent video/image URLs. And a feed subscribed before a
+new profile signed up could observe the new post before the adapter's cached
+profile index learned that identity. M2 delivery now serializes snapshots,
+hydrates only unknown author/reposter IDs before publication, and fails closed
+instead of falling back to a backend `_id`. The integration proof subscribes a
+feed without a profile stream before signup, then checks both create and repost
+delivery against the new external owner identity.
+
+Finally, the shared Exact headless handle emits an empty placeholder before an
+asynchronous Snapback live snapshot. The acceptance runner had treated that
+placeholder as the seeded feed; waiting for the first non-empty M2 snapshot
+fixed the evidence without provider branching. The durable Snapback lane also
+made scenario cleanup matter: the follow step now restores Dave's unfollowed
+precondition so the second boot-state scenario measures the same choreography
+instead of inheriting the first scenario's edge.
+
+## 2026-08-16 — M3 messaging core (memory provider and Contract client)
+
+M3 was the first Coterie slice where the projection shape mattered more than
+the basic mutation plumbing. A DM is keyed by the sorted pair and reopens the
+same entity; a group is a separately identified entity even when its member
+set matches another group. Storing membership as active/inactive rows with an
+admin flag made authorization and history behavior fit together cleanly. A
+join or rejoin has no lower history bound and therefore sees the full log. A
+leave/removal records the last visible message as a cutoff, so the former
+member keeps local history but cannot receive future rows.
+
+Receipts needed one additional immutable fact on every message: its
+send-time recipient IDs. The projected sender status is the slowest receipt
+across that set, not whoever happens to be in the group when the query runs.
+Leave/removal adds that actor to a dropped-requirement set, which prevents a
+departed recipient from wedging the aggregate while preserving the original
+send record. Keeping the state machine monotonic (`sent`, `delivered`, `read`)
+made retry and out-of-order delivery uneventful. This is more explicit state
+than a client-only React mock would normally carry, but it exposes exactly the
+group semantic a Convex or Supabase implementation would still need to encode
+somewhere authoritative.
+
+Typing exposed the clearest Exact seam limitation. Contract's runtime manifest
+can represent ephemeral operations, but the closed provider-native declaration
+generator used by Coterie cannot currently generate those descriptors. The v8
+surface therefore uses a documented bridge rather than claiming fake
+durability: a live/coalesced `observeTyping` query, a `setTyping` mutation, and
+a namespaced extension that states ephemeral durability, no offline retention,
+no history, a two-second visibility target, and a five-second lease. The
+memory clock schedules real expiry for the app and exposes logical advancement
+for tests, so unit and acceptance proofs do not sleep. A first-class generated
+ephemeral declaration would remove this parallel extension vocabulary.
+
+The Contract client stayed compact despite the larger feature set. The same
+chat bindings now drive DM/group creation, membership/admin settings, sender
+avatars, list-level typing hints, conversation typing, and single/double/blue
+double receipt checks under the frozen `sm-*` targets. The valuable discipline
+was copying the feed's reducer boundary: every route-owned chat or group-draft
+write carries a generation, and every post-`await` settlement enters through
+that reducer. Stale mutation completions therefore cannot publish predecessor
+compose or picker state into a successor interaction.
+
+The memory-provider pass of the headless proof exercises the whole ordered M3
+chain in both boot states: DM dedup, text, quoted reply, delivered/read receipts
+plus non-regression, typing visibility and logical expiry, group creation,
+non-admin refusal, and creator removal. This remains generated-binding evidence
+rather than mounted UI-tree evidence; its frozen target IDs identify the
+intended vocabulary while provider subscriptions prove the headless semantics.
+
+Snapback observations are deliberately separate: this lane did not modify
+`demos/coterie/snapback/` or claim a Snapback M3 backend. The existing adapter
+continues to advertise only its qualified M1+M2 surface and refuses M3
+operations. It projects the new nullable `listProfiles@3.avatarRef` as `null`
+until the parallel provenance/selected-state work is qualified. The M3
+ergonomics recorded above are therefore Contract and deterministic-memory
+observations, not server-authority, durability, offline, or multi-client
+Snapback evidence.
+
+## 2026-08-16 — M3 review corrections
+
+The dual review found that generation discipline has to cover the side effect,
+not merely the reducer settlement. DM/group navigation and the post-send typing
+clear now compare the captured generation immediately before publishing; edits
+advance the generation, so a successor draft makes an older completion inert.
+Failed send and group creation restore the exact pre-begin draft when no
+successor exists. This is slightly more explicit than a React closure plus an
+abort flag, but the single reducer made the race tests deterministic and kept
+the route contract readable.
+
+The review also sharpened the evidence boundary. `accept:coterie` is a
+headless generated-binding provider proof over the frozen `sm-*` vocabulary,
+not mounted or two-browser choreography. Selecting steps from
+`listProviderClaims` let the existing Snapback M1+M2 path remain green while
+reporting M3 as skipped-by-claim; memory still exercises the full M1–M3 chain.
+The optional logical-clock hook only accelerates memory—the public typing
+projection is the provider-neutral expiry observation.
+
+One Exact paper cut remains visible in the generated helper sidecar: the
+contract-meta command completed successfully but widened five `string | null`
+state fields to `string`, so the checked sidecar needed the nullable types
+corrected after regeneration. The provider generator itself handled the
+reaction refusal/token bump and write-set changes cleanly.
+
+## 2026-08-17 — Snapback M3 backend lane (recorded separately from the client observations above)
+
+The messaging core (LLP 0266 D9, M3) shipped as an honest partial claim:
+**messaging core minus typing**. The review loop ruled that the only
+expressible ephemeral posture — `allow.all()` — made typing presence
+observable and spoofable by former members (LLP 0013's protected-room
+rule controlling), so the surface was removed rather than shipped
+public; the platform gap is ticketed as
+`issues/20260817-ephemeral-membership-permission-backing.md` with the
+six capabilities membership-backed ephemeral lowering needs. The memory
+provider carries the full typing semantics alone until then.
+
+Other things the build taught:
+
+- **Membership incarnations** (leave/rejoin as distinct rows) model the
+  brief's send-time recipient sets cleanly — old obligations stay on the
+  removed incarnation, rejoin creates fresh ones — but bounded reads
+  over unbounded incarnation history was the review round's best catch:
+  churn could silently drop an active member from access checks. The fix
+  is an indexed current-membership projection queried separately from
+  history; a 640-cycle churn test locks it.
+- **Removal cutoffs belong in the query layer**: removed members keep
+  pre-removal history (brief) and that filter lives server-side on every
+  read path — including the fixture helpers, where the review caught a
+  cutoff bypass.
+- The census helper-write blind spot (LLP 0274, ticketed at M2)
+  applies to most new M3 writes; operations are marked opaque
+  accordingly.
+
+## 2026-08-16 — user-reported browser media and appearance corrections
+
+Two defects reported from the memory-provider web demo exposed presentation
+seams rather than another provider row-aliasing bug. A generated-binding live
+feed regression proves that a text-only post keeps `mediaKind: null` and an
+empty URL array before and after the following media-post delivery. The visual
+bleed came from putting variable-height feed cards inside Exact's fixed
+`estimateSize=220` virtual rows: a media card overflowed its row into the next
+card. Coterie now uses the documented non-virtual host-fed list for this
+heterogeneous feed. The recent mutable-row alias pattern did not strike again.
+
+The appearance model was split. Facet controls resolve the shared theme store's
+system preference, while Coterie's hand-authored shells, raw controls, borders,
+and text were literal light colors. Reading the Exact theming guide made the
+repair straightforward: Coterie now follows the resolved light/dark scheme with
+semantic Facet v2 tokens throughout, retaining only the frozen eight chat
+accents and their contrast foregrounds as literals. No linked Exact source was
+changed. Compared with a React app using a token-aware component library, the
+failure mode is familiar: raw DOM/native controls still need the same semantic
+palette discipline as library components.
+
+The red attachment was also useful evidence rather than a missing-file symptom:
+the selected shared `IMG 01` benchmark fixture is intentionally a red synthetic
+card, its public asset hash and served URL are correct, and the route projection
+binds that URL to the owning post. Feed image and video presentation now uses
+`contain` on themed media surfaces so the fixture's identifying content is not
+cropped away.
+
+## 2026-08-17 — appearance and regression-review completion
+
+The review's contrast calculations caught the remaining split between accent
+data and accent presentation. Keeping the eight chat values literal is useful
+for the frozen M5 choreography, but using those same bytes as foreground colors
+was not safe across Facet schemes. A single pure palette helper now derives
+light/dark foreground variants against the actual Coterie message and selection
+surfaces, chooses swatch ink from accent luminance, and owns separate person/chat
+fallback-avatar pairs. This followed Exact's documented `theme.scheme` palette
+idiom cleanly; the raw Contract views now read roles instead of scattering
+scheme branches. The one ergonomic cost is a Contract metadata sidecar for the
+otherwise ordinary pure TypeScript helper.
+
+The strengthened layout regression also exposed the useful boundary between
+source composition and a minimal harness. The harness still supplies a query
+and no-op actions, but it mounts the real `CoterieFeedList`, `CoterieFeedCard`,
+avatar, and feed-body components. That made media ownership, image/video
+`objectFit`, non-absolute rows, and the lowered `endreached` callback observable
+without browser automation.
+
+The same exercise confirmed a separate Exact/Coterie pagination seam outside
+the current fixture envelope: non-virtual list reach geometry mixes item count
+with pixel offsets, leaving the end edge sticky. It is recorded in
+`issues/20260817-coterie-feed-pagination-third-page-stall.md`; this review did
+not disguise that latent third-page failure as part of the two-page media fix.

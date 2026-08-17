@@ -167,6 +167,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'rqs-resume.test.mjs',
       'rqs-store-expo.test.mjs',
       'rqs-store-file.test.mjs',
+      'rqs-store-sqlite.test.mjs',
       'rqs-store-v3.test.mjs',
       'rqs-store.test.mjs',
       'sender-proof.test.mjs',
@@ -265,10 +266,12 @@ export const PACKAGE_TEST_INVENTORIES = [
       'app-binding.test.mjs',
       'asset-source.test.mjs',
       'config-plugin.test.mjs',
+      'expo-sqlite-carrier.test.mjs',
       'package-closure.test.mjs',
       'package.test.mjs',
       'provider.test.mjs',
       'provider-auth-bootstrap.test.mjs',
+      'provider-native-custody.test.mjs',
       'release-export-vocabulary.test.mjs',
       'supervised-environment.test.mjs',
       'supervised-offline-fallback.test.mjs',
@@ -546,7 +549,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 307,
+  expectedTotal = 310,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -995,6 +998,11 @@ export function checkPackageTestInventories(options = {}) {
 // 306 -> 307 (2026-08-16, auth-invalidation v1 default-lane fix):
 // @expo/snapback-client gains the closed terminal-refusal classifier and
 // reconnect regression suite.
+// 307 -> 308 (2026-08-16, LLP 0258 Phase 2 close-out):
+// @expo/snapback-expo gains the per-OS native-custody provider admission suite.
+// 308 -> 310 (2026-08-16, LLP 0270 Expo carrier): @expo/snapback-client gains the shared
+// SQLite store contract suite and @expo/snapback-expo gains provider resolution,
+// registry, and discard-and-refetch migration coverage.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

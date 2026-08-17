@@ -18,6 +18,7 @@ export const DEFAULT_AUTH_STORAGE_PARTITION = 'default';
 
 const OWNER_REGISTRY = new Map();
 const PROJECTION_OWNERS = new WeakMap();
+const PROVIDER_VALIDATED_NATIVE_GRADES = new WeakMap();
 const POLICY_KEYS = [
   'anonymousPublic',
   'appId',
@@ -552,10 +553,11 @@ function preflight(input) {
   if (Object.hasOwn(input, 'storagePartition')) expectedInputKeys.push('storagePartition');
   if (Object.hasOwn(input, 'now')) expectedInputKeys.push('now');
   if (Object.hasOwn(input, 'signal')) expectedInputKeys.push('signal');
+  if (Object.hasOwn(input, 'rqsStore')) expectedInputKeys.push('rqsStore');
   if (!exactKeys(input, expectedInputKeys)) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
-      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition, now, and signal.',
+      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition, now, signal, and rqsStore.',
       { actualKeys: Object.keys(input).sort() },
     );
   }
@@ -602,7 +604,16 @@ function preflight(input) {
       );
     }
   }
-  return Object.freeze({ app, binding, platform, policy, storagePartition, signal });
+  return Object.freeze({
+    app,
+    binding,
+    platform,
+    policy,
+    storagePartition,
+    signal,
+    rqsStore: input.rqsStore,
+    rqsStoreIdentity: Object.hasOwn(input, 'rqsStore') ? input.rqsStore : undefined,
+  });
 }
 
 const ownerKey = (appId, storagePartition) => (
@@ -671,13 +682,18 @@ async function resolveCustody(preflighted) {
     });
   }
   if (platform.kind === 'expo-native') {
-    // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — explicit advanced injection only; ordinary native admission stays refused pending per-OS Phase 2 evidence.
+    // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback — ordinary native admission is Expo-provider evidence-gated; this layer re-checks the provider-threaded or advanced-injection grade.
     let reportedGrade;
     try {
-      if (typeof platform.authCustodyStorage.platformGrade !== 'function') {
-        throw new TypeError('injected native custody has no platformGrade method');
+      const providerValidatedGrade = PROVIDER_VALIDATED_NATIVE_GRADES.get(platform);
+      if (providerValidatedGrade !== undefined) {
+        reportedGrade = providerValidatedGrade;
+      } else {
+        if (typeof platform.authCustodyStorage.platformGrade !== 'function') {
+          throw new TypeError('injected native custody has no platformGrade method');
+        }
+        reportedGrade = await platform.authCustodyStorage.platformGrade();
       }
-      reportedGrade = await platform.authCustodyStorage.platformGrade();
     } catch (error) {
       throw refusal(
         'SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE',
@@ -887,6 +903,7 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
     binding: preflighted.binding,
     platform: preflighted.platform,
     storagePartition: preflighted.storagePartition,
+    rqsStoreIdentity: preflighted.rqsStoreIdentity,
     policy: preflighted.policy,
     policyIdentity: policyIdentity(preflighted.policy),
     generationIdentity: generationIdentity(preflighted),
@@ -945,6 +962,7 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
       // will correctly refuse.
       authInvalidationProtocol: 1,
       authorityDescriptorProtocol: 1,
+      rqsStore: preflighted.rqsStore,
     });
     const restoredCapture = await awaitConstructionBoundary(
       owner.coordinator.synchronize(),
@@ -1002,6 +1020,19 @@ const serializeEntry = async (entry, operation) => {
 };
 
 function assertCompatibleRebind(owner, candidate) {
+  if (owner.rqsStoreIdentity !== candidate.rqsStoreIdentity) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT',
+      'This live application owner is already bound to a different RQS store identity.',
+      { appId: candidate.app.identity.app },
+      [remediation(
+        'disposeAndReconstruct',
+        'Dispose every projection for this owner key before changing its RQS store.',
+        { appId: candidate.app.identity.app },
+        { authorityEffect: 'none' },
+      )],
+    );
+  }
   if (owner.conflictIdentity !== conflictIdentity(candidate.binding)) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT',
@@ -1539,6 +1570,20 @@ export function __applicationDescriptorForAppClient(appClient) {
   const owner = PROJECTION_OWNERS.get(appClient);
   if (!owner) throw new TypeError('expected a live SnapbackAppClient projection');
   return owner.app;
+}
+
+export function __createProviderValidatedExpoNativePlatform({
+  authCustodyStorage,
+  authCustodyGrade,
+  cryptoObject,
+}) {
+  const platform = Object.freeze({
+    kind: 'expo-native',
+    authCustodyStorage,
+    cryptoObject,
+  });
+  PROVIDER_VALIDATED_NATIVE_GRADES.set(platform, authCustodyGrade);
+  return platform;
 }
 
 // Kept outside the package export map: the Expo slice will replace this test

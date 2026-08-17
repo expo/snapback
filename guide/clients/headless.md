@@ -495,6 +495,17 @@ snapshot-with-subscribe operation and returns a handle with `rows`,
     assertEqual(handle.rows.length, 3, 'snapshot rows');
 ```
 
+On a qualified Node-file or browser IndexedDB store, mounting a generated
+public-exact `LiveQuery` automatically requests durable retention. Codegen and
+the host derive that class from `auth: 'public'` plus the closed single-table
+plan; application `authorityIndependent`, `retainable`, and `persistResume`
+options are not required. A fresh client can then expose proof-verified rows as
+`freshness: 'retained'` while the server is unreachable. Opaque handlers,
+unproved or protected queries, and memory storage retain their existing
+explicit/refusal behavior. Expo is not included in this carrier claim. Use
+`registerQuery(..., { retentionRequest: 'durable' })` only when background
+demand must outlive every mounted handle.
+
 **Transport default:** omitting `transport` selects manual polling. The handle
 updates only when the caller invokes `poll()`; it does not become push-driven
 because an `onUpdate` callback is present. Use `transport: 'stream'` for managed

@@ -7,9 +7,13 @@ import {
   createMemoryAuthCustodyStorage,
 } from '../../../packages/snapback-contract/auth-coordinator.mjs';
 import {
+  COTERIE_SNAPBACK_CLAIMED_OPERATIONS,
+  COTERIE_SNAPBACK_M1_OPERATIONS,
+  COTERIE_SNAPBACK_M2_OPERATIONS,
   coterieSnapbackTestInternals,
   createCoterieSnapbackProvider,
 } from '../src/data/snapback-provider.ts';
+import { coterieSurfaceManifest } from '../src/data/memory-provider.ts';
 
 function diagnostic(code: string, appCode?: string): Error & {
   code: string;
@@ -26,7 +30,7 @@ function diagnostic(code: string, appCode?: string): Error & {
 
 describe('Snapback adapter diagnostic allow-lists', () => {
   test('unknown auth and asset diagnostics never masquerade as declared recovery errors', () => {
-    for (const operation of ['login', 'editProfile', 'setAvatar']) {
+    for (const operation of ['login', 'editProfile', 'setAvatar', 'createPost', 'setRepost']) {
       expect(
         coterieSnapbackTestInternals.declaredError(
           operation,
@@ -44,6 +48,12 @@ describe('Snapback adapter diagnostic allow-lists', () => {
       coterieSnapbackTestInternals.declaredError(
         'editProfile',
         diagnostic('SNAPBACK_APPLICATION_REJECTED', 'PROFILE_NOT_OWNED'),
+      ).name,
+    ).toBe('SnapbackProviderError');
+    expect(
+      coterieSnapbackTestInternals.declaredError(
+        'setLike',
+        diagnostic('SNAPBACK_APPLICATION_REJECTED', 'SELF_FOLLOW_FORBIDDEN'),
       ).name,
     ).toBe('SnapbackProviderError');
   });
@@ -85,7 +95,122 @@ describe('Snapback adapter diagnostic allow-lists', () => {
         diagnostic('SNAPBACK_AUTH_PASSWORD_POLICY'),
       ).name,
     ).toBe('PasswordTooShortError');
+    const exactApplicationMappings = [
+      ['createPost', 'POST_BODY_TOO_LONG', 'PostBodyInvalidError'],
+      ['createPost', 'POST_IMAGE_COUNT_INVALID', 'ImageCountInvalidError'],
+      ['createPost', 'POST_MEDIA_MIXED', 'MediaMixInvalidError'],
+      ['createPost', 'POST_KIND_MEDIA_MISMATCH', 'MediaReferenceInvalidError'],
+      ['createPost', 'POST_KIND_INVALID', 'MediaReferenceInvalidError'],
+      ['createPost', 'POST_PARENT_NOT_FOUND', 'ParentPostNotFoundError'],
+      ['setFollow', 'PROFILE_NOT_FOUND', 'ProfileNotFoundError'],
+      ['setFollow', 'SELF_FOLLOW_FORBIDDEN', 'SelfFollowInvalidError'],
+      ['setLike', 'POST_NOT_FOUND', 'PostNotFoundError'],
+      ['setRepost', 'POST_NOT_FOUND', 'PostNotFoundError'],
+      ['setRepost', 'REPLY_REPOST_FORBIDDEN', 'ReplyRepostForbiddenError'],
+    ] as const;
+    for (const [operation, appCode, errorName] of exactApplicationMappings) {
+      expect(
+        coterieSnapbackTestInternals.declaredError(
+          operation,
+          diagnostic('SNAPBACK_APPLICATION_REJECTED', appCode),
+        ).name,
+      ).toBe(errorName);
+    }
   });
+});
+
+test('feed cursors round-trip backend page keys and reject cross-mode reuse', () => {
+  const row = {
+    pageKey: '0001760000000123:event-01',
+    eventCreatedAt: 1_760_000_000_123,
+  };
+  const cursor = coterieSnapbackTestInternals.encodeFeedCursor(
+    'global',
+    row as Parameters<typeof coterieSnapbackTestInternals.encodeFeedCursor>[1],
+  );
+  expect(coterieSnapbackTestInternals.decodeFeedCursor(cursor, 'global')).toEqual({
+    payload: {
+      v: 1,
+      mode: 'global',
+      sortAt: new Date(row.eventCreatedAt).toISOString(),
+      eventId: 'event-01',
+    },
+    pageKey: row.pageKey,
+  });
+  expect(() => coterieSnapbackTestInternals.decodeFeedCursor(cursor, 'following'))
+    .toThrow(expect.objectContaining({ name: 'FeedCursorInvalidError' }));
+  expect(() => coterieSnapbackTestInternals.decodeFeedCursor('not-base64-json', 'global'))
+    .toThrow(expect.objectContaining({ name: 'FeedCursorInvalidError' }));
+
+  const cursorForSortAt = (sortAt: string) => globalThis.btoa(JSON.stringify({
+    v: 1,
+    mode: 'global',
+    sortAt,
+    eventId: 'boundary-event',
+  })).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+  const epochCursor = coterieSnapbackTestInternals.encodeFeedCursor(
+    'global',
+    {
+      pageKey: '0000000000000000:epoch-event',
+      eventCreatedAt: 0,
+    } as Parameters<typeof coterieSnapbackTestInternals.encodeFeedCursor>[1],
+  );
+  expect(coterieSnapbackTestInternals.decodeFeedCursor(epochCursor, 'global')?.pageKey)
+    .toBe('0000000000000000:epoch-event');
+  expect(() => coterieSnapbackTestInternals.decodeFeedCursor(
+    cursorForSortAt('1969-12-31T23:59:59.999Z'),
+    'global',
+  )).toThrow(expect.objectContaining({ name: 'FeedCursorInvalidError' }));
+  expect(() => coterieSnapbackTestInternals.decodeFeedCursor(
+    cursorForSortAt('+275760-09-13T00:00:00.001Z'),
+    'global',
+  )).toThrow(expect.objectContaining({ name: 'FeedCursorInvalidError' }));
+});
+
+test('setRepost delegates directly to the bounded backend mutation for overflowing threads', async () => {
+  let queryCalls = 0;
+  const mutationCalls: unknown[] = [];
+  const backend = {
+    async query() {
+      queryCalls += 1;
+      throw new Error('the unbounded thread preflight must not run');
+    },
+    async mutate(_reference: unknown, options: unknown) {
+      mutationCalls.push(options);
+      return { status: 'settled', result: { reposted: true, repostCount: 1 } };
+    },
+  } as unknown as Parameters<typeof coterieSnapbackTestInternals.setRepostThroughBackend>[0];
+  await coterieSnapbackTestInternals.setRepostThroughBackend(
+    backend,
+    'original-with-1024-replies' as Parameters<
+      typeof coterieSnapbackTestInternals.setRepostThroughBackend
+    >[1],
+    true,
+    'overflowing-thread-repost',
+  );
+  expect(queryCalls).toBe(0);
+  expect(mutationCalls).toEqual([{
+    args: {
+      postId: 'original-with-1024-replies',
+      reposted: true,
+      mutationId: 'overflowing-thread-repost',
+    },
+  }]);
+});
+
+test('createPost validation preserves the frozen media vocabulary', () => {
+  expect(coterieSnapbackTestInternals.normalizedCreatePostInput({
+    body: '  hello  ',
+    imageRefs: ['media/img-01.png'],
+    videoRefs: [],
+    parentId: null,
+  })).toMatchObject({ body: 'hello', kind: 'images' });
+  expect(() => coterieSnapbackTestInternals.normalizedCreatePostInput({
+    body: '', imageRefs: [], videoRefs: [], parentId: null,
+  })).toThrow(expect.objectContaining({ name: 'PostBodyInvalidError' }));
+  expect(() => coterieSnapbackTestInternals.normalizedCreatePostInput({
+    body: '', imageRefs: ['media/not-committed.png'], videoRefs: [], parentId: null,
+  })).toThrow(expect.objectContaining({ name: 'MediaReferenceInvalidError' }));
 });
 
 test('login validation preserves password bytes and uses login vocabulary', () => {
@@ -298,4 +423,98 @@ test('disposed initialization subscriptions receive no late rejection cell', asy
   expect(profileCells).toHaveLength(1);
   expect(profileCells[0]).toMatchObject({ status: 'pending', connection: 'connecting' });
   await provider.close();
+});
+
+test('provider claims are exactly the adapter allow-list and refusal behavior agrees', async () => {
+  const provider = createCoterieSnapbackProvider({
+    baseUrl: 'http://127.0.0.1:1',
+    custody: 'memory',
+  });
+  try {
+    const claimCells: DataCellV2<unknown>[] = [];
+    const claimSubscription = provider.subscribe(
+      'listProviderClaims',
+      {},
+      (cell) => claimCells.push(cell),
+    );
+    expect(claimCells).toHaveLength(1);
+    expect(claimCells[0]).toMatchObject({ status: 'ready' });
+    if (claimCells[0]?.status !== 'ready') throw new Error('Expected provider claims');
+    const claims = claimCells[0].value as Array<{
+      name: string;
+      kind: 'query' | 'mutation';
+      token: string;
+    }>;
+    const expectedNames = [
+      ...COTERIE_SNAPBACK_CLAIMED_OPERATIONS.queries,
+      ...COTERIE_SNAPBACK_CLAIMED_OPERATIONS.mutations,
+    ].sort();
+    expect(claims.map((claim) => claim.name)).toEqual(expectedNames);
+    expect(claims).toContainEqual({ name: 'listProviderClaims', kind: 'query', token: '1' });
+    claimSubscription.dispose();
+
+    const claimedQueries = new Set(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.queries);
+    for (const queryName of Object.keys(coterieSurfaceManifest.queries)) {
+      const cells: DataCellV2<unknown>[] = [];
+      const subscription = provider.subscribe(queryName, {}, (cell) => cells.push(cell));
+      expect(cells).toHaveLength(1);
+      const first = cells[0];
+      if (!first) throw new Error(`No cell delivered for ${queryName}`);
+      if (claimedQueries.has(queryName)) {
+        expect(first.status === 'error' && first.error.name === 'SnapbackMilestoneUnsupportedError')
+          .toBe(false);
+      } else {
+        expect(first).toMatchObject({
+          status: 'error',
+          error: { name: 'SnapbackMilestoneUnsupportedError' },
+        });
+      }
+      subscription.dispose();
+    }
+
+    const claimedMutations = new Set(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.mutations);
+    for (const mutationName of Object.keys(coterieSurfaceManifest.mutations)) {
+      const result = await provider.mutate(mutationName, {});
+      if (claimedMutations.has(mutationName)) {
+        expect(result.ok || result.error.name !== 'SnapbackMilestoneUnsupportedError').toBe(true);
+      } else {
+        expect(result).toMatchObject({
+          ok: false,
+          error: { name: 'SnapbackMilestoneUnsupportedError' },
+        });
+      }
+    }
+    expect(await provider.mutate('setChatAccent', {})).toMatchObject({
+      ok: false,
+      error: {
+        name: 'SnapbackMilestoneUnsupportedError',
+        message: 'snapback provider claims M1+M2 plus provider discovery only; setChatAccent is outside that claim — LLP 0266 D7 (M5)',
+      },
+    });
+    const insightsCells: DataCellV2<unknown>[] = [];
+    provider.subscribe('listInsights', {}, (cell) => insightsCells.push(cell)).dispose();
+    expect(insightsCells[0]).toMatchObject({
+      status: 'error',
+      error: {
+        name: 'SnapbackMilestoneUnsupportedError',
+        message: 'snapback provider claims M1+M2 plus provider discovery only; listInsights is outside that claim — LLP 0266 D7 (M8)',
+      },
+    });
+    expect(claims.some((claim) => claim.name.startsWith('ensureFixture'))).toBe(false);
+    expect(claims.some((claim) => claim.name.startsWith('getMyFixture'))).toBe(false);
+    expect(await provider.mutate('ensureFixturePost', {})).toMatchObject({
+      ok: false,
+      error: { name: 'UnknownMutationError' },
+    });
+    let fixtureQueryCell: DataCellV2<unknown> | null = null;
+    provider.subscribe('getMyFixturePost', {}, (cell) => { fixtureQueryCell = cell; }).dispose();
+    expect(fixtureQueryCell).toMatchObject({
+      status: 'error',
+      error: { name: 'UnknownQueryError' },
+    });
+    expect(COTERIE_SNAPBACK_M1_OPERATIONS.queries).toContain('listProfiles');
+    expect(COTERIE_SNAPBACK_M2_OPERATIONS.queries).toContain('listFeed');
+  } finally {
+    await provider.close();
+  }
 });

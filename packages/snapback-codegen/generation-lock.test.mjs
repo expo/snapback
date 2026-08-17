@@ -49,7 +49,10 @@ function makeBackend(prefix) {
   writeFileSync(join(backend, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  items: defineTable({ value: v.string() }).index('by_value', ['value']).sync(),
+  items: defineTable({ value: v.string() })
+    .index('by_value', ['value'])
+    .visibility({ kind: 'public-read' })
+    .sync(),
 });
 `);
   writeFileSync(join(backend, 'functions.mjs'), `

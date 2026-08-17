@@ -164,6 +164,12 @@ const AUTH_ASSURANCE_KINDS = new Set([
   'phishing_resistant',
 ]);
 const ARGUMENT_NORMALIZATION_VERSION = 'snapback.argument-normalization.v1';
+// Module-private capability: only this generator can stamp a function as one
+// of the authority operations it synthesized. Authored definitions may copy
+// names and public object fields, but cannot forge this Symbol identity.
+// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — generated
+// identity, not name matching, admits private authority-operation marshalling.
+const GENERATED_AUTHORITY_OPERATION = Symbol('snapback.generatedAuthorityOperation.v1');
 import {
   argsContractHash,
   canonicalJson as canonicalResultJson,
@@ -707,9 +713,12 @@ function serializedValueUsesAuthorityOrAmbientInput(value) {
   return false;
 }
 
-// @ref LLP 0092#0c2-the-rqseligible-served-manifest-predicate — class selection
-// is a projection of the served function's derived fact, never an authored
-// class marker.
+// @ref LLP 0270#d1-default-is-automatic-request-plus-owner-admission — class
+// selection is a projection of the closed owner/codegen proof, never an
+// authored class marker or an app-authored authority claim.
+// @ref LLP 0270#d2-persist-owner-admitted-query-facts-by-default — public,
+// ambient-free exact single-table LiveQueries enter the first default-retained
+// risk class without requiring authorityIndependent as a retention switch.
 function singleTableRqsDigestKind(fn) {
   const plan = fn.runtime?.HostPlan?.Query;
   // Generation derives the served read summary in the same pass that emits
@@ -718,7 +727,6 @@ function singleTableRqsDigestKind(fn) {
   // positions; an author-supplied class marker is never consulted.
   const summary = fn.readSetSummary ?? readSummary(fn);
   if (resultContractContainsMedia(fn.resultContract)
-    || fn.authorityIndependent !== true
     || fn.kind !== 'LiveQuery'
     || fn.authRequirement !== 'public'
     || (fn.uses?.length ?? 0) !== 0
@@ -3125,7 +3133,10 @@ async function generateInProcessLocked({
     });
   };
   const closeAuthorityHierarchy = (roles, hierarchy) => {
-    const edges = new Map(roles.map((role) => [role, hierarchy[role] ?? []]));
+    const edges = new Map(roles.map((role) => [
+      role,
+      Object.hasOwn(hierarchy, role) ? hierarchy[role] : [],
+    ]));
     const visiting = new Set();
     const closed = new Map();
     const visit = (role) => {
@@ -3144,14 +3155,80 @@ async function generateInProcessLocked({
     for (const role of roles) visit(role);
     return closed;
   };
-  const authorityOperationsForMembership = (membership, table) => {
+  const authorityHierarchyOrder = (roles, hierarchyClosed) => {
+    const implies = new Map(
+      roles.map((role) => [role, new Set(hierarchyClosed.get(role) ?? [])]),
+    );
+    const isStrictSuperset = (left, right) => (
+      left.size > right.size && [...right].every((role) => left.has(role))
+    );
+    return [...roles].sort((leftRole, rightRole) => {
+      const left = implies.get(leftRole);
+      const right = implies.get(rightRole);
+      if (isStrictSuperset(left, right)) return -1;
+      if (isStrictSuperset(right, left)) return 1;
+      if (left.size !== right.size) return right.size - left.size;
+      return compareCodeUnits(leftRole, rightRole);
+    });
+  };
+  const compareCodeUnitLists = (left, right) => {
+    for (let index = 0; index < Math.min(left.length, right.length); index += 1) {
+      const ordering = compareCodeUnits(left[index], right[index]);
+      if (ordering !== 0) return ordering;
+    }
+    return left.length - right.length;
+  };
+  const compareOptionalCodeUnitLists = (left, right) => {
+    if (left === undefined && right === undefined) return 0;
+    if (left === undefined) return -1;
+    if (right === undefined) return 1;
+    return compareCodeUnitLists(left, right);
+  };
+  const canonicalAuthorityTransitionMatrix = (transitions) => {
+    const matrix = transitions.map((transition) => ({
+      op: transition.op,
+      target: transition.target,
+      by: [...transition.by].sort(compareCodeUnits),
+      ...(transition.from === undefined
+        ? {}
+        : { from: [...transition.from].sort(compareCodeUnits) }),
+      ...(transition.to === undefined
+        ? {}
+        : { to: [...transition.to].sort(compareCodeUnits) }),
+      ...(transition.fields === undefined
+        ? {}
+        : { fields: [...transition.fields].sort(compareCodeUnits) }),
+    }));
+    return matrix.sort((left, right) => (
+      compareCodeUnits(left.op, right.op)
+      || compareCodeUnits(left.target, right.target)
+      || compareCodeUnitLists(left.by, right.by)
+      || compareOptionalCodeUnitLists(left.from, right.from)
+      || compareOptionalCodeUnitLists(left.to, right.to)
+      || compareOptionalCodeUnitLists(left.fields, right.fields)
+    ));
+  };
+  const authorityOperationsForMembership = (membership) => {
     const transitions = membership.transitions ?? [];
-    const active = new Set(membership.roles ?? []);
-    const pending = new Set(membership.pendingRoles ?? []);
-    const hasTransition = (op, target, predicate) => transitions.some((transition) => (
-      transition.op === op
-      && transition.target === target
-      && predicate(transition)
+    const activeRoles = membership.roles ?? [];
+    const pendingRoles = membership.pendingRoles ?? [];
+    const transitionRoles = (op, target, key, predicate = () => true) => [...new Set(
+      transitions
+        .filter((transition) => (
+          transition.op === op
+          && transition.target === target
+          && predicate(transition)
+        ))
+        .flatMap((transition) => transition[key] ?? []),
+    )].sort(compareCodeUnits);
+    const inviteRoles = transitionRoles('insert', 'other', 'to');
+    const joinRoles = transitionRoles('setRole', 'self', 'to', (transition) => (
+      (transition.from ?? []).some((role) => pendingRoles.includes(role))
+      && (transition.to ?? []).some((role) => activeRoles.includes(role))
+    ));
+    const changeRoleRoles = transitionRoles('setRole', 'other', 'to', (transition) => (
+      !(transition.from ?? []).includes('owner')
+      && !(transition.to ?? []).includes('owner')
     ));
     const operations = [
       {
@@ -3176,40 +3253,26 @@ async function generateInProcessLocked({
       hooks: ['useSnapbackMutation', 'useSnapbackOutbox.mutationStatus'],
       transitionOps,
     });
-    const axes = new Set([membership.principal, membership.resource, membership.role]);
-    const hasRequiredInvitationFields = (table.fields ?? []).some((field) => (
-      !axes.has(field.name) && field.optional !== true
-    ));
-    if (!hasRequiredInvitationFields && hasTransition('insert', 'other', ({ to }) => (
-      Array.isArray(to) && to.some((role) => pending.has(role))
-    ))) addMutation('invite', ['insert']);
-    const joinTransitions = transitions.filter((transition) => (
-      transition.op === 'setRole'
+    if (inviteRoles.length > 0) addMutation('invite', ['insert']);
+    if (joinRoles.length > 0) addMutation('join', ['setRole']);
+    if (transitions.some((transition) => (
+      transition.op === 'remove'
       && transition.target === 'self'
-      && transition.by?.includes('self')
-      && transition.from?.some((role) => pending.has(role))
-      && transition.to?.some((role) => active.has(role) && role !== 'owner')
-    ));
-    const joinDestinations = [...new Set(joinTransitions.flatMap(({ to }) => (
-      to.filter((role) => active.has(role) && role !== 'owner')
-    )))];
-    if (joinTransitions.length > 0 && joinDestinations.length === 1) {
-      addMutation('join', ['setRole']);
-    }
-    if (hasTransition('remove', 'self', ({ from }) => (
-      Array.isArray(from) && from.some((role) => (active.has(role) || pending.has(role)) && role !== 'owner')
+      && (transition.from ?? []).some((role) => activeRoles.includes(role) && role !== 'owner')
     ))) addMutation('leave', ['remove']);
-    if (hasTransition('setRole', 'other', ({ from, to }) => (
-      Array.isArray(from) && from.some((role) => active.has(role) && role !== 'owner')
-      && Array.isArray(to) && to.some((role) => active.has(role) && role !== 'owner')
-    ))) addMutation('changeRole', ['setRole']);
-    // Owner transfer is not an ordinary transition-matrix row. Its dedicated
-    // two-seat planner is part of every qualified profile.
-    addMutation('transferOwner', ['transferOwner']);
-    if (hasTransition('remove', 'other', ({ from }) => (
-      Array.isArray(from) && from.some((role) => (active.has(role) || pending.has(role)) && role !== 'owner')
+    if (changeRoleRoles.length > 0) addMutation('changeRole', ['setRole']);
+    // Owner transfer is a dedicated two-seat planner. Any active non-owner
+    // lattice role supplies the caller's valid successor state; the planner
+    // prefers admin and otherwise follows the declared hierarchy order.
+    if (activeRoles.includes('owner') && activeRoles.some((role) => role !== 'owner')) {
+      addMutation('transferOwner', ['transferOwner']);
+    }
+    if (transitions.some((transition) => (
+      transition.op === 'remove'
+      && transition.target === 'other'
+      && (transition.from ?? []).every((role) => role !== 'owner')
     ))) addMutation('remove', ['remove']);
-    return { operations, joinRole: joinDestinations.length === 1 ? joinDestinations[0] : null };
+    return { operations };
   };
   for (const request of authorityProfileRequests) {
     const { tableName, tableBuilder, declaration } = request;
@@ -3338,13 +3401,12 @@ async function generateInProcessLocked({
       );
     }
     if (!roles.includes('owner')
-      || !roles.includes('admin')
       || membership?.bootstrapRole !== 'owner'
       || membership?.lastHolder?.protect !== 'owner') {
       refuse(
         'SNAPBACK_AUTHORITY_PROFILE_AMBIGUOUS_OWNER',
-        'owner must be the real bootstrapRole and protected lastHolder membership role, with admin available as the transfer demotion role',
-        "Declare 'owner' and 'admin' in roles with bootstrapRole: 'owner' and lastHolder: { protect: 'owner' }.",
+        'owner must be the real bootstrapRole and protected lastHolder membership role',
+        "Declare 'owner' in roles with bootstrapRole: 'owner' and lastHolder: { protect: 'owner' }.",
         {
           roles,
           bootstrapRole: membership?.bootstrapRole ?? null,
@@ -3468,19 +3530,15 @@ async function generateInProcessLocked({
         lookup: 'protected-holders-and-scope-invalidation-range',
       },
     ];
-    const authorityOperations = authorityOperationsForMembership(membership, table);
-    const generationPreimage = {
-      version: 1,
-      profile: { name: spec.name, hierarchy, roster },
-      membership,
-      authorityFields: [principalField, resourceField, roleField],
-      requiredIndexes,
-    };
-    const generation = `sha256:${sha256(`snapback:authority-profile:v1\n${canonicalResultJson(generationPreimage)}`)}`;
+    const roleLatticeOrder = authorityHierarchyOrder(roles, hierarchyClosed);
+    const authorityOperations = authorityOperationsForMembership(membership);
+    // @ref LLP 0240#d1-declare-an-application-authority-profile-at-the-scoped-relation
+    // — transferOwner consumes the first active non-owner lattice entry, so
+    // the manifest projection carries one canonical hierarchy-topological
+    // order rather than the authorial membership vocabulary order.
     const profile = {
       version: 1,
       id: spec.name,
-      generation,
       membership: {
         declaration: membershipId,
         manifestPath: `tables.${tableName}.membership`,
@@ -3500,7 +3558,10 @@ async function generateInProcessLocked({
         active: 'membership.roles',
         invited: 'membership.pendingRoles',
       },
-      roleLattice: roles.map((role) => ({ role, implies: hierarchyClosed.get(role) })),
+      roleLattice: roleLatticeOrder.map((role) => ({
+        role,
+        implies: hierarchyClosed.get(role),
+      })),
       ownerBootstrapInvariant: {
         role: 'owner',
         bootstrapRole: 'owner',
@@ -3508,6 +3569,11 @@ async function generateInProcessLocked({
       },
       transitionPreconditions: {
         source: 'membership.transitions',
+        membershipDeclarationId: membershipId,
+        matrix: canonicalAuthorityTransitionMatrix(membership.transitions ?? []),
+        provenance: membership.provenance ?? null,
+        expiryPresent: membership.expiry !== undefined,
+        principalAddressedWritesRemove: membership.principalAddressedWrites?.remove ?? null,
         ownerMutation: 'transfer-owner-only',
       },
       authorizationEventFields,
@@ -3536,12 +3602,18 @@ async function generateInProcessLocked({
       roster: { visibleFields: [...visibleFields] },
       operations: authorityOperations.operations,
     };
+    // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+    // — generation is the closed identity of the complete emitted authority
+    // projection. Hashing the canonical profile after every member is derived,
+    // but before `generation` itself is attached, binds closure sets, event
+    // fields, wake universes, transition descriptors, composition classes,
+    // operations, and lattice order without an enumerated-preimage escape.
+    profile.generation = `sha256:${sha256(`snapback:authority-profile:v1\n${canonicalResultJson(profile)}`)}`;
     table.authorityProfile = profile;
     authorityProfiles.set(profile.id, {
       table,
       profile,
       hierarchyClosed,
-      joinRole: authorityOperations.joinRole,
     });
     authorityProfileRelations.set(relationIdentity, tableName);
   }
@@ -3612,11 +3684,55 @@ async function generateInProcessLocked({
   // handler admission and roster projections are generated from the same
   // closed lattice/table identity already used by table visibility.
   // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — each
-  // profile emits a bounded, non-enumerating list plus caller-scoped role read.
+  // profile emits the two reads plus exactly the mutations its closed
+  // transition matrix can actually authorize. Missing transition, missing
+  // operation: the public namespace never advertises a wider policy than the
+  // declaration admits.
   for (const [profileName, authority] of authorityProfiles) {
     const { profile, table } = authority;
     const membership = table.membership;
-    const operationNames = profile.operations.map(({ name }) => `${profileName}.${name}`);
+    const transitions = membership.transitions ?? [];
+    const activeRoles = profile.roleLattice.map(({ role }) => role).sort(compareCodeUnits);
+    const pendingRoles = membership.pendingRoles ?? [];
+    const transitionRoles = (op, target, key, predicate = () => true) => [...new Set(
+      transitions
+        .filter((transition) => (
+          transition.op === op
+          && transition.target === target
+          && predicate(transition)
+        ))
+        .flatMap((transition) => transition[key] ?? []),
+    )].sort(compareCodeUnits);
+    const inviteRoles = transitionRoles('insert', 'other', 'to');
+    const joinRoles = transitionRoles('setRole', 'self', 'to', (transition) => (
+      (transition.from ?? []).some((role) => pendingRoles.includes(role))
+      && (transition.to ?? []).some((role) => activeRoles.includes(role))
+    ));
+    const changeRoleRoles = transitionRoles('setRole', 'other', 'to', (transition) => (
+      !(transition.from ?? []).includes('owner')
+      && !(transition.to ?? []).includes('owner')
+    ));
+    const mutationOperations = [
+      ...(inviteRoles.length > 0 ? ['invite'] : []),
+      ...(joinRoles.length > 0 ? ['join'] : []),
+      ...(transitions.some((transition) => (
+        transition.op === 'remove'
+        && transition.target === 'self'
+        && (transition.from ?? []).some((role) => activeRoles.includes(role) && role !== 'owner')
+      )) ? ['leave'] : []),
+      ...(changeRoleRoles.length > 0 ? ['changeRole'] : []),
+      // transferOwner is the dedicated D1 operation, not a transition-matrix
+      // alias. Any active non-owner role supplies a valid caller successor;
+      // the runtime planner chooses it in declared hierarchy order.
+      ...(activeRoles.includes('owner') && activeRoles.some((role) => role !== 'owner') ? ['transferOwner'] : []),
+      ...(transitions.some((transition) => (
+        transition.op === 'remove'
+        && transition.target === 'other'
+        && (transition.from ?? []).every((role) => role !== 'owner')
+      )) ? ['remove'] : []),
+    ];
+    const operationNames = ['list', 'myRole', ...mutationOperations]
+      .map((operation) => `${profileName}.${operation}`);
     if (GENERATED_API_RESERVED_EXPORTS.has(profileName)) {
       authorityProfileError(
         'SNAPBACK_AUTHORITY_PROFILE_OPERATION_COLLISION',
@@ -3639,86 +3755,102 @@ async function generateInProcessLocked({
       continue;
     }
     const resourceValidator = schemaDef.tables?.[table.name]?.fields?.[membership.resource];
-    const rosterFields = Object.fromEntries(profile.roster.visibleFields.map((field) => [
-      field,
-      schemaDef.tables[table.name].fields[field],
-    ]));
-    const stateValidator = v.object({
-      role: v.string(),
-      status: v.union([v.literal('active'), v.literal('invited')]),
-    });
-    const nullableStateValidator = v.union([stateValidator, v.null()]);
-    const receiptValidator = v.object({
-      declaration: v.string(),
-      predecessor: nullableStateValidator,
-      successor: nullableStateValidator,
-      subject: v.principal(),
-      scope: resourceValidator,
-      invalidationDisposition: v.literal('global-authorization-epoch-advanced'),
-    });
-    for (const operationSpec of profile.operations) {
-      const { name: operation } = operationSpec;
+    const roleValidator = (roles) => roles.length === 1
+      ? v.literal(roles[0])
+      : v.union(roles.map((role) => v.literal(role)));
+    const profileRoleValidator = roleValidator(
+      [...new Set([...activeRoles, ...pendingRoles])],
+    );
+    for (const operation of ['list', 'myRole']) {
       const operationName = `${profileName}.${operation}`;
-      let definition;
-      if (operation === 'list') {
-        definition = defineJsLiveQuery({
-          auth: 'authenticated',
-          args: {
-            scopeId: resourceValidator,
-            limit: v.optional(v.integer({ min: 1, max: 100 })),
-            after: v.optional(v.string({ maxBytes: 2_048 })),
-          },
-          reads: [table.name],
-          result: results.records(v.object({
-            rows: v.array(v.object(rosterFields), { maxItems: 100 }),
-            after: v.union([v.string({ maxBytes: 2_048 }), v.null()]),
-          }), { minItems: 1, maxItems: 1 }),
-          source: '__snapback_authority_profile_generated__',
-          exportName: operationName,
-        });
-      } else if (operation === 'myRole') {
-        definition = defineJsLiveQuery({
-          auth: 'authenticated',
-          args: { scopeId: resourceValidator },
-          reads: [table.name],
-          result: results.records(stateValidator, { minItems: 0, maxItems: 1 }),
-          source: '__snapback_authority_profile_generated__',
-          exportName: operationName,
-        });
-      } else {
-        const args = { scopeId: resourceValidator };
-        if (['invite', 'changeRole'].includes(operation)) args.role = v.string();
-        if (['invite', 'changeRole', 'transferOwner', 'remove'].includes(operation)) {
-          args.principal = v.principal();
-        }
-        if (operation === 'join') args.invitation = v.string();
-        definition = defineJsMutation({
-          auth: 'authenticated',
-          authorityCreating: true,
-          args,
-          reads: [table.name],
-          writes: [table.name],
-          result: results.value(v.array(receiptValidator, { maxItems: 2 })),
-          source: '__snapback_authority_profile_generated__',
-          exportName: operationName,
-        });
-      }
+      const resultFields = operation === 'list'
+        ? Object.fromEntries(profile.roster.visibleFields.map((field) => [
+            field,
+            field === membership.role
+              ? profileRoleValidator
+              : schemaDef.tables[table.name].fields[field],
+          ]))
+        : {
+            role: profileRoleValidator,
+            status: v.union([v.literal('active'), v.literal('invited')]),
+          };
+      const definition = defineJsLiveQuery({
+        auth: 'authenticated',
+        args: operation === 'list'
+          ? {
+              scopeId: resourceValidator,
+              page: v.optional(v.object({
+                after: v.optional(v.string()),
+                limit: v.optional(v.integer({ min: 1, max: 1000 })),
+              })),
+            }
+          : { scopeId: resourceValidator },
+        reads: [table.name],
+        result: results.records(v.object(resultFields)),
+        source: '__snapback_authority_profile_generated__',
+        exportName: operationName,
+      });
       // These definitions are synthesized after the capability-empty author
       // evaluator, so project the same isolated-definition marker that the
       // evaluator would have copied from defineJsLiveQuery's private symbol.
       definition.__snapbackDefinitionKind = 'function';
-      definition.js.generatedSource = operationSpec.kind === 'Mutation'
-        ? authorityProfileMutationSource({
-            declaration: profile.id,
-            operation,
-            profileName,
-          })
-        : authorityProfileProjectionSource({
-            declaration: profile.id,
-            operation,
-            profileName,
-          });
-      definition.authorityProfileOperation = {
+      definition.js.generatedSource = authorityProfileProjectionSource({
+        declaration: profile.id,
+        operation,
+        profileName,
+      });
+      definition[GENERATED_AUTHORITY_OPERATION] = {
+        id: profile.id,
+        generation: profile.generation,
+        operation,
+      };
+      functionsModule[operationName] = definition;
+    }
+
+    const insertExtraFields = [...new Set(
+      transitions
+        .filter((transition) => transition.op === 'insert' && transition.target === 'other')
+        .flatMap((transition) => transition.fields ?? []),
+    )]
+      .filter((field) => ![membership.resource, membership.principal, membership.role].includes(field))
+      .sort(compareCodeUnits);
+    for (const operation of mutationOperations) {
+      const operationName = `${profileName}.${operation}`;
+      const args = { scopeId: resourceValidator };
+      if (operation === 'invite' || operation === 'changeRole') {
+        args.principal = v.principal();
+      }
+      if (operation === 'invite') {
+        args.role = roleValidator(inviteRoles);
+        for (const field of insertExtraFields) {
+          args[field] = schemaDef.tables[table.name].fields[field];
+        }
+      } else if (operation === 'join') {
+        args.invitation = roleValidator(joinRoles);
+      } else if (operation === 'changeRole') {
+        args.role = roleValidator(changeRoleRoles);
+      } else if (operation === 'transferOwner' || operation === 'remove') {
+        args.principal = v.principal();
+      }
+      const definition = defineJsMutation({
+        auth: 'authenticated',
+        authorityCreating: true,
+        args,
+        reads: [table.name],
+        writes: [table.name],
+        result: results.value(v.null()),
+        source: '__snapback_authority_profile_generated__',
+        exportName: operationName,
+      });
+      definition.__snapbackDefinitionKind = 'function';
+      definition.js.generatedSource = authorityProfileMutationSource({
+        declaration: profile.id,
+        insertExtraFields,
+        membership,
+        operation,
+        operationName,
+      });
+      definition[GENERATED_AUTHORITY_OPERATION] = {
         id: profile.id,
         generation: profile.generation,
         operation,
@@ -5528,13 +5660,6 @@ async function generateInProcessLocked({
         // @ref LLP 0264#d9-authorization-review-projection
         writePolicySourcePath:
           resolvedHandler?.analysisSourceSpan?.file ?? 'functions.mjs',
-        // Internal D9 evidence only. Generated authority-profile mutations
-        // execute on the specialized roster seam, so the owner-write review
-        // pass must not reinterpret their declared authority-table effects as
-        // generic ctx.db writes. decorateFunctions intentionally omits this.
-        ...(def.authorityProfileOperation === undefined
-          ? {}
-          : { authorityProfileOperation: structuredClone(def.authorityProfileOperation) }),
         declaredReads: reads,
         declaredWrites: writes,
         writePolicy: {
@@ -5928,8 +6053,8 @@ async function generateInProcessLocked({
     for (const predicate of def?.membership ?? []) {
       if (predicate?.declaration) declarations.add(predicate.declaration);
     }
-    if (def?.authorityProfileOperation?.id) {
-      declarations.add(def.authorityProfileOperation.id);
+    if (def?.[GENERATED_AUTHORITY_OPERATION]?.id) {
+      declarations.add(def[GENERATED_AUTHORITY_OPERATION].id);
     }
     const dependence = [...declarations]
       .map((declaration) => authorityProfiles.get(declaration)?.profile)
@@ -8416,34 +8541,52 @@ function authorityProfileProjectionSource({
   profileName,
 }) {
   const operationName = `${profileName}.${operation}`;
-  const query = operation === 'list'
-    ? `return [await ctx.authorityProfile[${JSON.stringify(declaration)}].list(args.scopeId, {
-      limit: args.limit,
-      after: args.after
-    })];`
-    : `var role = await ctx.authorityProfile[${JSON.stringify(declaration)}].myRole(args.scopeId);
-    return role === null ? [] : [role];`;
+  const body = operation === 'list'
+    ? `var page = await ctx.authority[${JSON.stringify(declaration)}].list(args.scopeId, args.page);
+    return page.rows;`
+    : `var role = await ctx.authority[${JSON.stringify(declaration)}].myRole(args.scopeId);
+    return [role];`;
   return `globalThis.__snapbackHandlers = globalThis.__snapbackHandlers || {};
 globalThis.__snapbackHandlers[${JSON.stringify(operationName)}] = async function(ctx, args) {
-    ${query}
+    ${body}
 };
 `;
 }
 
 function authorityProfileMutationSource({
   declaration,
+  insertExtraFields,
+  membership,
   operation,
-  profileName,
+  operationName,
 }) {
-  const operationName = `${profileName}.${operation}`;
+  const member = `ctx.membership[${JSON.stringify(declaration)}]`;
+  let body;
+  if (operation === 'invite') {
+    const values = [
+      `${JSON.stringify(membership.resource)}: args.scopeId`,
+      `${JSON.stringify(membership.principal)}: args.principal`,
+      `${JSON.stringify(membership.role)}: args.role`,
+      ...insertExtraFields.map((field) => `${JSON.stringify(field)}: args[${JSON.stringify(field)}]`),
+    ].join(', ');
+    body = `await ${member}.invite({ ${values} });`;
+  } else if (operation === 'join') {
+    body = `await ${member}.join(args.scopeId, args.invitation);`;
+  } else if (operation === 'leave') {
+    body = `await ${member}.leave(args.scopeId);`;
+  } else if (operation === 'changeRole') {
+    body = `await ${member}.changeRole(args.scopeId, args.principal, args.role);`;
+  } else if (operation === 'transferOwner') {
+    body = `await ${member}.transferOwner(args.scopeId, args.principal);`;
+  } else if (operation === 'remove') {
+    body = `await ${member}.removeAuthorityPrincipal(args.scopeId, args.principal);`;
+  } else {
+    throw new TypeError(`unknown authority-profile mutation ${operation}`);
+  }
   return `globalThis.__snapbackHandlers = globalThis.__snapbackHandlers || {};
 globalThis.__snapbackHandlers[${JSON.stringify(operationName)}] = async function(ctx, args) {
-    return await ctx.authorityProfile[${JSON.stringify(declaration)}].transition(${JSON.stringify(operation)}, {
-      resource: args.scopeId,
-      principal: args.principal,
-      role: args.role,
-      invitation: args.invitation
-    });
+    ${body}
+    return null;
 };
 `;
 }
@@ -10946,6 +11089,9 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
     ...(Array.isArray(def.authorizationDependence)
       ? { authorizationDependence: [...def.authorizationDependence] }
       : {}),
+    ...(def[GENERATED_AUTHORITY_OPERATION] !== undefined
+      ? { generatedAuthorityOperation: { ...def[GENERATED_AUTHORITY_OPERATION] } }
+      : {}),
     ...(def.boundedSkew !== undefined ? { boundedSkew: { ...def.boundedSkew } } : {}),
   };
 }
@@ -10990,7 +11136,7 @@ function hostPlanAuthorizationDependence(def) {
 
 function jsAuthorizationDependence(def) {
   if (Array.isArray(def.authorizationDependence)) return [...def.authorizationDependence];
-  if ((def.membership?.length ?? 0) > 0 || def.authorityProfileOperation !== undefined) {
+  if ((def.membership?.length ?? 0) > 0 || def[GENERATED_AUTHORITY_OPERATION] !== undefined) {
     return ['userId'];
   }
   if (def.js?.authScopeField != null) return ['userId'];
@@ -11625,6 +11771,9 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       ...(hasAuthorityProfileDependence
         ? { authorityProfileDependence: fn.authorityProfileDependence }
         : {}),
+      ...(fn.generatedAuthorityOperation !== undefined
+        ? { generatedAuthorityOperation: fn.generatedAuthorityOperation }
+        : {}),
       uses: fn.uses ?? [],
       standardPattern: fn.standardPattern ?? null,
       ...(fn.stream === true ? { stream: true } : {}),
@@ -11668,6 +11817,9 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
         : {}),
       ...(Array.isArray(fn.authorityProfileDependence) && fn.authorityProfileDependence.length > 0
         ? { authorityProfileDependence: fn.authorityProfileDependence }
+        : {}),
+      ...(fn.generatedAuthorityOperation !== undefined
+        ? { generatedAuthorityOperation: { ...fn.generatedAuthorityOperation } }
         : {}),
       ...(fn.fieldBoundary !== undefined ? { fieldBoundary: fn.fieldBoundary } : {}),
       ...(elevatedDbCapabilities.length > 0 ? { elevatedDbCapabilities } : {}),
@@ -15716,6 +15868,8 @@ function renderApiTypes(
       : []),
     "export type SchemaVersion = 'snapback.v0';",
     "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
+    "export interface AuthorityMembershipStateV1 { readonly role: string; readonly status: 'active' | 'invited' }",
+    "export interface AuthorityTransitionReceiptV1 { readonly declaration: string; readonly predecessor: AuthorityMembershipStateV1 | null; readonly successor: AuthorityMembershipStateV1 | null; readonly subject: string; readonly scope: string | null; readonly invalidationDisposition: 'global-authorization-epoch-advanced' | 'no-authorization-event' | 'preview-rolled-back' }",
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
     "export type ProvisionalId<Table extends string> = string & { readonly __snapbackProvisionalIdTable: Table };",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
@@ -15996,6 +16150,22 @@ function renderApiTypes(
     lines.push(`  ${declaration}: { allowsRole(resource: ${resourceType}, role: ${typeName}Role, ...roles: ${typeName}Role[]): Promise<boolean>; requireRole(resource: ${resourceType}, role: ${typeName}Role, ...roles: ${typeName}Role[]): Promise<void> };`);
   }
   lines.push('}');
+  lines.push(
+    'export interface AuthorityRosterPageV1<Row> { readonly rows: readonly Row[]; readonly cursor: string | null }',
+    'export interface GeneratedAuthority {',
+  );
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    const membership = table.membershipDeclaration;
+    if (!membership) continue;
+    const declaration = membership.id ?? tableName;
+    if (!authorityProfileNames.includes(declaration)) continue;
+    const resourceTable = idFieldTypeTable(table.fields?.[membership.resource]?.fieldType);
+    const scopeType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
+    const roleType = `${pascal(declaration)}Role`;
+    const rowType = `FunctionResult<GeneratedApi[${JSON.stringify(`${declaration}.list`)}]>[number]`;
+    lines.push(`  ${JSON.stringify(declaration)}: { list(scopeId: ${scopeType}, page?: Readonly<{ after?: string; limit?: number }>): Promise<AuthorityRosterPageV1<${rowType}>>; myRole(scopeId: ${scopeType}): Promise<Readonly<{ role: ${roleType}; status: 'active' | 'invited' }>> };`);
+  }
+  lines.push('}');
   const membershipAliases = [];
   const membershipMembers = [];
   for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
@@ -16003,6 +16173,10 @@ function renderApiTypes(
     if (!membership) continue;
     const declaration = membership.id ?? tableName;
     const typeName = pascal(declaration);
+    const membershipResourceTable = membership.scope === 'resource'
+      ? idFieldTypeTable(table.fields?.[membership.resource]?.fieldType)
+      : null;
+    const resourceType = membershipResourceTable ? `Id<'${membershipResourceTable}'>` : 'string';
     const roles = [...membership.roles, ...(membership.pendingRoles ?? [])];
     membershipAliases.push(`export type ${typeName}Role = ${roles.map((role) => JSON.stringify(role)).join(' | ') || 'never'};`);
     const insertFields = Object.entries(table.fields ?? {}).map(([fieldName, validator]) => {
@@ -16046,8 +16220,6 @@ function renderApiTypes(
     const selfMethods = membership.scope === 'app'
       ? `setSelfRole(role: ${typeName}Role): Promise<unknown>; removeSelf(): Promise<unknown>; patchSelf(values: ${typeName}Patch): Promise<unknown>; `
       : (() => {
-          const resourceTable = idFieldTypeTable(table.fields?.[membership.resource]?.fieldType);
-          const resourceType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
           return `setSelfRole(resource: ${resourceType}, role: ${typeName}Role): Promise<unknown>; removeSelf(resource: ${resourceType}): Promise<unknown>; patchSelf(resource: ${resourceType}, values: ${typeName}Patch): Promise<unknown>; `;
         })();
     // @ref LLP 0100#2-opting-into-principal-addressed-removal — codegen emits
@@ -16058,12 +16230,13 @@ function renderApiTypes(
       if (membership.scope === 'app') {
         principalAddressedMethods = 'removePrincipal(principal: string): Promise<null>; ';
       } else {
-        const resourceTable = idFieldTypeTable(table.fields?.[membership.resource]?.fieldType);
-        const resourceType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
         principalAddressedMethods = `removePrincipal(resource: ${resourceType}, principal: string): Promise<null>; `;
       }
     }
-    membershipMembers.push(`  ${declaration}: { ${bootstrapMethod}insert(values: ${typeName}Insert): Promise<unknown>; ${selfMethods}${principalAddressedMethods}setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
+    const authorityMethods = authorityProfileNames.includes(declaration)
+      ? `invite(values: ${typeName}Insert): Promise<null>; join(resource: ${resourceType}, invitation: ${typeName}Role): Promise<null>; leave(resource: ${resourceType}): Promise<null>; changeRole(resource: ${resourceType}, principal: Principal, role: ${typeName}Role): Promise<null>; transferOwner(resource: ${resourceType}, principal: Principal): Promise<null>; removeAuthorityPrincipal(resource: ${resourceType}, principal: Principal): Promise<null>; `
+      : '';
+    membershipMembers.push(`  ${declaration}: { ${bootstrapMethod}insert(values: ${typeName}Insert): Promise<unknown>; ${authorityMethods}${selfMethods}${principalAddressedMethods}setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
   }
   lines.push(...membershipAliases);
   lines.push('export interface GeneratedMembership {');
@@ -16080,8 +16253,8 @@ function renderApiTypes(
     );
   }
   lines.push(
-    'export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext>;',
-    'export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext>;',
+    'export type GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = QueryContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, any, GeneratedRuntimeContext> & { readonly authority: GeneratedAuthority };',
+    'export type GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = MutationContext<GeneratedHandlerSchema, Auth, GeneratedPermissions, GeneratedAssetsContext, GeneratedRuntimeContext, GeneratedMembership, JobsContext, SequenceContext, MutationIdentityContext> & { readonly authority: GeneratedAuthority };',
     `export type GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> = ActionContext<Auth, GeneratedRuntimeContext, any, SecretsContext<any>, unknown, ${hasPushSend ? 'GeneratedPush' : 'never'}, ${hasConnectedClientPredicate ? 'RealtimeContext' : 'never'}>;`,
     'export interface GeneratedFunctionContexts {',
   );
