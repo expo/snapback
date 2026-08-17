@@ -165,6 +165,7 @@ export default defineSchema(
       groupDescription: v.optional(v.string()),
       creatorProfileId: v.id('profiles'),
       nextEventSequence: v.integer(),
+      chatPageKey: v.string(),
       lastMessageId: v.optional(v.id('messages')),
       lastMessageAt: v.integer(),
       createdAt: v.integer(),
@@ -186,12 +187,18 @@ export default defineSchema(
       removedAt: v.optional(v.integer()),
       removedSequence: v.optional(v.integer()),
       activeKey: v.string(),
+      chatPageKey: v.string(),
+      unreadCount: v.integer(),
+      receiptCount: v.integer(),
+      deliveredThroughSequence: v.integer(),
+      readThroughSequence: v.integer(),
       fixtureMutationId: v.optional(v.string()),
       fixtureDigest: v.optional(v.string()),
     })
       .index('by_active_key', ['activeKey'], { unique: true })
       .index('by_current_conversation', ['conversationId', 'isCurrent'])
       .index('by_latest_profile', ['profileId', 'isLatest'])
+      .index('by_profile_latest_chat_page', ['profileId', 'isLatest', 'chatPageKey'])
       .index('by_conversation', ['conversationId'])
       .index('by_profile', ['profileId'])
       .index('by_profile_conversation', ['profileId', 'conversationId', 'joinedSequence'])

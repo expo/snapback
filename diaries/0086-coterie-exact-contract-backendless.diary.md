@@ -812,3 +812,133 @@ the current fixture envelope: non-virtual list reach geometry mixes item count
 with pixel offsets, leaving the end edge sticky. It is recorded in
 `issues/20260817-coterie-feed-pagination-third-page-stall.md`; this review did
 not disguise that latent third-page failure as part of the two-page media fix.
+## 2026-08-16 — Snapback `ContractDataProvider` adapter growth (M3-minus-typing)
+
+The adapter now projects the landed messaging core through the same frozen v8
+provider seam as memory: membership-scoped chat/message streams, DM reuse,
+group membership/admin changes, quoted sends, and receipt aggregation. The
+strongest useful proof was also the simplest to read: Bob armed one
+`listMessages` stream, Alice sent, and Bob observed both the new row and the
+subsequent read transition without polling or refetching. This preserved the
+same server-authoritative live-query shape that made the M2 adapter feel better
+than stitching invalidation channels around Supabase reads; compared with a
+Convex query, most of the extra work was projection and identity vocabulary,
+not live delivery itself.
+
+Receipt adaptation was more mechanical than expected. Snapback already emits
+the immutable recipient count, the remaining required count, delivered/read
+counts, the aggregate state, and the viewer's own row status. Coterie's frozen
+projection wants the current required count, so the adapter can map the
+backend aggregate directly while retaining bounded pagination for unread and
+`markReceipt` scans. Quoted replies similarly retain backend message IDs while
+profile identity hydration happens before publishing fixture-vocabulary
+sender IDs. `listChats` keeps `typingHint: null`; the missing typing claim is
+visible in `listProviderClaims`, and direct typing calls name
+`issues/20260817-ephemeral-membership-permission-backing.md` instead of
+misclassifying the platform gap as a later milestone.
+
+Selected avatars exposed a fixture-specific ambiguity worth documenting. The
+backend persists `avatarSourceDigest`, while several fixture aliases share the
+same committed bytes. A profile's identity is not its selected avatar, so
+using Carol to recover `avatar-carol.png` would invent provenance (the seeded
+Carol profile actually selects `avatar-alice.png`). The adapter therefore maps
+each digest to its canonical committed source ref and returns `null` for an
+absent or unknown digest. This preserves the selected source when it is
+knowable and does not pretend the digest can distinguish same-byte aliases.
+
+Acceptance found one real auth impedance mismatch. Snapback password issuance
+will not silently adopt Bob over Alice's live bearer; the frozen provider API
+allows `login` to replace the current persona. The adapter now expresses that
+as two explicit authority transitions—settle the predecessor logout, then
+issue the successor—rather than treating a stale-authority response as an
+application credential error. Both acceptance boot states exercise repeated
+Alice/Bob switches in the quoted-message, receipt, and admin-refusal chain.
+
+The brief expected `setMessageReaction@2` to map to a backend reaction
+operation from the v7 slice, but this checkout has no reaction operation,
+reaction table, or reaction field in its generated M3 rows; the landed backend
+diary explicitly places reactions in M4. Adding one would have changed the
+forbidden `demos/coterie/snapback/**` behavior and made the requested
+M3-minus-typing claim dishonest. The adapter therefore keeps reactions empty
+in projected messages and leaves `setMessageReaction` unclaimed with the
+existing M4 milestone refusal. This is backend-surface absence rather than a
+guide gap, so no new `guide-gap` ticket was filed.
+
+The resulting evidence boundary is intentionally narrow. Exact conformance is
+formally probed at M1 `listProfiles@3`+`editProfile@1`, M2
+`listFeed@3`+`createPost@1`, and M3 `listMessages@4`+`sendMessage@4`; it is not
+presented as a per-operation formal suite. Adapter integration covers the
+remaining membership mutation map plus the two-client message/receipt stream,
+and the shared acceptance artifact reports 28 passed claimed steps and two
+typing skips across `provider-boot` and `injected-signed-out`. Memory remains
+the full v8 client-evidence lane.
+
+## 2026-08-16 — Adapter M3 review corrections
+
+The final review exposed an important difference between “the first live
+backend page is correct” and “the frozen provider result is correct.” Coterie
+declares whole chat/message lists, while the app-owned backend deliberately
+returns 200-chat and 50-message keyset windows. The adapter now retains that
+live head and merges every older keyset page beneath it, with explicit
+1,000-chat and 10,000-message envelopes tied to the benchmark's 100-chat probe
+and 10,000-message busy conversation. Crossing either envelope is a loud
+provider error instead of a plausible-looking truncated list.
+
+Unread and receipt work became substantially cleaner after moving the truth to
+the membership incarnation. `sendMessage` maintains unread/required counts;
+the one chat-level receipt mutation checks the exact 10,000-message boundary
+before writing and advances delivered/read watermarks atomically. Message
+projection combines those watermarks with per-message receipt rows, so sender
+aggregates remain exact without thousands of adapter-driven mutations. A
+removed incarnation is no longer a latent receipt target after the same person
+rejoins. This resembles the server-maintained conversation projections one
+would build in Convex, and avoids the client scan/update loop that would be
+especially awkward over Supabase RPC calls.
+
+The semantic parity fixes were small but revealing: the adapter must reject a
+group member list that omits or duplicates the creator before mutation;
+`addMember` must distinguish an existing active seat; the backend must permit
+the sole admin to leave; and missing chats must not masquerade as missing
+membership. Returning `created | reused` from the atomic DM mutation also
+removed a race that no preflight query could solve. None of these fixes needed
+a v8 declaration change—the review caught implementation claims that had not
+yet earned the already-frozen shapes.
+
+## 2026-08-17 — Adapter M3 envelope ruling and fully live tails
+
+The prior review-correction entry's 10,000-message, paged-tail architecture is
+superseded. Snapback's authored live-query/result contract caps one window at
+1,024 rows, so the ruled Coterie product envelope is 1,024 messages per
+conversation; chats remain 1,000. The cleaner implementation made the product
+claim stronger inside that bound: backend queries now return the entire
+envelope in one live window, and the Exact adapter simply projects that window.
+Deleting the one-shot cursor walk and retained archive removed a split-brain
+state where head rows were live but old receipt and membership projections
+could go stale.
+
+The integration proof now makes the distinction observable. Alice holds one
+`listMessages` stream over a 900+-message conversation, Bob advances his
+receipt watermark, and Alice receives the changed receipt projection on an old
+message without polling, refetching, or performing another action. A parallel
+201-chat proof removes Bob from the oldest new group and observes the old chat
+row change on Bob's already-armed stream. This felt closer to an ordinary
+Convex live query than the discarded adapter pagination: the backend owns the
+complete live set, and the client has no second consistency mechanism.
+
+Closing the read bounds under mutation was essential. `sendMessage` refuses
+before message 1,025; creating groups or new DMs and adding a new group member
+refuse before chat 1,001 for any participant. Exact-boundary tests prove the
+Nth write, the N+1 refusal, no
+row change, and a healthy full query afterward. The codes surface as
+`SnapbackProviderError` because envelope limits are adapter/backend capability,
+not new vocabulary in byte-frozen declaration v8. The future M6 choice—larger
+engine windows or a token-bumped `listMessages` cursor modeled on
+`listFeed@3`—is recorded in
+`issues/20260817-coterie-message-envelope-growth.md`.
+
+The stored projection fields also forced an explicit transition statement.
+Coterie has no populated production database, so this lane uses the Guide's
+disposable-store posture: **DESTRUCTIVE-WITH-RESEED**, then `seed-m3.mjs` →
+`seed-m2.mjs` → `seed-m1.mjs`. README and `LANE-NOTES-M3.md` make clear that a
+store worth preserving must instead enter the reviewed migration/backfill
+loop.

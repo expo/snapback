@@ -27,7 +27,7 @@ import {
 } from '../src/data/generated/coterie.bindings.ts';
 import { bootCoterieProvider } from '../src/data/provider-factory.ts';
 import { resolveCoterieSnapbackUrl } from '../src/data/snapback-provider.ts';
-import { installM2Fixtures } from '../snapback/seed-m2.mjs';
+import { installM3Fixtures } from '../snapback/seed-m3.mjs';
 
 const CONTRACT_PATH = new URL(
   '../../../benchmarks/tools/social-messenger/CONTRACT.md',
@@ -905,7 +905,7 @@ async function main() {
 
   try {
     if (requestedProvider === 'snapback') {
-      await installM2Fixtures({
+      await installM3Fixtures({
         baseUrl: resolveCoterieSnapbackUrl(),
         runId: `accept-${Date.now()}`,
       });

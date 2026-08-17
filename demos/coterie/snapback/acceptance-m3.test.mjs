@@ -22,6 +22,12 @@ import {
 import { startServer } from '../../_kit/server-process.mjs';
 
 import { loadGeneratedApi, loadGeneratedJson } from './generated-artifacts.mjs';
+import {
+  chatHistoryEnvelopeLimit,
+  messageHistoryEnvelopeLimit,
+  receiptEnvelopeAdmits,
+  receiptEnvelopeMessageLimit,
+} from './functions.mjs';
 import { installM3Fixtures } from './seed-m3.mjs';
 
 const backendDir = dirname(fileURLToPath(import.meta.url));
@@ -91,7 +97,13 @@ async function messageRow(client, conversationId, messageId) {
   return (await messageRows(client, conversationId)).find((row) => row._id === messageId);
 }
 
-test('Coterie Snapback M3 backend', { timeout: 900_000 }, async (t) => {
+test('chat-level receipt envelope admits the exact scale boundary and refuses limit+1', () => {
+  assert.equal(receiptEnvelopeMessageLimit(), 1_024);
+  assert.equal(receiptEnvelopeAdmits(1_024), true);
+  assert.equal(receiptEnvelopeAdmits(1_025), false);
+});
+
+test('Coterie Snapback M3 backend', { timeout: 1_800_000 }, async (t) => {
   assert(existsSync(runtimeBinary), `charter-pinned runtime is missing: ${runtimeBinary}`);
   const scratch = mkdtempSync(join(tmpdir(), 'coterie-m3-'));
   const clients = [];
@@ -169,6 +181,11 @@ test('Coterie Snapback M3 backend', { timeout: 900_000 }, async (t) => {
         .find(({ name }) => name === 'by_latest_profile').fields,
       ['profileId', 'isLatest'],
     );
+    assert.deepEqual(
+      table('conversationMembers').indexes
+        .find(({ name }) => name === 'by_profile_latest_chat_page').fields,
+      ['profileId', 'isLatest', 'chatPageKey'],
+    );
     assert.equal(
       table('messageReceipts').indexes.find(({ name }) => name === 'by_message_recipient').unique,
       true,
@@ -200,18 +217,28 @@ test('Coterie Snapback M3 backend', { timeout: 900_000 }, async (t) => {
       alice.client.mutate(api.openDm, { args: { otherProfileId: bob.profile._id } }),
       bob.client.mutate(api.openDm, { args: { otherProfileId: alice.profile._id } }),
     ]);
-    assert.deepEqual(reused.map(({ result }) => result), [fixtureDm, fixtureDm]);
+    assert.deepEqual(
+      reused.map(({ result }) => result),
+      [
+        { conversationId: fixtureDm, disposition: 'reused' },
+        { conversationId: fixtureDm, disposition: 'reused' },
+      ],
+    );
 
     const raced = await Promise.all([
       alice.client.mutate(api.openDm, { args: { otherProfileId: erin.profile._id } }),
       erin.client.mutate(api.openDm, { args: { otherProfileId: alice.profile._id } }),
     ]);
-    assert.equal(raced[0].result, raced[1].result);
-    assert.equal(
+    assert.equal(raced[0].result.conversationId, raced[1].result.conversationId);
+    assert.deepEqual(
+      raced.map(({ result }) => result.disposition).sort(),
+      ['created', 'reused'],
+    );
+    assert.deepEqual(
       (await alice.client.mutate(api.openDm, {
         args: { otherProfileId: erin.profile._id },
       })).result,
-      raced[0].result,
+      { conversationId: raced[0].result.conversationId, disposition: 'reused' },
     );
   });
 
@@ -335,6 +362,11 @@ test('Coterie Snapback M3 backend', { timeout: 900_000 }, async (t) => {
       assert(aliceLive.rows.some(({ _id }) => _id === bobReply));
       assert(bobLive.rows.some(({ _id }) => _id === bobReply));
     }, 'Alice and Bob did not converge on Bob reply');
+    for (const handle of [aliceLive, bobLive]) {
+      await handle.dispose();
+      const index = handles.indexOf(handle);
+      if (index >= 0) handles.splice(index, 1);
+    }
   });
 
   await t.test('Snapback M3 exposes no typing collection until membership backing exists', async () => {
@@ -411,6 +443,68 @@ test('Coterie Snapback M3 backend', { timeout: 900_000 }, async (t) => {
     assert.equal(row.receiptSummary.deliveredCount, 1);
   });
 
+  await t.test('unread projection and receipt watermarks stay incarnation-exact across rejoin', async () => {
+    const conversationId = (await alice.client.mutate(api.createGroup, {
+      args: {
+        name: 'Rejoin receipt projection',
+        description: 'Old obligations stay dropped after a new membership incarnation.',
+        memberProfileIds: [bob.profile._id],
+      },
+    })).result;
+    const oldMessageId = (await alice.client.mutate(api.sendMessage, {
+      args: { conversationId, body: 'Old incarnation receipt.' },
+    })).result;
+    let bobChat = (await bob.client.query(api.listChats, { args: {} })).rows
+      .find(({ _id }) => _id === conversationId);
+    assert.equal(bobChat.unreadCount, 1);
+
+    await bob.client.mutate(api.leaveChat, { args: { conversationId } });
+    await alice.client.mutate(api.addMember, {
+      args: { conversationId, profileId: bob.profile._id },
+    });
+    const oldForBob = await messageRow(bob.client, conversationId, oldMessageId);
+    assert.equal(oldForBob.viewerReceiptRequired, false);
+    bobChat = (await bob.client.query(api.listChats, { args: {} })).rows
+      .find(({ _id }) => _id === conversationId);
+    assert.equal(bobChat.unreadCount, 0);
+    assert.deepEqual(
+      (await bob.client.mutate(api.markReceiptsThrough, {
+        args: { conversationId, state: 'read' },
+      })).result,
+      { status: 'read', requiredCount: 0, throughSequence: 3 },
+    );
+    assert.deepEqual(
+      (await messageRow(alice.client, conversationId, oldMessageId)).receiptSummary,
+      {
+        aggregateStatus: 'read',
+        recipientCount: 1,
+        requiredCount: 0,
+        sentCount: 0,
+        deliveredCount: 0,
+        readCount: 0,
+      },
+    );
+
+    const newMessageId = (await alice.client.mutate(api.sendMessage, {
+      args: { conversationId, body: 'New incarnation receipt.' },
+    })).result;
+    const newForBob = await messageRow(bob.client, conversationId, newMessageId);
+    assert.equal(newForBob.viewerReceiptRequired, true);
+    bobChat = (await bob.client.query(api.listChats, { args: {} })).rows
+      .find(({ _id }) => _id === conversationId);
+    assert.equal(bobChat.unreadCount, 1);
+    await bob.client.mutate(api.markReceiptsThrough, {
+      args: { conversationId, state: 'read' },
+    });
+    bobChat = (await bob.client.query(api.listChats, { args: {} })).rows
+      .find(({ _id }) => _id === conversationId);
+    assert.equal(bobChat.unreadCount, 0);
+    assert.equal(
+      (await messageRow(alice.client, conversationId, newMessageId)).receiptSummary.aggregateStatus,
+      'read',
+    );
+  });
+
   await t.test('group administration is server-enforced and removal retains only prior history', async () => {
     await expectAppCode(
       bob.client.mutate(api.removeMember, {
@@ -436,6 +530,12 @@ test('Coterie Snapback M3 backend', { timeout: 900_000 }, async (t) => {
     await bob.client.mutate(api.addMember, {
       args: { conversationId: fixtureGroup, profileId: frank.profile._id },
     });
+    await expectAppCode(
+      bob.client.mutate(api.addMember, {
+        args: { conversationId: fixtureGroup, profileId: frank.profile._id },
+      }),
+      'MEMBER_ALREADY_EXISTS',
+    );
 
     const beforeRemoval = await messageRows(carol.client, fixtureGroup);
     await alice.client.mutate(api.removeMember, {
@@ -476,6 +576,61 @@ test('Coterie Snapback M3 backend', { timeout: 900_000 }, async (t) => {
     assert.equal('typingAvailable' in removedChat, false);
   });
 
+  await t.test('a sole admin may leave and produce an admin-less group', async () => {
+    const conversationId = (await alice.client.mutate(api.createGroup, {
+      args: {
+        name: 'Admin-less is valid',
+        description: '',
+        memberProfileIds: [bob.profile._id],
+      },
+    })).result;
+    await alice.client.mutate(api.leaveChat, { args: { conversationId } });
+    const bobChat = (await bob.client.query(api.listChats, { args: {} })).rows
+      .find(({ _id }) => _id === conversationId);
+    assert(bobChat);
+    assert.equal(bobChat.members.length, 1);
+    assert.equal(bobChat.members[0].profileId, bob.profile._id);
+    assert.equal(bobChat.members[0].role, 'member');
+  });
+
+  await t.test('unknown chats and non-members have operation-exact refusal codes', async () => {
+    const missingConversationId = '00000000-0000-7000-8000-000000000000';
+    const missingChatOperations = [
+      () => alice.client.query(api.listMessages, { args: { conversationId: missingConversationId } }),
+      () => alice.client.mutate(api.addMember, {
+        args: { conversationId: missingConversationId, profileId: henry.profile._id },
+      }),
+      () => alice.client.mutate(api.removeMember, {
+        args: { conversationId: missingConversationId, profileId: henry.profile._id },
+      }),
+      () => alice.client.mutate(api.promoteAdmin, {
+        args: { conversationId: missingConversationId, profileId: henry.profile._id },
+      }),
+      () => alice.client.mutate(api.leaveChat, { args: { conversationId: missingConversationId } }),
+      () => alice.client.mutate(api.sendMessage, {
+        args: { conversationId: missingConversationId, body: 'Missing chat.' },
+      }),
+      () => alice.client.mutate(api.markReceiptsThrough, {
+        args: { conversationId: missingConversationId, state: 'read' },
+      }),
+    ];
+    for (const operation of missingChatOperations) {
+      await expectAppCode(operation(), 'CHAT_NOT_FOUND');
+    }
+    await expectAppCode(
+      alice.client.mutate(api.removeMember, {
+        args: { conversationId: fixtureGroup, profileId: henry.profile._id },
+      }),
+      'MEMBER_NOT_FOUND',
+    );
+    await expectAppCode(
+      alice.client.mutate(api.promoteAdmin, {
+        args: { conversationId: fixtureGroup, profileId: henry.profile._id },
+      }),
+      'MEMBER_NOT_FOUND',
+    );
+  });
+
   await t.test('message code-point bounds, quote locality, and membership privacy are enforced', async () => {
     const atLimit = (await alice.client.mutate(api.sendMessage, {
       args: { conversationId: fixtureDm, body: '😀'.repeat(2_000) },
@@ -508,5 +663,118 @@ test('Coterie Snapback M3 backend', { timeout: 900_000 }, async (t) => {
       henry.client.query(api.listMessages, { args: { conversationId: fixtureDm } }),
       'CHAT_MEMBERSHIP_REQUIRED',
     );
+  });
+
+  await t.test('message envelope admits 1,024, refuses 1,025 before write, and leaves queries healthy', async () => {
+    assert.equal(messageHistoryEnvelopeLimit(), 1_024);
+    const existing = await messageRows(alice.client, fixtureDm);
+    assert(existing.length < messageHistoryEnvelopeLimit());
+    let boundaryMessageId = null;
+    for (let count = existing.length; count < messageHistoryEnvelopeLimit(); count += 1) {
+      boundaryMessageId = (await alice.client.mutate(api.sendMessage, {
+        args: {
+          conversationId: fixtureDm,
+          body: `Message envelope boundary ${count + 1}`,
+        },
+      })).result;
+    }
+    const atBoundary = await messageRows(alice.client, fixtureDm);
+    assert.equal(atBoundary.length, messageHistoryEnvelopeLimit());
+    assert(atBoundary.some(({ _id }) => _id === boundaryMessageId));
+    await expectAppCode(
+      alice.client.mutate(api.sendMessage, {
+        args: { conversationId: fixtureDm, body: 'Message envelope overflow.' },
+      }),
+      'MESSAGE_ENVELOPE_EXCEEDED',
+    );
+    const afterRefusal = await messageRows(alice.client, fixtureDm);
+    assert.equal(afterRefusal.length, messageHistoryEnvelopeLimit());
+    assert.deepEqual(
+      afterRefusal.map(({ _id }) => _id),
+      atBoundary.map(({ _id }) => _id),
+      'overflow refusal must not mutate or permanently fault listMessages',
+    );
+  });
+
+  await t.test('chat envelope admits 1,000, refuses both creators at 1,001, and leaves queries healthy', async () => {
+    assert.equal(chatHistoryEnvelopeLimit(), 1_000);
+    const partners = [bob, carol, dave, erin, frank, henry];
+    const initialChats = (await alice.client.query(api.listChats, { args: {} })).rows;
+    assert(initialChats.length < chatHistoryEnvelopeLimit());
+    for (let count = initialChats.length; count < chatHistoryEnvelopeLimit() - 1; count += 1) {
+      const partner = partners[count % partners.length];
+      await alice.client.mutate(api.createGroup, {
+        args: {
+          name: `Chat envelope boundary ${count + 1}`,
+          description: '',
+          memberProfileIds: [partner.profile._id],
+        },
+      });
+    }
+    const at999 = (await alice.client.query(api.listChats, { args: {} })).rows;
+    assert.equal(at999.length, chatHistoryEnvelopeLimit() - 1);
+    const existingDmProfileIds = new Set(at999.flatMap((chat) => (
+      chat.kind === 'dm' ? chat.members.map(({ profileId }) => profileId) : []
+    )));
+    const unusedDmProfiles = partners.filter(({ profile }) => !existingDmProfileIds.has(profile._id));
+    assert(unusedDmProfiles.length >= 2, 'chat boundary needs two not-yet-open DM counterparts');
+    const exactBoundary = (await alice.client.mutate(api.openDm, {
+      args: { otherProfileId: unusedDmProfiles[0].profile._id },
+    })).result;
+    assert.equal(exactBoundary.disposition, 'created');
+    const atBoundary = (await alice.client.query(api.listChats, { args: {} })).rows;
+    assert.equal(atBoundary.length, chatHistoryEnvelopeLimit());
+
+    await expectAppCode(
+      alice.client.mutate(api.createGroup, {
+        args: {
+          name: 'Chat envelope overflow group',
+          description: '',
+          memberProfileIds: [bob.profile._id],
+        },
+      }),
+      'CHAT_ENVELOPE_EXCEEDED',
+    );
+    await expectAppCode(
+      alice.client.mutate(api.openDm, {
+        args: { otherProfileId: unusedDmProfiles[1].profile._id },
+      }),
+      'CHAT_ENVELOPE_EXCEEDED',
+    );
+    const groupWithoutAlice = (await bob.client.mutate(api.createGroup, {
+      args: {
+        name: 'Chat envelope add-member overflow',
+        description: '',
+        memberProfileIds: [carol.profile._id],
+      },
+    })).result;
+    await expectAppCode(
+      bob.client.mutate(api.addMember, {
+        args: { conversationId: groupWithoutAlice, profileId: alice.profile._id },
+      }),
+      'CHAT_ENVELOPE_EXCEEDED',
+    );
+    assert.equal(
+      (await bob.client.query(api.listChats, { args: {} })).rows
+        .find(({ _id }) => _id === groupWithoutAlice)
+        .members.some(({ profileId }) => profileId === alice.profile._id),
+      false,
+      'addMember overflow refusal must happen before inserting Alice membership',
+    );
+    assert.deepEqual(
+      (await alice.client.mutate(api.openDm, {
+        args: { otherProfileId: bob.profile._id },
+      })).result,
+      { conversationId: fixtureDm, disposition: 'reused' },
+      'reusing an existing DM at the envelope must remain legal',
+    );
+    const afterRefusals = (await alice.client.query(api.listChats, { args: {} })).rows;
+    assert.equal(afterRefusals.length, chatHistoryEnvelopeLimit());
+    assert.deepEqual(
+      afterRefusals.map(({ _id }) => _id),
+      atBoundary.map(({ _id }) => _id),
+      'overflow refusals must not mutate or permanently fault listChats',
+    );
+    assert.equal((await messageRows(alice.client, fixtureDm)).length, messageHistoryEnvelopeLimit());
   });
 });

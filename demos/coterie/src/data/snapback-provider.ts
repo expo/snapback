@@ -26,7 +26,10 @@ import type {
 // their adjacent `.d.ts` declaration, so preserve that generated type here.
 // @ts-expect-error generated Snapback ESM is typed by the adjacent api.d.ts
 import { api as generatedApi } from '../../snapback/generated/api.mjs';
-import { coterieAvatarUrlForRef } from './avatar-refs.ts';
+import {
+  coterieAvatarRefForSourceDigest,
+  coterieAvatarUrlForRef,
+} from './avatar-refs.ts';
 import {
   COTERIE_IMAGE_URLS,
   COTERIE_VIDEO_URLS,
@@ -36,7 +39,7 @@ import { coterieProviderClaims } from './provider-claims.ts';
 
 const api = generatedApi as GeneratedApi;
 
-export const COTERIE_SNAPBACK_MILESTONE = 'M2' as const;
+export const COTERIE_SNAPBACK_MILESTONE = 'M3-minus-typing' as const;
 
 export const COTERIE_SNAPBACK_M1_OPERATIONS = Object.freeze({
   queries: Object.freeze(['listSession', 'listProfiles', 'listProviderClaims']),
@@ -54,22 +57,40 @@ export const COTERIE_SNAPBACK_M2_OPERATIONS = Object.freeze({
   mutations: Object.freeze(['createPost', 'setFollow', 'setLike', 'setRepost']),
 });
 
+export const COTERIE_SNAPBACK_M3_OPERATIONS = Object.freeze({
+  queries: Object.freeze(['listChats', 'listMessages']),
+  mutations: Object.freeze([
+    'openDm',
+    'createGroup',
+    'addMember',
+    'removeMember',
+    'promoteAdmin',
+    'leaveChat',
+    'sendMessage',
+    'markReceipt',
+  ]),
+});
+
 export const COTERIE_SNAPBACK_CLAIMED_OPERATIONS = Object.freeze({
   queries: Object.freeze([
     ...COTERIE_SNAPBACK_M1_OPERATIONS.queries,
     ...COTERIE_SNAPBACK_M2_OPERATIONS.queries,
+    ...COTERIE_SNAPBACK_M3_OPERATIONS.queries,
   ]),
   mutations: Object.freeze([
     ...COTERIE_SNAPBACK_M1_OPERATIONS.mutations,
     ...COTERIE_SNAPBACK_M2_OPERATIONS.mutations,
+    ...COTERIE_SNAPBACK_M3_OPERATIONS.mutations,
   ]),
 });
 
 const CLAIMED_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.queries);
 const CLAIMED_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.mutations);
 const M2_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_M2_OPERATIONS.queries);
+const CLAIMED_M3_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_M3_OPERATIONS.queries);
 const M3_QUERY_NAMES = new Set(['listChats', 'listMessages', 'observeTyping']);
 const M2_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_M2_OPERATIONS.mutations);
+const CLAIMED_M3_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_M3_OPERATIONS.mutations);
 const M3_MUTATION_NAMES = new Set([
   'openDm',
   'createGroup',
@@ -85,12 +106,15 @@ const M4_MUTATION_NAMES = new Set(['setMessageReaction']);
 const M5_QUERY_NAMES = new Set(['searchSocial']);
 const M5_MUTATION_NAMES = new Set(['setChatAccent', 'setDisappearing']);
 const M8_QUERY_NAMES = new Set(['listInsights']);
+const TYPING_OPERATION_NAMES = new Set(['observeTyping', 'setTyping']);
 const SNAPBACK_PROVIDER_CLAIMS = coterieProviderClaims(COTERIE_SNAPBACK_CLAIMED_OPERATIONS);
 
 const PROFILE_STREAM_TIMEOUT_MS = 10_000;
 const AVATAR_ASSET_CACHE_LIMIT = 32;
 const POST_ASSET_CACHE_LIMIT = 64;
 const FEED_PAGE_SIZE = 20;
+export const COTERIE_SNAPBACK_MAX_CHAT_HISTORY = 1_000;
+export const COTERIE_SNAPBACK_MAX_MESSAGE_HISTORY = 1_024;
 const AVATAR_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const SESSION_REQUIRED_CODES = new Set([
   'SNAPBACK_AUTH_SESSION_EXPIRED',
@@ -183,6 +207,18 @@ interface M2Subscription<T> {
   args: Record<string, unknown>;
 }
 
+interface M3Subscription<T> {
+  active: boolean;
+  generation: number;
+  observer: DataObserver<T>;
+  handle: LiveHandle | null;
+  start: Promise<void> | null;
+  connection: DataConnection;
+  lastValue?: T;
+  queryName: string;
+  args: Record<string, unknown>;
+}
+
 interface BackendProfileStatsRow {
   profileId: string;
   followerCount: number;
@@ -221,6 +257,60 @@ interface BackendFeedRow extends BackendPostViewRow {
   repostedByDisplayName?: string;
 }
 
+interface BackendReceiptSummary {
+  aggregateStatus: string;
+  recipientCount: number;
+  requiredCount: number;
+  sentCount: number;
+  deliveredCount: number;
+  readCount: number;
+}
+
+interface BackendChatMessageRow {
+  _id: GeneratedDataModel['messages']['_id'];
+  conversationId: GeneratedDataModel['conversations']['_id'];
+  senderProfileId: GeneratedDataModel['profiles']['_id'];
+  senderHandle: string;
+  senderDisplayName: string;
+  senderAvatar?: string;
+  body: string;
+  quotedMessageId?: GeneratedDataModel['messages']['_id'];
+  quotedMessage?: {
+    messageId: GeneratedDataModel['messages']['_id'];
+    excerpt: string;
+    senderProfileId: GeneratedDataModel['profiles']['_id'];
+    senderDisplayName: string;
+  };
+  pageKey: string;
+  createdAt: number;
+  viewerReceiptStatus?: string;
+  viewerReceiptRequired: boolean;
+  receiptSummary: BackendReceiptSummary;
+}
+
+interface BackendChatRow {
+  _id: GeneratedDataModel['conversations']['_id'];
+  pageKey: string;
+  kind: string;
+  name: string;
+  description: string;
+  viewerRole: string;
+  active: boolean;
+  unreadCount: number;
+  members: ReadonlyArray<{
+    profileId: GeneratedDataModel['profiles']['_id'];
+    handle: string;
+    displayName: string;
+    avatar?: string;
+    role: string;
+    active: boolean;
+  }>;
+  lastMessage?: BackendChatMessageRow;
+  lastMessageAt: number;
+}
+
+type M3BackendRow = BackendChatRow | BackendChatMessageRow;
+
 interface FeedCursorPayload {
   v: 1;
   mode: 'following' | 'global';
@@ -240,6 +330,19 @@ class NamedProviderError extends Error {
   constructor(name: string, message: string, options?: ErrorOptions) {
     super(message, options);
     this.name = name;
+  }
+}
+
+function assertM3LiveWindow(queryName: string, count: number): void {
+  const maximum = queryName === 'listChats'
+    ? COTERIE_SNAPBACK_MAX_CHAT_HISTORY
+    : COTERIE_SNAPBACK_MAX_MESSAGE_HISTORY;
+  const label = queryName === 'listChats' ? 'conversations' : 'messages';
+  if (count > maximum) {
+    throw new NamedProviderError(
+      'SnapbackProviderError',
+      `${queryName} exceeded the explicit ${maximum}-${label} Coterie live envelope.`,
+    );
   }
 }
 
@@ -322,8 +425,18 @@ function milestoneRefusal(name: string): NamedProviderError {
   const milestone = milestoneForOperation(name) ?? 'M2/M3/M4/M5/M8';
   return new NamedProviderError(
     'SnapbackMilestoneUnsupportedError',
-    `snapback provider claims M1+M2 plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
+    `snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
   );
+}
+
+function unclaimedOperationRefusal(name: string): NamedProviderError {
+  if (TYPING_OPERATION_NAMES.has(name)) {
+    return new NamedProviderError(
+      'SnapbackTypingPermissionBackingUnavailableError',
+      `snapback provider deliberately does not claim ${name}; membership-backed ephemeral permission lowering is required — issues/20260817-ephemeral-membership-permission-backing.md`,
+    );
+  }
+  return milestoneRefusal(name);
 }
 
 function serialized(error: unknown): SerializedError {
@@ -410,6 +523,129 @@ function declaredError(operation: string, error: unknown): NamedProviderError {
       POST_NOT_FOUND: ['PostNotFoundError', 'The post does not exist.'],
       REPLY_REPOST_FORBIDDEN: ['ReplyRepostForbiddenError', 'Replies cannot be reposted.'],
     },
+    openDm: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      PROFILE_NOT_FOUND: ['ProfileNotFoundError', 'The profile does not exist.'],
+      SELF_DM_FORBIDDEN: [
+        'DirectMessageSelfError',
+        'A direct conversation requires another user.',
+      ],
+    },
+    createGroup: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      PROFILE_NOT_FOUND: ['ProfileNotFoundError', 'The profile does not exist.'],
+      GROUP_NAME_INVALID: [
+        'GroupNameInvalidError',
+        'Group name must contain 1-50 characters.',
+      ],
+      GROUP_DESCRIPTION_TOO_LONG: [
+        'GroupDescriptionInvalidError',
+        'Group description must contain at most 200 characters.',
+      ],
+      GROUP_SIZE_INVALID: [
+        'GroupMembersInvalidError',
+        'A group requires 2-50 unique members including its creator.',
+      ],
+    },
+    addMember: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      PROFILE_NOT_FOUND: ['ProfileNotFoundError', 'The profile does not exist.'],
+      CHAT_NOT_FOUND: ['ChatNotFoundError', 'Conversation was not found.'],
+      CHAT_MEMBERSHIP_REQUIRED: ['ChatAdminRequiredError', 'A group admin is required.'],
+      NOT_GROUP_ADMIN: ['ChatAdminRequiredError', 'A group admin is required.'],
+      NOT_GROUP_CHAT: ['GroupRequiredError', 'This operation requires a group conversation.'],
+      MEMBER_ALREADY_EXISTS: [
+        'ChatMemberAlreadyExistsError',
+        'That profile is already a group member.',
+      ],
+      GROUP_MEMBER_LIMIT_REACHED: [
+        'ChatMemberLimitError',
+        'A group may contain at most 50 members.',
+      ],
+    },
+    removeMember: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      CHAT_NOT_FOUND: ['ChatNotFoundError', 'Conversation was not found.'],
+      CHAT_MEMBERSHIP_REQUIRED: ['ChatAdminRequiredError', 'A group admin is required.'],
+      NOT_GROUP_ADMIN: ['ChatAdminRequiredError', 'A group admin is required.'],
+      NOT_GROUP_CHAT: ['GroupRequiredError', 'This operation requires a group conversation.'],
+      MEMBER_NOT_FOUND: [
+        'ChatMemberNotFoundError',
+        'That profile is not a current group member.',
+      ],
+      REMOVE_SELF_WITH_LEAVE: ['RemoveSelfInvalidError', 'Use leave chat to remove yourself.'],
+    },
+    promoteAdmin: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      CHAT_NOT_FOUND: ['ChatNotFoundError', 'Conversation was not found.'],
+      CHAT_MEMBERSHIP_REQUIRED: ['ChatAdminRequiredError', 'A group admin is required.'],
+      NOT_GROUP_ADMIN: ['ChatAdminRequiredError', 'A group admin is required.'],
+      NOT_GROUP_CHAT: ['GroupRequiredError', 'This operation requires a group conversation.'],
+      MEMBER_NOT_FOUND: [
+        'ChatMemberNotFoundError',
+        'That profile is not a current group member.',
+      ],
+    },
+    leaveChat: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      CHAT_NOT_FOUND: ['ChatNotFoundError', 'Conversation was not found.'],
+      CHAT_MEMBERSHIP_REQUIRED: [
+        'ChatMembershipRequiredError',
+        'Conversation membership is required.',
+      ],
+      NOT_GROUP_CHAT: ['GroupRequiredError', 'This operation requires a group conversation.'],
+    },
+    sendMessage: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      CHAT_NOT_FOUND: ['ChatNotFoundError', 'Conversation was not found.'],
+      CHAT_MEMBERSHIP_REQUIRED: [
+        'ChatMembershipRequiredError',
+        'Conversation membership is required.',
+      ],
+      MESSAGE_BODY_REQUIRED: [
+        'MessageBodyInvalidError',
+        'Message text must contain 1-2000 characters.',
+      ],
+      MESSAGE_BODY_TOO_LONG: [
+        'MessageBodyInvalidError',
+        'Message text must contain 1-2000 characters.',
+      ],
+      QUOTED_MESSAGE_NOT_FOUND: [
+        'QuotedMessageInvalidError',
+        'Quoted message must exist in this conversation.',
+      ],
+    },
+    markReceipt: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      CHAT_NOT_FOUND: ['ChatNotFoundError', 'Conversation was not found.'],
+      CHAT_MEMBERSHIP_REQUIRED: [
+        'ChatMembershipRequiredError',
+        'Conversation membership is required.',
+      ],
+      RECEIPT_STATE_INVALID: [
+        'ReceiptStateInvalidError',
+        'Receipt state must be delivered or read.',
+      ],
+    },
+    setMessageReaction: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      CHAT_MEMBERSHIP_REQUIRED: [
+        'ChatMembershipRequiredError',
+        'Conversation membership is required.',
+      ],
+      MESSAGE_NOT_FOUND: [
+        'MessageNotFoundError',
+        'Message was not found in this conversation.',
+      ],
+      EMOJI_INVALID: ['EmojiInvalidError', 'Reaction must be one emoji grapheme.'],
+    },
+    listMessages: {
+      CHAT_NOT_FOUND: ['ChatNotFoundError', 'Conversation was not found.'],
+      CHAT_MEMBERSHIP_REQUIRED: [
+        'ChatMembershipRequiredError',
+        'Conversation membership is required.',
+      ],
+    },
   };
   const applicationMapping = appCode
     ? applicationMappings[operation]?.[appCode]
@@ -444,6 +680,7 @@ function declaredError(operation: string, error: unknown): NamedProviderError {
       operation === 'editProfile'
       || operation === 'setAvatar'
       || M2_MUTATION_NAMES.has(operation)
+      || CLAIMED_M3_MUTATION_NAMES.has(operation)
     )
     && code !== null
     && SESSION_REQUIRED_CODES.has(code)
@@ -875,6 +1112,7 @@ export const coterieSnapbackTestInternals = Object.freeze({
   decodeFeedCursor,
   declaredError,
   encodeFeedCursor,
+  assertM3LiveWindow,
   normalizedCreatePostInput,
   setRepostThroughBackend,
   sniffPostMediaType,
@@ -897,6 +1135,8 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   readonly #profileSubscriptions = new Set<ProfileSubscription<unknown>>();
   readonly #m2Subscriptions = new Set<M2Subscription<unknown>>();
   readonly #m2Cache = new Map<string, { value: unknown; connection: DataConnection }>();
+  readonly #m3Subscriptions = new Set<M3Subscription<unknown>>();
+  readonly #m3Cache = new Map<string, { value: unknown; connection: DataConnection }>();
   readonly #profileWaiters = new Set<() => void>();
   readonly #uploadedAvatarAssets = new Map<string, string>();
   readonly #uploadedPostAssets = new Map<string, string>();
@@ -910,6 +1150,8 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   #profileRows: readonly BackendProfileRow[] | null = null;
   #profileConnectionSequence = 0;
   #m2ConnectionSequence = 0;
+  #m3ConnectionSequence = 0;
+  #currentBackendProfileId: string | null = null;
   #principalRefreshGeneration = 0;
   #profileCompletion: { email: string; credential: BackendSessionCredential } | null = null;
   #closePromise: Promise<void> | null = null;
@@ -955,6 +1197,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         this.#emitSessionReady([]);
         this.#stopProfileSubscriptions('disconnected');
         this.#stopM2Subscriptions('disconnected');
+        this.#stopM3Subscriptions('disconnected');
       }
     });
   }
@@ -984,7 +1227,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       return { dispose() {} };
     }
     if (!CLAIMED_QUERY_NAMES.has(queryName)) {
-      observer({ status: 'error', error: serialized(milestoneRefusal(queryName)) });
+      observer({ status: 'error', error: serialized(unclaimedOperationRefusal(queryName)) });
       return { dispose() {} };
     }
 
@@ -1087,6 +1330,72 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       };
     }
 
+    if (CLAIMED_M3_QUERY_NAMES.has(queryName)) {
+      try {
+        if (queryName === 'listMessages') {
+          nonEmptyString(
+            _args.chatId,
+            'ChatNotFoundError',
+            'Conversation was not found.',
+          );
+        }
+      } catch (error) {
+        observer({ status: 'error', error: serialized(error) });
+        return { dispose() {} };
+      }
+      const subscription: M3Subscription<T> = {
+        active: true,
+        generation: 0,
+        observer,
+        handle: null,
+        start: null,
+        connection: 'connecting',
+        queryName,
+        args: _args,
+      };
+      const initializationGeneration = subscription.generation;
+      this.#m3Subscriptions.add(subscription as M3Subscription<unknown>);
+      const cached = this.#m3Cache.get(this.#m3CacheKey(queryName, _args));
+      if (cached) {
+        subscription.lastValue = cached.value as T;
+        subscription.connection = cached.connection;
+        observer(readyCell(cached.value as T, cached.connection));
+      } else {
+        observer({ status: 'pending', connection: 'connecting' });
+      }
+      void this.#ensureInitialized().then(
+        () => {
+          if (
+            !subscription.active
+            || subscription.generation !== initializationGeneration
+            || this.#disposed
+          ) return;
+          return this.#startM3Subscription(subscription);
+        },
+        (error) => {
+          if (
+            !subscription.active
+            || subscription.generation !== initializationGeneration
+            || this.#disposed
+          ) return;
+          observer({
+            status: 'error',
+            error: serialized(declaredError(queryName, error)),
+            connection: 'disconnected',
+          });
+        },
+      );
+      return {
+        dispose: () => {
+          subscription.active = false;
+          subscription.generation += 1;
+          this.#m3Subscriptions.delete(subscription as M3Subscription<unknown>);
+          void subscription.handle?.dispose();
+          subscription.handle = null;
+        },
+      };
+    }
+
     const subscription: ProfileSubscription<T> = {
       active: true,
       generation: 0,
@@ -1160,7 +1469,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       return rejected(new NamedProviderError('UnknownMutationError', `Unknown mutation ${mutationName}`));
     }
     if (!CLAIMED_MUTATION_NAMES.has(mutationName)) {
-      return rejected(milestoneRefusal(mutationName));
+      return rejected(unclaimedOperationRefusal(mutationName));
     }
 
     try {
@@ -1199,6 +1508,13 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       subscription.handle = null;
     }
     this.#m2Subscriptions.clear();
+    for (const subscription of this.#m3Subscriptions) {
+      subscription.active = false;
+      subscription.generation += 1;
+      handleClosures.push(subscription.handle?.dispose());
+      subscription.handle = null;
+    }
+    this.#m3Subscriptions.clear();
     this.#closePromise = (async () => {
       await Promise.allSettled(handleClosures.map((result) => Promise.resolve(result)));
       await this.#client.closeAuth();
@@ -1226,9 +1542,11 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     const principal = this.#client.auth.currentPrincipal();
     if (principal.status === 'anonymous') {
       this.#profileCompletion = null;
+      this.#currentBackendProfileId = null;
       this.#emitSessionReady([]);
       this.#stopProfileSubscriptions('disconnected');
       this.#stopM2Subscriptions('disconnected');
+      this.#stopM3Subscriptions('disconnected');
       return;
     }
     if (principal.status === 'blocked') {
@@ -1239,6 +1557,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       this.#emitSessionError(error);
       this.#stopProfileSubscriptions('disconnected');
       this.#stopM2Subscriptions('disconnected');
+      this.#stopM3Subscriptions('disconnected');
       return;
     }
     if (principal.status === 'loading' || principal.status === 'refreshing') return;
@@ -1246,6 +1565,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       this.#refreshSessionProjection(),
       this.#startAllProfileSubscriptions(),
       this.#startAllM2Subscriptions(),
+      this.#startAllM3Subscriptions(),
     ]);
   }
 
@@ -1264,6 +1584,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
           this.#emitSessionReady([]);
           this.#stopProfileSubscriptions('disconnected');
           this.#stopM2Subscriptions('disconnected');
+          this.#stopM3Subscriptions('disconnected');
         },
         refreshNonAnonymous: () => this.#principalChanged(),
       },
@@ -1429,11 +1750,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       location: row.location,
       link: row.link,
       avatarUrl: row.avatar ? this.#assetUrl(row.avatar) : null,
-      // listProfiles@3 carries the provider's selected fixture ref when one
-      // is available. The current Snapback M1/M2 backend stores only the
-      // uploaded asset/digest, so this partial adapter projects null until
-      // its backend lane qualifies that provenance field.
-      avatarRef: null,
+      avatarRef: coterieAvatarRefForSourceDigest(row.avatarSourceDigest),
       followers: stats.get(row._id)?.followerCount ?? 0,
       following: stats.get(row._id)?.followingCount ?? 0,
       followedByMe: stats.get(row._id)?.viewerFollows ?? false,
@@ -1442,8 +1759,12 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   }
 
   #rememberProfileIdentities(rows: readonly BackendProfileRow[]): void {
+    const principal = this.#client.auth.currentPrincipal();
     for (const row of rows) {
       this.#profileIdentityById.set(row._id, row.fixtureId ?? row.ownerId);
+      if (principal.status === 'authenticated' && row.ownerId === principal.userId) {
+        this.#currentBackendProfileId = row._id;
+      }
     }
   }
 
@@ -1686,6 +2007,220 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     return subscription.start;
   }
 
+  async #startAllM3Subscriptions(): Promise<void> {
+    await Promise.all(
+      [...this.#m3Subscriptions].map((subscription) => this.#startM3Subscription(subscription)),
+    );
+  }
+
+  async #startM3Subscription<T>(subscription: M3Subscription<T>): Promise<void> {
+    if (!subscription.active || this.#disposed) return;
+    const principal = this.#client.auth.currentPrincipal();
+    if (principal.status !== 'authenticated') return;
+    if (subscription.handle) return;
+    if (subscription.start) return subscription.start;
+
+    const generation = ++subscription.generation;
+    subscription.start = (async () => {
+      let pendingDelivery = Promise.resolve();
+      const publishRows = (rows: readonly unknown[]): Promise<void> => {
+        const deliveryRows = [...rows];
+        pendingDelivery = pendingDelivery.then(async () => {
+          if (!subscription.active || subscription.generation !== generation) return;
+          try {
+            const liveRows = deliveryRows as readonly M3BackendRow[];
+            assertM3LiveWindow(subscription.queryName, liveRows.length);
+            await this.#hydrateM3ProfileIdentities(liveRows);
+            if (!subscription.active || subscription.generation !== generation) return;
+            const value = await this.#projectM3Rows<T>(subscription, liveRows);
+            if (!subscription.active || subscription.generation !== generation) return;
+            const cacheKey = this.#m3CacheKey(subscription.queryName, subscription.args);
+            this.#m3Cache.set(cacheKey, { value, connection: subscription.connection });
+            for (const target of this.#m3Subscriptions) {
+              if (!target.active || this.#m3CacheKey(target.queryName, target.args) !== cacheKey) {
+                continue;
+              }
+              target.lastValue = value;
+              target.observer(readyCell(value, target.connection));
+            }
+          } catch (error) {
+            subscription.observer({
+              status: 'error',
+              error: serialized(declaredError(subscription.queryName, error)),
+              connection: 'disconnected',
+            });
+          }
+        });
+        return pendingDelivery;
+      };
+      const onConnectionChange = (connection: unknown) => {
+        if (!subscription.active || subscription.generation !== generation) return;
+        const next = toConnection(connection);
+        if (next === subscription.connection) return;
+        subscription.connection = next;
+        if (subscription.lastValue === undefined) {
+          subscription.observer({ status: 'pending', connection: next });
+        } else {
+          subscription.observer(readyCell(subscription.lastValue, next));
+        }
+      };
+      try {
+        await this.#refreshProfileIdentityIndex();
+        const connectionId =
+          `${this.#instanceId}-${subscription.queryName}-${++this.#m3ConnectionSequence}`;
+        let handle: LiveHandle;
+        if (subscription.queryName === 'listChats') {
+          handle = await this.#client.liveQuery(api.listChats, {
+            args: {},
+            connectionId,
+            transport: 'stream',
+            fallbackToPoll: false,
+            onUpdate: (rows) => { void publishRows(rows); },
+            onConnectionChange,
+          });
+        } else if (subscription.queryName === 'listMessages') {
+          const conversationId = nonEmptyString(
+            subscription.args.chatId,
+            'ChatNotFoundError',
+            'Conversation was not found.',
+          ) as GeneratedDataModel['conversations']['_id'];
+          handle = await this.#client.liveQuery(api.listMessages, {
+            args: { conversationId },
+            connectionId,
+            transport: 'stream',
+            fallbackToPoll: false,
+            onUpdate: (rows) => { void publishRows(rows); },
+            onConnectionChange,
+          });
+        } else {
+          throw unclaimedOperationRefusal(subscription.queryName);
+        }
+        if (!subscription.active || subscription.generation !== generation || this.#disposed) {
+          await handle.dispose();
+          return;
+        }
+        subscription.handle = handle;
+        subscription.connection = toConnection(handle.connection);
+        await publishRows(handle.rows);
+      } catch (error) {
+        if (!subscription.active || subscription.generation !== generation) return;
+        subscription.observer({
+          status: 'error',
+          error: serialized(declaredError(subscription.queryName, error)),
+          connection: 'disconnected',
+        });
+      } finally {
+        if (subscription.generation === generation) subscription.start = null;
+      }
+    })();
+    return subscription.start;
+  }
+
+  async #projectM3Rows<T>(
+    subscription: M3Subscription<T>,
+    rows: readonly unknown[],
+  ): Promise<T> {
+    if (subscription.queryName === 'listMessages') {
+      return (rows as readonly BackendChatMessageRow[])
+        .slice()
+        .reverse()
+        .map((row) => this.#projectMessage(row)) as T;
+    }
+    const projected = [];
+    for (const row of rows as readonly BackendChatRow[]) {
+      const members = row.members.map((member) => ({
+        id: this.#externalProfileId(member.profileId),
+        displayName: member.displayName,
+        avatarUrl: member.avatar ? this.#assetUrl(member.avatar) : null,
+        isAdmin: member.role === 'admin',
+        isMe: member.profileId === this.#currentBackendProfileId,
+      }));
+      const counterpart = row.kind === 'dm'
+        ? row.members.find((member) => member.profileId !== this.#currentBackendProfileId)
+        : null;
+      projected.push({
+        id: row._id,
+        title: row.name,
+        description: row.description || null,
+        preview: row.lastMessage?.body ?? '',
+        updatedAt: new Date(row.lastMessageAt).toISOString(),
+        unreadCount: row.active ? row.unreadCount : 0,
+        isGroup: row.kind === 'group',
+        kind: row.kind,
+        memberIds: members.map((member) => member.id),
+        members,
+        currentUserIsAdmin: row.active && row.viewerRole === 'admin',
+        currentUserIsMember: row.active,
+        typingHint: null,
+        latestReceiptStatus:
+          row.lastMessage?.senderProfileId === this.#currentBackendProfileId
+            ? row.lastMessage.receiptSummary.aggregateStatus
+            : null,
+        accentColor: '#4F46E5',
+        disappearing: 'off',
+        avatarUrl: counterpart?.avatar ? this.#assetUrl(counterpart.avatar) : null,
+      });
+    }
+    return projected as T;
+  }
+
+  #projectMessage(row: BackendChatMessageRow): Record<string, unknown> {
+    const quotedSnippet = row.quotedMessage?.excerpt ?? null;
+    return {
+      id: row._id,
+      chatId: row.conversationId,
+      senderId: this.#externalProfileId(row.senderProfileId),
+      senderName: row.senderDisplayName,
+      senderAvatarUrl: row.senderAvatar ? this.#assetUrl(row.senderAvatar) : null,
+      body: row.body,
+      createdAt: new Date(row.createdAt).toISOString(),
+      mine: row.senderProfileId === this.#currentBackendProfileId,
+      status: row.receiptSummary.aggregateStatus,
+      recipientCount: row.receiptSummary.requiredCount,
+      deliveredCount: row.receiptSummary.deliveredCount,
+      readCount: row.receiptSummary.readCount,
+      quotedMessageId: row.quotedMessageId ?? null,
+      quotedSenderName: row.quotedMessage?.senderDisplayName ?? null,
+      quotedBodySnippet: quotedSnippet,
+      quoteText: quotedSnippet,
+      reactions: [],
+      edited: false,
+      deleted: false,
+    };
+  }
+
+  async #hydrateM3ProfileIdentities(rows: readonly unknown[]): Promise<void> {
+    const profileIds = new Set<string>();
+    for (const row of rows as readonly (BackendChatRow | BackendChatMessageRow)[]) {
+      if ('members' in row) {
+        for (const member of row.members) profileIds.add(member.profileId);
+        if (row.lastMessage) {
+          profileIds.add(row.lastMessage.senderProfileId);
+          if (row.lastMessage.quotedMessage) {
+            profileIds.add(row.lastMessage.quotedMessage.senderProfileId);
+          }
+        }
+      } else {
+        profileIds.add(row.senderProfileId);
+        if (row.quotedMessage) profileIds.add(row.quotedMessage.senderProfileId);
+      }
+    }
+    if (
+      this.#currentBackendProfileId !== null
+      && [...profileIds].every((profileId) => this.#profileIdentityById.has(profileId))
+    ) return;
+    await this.#refreshProfileIdentityIndex();
+    if (
+      this.#currentBackendProfileId === null
+      || [...profileIds].some((profileId) => !this.#profileIdentityById.has(profileId))
+    ) {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'Snapback returned an M3 row whose external profile identity is unavailable.',
+      );
+    }
+  }
+
   #projectM2Rows<T>(subscription: M2Subscription<T>, rows: readonly unknown[]): T {
     if (subscription.queryName === 'listFeed') {
       const mode = argsFeedMode(subscription.args.mode);
@@ -1782,16 +2317,20 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     return externalId;
   }
 
-  async #backendProfileId(value: unknown): Promise<GeneratedDataModel['profiles']['_id']> {
+  async #backendProfileId(
+    value: unknown,
+    missingErrorName = 'ProfileNotFoundError',
+    missingMessage = 'The profile does not exist.',
+  ): Promise<GeneratedDataModel['profiles']['_id']> {
     const externalId = nonEmptyString(
       value,
-      'ProfileNotFoundError',
-      'The profile does not exist.',
+      missingErrorName,
+      missingMessage,
     );
     const rows = await this.#refreshProfileIdentityIndex();
     const profile = rows.find((row) => (row.fixtureId ?? row.ownerId) === externalId);
     if (!profile) {
-      throw new NamedProviderError('ProfileNotFoundError', 'The profile does not exist.');
+      throw new NamedProviderError(missingErrorName, missingMessage);
     }
     return profile._id;
   }
@@ -1809,12 +2348,31 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     }
   }
 
+  #stopM3Subscriptions(connection: DataConnection): void {
+    this.#m3Cache.clear();
+    for (const subscription of this.#m3Subscriptions) {
+      subscription.generation += 1;
+      subscription.connection = connection;
+      void subscription.handle?.dispose();
+      subscription.handle = null;
+      subscription.start = null;
+      subscription.lastValue = undefined;
+      if (subscription.active) subscription.observer({ status: 'pending', connection });
+    }
+  }
+
   #m2CacheKey(queryName: string, args: Record<string, unknown>): string {
     if (queryName === 'listFeed') {
       return `${queryName}:${String(args.mode)}:${String(args.cursor ?? '')}`;
     }
     if (queryName === 'listThread') return `${queryName}:${String(args.parentId ?? '')}`;
     return `${queryName}:${String(args.userId ?? '')}`;
+  }
+
+  #m3CacheKey(queryName: string, args: Record<string, unknown>): string {
+    return queryName === 'listMessages'
+      ? `${queryName}:${String(args.chatId ?? '')}`
+      : queryName;
   }
 
   #stopProfileSubscriptions(connection: DataConnection): void {
@@ -1860,8 +2418,24 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         return this.#setLike(args);
       case 'setRepost':
         return this.#setRepost(args);
+      case 'openDm':
+        return this.#openDm(args);
+      case 'createGroup':
+        return this.#createGroup(args);
+      case 'addMember':
+        return this.#addMember(args);
+      case 'removeMember':
+        return this.#removeMember(args);
+      case 'promoteAdmin':
+        return this.#promoteAdmin(args);
+      case 'leaveChat':
+        return this.#leaveChat(args);
+      case 'sendMessage':
+        return this.#sendMessage(args);
+      case 'markReceipt':
+        return this.#markReceipt(args);
       default:
-        throw milestoneRefusal(name);
+        throw unclaimedOperationRefusal(name);
     }
   }
 
@@ -1932,6 +2506,155 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       Boolean(args.reposted),
       String(args.mutationId ?? ''),
     );
+  }
+
+  async #openDm(args: Record<string, unknown>): Promise<{ chatId: string; reused: boolean }> {
+    const otherProfileId = await this.#backendProfileId(args.userId);
+    const outcome = await this.#client.mutate(api.openDm, {
+      args: { otherProfileId },
+    });
+    if (outcome.status !== 'settled') {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'openDm was queued even though the Coterie adapter disables offline mutation replay.',
+      );
+    }
+    return {
+      chatId: outcome.result.conversationId,
+      reused: outcome.result.disposition === 'reused',
+    };
+  }
+
+  async #createGroup(args: Record<string, unknown>): Promise<{ chatId: string }> {
+    const memberValues = Array.isArray(args.memberIds)
+      ? args.memberIds.map((value) => String(value))
+      : [];
+    const uniqueMemberValues = [...new Set(memberValues)];
+    const profileRows = await this.#refreshProfileIdentityIndex();
+    const creator = profileRows.find((profile) => profile._id === this.#currentBackendProfileId);
+    if (!creator) {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'The authenticated Snapback profile is unavailable while validating group membership.',
+      );
+    }
+    const creatorExternalId = creator.fixtureId ?? creator.ownerId;
+    if (
+      memberValues.length !== uniqueMemberValues.length
+      || uniqueMemberValues.length < 2
+      || uniqueMemberValues.length > 50
+      || !uniqueMemberValues.includes(creatorExternalId)
+    ) {
+      throw new NamedProviderError(
+        'GroupMembersInvalidError',
+        'A group requires 2-50 unique members including its creator.',
+      );
+    }
+    const memberProfileIds: GeneratedDataModel['profiles']['_id'][] = [];
+    for (const externalId of uniqueMemberValues) {
+      if (externalId === creatorExternalId) continue;
+      const row = profileRows.find((profile) => (profile.fixtureId ?? profile.ownerId) === externalId);
+      if (!row) throw new NamedProviderError('ProfileNotFoundError', 'The profile does not exist.');
+      memberProfileIds.push(row._id);
+    }
+    const outcome = await this.#client.mutate(api.createGroup, {
+      args: {
+        name: String(args.name ?? ''),
+        description: String(args.description ?? ''),
+        memberProfileIds,
+      },
+    });
+    if (outcome.status !== 'settled') {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'createGroup was queued even though the Coterie adapter disables offline mutation replay.',
+      );
+    }
+    return { chatId: outcome.result };
+  }
+
+  async #addMember(args: Record<string, unknown>): Promise<void> {
+    const conversationId = this.#conversationId(args.chatId);
+    const profileId = await this.#backendProfileId(args.userId);
+    await this.#client.mutate(api.addMember, { args: { conversationId, profileId } });
+  }
+
+  async #removeMember(args: Record<string, unknown>): Promise<void> {
+    const conversationId = this.#conversationId(args.chatId);
+    const profileId = await this.#backendProfileId(
+      args.userId,
+      'ChatMemberNotFoundError',
+      'That profile is not a current group member.',
+    );
+    await this.#client.mutate(api.removeMember, { args: { conversationId, profileId } });
+  }
+
+  async #promoteAdmin(args: Record<string, unknown>): Promise<void> {
+    const conversationId = this.#conversationId(args.chatId);
+    const profileId = await this.#backendProfileId(
+      args.userId,
+      'ChatMemberNotFoundError',
+      'That profile is not a current group member.',
+    );
+    await this.#client.mutate(api.promoteAdmin, { args: { conversationId, profileId } });
+  }
+
+  async #leaveChat(args: Record<string, unknown>): Promise<void> {
+    await this.#client.mutate(api.leaveChat, {
+      args: { conversationId: this.#conversationId(args.chatId) },
+    });
+  }
+
+  async #sendMessage(args: Record<string, unknown>): Promise<{ id: string }> {
+    const quotedMessageId = args.quotedMessageId === null || args.quotedMessageId === undefined
+      ? null
+      : nonEmptyString(
+          args.quotedMessageId,
+          'QuotedMessageInvalidError',
+          'Quoted message must exist in this conversation.',
+        ) as GeneratedDataModel['messages']['_id'];
+    const outcome = await this.#client.mutate(api.sendMessage, {
+      args: {
+        conversationId: this.#conversationId(args.chatId),
+        body: String(args.body ?? ''),
+        ...(quotedMessageId ? { quotedMessageId } : {}),
+      },
+    });
+    if (outcome.status !== 'settled') {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'sendMessage was queued even though the Coterie adapter disables offline mutation replay.',
+      );
+    }
+    return { id: outcome.result };
+  }
+
+  async #markReceipt(args: Record<string, unknown>): Promise<void> {
+    const state = String(args.state ?? '');
+    if (state !== 'delivered' && state !== 'read') {
+      throw new NamedProviderError(
+        'ReceiptStateInvalidError',
+        'Receipt state must be delivered or read.',
+      );
+    }
+    const conversationId = this.#conversationId(args.chatId);
+    const outcome = await this.#client.mutate(api.markReceiptsThrough, {
+      args: { conversationId, state },
+    });
+    if (outcome.status !== 'settled') {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'markReceipt was queued even though the Coterie adapter disables offline mutation replay.',
+      );
+    }
+  }
+
+  #conversationId(value: unknown): GeneratedDataModel['conversations']['_id'] {
+    return nonEmptyString(
+      value,
+      'ChatNotFoundError',
+      'Conversation was not found.',
+    ) as GeneratedDataModel['conversations']['_id'];
   }
 
   async #postAsset(mediaRef: string, kind: 'image' | 'video'): Promise<string> {
@@ -2027,6 +2750,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         this.#refreshSessionProjection(),
         this.#startAllProfileSubscriptions(),
         this.#startAllM2Subscriptions(),
+        this.#startAllM3Subscriptions(),
       ]);
       return result.value;
     } catch (originalError) {
@@ -2044,6 +2768,15 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
 
   async #login(args: Record<string, unknown>): Promise<unknown> {
     const { email, password } = validateLoginInput(args);
+    if (this.#client.auth.currentPrincipal().status === 'authenticated') {
+      // Password issuance is anonymous-authority only. The frozen provider
+      // contract permits login to replace the active persona, so settle the
+      // predecessor before asking Snapback to issue the successor.
+      // @ref LLP 0059#cross-context-ownership — account replacement is two
+      // explicit authority transitions; no response may silently adopt a
+      // different principal over the current bearer.
+      await this.#logout();
+    }
     const credential = await this.#client.auth.authPasswordSignIn({ email, password });
     const adoptedCapture = this.#coordinator.capture();
     try {
@@ -2054,6 +2787,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         this.#refreshSessionProjection(),
         this.#startAllProfileSubscriptions(),
         this.#startAllM2Subscriptions(),
+        this.#startAllM3Subscriptions(),
       ]);
       return result.value;
     } catch (error) {
@@ -2117,6 +2851,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       this.#refreshSessionProjection(),
       this.#startAllProfileSubscriptions(),
       this.#startAllM2Subscriptions(),
+      this.#startAllM3Subscriptions(),
     ]);
     return result.value;
   }
@@ -2143,6 +2878,8 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     if (principal.status !== 'authenticated') {
       this.#emitSessionReady([]);
       this.#stopProfileSubscriptions('disconnected');
+      this.#stopM2Subscriptions('disconnected');
+      this.#stopM3Subscriptions('disconnected');
       return { revokedToken: null };
     }
     const capture = this.#coordinator.capture();
@@ -2323,9 +3060,10 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
  * @ref LLP 0266#d4-backend-boundary — backend transport and live delivery stay
  * behind Exact's public ContractDataProvider seam.
  * @ref LLP 0266#d7-milestone-frozen-provider-surfaces-resolves-oq1 — this
- * adapter implements the frozen M1+M2 set and refuses every later operation
- * explicitly. Snapback's ensureFixture* and getMyFixture* operations are seed
- * machinery only and are never mapped onto this declaration.
+ * adapter implements the frozen M1+M2+M3-minus-typing set and refuses typing
+ * against its named permission-backing ticket. Snapback's ensureFixture* and
+ * getMyFixture* operations are seed machinery only and are never mapped onto
+ * this declaration.
  * @ref LLP 0266#d8-provider-selection-at-boot — the adapter never generates a
  * provider-specific Coterie declaration or manifest.
  * @ref LLP 0266#d9-snapback-backend-placement — application-owned auth,

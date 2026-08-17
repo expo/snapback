@@ -1826,6 +1826,63 @@ describe('Coterie backendless provider', () => {
     messages.dispose();
   });
 
+  it('keeps dropped-incarnation receipts excluded after the same member rejoins', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const created = await provider.mutate<{ chatId: string }>('createGroup', {
+      name: 'Receipt incarnation parity',
+      description: null,
+      memberIds: ['alice', 'bob'],
+    });
+    if (!created.ok) throw new Error('expected receipt incarnation group creation to succeed');
+    const chatId = created.value.chatId;
+    const old = await provider.mutate<{ id: string }>('sendMessage', {
+      chatId,
+      body: 'Old membership obligation',
+      quotedMessageId: null,
+    });
+    if (!old.ok) throw new Error('expected old-incarnation message send to succeed');
+
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    expect(
+      readRows<{ id: string; unreadCount: number }>(provider, 'listChats', {})
+        .find((chat) => chat.id === chatId)?.unreadCount,
+    ).toBe(1);
+    await provider.mutate('login', { email: 'alice@example.com', password: 'Alice!Clique2026' });
+    expect((await provider.mutate('removeMember', { chatId, userId: 'bob' })).ok).toBe(true);
+    expect((await provider.mutate('addMember', { chatId, userId: 'bob' })).ok).toBe(true);
+
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    const messages = collectReady<Array<{
+      id: string;
+      status: string;
+      recipientCount: number;
+      readCount: number;
+    }>>(provider, 'listMessages', { chatId });
+    expect(messages.snapshots.at(-1)?.find((message) => message.id === old.value.id))
+      .toMatchObject({ status: 'read', recipientCount: 0, readCount: 0 });
+    expect(
+      readRows<{ id: string; unreadCount: number }>(provider, 'listChats', {})
+        .find((chat) => chat.id === chatId)?.unreadCount,
+    ).toBe(0);
+    expect((await provider.mutate('markReceipt', { chatId, state: 'read' })).ok).toBe(true);
+    expect(messages.snapshots.at(-1)?.find((message) => message.id === old.value.id))
+      .toMatchObject({ status: 'read', recipientCount: 0, readCount: 0 });
+
+    await provider.mutate('login', { email: 'alice@example.com', password: 'Alice!Clique2026' });
+    const fresh = await provider.mutate<{ id: string }>('sendMessage', {
+      chatId,
+      body: 'New membership obligation',
+      quotedMessageId: null,
+    });
+    if (!fresh.ok) throw new Error('expected new-incarnation message send to succeed');
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    expect(
+      readRows<{ id: string; unreadCount: number }>(provider, 'listChats', {})
+        .find((chat) => chat.id === chatId)?.unreadCount,
+    ).toBe(1);
+    messages.dispose();
+  });
+
   it('keeps removed-member history and typing route queries ready while refusing live writes', async () => {
     const { provider } = createCoterieMemoryHarness();
     const created = await provider.mutate<{ chatId: string }>('createGroup', {

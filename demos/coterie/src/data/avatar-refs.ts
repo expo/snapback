@@ -22,6 +22,11 @@ export const COTERIE_AVATAR_REFS = COTERIE_AVATARS.map(
 
 const avatarByRef = new Map(COTERIE_AVATARS.map((avatar) => [avatar.value, avatar]));
 
+const COTERIE_AVATAR_REF_BY_SOURCE_DIGEST = new Map<string, string>([
+  ['283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984', 'media/avatar-alice.png'],
+  ['9b49a333e2841ea99f6a708bc098a967d473183c134b5de9f35b6c36a72544d5', 'media/avatar-bob.png'],
+]);
+
 export interface CoterieAvatarOption {
   id: string;
   label: string;
@@ -38,4 +43,17 @@ export function coterieAvatarOptions(avatarRefs: readonly string[]): CoterieAvat
 
 export function coterieAvatarUrlForRef(avatarRef: unknown): string | null {
   return typeof avatarRef === 'string' ? avatarByRef.get(avatarRef)?.url ?? null : null;
+}
+
+
+/**
+ * Snapback persists the trusted source digest, not a same-byte picker alias.
+ * Project the canonical committed source ref; unknown or absent provenance
+ * stays null rather than inventing which alias was selected.
+ */
+export function coterieAvatarRefForSourceDigest(
+  sourceDigest: unknown,
+): string | null {
+  if (typeof sourceDigest !== 'string') return null;
+  return COTERIE_AVATAR_REF_BY_SOURCE_DIGEST.get(sourceDigest) ?? null;
 }
