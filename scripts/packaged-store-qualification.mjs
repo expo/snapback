@@ -229,6 +229,10 @@ async function main() {
 import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 export default defineSchema({
   items: defineTable({ bucket: v.string(), label: v.string() })
+    // @ref LLP 0234#phase-g2--d2-enforcing-closure — this synthetic
+    // qualification probe serves anonymous public functions only, so every
+    // row is public by design.
+    .visibility({ kind: 'public-read' })
     .index('by_bucket', ['bucket'])
     .sync(),
 });
