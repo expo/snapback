@@ -6,13 +6,16 @@
 Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
-**Revised:** 2026-08-16 (reconciles landing A `824e3ef7f` and reviewed landing
+**Revised:** 2026-08-16 (ships the dedicated package-generic React/Expo roster,
+role, mutation-receipt, and durable-status lifecycle hooks. Truthful operation
+metadata necessarily rotates the profile and generated client generation;
+authored inputs, runtime schema hash, and executable identity remain unchanged).
+2026-08-16 (reconciles landing A `824e3ef7f` and reviewed landing
 B `15c6829c2`: B's generated-operation contract, post-commit receipts, cursor
 custody, gating, and non-enumeration are canonical; A's RBAC table-visibility
 composition and per-profile operation vocabulary remain additive. Ordinary
-client and generic React hooks accept the generated references; dedicated
-per-profile LLP 0238 hooks, search/assets, hosted profiles, and the external
-Clique rerun remain open). 2026-08-15 (records the shipped local handler-admission and
+client and generic React hooks accept the generated references; search/assets,
+hosted profiles, and the external Clique rerun remain open). 2026-08-15 (records the shipped local handler-admission and
 bounded `list`/`myRole` slice: Explicit and Familiar handlers declare the
 canonical membership predicate, generated reads use a captured non-terminal
 evaluation, mutations use its terminal twin, and removal blanks live delivery;
@@ -267,8 +270,9 @@ never make the authority row itself public by accident.
 Every mutation returns an authority transition receipt with predecessor,
 successor, affected subject/scope, invalidation disposition, and stable refusal
 codes. Its generated reference uses the ordinary client and generic React/Expo
-hooks; dedicated per-profile lifecycle hooks remain a separate LLP 0238-shaped
-client slice.
+hooks. The package-generic dedicated hooks project the same LLP 0238 query,
+dispatch, and durable-disposition lifecycles without adding an app-specific
+codegen surface or another client protocol.
 
 Generated reads and refusals inherit LLP 0056’s non-enumeration contract. An
 unauthorized caller cannot distinguish an absent scope/member from one hidden
@@ -297,10 +301,13 @@ resolution stays below the writer seam. Successful committed settlements carry
 `authorityTransitions` with predecessor/successor state, subject, scope, and
 invalidation disposition. The atomic owner transfer yields two same-commit
 receipts. Preview, conflict, denial, and other failed attempts do not fabricate
-post-commit receipts. Dedicated per-profile React/Expo lifecycle hooks remain
-the unimplemented D3 client slice; the function references and settlement types
-are available to the framework-neutral client and accepted by the ordinary
-generic React/Expo hooks.
+post-commit receipts. `useSnapbackAuthorityRoster` adds opaque-cursor
+load-more/reset custody to the canonical live query; scope, caller, and
+generated-reference generation changes discard retained pages.
+`useSnapbackAuthorityMyRole` projects the caller's zero-or-one live row, while
+`useSnapbackAuthorityMutation` and `useSnapbackAuthorityMutationStatus` retain
+post-commit receipts and stable refusal codes through the ordinary dispatch and
+durable-disposition vocabulary. Expo re-exports those same hooks.
 
 ### D4. Custom function-mediated authority has an honest declaration
 
@@ -457,12 +464,13 @@ protected retention. Accepting this RFC neither accepts nor blocks either one.
 1. **Facade lowering (implemented locally).** Project the existing LLP 0056 membership manifest and
    LLP 0231 policy IR into the profile identity; add no second evaluator and no
    offline retention.
-2. **Roster and role facade (implemented locally except dedicated hooks and
-   external rerun).**
+2. **Roster and role facade (implemented locally except external rerun).**
    Generate opaque-paged `list`, `myRole`, the transition-derived mutations,
    durable authority receipts, and common named-handler admission in Explicit
    and Familiar. The references ride the ordinary client/generic hook surface;
-   dedicated per-profile LLP 0238 hooks and the external Clique rerun remain.
+   package-generic dedicated LLP 0238 React/Expo hooks now cover roster
+   pagination, caller role, receipt-bearing dispatch, and durable status. The
+   external Clique rerun remains.
 3. **Policy composition (table visibility demonstrated locally).** The RBAC
    witness feeds table visibility from the canonical IR and records the governed
    transition ledger. Strict/coarse custom authorization, membership-visible
@@ -485,6 +493,15 @@ without returning row ids, and hands one command to LLP 0056 inside the
 authoritative transaction. Owner creation/removal stays outside ordinary
 transitions; transfer promotes the target and demotes the caller atomically,
 with last-owner and stale-predecessor checks at commit.
+
+The dedicated client slice adds hook names to that frozen operation metadata.
+Because the profile descriptor participates in normalized schema/contract
+identity, this honesty change necessarily rotates the authority-profile,
+generated client generation, and per-function client-contract
+`implementationHash` values. The authored input hash, runtime `schemaHash`,
+emitted handler-source digests, and aggregate executable identity do not
+change. No authority evaluator, wire operation, generated reference, or
+storage rule changed.
 
 The RBAC demo now has one resource-scoped `appMembers` relation as both product
 roster and authority. Its `applications` and `announcements` policies consume

@@ -9,10 +9,13 @@ process-memory implementation of Coterie's frozen M1, M2, and v8 messaging
 `ContractDataProvider` surface. The optional `snapback` lane supplies the
 frozen M1 account/session/profile/avatar set plus the frozen M2 post, feed,
 follow, like, repost, reply, pagination, media, and multi-client-live behavior
-from the application-owned backend. It refuses the unqualified chat/reaction and later
-operations it has not qualified. The memory lane implements the wider
-declaration for client evidence, while the partial Snapback lane advertises
-only its qualified M1+M2 operations.
+from the application-owned backend. It also supplies the M3 durable messaging
+core: chat membership/admin operations, quoted text messages, live receipt
+aggregates, and the selected fixture-avatar reference projection. It advertises
+**M1+M2+M3-minus-typing**. Typing is deliberately unclaimed until Snapback can
+lower membership-backed ephemeral permissions; reactions remain unclaimed
+because the landed Coterie backend has no reaction operation or storage slice.
+The memory lane implements the wider declaration for client evidence.
 The memory lane makes no durability, server-authority, offline, or multi-client
 claim.
 
@@ -207,9 +210,12 @@ deliberate interim seam: Contract does not yet expose a portable file-input
 primitive, so the UI cannot drive the Snapback adapter's arbitrary local-file
 upload path directly.
 `listProfiles@3` now carries the nullable originating `avatarRef` alongside
-`avatarUrl`. This lane freezes that declaration/provider field and updates the
-picker selection to derive directly from it. The M1+M2 Snapback adapter
-projects `null` until its provenance path is separately qualified.
+`avatarUrl`. The declaration/provider field is frozen and the picker selection
+derives directly from it. The Snapback adapter maps the backend profile's
+`avatarSourceDigest` back to the canonical committed source ref in the closed
+fixture-ref vocabulary. Several picker aliases contain the same bytes, so a
+digest cannot honestly recover which alias was selected; profiles without a
+recognized source digest project `null`.
 
 ## Composer media picker
 
@@ -241,10 +247,13 @@ message quotes/reactions, and chat settings. An operation the selected adapter
 has not qualified has no affordance at all; it is never rendered as a dead
 button. Query-driven screens remain present and render their typed loading,
 error, stale, empty, and ready states without query-claim gating. Memory
-reports every declaration operation it implements. The
-Snapback adapter derives its claim rows from the same M1+M2 allow-list used by its
-loud `SnapbackMilestoneUnsupportedError` refusal path, and tests require those
-two views to agree.
+reports every declaration operation it implements. The Snapback adapter
+derives its claim rows from the same M1+M2+M3-minus-typing allow-list used by
+its refusal path, and tests require those two views to agree.
+`observeTyping@1` and `setTyping@1` instead return
+`SnapbackTypingPermissionBackingUnavailableError`, naming
+`issues/20260817-ephemeral-membership-permission-backing.md`; this is an honest
+unclaimed-platform-gap result, not a later-milestone refusal.
 
 ## Provider surface and v8 overlay
 
@@ -305,24 +314,43 @@ generation was `0614938f8ff02c4e`. The corrected v6 surface in this tree is
 `2b035e0c69068f02`. Replaying the v7 overlay produces the merged declaration
 digest `61fcaaa7b60092b4`; the v8 messaging surface generates
 `69a5aa9950796671`.
-The Snapback adapter implements the frozen M1+M2 token sets without changing
-the shared declaration digest. Password signup/sign-in/logout use
+The Snapback adapter implements the frozen M1+M2 token sets and the M3 durable
+messaging set without changing the shared declaration digest. Password signup/sign-in/logout use
 Snapback's built-in password provider and `AuthCoordinator`; the session query
 projects coordinator principal changes, while profiles use the generated
 `getMyProfile`, `ensureMyProfile`, `editProfile`, streaming `listProfiles`, and
 per-profile streaming `profileStats` references. Avatar changes upload through
 `createAssetClient` and attach with `attachMyAvatar`. M2 feed, thread, profile-
 post, and profile-stat reads all use stream transport with polling fallback
-disabled. Connection-only cells publish socket loss and recovery without
-counting as profile-data revisions.
+disabled. M3 chats and messages use the same stream-only posture; identity
+joins complete before publication, and each declaration query consumes one
+fully live backend window. There is no one-shot tail fetch or adapter archive:
+membership, unread, quoted-message, and receipt changes remain live on every
+row in the admitted product envelope.
+Connection-only cells publish socket loss and recovery without counting as
+profile-data revisions.
+
+The product envelope is **1,000 conversations per profile** and **1,024
+messages per conversation**. Those are complete live-result bounds, not page
+sizes. `listChats` takes all 1,000 rows in one live window and `listMessages`
+takes all 1,024 rows in one live window. Before any crossing write,
+`createGroup`, a creating `openDm`, and `addMember` refuse with
+`CHAT_ENVELOPE_EXCEEDED` when any newly enrolled participant already has 1,000
+chats; `sendMessage` refuses with
+`MESSAGE_ENVELOPE_EXCEEDED` when the conversation already has 1,024 messages.
+The exact boundary succeeds, the next write changes nothing, and both
+limitations surface through the adapter as `SnapbackProviderError`. Reusing an
+existing DM at the chat boundary remains legal. `markReceipt` uses the same
+1,024-required-message bound per membership incarnation before its single
+atomic watermark update.
 
 The operation map is deliberately app-owned and contains no seed machinery:
 
 | Declaration operation | Snapback operation(s) |
 | --- | --- |
 | `listSession@2` | `AuthCoordinator` principal + `getMyProfile` |
-| `listProfiles@3` | streaming `listProfiles` + one retained streaming `profileStats` per profile; the UI consumes nullable `avatarRef` directly, while the current M1/M2 adapter projects `null` until adapter-M3 lands (so this lane honestly shows no selected picker highlight yet) |
-| `listProviderClaims@1` | adapter-local frozen M1+M2 claim projection |
+| `listProfiles@3` | streaming `listProfiles` + one retained streaming `profileStats` per profile; `avatarSourceDigest` → fixture-vocabulary `avatarRef`, consumed directly by the picker UI |
+| `listProviderClaims@1` | adapter-local frozen M1+M2+M3-minus-typing claim projection |
 | `signup@2` | password signup + `ensureMyProfile` |
 | `login@1` / `logout@1` | password sign-in / auth logout through `AuthCoordinator` |
 | `editProfile@1` | `getMyProfile` + `editProfile` |
@@ -334,6 +362,16 @@ The operation map is deliberately app-owned and contains no seed machinery:
 | `setFollow@1` | profile identity join + `setFollow` |
 | `setLike@1` | `setLike` |
 | `setRepost@2` | `setRepost` (including its declared reply refusal) |
+| `listChats@3` | one 1,000-row fully live membership-scoped `listChats` window + backend-maintained per-incarnation unread count; `typingHint: null` |
+| `listMessages@4` | one 1,024-row fully live membership-scoped `listMessages` window, quoted-message projection, required-viewer receipt and group receipt summary |
+| `openDm@1` | atomic `openDm` result (`created` or `reused`) |
+| `createGroup@1` | profile identity joins + `createGroup` |
+| `addMember@1` / `removeMember@1` / `promoteAdmin@1` | profile identity join + matching backend membership mutation |
+| `leaveChat@1` | `leaveChat` |
+| `sendMessage@4` | `sendMessage`, including the optional quoted-message identity |
+| `markReceipt@1` | one atomic `markReceiptsThrough` membership-watermark mutation |
+| `observeTyping@1` / `setTyping@1` | deliberately unclaimed; membership-backed ephemeral permission ticket |
+| `setMessageReaction@2` | unclaimed; the landed backend has no reaction operation/table (M4 surface) |
 
 `ensureFixture*`, `getMyFixturePost`, and `getMyFixturePostMedia` are seed-
 installer operations, never declaration mappings and never provider claims.
@@ -349,12 +387,12 @@ Malformed, non-canonical, or cross-mode tokens become
 `FeedCursorInvalidError`; the terminal short page carries `null`, while every
 row in a full 20-row page carries the same next cursor.
 
-This adapter claims **M1+M2 plus provider discovery only**. Calls to
-unqualified v8 chat/reaction or later queries and mutations return a
-`SnapbackMilestoneUnsupportedError` whose message names the operation and LLP
-0266 D7; they never synthesize rows or acknowledge a fake mutation. Snapback's
-error translation is an exact allow-list; prefix families are deliberately not
-used:
+This adapter claims **M1+M2+M3-minus-typing plus provider discovery only**.
+Typing calls use the ticket-bearing unclaimed-platform-gap error described
+above. Reactions and later milestone operations return
+`SnapbackMilestoneUnsupportedError`; they never synthesize rows or acknowledge
+a fake mutation. Snapback's error translation is an exact allow-list; prefix
+families are deliberately not used:
 
 | Operation | Exact Snapback diagnostic | Coterie error |
 | --- | --- | --- |
@@ -376,13 +414,22 @@ used:
 | `setFollow` | application `SELF_FOLLOW_FORBIDDEN` | `SelfFollowInvalidError` |
 | `setLike`, `setRepost` | application `POST_NOT_FOUND` | `PostNotFoundError` |
 | `setRepost` | application `REPLY_REPOST_FORBIDDEN` | `ReplyRepostForbiddenError` |
+| `openDm` | application `PROFILE_REQUIRED`, `PROFILE_NOT_FOUND`, `SELF_DM_FORBIDDEN` | `SessionRequiredError`, `ProfileNotFoundError`, `DirectMessageSelfError` |
+| `createGroup` | application `PROFILE_REQUIRED`, `PROFILE_NOT_FOUND`, `GROUP_NAME_INVALID`, `GROUP_DESCRIPTION_TOO_LONG`, `GROUP_SIZE_INVALID` | `SessionRequiredError`, `ProfileNotFoundError`, `GroupNameInvalidError`, `GroupDescriptionInvalidError`, `GroupMembersInvalidError` |
+| `addMember` | application `PROFILE_REQUIRED`, `PROFILE_NOT_FOUND`, `CHAT_NOT_FOUND`, `CHAT_MEMBERSHIP_REQUIRED`, `NOT_GROUP_ADMIN`, `NOT_GROUP_CHAT`, `MEMBER_ALREADY_EXISTS`, `GROUP_MEMBER_LIMIT_REACHED` | `SessionRequiredError`, `ProfileNotFoundError`, `ChatNotFoundError`, `ChatAdminRequiredError`, `GroupRequiredError`, `ChatMemberAlreadyExistsError`, `ChatMemberLimitError` |
+| `removeMember` | application `PROFILE_REQUIRED`, `CHAT_NOT_FOUND`, `CHAT_MEMBERSHIP_REQUIRED`, `NOT_GROUP_ADMIN`, `NOT_GROUP_CHAT`, `MEMBER_NOT_FOUND`, `REMOVE_SELF_WITH_LEAVE` | `SessionRequiredError`, `ChatNotFoundError`, `ChatAdminRequiredError`, `GroupRequiredError`, `ChatMemberNotFoundError`, `RemoveSelfInvalidError` |
+| `promoteAdmin` | application `PROFILE_REQUIRED`, `CHAT_NOT_FOUND`, `CHAT_MEMBERSHIP_REQUIRED`, `NOT_GROUP_ADMIN`, `NOT_GROUP_CHAT`, `MEMBER_NOT_FOUND` | `SessionRequiredError`, `ChatNotFoundError`, `ChatAdminRequiredError`, `GroupRequiredError`, `ChatMemberNotFoundError` |
+| `leaveChat` | application `PROFILE_REQUIRED`, `CHAT_NOT_FOUND`, `CHAT_MEMBERSHIP_REQUIRED`, `NOT_GROUP_CHAT` | `SessionRequiredError`, `ChatNotFoundError`, `ChatMembershipRequiredError`, `GroupRequiredError` |
+| `sendMessage` | application `PROFILE_REQUIRED`, `CHAT_NOT_FOUND`, `CHAT_MEMBERSHIP_REQUIRED`, `MESSAGE_BODY_REQUIRED`, `MESSAGE_BODY_TOO_LONG`, `QUOTED_MESSAGE_NOT_FOUND` | `SessionRequiredError`, `ChatNotFoundError`, `ChatMembershipRequiredError`, `MessageBodyInvalidError`, `QuotedMessageInvalidError` |
+| `listMessages`, `markReceipt` | application `CHAT_NOT_FOUND`, `CHAT_MEMBERSHIP_REQUIRED` (and `PROFILE_REQUIRED` for the mutation) | `ChatNotFoundError`, `ChatMembershipRequiredError` (and `SessionRequiredError`) |
 
 Local avatar URL/fetch/body-read/signature failures use
 `AvatarReferenceInvalidError`; equivalent committed-post-media failures use
 `MediaReferenceInvalidError`. The backend owns the immutable-`parentId` reply
 check and emits `REPLY_REPOST_FORBIDDEN`; the adapter maps that exact code and
 does not read the bounded thread projection before reposting. `PROFILE_NOT_OWNED`,
-`THREAD_REPLY_LIMIT_EXCEEDED`, and every unlisted backend
+`THREAD_REPLY_LIMIT_EXCEEDED`, `CHAT_ENVELOPE_EXCEEDED`,
+`MESSAGE_ENVELOPE_EXCEEDED`, `RECEIPT_ENVELOPE_EXCEEDED`, and every unlisted backend
 diagnostic surface as `SnapbackProviderError`; provider faults never
 masquerade as declared user recovery errors.
 
@@ -448,24 +495,44 @@ SNAPBACK_RUNTIME_BINARY=/Users/ccheever/projects/snapback/target/debug/snapback 
   --db demos/coterie/.data/snapback/dev.sqlite3 --json
 ```
 
-In another terminal, use the printed URL. The M2 seed command is idempotent;
-it composes `seed-m1.mjs`, then installs the personas, post media, follow
-graph, posts/replies, likes, and attributed reposts. The acceptance runner
+In another terminal, use the printed URL. The M3 seed command is idempotent;
+it composes `seed-m2.mjs`, then installs the conversations, membership
+incarnations, quoted messages, and receipt rows. The lower seed composes
+`seed-m1.mjs` and installs the personas, post media, follow graph,
+posts/replies, likes, and attributed reposts. The acceptance runner
 invokes that same installer itself, so the explicit seed is needed for
 interactive development but does not have to precede acceptance:
 
 ```bash
 export COTERIE_SNAPBACK_URL=http://127.0.0.1:<printed-port>
-node demos/coterie/snapback/seed-m2.mjs --url "$COTERIE_SNAPBACK_URL"
+node demos/coterie/snapback/seed-m3.mjs --url "$COTERIE_SNAPBACK_URL"
 
 cd demos/coterie
 COTERIE_PROVIDER=snapback bun run dev
 ```
 
+### M3 schema transition: DESTRUCTIVE-WITH-RESEED
+
+The M3 backend adds the required `conversations.chatPageKey` field plus five
+required `conversationMembers` projections: `chatPageKey`, `unreadCount`,
+`receiptCount`, `deliveredThroughSequence`, and `readThroughSequence`. Coterie
+has no populated production store: the dev lane is disposable and the
+acceptance stores are memory or test scratch. Following the disposable-data
+path in `guide/backend/migrations.md`, this transition is declared
+**DESTRUCTIVE-WITH-RESEED** rather than presented as a preservation migration.
+
+Delete only the disposable Coterie dev database named by the `--db` argument,
+start the current schema, then run `seed-m3.mjs`; it composes `seed-m2.mjs`,
+which composes `seed-m1.mjs`. If any store later contains data that must be
+preserved, this declaration no longer applies: use the reviewed `snapback
+migrate` loop with explicit required-field backfills before activating the
+schema.
+
 The shared headless provider-proof runner selects steps from
-`listProviderClaims@1`. The Snapback lane runs its unchanged 18 M1+M2 binding
-steps across `provider-boot` and `injected-signed-out`; unclaimed M3 steps are
-recorded as `skipped-by-claim`, not attempted or counted as proof.
+`listProviderClaims@1`. The Snapback lane runs its 14 claimed M1+M2+M3
+binding steps across both `provider-boot` and `injected-signed-out`; the one
+typing step per scenario is recorded as `skipped-by-claim`, not attempted or
+counted as proof.
 
 Native hosts use the same source:
 
@@ -528,9 +595,9 @@ projection. It finally proves logout revokes the exact last Alice token.
 Tokens stay local to the runner for comparison; the JSON artifact records only
 boolean token receipts, and a partial failure triggers best-effort session
 revocation before provider disposal. Both providers run the `provider-boot`
-and `injected-signed-out` scenarios. The Snapback M1+M2 lane requires its
+and `injected-signed-out` scenarios. The Snapback M1+M2+M3-minus-typing lane requires its
 configured server and streaming socket and installs fixtures through
-`seed-m2.mjs`. The runner reuses the shared assertion aggregator and writes
+`seed-m3.mjs`. The runner reuses the shared assertion aggregator and writes
 the artifact under the ignored `.data/acceptance/` directory, printing the
 absolute path. The artifact mechanism is
 `headless-generated-binding-provider-proof`: it proves only the claimed
@@ -542,11 +609,14 @@ post-landing choreography program; this artifact makes none of those claims.
 
 `test:snapback-provider` starts and tears down an isolated Snapback server and
 runs Exact provider conformance with formal probes for M1
-`listProfiles@3`+`editProfile@1` and M2 `listFeed@3`+`createPost@1`. The suite
+`listProfiles@3`+`editProfile@1`, M2 `listFeed@3`+`createPost@1`, and M3
+`listMessages@4`+`sendMessage@4`. The suite
 has no milestone selector, so those are the exact formal pairs rather than a
 claim that it individually invokes the whole allow-list. Adapter-specific
 probes additionally cover: two-client pushed profile edits; client B observing
-client A's post creation and like-count change with polling disabled; live
+client A's post creation and like-count change with polling disabled; client B
+observing client A's message send and its own receipt transition through one
+stream-only `listMessages` handle; the M3 membership mutation matrix; live
 profile counts; feed/profile/thread projection; post-media upload; repost
 attribution and reply refusal; post-signup author/reposter identity hydration
 without a profile subscription; exact image/video/avatar rendition delivery;

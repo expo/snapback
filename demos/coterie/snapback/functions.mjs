@@ -1319,10 +1319,22 @@ function removalCutoffPageKey(sequence) {
   return `${conversationSequencePrefix(sequence)}:`;
 }
 
-function earlierPageKey(left, right) {
-  if (!left) return right;
-  if (!right) return left;
-  return left < right ? left : right;
+export function receiptEnvelopeMessageLimit() {
+  return 1_024;
+}
+
+export function receiptEnvelopeAdmits(receiptCount) {
+  return Number.isSafeInteger(receiptCount)
+    && receiptCount >= 0
+    && receiptCount <= receiptEnvelopeMessageLimit();
+}
+
+export function chatHistoryEnvelopeLimit() {
+  return 1_000;
+}
+
+export function messageHistoryEnvelopeLimit() {
+  return 1_024;
 }
 
 async function getManyChunked(ctx, table, ids) {
@@ -1369,7 +1381,7 @@ async function chatAccessForProfileConversation(
   refuse = true,
 ) {
   if (!conversation) {
-    if (refuse) ctx.refuse('CHAT_MEMBERSHIP_REQUIRED');
+    if (refuse) ctx.refuse('CHAT_NOT_FOUND');
     return null;
   }
   const active = await currentMembershipForProfileConversation(
@@ -1424,8 +1436,28 @@ function normalizedMessageBody(ctx, value) {
   return body;
 }
 
+async function requireChatEnvelopeCapacity(ctx, profiles) {
+  const seenProfileIds = [];
+  for (const profile of profiles) {
+    if (seenProfileIds.includes(profile._id)) continue;
+    seenProfileIds.push(profile._id);
+    const chats = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_profile_latest_chat_page')
+      .eq('profileId', profile._id)
+      .eq('isLatest', true)
+      .take(chatHistoryEnvelopeLimit())
+      .collect();
+    if (chats.length >= chatHistoryEnvelopeLimit()) {
+      ctx.refuse('CHAT_ENVELOPE_EXCEEDED');
+    }
+  }
+}
+
 async function createConversationCore(ctx, creator, input, fixture) {
+  await requireChatEnvelopeCapacity(ctx, input.initialProfiles);
   const createdAt = ctx.runtime.now();
+  const chatPageKey = pageKeyFor(ctx, createdAt);
   const conversationId = await ctx.db.insert('conversations', {
     ownerId: creator.ownerId,
     kind: input.kind,
@@ -1435,6 +1467,7 @@ async function createConversationCore(ctx, creator, input, fixture) {
     ...(input.groupDescription ? { groupDescription: input.groupDescription } : {}),
     creatorProfileId: creator._id,
     nextEventSequence: 1,
+    chatPageKey,
     lastMessageAt: createdAt,
     createdAt,
   });
@@ -1449,6 +1482,11 @@ async function createConversationCore(ctx, creator, input, fixture) {
       isCurrent: true,
       isLatest: true,
       activeKey: activeMembershipKey(conversationId, profile._id),
+      chatPageKey,
+      unreadCount: 0,
+      receiptCount: 0,
+      deliveredThroughSequence: 0,
+      readThroughSequence: 0,
     });
   }
   return conversationId;
@@ -1511,6 +1549,9 @@ async function addGroupMemberCore(
     targetProfile._id,
     conversation._id,
   );
+  if (!previousMembership) {
+    await requireChatEnvelopeCapacity(ctx, [targetProfile]);
+  }
   if (previousMembership?.isLatest) {
     await ctx.db.patch('conversationMembers', previousMembership._id, { isLatest: false });
   }
@@ -1526,6 +1567,11 @@ async function addGroupMemberCore(
     isCurrent: true,
     isLatest: true,
     activeKey,
+    chatPageKey: conversation.chatPageKey,
+    unreadCount: 0,
+    receiptCount: 0,
+    deliveredThroughSequence: 0,
+    readThroughSequence: 0,
     ...(fixture
       ? { fixtureMutationId: fixture.mutationId, fixtureDigest: fixture.digest }
       : {}),
@@ -1544,6 +1590,7 @@ async function closeMembership(ctx, conversation, membership) {
     removedSequence,
     isCurrent: false,
     activeKey: `removed:${membership._id}`,
+    unreadCount: 0,
   });
   await ctx.db.patch('conversations', conversation._id, {
     nextEventSequence: removedSequence + 1,
@@ -1562,10 +1609,20 @@ async function insertMessageCore(
 ) {
   const senderMembership = activeMembers.find((member) => member.profileId === sender._id);
   if (!senderMembership) ctx.refuse('CHAT_MEMBERSHIP_REQUIRED');
+  const existingMessages = await ctx.db
+    .query('messages')
+    .withIndex('by_conversation_page')
+    .eq('conversationId', conversation._id)
+    .take(messageHistoryEnvelopeLimit())
+    .collect();
+  if (existingMessages.length >= messageHistoryEnvelopeLimit()) {
+    ctx.refuse('MESSAGE_ENVELOPE_EXCEEDED');
+  }
   const recipients = activeMembers.filter((member) => member.profileId !== sender._id);
   const sequence = conversation.nextEventSequence;
   const createdAt = ctx.runtime.now();
   const pageKey = conversationPageKey(ctx, sequence);
+  const chatPageKey = pageKeyFor(ctx, createdAt);
   const messageId = await ctx.db.insert('messages', {
     ownerId: sender.ownerId,
     conversationId: conversation._id,
@@ -1589,8 +1646,21 @@ async function insertMessageCore(
       statusRank: 0,
     });
   }
+  for (const member of activeMembers) {
+    const recipient = member.profileId !== sender._id;
+    await ctx.db.patch('conversationMembers', member._id, {
+      chatPageKey,
+      ...(recipient
+        ? {
+            unreadCount: member.unreadCount + 1,
+            receiptCount: member.receiptCount + 1,
+          }
+        : {}),
+    });
+  }
   await ctx.db.patch('conversations', conversation._id, {
     nextEventSequence: sequence + 1,
+    chatPageKey,
     lastMessageId: messageId,
     lastMessageAt: createdAt,
   });
@@ -1605,22 +1675,38 @@ function requiredQuotedMessage(ctx, conversationId, quotedMessageId, quoted) {
   return quoted;
 }
 
+function effectiveReceiptRank(message, receipt, membership) {
+  let rank = receipt.statusRank;
+  if (message.sequence <= membership.deliveredThroughSequence) rank = Math.max(rank, 1);
+  if (message.sequence <= membership.readThroughSequence) rank = Math.max(rank, 2);
+  return rank;
+}
+
+function receiptStatusForRank(rank) {
+  return rank >= 2 ? 'read' : rank >= 1 ? 'delivered' : 'sent';
+}
+
 function receiptSummaryFor(message, receipts, recipientMemberships) {
   const membershipById = new Map(recipientMemberships.map((row) => [row._id, row]));
-  const requiredIds = receipts.map((receipt) => receipt.recipientMemberId).filter((memberId) => {
-    const membership = membershipById.get(memberId);
-    return membership && membership.removedAt == null;
+  const requiredReceipts = receipts.flatMap((receipt) => {
+    const membership = membershipById.get(receipt.recipientMemberId);
+    return membership && membership.removedAt == null
+      ? [{ receipt, membership }]
+      : [];
   });
-  const requiredReceipts = receipts.filter((receipt) => requiredIds.includes(receipt.recipientMemberId));
-  const deliveredCount = requiredReceipts.filter((receipt) => receipt.statusRank >= 1).length;
-  const readCount = requiredReceipts.filter((receipt) => receipt.statusRank >= 2).length;
+  const deliveredCount = requiredReceipts.filter(({ receipt, membership }) => (
+    effectiveReceiptRank(message, receipt, membership) >= 1
+  )).length;
+  const readCount = requiredReceipts.filter(({ receipt, membership }) => (
+    effectiveReceiptRank(message, receipt, membership) >= 2
+  )).length;
   let aggregateStatus = 'sent';
-  if (requiredIds.length === 0 || readCount === requiredIds.length) aggregateStatus = 'read';
-  else if (deliveredCount === requiredIds.length) aggregateStatus = 'delivered';
+  if (requiredReceipts.length === 0 || readCount === requiredReceipts.length) aggregateStatus = 'read';
+  else if (deliveredCount === requiredReceipts.length) aggregateStatus = 'delivered';
   return {
     aggregateStatus,
     recipientCount: message.recipientCount,
-    requiredCount: requiredIds.length,
+    requiredCount: requiredReceipts.length,
     sentCount: requiredReceipts.length,
     deliveredCount,
     readCount,
@@ -1656,6 +1742,7 @@ const chatMessageRow = v.object({
   pageKey: v.string(),
   createdAt: v.integer(),
   viewerReceiptStatus: v.optional(v.string()),
+  viewerReceiptRequired: v.boolean(),
   receiptSummary: receiptSummaryRow,
 });
 
@@ -1681,6 +1768,12 @@ async function hydrateChatMessages(
     const viewerReceipt = messageReceipts.find((receipt) => (
       receipt.recipientProfileId === viewerProfileId
     ));
+    const viewerReceiptMembership = viewerReceipt
+      ? recipientMemberships.find((membership) => membership._id === viewerReceipt.recipientMemberId)
+      : null;
+    const viewerReceiptRequired = Boolean(
+      viewerReceiptMembership && viewerReceiptMembership.removedAt == null,
+    );
     const quoted = message.quotedMessageId
       ? quotedMessages.find((candidate) => candidate._id === message.quotedMessageId)
       : null;
@@ -1708,7 +1801,14 @@ async function hydrateChatMessages(
         : {}),
       pageKey: message.pageKey,
       createdAt: message.createdAt,
-      ...(viewerReceipt ? { viewerReceiptStatus: viewerReceipt.status } : {}),
+      ...(viewerReceipt && viewerReceiptMembership
+        ? {
+            viewerReceiptStatus: receiptStatusForRank(
+              effectiveReceiptRank(message, viewerReceipt, viewerReceiptMembership),
+            ),
+          }
+        : {}),
+      viewerReceiptRequired,
       receiptSummary: receiptSummaryFor(message, messageReceipts, recipientMemberships),
     };
   });
@@ -1725,11 +1825,13 @@ const chatMemberRow = v.object({
 
 const chatListRow = v.object({
   _id: v.id('conversations'),
+  pageKey: v.string(),
   kind: v.string(),
   name: v.string(),
   description: v.string(),
   viewerRole: v.string(),
   active: v.boolean(),
+  unreadCount: v.integer(),
   members: v.array(chatMemberRow, { maxItems: 50 }),
   lastMessage: v.optional(chatMessageRow),
   lastMessageAt: v.integer(),
@@ -1757,17 +1859,19 @@ async function chatRoster(ctx, memberships) {
 export const listChats = defineJsLiveQuery({
   auth: 'authenticated',
   args: {},
-  result: results.records(chatListRow, { minItems: 0, maxItems: 200 }),
+  result: results.records(chatListRow, { minItems: 0, maxItems: 1_000 }),
   reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
   refusals: ['PROFILE_REQUIRED'],
   handler: async (ctx) => {
     const viewer = await requireMyProfile(ctx);
-    const memberships = await ctx.db
+    let membershipQuery = ctx.db
       .query('conversationMembers')
-      .withIndex('by_latest_profile')
+      .withIndex('by_profile_latest_chat_page')
       .eq('profileId', viewer._id)
-      .eq('isLatest', true)
-      .take(200)
+      .eq('isLatest', true);
+    const memberships = await membershipQuery
+      .order('chatPageKey', 'desc')
+      .take(1_000)
       .collect();
     const byConversation = new Map(
       memberships.map((membership) => [membership.conversationId, membership]),
@@ -1824,6 +1928,7 @@ export const listChats = defineJsLiveQuery({
       const other = members.find((member) => member.profileId !== viewer._id);
       projected.push({
         _id: conversation._id,
+        pageKey: historical.chatPageKey,
         kind: conversation.kind,
         name: conversation.kind === 'group'
           ? conversation.groupName
@@ -1831,14 +1936,14 @@ export const listChats = defineJsLiveQuery({
         description: conversation.groupDescription ?? '',
         viewerRole: historical.role,
         active: Boolean(active),
+        unreadCount: active ? historical.unreadCount : 0,
         members,
         ...(hydrated ? { lastMessage: hydrated } : {}),
         lastMessageAt: hydrated?.createdAt ?? conversation.createdAt,
       });
     }
     return projected
-      .sort((left, right) => right.lastMessageAt - left.lastMessageAt)
-      .slice(0, 200);
+      .sort((left, right) => right.pageKey.localeCompare(left.pageKey));
   },
 });
 
@@ -1846,11 +1951,10 @@ export const listMessages = defineJsLiveQuery({
   auth: 'authenticated',
   args: {
     conversationId: v.id('conversations'),
-    before: v.optional(v.string()),
   },
-  result: results.records(chatMessageRow, { minItems: 0, maxItems: 50 }),
+  result: results.records(chatMessageRow, { minItems: 0, maxItems: 1_024 }),
   reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
-  refusals: ['PROFILE_REQUIRED', 'CHAT_MEMBERSHIP_REQUIRED'],
+  refusals: ['PROFILE_REQUIRED', 'CHAT_NOT_FOUND', 'CHAT_MEMBERSHIP_REQUIRED'],
   handler: async (ctx, args) => {
     const viewer = await requireMyProfile(ctx);
     const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
@@ -1859,23 +1963,26 @@ export const listMessages = defineJsLiveQuery({
       conversation,
       viewer._id,
     );
-    const before = earlierPageKey(args.before, access.cutoffPageKey);
+    const before = access.cutoffPageKey;
     let query = ctx.db.elevated
       .query('messages')
       .withIndex('by_conversation_page')
       .eq('conversationId', args.conversationId);
     if (before) query = query.lt('pageKey', before);
-    const rows = await query.order('pageKey', 'desc').take(50).collect();
+    const rows = await query.order('pageKey', 'desc').take(1_024).collect();
     const quotedMessages = (await ctx.db.elevated.getMany(
       'messages',
       rows.map((message) => message.quotedMessageId).filter(Boolean),
     )).filter((row) => Boolean(row));
-    const receipts = rows.length === 0 ? [] : await ctx.db.elevated
-      .query('messageReceipts')
-      .withIndex('by_message')
-      .in('messageId', rows.map((message) => message._id))
-      .take(rows.length * 49)
-      .collect();
+    const receipts = [];
+    for (const messageChunk of chunkValues(rows, 20)) {
+      receipts.push(...(await ctx.db.elevated
+        .query('messageReceipts')
+        .withIndex('by_message')
+        .in('messageId', messageChunk.map((message) => message._id))
+        .take(messageChunk.length * 49)
+        .collect()));
+    }
     const recipientMembershipIds = [];
     for (const receipt of receipts) {
       if (!recipientMembershipIds.includes(receipt.recipientMemberId)) {
@@ -1903,10 +2010,18 @@ export const listMessages = defineJsLiveQuery({
 export const openDm = defineJsMutation({
   auth: 'authenticated',
   args: { otherProfileId: v.id('profiles') },
-  result: results.value(v.id('conversations')),
-  reads: ['profiles', 'conversations'],
+  result: results.value(v.object({
+    conversationId: v.id('conversations'),
+    disposition: v.string(),
+  })),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
   writes: ['conversations', 'conversationMembers'],
-  refusals: ['PROFILE_REQUIRED', 'PROFILE_NOT_FOUND', 'SELF_DM_FORBIDDEN'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'PROFILE_NOT_FOUND',
+    'SELF_DM_FORBIDDEN',
+    'CHAT_ENVELOPE_EXCEEDED',
+  ],
   handler: async (ctx, args) => {
     const creator = await requireMyProfile(ctx);
     const other = await ctx.db.get('profiles', args.otherProfileId);
@@ -1917,7 +2032,7 @@ export const openDm = defineJsMutation({
       .withIndex('by_dm_pair')
       .eq('dmPairKey', dmPairKey)
       .first();
-    return (await openDmCore(ctx, creator, other, existing)).conversationId;
+    return openDmCore(ctx, creator, other, existing);
   },
 });
 
@@ -1929,7 +2044,7 @@ export const createGroup = defineJsMutation({
     memberProfileIds: v.array(v.id('profiles'), { maxItems: 64 }),
   },
   result: results.value(v.id('conversations')),
-  reads: ['profiles'],
+  reads: ['profiles', 'conversationMembers'],
   writes: ['conversations', 'conversationMembers'],
   refusals: [
     'PROFILE_REQUIRED',
@@ -1937,6 +2052,7 @@ export const createGroup = defineJsMutation({
     'GROUP_NAME_INVALID',
     'GROUP_DESCRIPTION_TOO_LONG',
     'GROUP_SIZE_INVALID',
+    'CHAT_ENVELOPE_EXCEEDED',
   ],
   handler: async (ctx, args) => {
     const creator = await requireMyProfile(ctx);
@@ -1973,10 +2089,13 @@ export const addMember = defineJsMutation({
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'NOT_GROUP_CHAT',
     'NOT_GROUP_ADMIN',
+    'MEMBER_ALREADY_EXISTS',
     'GROUP_MEMBER_LIMIT_REACHED',
+    'CHAT_ENVELOPE_EXCEEDED',
   ],
   handler: async (ctx, args) => {
     const actor = await requireMyProfile(ctx);
@@ -1992,6 +2111,7 @@ export const addMember = defineJsMutation({
       .withIndex('by_active_key')
       .eq('activeKey', activeMembershipKey(access.conversation._id, target._id))
       .first();
+    if (existing) ctx.refuse('MEMBER_ALREADY_EXISTS');
     const allMembers = await ctx.db.elevated
       .query('conversationMembers')
       .withIndex('by_current_conversation')
@@ -2020,12 +2140,12 @@ export const removeMember = defineJsMutation({
   writes: ['conversations', 'conversationMembers'],
   refusals: [
     'PROFILE_REQUIRED',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'NOT_GROUP_CHAT',
     'NOT_GROUP_ADMIN',
     'MEMBER_NOT_FOUND',
     'REMOVE_SELF_WITH_LEAVE',
-    'LAST_GROUP_ADMIN',
   ],
   handler: async (ctx, args) => {
     const actor = await requireMyProfile(ctx);
@@ -2045,9 +2165,6 @@ export const removeMember = defineJsMutation({
     const members = boundedCurrentMemberships(memberRows);
     const target = members.find((membership) => membership.profileId === args.profileId);
     if (!target) ctx.refuse('MEMBER_NOT_FOUND');
-    if (target.role === 'admin' && members.filter((member) => member.role === 'admin').length === 1) {
-      ctx.refuse('LAST_GROUP_ADMIN');
-    }
     await closeMembership(ctx, access.conversation, target);
     return access.conversation._id;
   },
@@ -2064,6 +2181,7 @@ export const promoteAdmin = defineJsMutation({
   writes: ['conversationMembers'],
   refusals: [
     'PROFILE_REQUIRED',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'NOT_GROUP_CHAT',
     'NOT_GROUP_ADMIN',
@@ -2101,9 +2219,9 @@ export const leaveChat = defineJsMutation({
   writes: ['conversations', 'conversationMembers'],
   refusals: [
     'PROFILE_REQUIRED',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'NOT_GROUP_CHAT',
-    'LAST_GROUP_ADMIN',
   ],
   handler: async (ctx, args) => {
     const actor = await requireMyProfile(ctx);
@@ -2113,22 +2231,6 @@ export const leaveChat = defineJsMutation({
       await chatAccessForProfileConversation(ctx, conversation, actor._id),
     );
     if (access.conversation.kind !== 'group') ctx.refuse('NOT_GROUP_CHAT');
-    const memberRows = await ctx.db.elevated
-      .query('conversationMembers')
-      .withIndex('by_current_conversation')
-      .eq('conversationId', access.conversation._id)
-      .eq('isCurrent', true)
-      .take(51)
-      .collect();
-    const members = boundedCurrentMemberships(memberRows);
-    const others = members.filter((member) => member._id !== access.membership._id);
-    if (
-      access.membership.role === 'admin'
-      && others.length > 0
-      && !others.some((member) => member.role === 'admin')
-    ) {
-      ctx.refuse('LAST_GROUP_ADMIN');
-    }
     await closeMembership(ctx, access.conversation, access.membership);
     return access.conversation._id;
   },
@@ -2143,13 +2245,15 @@ export const sendMessage = defineJsMutation({
   },
   result: results.value(v.id('messages')),
   reads: ['profiles', 'conversations', 'conversationMembers', 'messages'],
-  writes: ['conversations', 'messages', 'messageReceipts'],
+  writes: ['conversations', 'conversationMembers', 'messages', 'messageReceipts'],
   refusals: [
     'PROFILE_REQUIRED',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'MESSAGE_BODY_REQUIRED',
     'MESSAGE_BODY_TOO_LONG',
     'QUOTED_MESSAGE_NOT_FOUND',
+    'MESSAGE_ENVELOPE_EXCEEDED',
   ],
   handler: async (ctx, args) => {
     const sender = await requireMyProfile(ctx);
@@ -2186,8 +2290,9 @@ export const sendMessage = defineJsMutation({
   },
 });
 
-async function advanceReceipt(ctx, receipt, targetStatus, targetRank) {
-  if (receipt.statusRank < targetRank) {
+async function advanceReceipt(ctx, message, receipt, membership, targetStatus, targetRank) {
+  const currentRank = effectiveReceiptRank(message, receipt, membership);
+  if (currentRank < targetRank) {
     const now = ctx.runtime.now();
     await ctx.db.patch('messageReceipts', receipt._id, {
       status: targetStatus,
@@ -2195,9 +2300,14 @@ async function advanceReceipt(ctx, receipt, targetStatus, targetRank) {
       ...(targetRank >= 1 && receipt.deliveredAt == null ? { deliveredAt: now } : {}),
       ...(targetRank >= 2 && receipt.readAt == null ? { readAt: now } : {}),
     });
+    if (targetRank >= 2) {
+      await ctx.db.patch('conversationMembers', membership._id, {
+        unreadCount: Math.max(0, membership.unreadCount - 1),
+      });
+    }
     return targetStatus;
   }
-  return receipt.status;
+  return receiptStatusForRank(currentRank);
 }
 
 const receiptMutationResult = results.value(v.object({ status: v.string() }));
@@ -2207,9 +2317,10 @@ export const markDelivered = defineJsMutation({
   args: { messageId: v.id('messages') },
   result: receiptMutationResult,
   reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
-  writes: ['messageReceipts'],
+  writes: ['conversationMembers', 'messageReceipts'],
   refusals: [
     'PROFILE_REQUIRED',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'MESSAGE_NOT_FOUND',
     'MESSAGE_RECEIPT_NOT_RECIPIENT',
@@ -2219,7 +2330,10 @@ export const markDelivered = defineJsMutation({
     const message = await ctx.db.elevated.get('messages', args.messageId);
     if (!message) ctx.refuse('MESSAGE_NOT_FOUND');
     const conversation = await ctx.db.elevated.get('conversations', message.conversationId);
-    await chatAccessForProfileConversation(ctx, conversation, viewer._id);
+    const access = requireActiveChatAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, viewer._id),
+    );
     const receipts = await ctx.db
       .query('messageReceipts')
       .withIndex('by_recipient_message')
@@ -2228,8 +2342,19 @@ export const markDelivered = defineJsMutation({
       .take(2)
       .collect();
     const receipt = receipts[0];
-    if (!receipt) ctx.refuse('MESSAGE_RECEIPT_NOT_RECIPIENT');
-    return { status: await advanceReceipt(ctx, receipt, 'delivered', 1) };
+    if (!receipt || receipt.recipientMemberId !== access.membership._id) {
+      ctx.refuse('MESSAGE_RECEIPT_NOT_RECIPIENT');
+    }
+    return {
+      status: await advanceReceipt(
+        ctx,
+        message,
+        receipt,
+        access.membership,
+        'delivered',
+        1,
+      ),
+    };
   },
 });
 
@@ -2238,9 +2363,10 @@ export const markRead = defineJsMutation({
   args: { messageId: v.id('messages') },
   result: receiptMutationResult,
   reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
-  writes: ['messageReceipts'],
+  writes: ['conversationMembers', 'messageReceipts'],
   refusals: [
     'PROFILE_REQUIRED',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'MESSAGE_NOT_FOUND',
     'MESSAGE_RECEIPT_NOT_RECIPIENT',
@@ -2250,7 +2376,10 @@ export const markRead = defineJsMutation({
     const message = await ctx.db.elevated.get('messages', args.messageId);
     if (!message) ctx.refuse('MESSAGE_NOT_FOUND');
     const conversation = await ctx.db.elevated.get('conversations', message.conversationId);
-    await chatAccessForProfileConversation(ctx, conversation, viewer._id);
+    const access = requireActiveChatAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, viewer._id),
+    );
     const receipts = await ctx.db
       .query('messageReceipts')
       .withIndex('by_recipient_message')
@@ -2259,8 +2388,69 @@ export const markRead = defineJsMutation({
       .take(2)
       .collect();
     const receipt = receipts[0];
-    if (!receipt) ctx.refuse('MESSAGE_RECEIPT_NOT_RECIPIENT');
-    return { status: await advanceReceipt(ctx, receipt, 'read', 2) };
+    if (!receipt || receipt.recipientMemberId !== access.membership._id) {
+      ctx.refuse('MESSAGE_RECEIPT_NOT_RECIPIENT');
+    }
+    return {
+      status: await advanceReceipt(ctx, message, receipt, access.membership, 'read', 2),
+    };
+  },
+});
+
+export const markReceiptsThrough = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    state: v.string(),
+  },
+  result: results.value(v.object({
+    status: v.string(),
+    requiredCount: v.integer(),
+    throughSequence: v.integer(),
+  })),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
+  writes: ['conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'CHAT_NOT_FOUND',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'RECEIPT_STATE_INVALID',
+    'RECEIPT_ENVELOPE_EXCEEDED',
+  ],
+  handler: async (ctx, args) => {
+    const viewer = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = requireActiveChatAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, viewer._id),
+    );
+    const state = String(args.state);
+    if (state !== 'delivered' && state !== 'read') ctx.refuse('RECEIPT_STATE_INVALID');
+
+    // Admission is decided from the atomically maintained incarnation count
+    // before the single membership projection is changed. The exact benchmark
+    // boundary (10,000 required messages) is admitted; 10,001 is refused.
+    if (!receiptEnvelopeAdmits(access.membership.receiptCount)) {
+      ctx.refuse('RECEIPT_ENVELOPE_EXCEEDED');
+    }
+    const throughSequence = Math.max(0, access.conversation.nextEventSequence - 1);
+    const deliveredThroughSequence = Math.max(
+      access.membership.deliveredThroughSequence,
+      throughSequence,
+    );
+    const readThroughSequence = state === 'read'
+      ? Math.max(access.membership.readThroughSequence, throughSequence)
+      : access.membership.readThroughSequence;
+    await ctx.db.patch('conversationMembers', access.membership._id, {
+      deliveredThroughSequence,
+      readThroughSequence,
+      ...(state === 'read' ? { unreadCount: 0 } : {}),
+    });
+    return {
+      status: state,
+      requiredCount: access.membership.receiptCount,
+      throughSequence,
+    };
   },
 });
 
@@ -2360,13 +2550,14 @@ export const ensureFixtureDm = defineJsMutation({
     conversationId: v.id('conversations'),
     disposition: v.string(),
   })),
-  reads: ['profiles', 'conversations'],
+  reads: ['profiles', 'conversations', 'conversationMembers'],
   writes: ['conversations', 'conversationMembers'],
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',
     'SELF_DM_FORBIDDEN',
     'FIXTURE_OWNERSHIP_MISMATCH',
+    'CHAT_ENVELOPE_EXCEEDED',
   ],
   handler: async (ctx, args) => {
     const creator = await requireMyProfile(ctx);
@@ -2423,6 +2614,7 @@ export const ensureFixtureGroup = defineJsMutation({
     'GROUP_DESCRIPTION_TOO_LONG',
     'FIXTURE_OWNERSHIP_MISMATCH',
     'GROUP_MEMBER_LIMIT_REACHED',
+    'CHAT_ENVELOPE_EXCEEDED',
   ],
   handler: async (ctx, args) => {
     const creator = await requireMyProfile(ctx);
@@ -2507,11 +2699,13 @@ export const ensureFixtureMember = defineJsMutation({
   refusals: [
     'PROFILE_REQUIRED',
     'PROFILE_NOT_FOUND',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'NOT_GROUP_CHAT',
     'NOT_GROUP_ADMIN',
     'GROUP_MEMBER_LIMIT_REACHED',
     'FIXTURE_OWNERSHIP_MISMATCH',
+    'CHAT_ENVELOPE_EXCEEDED',
   ],
   handler: async (ctx, args) => {
     const actor = await requireMyProfile(ctx);
@@ -2578,14 +2772,16 @@ export const ensureFixtureMessage = defineJsMutation({
     disposition: v.string(),
   })),
   reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
-  writes: ['conversations', 'messages', 'messageReceipts'],
+  writes: ['conversations', 'conversationMembers', 'messages', 'messageReceipts'],
   refusals: [
     'PROFILE_REQUIRED',
+    'CHAT_NOT_FOUND',
     'CHAT_MEMBERSHIP_REQUIRED',
     'MESSAGE_BODY_REQUIRED',
     'MESSAGE_BODY_TOO_LONG',
     'QUOTED_MESSAGE_NOT_FOUND',
     'FIXTURE_OWNERSHIP_MISMATCH',
+    'MESSAGE_ENVELOPE_EXCEEDED',
   ],
   handler: async (ctx, args) => {
     const sender = await requireMyProfile(ctx);

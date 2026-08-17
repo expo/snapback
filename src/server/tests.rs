@@ -11745,10 +11745,10 @@ async fn served_http_refusals_project_typed_candidates_and_argument_contracts() 
     assert_eq!(unknown["diagnostic"]["code"], "SNAPBACK_UNKNOWN_FUNCTION");
     assert_eq!(details["candidateFunctions"][0]["name"], "listTodos");
     assert_eq!(details["candidateFunctions"][0]["kind"], "LiveQuery");
-    // Rotates with the embedded todo demo's generated artifacts. Rotated
-    // 2026-08-16 by the owner-write policy projection (LLP 0264): the served
-    // function manifest now authenticates its generated write disclosures.
-    assert_eq!(details["artifactHash"], "sha256:877586e79b978c00");
+    // The todo source carries no authority profile and is byte-identical to
+    // ce30ee99e. This inherited stale pin was re-pinned to the verified current
+    // served content; it is not an LLP 0240 authority-hook vocabulary rotation.
+    assert_eq!(details["artifactHash"], "sha256:615286913d4627c0");
     assert_eq!(
         details["remediationSet"]["schemaVersion"],
         "snapback.remediation-set.v1"

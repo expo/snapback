@@ -1361,8 +1361,12 @@
     "AuthorityProfileHookV1": {
       "enum": [
         "useSnapbackQuery",
+        "useSnapbackAuthorityRoster",
+        "useSnapbackAuthorityMyRole",
         "useSnapbackMutation",
-        "useSnapbackOutbox.mutationStatus"
+        "useSnapbackAuthorityMutation",
+        "useSnapbackOutbox.mutationStatus",
+        "useSnapbackAuthorityMutationStatus"
       ],
       "type": "string"
     },

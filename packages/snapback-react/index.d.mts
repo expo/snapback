@@ -1,5 +1,6 @@
 import type {
   AuthBootstrapSnapshot,
+  AuthorityTransitionReceiptV1,
   CurrentPrincipalSnapshot,
   FunctionArgs,
   FunctionResult,
@@ -9,6 +10,7 @@ import type {
   EphemeralValue,
   LiveQueryRetention,
   MutationDisposition,
+  MutationOutput,
   MutationRef,
   OutboxDrainControllerStatus,
   OutboxDrainOptions,
@@ -172,6 +174,66 @@ export type MutationReference<
   Args = Record<string, unknown>,
   Result = unknown,
 > = MutationRef<Name, Args, Result>;
+
+/** The stable generated shape shared by every authority profile. Exact
+ * profile members remain inferred from the application's generated API. */
+export type AuthorityProfileReferences = Readonly<{
+  list: QueryReference<string, unknown, ReadonlyArray<unknown>>;
+  myRole: QueryReference<string, unknown, ReadonlyArray<unknown>>;
+}>;
+
+export type AuthorityProfileScopeId<Profile extends AuthorityProfileReferences> =
+  FunctionArgs<Profile['list']> extends { readonly scopeId: infer Scope } ? Scope : never;
+
+export type AuthorityRosterRow<Profile extends AuthorityProfileReferences> =
+  FunctionResult<Profile['list']> extends ReadonlyArray<infer Row> ? Row : never;
+
+export type AuthorityMyRoleRow<Profile extends AuthorityProfileReferences> =
+  FunctionResult<Profile['myRole']> extends ReadonlyArray<infer Row> ? Row : never;
+
+export type AuthorityRosterLoadMoreOutcome =
+  | Readonly<{ status: 'complete' }>
+  | Readonly<{
+      status: 'appended';
+      rows: number;
+      cursor: string | null;
+      hasMore: boolean;
+    }>
+  | Readonly<{
+      status: 'reset';
+      reason: 'cursor-invalid' | 'identity-changed';
+    }>;
+
+export type AuthorityRosterState<Row> = QueryState<readonly Row[]> & Readonly<{
+  /** Opaque server continuation. Applications may persist no meaning in it. */
+  cursor: string | null;
+  hasMore: boolean;
+  loadingInitial: boolean;
+  loadingMore: boolean;
+  /** The last continuation failure. Already-loaded rows remain renderable. */
+  pageError: SnapbackDiagnostic | null;
+  loadMore(): Promise<AuthorityRosterLoadMoreOutcome>;
+  /** Drop all retained pages and reacquire the first page. */
+  reset(): void;
+}>;
+
+export type SnapbackAuthorityMutationDispatchOutcome<Result> =
+  | Readonly<{
+      status: 'settled';
+      result: Result;
+      authorityTransitions: readonly AuthorityTransitionReceiptV1[];
+    }>
+  | SnapbackMutationQueuedOutcome;
+
+export type SnapbackAuthorityMutationDisposition =
+  | Exclude<MutationDisposition, { readonly status: 'settled' }>
+  | Readonly<{
+      status: 'settled';
+      settlement: MutationOutput<unknown> & Readonly<{
+        authorityTransitions: readonly AuthorityTransitionReceiptV1[];
+      }>;
+      settledAt: number;
+    }>;
 
 type OptimisticCreateQueryRow<Ref extends QueryReference> =
   FunctionResult<Ref> extends ReadonlyArray<infer Row> ? Row : never;
@@ -425,6 +487,38 @@ export function useSnapbackQuery<Ref extends QueryReference>(
   reference: Ref,
   args: FunctionArgs<Ref> | typeof skip,
 ): QueryState<FunctionResult<Ref>>;
+
+/** Live roster plus opaque-cursor load-more lifecycle. Scope, caller, and
+ * generated-reference changes synchronously discard retained continuations. */
+export function useSnapbackAuthorityRoster<
+  Profile extends AuthorityProfileReferences,
+>(
+  profile: Profile,
+  scopeId: AuthorityProfileScopeId<Profile>,
+  options?: Readonly<{ limit?: number }>,
+): AuthorityRosterState<AuthorityRosterRow<Profile>>;
+
+/** The current caller's server-derived role/status row, or null when absent. */
+export function useSnapbackAuthorityMyRole<
+  Profile extends AuthorityProfileReferences,
+>(
+  profile: Profile,
+  scopeId: AuthorityProfileScopeId<Profile>,
+): QueryState<AuthorityMyRoleRow<Profile> | null>;
+
+/** Dispatch an authority mutation while retaining committed transition
+ * receipts on the settled branch. Refusals reject as SnapbackDiagnosticError. */
+export function useSnapbackAuthorityMutation<Ref extends MutationReference>(
+  reference: Ref,
+): (
+  args: FunctionArgs<Ref>,
+) => Promise<SnapbackAuthorityMutationDispatchOutcome<FunctionResult<Ref>>>;
+
+/** Observe the existing durable mutation disposition for a queued authority
+ * intent. Null/undefined projects the stable `unknown` arm. */
+export function useSnapbackAuthorityMutationStatus(
+  clientMutationId: string | null | undefined,
+): SnapbackAuthorityMutationDisposition;
 
 export type PresenceEntry<Value> = Readonly<{
   key: string;

@@ -22,7 +22,7 @@ import type {
 
 import { startServer } from '../../_kit/server-process.mjs';
 import { loadGeneratedJson } from '../snapback/generated-artifacts.mjs';
-import { installM2Fixtures } from '../snapback/seed-m2.mjs';
+import { installM3Fixtures } from '../snapback/seed-m3.mjs';
 import { coterieSurfaceManifest } from '../src/data/memory-provider.ts';
 import { createCoterieSnapbackProvider } from '../src/data/snapback-provider.ts';
 
@@ -38,11 +38,20 @@ const aliceCredentials = {
   email: 'alice@example.com',
   password: 'Alice!Clique2026',
 };
+const bobCredentials = {
+  email: 'bob@example.com',
+  password: 'Bob!Clique2026',
+};
+const erinCredentials = {
+  email: 'erin@example.com',
+  password: 'Erin!Clique2026',
+};
 
 type Profile = {
   id: string;
   displayName: string;
   bio: string;
+  avatarRef: string | null;
   followers: number;
   following: number;
   followedByMe: boolean;
@@ -61,6 +70,23 @@ type FeedItem = {
   nextCursor: string | null;
   mediaKind: string | null;
   mediaUrls: string[];
+};
+
+type Chat = {
+  id: string;
+  memberIds: string[];
+  currentUserIsMember: boolean;
+  unreadCount: number;
+};
+
+type Message = {
+  id: string;
+  body: string;
+  mine: boolean;
+  status: string;
+  recipientCount: number;
+  deliveredCount: number;
+  readCount: number;
 };
 
 function mutationValue<T>(
@@ -196,7 +222,8 @@ async function loginAlice(provider: ContractDataProvider): Promise<void> {
 }
 
 integrationTest(
-  'Snapback adapter passes M1+M2 conformance, live proofs, fault cuts, and recovery',
+  'Snapback adapter passes M1+M2+M3-minus-typing conformance, live proofs, fault cuts, and recovery',
+  { timeout: 900_000 },
   async () => {
     expect(existsSync(runtimeBinary)).toBe(true);
     const scratch = mkdtempSync(join(tmpdir(), 'coterie-provider-'));
@@ -238,14 +265,20 @@ integrationTest(
         startupArtifacts: carrier,
         serverBinary: stagedRuntime,
       });
-      await installM2Fixtures({ baseUrl: server.baseUrl, runId: 'provider-integration' });
+      await installM3Fixtures({ baseUrl: server.baseUrl, runId: 'provider-integration' });
 
       const clientA = provider();
       const clientB = provider();
       await Promise.all([loginAlice(clientA), loginAlice(clientB)]);
       const clientBProfiles = readyStream<Profile[]>(clientB, 'listProfiles');
       subscriptions.add(clientBProfiles);
-      await clientBProfiles.next((rows) => rows.some((row) => row.id === 'alice'));
+      const initialProfiles = await clientBProfiles.next((rows) => (
+        rows.some((row) => row.id === 'alice')
+      ));
+      expect(initialProfiles.find((row) => row.id === 'alice')?.avatarRef)
+        .toBe('media/avatar-alice.png');
+      expect(initialProfiles.find((row) => row.id === 'carol')?.avatarRef)
+        .toBe('media/avatar-alice.png');
 
       const clientBFeed = readyStream<FeedItem[]>(
         clientB,
@@ -254,6 +287,309 @@ integrationTest(
       );
       subscriptions.add(clientBFeed);
       await clientBFeed.next(() => true);
+
+      const dm = mutationValue<{ chatId: string; reused: boolean }>(
+        await clientA.mutate('openDm', { userId: 'bob' }),
+        'client A openDm',
+      );
+      expect(dm.reused).toBe(true);
+      const clientErin = provider();
+      mutationValue(await clientErin.mutate('login', erinCredentials), 'client Erin login');
+      const racedDm = await Promise.all([
+        clientA.mutate('openDm', { userId: 'erin' }),
+        clientErin.mutate('openDm', { userId: 'alice' }),
+      ]);
+      const racedDmValues = racedDm.map((result, index) => mutationValue<{
+        chatId: string;
+        reused: boolean;
+      }>(result, `concurrent openDm ${index + 1}`));
+      expect(new Set(racedDmValues.map(({ chatId }) => chatId)).size).toBe(1);
+      expect(racedDmValues.map(({ reused }) => reused).sort()).toEqual([false, true]);
+      const clientM3B = provider();
+      mutationValue(await clientM3B.mutate('login', bobCredentials), 'client M3 B login');
+      const clientBM3Messages = readyStream<Message[]>(
+        clientM3B,
+        'listMessages',
+        { chatId: dm.chatId },
+      );
+      subscriptions.add(clientBM3Messages);
+      await clientBM3Messages.next(() => true);
+
+      // LLP 0034 D5 + LLP 0266 D4: recipient B arms one stream and performs
+      // no query/refetch/poll. A's send and B's receipt mutation both arrive
+      // through the same listMessages stream.
+      const m3Body = `M3 two-client live ${Date.now()}`;
+      const sentMessageDelivery = clientBM3Messages.nextFuture((rows) => (
+        rows.some((row) => row.body === m3Body && row.status === 'sent')
+      ));
+      const sentMessage = mutationValue<{ id: string }>(
+        await clientA.mutate('sendMessage', {
+          chatId: dm.chatId,
+          body: m3Body,
+          quotedMessageId: null,
+        }),
+        'client A sendMessage',
+      );
+      expect((await sentMessageDelivery).find((row) => row.id === sentMessage.id))
+        .toMatchObject({ mine: false, status: 'sent', recipientCount: 1 });
+      const readMessageDelivery = clientBM3Messages.nextFuture((rows) => (
+        rows.some((row) => row.id === sentMessage.id && row.status === 'read')
+      ));
+      mutationValue(
+        await clientM3B.mutate('markReceipt', { chatId: dm.chatId, state: 'read' }),
+        'client B markReceipt',
+      );
+      expect((await readMessageDelivery).find((row) => row.id === sentMessage.id))
+        .toMatchObject({ status: 'read', deliveredCount: 1, readCount: 1 });
+      process.stdout.write(
+        'COTERIE_SNAPBACK_M3_TWO_CLIENT_MESSAGE clientB listMessages observed clientA send + receipt transition; polling=disabled\n',
+      );
+
+      clientBM3Messages.dispose();
+      subscriptions.delete(clientBM3Messages);
+      const pagedMessageIds: string[] = [];
+      for (let index = 0; index < 55; index += 1) {
+        pagedMessageIds.push(mutationValue<{ id: string }>(
+          await clientA.mutate('sendMessage', {
+            chatId: dm.chatId,
+            body: `Full-history page probe ${index + 1}`,
+            quotedMessageId: null,
+          }),
+          `full-history message ${index + 1}`,
+        ).id);
+      }
+      const fullHistoryMessages = readyStream<Message[]>(
+        clientM3B,
+        'listMessages',
+        { chatId: dm.chatId },
+      );
+      subscriptions.add(fullHistoryMessages);
+      const materializedMessages = await fullHistoryMessages.next((rows) => (
+        pagedMessageIds.every((id) => rows.some((row) => row.id === id))
+      ), 60_000);
+      expect(materializedMessages.length).toBeGreaterThan(50);
+      fullHistoryMessages.dispose();
+      subscriptions.delete(fullHistoryMessages);
+
+      const liveTailMessageIds = [...pagedMessageIds];
+      for (let index = pagedMessageIds.length; index < 905; index += 1) {
+        liveTailMessageIds.push(mutationValue<{ id: string }>(
+          await clientA.mutate('sendMessage', {
+            chatId: dm.chatId,
+            body: `Full-live-window tail probe ${index + 1}`,
+            quotedMessageId: null,
+          }),
+          `full-live-window message ${index + 1}`,
+        ).id);
+      }
+      const fullLiveMessageWindow = readyStream<Message[]>(
+        clientA,
+        'listMessages',
+        { chatId: dm.chatId },
+      );
+      subscriptions.add(fullLiveMessageWindow);
+      const liveMessageRows = await fullLiveMessageWindow.next((rows) => (
+        liveTailMessageIds.every((id) => rows.some((row) => row.id === id))
+      ), 120_000);
+      expect(liveMessageRows.length).toBeGreaterThan(900);
+      expect(liveMessageRows.find((row) => row.id === liveTailMessageIds[0])?.status).toBe('sent');
+      const unreadBeforeBulkRead = readyStream<Chat[]>(clientM3B, 'listChats');
+      subscriptions.add(unreadBeforeBulkRead);
+      expect(
+        (await unreadBeforeBulkRead.next((rows) => (
+          (rows.find((chat) => chat.id === dm.chatId)?.unreadCount ?? 0) >= 905
+        ), 120_000)).find((chat) => chat.id === dm.chatId)?.unreadCount,
+      ).toBeGreaterThanOrEqual(905);
+      const oldTailReceiptDelivery = fullLiveMessageWindow.nextFuture((rows) => (
+        rows.some((row) => row.id === liveTailMessageIds[0] && row.status === 'read')
+      ), 120_000);
+      const unreadClearedDelivery = unreadBeforeBulkRead.nextFuture((rows) => (
+        rows.find((chat) => chat.id === dm.chatId)?.unreadCount === 0
+      ), 120_000);
+      mutationValue(
+        await clientM3B.mutate('markReceipt', { chatId: dm.chatId, state: 'read' }),
+        'atomic full-history markReceipt',
+      );
+      expect((await oldTailReceiptDelivery).find((row) => (
+        row.id === liveTailMessageIds[0]
+      ))?.status).toBe('read');
+      expect((await unreadClearedDelivery).find((chat) => chat.id === dm.chatId)?.unreadCount)
+        .toBe(0);
+      process.stdout.write(
+        'COTERIE_SNAPBACK_M3_LIVE_MESSAGE_TAIL alice observed bob receipt change on a 900+-message old row; alice_action_after_waiter=none polling=disabled\n',
+      );
+      fullLiveMessageWindow.dispose();
+      subscriptions.delete(fullLiveMessageWindow);
+      unreadBeforeBulkRead.dispose();
+      subscriptions.delete(unreadBeforeBulkRead);
+
+      const pagedChatIds: string[] = [];
+      for (let index = 0; index < 201; index += 1) {
+        pagedChatIds.push(mutationValue<{ chatId: string }>(
+          await clientA.mutate('createGroup', {
+            name: `Full-history group ${index + 1}`,
+            description: null,
+            memberIds: ['alice', 'bob'],
+          }),
+          `full-history group ${index + 1}`,
+        ).chatId);
+      }
+
+      const clientAM3Chats = readyStream<Chat[]>(clientA, 'listChats');
+      subscriptions.add(clientAM3Chats);
+      const materializedChats = await clientAM3Chats.next((rows) => (
+        pagedChatIds.every((id) => rows.some((chat) => chat.id === id))
+      ), 60_000);
+      expect(materializedChats.length).toBeGreaterThan(200);
+      const clientBM3Chats = readyStream<Chat[]>(clientM3B, 'listChats');
+      subscriptions.add(clientBM3Chats);
+      await clientBM3Chats.next((rows) => rows.some((chat) => (
+        chat.id === pagedChatIds[0] && chat.currentUserIsMember
+      )), 120_000);
+      const oldTailMembershipDelivery = clientBM3Chats.nextFuture((rows) => rows.some((chat) => (
+        chat.id === pagedChatIds[0] && !chat.currentUserIsMember
+      )), 120_000);
+      mutationValue(
+        await clientA.mutate('removeMember', {
+          chatId: pagedChatIds[0],
+          userId: 'bob',
+        }),
+        'live old-chat-tail removeMember',
+      );
+      expect((await oldTailMembershipDelivery).find((chat) => (
+        chat.id === pagedChatIds[0]
+      ))?.currentUserIsMember).toBe(false);
+      process.stdout.write(
+        'COTERIE_SNAPBACK_M3_LIVE_CHAT_TAIL bob observed alice membership change on the oldest of 201 new chats; bob_action_after_waiter=none polling=disabled\n',
+      );
+      clientBM3Chats.dispose();
+      subscriptions.delete(clientBM3Chats);
+      const mappedGroup = mutationValue<{ chatId: string }>(
+        await clientA.mutate('createGroup', {
+          name: 'Adapter operation matrix',
+          description: 'Exercises add, promote, remove, and leave mappings.',
+          memberIds: ['alice', 'bob'],
+        }),
+        'createGroup operation matrix',
+      );
+      expect(await clientA.mutate('createGroup', {
+        name: 'Duplicate members are invalid',
+        description: null,
+        memberIds: ['alice', 'bob', 'bob'],
+      })).toMatchObject({
+        ok: false,
+        error: { name: 'GroupMembersInvalidError' },
+      });
+      expect(await clientA.mutate('createGroup', {
+        name: 'Creator is required',
+        description: null,
+        memberIds: ['bob', 'carol'],
+      })).toMatchObject({
+        ok: false,
+        error: { name: 'GroupMembersInvalidError' },
+      });
+      await clientAM3Chats.next((rows) => rows.some((chat) => (
+        chat.id === mappedGroup.chatId && chat.memberIds.includes('bob')
+      )));
+      mutationValue(
+        await clientA.mutate('addMember', { chatId: mappedGroup.chatId, userId: 'carol' }),
+        'addMember operation matrix',
+      );
+      expect(await clientA.mutate('addMember', {
+        chatId: mappedGroup.chatId,
+        userId: 'carol',
+      })).toMatchObject({
+        ok: false,
+        error: { name: 'ChatMemberAlreadyExistsError' },
+      });
+      await clientAM3Chats.next((rows) => rows.some((chat) => (
+        chat.id === mappedGroup.chatId && chat.memberIds.includes('carol')
+      )));
+      mutationValue(
+        await clientA.mutate('promoteAdmin', { chatId: mappedGroup.chatId, userId: 'bob' }),
+        'promoteAdmin operation matrix',
+      );
+      mutationValue(
+        await clientM3B.mutate('removeMember', {
+          chatId: mappedGroup.chatId,
+          userId: 'carol',
+        }),
+        'removeMember operation matrix',
+      );
+      await clientAM3Chats.next((rows) => rows.some((chat) => (
+        chat.id === mappedGroup.chatId && !chat.memberIds.includes('carol')
+      )));
+      mutationValue(
+        await clientM3B.mutate('leaveChat', { chatId: mappedGroup.chatId }),
+        'leaveChat operation matrix',
+      );
+      await clientAM3Chats.next((rows) => rows.some((chat) => (
+        chat.id === mappedGroup.chatId && !chat.memberIds.includes('bob')
+      )));
+
+      for (const operation of ['removeMember', 'promoteAdmin'] as const) {
+        expect(await clientA.mutate(operation, {
+          chatId: mappedGroup.chatId,
+          userId: 'profile-that-does-not-exist',
+        })).toMatchObject({
+          ok: false,
+          error: { name: 'ChatMemberNotFoundError' },
+        });
+      }
+
+      const adminlessGroup = mutationValue<{ chatId: string }>(
+        await clientA.mutate('createGroup', {
+          name: 'Admin-less adapter parity',
+          description: null,
+          memberIds: ['alice', 'bob'],
+        }),
+        'create admin-less parity group',
+      );
+      mutationValue(
+        await clientA.mutate('leaveChat', { chatId: adminlessGroup.chatId }),
+        'sole admin leave',
+      );
+      await clientAM3Chats.next((rows) => (
+        rows.find((chat) => chat.id === adminlessGroup.chatId)?.currentUserIsMember === false
+      ));
+
+      const missingChatId = '00000000-0000-7000-8000-000000000000';
+      const missingChatMutations = [
+        ['addMember', { chatId: missingChatId, userId: 'bob' }],
+        ['removeMember', { chatId: missingChatId, userId: 'bob' }],
+        ['promoteAdmin', { chatId: missingChatId, userId: 'bob' }],
+        ['leaveChat', { chatId: missingChatId }],
+        ['sendMessage', { chatId: missingChatId, body: 'Missing chat.', quotedMessageId: null }],
+        ['markReceipt', { chatId: missingChatId, state: 'read' }],
+      ] as const;
+      for (const [operation, args] of missingChatMutations) {
+        expect(await clientA.mutate(operation, args)).toMatchObject({
+          ok: false,
+          error: { name: 'ChatNotFoundError' },
+        });
+      }
+      const missingChatMessages = readyStream<Message[]>(
+        clientA,
+        'listMessages',
+        { chatId: missingChatId },
+      );
+      subscriptions.add(missingChatMessages);
+      expect(await missingChatMessages.nextCell((cell) => cell.status === 'error')).toMatchObject({
+        status: 'error',
+        error: { name: 'ChatNotFoundError' },
+      });
+
+      const switchingClient = provider();
+      const switchingSession = readyStream<Array<{ userId: string }>>(
+        switchingClient,
+        'listSession',
+      );
+      subscriptions.add(switchingSession);
+      await switchingSession.next((rows) => rows.length === 0);
+      mutationValue(await switchingClient.mutate('login', aliceCredentials), 'switch login Alice');
+      await switchingSession.next((rows) => rows[0]?.userId === 'alice');
+      mutationValue(await switchingClient.mutate('login', bobCredentials), 'switch login Bob');
+      await switchingSession.next((rows) => rows[0]?.userId === 'bob');
 
       // This feed subscription deliberately has no accompanying listProfiles
       // subscription. Its identity index is therefore the pre-signup snapshot.
@@ -346,7 +682,15 @@ integrationTest(
       const clearedAlice = clearedRows.find((row) => row.id === 'alice');
       if (!clearedDave || !clearedAlice) throw new Error('cleared follow projection is incomplete');
       const followDelivery = clientBProfiles.nextFuture((rows) => (
-        rows.some((row) => row.id === 'dave' && row.followedByMe)
+        rows.some((row) => (
+          row.id === 'dave'
+          && row.followedByMe
+          && row.followers === clearedDave.followers + 1
+        ))
+        && rows.some((row) => (
+          row.id === 'alice'
+          && row.following === clearedAlice.following + 1
+        ))
       ));
       mutationValue(
         await clientA.mutate('setFollow', {
@@ -456,13 +800,68 @@ integrationTest(
       };
       const m2Conformance = await assertDataProviderConformance(m2Fixture);
       expect(m2Conformance.ok).toBe(true);
+
+      const clientAM3Messages = readyStream<Message[]>(
+        clientB,
+        'listMessages',
+        { chatId: dm.chatId },
+      );
+      subscriptions.add(clientAM3Messages);
+      await clientAM3Messages.next(() => true);
+      let m3ConformanceSequence = 0;
+      const m3Fixture: DataProviderConformanceFixture = {
+        name: 'coterie-snapback-m3-minus-typing',
+        capabilities: coterieSurfaceManifest.capabilities,
+        createProvider: () => clientB,
+        primaryQuery: {
+          name: 'listMessages',
+          args: { chatId: dm.chatId },
+          initial: { status: 'ready', empty: false },
+          async applySubscriptionUpdate() {
+            const body = `M3 conformance push ${++m3ConformanceSequence}`;
+            const delivery = clientAM3Messages.nextFuture((rows) => (
+              rows.some((row) => row.body === body)
+            ));
+            mutationValue(
+              await clientA.mutate('sendMessage', {
+                chatId: dm.chatId,
+                body,
+                quotedMessageId: null,
+              }),
+              'M3 conformance subscription update',
+            );
+            await delivery;
+          },
+          afterSubscriptionUpdate: { status: 'ready', empty: false },
+        },
+        mutation: {
+          name: 'sendMessage',
+          args: {
+            chatId: dm.chatId,
+            body: 'M3 conformance mutation',
+            quotedMessageId: null,
+          },
+          expectedResult: { ok: true },
+          afterMutation: { status: 'ready', empty: false },
+        },
+        failedMutation: {
+          name: 'sendMessage',
+          args: { chatId: dm.chatId, body: '', quotedMessageId: null },
+          errorMessageIncludes: '1-2000 characters',
+        },
+      };
+      const m3Conformance = await assertDataProviderConformance(m3Fixture);
+      expect(m3Conformance.ok).toBe(true);
       process.stdout.write(
-        'COTERIE_SNAPBACK_CONFORMANCE_SCOPE claimed allow-list=M1+M2; '
-          + 'formal probes=M1 listProfiles@2+editProfile@1, M2 listFeed@3+createPost@1; '
+        'COTERIE_SNAPBACK_CONFORMANCE_SCOPE claimed allow-list=M1+M2+M3-minus-typing; '
+          + 'formal probes=M1 listProfiles@3+editProfile@1, M2 listFeed@3+createPost@1, '
+          + 'M3 listMessages@4+sendMessage@4; '
           + `M1 ${m1Conformance.checks.filter((check) => check.status === 'pass').length} pass/`
           + `${m1Conformance.checks.filter((check) => check.status === 'skip').length} skip; `
           + `M2 ${m2Conformance.checks.filter((check) => check.status === 'pass').length} pass/`
           + `${m2Conformance.checks.filter((check) => check.status === 'skip').length} skip; `
+          + `M3 ${m3Conformance.checks.filter((check) => check.status === 'pass').length} pass/`
+          + `${m3Conformance.checks.filter((check) => check.status === 'skip').length} skip; `
           + 'suite has no milestone selector\n',
       );
 
@@ -1071,24 +1470,37 @@ integrationTest(
 
       let refusedQuery: DataCellV2<unknown> | null = null;
       const refusedSubscription: DataSubscription = authClient.subscribe(
-        'listChats',
-        {},
+        'observeTyping',
+        { chatId: dm.chatId },
         (cell) => { refusedQuery = cell; },
       );
       refusedSubscription.dispose();
       expect(refusedQuery).toMatchObject({
         status: 'error',
         error: {
-          name: 'SnapbackMilestoneUnsupportedError',
-          message: 'snapback provider claims M1+M2 plus provider discovery only; listChats is outside that claim — LLP 0266 D7 (M3)',
+          name: 'SnapbackTypingPermissionBackingUnavailableError',
+          message: 'snapback provider deliberately does not claim observeTyping; membership-backed ephemeral permission lowering is required — issues/20260817-ephemeral-membership-permission-backing.md',
         },
       });
-      expect(await authClient.mutate('sendMessage', { chatId: 'not-yet', body: 'not yet' }))
+      expect(await authClient.mutate('setTyping', { chatId: dm.chatId, active: true }))
         .toMatchObject({
         ok: false,
         error: {
+          name: 'SnapbackTypingPermissionBackingUnavailableError',
+          message: 'snapback provider deliberately does not claim setTyping; membership-backed ephemeral permission lowering is required — issues/20260817-ephemeral-membership-permission-backing.md',
+        },
+        });
+      expect(await authClient.mutate('setMessageReaction', {
+        chatId: dm.chatId,
+        messageId: sentMessage.id,
+        emoji: '👍',
+        reacted: true,
+        mutationId: 'unavailable-backend-reaction',
+      })).toMatchObject({
+        ok: false,
+        error: {
           name: 'SnapbackMilestoneUnsupportedError',
-          message: 'snapback provider claims M1+M2 plus provider discovery only; sendMessage is outside that claim — LLP 0266 D7 (M3)',
+          message: 'snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; setMessageReaction is outside that claim — LLP 0266 D7 (M4)',
         },
         });
     } finally {
@@ -1098,5 +1510,5 @@ integrationTest(
       rmSync(scratch, { recursive: true, force: true });
     }
   },
-  300_000,
+  900_000,
 );

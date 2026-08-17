@@ -248,12 +248,54 @@ policy. Team Chat's reconciled post-LLP-0264 witness declares it on the new,
 restricted `roomMembersV2` table while retaining installed v1 policy records
 inert; the RBAC demo composes membership visibility from the same profile IR.
 
-These generated references ride the ordinary client surface. For example,
+These generated references still ride the ordinary client surface, so
 `useSnapbackQuery(api.roomAccess.list, { scopeId, page })` and
-`useSnapbackMutation(api.roomAccess.invite)` work like other generated
-references. Dedicated per-profile React/Expo lifecycle hooks in the shape of
-LLP 0238 are still open; none are implied by the generic hooks accepting these
-references. Composition with membership-visible search or asset sharing fails generation with
+`useSnapbackMutation(api.roomAccess.invite)` remain valid. React also ships a
+dedicated package-generic convenience layer inferred from the generated
+profile object; Expo re-exports the same hooks:
+
+```tsx fragment reason="generated authority profile names and component state vary by application"
+import {
+  useSnapbackAuthorityMutation,
+  useSnapbackAuthorityMutationStatus,
+  useSnapbackAuthorityMyRole,
+  useSnapbackAuthorityRoster,
+} from '@expo/snapback-react';
+
+const roster = useSnapbackAuthorityRoster(api.roomAccess, roomId, { limit: 50 });
+const myRole = useSnapbackAuthorityMyRole(api.roomAccess, roomId);
+const changeRole = useSnapbackAuthorityMutation(api.roomAccess.changeRole);
+const queued = useSnapbackAuthorityMutationStatus(queuedMutationId);
+
+const loadNextPage = () => roster.loadMore();
+const makeMember = async () => {
+  const dispatch = await changeRole({ scopeId: roomId, principal, role: 'member' });
+  if (dispatch.status === 'settled') console.log(dispatch.authorityTransitions);
+};
+
+return <Roster rows={roster.data ?? []} onLoadMore={loadNextPage} onMakeMember={makeMember} />;
+```
+
+The roster retains the LLP 0238 query-state arms and adds `cursor`, `hasMore`,
+`loadingInitial`, `loadingMore`, `pageError`, `loadMore()`, and `reset()`. Calls
+belong in event handlers, never render. A continuation failure leaves loaded
+rows visible and appears in `pageError`; only first-page failure uses the query
+error arm. The hook never parses a continuation. A scope, current-principal,
+session-generation, generated-reference-generation, or live first-page publish
+drops all retained pages before the next request.
+`SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID` also returns
+`{ status: 'reset', reason: 'cursor-invalid' }` from `loadMore()` and reacquires
+page one instead of entering the query error arm. `myRole` projects the live
+zero-or-one row as a nullable value while preserving the generated closed role
+union.
+
+Authority mutation dispatch follows the ordinary `settled | queued`
+vocabulary. The settled arm retains `authorityTransitions`; queued work is
+observed through `useSnapbackAuthorityMutationStatus`, whose `settled`
+disposition carries the same receipts and whose `failed.failure.code` is the
+stable refusal code. Immediate refusals reject as `SnapbackDiagnosticError`.
+
+Composition with membership-visible search or asset sharing fails generation with
 `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets fail
 with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
 
@@ -639,5 +681,5 @@ coordinator transition.
   app-owned membership table is both product roster and authority relation.
 - **Do not infer unsupported operations from `authorityProfile()`.** A missing
   membership transition means the corresponding mutation reference is absent,
-  not a runtime no-op. React/Expo hooks, search sharing, asset sharing, hosted
-  profiles, and protected offline retention are still outside this surface.
+  not a runtime no-op. Search sharing, asset sharing, hosted profiles, and
+  protected offline retention are still outside this surface.

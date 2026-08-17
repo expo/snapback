@@ -145,3 +145,29 @@ cell via `demos/expo-local-first-carrier/scripts/qualify.mjs` — process-cut
 receipts can run on any simulator-capable Mac; the power-interruption arm
 needs physical hardware with a power-cut rig or operator per the README
 protocol. Ticket stays Open until receipts land and rows activate.
+
+---
+
+**Simulator/emulator supporting tier executed 2026-08-16/17** (orchestration
+session, real virtual devices): iOS simulator (iPhone 17, iOS 26.3.1, arm64e,
+Release) and Android emulator (API 36.1, Release) each completed **100 seeded
+process-cut cycles, integrity ok on every cycle, all eight post-boot
+invariants evaluated per cycle, zero duplicate server executions**, with
+receipts source-closed over the landed tree:
+`demos/expo-local-first-carrier/evidence/20260817T054654507Z-c02d1e26/` (iOS)
+and `…/20260817T052745513Z-f4ae9e48/` (Android), both
+`verdict: supporting-pass`, `supportingOnly: true`. Driving the director on
+real devices surfaced and fixed harness-environment defects (recorded in
+diary 0090): the per-invocation iOS custom-scheme dialog made deep-link
+command delivery impossible headless — replaced with a director-served
+GET /command polling channel (fixed port 4899, launch nonces); Android
+release cleartext policy, workspace-dep mapping for the probe, simulator
+launch sequencing, and toolchain env. Dual-family review of the landing
+found one MATERIAL (iOS receipt bound a superseded director byte — fixed by
+re-running the iOS cell against the final tree; closure now verified for
+both receipts). **The packaged publication manifest remains EMPTY — these
+receipts are supporting-only and activate nothing.** Remaining for
+promotion: real-hardware runs per target cell (process mode on physical
+devices, plus the 25-cut power-interruption arm with a battery-cut rig or
+operator witness per the README protocol), referencing an eligible LLP 0189
+complete battery at their landing.

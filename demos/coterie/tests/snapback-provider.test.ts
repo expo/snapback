@@ -10,6 +10,7 @@ import {
   COTERIE_SNAPBACK_CLAIMED_OPERATIONS,
   COTERIE_SNAPBACK_M1_OPERATIONS,
   COTERIE_SNAPBACK_M2_OPERATIONS,
+  COTERIE_SNAPBACK_M3_OPERATIONS,
   coterieSnapbackTestInternals,
   createCoterieSnapbackProvider,
 } from '../src/data/snapback-provider.ts';
@@ -54,6 +55,30 @@ describe('Snapback adapter diagnostic allow-lists', () => {
       coterieSnapbackTestInternals.declaredError(
         'setLike',
         diagnostic('SNAPBACK_APPLICATION_REJECTED', 'SELF_FOLLOW_FORBIDDEN'),
+      ).name,
+    ).toBe('SnapbackProviderError');
+    expect(
+      coterieSnapbackTestInternals.declaredError(
+        'removeMember',
+        diagnostic('SNAPBACK_APPLICATION_REJECTED', 'LAST_GROUP_ADMIN'),
+      ).name,
+    ).toBe('SnapbackProviderError');
+    expect(
+      coterieSnapbackTestInternals.declaredError(
+        'markReceipt',
+        diagnostic('SNAPBACK_APPLICATION_REJECTED', 'MESSAGE_RECEIPT_NOT_RECIPIENT'),
+      ).name,
+    ).toBe('SnapbackProviderError');
+    expect(
+      coterieSnapbackTestInternals.declaredError(
+        'createGroup',
+        diagnostic('SNAPBACK_APP_REFUSAL', 'CHAT_ENVELOPE_EXCEEDED'),
+      ).name,
+    ).toBe('SnapbackProviderError');
+    expect(
+      coterieSnapbackTestInternals.declaredError(
+        'sendMessage',
+        diagnostic('SNAPBACK_APP_REFUSAL', 'MESSAGE_ENVELOPE_EXCEEDED'),
       ).name,
     ).toBe('SnapbackProviderError');
   });
@@ -107,6 +132,34 @@ describe('Snapback adapter diagnostic allow-lists', () => {
       ['setLike', 'POST_NOT_FOUND', 'PostNotFoundError'],
       ['setRepost', 'POST_NOT_FOUND', 'PostNotFoundError'],
       ['setRepost', 'REPLY_REPOST_FORBIDDEN', 'ReplyRepostForbiddenError'],
+      ['openDm', 'SELF_DM_FORBIDDEN', 'DirectMessageSelfError'],
+      ['openDm', 'PROFILE_NOT_FOUND', 'ProfileNotFoundError'],
+      ['createGroup', 'GROUP_NAME_INVALID', 'GroupNameInvalidError'],
+      ['createGroup', 'GROUP_DESCRIPTION_TOO_LONG', 'GroupDescriptionInvalidError'],
+      ['createGroup', 'GROUP_SIZE_INVALID', 'GroupMembersInvalidError'],
+      ['addMember', 'NOT_GROUP_ADMIN', 'ChatAdminRequiredError'],
+      ['addMember', 'NOT_GROUP_CHAT', 'GroupRequiredError'],
+      ['addMember', 'CHAT_NOT_FOUND', 'ChatNotFoundError'],
+      ['addMember', 'MEMBER_ALREADY_EXISTS', 'ChatMemberAlreadyExistsError'],
+      ['addMember', 'GROUP_MEMBER_LIMIT_REACHED', 'ChatMemberLimitError'],
+      ['removeMember', 'CHAT_NOT_FOUND', 'ChatNotFoundError'],
+      ['removeMember', 'MEMBER_NOT_FOUND', 'ChatMemberNotFoundError'],
+      ['removeMember', 'REMOVE_SELF_WITH_LEAVE', 'RemoveSelfInvalidError'],
+      ['promoteAdmin', 'CHAT_NOT_FOUND', 'ChatNotFoundError'],
+      ['promoteAdmin', 'MEMBER_NOT_FOUND', 'ChatMemberNotFoundError'],
+      ['leaveChat', 'CHAT_NOT_FOUND', 'ChatNotFoundError'],
+      ['leaveChat', 'CHAT_MEMBERSHIP_REQUIRED', 'ChatMembershipRequiredError'],
+      ['sendMessage', 'CHAT_NOT_FOUND', 'ChatNotFoundError'],
+      ['sendMessage', 'MESSAGE_BODY_REQUIRED', 'MessageBodyInvalidError'],
+      ['sendMessage', 'MESSAGE_BODY_TOO_LONG', 'MessageBodyInvalidError'],
+      ['sendMessage', 'QUOTED_MESSAGE_NOT_FOUND', 'QuotedMessageInvalidError'],
+      ['markReceipt', 'CHAT_NOT_FOUND', 'ChatNotFoundError'],
+      ['markReceipt', 'CHAT_MEMBERSHIP_REQUIRED', 'ChatMembershipRequiredError'],
+      ['markReceipt', 'RECEIPT_STATE_INVALID', 'ReceiptStateInvalidError'],
+      ['setMessageReaction', 'MESSAGE_NOT_FOUND', 'MessageNotFoundError'],
+      ['setMessageReaction', 'EMOJI_INVALID', 'EmojiInvalidError'],
+      ['listMessages', 'CHAT_NOT_FOUND', 'ChatNotFoundError'],
+      ['listMessages', 'CHAT_MEMBERSHIP_REQUIRED', 'ChatMembershipRequiredError'],
     ] as const;
     for (const [operation, appCode, errorName] of exactApplicationMappings) {
       expect(
@@ -117,6 +170,23 @@ describe('Snapback adapter diagnostic allow-lists', () => {
       ).toBe(errorName);
     }
   });
+});
+
+test('M3 single live windows admit exact product envelopes and fail loudly at limit+1', () => {
+  expect(() => coterieSnapbackTestInternals.assertM3LiveWindow('listChats', 1_000))
+    .not.toThrow();
+  expect(() => coterieSnapbackTestInternals.assertM3LiveWindow('listMessages', 1_024))
+    .not.toThrow();
+  for (const [queryName, count] of [
+    ['listChats', 1_001],
+    ['listMessages', 1_025],
+  ] as const) {
+    expect(() => coterieSnapbackTestInternals.assertM3LiveWindow(queryName, count))
+      .toThrow(expect.objectContaining({
+        name: 'SnapbackProviderError',
+        message: expect.stringContaining('live envelope'),
+      }));
+  }
 });
 
 test('feed cursors round-trip backend page keys and reject cross-mode reuse', () => {
@@ -451,6 +521,13 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
     ].sort();
     expect(claims.map((claim) => claim.name)).toEqual(expectedNames);
     expect(claims).toContainEqual({ name: 'listProviderClaims', kind: 'query', token: '1' });
+    expect(claims).toContainEqual({ name: 'listChats', kind: 'query', token: '3' });
+    expect(claims).toContainEqual({ name: 'listMessages', kind: 'query', token: '4' });
+    expect(claims).toContainEqual({ name: 'sendMessage', kind: 'mutation', token: '4' });
+    expect(claims).toContainEqual({ name: 'markReceipt', kind: 'mutation', token: '1' });
+    expect(claims.some((claim) => claim.name === 'observeTyping')).toBe(false);
+    expect(claims.some((claim) => claim.name === 'setTyping')).toBe(false);
+    expect(claims.some((claim) => claim.name === 'setMessageReaction')).toBe(false);
     claimSubscription.dispose();
 
     const claimedQueries = new Set(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.queries);
@@ -463,6 +540,16 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
       if (claimedQueries.has(queryName)) {
         expect(first.status === 'error' && first.error.name === 'SnapbackMilestoneUnsupportedError')
           .toBe(false);
+      } else if (queryName === 'observeTyping') {
+        expect(first).toMatchObject({
+          status: 'error',
+          error: {
+            name: 'SnapbackTypingPermissionBackingUnavailableError',
+            message: expect.stringContaining(
+              'issues/20260817-ephemeral-membership-permission-backing.md',
+            ),
+          },
+        });
       } else {
         expect(first).toMatchObject({
           status: 'error',
@@ -477,6 +564,16 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
       const result = await provider.mutate(mutationName, {});
       if (claimedMutations.has(mutationName)) {
         expect(result.ok || result.error.name !== 'SnapbackMilestoneUnsupportedError').toBe(true);
+      } else if (mutationName === 'setTyping') {
+        expect(result).toMatchObject({
+          ok: false,
+          error: {
+            name: 'SnapbackTypingPermissionBackingUnavailableError',
+            message: expect.stringContaining(
+              'issues/20260817-ephemeral-membership-permission-backing.md',
+            ),
+          },
+        });
       } else {
         expect(result).toMatchObject({
           ok: false,
@@ -488,7 +585,7 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
       ok: false,
       error: {
         name: 'SnapbackMilestoneUnsupportedError',
-        message: 'snapback provider claims M1+M2 plus provider discovery only; setChatAccent is outside that claim — LLP 0266 D7 (M5)',
+        message: 'snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; setChatAccent is outside that claim — LLP 0266 D7 (M5)',
       },
     });
     const insightsCells: DataCellV2<unknown>[] = [];
@@ -497,7 +594,7 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
       status: 'error',
       error: {
         name: 'SnapbackMilestoneUnsupportedError',
-        message: 'snapback provider claims M1+M2 plus provider discovery only; listInsights is outside that claim — LLP 0266 D7 (M8)',
+        message: 'snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; listInsights is outside that claim — LLP 0266 D7 (M8)',
       },
     });
     expect(claims.some((claim) => claim.name.startsWith('ensureFixture'))).toBe(false);
@@ -514,6 +611,7 @@ test('provider claims are exactly the adapter allow-list and refusal behavior ag
     });
     expect(COTERIE_SNAPBACK_M1_OPERATIONS.queries).toContain('listProfiles');
     expect(COTERIE_SNAPBACK_M2_OPERATIONS.queries).toContain('listFeed');
+    expect(COTERIE_SNAPBACK_M3_OPERATIONS.queries).toEqual(['listChats', 'listMessages']);
   } finally {
     await provider.close();
   }

@@ -78,6 +78,11 @@ if (realGeneratedGroup.queries.liveReactions.status === 'ready') {
 }
 // @ts-expect-error the real generated route declaration has exactly two keys.
 realGeneratedGroup.queries.roomParticipants;
+if (realGeneratedGroup.queries.unreadDeliveries.status === 'ready') {
+  realGeneratedGroup.queries.unreadDeliveries.data[0]?.body.toUpperCase();
+}
+// @ts-expect-error the real generated route declaration has exactly one key.
+realGeneratedGroup.queries.roomMessages;
 
 const create = useSnapbackMutation(createTodo);
 create({ title: 'ship it' }).then((outcome) => {

@@ -1789,6 +1789,10 @@ for (const name of [
 for (const name of [
   'createSnapbackReactProvider',
   'SnapbackProvider',
+  'useSnapbackAuthorityRoster',
+  'useSnapbackAuthorityMyRole',
+  'useSnapbackAuthorityMutation',
+  'useSnapbackAuthorityMutationStatus',
   'useSnapbackQuery',
   'useSnapbackMutation',
   'useSnapbackOptimisticCreate',

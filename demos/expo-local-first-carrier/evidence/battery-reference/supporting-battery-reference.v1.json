@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "snapback.expo-sqlite-carrier-battery-reference.supporting.v1",
+  "eligible": false,
+  "reason": "simulator-emulator-supporting-only: promotion receipts must reference the newest eligible LLP 0189 D-6 complete-battery result at their landing",
+  "reference": "LLP 0189 D-6 complete battery",
+  "qualifiedCommit": "9b3c078089527a8a19d4b17c3ebf1b49b3ea8db8",
+  "recordedAt": "2026-08-17T04:22:14Z",
+  "schedule": "com.snapback.local-proof-backstop (6h canonical proof inventory per LLP 0175 D2.3)"
+}

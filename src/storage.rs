@@ -9085,12 +9085,22 @@ fn validate_stored_structured_descriptor(
 fn expected_authority_profile_operations(
     membership: &MembershipManifest,
 ) -> Vec<AuthorityProfileOperationV1> {
-    let query = |name| AuthorityProfileOperationV1 {
-        name,
-        kind: FunctionKind::LiveQuery,
-        auth_requirement: AuthRequirement::Authenticated,
-        hooks: vec![AuthorityProfileHookV1::Query],
-        transition_ops: Vec::new(),
+    // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — these
+    // are lifecycle affordance names over the same generated references, not
+    // additional storage/runtime operations.
+    let query = |name| {
+        let dedicated = match &name {
+            AuthorityProfileOperationNameV1::List => AuthorityProfileHookV1::AuthorityRoster,
+            AuthorityProfileOperationNameV1::MyRole => AuthorityProfileHookV1::AuthorityMyRole,
+            _ => unreachable!("authority profile query vocabulary is closed"),
+        };
+        AuthorityProfileOperationV1 {
+            name,
+            kind: FunctionKind::LiveQuery,
+            auth_requirement: AuthRequirement::Authenticated,
+            hooks: vec![AuthorityProfileHookV1::Query, dedicated],
+            transition_ops: Vec::new(),
+        }
     };
     let mutation = |name, transition_op| AuthorityProfileOperationV1 {
         name,
@@ -9098,7 +9108,9 @@ fn expected_authority_profile_operations(
         auth_requirement: AuthRequirement::Authenticated,
         hooks: vec![
             AuthorityProfileHookV1::Mutation,
+            AuthorityProfileHookV1::AuthorityMutation,
             AuthorityProfileHookV1::OutboxMutationStatus,
+            AuthorityProfileHookV1::AuthorityMutationStatus,
         ],
         transition_ops: vec![transition_op],
     };

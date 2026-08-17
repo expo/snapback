@@ -122,11 +122,31 @@ const startedAt = new Date();
 const seed = randomBytes(16).toString('hex');
 const runId = `${startedAt.toISOString().replace(/[-:.]/gu, '').replace('Z', 'Z-')}${seed.slice(0, 8)}`;
 const packageId = 'com.snapback.exposqlitecarrierprobe';
+const directorPort = 4899;
+const directorBindHost = '0.0.0.0';
+const qualificationHostOrigin = hostOrigin ?? 'http://127.0.0.1';
+const qualificationOriginUrl = new URL(qualificationHostOrigin);
+qualificationOriginUrl.port = String(directorPort);
+const qualificationOrigin = qualificationOriginUrl.origin;
+const iosSimulator = platform === 'ios' && deviceClass === 'simulator';
 const build = platform === 'ios'
   ? ['bunx', 'expo', 'run:ios', '--device', device, '--configuration', 'Release']
-  : ['bunx', 'expo', 'run:android', '--device', device, '--variant', 'release'];
+  : ['bunx', 'expo', 'run:android', '--variant', 'release'];
+const simulatorTerminate = ['xcrun', 'simctl', 'terminate', device, packageId];
+const iosDeviceTerminate = ['xcrun', 'devicectl', 'device', 'process', 'terminate', '--device', device, '--bundle-id', packageId];
+const androidTerminate = ['adb', '-s', device, 'shell', 'am', 'force-stop', packageId];
+const preLaunchTerminate = platform === 'android'
+  ? androidTerminate
+  : iosSimulator
+    ? simulatorTerminate
+    : iosDeviceTerminate;
+const plainLaunch = platform === 'android'
+  ? ['adb', '-s', device, 'shell', 'am', 'start', '-W', '-n', `${packageId}/.MainActivity`]
+  : iosSimulator
+    ? ['xcrun', 'simctl', 'launch', device, packageId]
+    : ['xcrun', 'devicectl', 'device', 'process', 'launch', '--terminate-existing', '--device', device, packageId];
 const protocol = {
-  schemaVersion: 'snapback.expo-sqlite-carrier-device-protocol.v1',
+  schemaVersion: 'snapback.expo-sqlite-carrier-device-protocol.v2',
   qualificationMode: true,
   runId,
   seed,
@@ -136,9 +156,40 @@ const protocol = {
   mode,
   iterations,
   phases,
-  cleanBuild: ['bun', 'install', '--frozen-lockfile=false', '&&', 'bunx', 'expo', 'prebuild', '--clean', '&&', ...build],
-  processCut: platform === 'ios'
-    ? ['xcrun', 'devicectl', 'device', 'process', 'terminate', '--device', device, '--bundle-id', packageId]
+  deviceBoot: iosSimulator ? ['xcrun', 'simctl', 'bootstatus', device, '-b'] : null,
+  cleanBuild: ['bun', 'install', '&&', 'bunx', 'expo', 'prebuild', '--clean', '&&', ...build],
+  qualificationBuildEnvironment: {
+    EXPO_PUBLIC_SNAPBACK_SQLITE_QUALIFICATION_MODE: '1',
+    EXPO_PUBLIC_SNAPBACK_QUALIFICATION_ORIGIN: qualificationOrigin,
+  },
+  commandChannel: {
+    automated: {
+      transport: 'director-served-command-poll',
+      endpoint: `GET ${qualificationOrigin}/command`,
+      directorBinding: `${directorBindHost}:${directorPort}`,
+      fixedPort: true,
+      cadence: 'once on mount and once on each AppState foreground transition',
+      readinessRetriesMs: [0, 1000, 2000],
+      pendingResponse: '{ phase, cycle, predecessorHandleKeyDigest, launchNonce }',
+      idleResponse: '{ idle: true }',
+      completion: 'pending command clears only on matching armed/verified cycle + launchNonce',
+    },
+    legacyManualFallback: {
+      transport: 'custom-scheme Linking event',
+      scheme: 'snapback-sqlite-probe',
+      automated: false,
+    },
+  },
+  launch: {
+    terminateFirst: preLaunchTerminate,
+    tolerateNotRunning: true,
+    start: plainLaunch,
+    deepLinkDelivery: false,
+  },
+  processCut: iosSimulator
+    ? simulatorTerminate
+    : platform === 'ios'
+      ? ['xcrun', 'devicectl', 'device', 'process', 'terminate', '--device', device, '--bundle-id', packageId]
     : ['adb', '-s', device, 'shell', 'am', 'force-stop', packageId],
   powerCut: 'external battery-isolated relay or witnessed hard-power interruption; graceful reboot is forbidden',
   postBootInvariants: [
@@ -156,14 +207,21 @@ const protocol = {
     'deterministic max_page_count rollback with prior commit retained',
     'offline intent -> death -> reconnect -> one server execution -> ACK removal',
   ],
-  requiredReceiptInputs: ['--js-bundle', '--native-binary', '--battery-reference'],
+  requiredReceiptInputs: {
+    artifacts: ['--js-bundle', '--native-binary', '--battery-reference'],
+    inlinedBuildEnvironment: [
+      'EXPO_PUBLIC_SNAPBACK_SQLITE_QUALIFICATION_MODE',
+      'EXPO_PUBLIC_SNAPBACK_QUALIFICATION_ORIGIN',
+    ],
+    commandChannel: 'fixed-port director-served polling with cycle + launchNonce correlation',
+  },
 };
 if (dryRun) {
   process.stdout.write(`${JSON.stringify(protocol, null, 2)}\n`);
   process.exit(0);
 }
-if (!hostOrigin) {
-  process.stderr.write('--host-origin is required for an actual device run (for example http://192.168.1.10)\n');
+if (!hostOrigin && deviceClass !== 'simulator') {
+  process.stderr.write('--host-origin is required for an actual emulator or real-device run (for example http://10.0.2.2 for Android Emulator or http://192.168.1.10 for a physical device)\n');
   process.exit(2);
 }
 if (!jsBundlePath || !nativeBinaryPath || !batteryReferencePath) {
@@ -178,15 +236,19 @@ const command = (argv, options = {}) => {
     env: {
       ...process.env,
       EXPO_PUBLIC_SNAPBACK_SQLITE_QUALIFICATION_MODE: '1',
+      EXPO_PUBLIC_SNAPBACK_QUALIFICATION_ORIGIN: qualificationOrigin,
     },
-    stdio: options.capture ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+    stdio: options.capture || options.tolerateFailure ? ['ignore', 'pipe', 'pipe'] : 'inherit',
   });
-  if (result.status !== 0) {
+  const failureOutput = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  if (result.status !== 0 && !options.tolerateFailure?.test(failureOutput)) {
     throw new Error(`${argv.join(' ')} failed (${result.status}): ${result.stderr ?? ''}`);
   }
   return result.stdout ?? '';
 };
-command(['bun', 'install', '--frozen-lockfile=false']);
+if (iosSimulator) command(protocol.deviceBoot);
+spawnSync('rm', ['-rf', join(appRoot, 'node_modules'), join(appRoot, 'bun.lock')]);
+command(['bun', 'install']);
 command(['bunx', 'expo', 'prebuild', '--clean']);
 command(build);
 
@@ -194,7 +256,24 @@ const events = [];
 const serverExecutions = new Map();
 const serverAcknowledgements = new Set();
 const waiters = [];
+let pendingCommand = null;
 const server = createServer((request, response) => {
+  if (request.method === 'GET' && request.url === '/command') {
+    const commandResponse = pendingCommand === null
+      ? { idle: true }
+      : {
+        phase: pendingCommand.phase,
+        cycle: pendingCommand.cycle,
+        predecessorHandleKeyDigest: pendingCommand.predecessorHandleKeyDigest,
+        launchNonce: pendingCommand.launchNonce,
+      };
+    response.writeHead(200, {
+      'cache-control': 'no-store',
+      'content-type': 'application/json',
+    });
+    response.end(JSON.stringify(commandResponse));
+    return;
+  }
   if (request.method !== 'POST' || !['/event', '/execute', '/ack'].includes(request.url)) {
     response.writeHead(404).end();
     return;
@@ -206,6 +285,12 @@ const server = createServer((request, response) => {
     const input = JSON.parse(body);
     if (request.url === '/event') {
       events.push({ at: new Date().toISOString(), ...input });
+      if (
+        pendingCommand !== null
+        && input.type === pendingCommand.completionEvent
+        && input.cycle === pendingCommand.cycle
+        && input.launchNonce === pendingCommand.launchNonce
+      ) pendingCommand = null;
       for (const waiter of [...waiters]) waiter();
       response.writeHead(204).end();
       return;
@@ -233,9 +318,17 @@ const server = createServer((request, response) => {
     response.end(JSON.stringify({ acknowledged: true, clientMutationId: id }));
   });
 });
-await new Promise((resolveListen) => server.listen(0, '0.0.0.0', resolveListen));
-const port = server.address().port;
-const reportOrigin = `${hostOrigin.replace(/\/$/u, '')}:${port}`;
+await new Promise((resolveListen, rejectListen) => {
+  const onError = (error) => rejectListen(new Error(
+    `director port ${directorPort} is unavailable on ${directorBindHost}; the fixed port is baked into the qualification build (${error.code ?? error.message})`,
+    { cause: error },
+  ));
+  server.once('error', onError);
+  server.listen(directorPort, directorBindHost, () => {
+    server.off('error', onError);
+    resolveListen();
+  });
+});
 const eventFor = (predicate, timeoutMs = 60_000) => new Promise((resolveEvent, reject) => {
   const started = Date.now();
   const check = () => {
@@ -251,22 +344,28 @@ const eventFor = (predicate, timeoutMs = 60_000) => new Promise((resolveEvent, r
   waiters.push(check);
   check();
 });
-const deepLink = ({ phase, cycle, predecessorHandleKeyDigest = null }) => (
-  `snapback-sqlite-probe://command?server=${encodeURIComponent(reportOrigin)}&phase=${encodeURIComponent(phase)}&cycle=${cycle}`
-    + (predecessorHandleKeyDigest === null
-      ? ''
-      : `&predecessorHandleKeyDigest=${encodeURIComponent(predecessorHandleKeyDigest)}`)
-);
-const launch = (url) => {
-  if (platform === 'android') {
-    command(['adb', '-s', device, 'shell', 'am', 'start', '-W', '-a', 'android.intent.action.VIEW', '-d', url, packageId]);
-  } else {
-    command(['xcrun', 'devicectl', 'device', 'process', 'launch', '--terminate-existing', '--device', device, '--payload-url', url, packageId]);
-  }
+const tolerateNotRunning = /no such process|not running|found nothing to terminate|no matching process|process not found|does not exist/iu;
+const terminate = ({ tolerateMissing = false } = {}) => {
+  command(preLaunchTerminate, tolerateMissing ? { tolerateFailure: tolerateNotRunning } : {});
 };
-const terminate = () => {
-  if (platform === 'android') command(['adb', '-s', device, 'shell', 'am', 'force-stop', packageId]);
-  else command(['xcrun', 'devicectl', 'device', 'process', 'terminate', '--device', device, '--bundle-id', packageId]);
+const launch = ({ phase, cycle, predecessorHandleKeyDigest = null }) => {
+  if (pendingCommand !== null) throw new Error('cannot launch while another director command is pending');
+  terminate({ tolerateMissing: true });
+  const launchNonce = randomBytes(16).toString('hex');
+  pendingCommand = Object.freeze({
+    phase,
+    cycle,
+    predecessorHandleKeyDigest,
+    launchNonce,
+    completionEvent: phase === 'verify' ? 'verified' : 'armed',
+  });
+  try {
+    command(plainLaunch);
+  } catch (error) {
+    pendingCommand = null;
+    throw error;
+  }
+  return launchNonce;
 };
 const operator = createInterface({ input: process.stdin, output: process.stdout });
 const observations = [];
@@ -277,8 +376,12 @@ let incompleteReason = null;
 try {
   for (let cycle = 0; cycle < iterations; cycle += 1) {
     const phase = phases[cycle % phases.length];
-    launch(deepLink({ phase, cycle }));
-    const armed = await eventFor((event) => event.type === 'armed' && event.cycle === cycle);
+    const armedLaunchNonce = launch({ phase, cycle });
+    const armed = await eventFor((event) => (
+      event.type === 'armed'
+      && event.cycle === cycle
+      && event.launchNonce === armedLaunchNonce
+    ));
     sourceId ??= armed.facts.sqliteSourceId;
     sqliteFacts ??= armed.facts;
     if (armed.facts.sqliteSourceId !== sourceId) throw new Error('sqlite_source_id changed during run');
@@ -296,7 +399,11 @@ try {
       || runtimeTargetFacts.distribution !== 'release'
       || runtimeTargetFacts.deviceClass !== deviceClass
     ) throw new Error('runtime target facts do not match the requested release target cell');
-    const cutReadyEvent = await eventFor((event) => event.type === 'cut-ready' && event.cycle === cycle);
+    const cutReadyEvent = await eventFor((event) => (
+      event.type === 'cut-ready'
+      && event.cycle === cycle
+      && event.launchNonce === armedLaunchNonce
+    ));
     if (mode === 'process') terminate();
     else {
       const witness = await operator.question(
@@ -308,12 +415,16 @@ try {
       }
       observations.push({ cycle, phase, powerWitness: createHash('sha256').update(witness).digest('hex') });
     }
-    launch(deepLink({
+    const verifyLaunchNonce = launch({
       phase: 'verify',
       cycle,
       predecessorHandleKeyDigest: armed.predecessorHandleKeyDigest,
-    }));
-    const verified = await eventFor((event) => event.type === 'verified' && event.cycle === cycle, 120_000);
+    });
+    const verified = await eventFor((event) => (
+      event.type === 'verified'
+      && event.cycle === cycle
+      && event.launchNonce === verifyLaunchNonce
+    ), 120_000);
     if (verified.integrity !== 'ok') throw new Error(`integrity_check=${verified.integrity}`);
     if (verified.facts.sqliteSourceId !== sourceId) throw new Error('sqlite_source_id changed after recovery');
     if (JSON.stringify(verified.targetFacts) !== JSON.stringify(runtimeTargetFacts)) {
@@ -417,6 +528,8 @@ const receipt = {
   git: { revision: gitRevision, dirtyPaths },
   claimSourceClosure,
   packageArtifacts,
+  qualificationBuildEnvironment: protocol.qualificationBuildEnvironment,
+  commandChannel: protocol.commandChannel,
   jsBundleIdentity: { path: jsBundlePath, sha256: await hashFile(resolvedJsBundle) },
   nativeBinaryIdentity: { path: nativeBinaryPath, sha256: await hashFile(resolvedNativeBinary) },
   targetCell: {

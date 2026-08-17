@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs';
 
 import * as packageEntry from './index.mjs';
 import {
+  useSnapbackAuthorityMutation as reactAuthorityMutation,
+  useSnapbackAuthorityMutationStatus as reactAuthorityMutationStatus,
+  useSnapbackAuthorityMyRole as reactAuthorityMyRole,
+  useSnapbackAuthorityRoster as reactAuthorityRoster,
   useSnapbackActivityPresence as reactActivityPresence,
   useSnapbackCommand as reactCommand,
   useSnapbackMediaCollection as reactMediaCollection,
@@ -75,6 +79,10 @@ assert.equal(typeof packageEntry.adaptExpoAssetSource, 'function');
 assert.equal(typeof packageEntry.useSnapbackQuery, 'function');
 assert.equal(typeof packageEntry.useSnapbackMutation, 'function');
 assert.equal(typeof packageEntry.useSnapbackSettledMutation, 'function');
+assert.equal(packageEntry.useSnapbackAuthorityRoster, reactAuthorityRoster);
+assert.equal(packageEntry.useSnapbackAuthorityMyRole, reactAuthorityMyRole);
+assert.equal(packageEntry.useSnapbackAuthorityMutation, reactAuthorityMutation);
+assert.equal(packageEntry.useSnapbackAuthorityMutationStatus, reactAuthorityMutationStatus);
 assert.equal(typeof packageEntry.useSnapbackActivityPresence, 'function');
 assert.equal(packageEntry.useSnapbackCommand, reactCommand);
 assert.equal(packageEntry.useSnapbackMediaCollection, reactMediaCollection);

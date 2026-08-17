@@ -2679,10 +2679,18 @@ impl AuthorityProfileOperationNameV1 {
 pub enum AuthorityProfileHookV1 {
     #[serde(rename = "useSnapbackQuery")]
     Query,
+    #[serde(rename = "useSnapbackAuthorityRoster")]
+    AuthorityRoster,
+    #[serde(rename = "useSnapbackAuthorityMyRole")]
+    AuthorityMyRole,
     #[serde(rename = "useSnapbackMutation")]
     Mutation,
+    #[serde(rename = "useSnapbackAuthorityMutation")]
+    AuthorityMutation,
     #[serde(rename = "useSnapbackOutbox.mutationStatus")]
     OutboxMutationStatus,
+    #[serde(rename = "useSnapbackAuthorityMutationStatus")]
+    AuthorityMutationStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2838,14 +2846,14 @@ mod authority_profile_manifest_tests {
                     "name": "list",
                     "kind": "LiveQuery",
                     "authRequirement": "authenticated",
-                    "hooks": ["useSnapbackQuery"],
+                    "hooks": ["useSnapbackQuery", "useSnapbackAuthorityRoster"],
                     "transitionOps": []
                 },
                 {
                     "name": "transferOwner",
                     "kind": "Mutation",
                     "authRequirement": "authenticated",
-                    "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                    "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
                     "transitionOps": ["transferOwner"]
                 }
             ]

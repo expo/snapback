@@ -16,6 +16,16 @@
     "expo-linking": "~57.0.1",
     "expo-sqlite": "~57.0.1",
     "react": "19.1.0",
-    "react-native": "0.86.2"
+    "react-native": "0.86.2",
+    "@expo/snapback-react": "file:../../../packages/snapback-react",
+    "@expo/snapback-expo-custody": "file:../../../packages/snapback-expo-custody",
+    "@expo/snapback-contract": "file:../../../packages/snapback-contract",
+    "expo-build-properties": "~57.0.1"
+  },
+  "overrides": {
+    "@expo/snapback-contract": "file:../../../packages/snapback-contract",
+    "@expo/snapback-client": "file:../../../packages/snapback-client",
+    "@expo/snapback-react": "file:../../../packages/snapback-react",
+    "@expo/snapback-expo-custody": "file:../../../packages/snapback-expo-custody"
   }
 }
