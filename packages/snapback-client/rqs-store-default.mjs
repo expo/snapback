@@ -60,6 +60,13 @@ const DEFAULT_RQS_STORE_RESOLUTION_BRAND_VALUE = 'snapback.default-rqs-store-res
 // A provider may acquire a default store asynchronously before constructing
 // SnapbackClient. Branding preserves the public `source: "default"` fact
 // while keeping ordinary object-shaped injected stores unambiguous.
+// Branding is an assertion of provider-default provenance: a branded
+// resolution is treated exactly like an omitted store, including being
+// replaced by a client-lifetime memory queue under volatile-explicit
+// custody rather than refused. Cross-package provenance cannot be made
+// unforgeable in JavaScript (Symbol.for is required for HMR stability), so
+// calling this on a store you constructed waives the explicit-injection
+// refusal deliberately.
 export function brandDefaultRqsStoreResolution(resolution) {
   if (
     resolution === null
