@@ -1295,4 +1295,1362 @@ export const ensureFixtureRepost = defineJsMutation({
   },
 });
 
+function codePointLength(value) {
+  return [...value].length;
+}
+
+function normalizedDmPair(leftProfileId, rightProfileId) {
+  return [leftProfileId, rightProfileId].sort().join(':');
+}
+
+function activeMembershipKey(conversationId, profileId) {
+  return `${conversationId}:${profileId}`;
+}
+
+function conversationSequencePrefix(sequence) {
+  return String(sequence).padStart(12, '0');
+}
+
+function conversationPageKey(ctx, sequence) {
+  return `${conversationSequencePrefix(sequence)}:${ctx.runtime.id()}`;
+}
+
+function removalCutoffPageKey(sequence) {
+  return `${conversationSequencePrefix(sequence)}:`;
+}
+
+function earlierPageKey(left, right) {
+  if (!left) return right;
+  if (!right) return left;
+  return left < right ? left : right;
+}
+
+async function getManyChunked(ctx, table, ids) {
+  const uniqueIds = [];
+  for (const id of ids) {
+    if (id && !uniqueIds.includes(id)) uniqueIds.push(id);
+  }
+  const rows = [];
+  for (const chunk of chunkValues(uniqueIds, 256)) {
+    rows.push(...(await ctx.db.getMany(table, chunk)).filter((row) => Boolean(row)));
+  }
+  return rows;
+}
+
+async function currentMembershipForProfileConversation(ctx, profileId, conversationId) {
+  return ctx.db
+    .query('conversationMembers')
+    .withIndex('by_active_key')
+    .eq('activeKey', activeMembershipKey(conversationId, profileId))
+    .first();
+}
+
+async function latestMembershipForProfileConversation(ctx, profileId, conversationId) {
+  return ctx.db
+    .query('conversationMembers')
+    .withIndex('by_profile_conversation')
+    .eq('profileId', profileId)
+    .eq('conversationId', conversationId)
+    .order('joinedSequence', 'desc')
+    .first();
+}
+
+function boundedCurrentMemberships(rows) {
+  if (rows.length > 50) {
+    throw new Error('conversation current-membership projection exceeds the 50-member invariant');
+  }
+  return rows;
+}
+
+async function chatAccessForProfileConversation(
+  ctx,
+  conversation,
+  profileId,
+  refuse = true,
+) {
+  if (!conversation) {
+    if (refuse) ctx.refuse('CHAT_MEMBERSHIP_REQUIRED');
+    return null;
+  }
+  const active = await currentMembershipForProfileConversation(
+    ctx,
+    profileId,
+    conversation._id,
+  );
+  if (active) return { conversation, membership: active, active: true, cutoffPageKey: null };
+  const historical = await latestMembershipForProfileConversation(
+    ctx,
+    profileId,
+    conversation._id,
+  );
+  if (!historical || !Number.isSafeInteger(historical.removedSequence)) {
+    if (refuse) ctx.refuse('CHAT_MEMBERSHIP_REQUIRED');
+    return null;
+  }
+  return {
+    conversation,
+    membership: historical,
+    active: false,
+    cutoffPageKey: removalCutoffPageKey(historical.removedSequence),
+  };
+}
+
+function requireActiveChatAccess(ctx, access) {
+  if (!access.active) ctx.refuse('CHAT_MEMBERSHIP_REQUIRED');
+  return access;
+}
+
+function requireGroupAdminAccess(ctx, access) {
+  requireActiveChatAccess(ctx, access);
+  if (access.conversation.kind !== 'group') ctx.refuse('NOT_GROUP_CHAT');
+  if (access.membership.role !== 'admin') ctx.refuse('NOT_GROUP_ADMIN');
+  return access;
+}
+
+function normalizedGroupInput(ctx, args) {
+  const name = String(args.name ?? '').trim();
+  const description = String(args.description ?? '').trim();
+  if (codePointLength(name) < 1 || codePointLength(name) > 50) {
+    ctx.refuse('GROUP_NAME_INVALID');
+  }
+  if (codePointLength(description) > 200) ctx.refuse('GROUP_DESCRIPTION_TOO_LONG');
+  return { name, description };
+}
+
+function normalizedMessageBody(ctx, value) {
+  const body = String(value ?? '');
+  if (!body.trim()) ctx.refuse('MESSAGE_BODY_REQUIRED');
+  if (codePointLength(body) > 2_000) ctx.refuse('MESSAGE_BODY_TOO_LONG');
+  return body;
+}
+
+async function createConversationCore(ctx, creator, input, fixture) {
+  const createdAt = ctx.runtime.now();
+  const conversationId = await ctx.db.insert('conversations', {
+    ownerId: creator.ownerId,
+    kind: input.kind,
+    ...(input.dmPairKey ? { dmPairKey: input.dmPairKey } : {}),
+    ...(fixture ? { fixtureId: fixture.id, fixtureDigest: fixture.digest } : {}),
+    ...(input.groupName ? { groupName: input.groupName } : {}),
+    ...(input.groupDescription ? { groupDescription: input.groupDescription } : {}),
+    creatorProfileId: creator._id,
+    nextEventSequence: 1,
+    lastMessageAt: createdAt,
+    createdAt,
+  });
+  for (const profile of input.initialProfiles) {
+    await ctx.db.insert('conversationMembers', {
+      ownerId: profile.ownerId,
+      conversationId,
+      profileId: profile._id,
+      role: input.kind === 'group' && profile._id === creator._id ? 'admin' : 'member',
+      joinedAt: createdAt,
+      joinedSequence: 0,
+      isCurrent: true,
+      isLatest: true,
+      activeKey: activeMembershipKey(conversationId, profile._id),
+    });
+  }
+  return conversationId;
+}
+
+async function openDmCore(ctx, creator, otherProfile, existing, fixture = null) {
+  if (creator._id === otherProfile._id) ctx.refuse('SELF_DM_FORBIDDEN');
+  const dmPairKey = normalizedDmPair(creator._id, otherProfile._id);
+  if (existing) {
+    if (existing.kind !== 'dm') throw new Error('normalized DM key is attached to a non-DM');
+    if (fixture) {
+      if (existing.fixtureId && existing.fixtureId !== fixture.id) {
+        ctx.refuse('FIXTURE_OWNERSHIP_MISMATCH');
+      }
+      if (existing.fixtureId !== fixture.id || existing.fixtureDigest !== fixture.digest) {
+        await ctx.db.patch('conversations', existing._id, {
+          fixtureId: fixture.id,
+          fixtureDigest: fixture.digest,
+        });
+      }
+    }
+    return { conversationId: existing._id, disposition: fixture ? 'matched' : 'reused' };
+  }
+  return {
+    conversationId: await createConversationCore(ctx, creator, {
+      kind: 'dm',
+      dmPairKey,
+      initialProfiles: [creator, otherProfile],
+    }, fixture),
+    disposition: 'created',
+  };
+}
+
+async function addGroupMemberCore(
+  ctx,
+  conversation,
+  targetProfile,
+  existing,
+  activeMembers,
+  fixture = null,
+) {
+  const activeKey = activeMembershipKey(conversation._id, targetProfile._id);
+  if (existing) {
+    let disposition = 'matched';
+    if (fixture && (
+      existing.fixtureMutationId !== fixture.mutationId
+      || existing.fixtureDigest !== fixture.digest
+    )) {
+      await ctx.db.patch('conversationMembers', existing._id, {
+        fixtureMutationId: fixture.mutationId,
+        fixtureDigest: fixture.digest,
+      });
+      disposition = 'repaired';
+    }
+    return { membershipId: existing._id, disposition };
+  }
+  if (activeMembers.length >= 50) ctx.refuse('GROUP_MEMBER_LIMIT_REACHED');
+  const previousMembership = await latestMembershipForProfileConversation(
+    ctx,
+    targetProfile._id,
+    conversation._id,
+  );
+  if (previousMembership?.isLatest) {
+    await ctx.db.patch('conversationMembers', previousMembership._id, { isLatest: false });
+  }
+  const joinedAt = ctx.runtime.now();
+  const joinedSequence = conversation.nextEventSequence;
+  const membershipId = await ctx.db.insert('conversationMembers', {
+    ownerId: targetProfile.ownerId,
+    conversationId: conversation._id,
+    profileId: targetProfile._id,
+    role: 'member',
+    joinedAt,
+    joinedSequence,
+    isCurrent: true,
+    isLatest: true,
+    activeKey,
+    ...(fixture
+      ? { fixtureMutationId: fixture.mutationId, fixtureDigest: fixture.digest }
+      : {}),
+  });
+  await ctx.db.patch('conversations', conversation._id, {
+    nextEventSequence: joinedSequence + 1,
+  });
+  return { membershipId, disposition: 'created' };
+}
+
+async function closeMembership(ctx, conversation, membership) {
+  const removedAt = ctx.runtime.now();
+  const removedSequence = conversation.nextEventSequence;
+  await ctx.db.patch('conversationMembers', membership._id, {
+    removedAt,
+    removedSequence,
+    isCurrent: false,
+    activeKey: `removed:${membership._id}`,
+  });
+  await ctx.db.patch('conversations', conversation._id, {
+    nextEventSequence: removedSequence + 1,
+  });
+  return removedSequence;
+}
+
+async function insertMessageCore(
+  ctx,
+  sender,
+  conversation,
+  activeMembers,
+  body,
+  quotedMessage,
+  fixture = null,
+) {
+  const senderMembership = activeMembers.find((member) => member.profileId === sender._id);
+  if (!senderMembership) ctx.refuse('CHAT_MEMBERSHIP_REQUIRED');
+  const recipients = activeMembers.filter((member) => member.profileId !== sender._id);
+  const sequence = conversation.nextEventSequence;
+  const createdAt = ctx.runtime.now();
+  const pageKey = conversationPageKey(ctx, sequence);
+  const messageId = await ctx.db.insert('messages', {
+    ownerId: sender.ownerId,
+    conversationId: conversation._id,
+    senderProfileId: sender._id,
+    ...(fixture ? { fixtureId: fixture.id, fixtureDigest: fixture.digest } : {}),
+    body,
+    ...(quotedMessage ? { quotedMessageId: quotedMessage._id } : {}),
+    recipientCount: recipients.length,
+    sequence,
+    pageKey,
+    createdAt,
+  });
+  for (const recipient of recipients) {
+    await ctx.db.insert('messageReceipts', {
+      ownerId: recipient.ownerId,
+      conversationId: conversation._id,
+      messageId,
+      recipientMemberId: recipient._id,
+      recipientProfileId: recipient.profileId,
+      status: 'sent',
+      statusRank: 0,
+    });
+  }
+  await ctx.db.patch('conversations', conversation._id, {
+    nextEventSequence: sequence + 1,
+    lastMessageId: messageId,
+    lastMessageAt: createdAt,
+  });
+  return messageId;
+}
+
+function requiredQuotedMessage(ctx, conversationId, quotedMessageId, quoted) {
+  if (!quotedMessageId) return null;
+  if (!quoted || quoted.conversationId !== conversationId) {
+    ctx.refuse('QUOTED_MESSAGE_NOT_FOUND');
+  }
+  return quoted;
+}
+
+function receiptSummaryFor(message, receipts, recipientMemberships) {
+  const membershipById = new Map(recipientMemberships.map((row) => [row._id, row]));
+  const requiredIds = receipts.map((receipt) => receipt.recipientMemberId).filter((memberId) => {
+    const membership = membershipById.get(memberId);
+    return membership && membership.removedAt == null;
+  });
+  const requiredReceipts = receipts.filter((receipt) => requiredIds.includes(receipt.recipientMemberId));
+  const deliveredCount = requiredReceipts.filter((receipt) => receipt.statusRank >= 1).length;
+  const readCount = requiredReceipts.filter((receipt) => receipt.statusRank >= 2).length;
+  let aggregateStatus = 'sent';
+  if (requiredIds.length === 0 || readCount === requiredIds.length) aggregateStatus = 'read';
+  else if (deliveredCount === requiredIds.length) aggregateStatus = 'delivered';
+  return {
+    aggregateStatus,
+    recipientCount: message.recipientCount,
+    requiredCount: requiredIds.length,
+    sentCount: requiredReceipts.length,
+    deliveredCount,
+    readCount,
+  };
+}
+
+const receiptSummaryRow = v.object({
+  aggregateStatus: v.string(),
+  recipientCount: v.integer(),
+  requiredCount: v.integer(),
+  sentCount: v.integer(),
+  deliveredCount: v.integer(),
+  readCount: v.integer(),
+});
+
+const quotedMessageRow = v.object({
+  messageId: v.id('messages'),
+  excerpt: v.string(),
+  senderProfileId: v.id('profiles'),
+  senderDisplayName: v.string(),
+});
+
+const chatMessageRow = v.object({
+  _id: v.id('messages'),
+  conversationId: v.id('conversations'),
+  senderProfileId: v.id('profiles'),
+  senderHandle: v.string(),
+  senderDisplayName: v.string(),
+  senderAvatar: v.optional(v.assetRef({ upload: 'avatarUpload' })),
+  body: v.string(),
+  quotedMessageId: v.optional(v.id('messages')),
+  quotedMessage: v.optional(quotedMessageRow),
+  pageKey: v.string(),
+  createdAt: v.integer(),
+  viewerReceiptStatus: v.optional(v.string()),
+  receiptSummary: receiptSummaryRow,
+});
+
+async function hydrateChatMessages(
+  ctx,
+  messages,
+  viewerProfileId,
+  quotedMessages,
+  receipts,
+  recipientMemberships,
+) {
+  if (messages.length === 0) return [];
+  const allMessages = [...messages, ...quotedMessages];
+  const profiles = await getManyChunked(
+    ctx,
+    'profiles',
+    allMessages.map((message) => message.senderProfileId),
+  );
+  return messages.map((message) => {
+    const sender = profiles.find((profile) => profile._id === message.senderProfileId);
+    if (!sender) throw new Error(`message ${message._id} has no sender profile`);
+    const messageReceipts = receipts.filter((receipt) => receipt.messageId === message._id);
+    const viewerReceipt = messageReceipts.find((receipt) => (
+      receipt.recipientProfileId === viewerProfileId
+    ));
+    const quoted = message.quotedMessageId
+      ? quotedMessages.find((candidate) => candidate._id === message.quotedMessageId)
+      : null;
+    const quotedSender = quoted
+      ? profiles.find((profile) => profile._id === quoted.senderProfileId)
+      : null;
+    return {
+      _id: message._id,
+      conversationId: message.conversationId,
+      senderProfileId: sender._id,
+      senderHandle: sender.handle,
+      senderDisplayName: sender.displayName,
+      ...(sender.avatar ? { senderAvatar: sender.avatar } : {}),
+      body: message.body,
+      ...(message.quotedMessageId ? { quotedMessageId: message.quotedMessageId } : {}),
+      ...(quoted && quotedSender
+        ? {
+            quotedMessage: {
+              messageId: quoted._id,
+              excerpt: [...quoted.body].slice(0, 120).join(''),
+              senderProfileId: quotedSender._id,
+              senderDisplayName: quotedSender.displayName,
+            },
+          }
+        : {}),
+      pageKey: message.pageKey,
+      createdAt: message.createdAt,
+      ...(viewerReceipt ? { viewerReceiptStatus: viewerReceipt.status } : {}),
+      receiptSummary: receiptSummaryFor(message, messageReceipts, recipientMemberships),
+    };
+  });
+}
+
+const chatMemberRow = v.object({
+  profileId: v.id('profiles'),
+  handle: v.string(),
+  displayName: v.string(),
+  avatar: v.optional(v.assetRef({ upload: 'avatarUpload' })),
+  role: v.string(),
+  active: v.boolean(),
+});
+
+const chatListRow = v.object({
+  _id: v.id('conversations'),
+  kind: v.string(),
+  name: v.string(),
+  description: v.string(),
+  viewerRole: v.string(),
+  active: v.boolean(),
+  members: v.array(chatMemberRow, { maxItems: 50 }),
+  lastMessage: v.optional(chatMessageRow),
+  lastMessageAt: v.integer(),
+});
+
+async function chatRoster(ctx, memberships) {
+  const profiles = await getManyChunked(
+    ctx,
+    'profiles',
+    memberships.map((membership) => membership.profileId),
+  );
+  return profiles.map((profile) => {
+    const membership = memberships.find((candidate) => candidate.profileId === profile._id);
+    return {
+      profileId: profile._id,
+      handle: profile.handle,
+      displayName: profile.displayName,
+      ...(profile.avatar ? { avatar: profile.avatar } : {}),
+      role: membership.role,
+      active: true,
+    };
+  }).sort((left, right) => left.handle.localeCompare(right.handle));
+}
+
+export const listChats = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: {},
+  result: results.records(chatListRow, { minItems: 0, maxItems: 200 }),
+  reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
+  refusals: ['PROFILE_REQUIRED'],
+  handler: async (ctx) => {
+    const viewer = await requireMyProfile(ctx);
+    const memberships = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_latest_profile')
+      .eq('profileId', viewer._id)
+      .eq('isLatest', true)
+      .take(200)
+      .collect();
+    const byConversation = new Map(
+      memberships.map((membership) => [membership.conversationId, membership]),
+    );
+    const conversations = [];
+    for (const chunk of chunkValues([...byConversation.keys()], 256)) {
+      conversations.push(...(await ctx.db.elevated.getMany('conversations', chunk))
+        .filter((row) => Boolean(row)));
+    }
+    const projected = [];
+    for (const conversation of conversations) {
+      const historical = byConversation.get(conversation._id);
+      const active = historical?.isCurrent ? historical : null;
+      if (!historical) continue;
+      const cutoff = active ? null : removalCutoffPageKey(historical.removedSequence);
+      let latestQuery = ctx.db.elevated
+        .query('messages')
+        .withIndex('by_conversation_page')
+        .eq('conversationId', conversation._id);
+      if (cutoff) latestQuery = latestQuery.lt('pageKey', cutoff);
+      const lastMessage = await latestQuery.order('pageKey', 'desc').first();
+      let hydrated = null;
+      if (lastMessage) {
+        const quotedMessages = lastMessage.quotedMessageId
+          ? [(await ctx.db.elevated.get('messages', lastMessage.quotedMessageId))].filter(Boolean)
+          : [];
+        const receipts = await ctx.db.elevated
+          .query('messageReceipts')
+          .withIndex('by_message')
+          .eq('messageId', lastMessage._id)
+          .take(49)
+          .collect();
+        const recipientMemberships = (await ctx.db.elevated.getMany(
+          'conversationMembers',
+          receipts.map((receipt) => receipt.recipientMemberId),
+        )).filter((row) => Boolean(row));
+        hydrated = (await hydrateChatMessages(
+          ctx,
+          [lastMessage],
+          viewer._id,
+          quotedMessages,
+          receipts,
+          recipientMemberships,
+        ))[0];
+      }
+      const rosterMemberships = await ctx.db.elevated
+        .query('conversationMembers')
+        .withIndex('by_current_conversation')
+        .eq('conversationId', conversation._id)
+        .eq('isCurrent', true)
+        .take(51)
+        .collect();
+      const members = await chatRoster(ctx, boundedCurrentMemberships(rosterMemberships));
+      const other = members.find((member) => member.profileId !== viewer._id);
+      projected.push({
+        _id: conversation._id,
+        kind: conversation.kind,
+        name: conversation.kind === 'group'
+          ? conversation.groupName
+          : other?.displayName ?? 'Direct message',
+        description: conversation.groupDescription ?? '',
+        viewerRole: historical.role,
+        active: Boolean(active),
+        members,
+        ...(hydrated ? { lastMessage: hydrated } : {}),
+        lastMessageAt: hydrated?.createdAt ?? conversation.createdAt,
+      });
+    }
+    return projected
+      .sort((left, right) => right.lastMessageAt - left.lastMessageAt)
+      .slice(0, 200);
+  },
+});
+
+export const listMessages = defineJsLiveQuery({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    before: v.optional(v.string()),
+  },
+  result: results.records(chatMessageRow, { minItems: 0, maxItems: 50 }),
+  reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
+  refusals: ['PROFILE_REQUIRED', 'CHAT_MEMBERSHIP_REQUIRED'],
+  handler: async (ctx, args) => {
+    const viewer = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = await chatAccessForProfileConversation(
+      ctx,
+      conversation,
+      viewer._id,
+    );
+    const before = earlierPageKey(args.before, access.cutoffPageKey);
+    let query = ctx.db.elevated
+      .query('messages')
+      .withIndex('by_conversation_page')
+      .eq('conversationId', args.conversationId);
+    if (before) query = query.lt('pageKey', before);
+    const rows = await query.order('pageKey', 'desc').take(50).collect();
+    const quotedMessages = (await ctx.db.elevated.getMany(
+      'messages',
+      rows.map((message) => message.quotedMessageId).filter(Boolean),
+    )).filter((row) => Boolean(row));
+    const receipts = rows.length === 0 ? [] : await ctx.db.elevated
+      .query('messageReceipts')
+      .withIndex('by_message')
+      .in('messageId', rows.map((message) => message._id))
+      .take(rows.length * 49)
+      .collect();
+    const recipientMembershipIds = [];
+    for (const receipt of receipts) {
+      if (!recipientMembershipIds.includes(receipt.recipientMemberId)) {
+        recipientMembershipIds.push(receipt.recipientMemberId);
+      }
+    }
+    const recipientMemberships = [];
+    for (const chunk of chunkValues(recipientMembershipIds, 256)) {
+      recipientMemberships.push(...(await ctx.db.elevated.getMany(
+        'conversationMembers',
+        chunk,
+      )).filter((row) => Boolean(row)));
+    }
+    return hydrateChatMessages(
+      ctx,
+      rows,
+      viewer._id,
+      quotedMessages,
+      receipts,
+      recipientMemberships,
+    );
+  },
+});
+
+export const openDm = defineJsMutation({
+  auth: 'authenticated',
+  args: { otherProfileId: v.id('profiles') },
+  result: results.value(v.id('conversations')),
+  reads: ['profiles', 'conversations'],
+  writes: ['conversations', 'conversationMembers'],
+  refusals: ['PROFILE_REQUIRED', 'PROFILE_NOT_FOUND', 'SELF_DM_FORBIDDEN'],
+  handler: async (ctx, args) => {
+    const creator = await requireMyProfile(ctx);
+    const other = await ctx.db.get('profiles', args.otherProfileId);
+    if (!other) ctx.refuse('PROFILE_NOT_FOUND');
+    const dmPairKey = normalizedDmPair(creator._id, other._id);
+    const existing = await ctx.db.elevated
+      .query('conversations')
+      .withIndex('by_dm_pair')
+      .eq('dmPairKey', dmPairKey)
+      .first();
+    return (await openDmCore(ctx, creator, other, existing)).conversationId;
+  },
+});
+
+export const createGroup = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    name: v.string(),
+    description: v.string(),
+    memberProfileIds: v.array(v.id('profiles'), { maxItems: 64 }),
+  },
+  result: results.value(v.id('conversations')),
+  reads: ['profiles'],
+  writes: ['conversations', 'conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'PROFILE_NOT_FOUND',
+    'GROUP_NAME_INVALID',
+    'GROUP_DESCRIPTION_TOO_LONG',
+    'GROUP_SIZE_INVALID',
+  ],
+  handler: async (ctx, args) => {
+    const creator = await requireMyProfile(ctx);
+    const input = normalizedGroupInput(ctx, args);
+    const memberProfileIds = [];
+    for (const profileId of args.memberProfileIds) {
+      if (profileId !== creator._id && !memberProfileIds.includes(profileId)) {
+        memberProfileIds.push(profileId);
+      }
+    }
+    if (memberProfileIds.length < 1 || memberProfileIds.length > 49) {
+      ctx.refuse('GROUP_SIZE_INVALID');
+    }
+    const members = await getManyChunked(ctx, 'profiles', memberProfileIds);
+    if (members.length !== memberProfileIds.length) ctx.refuse('PROFILE_NOT_FOUND');
+    return createConversationCore(ctx, creator, {
+      kind: 'group',
+      groupName: input.name,
+      groupDescription: input.description,
+      initialProfiles: [creator, ...members],
+    }, null);
+  },
+});
+
+export const addMember = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    profileId: v.id('profiles'),
+  },
+  result: results.value(v.id('conversationMembers')),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'PROFILE_NOT_FOUND',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'NOT_GROUP_CHAT',
+    'NOT_GROUP_ADMIN',
+    'GROUP_MEMBER_LIMIT_REACHED',
+  ],
+  handler: async (ctx, args) => {
+    const actor = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = requireGroupAdminAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, actor._id),
+    );
+    const target = await ctx.db.get('profiles', args.profileId);
+    if (!target) ctx.refuse('PROFILE_NOT_FOUND');
+    const existing = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_active_key')
+      .eq('activeKey', activeMembershipKey(access.conversation._id, target._id))
+      .first();
+    const allMembers = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_current_conversation')
+      .eq('conversationId', access.conversation._id)
+      .eq('isCurrent', true)
+      .take(51)
+      .collect();
+    return (await addGroupMemberCore(
+      ctx,
+      access.conversation,
+      target,
+      existing,
+      boundedCurrentMemberships(allMembers),
+    )).membershipId;
+  },
+});
+
+export const removeMember = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    profileId: v.id('profiles'),
+  },
+  result: results.value(v.id('conversations')),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'NOT_GROUP_CHAT',
+    'NOT_GROUP_ADMIN',
+    'MEMBER_NOT_FOUND',
+    'REMOVE_SELF_WITH_LEAVE',
+    'LAST_GROUP_ADMIN',
+  ],
+  handler: async (ctx, args) => {
+    const actor = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = requireGroupAdminAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, actor._id),
+    );
+    if (actor._id === args.profileId) ctx.refuse('REMOVE_SELF_WITH_LEAVE');
+    const memberRows = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_current_conversation')
+      .eq('conversationId', access.conversation._id)
+      .eq('isCurrent', true)
+      .take(51)
+      .collect();
+    const members = boundedCurrentMemberships(memberRows);
+    const target = members.find((membership) => membership.profileId === args.profileId);
+    if (!target) ctx.refuse('MEMBER_NOT_FOUND');
+    if (target.role === 'admin' && members.filter((member) => member.role === 'admin').length === 1) {
+      ctx.refuse('LAST_GROUP_ADMIN');
+    }
+    await closeMembership(ctx, access.conversation, target);
+    return access.conversation._id;
+  },
+});
+
+export const promoteAdmin = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    profileId: v.id('profiles'),
+  },
+  result: results.value(v.id('conversationMembers')),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
+  writes: ['conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'NOT_GROUP_CHAT',
+    'NOT_GROUP_ADMIN',
+    'MEMBER_NOT_FOUND',
+  ],
+  handler: async (ctx, args) => {
+    const actor = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = requireGroupAdminAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, actor._id),
+    );
+    const memberRows = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_current_conversation')
+      .eq('conversationId', access.conversation._id)
+      .eq('isCurrent', true)
+      .take(51)
+      .collect();
+    const members = boundedCurrentMemberships(memberRows);
+    const target = members.find((membership) => membership.profileId === args.profileId);
+    if (!target) ctx.refuse('MEMBER_NOT_FOUND');
+    if (target.role !== 'admin') {
+      await ctx.db.patch('conversationMembers', target._id, { role: 'admin' });
+    }
+    return target._id;
+  },
+});
+
+export const leaveChat = defineJsMutation({
+  auth: 'authenticated',
+  args: { conversationId: v.id('conversations') },
+  result: results.value(v.id('conversations')),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'NOT_GROUP_CHAT',
+    'LAST_GROUP_ADMIN',
+  ],
+  handler: async (ctx, args) => {
+    const actor = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = requireActiveChatAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, actor._id),
+    );
+    if (access.conversation.kind !== 'group') ctx.refuse('NOT_GROUP_CHAT');
+    const memberRows = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_current_conversation')
+      .eq('conversationId', access.conversation._id)
+      .eq('isCurrent', true)
+      .take(51)
+      .collect();
+    const members = boundedCurrentMemberships(memberRows);
+    const others = members.filter((member) => member._id !== access.membership._id);
+    if (
+      access.membership.role === 'admin'
+      && others.length > 0
+      && !others.some((member) => member.role === 'admin')
+    ) {
+      ctx.refuse('LAST_GROUP_ADMIN');
+    }
+    await closeMembership(ctx, access.conversation, access.membership);
+    return access.conversation._id;
+  },
+});
+
+export const sendMessage = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    body: v.string(),
+    quotedMessageId: v.optional(v.id('messages')),
+  },
+  result: results.value(v.id('messages')),
+  reads: ['profiles', 'conversations', 'conversationMembers', 'messages'],
+  writes: ['conversations', 'messages', 'messageReceipts'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'MESSAGE_BODY_REQUIRED',
+    'MESSAGE_BODY_TOO_LONG',
+    'QUOTED_MESSAGE_NOT_FOUND',
+  ],
+  handler: async (ctx, args) => {
+    const sender = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = requireActiveChatAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, sender._id),
+    );
+    const body = normalizedMessageBody(ctx, args.body);
+    const quotedRow = args.quotedMessageId
+      ? await ctx.db.elevated.get('messages', args.quotedMessageId)
+      : null;
+    const quoted = requiredQuotedMessage(
+      ctx,
+      access.conversation._id,
+      args.quotedMessageId,
+      quotedRow,
+    );
+    const memberRows = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_current_conversation')
+      .eq('conversationId', access.conversation._id)
+      .eq('isCurrent', true)
+      .take(51)
+      .collect();
+    return insertMessageCore(
+      ctx,
+      sender,
+      access.conversation,
+      boundedCurrentMemberships(memberRows),
+      body,
+      quoted,
+    );
+  },
+});
+
+async function advanceReceipt(ctx, receipt, targetStatus, targetRank) {
+  if (receipt.statusRank < targetRank) {
+    const now = ctx.runtime.now();
+    await ctx.db.patch('messageReceipts', receipt._id, {
+      status: targetStatus,
+      statusRank: targetRank,
+      ...(targetRank >= 1 && receipt.deliveredAt == null ? { deliveredAt: now } : {}),
+      ...(targetRank >= 2 && receipt.readAt == null ? { readAt: now } : {}),
+    });
+    return targetStatus;
+  }
+  return receipt.status;
+}
+
+const receiptMutationResult = results.value(v.object({ status: v.string() }));
+
+export const markDelivered = defineJsMutation({
+  auth: 'authenticated',
+  args: { messageId: v.id('messages') },
+  result: receiptMutationResult,
+  reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
+  writes: ['messageReceipts'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'MESSAGE_NOT_FOUND',
+    'MESSAGE_RECEIPT_NOT_RECIPIENT',
+  ],
+  handler: async (ctx, args) => {
+    const viewer = await requireMyProfile(ctx);
+    const message = await ctx.db.elevated.get('messages', args.messageId);
+    if (!message) ctx.refuse('MESSAGE_NOT_FOUND');
+    const conversation = await ctx.db.elevated.get('conversations', message.conversationId);
+    await chatAccessForProfileConversation(ctx, conversation, viewer._id);
+    const receipts = await ctx.db
+      .query('messageReceipts')
+      .withIndex('by_recipient_message')
+      .eq('recipientProfileId', viewer._id)
+      .eq('messageId', message._id)
+      .take(2)
+      .collect();
+    const receipt = receipts[0];
+    if (!receipt) ctx.refuse('MESSAGE_RECEIPT_NOT_RECIPIENT');
+    return { status: await advanceReceipt(ctx, receipt, 'delivered', 1) };
+  },
+});
+
+export const markRead = defineJsMutation({
+  auth: 'authenticated',
+  args: { messageId: v.id('messages') },
+  result: receiptMutationResult,
+  reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
+  writes: ['messageReceipts'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'MESSAGE_NOT_FOUND',
+    'MESSAGE_RECEIPT_NOT_RECIPIENT',
+  ],
+  handler: async (ctx, args) => {
+    const viewer = await requireMyProfile(ctx);
+    const message = await ctx.db.elevated.get('messages', args.messageId);
+    if (!message) ctx.refuse('MESSAGE_NOT_FOUND');
+    const conversation = await ctx.db.elevated.get('conversations', message.conversationId);
+    await chatAccessForProfileConversation(ctx, conversation, viewer._id);
+    const receipts = await ctx.db
+      .query('messageReceipts')
+      .withIndex('by_recipient_message')
+      .eq('recipientProfileId', viewer._id)
+      .eq('messageId', message._id)
+      .take(2)
+      .collect();
+    const receipt = receipts[0];
+    if (!receipt) ctx.refuse('MESSAGE_RECEIPT_NOT_RECIPIENT');
+    return { status: await advanceReceipt(ctx, receipt, 'read', 2) };
+  },
+});
+
+const fixtureConversationRow = v.object({
+  _id: v.id('conversations'),
+  kind: v.string(),
+  fixtureId: v.string(),
+  fixtureDigest: v.string(),
+  groupName: v.optional(v.string()),
+  groupDescription: v.optional(v.string()),
+});
+
+export const getMyFixtureConversation = defineJsQuery({
+  auth: 'authenticated',
+  args: { fixtureId: v.string() },
+  result: results.records(fixtureConversationRow, { minItems: 0, maxItems: 1 }),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
+  refusals: ['PROFILE_REQUIRED'],
+  handler: async (ctx, args) => {
+    const viewer = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated
+      .query('conversations')
+      .withIndex('by_fixture_id')
+      .eq('fixtureId', String(args.fixtureId))
+      .first();
+    if (!conversation) return [];
+    const access = await chatAccessForProfileConversation(
+      ctx,
+      conversation,
+      viewer._id,
+      false,
+    );
+    if (!access) return [];
+    return [{
+      _id: conversation._id,
+      kind: conversation.kind,
+      fixtureId: conversation.fixtureId,
+      fixtureDigest: conversation.fixtureDigest,
+      ...(conversation.groupName ? { groupName: conversation.groupName } : {}),
+      ...(conversation.groupDescription
+        ? { groupDescription: conversation.groupDescription }
+        : {}),
+    }];
+  },
+});
+
+const fixtureMessageRow = v.object({
+  _id: v.id('messages'),
+  conversationId: v.id('conversations'),
+  senderProfileId: v.id('profiles'),
+  fixtureId: v.string(),
+  fixtureDigest: v.string(),
+  body: v.string(),
+  quotedMessageId: v.optional(v.id('messages')),
+  recipientCount: v.integer(),
+});
+
+export const getMyFixtureMessage = defineJsQuery({
+  auth: 'authenticated',
+  args: { fixtureId: v.string() },
+  result: results.records(fixtureMessageRow, { minItems: 0, maxItems: 1 }),
+  reads: ['profiles', 'conversations', 'conversationMembers', 'messages'],
+  refusals: ['PROFILE_REQUIRED'],
+  handler: async (ctx, args) => {
+    const viewer = await requireMyProfile(ctx);
+    const message = await ctx.db.elevated
+      .query('messages')
+      .withIndex('by_fixture_id')
+      .eq('fixtureId', String(args.fixtureId))
+      .first();
+    if (!message) return [];
+    const conversation = await ctx.db.elevated.get('conversations', message.conversationId);
+    const access = await chatAccessForProfileConversation(ctx, conversation, viewer._id, false);
+    if (!access) return [];
+    if (access.cutoffPageKey && message.pageKey >= access.cutoffPageKey) return [];
+    return [{
+      _id: message._id,
+      conversationId: message.conversationId,
+      senderProfileId: message.senderProfileId,
+      fixtureId: message.fixtureId,
+      fixtureDigest: message.fixtureDigest,
+      body: message.body,
+      ...(message.quotedMessageId ? { quotedMessageId: message.quotedMessageId } : {}),
+      recipientCount: message.recipientCount,
+    }];
+  },
+});
+
+export const ensureFixtureDm = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    fixtureId: v.string(),
+    fixtureDigest: v.string(),
+    otherProfileId: v.id('profiles'),
+  },
+  result: results.value(v.object({
+    conversationId: v.id('conversations'),
+    disposition: v.string(),
+  })),
+  reads: ['profiles', 'conversations'],
+  writes: ['conversations', 'conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'PROFILE_NOT_FOUND',
+    'SELF_DM_FORBIDDEN',
+    'FIXTURE_OWNERSHIP_MISMATCH',
+  ],
+  handler: async (ctx, args) => {
+    const creator = await requireMyProfile(ctx);
+    const other = await ctx.db.get('profiles', args.otherProfileId);
+    if (!other) ctx.refuse('PROFILE_NOT_FOUND');
+    const fixture = {
+      id: String(args.fixtureId),
+      digest: normalizedSha256(args.fixtureDigest, 'fixture DM source digest'),
+    };
+    const byFixture = await ctx.db.elevated
+      .query('conversations')
+      .withIndex('by_fixture_id')
+      .eq('fixtureId', fixture.id)
+      .first();
+    if (byFixture) {
+      if (
+        byFixture.kind !== 'dm'
+        || byFixture.dmPairKey !== normalizedDmPair(creator._id, other._id)
+      ) ctx.refuse('FIXTURE_OWNERSHIP_MISMATCH');
+      if (byFixture.fixtureDigest !== fixture.digest) {
+        await ctx.db.patch('conversations', byFixture._id, { fixtureDigest: fixture.digest });
+        return { conversationId: byFixture._id, disposition: 'repaired' };
+      }
+      return { conversationId: byFixture._id, disposition: 'matched' };
+    }
+    const pairConversation = await ctx.db.elevated
+      .query('conversations')
+      .withIndex('by_dm_pair')
+      .eq('dmPairKey', normalizedDmPair(creator._id, other._id))
+      .first();
+    return openDmCore(ctx, creator, other, pairConversation, fixture);
+  },
+});
+
+export const ensureFixtureGroup = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    fixtureId: v.string(),
+    fixtureDigest: v.string(),
+    secondMemberProfileId: v.id('profiles'),
+    name: v.string(),
+    description: v.string(),
+  },
+  result: results.value(v.object({
+    conversationId: v.id('conversations'),
+    disposition: v.string(),
+  })),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'PROFILE_NOT_FOUND',
+    'GROUP_NAME_INVALID',
+    'GROUP_DESCRIPTION_TOO_LONG',
+    'FIXTURE_OWNERSHIP_MISMATCH',
+    'GROUP_MEMBER_LIMIT_REACHED',
+  ],
+  handler: async (ctx, args) => {
+    const creator = await requireMyProfile(ctx);
+    const second = await ctx.db.get('profiles', args.secondMemberProfileId);
+    if (!second) ctx.refuse('PROFILE_NOT_FOUND');
+    if (second._id === creator._id) ctx.refuse('FIXTURE_OWNERSHIP_MISMATCH');
+    const input = normalizedGroupInput(ctx, args);
+    const fixture = {
+      id: String(args.fixtureId),
+      digest: normalizedSha256(args.fixtureDigest, 'fixture group source digest'),
+    };
+    const existing = await ctx.db.elevated
+      .query('conversations')
+      .withIndex('by_fixture_id')
+      .eq('fixtureId', fixture.id)
+      .first();
+    if (existing) {
+      if (existing.kind !== 'group' || existing.creatorProfileId !== creator._id) {
+        ctx.refuse('FIXTURE_OWNERSHIP_MISMATCH');
+      }
+      let disposition = 'matched';
+      if (
+        existing.fixtureDigest !== fixture.digest
+        || existing.groupName !== input.name
+        || (existing.groupDescription ?? '') !== input.description
+      ) {
+        await ctx.db.patch('conversations', existing._id, {
+          fixtureDigest: fixture.digest,
+          groupName: input.name,
+          groupDescription: input.description,
+        });
+        disposition = 'repaired';
+      }
+      const existingMembership = await ctx.db.elevated
+        .query('conversationMembers')
+        .withIndex('by_active_key')
+        .eq('activeKey', activeMembershipKey(existing._id, second._id))
+        .first();
+      const memberRows = await ctx.db.elevated
+        .query('conversationMembers')
+        .withIndex('by_current_conversation')
+        .eq('conversationId', existing._id)
+        .eq('isCurrent', true)
+        .take(51)
+        .collect();
+      const membership = await addGroupMemberCore(
+        ctx,
+        existing,
+        second,
+        existingMembership,
+        boundedCurrentMemberships(memberRows),
+      );
+      if (membership.disposition === 'created') disposition = 'repaired';
+      return { conversationId: existing._id, disposition };
+    }
+    return {
+      conversationId: await createConversationCore(ctx, creator, {
+        kind: 'group',
+        groupName: input.name,
+        groupDescription: input.description,
+        initialProfiles: [creator, second],
+      }, fixture),
+      disposition: 'created',
+    };
+  },
+});
+
+export const ensureFixtureMember = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    conversationId: v.id('conversations'),
+    profileId: v.id('profiles'),
+    mutationId: v.string(),
+    sourceDigest: v.string(),
+  },
+  result: results.value(v.object({
+    membershipId: v.id('conversationMembers'),
+    disposition: v.string(),
+  })),
+  reads: ['profiles', 'conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'PROFILE_NOT_FOUND',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'NOT_GROUP_CHAT',
+    'NOT_GROUP_ADMIN',
+    'GROUP_MEMBER_LIMIT_REACHED',
+    'FIXTURE_OWNERSHIP_MISMATCH',
+  ],
+  handler: async (ctx, args) => {
+    const actor = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = requireGroupAdminAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, actor._id),
+    );
+    const target = await ctx.db.get('profiles', args.profileId);
+    if (!target) ctx.refuse('PROFILE_NOT_FOUND');
+    const mutationId = String(args.mutationId);
+    const fixtureDigest = normalizedSha256(args.sourceDigest, 'fixture member source digest');
+    const byFixture = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_fixture_mutation')
+      .eq('fixtureMutationId', mutationId)
+      .first();
+    if (byFixture && (
+      byFixture.conversationId !== access.conversation._id
+      || byFixture.profileId !== target._id
+    )) ctx.refuse('FIXTURE_OWNERSHIP_MISMATCH');
+    if (byFixture && byFixture.removedAt == null) {
+      if (byFixture.fixtureDigest !== fixtureDigest) {
+        await ctx.db.patch('conversationMembers', byFixture._id, { fixtureDigest });
+        return { membershipId: byFixture._id, disposition: 'repaired' };
+      }
+      return { membershipId: byFixture._id, disposition: 'matched' };
+    }
+    if (byFixture) ctx.refuse('FIXTURE_OWNERSHIP_MISMATCH');
+    const existingMembership = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_active_key')
+      .eq('activeKey', activeMembershipKey(access.conversation._id, target._id))
+      .first();
+    const memberRows = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_current_conversation')
+      .eq('conversationId', access.conversation._id)
+      .eq('isCurrent', true)
+      .take(51)
+      .collect();
+    return addGroupMemberCore(
+      ctx,
+      access.conversation,
+      target,
+      existingMembership,
+      boundedCurrentMemberships(memberRows),
+      { mutationId, digest: fixtureDigest },
+    );
+  },
+});
+
+export const ensureFixtureMessage = defineJsMutation({
+  auth: 'authenticated',
+  args: {
+    fixtureId: v.string(),
+    fixtureDigest: v.string(),
+    conversationId: v.id('conversations'),
+    body: v.string(),
+    quotedMessageId: v.optional(v.id('messages')),
+  },
+  result: results.value(v.object({
+    messageId: v.id('messages'),
+    disposition: v.string(),
+  })),
+  reads: ['profiles', 'conversations', 'conversationMembers', 'messages', 'messageReceipts'],
+  writes: ['conversations', 'messages', 'messageReceipts'],
+  refusals: [
+    'PROFILE_REQUIRED',
+    'CHAT_MEMBERSHIP_REQUIRED',
+    'MESSAGE_BODY_REQUIRED',
+    'MESSAGE_BODY_TOO_LONG',
+    'QUOTED_MESSAGE_NOT_FOUND',
+    'FIXTURE_OWNERSHIP_MISMATCH',
+  ],
+  handler: async (ctx, args) => {
+    const sender = await requireMyProfile(ctx);
+    const conversation = await ctx.db.elevated.get('conversations', args.conversationId);
+    const access = requireActiveChatAccess(
+      ctx,
+      await chatAccessForProfileConversation(ctx, conversation, sender._id),
+    );
+    const body = normalizedMessageBody(ctx, args.body);
+    const quotedRow = args.quotedMessageId
+      ? await ctx.db.elevated.get('messages', args.quotedMessageId)
+      : null;
+    const quoted = requiredQuotedMessage(
+      ctx,
+      access.conversation._id,
+      args.quotedMessageId,
+      quotedRow,
+    );
+    const fixtureId = String(args.fixtureId);
+    const fixtureDigest = normalizedSha256(args.fixtureDigest, 'fixture message source digest');
+    const existing = await ctx.db.elevated
+      .query('messages')
+      .withIndex('by_fixture_id')
+      .eq('fixtureId', fixtureId)
+      .first();
+    if (existing) {
+      if (
+        existing.conversationId !== access.conversation._id
+        || existing.senderProfileId !== sender._id
+      ) ctx.refuse('FIXTURE_OWNERSHIP_MISMATCH');
+      const quotedId = quoted?._id ?? null;
+      if (
+        existing.fixtureDigest !== fixtureDigest
+        || existing.body !== body
+        || (existing.quotedMessageId ?? null) !== quotedId
+      ) {
+        await ctx.db.patch('messages', existing._id, {
+          fixtureDigest,
+          body,
+          quotedMessageId: quotedId,
+        });
+        return { messageId: existing._id, disposition: 'repaired' };
+      }
+      return { messageId: existing._id, disposition: 'matched' };
+    }
+    const memberRows = await ctx.db.elevated
+      .query('conversationMembers')
+      .withIndex('by_current_conversation')
+      .eq('conversationId', access.conversation._id)
+      .eq('isCurrent', true)
+      .take(51)
+      .collect();
+    return {
+      messageId: await insertMessageCore(
+        ctx,
+        sender,
+        access.conversation,
+        boundedCurrentMemberships(memberRows),
+        body,
+        quoted,
+        { id: fixtureId, digest: fixtureDigest },
+      ),
+      disposition: 'created',
+    };
+  },
+});
+
 export { chunkValues };

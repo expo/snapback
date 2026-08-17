@@ -646,3 +646,115 @@ fixed the evidence without provider branching. The durable Snapback lane also
 made scenario cleanup matter: the follow step now restores Dave's unfollowed
 precondition so the second boot-state scenario measures the same choreography
 instead of inheriting the first scenario's edge.
+
+## 2026-08-16 — M3 messaging core (memory provider and Contract client)
+
+M3 was the first Coterie slice where the projection shape mattered more than
+the basic mutation plumbing. A DM is keyed by the sorted pair and reopens the
+same entity; a group is a separately identified entity even when its member
+set matches another group. Storing membership as active/inactive rows with an
+admin flag made authorization and history behavior fit together cleanly. A
+join or rejoin has no lower history bound and therefore sees the full log. A
+leave/removal records the last visible message as a cutoff, so the former
+member keeps local history but cannot receive future rows.
+
+Receipts needed one additional immutable fact on every message: its
+send-time recipient IDs. The projected sender status is the slowest receipt
+across that set, not whoever happens to be in the group when the query runs.
+Leave/removal adds that actor to a dropped-requirement set, which prevents a
+departed recipient from wedging the aggregate while preserving the original
+send record. Keeping the state machine monotonic (`sent`, `delivered`, `read`)
+made retry and out-of-order delivery uneventful. This is more explicit state
+than a client-only React mock would normally carry, but it exposes exactly the
+group semantic a Convex or Supabase implementation would still need to encode
+somewhere authoritative.
+
+Typing exposed the clearest Exact seam limitation. Contract's runtime manifest
+can represent ephemeral operations, but the closed provider-native declaration
+generator used by Coterie cannot currently generate those descriptors. The v8
+surface therefore uses a documented bridge rather than claiming fake
+durability: a live/coalesced `observeTyping` query, a `setTyping` mutation, and
+a namespaced extension that states ephemeral durability, no offline retention,
+no history, a two-second visibility target, and a five-second lease. The
+memory clock schedules real expiry for the app and exposes logical advancement
+for tests, so unit and acceptance proofs do not sleep. A first-class generated
+ephemeral declaration would remove this parallel extension vocabulary.
+
+The Contract client stayed compact despite the larger feature set. The same
+chat bindings now drive DM/group creation, membership/admin settings, sender
+avatars, list-level typing hints, conversation typing, and single/double/blue
+double receipt checks under the frozen `sm-*` targets. The valuable discipline
+was copying the feed's reducer boundary: every route-owned chat or group-draft
+write carries a generation, and every post-`await` settlement enters through
+that reducer. Stale mutation completions therefore cannot publish predecessor
+compose or picker state into a successor interaction.
+
+The memory-provider pass of the headless proof exercises the whole ordered M3
+chain in both boot states: DM dedup, text, quoted reply, delivered/read receipts
+plus non-regression, typing visibility and logical expiry, group creation,
+non-admin refusal, and creator removal. This remains generated-binding evidence
+rather than mounted UI-tree evidence; its frozen target IDs identify the
+intended vocabulary while provider subscriptions prove the headless semantics.
+
+Snapback observations are deliberately separate: this lane did not modify
+`demos/coterie/snapback/` or claim a Snapback M3 backend. The existing adapter
+continues to advertise only its qualified M1+M2 surface and refuses M3
+operations. It projects the new nullable `listProfiles@3.avatarRef` as `null`
+until the parallel provenance/selected-state work is qualified. The M3
+ergonomics recorded above are therefore Contract and deterministic-memory
+observations, not server-authority, durability, offline, or multi-client
+Snapback evidence.
+
+## 2026-08-16 — M3 review corrections
+
+The dual review found that generation discipline has to cover the side effect,
+not merely the reducer settlement. DM/group navigation and the post-send typing
+clear now compare the captured generation immediately before publishing; edits
+advance the generation, so a successor draft makes an older completion inert.
+Failed send and group creation restore the exact pre-begin draft when no
+successor exists. This is slightly more explicit than a React closure plus an
+abort flag, but the single reducer made the race tests deterministic and kept
+the route contract readable.
+
+The review also sharpened the evidence boundary. `accept:coterie` is a
+headless generated-binding provider proof over the frozen `sm-*` vocabulary,
+not mounted or two-browser choreography. Selecting steps from
+`listProviderClaims` let the existing Snapback M1+M2 path remain green while
+reporting M3 as skipped-by-claim; memory still exercises the full M1–M3 chain.
+The optional logical-clock hook only accelerates memory—the public typing
+projection is the provider-neutral expiry observation.
+
+One Exact paper cut remains visible in the generated helper sidecar: the
+contract-meta command completed successfully but widened five `string | null`
+state fields to `string`, so the checked sidecar needed the nullable types
+corrected after regeneration. The provider generator itself handled the
+reaction refusal/token bump and write-set changes cleanly.
+
+## 2026-08-17 — Snapback M3 backend lane (recorded separately from the client observations above)
+
+The messaging core (LLP 0266 D9, M3) shipped as an honest partial claim:
+**messaging core minus typing**. The review loop ruled that the only
+expressible ephemeral posture — `allow.all()` — made typing presence
+observable and spoofable by former members (LLP 0013's protected-room
+rule controlling), so the surface was removed rather than shipped
+public; the platform gap is ticketed as
+`issues/20260817-ephemeral-membership-permission-backing.md` with the
+six capabilities membership-backed ephemeral lowering needs. The memory
+provider carries the full typing semantics alone until then.
+
+Other things the build taught:
+
+- **Membership incarnations** (leave/rejoin as distinct rows) model the
+  brief's send-time recipient sets cleanly — old obligations stay on the
+  removed incarnation, rejoin creates fresh ones — but bounded reads
+  over unbounded incarnation history was the review round's best catch:
+  churn could silently drop an active member from access checks. The fix
+  is an indexed current-membership projection queried separately from
+  history; a 640-cycle churn test locks it.
+- **Removal cutoffs belong in the query layer**: removed members keep
+  pre-removal history (brief) and that filter lives server-side on every
+  read path — including the fixture helpers, where the review caught a
+  cutoff bypass.
+- The census helper-write blind spot (LLP 0274, ticketed at M2)
+  applies to most new M3 writes; operations are marked opaque
+  accordingly.

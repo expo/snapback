@@ -1,5 +1,534 @@
 {
-  "entries": [],
-  "exactSetDigest": "sha256:c2c7861044b34e32b778c21a4ff2cef86095eb55bdfaa9acc6a379e192b9530a",
+  "entries": [
+    {
+      "capabilityDigest": "sha256:f1d3365c5b801f90824d1ed69c3405b945de5dce0484605d9aa9b3c5c8f6a03f",
+      "capabilityId": "sha256:00e55e0bfe40ff48344884babc6abab96903783b0fbcaf739d03c19777293de8",
+      "operation": "addMember",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:bf83fb8a44184651bbe7271088ec9beffcf0cdda2341f716399077d2ba601784",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:9409bf6fe40da0b7b13f285741e0b76024a108017fb5751878b8f0dd98ddfa8c",
+      "capabilityId": "sha256:0b13950661b48c6a3ea06cd4580f2caf849c2de40099457defacf51dd90e04e2",
+      "operation": "removeMember",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:86bd0835bbf300396622e5c100ce974cbf9f42a7be25db125de4d1f97388d7ff",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:5dda355f1e0bda4a41b774e297c4fc08bf2a73ab5d1acc80e69a8dcac7a4598d",
+      "capabilityId": "sha256:0bee38736d2caca4783bb2b515afb2791bcb6746201a2e450715f1c93d83f2b9",
+      "operation": "listMessages",
+      "readForm": "getMany",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:19ef2f59dd9416742fbdbef141ca690b7f04c71fd8668515675c80a974e2de1b",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:44a7a6c776f8da074fd55d3bbb79a4eaadcf6ecc5a1405f1da08ae3fd97f695a",
+      "capabilityId": "sha256:0c59a2a96400c82226bc2f159001d85fff507c044688c54422250872d088a36d",
+      "operation": "listMessages",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:649b3c4a9826fd0ee713f9876d61b735f8d720e90712ea6bc9bee9c1c0f3ae6f",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:9242dc70d36616fb777d88cabb79aa4290eaf3906b6b84ef553fdb62bcff693d",
+      "capabilityId": "sha256:12d960a5c2abcce71146452ea1f4d0d80cd18400c56936e3ef2be1a7446fbb47",
+      "operation": "leaveChat",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:721932c3cbf27a37998dc747245e822335bb2bf60c9ea8b0cb41564eeaef850e",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:85e12c5625a46e9c9fe335b45dcc0fbb961666664934d5e92b5e709a5b35e56d",
+      "capabilityId": "sha256:186e8eae8338950ec115359d04acd3c3ae20e4d490545234d9c59f805e5eef71",
+      "operation": "addMember",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:29249214e69b6141fb3368e1d5df3ef3165ca088328517fdff2a7165faab1f98",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:6e50f4a5a8f0592ed052ff74636e88596a84f9ac3b5af36d0c8190bcbf39c2af",
+      "capabilityId": "sha256:23a43ad86716a3050ff4e5622122d8741515a63173ca6a52ce642cbaaefe7e49",
+      "operation": "sendMessage",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:e9fe073f5c67c747fd58ff3cb4bca7b1fe034ceb5e30cd7ca584bf3e00f18c95",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:4f244553c866b5911c2a1d527ece8f7af490034bec0ae326d02f8a01567f4326",
+      "capabilityId": "sha256:29dba9e4e9ae98eef73dd724d8a8f42ed8e8229d0db98014d2a208d22cced5f4",
+      "operation": "markDelivered",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:d4dc1c97a31fde7511666bcb3ebcf47da5032bdec0a7932919e1c310d3875c1b",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:719c9730e998c8f870e06a47d65ed52dc6fa84e01cc31aaffd0ecd7a6e5e1b89",
+      "capabilityId": "sha256:2ab26aa111d75009bb1824d2182bdec40d4324073fd1c720206fc688b3e0f4bf",
+      "operation": "addMember",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:2840aa3584adcf61e340e8105a8c6ee60ba7774f727801a01c07da3816313413",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:b10a0cc88488576c40cacef26cbdca55d1841dfa3c7f70c39a9c27cb6808964d",
+      "capabilityId": "sha256:3096f0ab7bc6ec6acf639987a9bac35a8e65941c23c3697110f7d8e55babe8f1",
+      "operation": "ensureFixtureMessage",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:2de4c64dd24ba8adb15fc17a7c2960ec5790596795b690cbe3f7dabcb4d260ad",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:ae8168f505a12c07f2b55b053660f23359a00ddf285a14ea3ee32c235186e9f4",
+      "capabilityId": "sha256:39c1ad24a7a453f4f0b399c761f81c6a8100881b62cdc1ce155e20aeac7d7e33",
+      "operation": "listChats",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:d520b3052de965a7577c3b29c83a3e994944219aafe79fb56341e531c622c565",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:55043b616db2542c35eed04cf48fe65262cbc0655d5e2726fcbd3de03ec4ce16",
+      "capabilityId": "sha256:3a825d93af33b752724498e6b6ea21949502fa571b0a57948717c361a6fea306",
+      "operation": "sendMessage",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:10fd90d1893cc11827e4b08ec522fee14fab256c86e04f6dbdaff0f5e7df4c8e",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:ac8c9a482b30a6ab975ee1df98dcd00ac5d2365e07b69fb66616d6b3e181ff06",
+      "capabilityId": "sha256:44b35355513a12c11518329ebaf593aabd3714f19d2e0700fd7d8a6fbcd92ef8",
+      "operation": "ensureFixtureMessage",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:00b98b9a7b07e803dc3d7c3713a5bb4f864fcf602e2c5f3234991a5c7168b81d",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:20f81b7713e7b201b1a12ae985ac5d3c95d4bb6c5abd563bd56e749ef4aca35e",
+      "capabilityId": "sha256:58ff230e03e0de6c9006c7d84d4b22102f9d82b0ec81401f61abfcb12cd6846a",
+      "operation": "listMessages",
+      "readForm": "getMany",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:0bf1fb34004fc0f0bfccc207d9125ea0337211535649f87d188460bf72ff8591",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:2a9c7ff8f92a31e5888c991663c4c62389c0a025b7ecebf52695c0a45d396373",
+      "capabilityId": "sha256:67eae71351d744407423312430e1904fc7da22f536fcc0b1b9dbdcf7d5d8ccfa",
+      "operation": "ensureFixtureGroup",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:f51f0c4355cbfa7d610c7821b6fc9c0657dfc7246a48eb3995fc0936ec00fe5f",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:7f4a073a1a4f79e71b0e3568293cb48326be4b7b0a4fd83ee96eab905748a3c9",
+      "capabilityId": "sha256:7357213c4fd0f0163ea99f5d29b3aee64abf15182a7487ea8a5e3d9bc5666019",
+      "operation": "promoteAdmin",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:3913dfa1feda3e0cdc01e4041bd47a939bfa964e2be9378496dab9c411cee7cf",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:9f900c4bd0305cdf62ca9cdaa65d3a153348b86cf34cf36a8c07e7185a0f2957",
+      "capabilityId": "sha256:75534f5a0cc408fd12713856d08b4d97181461d09118600a5671192d7dd6193a",
+      "operation": "listChats",
+      "readForm": "getMany",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:83f5d82d160a3138d4e1436a286b29b5c8ea440f05b08813b750be956b8b0430",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:60a885316bad73f11a902f1a0164915a5de0b26e50a6dbbc4db2dcbab84e6758",
+      "capabilityId": "sha256:77a092410f898661fa914a2bd9d048d66a978d2cde4a96b77e0e37fa49821cd6",
+      "operation": "markRead",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:0d47be3438df6fb434e195e6f0ea1e94ce5c2a5c8cd44eb692cd12ae9b01fd7e",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:aebdb00a107bb85a9afaa1c9bac287c00628e017893a29998d97876969cf88c0",
+      "capabilityId": "sha256:7dda77e45a0d9d3f30e6655f8c647c968be3c5d189125b56a3f2dbcec5d5be46",
+      "operation": "removeMember",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:f3bd0934b2de6056b0dbb325f4e6db1e3369d9dcd028b4d4e08b85580da1b61c",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:de3b5c3339292516c81ae4c5f81271c1816acbbd2d7d8368b2f7536dfcd85f23",
+      "capabilityId": "sha256:802a04c96905eee710288f42f9c2cc736d096894a73018b4716907a3cdcc82e5",
+      "operation": "ensureFixtureGroup",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:e7a3f496f0054c1747a50c01e9cffcb4b1117827d4cb0b87ebe50695b1c6eec8",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:1b4a668797db926e594243443e6fce66a52209f16dd8f8e194be0a93eb295d71",
+      "capabilityId": "sha256:835ef19b8960efcdec3925715e7533597f1b190741aeb9215ce494cd01a06680",
+      "operation": "ensureFixtureMember",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:5e33235bd27e1546d597bc390c499abd62ac5903f24124bd69792a123498e843",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:e60f0212b7fa263d57657e63894e02f9b55163f8bd8f7680dde195c64fe7af4d",
+      "capabilityId": "sha256:8be74859fd71912f0f401579ab1bad0dcdef7ef730bf107c5d9a0f7e098c9a8f",
+      "operation": "listMessages",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:990dd6399922a376b23e49ee6e043972fcc70873386c3799e1c9d362e779534d",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:6a5d3d0a8606f46116ef99ccaec42db41f52fb664b27ab0eabcbcabe09937d6f",
+      "capabilityId": "sha256:8d44eb01de37dce45581517b0ab824466fecf5d8147733554f37c4fa8af26e31",
+      "operation": "ensureFixtureGroup",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:e4aa2876230cbe234fdbc8e2d002692dae8fd1b2cfe68d611e9358aa6aac343c",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:6b7f66cf1915fc09d9e953ec155ffad1d33948398b4a187a6f97db834c59ec8d",
+      "capabilityId": "sha256:900e9fd4379f0e23e32a80df6069fe45b3d031ca3c77b316d38d4f5268eb17cc",
+      "operation": "getMyFixtureMessage",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:ff7821c6164a3f52ec4666785599aeea3dd337a7aaea107b9ecc6c42b4a3ac30",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:c8da7e80f2ec79f7bd189ac75e203fa611f862aa99fcb0ea3ceef2c392ea8d42",
+      "capabilityId": "sha256:944920dae5049be4695d656b0c6c7d539e319186edd3a040a7a4fab94e898e64",
+      "operation": "openDm",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:631a9ce4680d6d9b36e95dd5ed65ca6a943495ca1b6cd5f6cc6ce1dc01d66e5b",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:c0f974db8b9edd65d2eac211a3f96be371aee107847364f2b3fb4eda9dc42a8b",
+      "capabilityId": "sha256:a62f64070b01ff70e200121f1e58f631924b5b23c471dafb053a4e2d014d060c",
+      "operation": "getMyFixtureMessage",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:aa06fd1e5a9381858e1f725171dc6071fdaed3973d6e83f6a0ff4a8a254b1096",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:0c71a34b80be4a6fa9884e8b1f3c4c6c932c424a08b32156923b11c0f3d2e636",
+      "capabilityId": "sha256:a964e652647deb23af26d780525acc2302dbf0a426519fef37105810bdddba0b",
+      "operation": "leaveChat",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:b9275ce23ba5acb191539a838e24f5dc7c344aac62da32421ff7131c5041251b",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:9ba033427b86ef293e4e4639f96f584f61d4b6a886388c3aa75569e7125e4e1d",
+      "capabilityId": "sha256:aa4edfffa3e9c1328c19040476db0a5f5bc055da572e1d2a486d3cd27137a511",
+      "operation": "ensureFixtureMember",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:739ebfbe7b2e326bd124dd012acf9ba0e089e7f551f330da4ddebc8def9261fc",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:6c48794d0fbbafc1a371c00ad733a359632f9740aa48ca0b1c983ee8dddf022d",
+      "capabilityId": "sha256:b4c7a509862d3f17c2d3f2304e11f494718b457f51834d0e676bf6c19cd022ce",
+      "operation": "listChats",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:f0b5364ff6e27762493fb156bf61cd25573d660fbb81cdb8b2117654495ab878",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:cf5a7fd0045fbeac7358d9c343ad0f61c9d9f874920c29445407f3a57074a9af",
+      "capabilityId": "sha256:b9e3b1743b56aefd9dc1b08cd9b6455b33a1908a1d1845b816b11e70d0ab6c76",
+      "operation": "sendMessage",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:bd287325a76a9c65b3f6e0458191c62fcd2edec6f4f9218377bc3be48b7bca52",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:fb00c20b6b2c2f39b5a9aafaf3081ae0dbe52163bae2391ab71b0439ce30d754",
+      "capabilityId": "sha256:bcfc5726da5391be6deebd759bff9314cb88364255fe5dad1201bf1fc3d1d516",
+      "operation": "listChats",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:d5ac3102c916319e463c3624545d94a491e035908cce6c2e6e2aaf10862be714",
+      "tables": [
+        "messageReceipts"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:3aa113859eaf644653642cca4bbb921b1c84015cde3ea94973c6f77ebf8f819e",
+      "capabilityId": "sha256:bd173098db310fb1e89bc4743ee3238c3a62184d5c3cbae49e0667566d882bcc",
+      "operation": "ensureFixtureDm",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:b3388d6355e9d5e2e9822731f673bb70f6c50bceeb884d842014f78bb6f544c6",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:fe5101ff27486bd1dd4fe04b59d3a73fc63a735dea95a7ce33f53fb7fdca28a0",
+      "capabilityId": "sha256:c6a230e7a8d0e18d7082bf86cd17b838d8f9e381168804a1a7b6908679a8929d",
+      "operation": "listChats",
+      "readForm": "getMany",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:9a24d6688f8f998dcf6be0a78e3119228810684badc70a8c132641ba48851459",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:758f3ecff9b5a3a542804152735c11d4c41f40e856693702d0879895c93cc4a4",
+      "capabilityId": "sha256:caa3af62a2a904b30b461d4edf2cef3c9f96357505d47aeead9f4e73b7e1c4dc",
+      "operation": "listMessages",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:7ddbc4ab3742abf20dc060761a55473fc046f45deae19698bb5cd4825cf48def",
+      "tables": [
+        "messageReceipts"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:b2ee69eab026453eb18371a45b005ad0428382e093a3b0be42d7cf5cb4878f3e",
+      "capabilityId": "sha256:cf68d7bd68f5954890ff819bae927f83fc6553a16cf646bc454520ffb1f026ac",
+      "operation": "ensureFixtureMessage",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:bcf42e028692ca8e9a850add876424391e1592ee54fdcb4523103db8bf69669c",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:1c336670da77c5529dd5b41f226e4af3631c0dadf8db9aa17b58358b7cb79a40",
+      "capabilityId": "sha256:d2052f340ba8c93355fefb57f46199d29ff23dac84d80cc6522265bf284e1f89",
+      "operation": "promoteAdmin",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:7076db3c3c1884f7ca3d881c26160f39cbd59245e63d4504504fe7c058862e70",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:8a30c25fbca784a65c4ec05953127a991dfa1b2bebaee9543eb4dc0e22cead9d",
+      "capabilityId": "sha256:d3230828ea4c6736985a3bc49fd61f334dabd35d824bbb1803655b171521296f",
+      "operation": "ensureFixtureMessage",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:9c4f3c3ad77d93e3ae37af70cc8c4e2f2d1acee95dd2174397f812bc56d5a664",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:84354ccb968031749425b43c56d0a86beb090b86febb2934e4ffd6f4a068506e",
+      "capabilityId": "sha256:d6a3362547f66969f884d393a52c45ccbb19cec4e4eab7d26c9df404d2eee881",
+      "operation": "markDelivered",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:0269707ff24a08e27add565d436c164e02de5dbc668ae018b63360b48111efc6",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:566cefe5078e113737820b4316d67d9c58310090b2ac372e54435e32da2638d8",
+      "capabilityId": "sha256:da2efbdbd144131535d6a018b0639dc67e1c1c452da4db3f83c59fc68e463c63",
+      "operation": "markRead",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:597b2ef5ad4adb4b344536118215ab1c419a1e8ceef86f99c50bd73fb06e51de",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:6da0eba043d0fc152af2558505d20e7aa29a9791c96f0ed645688bf3c73f5e4c",
+      "capabilityId": "sha256:e313bc8320f958ba7d5f540bb027d2f1885d7d54d3749bee43c8291ba108b790",
+      "operation": "ensureFixtureMember",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:8424bca4849caedf8aed28c996917b99f0c11c264e9a5cd402f8885ec0f4daae",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:5998c2a9fee3b73e1988dade8dd2d2baad23b90697e09f5e4250dba3ee2812bc",
+      "capabilityId": "sha256:e3e1da1711bb13cff4c2f1398baacb83e8ea26f6a87aa397d6e50f8e16738a8f",
+      "operation": "listChats",
+      "readForm": "get",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:83904204e98255b4817849084718e7016d947e25f0f5f907cdfa04d5b2d24135",
+      "tables": [
+        "messages"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:f3cc0124ea943aab3dc3572281a151c34233edd83a8ace264f595e8e1940cd56",
+      "capabilityId": "sha256:ebba58945092847be7e3a3454d7bbe6e99923004d099fc1b39cdd1e4620f8820",
+      "operation": "ensureFixtureMember",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:509cef9182c845b36b3c4da3f379751ee19e3a5691b51f55fa5be1bc82c36e2f",
+      "tables": [
+        "conversationMembers"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:9d0cee813baa0742cc1d565283639bdb13d66559f199ca929458dfbd2bb1a44e",
+      "capabilityId": "sha256:ede0854b8bef47ba8cb2714f30d6e532c31dddea32101dc06bd499d2f2d16d98",
+      "operation": "ensureFixtureDm",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:d0c46f9918fabf5dae833cabfeace4aad76bffe4ee37038fc92603bce80948ec",
+      "tables": [
+        "conversations"
+      ]
+    },
+    {
+      "capabilityDigest": "sha256:cbade385b000d5550e7d0984e1441b8ac35874094179c70135b0212e30e2f167",
+      "capabilityId": "sha256:ee34e39d05f7ef2d2b0cabe8987e9cd28e584fe6cadbc6616838f849e8041028",
+      "operation": "getMyFixtureConversation",
+      "readForm": "query",
+      "siteEvidence": "static-inline",
+      "sourcePath": "functions.mjs",
+      "sourceSpanId": "sha256:86445c32d8d1bef98209793c95972ebc503cdd871a345ee7f174f531cdf62464",
+      "tables": [
+        "conversations"
+      ]
+    }
+  ],
+  "exactSetDigest": "sha256:f4500315a7c8ae4e4aee838b861e7b8cb261aa958a34ffa592ac30e7986843b8",
   "schemaVersion": "snapback.elevated-read-site-baseline.v1"
 }
