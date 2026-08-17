@@ -1002,6 +1002,10 @@ export function createFileRqsResumeStore({
   // writer's dispatch order when this process can reach it. A foreign-process
   // reader, or one observing a provisional same-process owner, must preserve
   // the raw helper's false result so the caller installs its predecessor fence.
+  // If this reader reclaims a stale foreign lock, join the newly-local dispatch
+  // tail before committing; the acquisition mutex must be released first so a
+  // dispatch that observed writer-ship during acquireLock() can finish ahead of
+  // the wipe without deadlocking on serialized store work.
   const authorityTransitionWipeWithDispatch = async (...args) => {
     await initialAcquisition;
     if (writer) {
@@ -1021,7 +1025,13 @@ export function createFileRqsResumeStore({
         }
       });
     }
-    return authorityTransitionWipe(...args);
+    const reclaimedWriter = await serialized(async () => {
+      requireOpen();
+      await acquireLock();
+      return writer;
+    });
+    if (!reclaimedWriter) return false;
+    return withAuthorizationDispatch(() => authorityTransitionWipe(...args));
   };
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy

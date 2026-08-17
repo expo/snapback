@@ -251,6 +251,84 @@ test('public authority wipe returns false while a same-process owner is provisio
   await provisionalWriter.close();
 });
 
+test('stale-lock public wipe joins dispatches that enter during writer reclamation', async (t) => {
+  const directory = await makeDirectory(t);
+  const baseFiles = createNodeFilesAdapter();
+  const foreignPid = baseFiles.processId() + 10_000;
+  const lockPath = join(directory, 'rqs-anonymous.v1.lock');
+  await writeFile(
+    lockPath,
+    JSON.stringify({ pid: foreignPid, instanceId: 'stale-foreign-authority-writer' }),
+  );
+
+  let foreignAlive = true;
+  let reclaimed = false;
+  let markReclamationYield;
+  let releaseReclamationYield;
+  const reclamationYield = new Promise((resolve) => { markReclamationYield = resolve; });
+  const reclamationYieldRelease = new Promise((resolve) => { releaseReclamationYield = resolve; });
+  t.after(() => releaseReclamationYield());
+  const files = {
+    ...baseFiles,
+    processAlive: (pid) => pid === foreignPid && foreignAlive,
+    async writeFileExclusive(path, value) {
+      const acquired = await baseFiles.writeFileExclusive(path, value);
+      if (acquired && path === lockPath) reclaimed = true;
+      return acquired;
+    },
+    async chmod(path, mode) {
+      await baseFiles.chmod(path, mode);
+      if (reclaimed && path === lockPath) {
+        markReclamationYield();
+        await reclamationYieldRelease;
+      }
+    },
+  };
+  const store = createFileRqsResumeStore({ directory, files });
+  await store.whenLockSettled();
+  assert.equal(store.isWriter(), false, 'the initially live foreign holder keeps this store a reader');
+  const before = await store.outboxAuthorizationStatus();
+
+  foreignAlive = false;
+  let wipeSettled = false;
+  const wipe = store.wipeForAuthorityTransition();
+  void wipe.then(
+    () => { wipeSettled = true; },
+    () => { wipeSettled = true; },
+  );
+  await reclamationYield;
+  assert.equal(store.isWriter(), true, 'the stale foreign lock was reclaimed before acquisition yielded');
+
+  let releaseDispatch;
+  let markDispatchEntered;
+  const dispatchEntered = new Promise((resolve) => { markDispatchEntered = resolve; });
+  const dispatchRelease = new Promise((resolve) => { releaseDispatch = resolve; });
+  t.after(() => releaseDispatch());
+  const dispatch = store.withOutboxAuthorizationDispatch(async () => {
+    markDispatchEntered();
+    await dispatchRelease;
+  });
+  await dispatchEntered;
+
+  releaseReclamationYield();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(wipeSettled, false, 'the promoted public wipe waits behind the concurrent dispatch');
+  assert.equal(
+    (await store.outboxAuthorizationStatus()).authorityGeneration,
+    before.authorityGeneration,
+    'the promoted public wipe cannot advance generation while dispatch is held',
+  );
+
+  releaseDispatch();
+  await dispatch;
+  assert.equal(await wipe, true);
+  assert.equal(
+    (await store.outboxAuthorizationStatus()).authorityGeneration,
+    before.authorityGeneration + 1,
+  );
+  await store.close();
+});
+
 test('writer and follower-request file wipers wait behind the shared dispatch fence', async (t) => {
   const directory = await makeDirectory(t);
   const writer = createFileRqsResumeStore({ directory, identity: 'wipe-dispatch' });
