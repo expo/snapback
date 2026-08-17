@@ -503,6 +503,54 @@ const outboxAuthorizationFenceFrom = (value) => Object.freeze({
   generation: value?.authorizationQueueGeneration ?? value?.generation,
 });
 
+const authorizationDeleteTombstone = (record) => (
+  record?.status === 'stranded'
+  && record?.disposition === 'delete'
+  && record?.discardOnly === true
+  && record?.rerecordable === false
+  && record?.replayable === false
+);
+
+const nonReplayableOutboxDispositionError = (record) => {
+  const deleteTombstone = authorizationDeleteTombstone(record);
+  const code = deleteTombstone
+    ? 'SNAPBACK_OUTBOX_AUTHORIZATION_DELETE_TOMBSTONE'
+    : 'SNAPBACK_OUTBOX_MUTATION_NOT_REPLAYABLE';
+  const status = typeof record?.status === 'string' ? record.status : 'unknown';
+  const message = deleteTombstone
+    ? 'authorization proof deleted the mutation intent; its redacted tombstone is terminal'
+    : `the durable mutation disposition ${status} is not replay-eligible`;
+  const mutationDisposition = freezeDeep({
+    status,
+    disposition: record?.disposition ?? null,
+    discardOnly: record?.discardOnly === true,
+    replayable: record?.replayable === true,
+  });
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code,
+    severity: 'error',
+    subsystem: 'outbox',
+    message,
+    details: Object.freeze({
+      clientMutationId: record?.id ?? null,
+      mutationDisposition,
+      effectCommitted: false,
+      retryable: false,
+    }),
+  });
+  const error = new SnapbackDiagnosticError(diagnostic, {
+    message,
+    operation: 'mutation',
+    retryable: false,
+    effectCommitted: false,
+    effectMayHaveCommitted: false,
+  });
+  error.clientMutationId = record?.id ?? null;
+  error.mutationDisposition = mutationDisposition;
+  return error;
+};
+
 const outboxTransitionAuthorityKey = (context = {}) => stableJson({
   appId: context.appId ?? null,
   expectedEpoch: context.expectedEpoch ?? null,
@@ -7871,8 +7919,11 @@ export class SnapbackClient {
     // @ref LLP 0053#dispositions-with-producers-and-meanings —
     //   every non-retain query root suspends the client's own durable outbox;
     //   adapter absence cannot waive that obligation or license an ACK.
-    let store = null;
-    try { store = this.#offlineQueueStore(); } catch { store = null; }
+    // Root custody is independent of this client's permission to produce new
+    // queued work. `offlineQueue:false` still shares a store with live-query
+    // invalidation and foreground dispatch, so the exact root must land there
+    // before either path may ACK or POST.
+    const store = this.#custodyReconciliationStore();
     const persistenceError = (method) => {
       const error = new Error(
         `SNAPBACK_RQS_STORE_UNAVAILABLE: durable outbox cannot ${method}`,
@@ -10999,6 +11050,43 @@ export class SnapbackClient {
     } : null;
     let durableOnlineRecord = false;
     let durableOnlineStoredRecord = null;
+    const storedDispatchDisposition = async (stored) => {
+      if (stored?.status === 'pending' && stored?.replayable !== false) return null;
+      this.#notifyOutboxListeners();
+      if (generatedPresentationEnabled || stored?.optimisticOperation != null) {
+        // A delete tombstone may replace a record whose generated layer was
+        // already visible through an idempotent/concurrent enqueue. Re-read
+        // the durable projection before surfacing its terminal disposition.
+        await this.#refreshOptimisticMutationViews('authorization-delete-tombstone');
+      }
+      if (stored?.status === 'settled' && stored?.settlement) {
+        return generatedMutation === null
+          ? { ...structuredClone(stored.settlement), status: 'settled' }
+          : {
+            ...structuredClone(stored.settlement),
+            status: 'settled',
+            clientMutationId: stored.id,
+            optimistic: {
+              operationHash: generatedMutation.operationHash,
+              settlementIdentity: stored.id,
+            },
+          };
+      }
+      throw nonReplayableOutboxDispositionError(stored);
+    };
+    const currentStoredDispatchDisposition = async () => {
+      let current = null;
+      try {
+        current = (await queueStore.outboxRecords())
+          .find((record) => record?.id === clientMutationId) ?? null;
+      } catch (error) {
+        // Without a readable record the caller cannot be told that durable
+        // replay owns this mutation. Preserve the store refusal instead of
+        // manufacturing a replay-eligible `queued` outcome.
+        throw error;
+      }
+      return storedDispatchDisposition(current);
+    };
     let authorizationDispatchRelease = null;
     let authorizationDispatchSettlement = Promise.resolve();
     const releaseAuthorizationDispatch = () => {
@@ -11078,17 +11166,7 @@ export class SnapbackClient {
           }
           if (stored.status !== 'pending') {
             durableOnlineRecord = true;
-            this.#notifyOutboxListeners();
-            if (generatedPresentationEnabled) {
-              await this.#refreshOptimisticMutationViews('authorization-suspended');
-            }
-            return {
-              status: 'queued',
-              clientMutationId: stored.id,
-              sequence: stored.sequence,
-              presentation: this.#optimisticPresentationDisposition(stored.id),
-              authorizationDisposition: 'authorization-suspended',
-            };
+            return storedDispatchDisposition(stored);
           }
           claimForegroundOwnership(stored);
           if (stored.operationIssuance === null) {
@@ -11150,6 +11228,8 @@ export class SnapbackClient {
                 || authorityErrorCode(error) === 'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE'
                 || authorityErrorCode(error) === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED'
               ) {
+                const terminal = await currentStoredDispatchDisposition();
+                if (terminal !== null) return terminal;
                 const authorizationDisposition = authorityErrorCode(error)
                   === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED'
                   ? 'authorization-suspended'
@@ -11190,6 +11270,8 @@ export class SnapbackClient {
             queueStore.outboxEnqueue(durableMutationRecord, queueFence)
           ));
           durableOnlineStoredRecord = stored;
+          const storedDisposition = await storedDispatchDisposition(stored);
+          if (storedDisposition !== null) return storedDisposition;
           claimForegroundOwnership(stored);
           if (!await this.#compensateStaleQueueWrite(
             queueStore,
@@ -11401,6 +11483,8 @@ export class SnapbackClient {
             || authorizationCode === 'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE'
           )
         ) {
+          const terminal = await currentStoredDispatchDisposition();
+          if (terminal !== null) return terminal;
           const authorizationDisposition = authorizationCode
             === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED'
             ? 'authorization-suspended'

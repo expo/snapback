@@ -64,6 +64,76 @@ const fixtureOutbox = () => {
   return state;
 };
 
+const predecessorDeleteOutbox = () => {
+  const principalScope = {
+    authMode: 'sessions',
+    authorizationStreamIncarnation: '018f0d90-7b31-7a22-8c33-445566778899',
+    userId: '018f0d90-7b32-7a22-8c33-445566778899',
+  };
+  let payloadState = emptyOutboxState();
+  payloadState = outboxOps.enqueue(payloadState, {
+    id: 'predecessor-quarantined',
+    function: 'createSecret',
+    args: { secret: 'quarantined-predecessor-secret' },
+  }, 101).state;
+  payloadState = outboxOps.markQuarantined(
+    payloadState,
+    'predecessor-quarantined',
+    { code: 'SNAPBACK_UPGRADE_REQUIRED' },
+    102,
+  ).state;
+  payloadState = outboxOps.enqueue(payloadState, {
+    id: 'predecessor-stranded',
+    function: 'updateSecret',
+    args: { secret: 'stranded-predecessor-secret' },
+  }, 103).state;
+  payloadState = outboxOps.markStranded(
+    payloadState,
+    'predecessor-stranded',
+    'authority_instance_changed',
+    104,
+    principalScope,
+  ).state;
+  const obligation = {
+    protocolVersion: 1,
+    scopeId: {
+      kind: 'clientQuery',
+      namespace: {
+        clientStoreId: 'predecessor-delete-store',
+        queryKey: 'secrets:{}',
+        queryInstanceId: 1,
+      },
+    },
+    revision: 1,
+    maxDisposition: 'delete',
+    witness: {
+      authorization: {
+        incarnation: '018f0d90-7b33-7a22-8c33-445566778899',
+        epoch: 1,
+      },
+      data: null,
+    },
+    retryEpisodeId: null,
+  };
+  const rooted = outboxOps.applyAuthorizationObligation(
+    emptyOutboxState(),
+    obligation,
+  ).state;
+  const records = structuredClone(payloadState.records);
+  for (const record of Object.values(records)) {
+    delete record.authorizationAuthorityGeneration;
+    delete record.authorizationQueueGeneration;
+  }
+  return {
+    obligation,
+    state: {
+      ...rooted,
+      sequence: payloadState.sequence,
+      records,
+    },
+  };
+};
+
 const fixtureEntry = Object.freeze({
   rows: [{ _id: 'r1', payload: 'legacy' }],
   meta: { opaque: 'legacy-bytes' },
@@ -269,6 +339,63 @@ test('file v2 -> v3 preserves entries, pending intent, acknowledgements, and rec
   assert.deepEqual(upgraded.pageSets, {});
   assert.deepEqual(upgraded.memberships, {});
   assert.equal(upgraded.storeMeta.formatVersion, 3);
+  await store.close();
+});
+
+test('file upgrade redacts predecessor delete custody before proof and re-entry', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-rqs-delete-upgrade-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const blobPath = join(directory, 'rqs-anonymous.v1.json');
+  const predecessor = predecessorDeleteOutbox();
+  await writeFile(blobPath, JSON.stringify({
+    format: RQS_FILE_STORE_FORMAT_V2,
+    entries: {},
+    outbox: predecessor.state,
+    reactBindingReceipt: null,
+  }));
+
+  const store = createFileRqsResumeStore({
+    directory,
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await store.whenLockSettled();
+  const upgraded = await store.outboxRecords();
+  assert.deepEqual(upgraded.map((record) => record.id), [
+    'predecessor-quarantined',
+    'predecessor-stranded',
+  ]);
+  for (const record of upgraded) {
+    assert.equal(record.status, 'stranded');
+    assert.equal(record.disposition, 'delete');
+    assert.equal(record.discardOnly, true);
+    assert.equal(record.rerecordable, false);
+    assert.equal(record.replayable, false);
+    assert.equal(Object.hasOwn(record, 'args'), false);
+    assert.equal(Object.hasOwn(record, 'quarantine'), false);
+    assert.equal(Object.hasOwn(record, 'predecessorPrincipalScope'), false);
+  }
+  const persistedUpgrade = await readFile(blobPath, 'utf8');
+  assert.equal(persistedUpgrade.includes('quarantined-predecessor-secret'), false);
+  assert.equal(persistedUpgrade.includes('stranded-predecessor-secret'), false);
+
+  await store.outboxResolveAuthorizationObligation({
+    protocolVersion: 1,
+    kind: 'snapshot',
+    scopeId: predecessor.obligation.scopeId,
+    revision: predecessor.obligation.revision,
+    witness: predecessor.obligation.witness,
+    maxDisposition: 'delete',
+    ackToken: 'predecessor-delete-proof',
+  });
+  assert.deepEqual(await store.outboxReenterQuarantined(), {
+    count: 0,
+    clientMutationIds: [],
+  });
+  assert.deepEqual(await store.outboxPending(), []);
+  for (const record of await store.outboxRecords()) {
+    assert.equal(record.disposition, 'delete');
+    assert.equal(Object.hasOwn(record, 'args'), false);
+  }
   await store.close();
 });
 

@@ -547,9 +547,16 @@ export function validateOutboxState(value) {
   } catch {
     return null;
   }
-  return {
-    ...value,
-    records: Object.fromEntries(Object.entries(value.records).map(([id, record]) => [id, {
+  const normalizedAuthorizationQueue = {
+    authorityGeneration: authorizationQueue.authorityGeneration ?? 0,
+    generation: authorizationQueue.generation,
+    authorityTransitionKey: authorizationQueue.authorityTransitionKey ?? null,
+    authorityTransitionEpoch: authorizationQueue.authorityTransitionEpoch ?? null,
+    pendingByScope,
+    resolvedByToken,
+  };
+  const normalizedRecords = Object.fromEntries(
+    Object.entries(value.records).map(([id, record]) => [id, {
       ...record,
       authorizationAuthorityGeneration: Number.isSafeInteger(
         record?.authorizationAuthorityGeneration,
@@ -559,20 +566,28 @@ export function validateOutboxState(value) {
       authorizationQueueGeneration: Number.isSafeInteger(record?.authorizationQueueGeneration)
         ? record.authorizationQueueGeneration
         : authorizationQueue.generation,
-    }])),
+    }]),
+  );
+  return {
+    ...value,
+    // Persisted predecessor shapes may already carry a live delete root but
+    // predate per-record generations and delete redaction. Upgrade is itself
+    // an exposure boundary: normalize the fence, then destroy every active or
+    // re-enterable payload before callers can observe or proof-rebase it.
+    // @ref LLP 0053#dispositions-with-producers-and-meanings — delete custody
+    //   is terminal, payload-free, and discard-only across restart upgrade.
+    records: effectiveDisposition(pendingByScope) === 'delete'
+      ? redactOutboxForAuthorizationDelete(
+        normalizedRecords,
+        normalizedAuthorizationQueue,
+      )
+      : normalizedRecords,
     operationIdentityRanges: value.operationIdentityRanges
       && typeof value.operationIdentityRanges === 'object'
       && !Array.isArray(value.operationIdentityRanges)
       ? value.operationIdentityRanges
       : {},
-    authorizationQueue: {
-      authorityGeneration: authorizationQueue.authorityGeneration ?? 0,
-      generation: authorizationQueue.generation,
-      authorityTransitionKey: authorizationQueue.authorityTransitionKey ?? null,
-      authorityTransitionEpoch: authorizationQueue.authorityTransitionEpoch ?? null,
-      pendingByScope,
-      resolvedByToken,
-    },
+    authorizationQueue: normalizedAuthorizationQueue,
   };
 }
 

@@ -5,6 +5,7 @@ import { resultContractHash } from '../snapback-codegen/result-contracts.mjs';
 import {
   createSnapbackReactProvider,
   observeSnapbackOptimisticCreate,
+  observeSnapbackQueries,
 } from './index.mjs';
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -563,6 +564,54 @@ assert.equal(
   );
   delayedObserver.dispose();
   await delayedProvider.dispose();
+}
+
+// Mounting the optimistic-create observer during the authorization blank must
+// not require a predecessor view. The later exact proof is sufficient to open
+// and rebase a new view onto the proof rows.
+{
+  const unopenedClient = fakeClient([
+    canonical('card_unopened_predecessor', 'Unopened predecessor'),
+  ]);
+  const unopenedBinding = await prepareReactBindingForClient(unopenedClient, {
+    generatedManifest: functions,
+  });
+  const unopenedProvider = createSnapbackReactProvider(unopenedBinding, {
+    connectionId: 'optimistic-create-unopened-test',
+  });
+  const queryObserver = observeSnapbackQueries(unopenedProvider, {
+    cards: { ref: cards, args: {} },
+  }, () => {});
+  await flush();
+  assert.equal(unopenedClient.inspection().viewCreates, 0);
+  unopenedClient.emit([], { kind: 'authorization_quarantine' });
+  await flush();
+  const unopenedObserver = observeSnapbackOptimisticCreate(
+    unopenedProvider,
+    createCard,
+    { query: cards, args: {}, select },
+    () => {},
+  );
+  await flush();
+  assert.equal(
+    unopenedClient.inspection().viewCreates,
+    0,
+    'mount during the blank cannot open before proof',
+  );
+  unopenedClient.emit(
+    [canonical('card_unopened_proof', 'Unopened proof', 'todo', 2)],
+    { kind: 'authorization_snapshot' },
+  );
+  await flush();
+  await flush();
+  assert.equal(unopenedClient.inspection().viewCreates, 1);
+  assert.deepEqual(
+    unopenedObserver.snapshot().data.map((entry) => entry.fields.title),
+    ['Unopened proof'],
+  );
+  unopenedObserver.dispose();
+  queryObserver.dispose();
+  await unopenedProvider.dispose();
 }
 console.warn = originalWarn;
 

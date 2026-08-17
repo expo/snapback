@@ -2109,13 +2109,23 @@ test('operation-identity enqueue under delete is redacted without range transpor
     rqsStore: store,
     operationIdentityProtocol: 1,
   });
-  const deferred = await client.mutate('createThing', {
-    args: { secret: 'must-be-redacted' },
-    userId: 'user-a',
-    queue: true,
-  });
-  assert.equal(deferred.status, 'queued');
-  assert.equal(deferred.authorizationDisposition, 'authorization-suspended');
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { secret: 'must-be-redacted' },
+      userId: 'user-a',
+      queue: true,
+    }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_OUTBOX_AUTHORIZATION_DELETE_TOMBSTONE');
+      assert.deepEqual(error.mutationDisposition, {
+        status: 'stranded',
+        disposition: 'delete',
+        discardOnly: true,
+        replayable: false,
+      });
+      return true;
+    },
+  );
   assert.equal(transportAttempts, 0);
   const [redacted] = await store.outboxRecords();
   assert.equal(redacted.status, 'stranded');

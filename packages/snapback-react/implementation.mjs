@@ -1681,10 +1681,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const ensureOptimisticCreateView = async (store, state) => {
     if (state.view !== null) return state.view;
     if (state.opening !== null) return state.opening;
+    const stagedProofOpen = state.suspended
+      && Number.isSafeInteger(state.proofReleaseGeneration);
     if (
       terminal
       || runtimePaused()
-      || state.suspended
+      || (state.suspended && !stagedProofOpen)
       || store.authoritativeRevision === 0
       || store.freshness !== 'current'
     ) {
@@ -1746,6 +1748,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
       return store.optimisticCreate;
     }
+    const startsSuspended = store.authorizationProjectionSuspended === true;
     const state = {
       table,
       consumers: 0,
@@ -1757,8 +1760,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       cache: null,
       unresolved: 0,
       confirmed: new Map(),
-      deferred: false,
-      suspended: false,
+      deferred: startsSuspended,
+      suspended: startsSuspended,
       authorizationGeneration: 0,
       proofReleaseGeneration: null,
       pinReleased: true,

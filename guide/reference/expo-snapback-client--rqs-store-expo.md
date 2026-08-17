@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:88c53f962a0a93be88ff1d6b24a70a495e7185151408
 # @expo/snapback-client/rqs-store-expo
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-expo`. Canonical registry identity:
-`sha256:9fafaf0a8ceb3cfb9006d8746f0f3245f1aa2429ad9e3f2ab87c07944d25d351`.
+`sha256:41cecf58cddf3f97ab609d248a6e7b450a8a5fae9856a439430a9aba411a882a`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-expo.mjs`.
 

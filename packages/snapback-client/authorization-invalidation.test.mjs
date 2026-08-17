@@ -570,6 +570,125 @@ for (const transport of ['poll', 'stream']) {
   });
 }
 
+test('offlineQueue:false persists live roots and fences foreground dispatch until exact proof', async () => {
+  const originalFetch = globalThis.fetch;
+  const durableStore = createMemoryRqsResumeStore();
+  durableStore.durability = () => ({ implementation: 'authorization-test', durable: true });
+  const outbox = [];
+  const acknowledgements = [];
+  let mutationAttempts = 0;
+  let scopeId = null;
+  let handle = null;
+  let client = null;
+
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/auth/session') return response(queuedReplayHandshake);
+    if (path === '/connection/open') {
+      return response({
+        connectionId: 'offline-queue-false-authorization',
+        connectionToken: 'sct-offline-queue-false-authorization',
+        ephemeralExpiryProtocol: 1,
+        wireVersion: 'snapback.v1',
+        authorizationInvalidation: {
+          protocolVersion: 1,
+          issuerId,
+          connectionGeneration: 2,
+          authorization,
+          versionStream: 'stream-atomic-authorization',
+        },
+      });
+    }
+    if (path === '/live/atomicTodos/subscribe') {
+      const body = JSON.parse(init.body);
+      scopeId = {
+        kind: 'subscription',
+        issuerId,
+        namespace: body.authorizationNamespace,
+        scopeSequence: 1,
+        connectionGeneration: 2,
+        subscriptionId: 'sub_offline_queue_false',
+      };
+      return response({
+        subscription_id: scopeId.subscriptionId,
+        snapshot: { version: 10, rows: [{ id: 'held' }] },
+        permission_epochs: {},
+        authorizationScope: scopeId,
+      });
+    }
+    if (path === '/outbox/offline-queue-false-authorization') {
+      return response(outbox.shift() ?? []);
+    }
+    if (path === '/live/authorization-invalidation/acknowledge') {
+      acknowledgements.push(JSON.parse(init.body).ackToken);
+      return response({ outcome: 'discharged' });
+    }
+    if (path === '/mutation/foregroundWrite') {
+      mutationAttempts += 1;
+      return response({ result: { ok: true }, version: 11 });
+    }
+    if (path === '/live/atomicTodos/unsubscribe') {
+      return response({ subscription_id: scopeId?.subscriptionId, disposed: true });
+    }
+    throw new Error(`unexpected offlineQueue:false authorization request: ${path}`);
+  };
+
+  try {
+    client = new SnapbackClient('http://offline-queue-false-authorization.test', {
+      bearerToken: 'session-atomic-authorization',
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      clientStoreId: 'store_offline_queue_false_authorization',
+      rqsStore: durableStore,
+      offlineQueue: false,
+      __outboxDrainLifecycle: false,
+    });
+    handle = await client.liveQuery('atomicTodos', {
+      connectionId: 'offline-queue-false-authorization',
+      persistResume: false,
+    });
+    const pending = obligation(scopeId, 1, 11);
+    outbox.push([envelope({ pending })]);
+    await handle.poll();
+    await waitFor(
+      async () => assert.equal((await durableStore.outboxAuthorizationStatus()).suspended, true),
+      'offlineQueue:false client did not persist its live root',
+    );
+    await assert.rejects(
+      () => client.mutate('foregroundWrite', {
+        args: { protected: true },
+        queue: false,
+      }),
+      (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
+    );
+    assert.equal(mutationAttempts, 0, 'foreground transport crossed the unproved live root');
+
+    const proof = resolution(pending, 'ack_offline_queue_false_authorization');
+    outbox.push([envelope({
+      pending,
+      resolved: proof,
+      version: 11,
+      rows: [{ id: 'released' }],
+    })]);
+    await handle.poll();
+    await waitFor(
+      () => assert.deepEqual(acknowledgements, [proof.ackToken]),
+      'offlineQueue:false proof was not acknowledged after its custody commit',
+    );
+    const settled = await client.mutate('foregroundWrite', {
+      args: { protected: true },
+      queue: false,
+    });
+    assert.equal(settled.status, 'settled');
+    assert.equal(mutationAttempts, 1, 'exact proof releases one foreground dispatch');
+  } finally {
+    try { await handle?.dispose?.(); } catch { /* cleanup cannot mask assertions */ }
+    try { await client?.close?.(); } catch { /* cleanup cannot mask assertions */ }
+    try { await durableStore.close(); } catch { /* cleanup cannot mask assertions */ }
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('an unrelated shared root cannot satisfy reader-tab persistence or permit ACK', async () => {
   const originalFetch = globalThis.fetch;
   const durableStore = createMemoryRqsResumeStore();
