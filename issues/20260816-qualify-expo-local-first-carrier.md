@@ -171,3 +171,26 @@ promotion: real-hardware runs per target cell (process mode on physical
 devices, plus the 25-cut power-interruption arm with a battery-cut rig or
 operator witness per the README protocol), referencing an eligible LLP 0189
 complete battery at their landing.
+
+---
+
+**Real-device process tier executed 2026-08-17** (attended session, Charlie's
+iPhone 17 Pro Max, iOS 26.6, Release build, physical hardware): **100/100
+seeded process-cut cycles, integrity ok every cycle, 14 mid-transaction
+SIGKILL cuts, zero duplicate server executions, per-cycle launch-nonce-bound
+pid termination**, receipt source-closed over the landed tree:
+`demos/expo-local-first-carrier/evidence/20260817T104803607Z-a698ae9b/`
+(`supporting-pass`, `supportingOnly: true` — process mode never promotes).
+Real-hardware execution surfaced director gaps, all fixed and re-reviewed
+(diary): Xcode 26 devicectl requires pid-based terminate (now launch-json
+nonce-bound with --kill), skip-build now installs the exact hashed .app
+before cycling (provenance closed), protocol/observations record the actual
+per-cycle cut mechanics, devicectl scratch in OS tmp, UDID hashed, battery
+reference parsed from its file. Review: codex r1 NOT READY (3 MATERIAL —
+skip-build provenance, pid ambiguity, protocol honesty; the first device
+receipt was invalidated and the full run re-executed on the fixed director),
+r2 READY no findings; grok READY. **Manifest remains EMPTY. Sole remaining
+leg for iOS promotion: the attended 25-cut power-interruption arm**
+(`--mode power`, interactive terminal, force-restart per cycle + witness id),
+referencing an eligible LLP 0189 battery at its landing. Android real-device
+legs remain open likewise.

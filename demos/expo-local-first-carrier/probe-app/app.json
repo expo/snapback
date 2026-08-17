@@ -8,7 +8,8 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.snapback.exposqlitecarrierprobe",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "appleTeamId": "UD2ZVW5WU5"
     },
     "android": {
       "package": "com.snapback.exposqlitecarrierprobe"

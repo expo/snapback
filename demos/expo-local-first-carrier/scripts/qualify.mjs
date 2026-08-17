@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import {
   mkdir,
@@ -9,6 +10,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
@@ -25,6 +27,7 @@ const appRoot = join(demoRoot, 'probe-app');
 const repoRoot = resolve(demoRoot, '../..');
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 const hashFile = async (path) => sha256(await readFile(path));
+const deviceIdHash = (deviceId) => createHash('sha256').update(deviceId).digest('hex');
 const appRequire = createRequire(join(appRoot, 'package.json'));
 const requiredPackageNames = Object.freeze([
   '@expo/snapback-client',
@@ -89,6 +92,48 @@ async function installedPackageArtifact(name) {
     sha256: await digestPackageDirectory(root),
   });
 }
+
+function containingAppBundle(path) {
+  let current = path;
+  while (true) {
+    if (current.endsWith('.app')) return current;
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+async function resolveAppBundleFromArtifacts(paths) {
+  const artifactRoots = await Promise.all(paths.map(async (path) => (
+    containingAppBundle(await realpath(path))
+  )));
+  if (artifactRoots.some((root) => root === null)) {
+    throw new Error('--skip-build requires --js-bundle and --native-binary paths inside an existing .app');
+  }
+  if (new Set(artifactRoots).size !== 1) {
+    throw new Error('--skip-build artifacts must belong to the same .app bundle');
+  }
+  return artifactRoots[0];
+}
+
+function parseBatteryReference(bytes) {
+  let parsed;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8'));
+  } catch (error) {
+    throw new Error('battery reference is not valid JSON', { cause: error });
+  }
+  if (typeof parsed?.eligible !== 'boolean') {
+    throw new Error('battery reference must contain boolean eligible');
+  }
+  if (typeof parsed?.qualifiedCommit !== 'string' || parsed.qualifiedCommit.length === 0) {
+    throw new Error('battery reference must contain non-empty qualifiedCommit');
+  }
+  return Object.freeze({
+    eligible: parsed.eligible,
+    qualifiedCommit: parsed.qualifiedCommit,
+  });
+}
 const phases = Object.freeze([
   'pending-durable-before-delivery',
   'server-result-before-local-settlement',
@@ -112,9 +157,10 @@ const jsBundlePath = value('--js-bundle');
 const nativeBinaryPath = value('--native-binary');
 const batteryReferencePath = value('--battery-reference');
 const dryRun = flag('--dry-run');
+const skipBuild = flag('--skip-build');
 const deviceClass = value('--device-class') ?? 'real-device';
 if (!['ios', 'android'].includes(platform) || !device || !['process', 'power'].includes(mode)) {
-  process.stderr.write('usage: qualify.mjs --platform <ios|android> --device <id> --mode <process|power> [--host-origin http://HOST] [--device-class simulator|emulator|real-device] [--js-bundle PATH --native-binary PATH --battery-reference PATH] [--dry-run]\n');
+  process.stderr.write('usage: qualify.mjs --platform <ios|android> --device <id> --mode <process|power> [--host-origin http://HOST] [--device-class simulator|emulator|real-device] [--js-bundle PATH --native-binary PATH --battery-reference PATH] [--skip-build] [--dry-run]\n');
   process.exit(2);
 }
 const iterations = mode === 'process' ? 100 : 25;
@@ -129,35 +175,62 @@ const qualificationOriginUrl = new URL(qualificationHostOrigin);
 qualificationOriginUrl.port = String(directorPort);
 const qualificationOrigin = qualificationOriginUrl.origin;
 const iosSimulator = platform === 'ios' && deviceClass === 'simulator';
+const redactedDevice = '<device-id>';
+const redactDevice = (argv) => argv.map((argument) => argument === device ? redactedDevice : argument);
 const build = platform === 'ios'
   ? ['bunx', 'expo', 'run:ios', '--device', device, '--configuration', 'Release']
   : ['bunx', 'expo', 'run:android', '--variant', 'release'];
+const deviceBoot = iosSimulator ? ['xcrun', 'simctl', 'bootstatus', device, '-b'] : null;
 const simulatorTerminate = ['xcrun', 'simctl', 'terminate', device, packageId];
-const iosDeviceTerminate = ['xcrun', 'devicectl', 'device', 'process', 'terminate', '--device', device, '--bundle-id', packageId];
 const androidTerminate = ['adb', '-s', device, 'shell', 'am', 'force-stop', packageId];
 const preLaunchTerminate = platform === 'android'
   ? androidTerminate
   : iosSimulator
     ? simulatorTerminate
-    : iosDeviceTerminate;
+    : null;
 const plainLaunch = platform === 'android'
   ? ['adb', '-s', device, 'shell', 'am', 'start', '-W', '-n', `${packageId}/.MainActivity`]
   : iosSimulator
     ? ['xcrun', 'simctl', 'launch', device, packageId]
-    : ['xcrun', 'devicectl', 'device', 'process', 'launch', '--terminate-existing', '--device', device, packageId];
+    : ['xcrun', 'devicectl', 'device', 'process', 'launch', '--device', device, packageId];
+const realDeviceAppLookup = ['xcrun', 'devicectl', 'device', 'info', 'apps', '--device', device, '--bundle-id', packageId];
+const realDeviceProcessLookup = ['xcrun', 'devicectl', 'device', 'info', 'processes', '--device', device];
+const realDevicePidTerminate = ['xcrun', 'devicectl', 'device', 'process', 'terminate', '--device', device, '--pid', '<resolved-pid>', '--kill'];
+const skipBuildInstall = iosSimulator
+  ? ['xcrun', 'simctl', 'install', device, '<resolved-app-bundle>']
+  : platform === 'ios'
+    ? ['xcrun', 'devicectl', 'device', 'install', 'app', '--device', device, '<resolved-app-bundle>']
+    : null;
+const fullBuildCommands = [
+  ['rm', '-rf', '<probe-app>/node_modules', '<probe-app>/bun.lock'],
+  ['bun', 'install'],
+  ['bunx', 'expo', 'prebuild', '--clean'],
+  redactDevice(build),
+];
 const protocol = {
-  schemaVersion: 'snapback.expo-sqlite-carrier-device-protocol.v2',
+  schemaVersion: 'snapback.expo-sqlite-carrier-device-protocol.v3',
   qualificationMode: true,
   runId,
   seed,
   platform,
-  device,
+  deviceIdHash: deviceIdHash(device),
   deviceClass,
   mode,
   iterations,
   phases,
-  deviceBoot: iosSimulator ? ['xcrun', 'simctl', 'bootstatus', device, '-b'] : null,
-  cleanBuild: ['bun', 'install', '&&', 'bunx', 'expo', 'prebuild', '--clean', '&&', ...build],
+  skipBuild,
+  deviceBoot: deviceBoot === null ? null : redactDevice(deviceBoot),
+  cleanBuild: skipBuild
+    ? {
+      performed: false,
+      mode: 'install-only',
+      commands: skipBuildInstall === null ? [] : [redactDevice(skipBuildInstall)],
+    }
+    : {
+      performed: true,
+      mode: 'full-clean-build-and-install',
+      commands: fullBuildCommands,
+    },
   qualificationBuildEnvironment: {
     EXPO_PUBLIC_SNAPBACK_SQLITE_QUALIFICATION_MODE: '1',
     EXPO_PUBLIC_SNAPBACK_QUALIFICATION_ORIGIN: qualificationOrigin,
@@ -181,16 +254,51 @@ const protocol = {
     },
   },
   launch: {
-    terminateFirst: preLaunchTerminate,
+    terminateFirst: platform === 'ios' && !iosSimulator
+      ? {
+        appLookup: [...redactDevice(realDeviceAppLookup), '--json-output', '<os-temp-json>'],
+        processLookup: [...redactDevice(realDeviceProcessLookup), '--json-output', '<os-temp-json>'],
+        match: `bundleIdentifier exactly ${packageId}; executable directly inside that installed app container`,
+        commandTemplate: redactDevice(realDevicePidTerminate),
+        signal: 'SIGKILL',
+      }
+      : {
+        command: redactDevice(preLaunchTerminate),
+      },
     tolerateNotRunning: true,
-    start: plainLaunch,
+    start: platform === 'ios' && !iosSimulator
+      ? {
+        command: [
+          ...redactDevice(plainLaunch.slice(0, -1)),
+          '--json-output',
+          '<os-temp-json>',
+          plainLaunch.at(-1),
+        ],
+        pidCapture: 'unique processIdentifier from launch JSON, bound to launchNonce',
+      }
+      : {
+        command: redactDevice(plainLaunch),
+        pidCapture: null,
+      },
     deepLinkDelivery: false,
   },
-  processCut: iosSimulator
-    ? simulatorTerminate
-    : platform === 'ios'
-      ? ['xcrun', 'devicectl', 'device', 'process', 'terminate', '--device', device, '--bundle-id', packageId]
-    : ['adb', '-s', device, 'shell', 'am', 'force-stop', packageId],
+  processCut: platform === 'ios' && !iosSimulator
+    ? {
+      commandTemplate: redactDevice(realDevicePidTerminate),
+      pidSource: 'launch JSON processIdentifier bound to launchNonce; bundle-exact installed-app/process-list fallback only when unavailable',
+      signal: 'SIGKILL',
+    }
+    : iosSimulator
+      ? {
+        command: redactDevice(simulatorTerminate),
+        pidSource: 'not required by simctl bundle-id terminate',
+        signal: 'SIMCTL_TERMINATE',
+      }
+      : {
+        command: redactDevice(androidTerminate),
+        pidSource: 'not required by Android package force-stop',
+        signal: 'ANDROID_FORCE_STOP',
+      },
   powerCut: 'external battery-isolated relay or witnessed hard-power interruption; graceful reboot is forbidden',
   postBootInvariants: [
     'integrity_check=ok',
@@ -228,6 +336,25 @@ if (!jsBundlePath || !nativeBinaryPath || !batteryReferencePath) {
   process.stderr.write('--js-bundle, --native-binary, and --battery-reference are required for an actual device receipt\n');
   process.exit(2);
 }
+if (skipBuild && platform !== 'ios') {
+  process.stderr.write('--skip-build currently requires iOS .app-contained artifact paths so the exact hashed bundle can be installed\n');
+  process.exit(2);
+}
+
+const resolvedJsBundle = resolve(jsBundlePath);
+const resolvedNativeBinary = resolve(nativeBinaryPath);
+const resolvedBatteryReference = resolve(batteryReferencePath);
+const batteryReferenceBytes = await readFile(resolvedBatteryReference);
+const batteryReference = parseBatteryReference(batteryReferenceBytes);
+const batteryReferenceSha256 = sha256(batteryReferenceBytes);
+let appBundleRoot = null;
+let jsBundleIdentity = null;
+let nativeBinaryIdentity = null;
+if (skipBuild) {
+  appBundleRoot = await resolveAppBundleFromArtifacts([resolvedJsBundle, resolvedNativeBinary]);
+  jsBundleIdentity = { path: jsBundlePath, sha256: await hashFile(resolvedJsBundle) };
+  nativeBinaryIdentity = { path: nativeBinaryPath, sha256: await hashFile(resolvedNativeBinary) };
+}
 
 const command = (argv, options = {}) => {
   const result = spawnSync(argv[0], argv.slice(1), {
@@ -244,13 +371,48 @@ const command = (argv, options = {}) => {
   if (result.status !== 0 && !options.tolerateFailure?.test(failureOutput)) {
     throw new Error(`${argv.join(' ')} failed (${result.status}): ${result.stderr ?? ''}`);
   }
-  return result.stdout ?? '';
+  return options.returnResult ? result : result.stdout ?? '';
 };
-if (iosSimulator) command(protocol.deviceBoot);
-spawnSync('rm', ['-rf', join(appRoot, 'node_modules'), join(appRoot, 'bun.lock')]);
-command(['bun', 'install']);
-command(['bunx', 'expo', 'prebuild', '--clean']);
-command(build);
+
+const devicectlJson = (label, argv, options = {}) => {
+  const scratchDirectory = mkdtempSync(join(tmpdir(), 'snapback-devicectl-'));
+  const jsonPath = join(scratchDirectory, `${label}.json`);
+  try {
+    const { jsonOutputBeforeTrailing = 0, ...commandOptions } = options;
+    const insertionIndex = argv.length - jsonOutputBeforeTrailing;
+    const commandArgv = [
+      ...argv.slice(0, insertionIndex),
+      '--json-output',
+      jsonPath,
+      ...argv.slice(insertionIndex),
+    ];
+    const result = command(commandArgv, {
+      ...commandOptions,
+      capture: true,
+      returnResult: true,
+    });
+    return {
+      result,
+      json: JSON.parse(readFileSync(jsonPath, 'utf8')),
+    };
+  } finally {
+    rmSync(scratchDirectory, { recursive: true, force: true });
+  }
+};
+
+if (iosSimulator) command(deviceBoot);
+if (!skipBuild) {
+  command(['rm', '-rf', join(appRoot, 'node_modules'), join(appRoot, 'bun.lock')]);
+  command(['bun', 'install']);
+  command(['bunx', 'expo', 'prebuild', '--clean']);
+  command(build);
+  jsBundleIdentity = { path: jsBundlePath, sha256: await hashFile(resolvedJsBundle) };
+  nativeBinaryIdentity = { path: nativeBinaryPath, sha256: await hashFile(resolvedNativeBinary) };
+} else if (iosSimulator) {
+  command(['xcrun', 'simctl', 'install', device, appBundleRoot]);
+} else {
+  command(['xcrun', 'devicectl', 'device', 'install', 'app', '--device', device, appBundleRoot]);
+}
 
 const events = [];
 const serverExecutions = new Map();
@@ -345,8 +507,101 @@ const eventFor = (predicate, timeoutMs = 60_000) => new Promise((resolveEvent, r
   check();
 });
 const tolerateNotRunning = /no such process|not running|found nothing to terminate|no matching process|process not found|does not exist/iu;
-const terminate = ({ tolerateMissing = false } = {}) => {
-  command(preLaunchTerminate, tolerateMissing ? { tolerateFailure: tolerateNotRunning } : {});
+const launchProcesses = new Map();
+const processIdentifierValues = (root) => {
+  const values = [];
+  const visit = (value) => {
+    if (Array.isArray(value)) {
+      for (const entry of value) visit(entry);
+      return;
+    }
+    if (value === null || typeof value !== 'object') return;
+    for (const [key, entry] of Object.entries(value)) {
+      if (key === 'processIdentifier') {
+        const parsed = typeof entry === 'string' ? Number.parseInt(entry, 10) : entry;
+        if (Number.isSafeInteger(parsed) && parsed > 0) values.push(parsed);
+      } else visit(entry);
+    }
+  };
+  visit(root);
+  return [...new Set(values)];
+};
+const pathFromDeviceJson = (value) => {
+  if (typeof value !== 'string' || value.length === 0) return null;
+  const path = value.startsWith('file:') ? fileURLToPath(value) : value;
+  return path.length > 1 ? path.replace(/\/+$/u, '') : path;
+};
+const resolveBundleExactIosDevicePid = ({ tolerateMissing = false } = {}) => {
+  const appJson = devicectlJson('apps', realDeviceAppLookup).json;
+  const apps = appJson?.result?.apps ?? [];
+  const exactApps = apps.filter((entry) => entry.bundleIdentifier === packageId);
+  if (exactApps.length !== 1) {
+    throw new Error(`expected exactly one installed app for bundle id ${packageId}; found ${exactApps.length}`);
+  }
+  const installedAppPath = pathFromDeviceJson(exactApps[0].url);
+  if (installedAppPath === null || !installedAppPath.endsWith('.app')) {
+    throw new Error(`installed app for bundle id ${packageId} has no exact .app container URL`);
+  }
+  const processJson = devicectlJson('processes', realDeviceProcessLookup).json;
+  const processes = processJson?.result?.runningProcesses ?? [];
+  const matches = processes.filter((entry) => {
+    const executablePath = pathFromDeviceJson(entry.executable);
+    return executablePath !== null && dirname(executablePath) === installedAppPath;
+  });
+  if (matches.length === 0 && tolerateMissing) return null;
+  if (matches.length !== 1) {
+    throw new Error(`bundle-exact process resolution for ${packageId} found ${matches.length} matches`);
+  }
+  const pid = typeof matches[0].processIdentifier === 'string'
+    ? Number.parseInt(matches[0].processIdentifier, 10)
+    : matches[0].processIdentifier;
+  if (!Number.isSafeInteger(pid) || pid <= 0) {
+    throw new Error(`bundle-exact process for ${packageId} has no valid processIdentifier`);
+  }
+  return pid;
+};
+const terminate = ({ tolerateMissing = false, launchNonce = null } = {}) => {
+  if (platform === 'ios' && !iosSimulator) {
+    const launched = launchNonce === null ? null : launchProcesses.get(launchNonce);
+    if (launchNonce !== null && launched === undefined) {
+      throw new Error(`no launch identity is bound to launch nonce ${launchNonce}`);
+    }
+    const launchPid = launched?.pid ?? null;
+    const pid = launchPid ?? resolveBundleExactIosDevicePid({ tolerateMissing });
+    if (pid === null) {
+      return Object.freeze({
+        resolvedPid: null,
+        pidResolution: 'bundle-exact-process-list',
+        cutCommand: null,
+        terminationSignal: 'SIGKILL',
+        terminationOutcome: Object.freeze({ status: 'not-running', exitCode: null }),
+      });
+    }
+    const argv = ['xcrun', 'devicectl', 'device', 'process', 'terminate', '--device', device, '--pid', String(pid), '--kill'];
+    const result = command(argv, { capture: true, returnResult: true });
+    return Object.freeze({
+      resolvedPid: pid,
+      pidResolution: launchPid === null ? 'bundle-exact-process-list' : 'launch-json-bound-to-nonce',
+      cutCommand: redactDevice(argv),
+      terminationSignal: 'SIGKILL',
+      terminationOutcome: Object.freeze({ status: 'terminated', exitCode: result.status }),
+    });
+  }
+  const result = command(preLaunchTerminate, {
+    capture: true,
+    returnResult: true,
+    ...(tolerateMissing ? { tolerateFailure: tolerateNotRunning } : {}),
+  });
+  return Object.freeze({
+    resolvedPid: null,
+    pidResolution: 'not-required-by-device-class',
+    cutCommand: redactDevice(preLaunchTerminate),
+    terminationSignal: iosSimulator ? 'SIMCTL_TERMINATE' : 'ANDROID_FORCE_STOP',
+    terminationOutcome: Object.freeze({
+      status: result.status === 0 ? 'terminated' : 'not-running',
+      exitCode: result.status,
+    }),
+  });
 };
 const launch = ({ phase, cycle, predecessorHandleKeyDigest = null }) => {
   if (pendingCommand !== null) throw new Error('cannot launch while another director command is pending');
@@ -360,7 +615,13 @@ const launch = ({ phase, cycle, predecessorHandleKeyDigest = null }) => {
     completionEvent: phase === 'verify' ? 'verified' : 'armed',
   });
   try {
-    command(plainLaunch);
+    let pid = null;
+    if (platform === 'ios' && !iosSimulator) {
+      const launchJson = devicectlJson('launch', plainLaunch, { jsonOutputBeforeTrailing: 1 }).json;
+      const pidCandidates = processIdentifierValues(launchJson?.result);
+      if (pidCandidates.length === 1) [pid] = pidCandidates;
+    } else command(plainLaunch);
+    launchProcesses.set(launchNonce, Object.freeze({ launchNonce, pid }));
   } catch (error) {
     pendingCommand = null;
     throw error;
@@ -404,7 +665,9 @@ try {
       && event.cycle === cycle
       && event.launchNonce === armedLaunchNonce
     ));
-    if (mode === 'process') terminate();
+    let cutRecord;
+    let powerWitness = null;
+    if (mode === 'process') cutRecord = terminate({ launchNonce: armedLaunchNonce });
     else {
       const witness = await operator.question(
         `Cycle ${cycle + 1}/${iterations} (${phase}): perform a HARD power interruption now, then enter witness id (blank aborts): `,
@@ -413,7 +676,7 @@ try {
         incompleteReason = `power witness missing at cycle ${cycle}`;
         break;
       }
-      observations.push({ cycle, phase, powerWitness: createHash('sha256').update(witness).digest('hex') });
+      powerWitness = createHash('sha256').update(witness).digest('hex');
     }
     const verifyLaunchNonce = launch({
       phase: 'verify',
@@ -446,6 +709,15 @@ try {
     observations.push({
       cycle,
       phase,
+      launchNonce: armedLaunchNonce,
+      resolvedPid: cutRecord?.resolvedPid ?? null,
+      pidResolution: cutRecord?.pidResolution ?? 'external-power-cut',
+      cutCommand: cutRecord?.cutCommand ?? null,
+      terminationSignal: cutRecord?.terminationSignal ?? 'HARD_POWER_INTERRUPTION',
+      terminationOutcome: cutRecord?.terminationOutcome ?? {
+        status: 'witnessed',
+        witnessHash: powerWitness,
+      },
       cutBoundary: cutReadyEvent.boundary,
       insideTransaction: cutReadyEvent.insideTransaction,
       reportedHostWatermarks,
@@ -492,6 +764,8 @@ const sourcePaths = [
   'packages/snapback-expo/provider.mjs',
   'demos/expo-local-first-carrier/qualification-invariants.mjs',
   'demos/expo-local-first-carrier/probe-app/App.js',
+  'demos/expo-local-first-carrier/probe-app/app.json',
+  'demos/expo-local-first-carrier/probe-app/package.json',
   'demos/expo-local-first-carrier/scripts/qualify.mjs',
 ];
 const claimSourceClosure = Object.fromEntries(await Promise.all(sourcePaths.map(async (path) => [
@@ -499,15 +773,13 @@ const claimSourceClosure = Object.fromEntries(await Promise.all(sourcePaths.map(
   await hashFile(join(repoRoot, path)),
 ])));
 const packageArtifacts = await Promise.all(requiredPackageNames.map(installedPackageArtifact));
-const resolvedJsBundle = resolve(jsBundlePath);
-const resolvedNativeBinary = resolve(nativeBinaryPath);
-const resolvedBatteryReference = resolve(batteryReferencePath);
 const receipt = {
   schemaVersion: 'snapback.expo-sqlite-carrier-qualification.v1',
   verdict: incompleteReason === null && mode === 'process' ? 'supporting-pass' : incompleteReason === null ? 'candidate-needs-review' : 'incomplete',
   qualificationMode: true,
   runId,
   seed,
+  skipBuild,
   supportingOnly: mode === 'process' || deviceClass !== 'real-device',
   promotionalAuthority: false,
   capabilityCells: [{
@@ -528,16 +800,23 @@ const receipt = {
   git: { revision: gitRevision, dirtyPaths },
   claimSourceClosure,
   packageArtifacts,
+  buildExecution: protocol.cleanBuild,
+  skipBuildInstall: skipBuild ? {
+    appBundlePath: appBundleRoot,
+    command: redactDevice(iosSimulator
+      ? ['xcrun', 'simctl', 'install', device, appBundleRoot]
+      : ['xcrun', 'devicectl', 'device', 'install', 'app', '--device', device, appBundleRoot]),
+  } : null,
   qualificationBuildEnvironment: protocol.qualificationBuildEnvironment,
   commandChannel: protocol.commandChannel,
-  jsBundleIdentity: { path: jsBundlePath, sha256: await hashFile(resolvedJsBundle) },
-  nativeBinaryIdentity: { path: nativeBinaryPath, sha256: await hashFile(resolvedNativeBinary) },
+  jsBundleIdentity,
+  nativeBinaryIdentity,
   targetCell: {
     complete: incompleteReason === null
       && observations.filter((entry) => 'integrity' in entry).length === iterations,
     ...runtimeTargetFacts,
     mode,
-    deviceIdHash: createHash('sha256').update(device).digest('hex'),
+    deviceIdHash: deviceIdHash(device),
     processCuts: mode === 'process' ? iterations : 0,
     powerCuts: mode === 'power' ? iterations : 0,
     phases,
@@ -567,8 +846,9 @@ const receipt = {
   },
   completeBatteryReference: {
     path: batteryReferencePath,
-    sha256: await hashFile(resolvedBatteryReference),
-    qualifiedCommit: gitRevision,
+    sha256: batteryReferenceSha256,
+    eligible: batteryReference.eligible,
+    qualifiedCommit: batteryReference.qualifiedCommit,
   },
   rawLogHashes: {
     'device-events.v1.json': `sha256:${createHash('sha256').update(rawText).digest('hex')}`,

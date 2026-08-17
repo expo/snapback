@@ -1,0 +1,302 @@
+{
+  "schemaVersion": "snapback.expo-sqlite-carrier-qualification.v1",
+  "verdict": "supporting-pass",
+  "qualificationMode": true,
+  "runId": "20260817T104803607Z-a698ae9b",
+  "seed": "a698ae9b01cafbf5fa4df3d925cc8877",
+  "skipBuild": true,
+  "supportingOnly": true,
+  "promotionalAuthority": false,
+  "capabilityCells": [
+    {
+      "arm": "expo",
+      "carrier": "expo-sqlite",
+      "profile": "durable-fragments-v1",
+      "target": {
+        "operatingSystem": "ios",
+        "osVersion": "26.6",
+        "architecture": "arm64e",
+        "distribution": "release",
+        "deviceClass": "real-device",
+        "mode": "process"
+      }
+    }
+  ],
+  "governingLlpAnchors": [
+    "LLP 0166 D1/D6/D9",
+    "LLP 0043 settlement consumption and acknowledgement lifecycle",
+    "LLP 0053 client fences",
+    "LLP 0189 claim gating",
+    "LLP 0270 D6"
+  ],
+  "startedAt": "2026-08-17T10:48:14.043Z",
+  "finishedAt": "2026-08-17T10:55:35.908Z",
+  "git": {
+    "revision": "84e7bdab661c7f9852f20e2f96bdf867cd5547a3",
+    "dirtyPaths": [
+      "demos/expo-local-first-carrier/probe-app/app.json",
+      "demos/expo-local-first-carrier/scripts/qualify.mjs",
+      "demos/expo-local-first-carrier/evidence/20260817T095242086Z-47b4ea0a/",
+      "demos/expo-local-first-carrier/evidence/20260817T104803607Z-a698ae9b/"
+    ]
+  },
+  "claimSourceClosure": {
+    "packages/snapback-client/rqs-store-sqlite.mjs": "sha256:8a7a42200cbad9c99a9eb7efd70b9475ef50106a31123dcb26f1f0ce6c352968",
+    "packages/snapback-client/outbox-shared.mjs": "sha256:35336ffebf7363fb3151300438122ae3ffbdf6ea3a862ba361644520fd3c4d13",
+    "packages/snapback-client/rqs-store-meta.mjs": "sha256:481ca7006373501e9bf4ac3304b9789afdc939ba1ddaf4ffefa68ba85587bf67",
+    "packages/snapback-expo/expo-sqlite-carrier.mjs": "sha256:f887cc50ea3b7998aac540a2167720b4f561ce21edca3dfad612e6edfe615d02",
+    "packages/snapback-expo/expo-sqlite-target.mjs": "sha256:16479249a4dde67f8c1622a3586bdbcb8b8a8a56a8a6dfaa0fc3d06ac8891330",
+    "packages/snapback-expo/provider.mjs": "sha256:efe437193065c99d527a079b1dff727589a3c9dc54511fb8f8401fdba6673815",
+    "demos/expo-local-first-carrier/qualification-invariants.mjs": "sha256:49646f24c08d767ba6f2fcf1281986bba01210f3b875f70e0a370b391254f7dc",
+    "demos/expo-local-first-carrier/probe-app/App.js": "sha256:97677ca64583c3b020ebcc594623dbdeb107963a95b2e797fd79bf49b4ed0b03",
+    "demos/expo-local-first-carrier/probe-app/app.json": "sha256:e09a0740bade22ef8c05aabfcb0de45205a044e687046b550b88882e7aeb4cfd",
+    "demos/expo-local-first-carrier/probe-app/package.json": "sha256:8a9f97710b457ac8894e275e0c88f4006fa704fcddc715c9c148f7095a2e1d27",
+    "demos/expo-local-first-carrier/scripts/qualify.mjs": "sha256:d573472d6c0a222fbd911338740c1267f062926de10688b6e0bd8b41b269cc3f"
+  },
+  "packageArtifacts": [
+    {
+      "name": "@expo/snapback-client",
+      "version": "0.1.0",
+      "artifactKind": "installed-package-directory",
+      "artifactPath": "demos/expo-local-first-carrier/probe-app/node_modules/.bun/@expo+snapback-client@file+..+..+..+packages+snapback-client/node_modules/@expo/snapback-client",
+      "sha256": "sha256:0441ff7ca7635b7e3578a3d33752ade8a6fa1aab01c3cd51faacbb92304f1e13"
+    },
+    {
+      "name": "@expo/snapback-expo",
+      "version": "0.1.0",
+      "artifactKind": "installed-package-directory",
+      "artifactPath": "demos/expo-local-first-carrier/probe-app/node_modules/.bun/@expo+snapback-expo@file+..+..+..+packages+snapback-expo+ccc6bada89ab4c58/node_modules/@expo/snapback-expo",
+      "sha256": "sha256:91f450d7a6715661dadc6d1a328e926c0e14853c9ecb2b742489517bc21bf81a"
+    },
+    {
+      "name": "expo",
+      "version": "57.0.13",
+      "artifactKind": "installed-package-directory",
+      "artifactPath": "demos/expo-local-first-carrier/probe-app/node_modules/.bun/expo@57.0.13+808302b8012f2ddd/node_modules/expo",
+      "sha256": "sha256:2bcf0b55cfcac24ae62729ef9314928b34b0899106be613c1faf7b21956f9c5d"
+    },
+    {
+      "name": "expo-device",
+      "version": "57.0.1",
+      "artifactKind": "installed-package-directory",
+      "artifactPath": "demos/expo-local-first-carrier/probe-app/node_modules/.bun/expo-device@57.0.1+808302b8012f2ddd/node_modules/expo-device",
+      "sha256": "sha256:bbc43df9cf7493798f15728a90de5ff81a693e260ee022da7bfe6eb7655dce78"
+    },
+    {
+      "name": "expo-sqlite",
+      "version": "57.0.1",
+      "artifactKind": "installed-package-directory",
+      "artifactPath": "demos/expo-local-first-carrier/probe-app/node_modules/.bun/expo-sqlite@57.0.1+808302b8012f2ddd/node_modules/expo-sqlite",
+      "sha256": "sha256:b266f9c69accc89a6f1de94e552f2f87cae1bff400ac5795e809334e07ef5241"
+    },
+    {
+      "name": "react-native",
+      "version": "0.86.2",
+      "artifactKind": "installed-package-directory",
+      "artifactPath": "demos/expo-local-first-carrier/probe-app/node_modules/.bun/react-native@0.86.2+935bf51daea7a6a8/node_modules/react-native",
+      "sha256": "sha256:22c46a0d763eb3ab2df50cf32d79d468e1ffec7612e30ed10f71e1f94fa932c8"
+    }
+  ],
+  "buildExecution": {
+    "performed": false,
+    "mode": "install-only",
+    "commands": [
+      [
+        "xcrun",
+        "devicectl",
+        "device",
+        "install",
+        "app",
+        "--device",
+        "<device-id>",
+        "<resolved-app-bundle>"
+      ]
+    ]
+  },
+  "skipBuildInstall": {
+    "appBundlePath": "/Users/ccheever/Library/Developer/Xcode/DerivedData/SnapbackSQLiteQualification-asprbhtbjhantbdrjwhuxovzeuzv/Build/Products/Release-iphoneos/SnapbackSQLiteQualification.app",
+    "command": [
+      "xcrun",
+      "devicectl",
+      "device",
+      "install",
+      "app",
+      "--device",
+      "<device-id>",
+      "/Users/ccheever/Library/Developer/Xcode/DerivedData/SnapbackSQLiteQualification-asprbhtbjhantbdrjwhuxovzeuzv/Build/Products/Release-iphoneos/SnapbackSQLiteQualification.app"
+    ]
+  },
+  "qualificationBuildEnvironment": {
+    "EXPO_PUBLIC_SNAPBACK_SQLITE_QUALIFICATION_MODE": "1",
+    "EXPO_PUBLIC_SNAPBACK_QUALIFICATION_ORIGIN": "http://192.168.1.13:4899"
+  },
+  "commandChannel": {
+    "automated": {
+      "transport": "director-served-command-poll",
+      "endpoint": "GET http://192.168.1.13:4899/command",
+      "directorBinding": "0.0.0.0:4899",
+      "fixedPort": true,
+      "cadence": "once on mount and once on each AppState foreground transition",
+      "readinessRetriesMs": [
+        0,
+        1000,
+        2000
+      ],
+      "pendingResponse": "{ phase, cycle, predecessorHandleKeyDigest, launchNonce }",
+      "idleResponse": "{ idle: true }",
+      "completion": "pending command clears only on matching armed/verified cycle + launchNonce"
+    },
+    "legacyManualFallback": {
+      "transport": "custom-scheme Linking event",
+      "scheme": "snapback-sqlite-probe",
+      "automated": false
+    }
+  },
+  "jsBundleIdentity": {
+    "path": "/Users/ccheever/projects/snapback/.claude/worktrees/comm5-device/demos/expo-local-first-carrier/probe-app/ios/build/Build/Products/Release-iphoneos/SnapbackSQLiteQualification.app/main.jsbundle",
+    "sha256": "sha256:236c08a9d5cd8c045448d12bdca118805746f501581ef902c3a97d1830d9c7eb"
+  },
+  "nativeBinaryIdentity": {
+    "path": "/Users/ccheever/projects/snapback/.claude/worktrees/comm5-device/demos/expo-local-first-carrier/probe-app/ios/build/Build/Products/Release-iphoneos/SnapbackSQLiteQualification.app/SnapbackSQLiteQualification",
+    "sha256": "sha256:24c9c783c637656413910f92c94c5f5c8e51485d5e59ee0902482851cd578822"
+  },
+  "targetCell": {
+    "complete": true,
+    "operatingSystem": "ios",
+    "osVersion": "26.6",
+    "architecture": "arm64e",
+    "distribution": "release",
+    "deviceClass": "real-device",
+    "mode": "process",
+    "deviceIdHash": "6964f9f7397e24b98bfcd433646067aa72768549f90f866953013e5b20c27990",
+    "processCuts": 100,
+    "powerCuts": 0,
+    "phases": [
+      "pending-durable-before-delivery",
+      "server-result-before-local-settlement",
+      "commit-loop",
+      "committed-before-callback",
+      "consumed-before-ack",
+      "ack-proof-before-local-removal",
+      "authority-wipe-before-successor"
+    ]
+  },
+  "sqlite": {
+    "version": "3.50.3",
+    "sourceId": "2025-07-17 13:25:10 3ce993b8657d6d9deda380a93cdd6404a8c8ba1b185b2bc423703e41ae5f2543",
+    "compileOptions": [
+      "ATOMIC_INTRINSICS=1",
+      "COMPILER=clang-21.0.0",
+      "DEFAULT_AUTOVACUUM",
+      "DEFAULT_CACHE_SIZE=-2000",
+      "DEFAULT_FILE_FORMAT=4",
+      "DEFAULT_JOURNAL_SIZE_LIMIT=-1",
+      "DEFAULT_MMAP_SIZE=0",
+      "DEFAULT_PAGE_SIZE=4096",
+      "DEFAULT_PCACHE_INITSZ=20",
+      "DEFAULT_RECURSIVE_TRIGGERS",
+      "DEFAULT_SECTOR_SIZE=4096",
+      "DEFAULT_SYNCHRONOUS=2",
+      "DEFAULT_WAL_AUTOCHECKPOINT=1000",
+      "DEFAULT_WAL_SYNCHRONOUS=2",
+      "DEFAULT_WORKER_THREADS=0",
+      "DIRECT_OVERFLOW_READ",
+      "ENABLE_BYTECODE_VTAB",
+      "ENABLE_FTS3",
+      "ENABLE_FTS3_PARENTHESIS",
+      "ENABLE_FTS4",
+      "ENABLE_FTS5",
+      "ENABLE_LOCKING_STYLE=0",
+      "ENABLE_MATH_FUNCTIONS",
+      "ENABLE_PREUPDATE_HOOK",
+      "ENABLE_SESSION",
+      "MALLOC_SOFT_LIMIT=1024",
+      "MAX_ATTACHED=10",
+      "MAX_COLUMN=2000",
+      "MAX_COMPOUND_SELECT=500",
+      "MAX_DEFAULT_PAGE_SIZE=8192",
+      "MAX_EXPR_DEPTH=1000",
+      "MAX_FUNCTION_ARG=1000",
+      "MAX_LENGTH=1000000000",
+      "MAX_LIKE_PATTERN_LENGTH=50000",
+      "MAX_MMAP_SIZE=0x7fff0000",
+      "MAX_PAGE_COUNT=0xfffffffe",
+      "MAX_PAGE_SIZE=65536",
+      "MAX_SQL_LENGTH=1000000000",
+      "MAX_TRIGGER_DEPTH=1000",
+      "MAX_VARIABLE_NUMBER=32766",
+      "MAX_VDBE_OP=250000000",
+      "MAX_WORKER_THREADS=8",
+      "MUTEX_PTHREADS",
+      "SYSTEM_MALLOC",
+      "TEMP_STORE=2",
+      "THREADSAFE=1"
+    ],
+    "pragmas": {
+      "lockingMode": "exclusive",
+      "journalMode": "wal",
+      "synchronous": 2,
+      "foreignKeys": 1,
+      "fullfsync": 1
+    },
+    "databaseDirectoryClass": "expo-application-support"
+  },
+  "iterations": {
+    "required": 100,
+    "completed": 100
+  },
+  "phases": [
+    "pending-durable-before-delivery",
+    "server-result-before-local-settlement",
+    "commit-loop",
+    "committed-before-callback",
+    "consumed-before-ack",
+    "ack-proof-before-local-removal",
+    "authority-wipe-before-successor"
+  ],
+  "evaluatedPostBootInvariants": [
+    "old-or-new-whole-generation",
+    "all-reported-host-watermarks-present",
+    "no-partial-settlement",
+    "one-writer",
+    "predecessor-non-renderable-and-handle-key-rotated",
+    "same-client-mutation-id-pending-or-settled",
+    "server-execute-at-most-once",
+    "settlement-republished-then-ack-removed"
+  ],
+  "invariantCyclesPassed": 100,
+  "hostPublicationWatermarks": {
+    "model": "COMMIT-promise-resolution",
+    "reported": 42,
+    "missingAfterRecovery": 0,
+    "observedHybridGenerations": 0
+  },
+  "serverExecutionSettlementIdentities": {
+    "clientMutationIds": 100,
+    "maxExecutionCount": 1,
+    "allAcknowledged": true,
+    "secretsPresent": false
+  },
+  "completeBatteryReference": {
+    "path": "/Users/ccheever/projects/snapback/.claude/worktrees/comm5-device/demos/expo-local-first-carrier/evidence/battery-reference/supporting-battery-reference.v1.json",
+    "sha256": "sha256:518ba9769d1142f9cee5857b26347f2ad8d0a53609253330256a2884f95a0936",
+    "eligible": false,
+    "qualifiedCommit": "9b3c078089527a8a19d4b17c3ebf1b49b3ea8db8"
+  },
+  "rawLogHashes": {
+    "device-events.v1.json": "sha256:9d71482f5271b5aa4d3b5d290122a8d3b792ab3d1ab268dc4e41731872e396f8"
+  },
+  "incompleteReason": null,
+  "promotionBlockers": [
+    "tampered-copy import: header/page/WAL truncation, future schema, bad digest; original bytes preserved",
+    "second provider root coalescing plus independent connection owner refusal/takeover",
+    "deterministic max_page_count rollback with prior commit retained",
+    "offline intent -> death -> reconnect -> one server execution -> ACK removal"
+  ],
+  "secretScan": {
+    "serialNumbersIncluded": false,
+    "bearersIncluded": false,
+    "rowPayloadsIncluded": false,
+    "predecessorHandleKeysIncluded": false
+  }
+}
