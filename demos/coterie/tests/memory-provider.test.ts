@@ -146,6 +146,27 @@ describe('Coterie backendless provider', () => {
     expect(report.checks.find((check) => check.id === 'mutation-query-invalidation')?.status).toBe('pass');
   });
 
+  it('isolates delivered profile rows from the backing memory state', () => {
+    const { provider } = createCoterieMemoryHarness();
+    const delivered = readRows<{ id: string; displayName: string }>(
+      provider,
+      'listProfiles',
+      {},
+    );
+    const alice = delivered.find((profile) => profile.id === 'alice');
+    expect(alice?.displayName).toBe('Alice Alvarez');
+    if (!alice) throw new Error('Alice profile fixture was not delivered');
+
+    alice.displayName = 'Mutated by subscriber';
+
+    const fresh = readRows<{ id: string; displayName: string }>(
+      provider,
+      'listProfiles',
+      {},
+    );
+    expect(fresh.find((profile) => profile.id === 'alice')?.displayName).toBe('Alice Alvarez');
+  });
+
   it('configures a distinct adapter implementation against the shared Coterie surface', () => {
     const delegate = createCoterieMemoryProvider();
     const alternateAdapter: ContractDataProvider = {
@@ -294,7 +315,11 @@ describe('Coterie backendless provider', () => {
 
   it('accepts all eight avatar refs and updates only DM rows that display the changed persona', async () => {
     const { provider } = createCoterieMemoryHarness();
-    const profiles = collectReady<Array<{ id: string; avatarUrl: string | null }>>(
+    const profiles = collectReady<Array<{
+      id: string;
+      avatarUrl: string | null;
+      avatarRef: string | null;
+    }>>(
       provider,
       'listProfiles',
       {},
@@ -318,10 +343,15 @@ describe('Coterie backendless provider', () => {
         ok: true,
         value: { avatarUrl: `/assets/fixtures/avatar-${personaId}.png` },
       });
+      const currentProfile = profiles.snapshots.at(-1)?.find((profile) => profile.id === 'alice');
+      expect(currentProfile).toMatchObject({
+        avatarUrl: `/assets/fixtures/avatar-${personaId}.png`,
+        avatarRef: `media/avatar-${personaId}.png`,
+      });
+      expect(COTERIE_AVATAR_REFS.filter((avatarRef) => avatarRef === currentProfile?.avatarRef)).toEqual([
+        `media/avatar-${personaId}.png`,
+      ]);
     }
-    expect(profiles.snapshots.at(-1)?.find((profile) => profile.id === 'alice')?.avatarUrl).toBe(
-      '/assets/fixtures/avatar-henry.png',
-    );
     expect(feed.snapshots.at(-1)?.find((post) => post.authorId === 'alice')?.avatarUrl).toBe(
       '/assets/fixtures/avatar-henry.png',
     );

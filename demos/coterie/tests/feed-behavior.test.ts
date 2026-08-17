@@ -88,6 +88,10 @@ const profileCardSource = readFileSync(
   new URL('../src/ui/profile-card.contract', import.meta.url),
   'utf8',
 );
+const profileRouteSource = readFileSync(
+  new URL('../src/app/routes/profile/[id].contract', import.meta.url),
+  'utf8',
+);
 
 function indentedBlock(source: string, marker: string): string {
   const lines = source.split('\n');
@@ -717,7 +721,10 @@ describe('Coterie feed behavior', () => {
     );
   });
 
-  it('renders avatar choices with a visual and semantic current state', () => {
+  it('derives the nullable avatar selection directly from the profile row', () => {
+    expect(profileRouteSource).toContain('currentAvatarRef=profile.avatarRef');
+    expect(profileRouteSource).not.toContain('coterieAvatarRefForUrl');
+    expect(profileCardSource).toContain('currentAvatarRef: string = null');
     expect(profileCardSource).toContain('accessibilitySelected=option.value == currentAvatarRef');
     expect(profileCardSource).toContain('image src=option.url');
     expect(profileCardSource).toContain('option.value == currentAvatarRef ? `${option.label} · Current`');

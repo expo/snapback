@@ -1308,7 +1308,11 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
           { key: `profile-posts:${String(args.userId)}` },
         ),
       listProfiles: (_args, queryBoundary) =>
-        queryBoundary.query<Profile>('profiles', (rows) => rows as Profile[], { key: 'profiles' }),
+        queryBoundary.query<Profile>(
+          'profiles',
+          (rows) => cloneRows(rows as Profile[]),
+          { key: 'profiles' },
+        ),
       listChats: (_args, queryBoundary) =>
         queryAcrossTables<Chat>(
           queryBoundary,

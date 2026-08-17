@@ -19,6 +19,5 @@ export default defineContractModule('./avatar-refs.ts', {
   // skipped (module-level computed value) — hand-author a richer `pure({ …, depends: [...] })` in place to override (LLP 0206 fail-to-opaque; `--check` accepts it and `--write` preserves it).
   COTERIE_AVATAR_REFS: opaque(),
   coterieAvatarOptions: pure({ params: ['avatarRefs'], result: 'CoterieAvatarOption[]', depends: 'args' }),
-  coterieAvatarRefForUrl: pure({ params: ['avatarUrl', 'avatarRefs'], result: 'string', depends: 'args' }),
   coterieAvatarUrlForRef: pure({ params: ['avatarRef'], result: 'string', depends: 'args' }),
 });

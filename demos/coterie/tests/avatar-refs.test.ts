@@ -3,27 +3,28 @@ import { describe, expect, it } from 'bun:test';
 import {
   COTERIE_AVATAR_REFS,
   coterieAvatarOptions,
-  coterieAvatarRefForUrl,
   coterieAvatarUrlForRef,
 } from '../src/data/avatar-refs.ts';
 
 describe('Coterie avatar vocabulary', () => {
-  it('projects picker metadata and reverse lookup from the canonical table', () => {
+  it('projects picker metadata and served URLs from the canonical table', () => {
     const options = coterieAvatarOptions(COTERIE_AVATAR_REFS);
 
     expect(options).toHaveLength(COTERIE_AVATAR_REFS.length);
     for (const option of options) {
       expect(coterieAvatarUrlForRef(option.value)).toBe(option.url);
-      expect(coterieAvatarRefForUrl(option.url, COTERIE_AVATAR_REFS)).toBe(option.value);
     }
   });
 
-  it('does not infer picker or admission metadata from filename-shaped values', () => {
+  it('leaves null and unknown refs without a selected picker option', () => {
     const undeclaredRef = 'media/avatar-intruder.png';
-    const undeclaredUrl = '/assets/fixtures/avatar-intruder.png';
+    const options = coterieAvatarOptions(COTERIE_AVATAR_REFS);
+    const selectedOptions = (currentAvatarRef: string | null) =>
+      options.filter((option) => option.value === currentAvatarRef);
 
     expect(coterieAvatarOptions([undeclaredRef])).toEqual([]);
     expect(coterieAvatarUrlForRef(undeclaredRef)).toBeNull();
-    expect(coterieAvatarRefForUrl(undeclaredUrl, [undeclaredRef])).toBeNull();
+    expect(selectedOptions(null)).toEqual([]);
+    expect(selectedOptions(undeclaredRef)).toEqual([]);
   });
 });

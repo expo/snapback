@@ -21,7 +21,6 @@ export const COTERIE_AVATAR_REFS = COTERIE_AVATARS.map(
 ) as readonly string[];
 
 const avatarByRef = new Map(COTERIE_AVATARS.map((avatar) => [avatar.value, avatar]));
-const avatarByUrl = new Map(COTERIE_AVATARS.map((avatar) => [avatar.url, avatar]));
 
 export interface CoterieAvatarOption {
   id: string;
@@ -39,13 +38,4 @@ export function coterieAvatarOptions(avatarRefs: readonly string[]): CoterieAvat
 
 export function coterieAvatarUrlForRef(avatarRef: unknown): string | null {
   return typeof avatarRef === 'string' ? avatarByRef.get(avatarRef)?.url ?? null : null;
-}
-
-export function coterieAvatarRefForUrl(
-  avatarUrl: unknown,
-  avatarRefs: readonly string[],
-): string | null {
-  if (typeof avatarUrl !== 'string') return null;
-  const avatarRef = avatarByUrl.get(avatarUrl)?.value ?? null;
-  return avatarRef !== null && avatarRefs.includes(avatarRef) ? avatarRef : null;
 }

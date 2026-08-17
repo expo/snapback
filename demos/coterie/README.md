@@ -207,10 +207,9 @@ deliberate interim seam: Contract does not yet expose a portable file-input
 primitive, so the UI cannot drive the Snapback adapter's arbitrary local-file
 upload path directly.
 `listProfiles@3` now carries the nullable originating `avatarRef` alongside
-`avatarUrl`. This lane freezes and implements that declaration/provider field
-only; the existing picker-selection UI remains unchanged, as required by the
-M3 lane split. The M1+M2 Snapback adapter projects `null` until its provenance
-path is separately qualified.
+`avatarUrl`. This lane freezes that declaration/provider field and updates the
+picker selection to derive directly from it. The M1+M2 Snapback adapter
+projects `null` until its provenance path is separately qualified.
 
 ## Composer media picker
 
@@ -322,7 +321,7 @@ The operation map is deliberately app-owned and contains no seed machinery:
 | Declaration operation | Snapback operation(s) |
 | --- | --- |
 | `listSession@2` | `AuthCoordinator` principal + `getMyProfile` |
-| `listProfiles@3` | streaming `listProfiles` + one retained streaming `profileStats` per profile; `avatarRef` currently projects `null` |
+| `listProfiles@3` | streaming `listProfiles` + one retained streaming `profileStats` per profile; the UI consumes nullable `avatarRef` directly, while the current M1/M2 adapter projects `null` until adapter-M3 lands (so this lane honestly shows no selected picker highlight yet) |
 | `listProviderClaims@1` | adapter-local frozen M1+M2 claim projection |
 | `signup@2` | password signup + `ensureMyProfile` |
 | `login@1` / `logout@1` | password sign-in / auth logout through `AuthCoordinator` |

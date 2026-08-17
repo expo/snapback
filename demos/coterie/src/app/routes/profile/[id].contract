@@ -4,7 +4,6 @@ use CoterieFeedCard from "../../../ui/feed-card.contract"
 use CoterieProfileCard from "../../../ui/profile-card.contract"
 use COTERIE_AVATAR_REFS from "../../../data/avatar-refs.ts"
 use coterieAvatarOptions from "../../../data/avatar-refs.ts"
-use coterieAvatarRefForUrl from "../../../data/avatar-refs.ts"
 use editProfile from "../../../data/generated/coterie.bindings.ts"
 use listProfilePosts from "../../../data/generated/coterie.bindings.ts"
 use listProviderClaims from "../../../data/generated/coterie.bindings.ts"
@@ -128,7 +127,7 @@ component CoterieProfileRoute
                   when profileRows.some((profile) => profile.id == profileId)
                     each profile in profileRows key=profile.id
                       when profile.id == profileId
-                        CoterieProfileCard(id=profile.id, displayName=profile.displayName, handle=profile.handle, bio=profile.bio, avatarUrl=profile.avatarUrl, followers=profile.followers, following=profile.following, followedByMe=profile.followedByMe, isMe=profile.isMe, editing=profileEditing && canEditProfile, draftName=profileName, draftBio=profileBio, avatarOptions=avatarOptions, currentAvatarRef=coterieAvatarRefForUrl(profile.avatarUrl, COTERIE_AVATAR_REFS), canEditProfile=canEditProfile, canFollow=canFollowProfiles, canSetAvatar=canSetAvatar, changeName=setProfileName, changeBio=setProfileBio, pressAvatar=chooseAvatar, pressEdit=beginProfileEdit, pressSave=saveProfile, pressFollow=followProfile)
+                        CoterieProfileCard(id=profile.id, displayName=profile.displayName, handle=profile.handle, bio=profile.bio, avatarUrl=profile.avatarUrl, followers=profile.followers, following=profile.following, followedByMe=profile.followedByMe, isMe=profile.isMe, editing=profileEditing && canEditProfile, draftName=profileName, draftBio=profileBio, avatarOptions=avatarOptions, currentAvatarRef=profile.avatarRef, canEditProfile=canEditProfile, canFollow=canFollowProfiles, canSetAvatar=canSetAvatar, changeName=setProfileName, changeBio=setProfileBio, pressAvatar=chooseAvatar, pressEdit=beginProfileEdit, pressSave=saveProfile, pressFollow=followProfile)
                         when profile.isMe && !profileEditing
                           column paddingLeft=18 paddingRight=18 paddingBottom=18
                             button "View insights" press=showInsights padding=10 radius=8 borderWidth=1 borderColor="#4F46E5" background="#FFFFFF" color="#4F46E5" testId="coterie-profile-insights"
