@@ -578,7 +578,8 @@ test('Familiar TypeScript generation maps the splice census through syntax erasu
   const { generate } = await import('./index.mjs');
   const root = mkdtempSync(join(tmpdir(), 'snapback-write-policy-familiar-'));
   try {
-    const fixture = join(process.cwd(), 'tests/fixtures/familiar-todo');
+    const { fileURLToPath } = await import('node:url');
+    const fixture = fileURLToPath(new URL('../../tests/fixtures/familiar-todo', import.meta.url));
     for (const file of ['codegen.policy.json', 'contracts.ts', 'schema.ts', 'todos.ts']) {
       cpSync(join(fixture, file), join(root, file));
     }
