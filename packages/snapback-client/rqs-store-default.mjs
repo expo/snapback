@@ -12,7 +12,7 @@
 //   3. admitted app platform — its browser/native/memory arm, with durable
 //      application stores namespaced by the full app owner key;
 //   4. browser (IndexedDB + Web Locks) — the ambient web arm;
-//   5. React Native with registered platform files — the native file arm;
+//   5. React Native with registered platform files — the ambient native arm;
 //   6. node (filesystem + a resolvable state directory) — the file arm,
 //      under `SNAPBACK_CLIENT_RQS_DIR` or `~/.snapback/rqs`, keyed by the
 //      server origin so distinct servers never share a blob;
@@ -143,8 +143,9 @@ const memoryFallback = (reason) => (
     : unavailableFallback('secure-random-unavailable')
 );
 
-/// Stable per-origin identity for the default file store: two clients of the
-/// same server share (single-writer) one blob; different servers never do.
+/// Stable per-origin identity for the ambient default file store: two clients
+/// of the same server share (single-writer) one blob; different servers never
+/// do.
 const originIdentity = (baseUrl) => {
   try {
     const url = new URL(baseUrl);
@@ -155,11 +156,24 @@ const originIdentity = (baseUrl) => {
 };
 
 // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
-// — the first-party browser participant follows the same full owner-key
+// — first-party durable store participants follow the same full owner-key
 // isolation as auth custody. The digest is stable across contexts without
-// exposing the raw storage partition in the browser's database registry.
+// exposing the raw storage partition in a browser registry or file identity.
+// @ref LLP 0041#amendment-2026-08-08-rapid-publication-posture--author-ruling
+// — legacy unowned admitted namespaces are deliberately discarded from
+// admitted resolution, not migrated: their owner is unattributable, so
+// adoption could assign another owner's pending intent and violate D3.
+// Ambient SnapbackClient instances keep the unowned database/origin identity;
+// the no-stability-users posture makes this explicit compatibility cut sound.
+const appOwnerStoreHash = (ownerKey) => authCustodyOwnerKeyHash(ownerKey);
 const appOwnerDatabaseName = (ownerKey) => (
-  `${RQS_STORE_DATABASE_NAME}.owner.${authCustodyOwnerKeyHash(ownerKey)}`
+  `${RQS_STORE_DATABASE_NAME}.owner.${appOwnerStoreHash(ownerKey)}`
+);
+const appOwnerFileIdentity = (baseUrl, ownerKey) => (
+  `${originIdentity(baseUrl)}:owner:${appOwnerStoreHash(ownerKey)}`
+);
+const appOwnerFileDirectory = (directory, ownerKey) => (
+  `${directory.replace(/\/+$/u, '')}/owner-${appOwnerStoreHash(ownerKey)}`
 );
 
 const disabledResolution = () => ({
@@ -191,7 +205,7 @@ const resolveBrowserStore = ({
   }
 };
 
-const resolveNativeStore = (baseUrl) => {
+const resolveNativeStore = (baseUrl, ownerKey = null) => {
   if (nativeRqsFiles === null) return memoryFallback('no-native-files-registered');
   if (
     typeof nativeRqsFiles.randomBytes !== 'function'
@@ -199,9 +213,17 @@ const resolveNativeStore = (baseUrl) => {
   ) return unavailableFallback('secure-random-unavailable');
   try {
     const store = createFileRqsResumeStore({
-      directory: nativeRqsFiles.directory,
+      // File-store authority wipes sweep sibling identities within a
+      // directory, so admitted owners need both an owner-scoped directory
+      // and an owner-scoped identity. Ambient resolution retains the legacy
+      // origin-only directory and identity below.
+      directory: ownerKey === null
+        ? nativeRqsFiles.directory
+        : appOwnerFileDirectory(nativeRqsFiles.directory, ownerKey),
       files: nativeRqsFiles.files,
-      identity: originIdentity(baseUrl),
+      identity: ownerKey === null
+        ? originIdentity(baseUrl)
+        : appOwnerFileIdentity(baseUrl, ownerKey),
       randomBytes: nativeRqsFiles.randomBytes,
     });
     const durable = store.durability().durable === true;
@@ -236,7 +258,12 @@ function resolveDefaultRqsStoreForEnvironment({
         databaseName: appOwnerDatabaseName(appOwnerKey),
       });
     }
-    if (appPlatform.kind === 'expo-native') return resolveNativeStore(baseUrl);
+    if (appPlatform.kind === 'expo-native') {
+      if (appOwnerKey === null) {
+        throw new TypeError('default RQS native app platform requires an app owner key');
+      }
+      return resolveNativeStore(baseUrl, appOwnerKey);
+    }
     if (appPlatform.kind === 'memory') return memoryFallback('volatile-platform');
     throw new TypeError('default RQS app platform is invalid');
   }

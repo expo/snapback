@@ -23,6 +23,33 @@ export interface DefaultRqsStoreResolution {
   readonly info: DefaultRqsStoreInfo;
 }
 
+export interface DefaultRqsStoreAppOwnerKey {
+  readonly appId: string;
+  readonly storagePartition: string;
+}
+
+export interface DefaultRqsStoreOwnerPlatform {
+  readonly kind: 'browser' | 'expo-web' | 'expo-native';
+  readonly indexedDB?: unknown;
+  readonly lockManager?: unknown;
+}
+
+export interface DefaultRqsStoreMemoryPlatform {
+  readonly kind: 'memory';
+  readonly indexedDB?: unknown;
+  readonly lockManager?: unknown;
+}
+
+export type DefaultRqsStoreOptions = Readonly<{
+  baseUrl?: string;
+  appPlatform: Readonly<DefaultRqsStoreOwnerPlatform>;
+  appOwnerKey: Readonly<DefaultRqsStoreAppOwnerKey>;
+}> | Readonly<{
+  baseUrl?: string;
+  appPlatform?: Readonly<DefaultRqsStoreMemoryPlatform> | null;
+  appOwnerKey?: Readonly<DefaultRqsStoreAppOwnerKey> | null;
+}>;
+
 export declare const DEFAULT_RQS_STORE_RESOLUTION_BRAND: unique symbol;
 
 export declare function brandDefaultRqsStoreResolution<T extends DefaultRqsStoreResolution>(
@@ -31,18 +58,9 @@ export declare function brandDefaultRqsStoreResolution<T extends DefaultRqsStore
 export declare function isDefaultRqsStoreResolution(value: unknown): boolean;
 export declare function registeredNativeRqsFiles(): Readonly<NativeRqsFilesProvider> | null;
 
-export declare function resolveDefaultRqsStore(options?: {
-  baseUrl?: string;
-  appPlatform?: Readonly<{
-    kind: 'browser' | 'expo-web' | 'expo-native' | 'memory';
-    indexedDB?: unknown;
-    lockManager?: unknown;
-  }> | null;
-  appOwnerKey?: Readonly<{
-    appId: string;
-    storagePartition: string;
-  }> | null;
-}): DefaultRqsStoreResolution;
+export declare function resolveDefaultRqsStore(
+  options?: DefaultRqsStoreOptions,
+): DefaultRqsStoreResolution;
 
 export declare function registerNativeRqsFiles(
   provider: NativeRqsFilesProvider,
