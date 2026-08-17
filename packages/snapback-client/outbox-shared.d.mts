@@ -69,6 +69,10 @@ export interface OutboxQuarantineTombstone {
     source: 'server-replay-refusal';
     payload: 'redacted';
   }>;
+  readonly effectProvenance: Readonly<{
+    effectCommitted: boolean | null;
+    effectMayHaveCommitted: boolean | null;
+  }>;
 }
 
 export declare function normalizeOutboxRecordInput(

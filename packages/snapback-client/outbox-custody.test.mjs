@@ -420,7 +420,7 @@ test('capture-validate-commit race preserves successor-owned stranded dispositio
   assert.equal(record.replayable, false);
 });
 
-test('authority transition racing an idempotent settled enqueue refuses before projection', async (t) => {
+test('concurrent identical enqueue settling in the pre-enqueue gap survives stale compensation', async (t) => {
   const fixture = makeFixture();
   const underlying = fixture.store;
   const first = makeClient(fixture);
@@ -431,24 +431,29 @@ test('authority transition racing an idempotent settled enqueue refuses before p
     clientMutationId: 'cm-settled-enqueue-authority-race',
     args: { value: 'predecessor-settlement' },
   };
-  const settled = await first.client.mutate('settledBeforeAuthorityRace', mutationInput);
-  assert.equal(settled.status, 'settled');
-  assert.equal((await underlying.outboxRecords())[0].status, 'settled');
-
   let raced = false;
   const injectedStore = Object.create(underlying);
   injectedStore.outboxEnqueue = async (...args) => {
-    const stored = await underlying.outboxEnqueue(...args);
     if (!raced) {
       raced = true;
+      const settled = await first.client.mutate('settledBeforeAuthorityRace', mutationInput);
+      assert.equal(settled.status, 'settled');
+      assert.equal((await underlying.outboxRecords())[0].status, 'settled');
+      const stored = await underlying.outboxEnqueue(...args);
+      assert.equal(
+        stored.insertionOwned,
+        false,
+        'atomic enqueue reports that this stale call does not own the insertion',
+      );
       await transitionTo(
         fixture,
         first.coordinator,
         actorA2(),
         'settled_enqueue_authority_race',
       );
+      return stored;
     }
-    return stored;
+    return underlying.outboxEnqueue(...args);
   };
   const racingClient = new SnapbackClient(fixture.baseUrl, {
     authCoordinator: first.coordinator,
@@ -896,7 +901,11 @@ test('null and absent optional fields share one durable replay identity', async 
     principalScope: null,
     custody: null,
   });
-  assert.deepEqual(second, first);
+  assert.equal(first.insertionOwned, true);
+  assert.equal(second.insertionOwned, false);
+  const { insertionOwned: _firstOwnership, ...firstRecord } = first;
+  const { insertionOwned: _secondOwnership, ...secondRecord } = second;
+  assert.deepEqual(secondRecord, firstRecord);
   assert.equal((await store.outboxRecords()).length, 1);
 });
 

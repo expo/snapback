@@ -511,6 +511,36 @@ const authorizationDeleteTombstone = (record) => (
   && record?.replayable === false
 );
 
+const effectProvenanceFromError = (error) => {
+  const details = error?.diagnostic?.details;
+  const effectCommitted = typeof error?.effectCommitted === 'boolean'
+    ? error.effectCommitted
+    : typeof details?.effectCommitted === 'boolean'
+      ? details.effectCommitted
+      : null;
+  const effectMayHaveCommitted = typeof error?.effectMayHaveCommitted === 'boolean'
+    ? error.effectMayHaveCommitted
+    : typeof details?.effectMayHaveCommitted === 'boolean'
+      ? details.effectMayHaveCommitted
+      : effectCommitted === true
+        ? true
+        : effectCommitted === false
+          ? false
+          : null;
+  return Object.freeze({
+    effectCommitted,
+    effectMayHaveCommitted: effectCommitted === true ? true : effectMayHaveCommitted,
+  });
+};
+
+const outboxInsertionOwnershipFrom = (record) => (
+  record?.insertionOwned === true
+  && Number.isSafeInteger(record?.sequence)
+  && record.sequence > 0
+    ? Object.freeze({ sequence: record.sequence })
+    : null
+);
+
 const nonReplayableOutboxEffectFacts = (record) => {
   if (record?.status === 'result-gone') {
     if (record?.resultGone?.outcome === 'committed') {
@@ -522,7 +552,20 @@ const nonReplayableOutboxEffectFacts = (record) => {
     return { effectCommitted: null, effectMayHaveCommitted: null };
   }
   if (['failed', 'stranded', 'quarantined'].includes(record?.status)) {
-    return { effectCommitted: false, effectMayHaveCommitted: false };
+    const provenance = record?.effectProvenance;
+    if (
+      provenance?.effectCommitted === true
+      && provenance?.effectMayHaveCommitted === true
+    ) return { effectCommitted: true, effectMayHaveCommitted: true };
+    if (
+      provenance?.effectCommitted === false
+      && provenance?.effectMayHaveCommitted === false
+    ) return { effectCommitted: false, effectMayHaveCommitted: false };
+    if (
+      provenance?.effectCommitted === null
+      && provenance?.effectMayHaveCommitted === true
+    ) return { effectCommitted: null, effectMayHaveCommitted: true };
+    return { effectCommitted: null, effectMayHaveCommitted: null };
   }
   return { effectCommitted: null, effectMayHaveCommitted: null };
 };
@@ -553,10 +596,10 @@ const nonReplayableOutboxDispositionError = (record) => {
       clientMutationId: record?.id ?? null,
       mutationDisposition,
       ...(typeof effectFacts.effectCommitted === 'boolean'
-        ? {
-          effectCommitted: effectFacts.effectCommitted,
-          effectMayHaveCommitted: effectFacts.effectMayHaveCommitted,
-        }
+        ? { effectCommitted: effectFacts.effectCommitted }
+        : {}),
+      ...(typeof effectFacts.effectMayHaveCommitted === 'boolean'
+        ? { effectMayHaveCommitted: effectFacts.effectMayHaveCommitted }
         : {}),
       retryable: false,
     }),
@@ -8174,15 +8217,22 @@ export class SnapbackClient {
     store,
     clientMutationId,
     authority,
-    { discard = true, expectedAuthorizationFence = null } = {},
+    { insertionOwnership = null, expectedAuthorizationFence = null } = {},
   ) {
     if (
       authority === null
       || this.authorityFence?.isCurrent?.(authority.capture) === true
     ) return true;
-    if (discard) {
+    if (
+      insertionOwnership !== null
+      && typeof store.outboxDiscardPendingInsertion === 'function'
+    ) {
       try {
-        await store.outboxDiscard(clientMutationId, expectedAuthorizationFence);
+        await store.outboxDiscardPendingInsertion(
+          clientMutationId,
+          insertionOwnership.sequence,
+          expectedAuthorizationFence,
+        );
       } catch { /* refusal is recorded below */ }
     }
     this.#recordOutboxDiagnostic({
@@ -9113,6 +9163,7 @@ export class SnapbackClient {
       if (
         !alreadyCommitted
         && !await this.#compensateStaleQueueWrite(store, stored.id, authority, {
+          insertionOwnership: outboxInsertionOwnershipFrom(stored),
           expectedAuthorizationFence: outboxAuthorizationFenceFrom(stored),
         })
       ) return null;
@@ -10528,6 +10579,7 @@ export class SnapbackClient {
               'server_authority_stale_result',
               record.principalScope ?? null,
               authorizationDispatchFence ?? preparationFence,
+              effectProvenanceFromError(error),
             );
           } catch { /* pending is safer than silent loss */ }
           if (!held) {
@@ -10564,7 +10616,7 @@ export class SnapbackClient {
           try {
             held = await store.outboxMarkQuarantined(
               record.id,
-              { code: refusalCode },
+              { code: refusalCode, ...effectProvenanceFromError(error) },
               authorizationDispatchFence ?? preparationFence,
             );
           } catch { /* handled below: pending is safer than silent loss */ }
@@ -10618,6 +10670,7 @@ export class SnapbackClient {
           markedFailed = await store.outboxMarkFailed(record.id, {
             code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_OUTBOX_REPLAY_FAILED',
             message: error?.message ?? String(error),
+            ...effectProvenanceFromError(error),
           }, authorizationDispatchFence ?? preparationFence);
         } catch { /* handled below: never submit a dependent past an unknown terminal */ }
         if (!markedFailed) {
@@ -11072,7 +11125,7 @@ export class SnapbackClient {
     } : null;
     let durableOnlineRecord = false;
     let durableOnlineStoredRecord = null;
-    let queueRecordAlreadyExisted = false;
+    let queueInsertionOwnership = null;
     const storedDispatchDisposition = async (stored) => {
       if (stored?.status === 'pending' && stored?.replayable !== false) return null;
       this.#notifyOutboxListeners();
@@ -11113,7 +11166,7 @@ export class SnapbackClient {
         clientMutationId,
         queueAuthority,
         {
-          discard: current !== null && !queueRecordAlreadyExisted,
+          insertionOwnership: queueInsertionOwnership,
           expectedAuthorizationFence: current === null
             ? null
             : outboxAuthorizationFenceFrom(current),
@@ -11160,8 +11213,6 @@ export class SnapbackClient {
             queueAuthority !== null
             && this.authorityFence?.isCurrent?.(queueAuthority.capture) !== true
           ) throw staleAuthorityError();
-          queueRecordAlreadyExisted = (await queueStore.outboxRecords())
-            .some((record) => record?.id === durableMutationRecord.id);
           return operation(queueFence);
         };
         if (operationIdentityEnabled) {
@@ -11188,12 +11239,13 @@ export class SnapbackClient {
           ));
           let preparationFence = outboxAuthorizationFenceFrom(stored);
           durableOnlineStoredRecord = stored;
+          queueInsertionOwnership = outboxInsertionOwnershipFrom(stored);
           if (!await this.#compensateStaleQueueWrite(
             queueStore,
             stored.id,
             queueAuthority,
             {
-              discard: !queueRecordAlreadyExisted,
+              insertionOwnership: queueInsertionOwnership,
               expectedAuthorizationFence: preparationFence,
             },
           )) {
@@ -11286,6 +11338,8 @@ export class SnapbackClient {
                 code: error?.diagnostic?.code ?? error?.code
                   ?? 'SNAPBACK_OPERATION_RANGE_REFRESH_FAILED',
                 message: error?.message ?? String(error),
+                effectCommitted: false,
+                effectMayHaveCommitted: false,
               }, preparationFence);
               throw error;
             }
@@ -11305,12 +11359,13 @@ export class SnapbackClient {
             queueStore.outboxEnqueue(durableMutationRecord, queueFence)
           ));
           durableOnlineStoredRecord = stored;
+          queueInsertionOwnership = outboxInsertionOwnershipFrom(stored);
           if (!await this.#compensateStaleQueueWrite(
             queueStore,
             stored?.id ?? clientMutationId,
             queueAuthority,
             {
-              discard: !queueRecordAlreadyExisted,
+              insertionOwnership: queueInsertionOwnership,
               expectedAuthorizationFence: stored === null || stored === undefined
                 ? null
                 : outboxAuthorizationFenceFrom(stored),
@@ -11664,6 +11719,7 @@ export class SnapbackClient {
               'server_authority_stale_result',
               durableMutationRecord.principalScope ?? null,
               authorizationDispatchFence,
+              effectProvenanceFromError(error),
             );
             if (held) {
               this.#recordOutboxDiagnostic({
@@ -11682,6 +11738,7 @@ export class SnapbackClient {
               await queueStore.outboxMarkFailed(clientMutationId, {
                 code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_MUTATION_REFUSED',
                 message: error?.message ?? String(error),
+                ...effectProvenanceFromError(error),
               }, authorizationDispatchFence);
             } catch (markError) {
               if (markError?.code !== 'SNAPBACK_RQS_STORE_CLOSED') throw markError;

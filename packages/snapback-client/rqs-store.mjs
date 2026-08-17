@@ -299,6 +299,7 @@ export function createIndexedDbRqsResumeStore({
   let writer = false;
   let releaseLock = null;
   let pendingReactBindingReceipt = null;
+  let pendingOutboxNormalization = false;
   let initialMeta = createInitialStoreMeta({ clientStoreId, randomBytes });
   const writerLockListeners = new Set();
   const notifyWriterLock = (value) => {
@@ -369,6 +370,7 @@ export function createIndexedDbRqsResumeStore({
       void flushPendingReactBindingReceipt().catch((error) => {
         warnReactBindingReceiptNotPersisted({ error });
       });
+      void Promise.resolve().then(() => flushPendingOutboxNormalization()).catch(() => {});
       return new Promise((resolve) => {
         releaseLock = resolve;
       });
@@ -448,7 +450,21 @@ export function createIndexedDbRqsResumeStore({
     let tx = db.transaction([OUTBOX], 'readonly');
     let normalized = await readOutboxState(tx.objectStore(OUTBOX));
     await transactionDone(tx);
-    if (!normalized.changed) return normalized.state;
+    if (!normalized.changed) {
+      pendingOutboxNormalization = false;
+      return normalized.state;
+    }
+
+    pendingOutboxNormalization = true;
+    if (!writer || closed) {
+      // Non-writers adopt the payload-free normalized projection but never
+      // upgrade their read into a write. The marker follows this context to
+      // writer takeover; an authorization writer also clears it through the
+      // ordinary guarded outboxWrite path.
+      // @ref LLP 0166#writer-discipline-and-format-versioning — non-holders
+      //   read and adopt, never write store bytes.
+      return normalized.state;
+    }
 
     // IndexedDB transactions cannot be upgraded. Re-read under one readwrite
     // transaction and commit the latest normalized record before exposing it;
@@ -458,8 +474,14 @@ export function createIndexedDbRqsResumeStore({
     tx = db.transaction([OUTBOX], 'readwrite');
     normalized = await readOutboxState(tx.objectStore(OUTBOX));
     await transactionDone(tx);
+    pendingOutboxNormalization = false;
     return normalized.state;
   };
+
+  async function flushPendingOutboxNormalization() {
+    if (!pendingOutboxNormalization || !writer || closed) return;
+    await readDurablyNormalizedOutboxState();
+  }
 
   const outboxRead = async (reader) => {
     const state = await readDurablyNormalizedOutboxState();
@@ -481,6 +503,7 @@ export function createIndexedDbRqsResumeStore({
     const applied = transition(state);
     if (applied.state !== state) txStore.put(applied.state, OUTBOX_STATE_KEY);
     await transactionDone(tx);
+    pendingOutboxNormalization = false;
     return applied.result;
   };
 
@@ -733,6 +756,7 @@ export function createIndexedDbRqsResumeStore({
       reason,
       predecessorPrincipalScope = null,
       expectedAuthorizationFence = null,
+      effectProvenance = null,
     ) {
       return outboxWrite((state) => outboxOps.markStranded(
         state,
@@ -741,6 +765,7 @@ export function createIndexedDbRqsResumeStore({
         now(),
         predecessorPrincipalScope,
         expectedAuthorizationFence,
+        effectProvenance,
       ));
     },
 
@@ -800,6 +825,19 @@ export function createIndexedDbRqsResumeStore({
 
     async outboxDiscard(id, expectedAuthorizationFence = null) {
       return outboxWrite((state) => outboxOps.discard(state, id, expectedAuthorizationFence));
+    },
+
+    async outboxDiscardPendingInsertion(
+      id,
+      insertionSequence,
+      expectedAuthorizationFence = null,
+    ) {
+      return outboxWrite((state) => outboxOps.discardPendingInsertion(
+        state,
+        id,
+        insertionSequence,
+        expectedAuthorizationFence,
+      ));
     },
 
     async outboxRecordAcknowledgement(id, userId = null, authorityDescriptor = null) {

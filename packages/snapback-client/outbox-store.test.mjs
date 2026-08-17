@@ -202,6 +202,8 @@ async function exerciseOutboxContract(store, { label }) {
   });
   assert.equal(first.sequence, 1, `${label}: first sequence`);
   assert.equal(second.sequence, 2, `${label}: monotonic sequence`);
+  assert.equal(first.insertionOwned, true, `${label}: first enqueue owns its insertion`);
+  assert.equal(second.insertionOwned, true, `${label}: distinct enqueue owns its insertion`);
   assert.equal(first.status, 'pending');
   assert.equal(first.capturedNow, 1234, `${label}: captured clock retained as labeled claim`);
   // Idempotent re-enqueue of the same durable identity.
@@ -213,6 +215,7 @@ async function exerciseOutboxContract(store, { label }) {
     capturedNow: 1234,
   });
   assert.equal(re.sequence, 1, `${label}: re-enqueue returns the existing record`);
+  assert.equal(re.insertionOwned, false, `${label}: idempotent enqueue does not own insertion`);
   await assert.rejects(
     () => store.outboxEnqueue({
       id: 'cm-1',
@@ -342,8 +345,13 @@ async function exerciseOutboxContract(store, { label }) {
     code: 'SNAPBACK_MIGRATION_UPGRADE_REQUIRED',
   });
   assert.equal(quarantine.count, 1, `${label}: quarantine transition commits`);
-  assert.equal((await store.outboxRecords())[0].status, 'quarantined');
-  assert.equal(Object.hasOwn((await store.outboxRecords())[0], 'args'), false);
+  const [quarantinedRecord] = await store.outboxRecords();
+  assert.equal(quarantinedRecord.status, 'quarantined');
+  assert.equal(Object.hasOwn(quarantinedRecord, 'args'), false);
+  assert.deepEqual(quarantinedRecord.effectProvenance, {
+    effectCommitted: null,
+    effectMayHaveCommitted: null,
+  }, `${label}: quarantine without proof preserves unknown effect facts`);
   assert.equal(await store.outboxEmpty(), false, `${label}: quarantine keeps resume fenced`);
   const reentry = await store.outboxReenterQuarantined();
   assert.deepEqual(reentry.clientMutationIds, ['cm-quarantine']);
@@ -400,6 +408,16 @@ async function exerciseOutboxContract(store, { label }) {
     true,
   );
   assert.deepEqual(strandedRecords[0].predecessorPrincipalScope, predecessorScope);
+  assert.equal(
+    strandedRecords
+      .filter((record) => record.status === 'stranded')
+      .every((record) => (
+        record.effectProvenance?.effectCommitted === null
+        && record.effectProvenance?.effectMayHaveCommitted === null
+      )),
+    true,
+    `${label}: stranding never invents effect-free provenance`,
+  );
   assert.deepEqual(
     await store.outboxPendingAcknowledgements(
       predecessorScope.userId,
@@ -3409,6 +3427,10 @@ test('failed and missing-record redispatch preserve their distinct effect facts'
   };
   await assert.rejects(() => client.mutate('createThing', input));
   assert.equal((await store.outboxRecords())[0].status, 'failed');
+  assert.deepEqual((await store.outboxRecords())[0].effectProvenance, {
+    effectCommitted: false,
+    effectMayHaveCommitted: false,
+  });
   const callsBeforeRedispatch = calls;
   await assert.rejects(
     () => client.mutate('createThing', input),
@@ -3447,6 +3469,53 @@ test('failed and missing-record redispatch preserve their distinct effect facts'
       return true;
     },
   );
+});
+
+test('malformed 2xx failure redispatch preserves possibly-committed durable provenance', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('https://outbox-malformed-success.example', {
+    rqsStore: store,
+  });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response('{ malformed-success', {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  const input = {
+    args: { title: 'possibly-committed' },
+    clientMutationId: 'cm-malformed-2xx-provenance',
+  };
+  await assert.rejects(
+    () => client.mutate('createThing', input),
+    (error) => {
+      assert.equal(error.effectCommitted, null);
+      assert.equal(error.effectMayHaveCommitted, true);
+      return true;
+    },
+  );
+  const [failed] = await store.outboxRecords();
+  assert.equal(failed.status, 'failed');
+  assert.deepEqual(failed.effectProvenance, {
+    effectCommitted: null,
+    effectMayHaveCommitted: true,
+  });
+  const callsBeforeRedispatch = calls;
+  await assert.rejects(
+    () => client.mutate('createThing', input),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_OUTBOX_MUTATION_NOT_REPLAYABLE');
+      assert.equal(error.effectCommitted, null);
+      assert.equal(error.effectMayHaveCommitted, true);
+      assert.equal(Object.hasOwn(error.diagnostic.details, 'effectCommitted'), false);
+      assert.equal(error.diagnostic.details.effectMayHaveCommitted, true);
+      return true;
+    },
+  );
+  assert.equal(calls, callsBeforeRedispatch, 'redispatch uses durable proof without transport');
 });
 
 test('recreated file-backed client preserves result-gone without redelivery', async (t) => {

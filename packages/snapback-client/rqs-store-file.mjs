@@ -308,6 +308,8 @@ export function createFileRqsResumeStore({
   let authorityTransitionWithinDispatchBroker = null;
   let authorizationDispatchBroker = null;
   let borrowedAuthorizationDispatchDepth = 0;
+  let pendingOutboxNormalization = false;
+  let outboxNormalizationTask = null;
 
   const chmodBestEffort = async (path, mode) => {
     if (typeof files.chmod !== 'function') return;
@@ -413,6 +415,7 @@ export function createFileRqsResumeStore({
           authorizationMutationWithinDispatchBroker?.(...args)
         ),
         authorizationDispatch: (...args) => authorizationDispatchBroker?.(...args),
+        requestOutboxNormalization: () => requestOutboxNormalization(),
       });
       files.trackLockForExitCleanup?.(lockPath);
     };
@@ -512,20 +515,25 @@ export function createFileRqsResumeStore({
       reactBindingReceipt: prepareReactBindingReceipt(parsed.reactBindingReceipt),
     };
     if (outboxNormalizationChanged(parsed.outbox, normalizedOutbox)) {
-      // A live delete root makes validation a destructive security migration,
-      // not an in-memory projection. Publish no normalized state until the
-      // current V3 blob has crossed the same atomic replace + fsync cut used
-      // by ordinary writes.
+      // A live delete root makes validation a destructive security migration.
+      // A reader exposes only the redacted normalized view and records a
+      // pending rewrite for the exact writer; it never writes store bytes or
+      // faults Channel-B adoption merely because another context owns them.
       // @ref LLP 0053#dispositions-with-producers-and-meanings — delete
-      //   destroys retained predecessor payload before any later exposure.
-      if (!writer) {
-        throw storeError(
-          'SNAPBACK_RQS_STORE_NOT_WRITER',
-          'durable outbox normalization requires store ownership',
-        );
+      //   destroys retained predecessor payload; reader exposure is already
+      //   payload-free while the writer owns the durable rewrite.
+      pendingOutboxNormalization = true;
+      if (writer) {
+        await writeState(state);
+        pendingOutboxNormalization = false;
+      } else {
+        const holder = heldLocks.get(lockPath);
+        if (
+          holder?.instanceId === competingWriter?.instanceId
+          && typeof holder?.requestOutboxNormalization === 'function'
+        ) void holder.requestOutboxNormalization();
       }
-      await writeState(state);
-    }
+    } else pendingOutboxNormalization = false;
     return state;
   };
 
@@ -563,6 +571,22 @@ export function createFileRqsResumeStore({
     await chmodBestEffort(blobPath, FILE_MODE);
     await files.syncDirectory(directory);
   };
+
+  function requestOutboxNormalization() {
+    pendingOutboxNormalization = true;
+    if (outboxNormalizationTask !== null || closed) return outboxNormalizationTask;
+    const task = serialized(async () => {
+      await acquireLock();
+      if (!writer || closed || !pendingOutboxNormalization) return false;
+      await readState();
+      return pendingOutboxNormalization === false;
+    });
+    outboxNormalizationTask = task;
+    void task.finally(() => {
+      if (outboxNormalizationTask === task) outboxNormalizationTask = null;
+    }).catch(() => {});
+    return task;
+  }
 
   // Eager first acquisition so `isWriter()` has settled by the time the
   // client's first debounced persist checks it. The public settling point
@@ -939,6 +963,7 @@ export function createFileRqsResumeStore({
       reason,
       predecessorPrincipalScope = null,
       expectedAuthorizationFence = null,
+      effectProvenance = null,
     ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
@@ -949,6 +974,7 @@ export function createFileRqsResumeStore({
           now(),
           predecessorPrincipalScope,
           expectedAuthorizationFence,
+          effectProvenance,
         ),
       )).result);
     },
@@ -1021,6 +1047,22 @@ export function createFileRqsResumeStore({
       requireOpen();
       return serialized(async () => (await outboxWrite(
         (outbox) => outboxOps.discard(outbox, id, expectedAuthorizationFence),
+      )).result);
+    },
+
+    async outboxDiscardPendingInsertion(
+      id,
+      insertionSequence,
+      expectedAuthorizationFence = null,
+    ) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.discardPendingInsertion(
+          outbox,
+          id,
+          insertionSequence,
+          expectedAuthorizationFence,
+        ),
       )).result);
     },
 

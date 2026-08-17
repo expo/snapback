@@ -316,7 +316,8 @@ const durableReplayIdentity = (record) => {
 
 /// Serialized-size guard shared by every arm.
 export function outboxRecordBytes(stored) {
-  return new TextEncoder().encode(JSON.stringify(stored)).length;
+  const { insertionOwned: _atomicReceipt, ...durableRecord } = stored;
+  return new TextEncoder().encode(JSON.stringify(durableRecord)).length;
 }
 
 /// Ordering rule: the client-local monotonic sequence, never a wall clock.
@@ -373,6 +374,10 @@ const cascadeFailure = (state, unresolvedIds, afterSequence) => {
           code: 'SNAPBACK_SPECULATIVE_ID_UNRESOLVED',
           message: 'a predecessor speculative id has no authoritative mapping',
         },
+        effectProvenance: {
+          effectCommitted: false,
+          effectMayHaveCommitted: false,
+        },
       };
       failedIds.push(candidate.id);
       for (const minted of settlementMintIds(candidate)) unresolvedIds.add(minted);
@@ -428,6 +433,7 @@ const quarantineTombstone = (record) => ({
     source: 'server-replay-refusal',
     payload: 'redacted',
   },
+  effectProvenance: effectProvenance(record.effectProvenance),
 });
 
 const reconcileSettledMintIds = (state, record, settlement) => {
@@ -717,6 +723,25 @@ const authorizationQueueResult = (authorizationQueue, extra = {}) => Object.free
   effectiveDisposition: effectiveDisposition(authorizationQueue.pendingByScope),
 });
 
+const effectProvenance = (value) => {
+  const effectCommitted = typeof value?.effectCommitted === 'boolean'
+    ? value.effectCommitted
+    : null;
+  const effectMayHaveCommitted = typeof value?.effectMayHaveCommitted === 'boolean'
+    ? value.effectMayHaveCommitted
+    : effectCommitted === true
+      ? true
+      : effectCommitted === false
+        ? false
+        : null;
+  return {
+    effectCommitted,
+    effectMayHaveCommitted: effectCommitted === true
+      ? true
+      : effectMayHaveCommitted,
+  };
+};
+
 const redactOutboxForAuthorizationDelete = (records, authorizationQueue) => Object.fromEntries(
   Object.entries(records).map(([id, record]) => {
     if (
@@ -740,6 +765,7 @@ const redactOutboxForAuthorizationDelete = (records, authorizationQueue) => Obje
       replayable: false,
       discardOnly: true,
       rerecordable: false,
+      effectProvenance: effectProvenance(record.effectProvenance),
     }];
   }),
 );
@@ -1177,7 +1203,10 @@ export const outboxOps = {
           { id: normalized.id },
         );
       }
-      return { state, result: existing };
+      return {
+        state,
+        result: { ...existing, insertionOwned: false },
+      };
     }
     if (Object.keys(state.records).length >= OUTBOX_MAX_RECORDS) throw outboxFullError();
     const stored = {
@@ -1200,7 +1229,10 @@ export const outboxOps = {
         sequence: admitted.sequence,
         records: { ...state.records, [admitted.id]: admitted },
       },
-      result: admitted,
+      // `insertionOwned` is an atomic receipt for this call, not durable
+      // record state. Compensation pairs it with the monotone sequence and
+      // may remove only that exact still-pending insertion.
+      result: { ...admitted, insertionOwned: true },
     };
   },
   /// Atomically install a server response (when present), consume one finite
@@ -1299,6 +1331,7 @@ export const outboxOps = {
         code: typeof failure?.code === 'string' ? failure.code : 'SNAPBACK_OUTBOX_REPLAY_FAILED',
         message: typeof failure?.message === 'string' ? failure.message : String(failure ?? ''),
       },
+      effectProvenance: effectProvenance(failure),
     };
     const failed = { ...state, records: { ...state.records, [id]: stored } };
     // A terminal mint failure invalidates every leaf-visible dependent before
@@ -1320,6 +1353,7 @@ export const outboxOps = {
     now,
     predecessorPrincipalScope = null,
     expectedAuthorizationFence = null,
+    provenance = null,
   ) {
     const existing = state.records[id];
     if (!existing) return { state, result: false };
@@ -1350,6 +1384,7 @@ export const outboxOps = {
       discardOnly: false,
       rerecordable: true,
       strandedAt: now,
+      effectProvenance: effectProvenance(provenance ?? existing.effectProvenance),
     };
     return {
       state: { ...state, records: { ...state.records, [id]: stored } },
@@ -1561,6 +1596,9 @@ export const outboxOps = {
           disposition,
           causeClientMutationId: trigger.id,
         },
+        effectProvenance: effectProvenance(
+          record.id === trigger.id ? refusal : record.effectProvenance,
+        ),
       };
     }
     const next = { ...state, records };
@@ -1582,7 +1620,11 @@ export const outboxOps = {
     const ids = [];
     for (const existing of Object.values(records).sort(outboxOrder)) {
       if (existing.status !== 'quarantined') continue;
-      const { quarantine: _quarantine, ...record } = existing;
+      const {
+        quarantine: _quarantine,
+        effectProvenance: _effectProvenance,
+        ...record
+      } = existing;
       records[existing.id] = { ...record, status: 'pending', failure: null };
       ids.push(existing.id);
     }
@@ -1654,6 +1696,23 @@ export const outboxOps = {
   },
   discard(state, id, expectedAuthorizationFence = null) {
     return outboxOps.settle(state, id, expectedAuthorizationFence);
+  },
+  discardPendingInsertion(
+    state,
+    id,
+    insertionSequence,
+    expectedAuthorizationFence = null,
+  ) {
+    const existing = state.records[id];
+    if (
+      !existing
+      || existing.status !== 'pending'
+      || existing.sequence !== insertionSequence
+    ) return { state, result: false };
+    requireAuthorizationFence(state, existing, expectedAuthorizationFence);
+    const records = { ...state.records };
+    delete records[id];
+    return { state: { ...state, records }, result: true };
   },
   recordAck(state, id, userId, authorityDescriptor = null, ready = true) {
     if (state.acks.some((ack) => ack.id === id)) return { state, result: false };

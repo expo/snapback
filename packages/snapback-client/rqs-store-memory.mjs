@@ -528,6 +528,7 @@ export function createMemoryRqsResumeStore({
       reason,
       predecessorPrincipalScope = null,
       expectedAuthorizationFence = null,
+      effectProvenance = null,
     ) {
       if (!requireWriter()) return false;
       const applied = outboxOps.markStranded(
@@ -537,6 +538,7 @@ export function createMemoryRqsResumeStore({
         now(),
         predecessorPrincipalScope,
         expectedAuthorizationFence,
+        effectProvenance,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);
@@ -611,6 +613,22 @@ export function createMemoryRqsResumeStore({
     async outboxDiscard(id, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
       const applied = outboxOps.discard(state.outbox, id, expectedAuthorizationFence);
+      state.outbox = applied.state;
+      return applied.result;
+    },
+
+    async outboxDiscardPendingInsertion(
+      id,
+      insertionSequence,
+      expectedAuthorizationFence = null,
+    ) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.discardPendingInsertion(
+        state.outbox,
+        id,
+        insertionSequence,
+        expectedAuthorizationFence,
+      );
       state.outbox = applied.state;
       return applied.result;
     },

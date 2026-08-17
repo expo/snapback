@@ -176,12 +176,25 @@ export interface RqsResumeStore {
   outboxRetireAuthorizationScopes(
     scopes: readonly Readonly<Record<string, unknown>>[],
   ): Promise<Readonly<Record<string, unknown>>>;
+  outboxEnqueue(
+    record: Readonly<Record<string, unknown>>,
+  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;
   outboxRecords(): Promise<readonly Readonly<Record<string, unknown>>[]>;
   outboxMarkStranded(
     id: string,
     reason: string,
     predecessorPrincipalScope?: Readonly<Record<string, unknown>> | null,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
+    effectProvenance?: Readonly<{
+      effectCommitted: boolean | null;
+      effectMayHaveCommitted: boolean | null;
+    }> | null,
   ): Promise<false | Readonly<Record<string, unknown>>>;
+  outboxDiscardPendingInsertion?(
+    id: string,
+    insertionSequence: number,
+    expectedAuthorizationFence?: Readonly<Record<string, unknown>> | null,
+  ): Promise<boolean>;
   outboxReconcileCustody(
     principalScope: Readonly<Record<string, unknown>>,
     authorityDescriptor: Readonly<Record<string, unknown>>,
@@ -214,7 +227,7 @@ export interface RqsResumeStore {
     record: Readonly<Record<string, unknown>>,
     authorityCohortKey: string,
     range?: Readonly<Record<string, unknown>> | null,
-  ): Promise<Readonly<Record<string, unknown>>>;
+  ): Promise<Readonly<Record<string, unknown>> & { readonly insertionOwned: boolean }>;
   outboxAssignOperationIdentity?(
     id: string,
     authorityCohortKey: string,
