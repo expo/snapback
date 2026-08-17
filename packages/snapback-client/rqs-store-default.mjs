@@ -147,51 +147,83 @@ const originIdentity = (baseUrl) => {
   }
 };
 
-export function resolveDefaultRqsStore({ baseUrl } = {}) {
-  if (env('SNAPBACK_CLIENT_RQS_STORE') === 'off') {
+const disabledResolution = () => ({
+  store: null,
+  info: Object.freeze({
+    source: 'disabled',
+    implementation: null,
+    durable: false,
+    reason: 'SNAPBACK_CLIENT_RQS_STORE=off',
+  }),
+});
+
+const resolveBrowserStore = ({ indexedDB, lockManager }) => {
+  if (typeof indexedDB?.open !== 'function') return memoryFallback('indexeddb-unavailable');
+  if (typeof lockManager?.request !== 'function') return memoryFallback('web-locks-unavailable');
+  try {
+    return resolvedStore(
+      createIndexedDbRqsResumeStore({ indexedDB, lockManager }),
+      'indexeddb',
+      true,
+      null,
+    );
+  } catch (error) {
+    return memoryFallback(error?.code ?? 'indexeddb-unavailable');
+  }
+};
+
+const resolveNativeStore = (baseUrl) => {
+  if (nativeRqsFiles === null) return memoryFallback('no-native-files-registered');
+  if (
+    typeof nativeRqsFiles.randomBytes !== 'function'
+    && typeof globalThis.crypto?.getRandomValues !== 'function'
+  ) return unavailableFallback('secure-random-unavailable');
+  try {
+    const store = createFileRqsResumeStore({
+      directory: nativeRqsFiles.directory,
+      files: nativeRqsFiles.files,
+      identity: originIdentity(baseUrl),
+      randomBytes: nativeRqsFiles.randomBytes,
+    });
+    const durable = store.durability().durable === true;
     return {
-      store: null,
-      info: Object.freeze({
-        source: 'disabled',
-        implementation: null,
-        durable: false,
-        reason: 'SNAPBACK_CLIENT_RQS_STORE=off',
-      }),
+      ...resolvedStore(store, 'file', durable, durable ? null : 'native-files-no-power-loss-cut'),
+      randomBytes: nativeRqsFiles.randomBytes,
     };
+  } catch (error) {
+    return memoryFallback(error?.code ?? 'native-files-unavailable');
+  }
+};
+
+function resolveDefaultRqsStoreForEnvironment({ baseUrl, appPlatform = null } = {}) {
+  if (env('SNAPBACK_CLIENT_RQS_STORE') === 'off') {
+    return disabledResolution();
+  }
+  if (appPlatform !== null) {
+    if (['browser', 'expo-web'].includes(appPlatform.kind)) {
+      return resolveBrowserStore({
+        indexedDB: appPlatform.indexedDB ?? globalThis.indexedDB,
+        lockManager: appPlatform.lockManager ?? globalThis.navigator?.locks ?? null,
+      });
+    }
+    if (appPlatform.kind === 'expo-native') return resolveNativeStore(baseUrl);
+    if (appPlatform.kind === 'memory') return memoryFallback('volatile-platform');
+    throw new TypeError('default RQS app platform is invalid');
   }
   // Browser arm: IndexedDB with Web-Lock single-writer ownership.
-  const hasIndexedDb = typeof globalThis.indexedDB?.open === 'function';
-  const hasWebLocks = typeof globalThis.navigator?.locks?.request === 'function';
-  if (hasIndexedDb && hasWebLocks) {
-    try {
-      return resolvedStore(createIndexedDbRqsResumeStore(), 'indexeddb', true, null);
-    } catch (error) {
-      return memoryFallback(error?.code ?? 'indexeddb-unavailable');
-    }
+  if (
+    typeof globalThis.indexedDB?.open === 'function'
+    && typeof globalThis.navigator?.locks?.request === 'function'
+  ) {
+    return resolveBrowserStore({
+      indexedDB: globalThis.indexedDB,
+      lockManager: globalThis.navigator.locks,
+    });
   }
   // React Native arm: the app registers its platform filesystem module at
   // the root, keeping Metro's static closure free of platform imports.
   if (globalThis.navigator?.product === 'ReactNative') {
-    if (nativeRqsFiles === null) return memoryFallback('no-native-files-registered');
-    if (
-      typeof nativeRqsFiles.randomBytes !== 'function'
-      && typeof globalThis.crypto?.getRandomValues !== 'function'
-    ) return unavailableFallback('secure-random-unavailable');
-    try {
-      const store = createFileRqsResumeStore({
-        directory: nativeRqsFiles.directory,
-        files: nativeRqsFiles.files,
-        identity: originIdentity(baseUrl),
-        randomBytes: nativeRqsFiles.randomBytes,
-      });
-      const durable = store.durability().durable === true;
-      return {
-        ...resolvedStore(store, 'file', durable, durable ? null : 'native-files-no-power-loss-cut'),
-        randomBytes: nativeRqsFiles.randomBytes,
-      };
-    } catch (error) {
-      return memoryFallback(error?.code ?? 'native-files-unavailable');
-    }
+    return resolveNativeStore(baseUrl);
   }
   // Node arm: durable files under a stable state directory. React Native
   // hosts are handled above and remain explicitly excluded here.
@@ -231,4 +263,8 @@ export function resolveDefaultRqsStore({ baseUrl } = {}) {
     return memoryFallback('no-state-directory');
   }
   return memoryFallback('no-durable-backend');
+}
+
+export function resolveDefaultRqsStore(options = {}) {
+  return resolveDefaultRqsStoreForEnvironment(options);
 }

@@ -2794,6 +2794,7 @@ export class SnapbackClient {
     __allowLegacyDevAssertion = false,
     __clientDiagnosticsOptions = null,
     __devDiagnosticsReporterOptions = null,
+    __defaultRqsStoreAppPlatform = null,
     // Deterministic package-test seam. Product callers omit this and use the
     // served `/inspect` capability manifest; it is intentionally undeclared
     // in the public TypeScript surface.
@@ -2886,7 +2887,12 @@ export class SnapbackClient {
       this.__ownsRqsStore = false;
       registrationRandomBytes = rqsStore.randomBytes;
     } else if (rqsStore === undefined) {
-      const resolved = resolveDefaultRqsStore({ baseUrl: this.baseUrl });
+      const resolved = __defaultRqsStoreAppPlatform === null
+        ? resolveDefaultRqsStore({ baseUrl: this.baseUrl })
+        : resolveDefaultRqsStore({
+            baseUrl: this.baseUrl,
+            appPlatform: __defaultRqsStoreAppPlatform,
+          });
       this.rqsStore = resolved.store;
       this.rqsStoreInfo = resolved.info;
       this.__ownsRqsStore = resolved.store !== null;
