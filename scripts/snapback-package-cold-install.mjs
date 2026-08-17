@@ -69,7 +69,11 @@ const BROWSER_MAX_SURFACES = 20_000;
 const BROWSER_MAX_ASYNC_TASKS = 10_000;
 const BROWSER_MAX_CONCURRENCY = 8;
 const BROWSER_MAX_STORAGE_ENTRIES = 10_000;
-const BROWSER_MAX_VALUE_DEPTH = 10;
+// 10 -> 16 (2026-08-17): the durable authorization queue (auth-invalidation
+// protocol v1 default, 84e7bdab6/bbc324323) persists suspension roots with
+// per-record effect provenance and authority generations, which legitimately
+// nest past the prior bound; still a hard bound on evidence materialization.
+const BROWSER_MAX_VALUE_DEPTH = 16;
 const BROWSER_MAX_VALUE_NODES = 20_000;
 const BROWSER_MAX_VALUE_PROPERTIES = 20_000;
 const BROWSER_MAX_FILES = 50_000;
