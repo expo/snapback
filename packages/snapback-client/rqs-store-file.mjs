@@ -246,6 +246,22 @@ const heldLocks = new Map();
 
 let instanceCounter = 0;
 
+const unavailableOutboxAuthorizationStatus = () => Object.freeze({
+  generation: 0,
+  suspended: true,
+  pendingScopeCount: 0,
+  effectiveDisposition: 'delete',
+});
+
+const unavailableOutboxInspection = () => Object.freeze({
+  pending: 0,
+  failed: 0,
+  stranded: 0,
+  quarantined: 0,
+  resultGone: 0,
+  pendingAcknowledgements: 0,
+});
+
 const identitySlug = (identity) => {
   if (identity === null || identity === undefined) return 'anonymous';
   return `id-${hex(sha256(new TextEncoder().encode(String(identity)))).slice(0, 32)}`;
@@ -516,12 +532,13 @@ export function createFileRqsResumeStore({
     };
     if (outboxNormalizationChanged(parsed.outbox, normalizedOutbox)) {
       // A live delete root makes validation a destructive security migration.
-      // A reader exposes only the redacted normalized view and records a
-      // pending rewrite for the exact writer; it never writes store bytes or
-      // faults Channel-B adoption merely because another context owns them.
+      // Entry reads may request the exact writer's rewrite in the background,
+      // but only the outbox projection waits for and confirms that rewrite.
+      // This keeps Channel-B entry adoption independently readable without
+      // exposing outbox state ahead of its durable destruction cut.
       // @ref LLP 0053#dispositions-with-producers-and-meanings — delete
-      //   destroys retained predecessor payload; reader exposure is already
-      //   payload-free while the writer owns the durable rewrite.
+      //   destroys retained predecessor payload before normalized outbox state
+      //   becomes observable.
       pendingOutboxNormalization = true;
       if (writer) {
         await writeState(state);
@@ -587,6 +604,41 @@ export function createFileRqsResumeStore({
     }).catch(() => {});
     return task;
   }
+
+  const readStateForOutboxProjection = async () => {
+    await acquireLock();
+    let state = await readState();
+    if (!pendingOutboxNormalization) return { available: true, state };
+
+    // @ref LLP 0166#writer-discipline-and-format-versioning — a reader routes
+    //   the destructive rewrite to the exact holder and publishes no outbox
+    //   projection when that writer is unreachable.
+    if (!writer && !closed) {
+      const holder = heldLocks.get(lockPath);
+      if (
+        holder?.instanceId === competingWriter?.instanceId
+        && typeof holder?.requestOutboxNormalization === 'function'
+      ) {
+        await holder.requestOutboxNormalization();
+        state = await readState();
+      }
+    }
+
+    // The broker can disappear between lookup and completion. Re-attempt the
+    // lock once so a reader promoted by that loss performs the same durable
+    // rewrite before publishing; a still-live unreachable writer leaves the
+    // outbox projection unavailable.
+    if (pendingOutboxNormalization && !writer && !closed) {
+      await acquireLock();
+      if (writer) state = await readState();
+    }
+    return { available: !pendingOutboxNormalization, state };
+  };
+
+  const outboxRead = async (reader, unavailable) => {
+    const projection = await readStateForOutboxProjection();
+    return projection.available ? reader(projection.state.outbox) : unavailable();
+  };
 
   // Eager first acquisition so `isWriter()` has settled by the time the
   // client's first debounced persist checks it. The public settling point
@@ -701,12 +753,23 @@ export function createFileRqsResumeStore({
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
-  const materializationTransaction = (mode, operation) => import(
-    './materialization-store-runtime.mjs'
-  ).then(({ fileMaterializationTransaction }) => fileMaterializationTransaction([
-    mode, operation, requireOpen, acquireLock, () => writer, readState,
-    writeState, corruptError, blobPath,
-  ]));
+  const materializationTransaction = async (mode, operation) => {
+    const readMaterializationState = mode === 'readonly'
+      ? async () => {
+        const projection = await readStateForOutboxProjection();
+        return projection.available
+          ? projection.state
+          : { ...projection.state, outbox: null };
+      }
+      : readState;
+    const { fileMaterializationTransaction } = await import(
+      './materialization-store-runtime.mjs'
+    );
+    return fileMaterializationTransaction([
+      mode, operation, requireOpen, acquireLock, () => writer, readMaterializationState,
+      writeState, corruptError, blobPath,
+    ]);
+  };
 
   return {
     isWriter() {
@@ -758,14 +821,15 @@ export function createFileRqsResumeStore({
       requireOpen();
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
       return serialized(async () => {
-        let state;
         try {
-          state = await readState();
+          return await outboxRead(
+            (outbox) => unresolvedOutboxRecords(outbox).length === 0
+              && outboxAuthorizationStatus(outbox).suspended === false,
+            () => false,
+          );
         } catch {
           return false;
         }
-        return unresolvedOutboxRecords(state.outbox).length === 0
-          && outboxAuthorizationStatus(state.outbox).suspended === false;
       });
     },
 
@@ -830,20 +894,23 @@ export function createFileRqsResumeStore({
 
     async outboxOperationIdentityRange(authorityCohortKey) {
       requireOpen();
-      return serialized(async () => outboxOps.operationIdentityRange(
-        (await readState()).outbox,
-        authorityCohortKey,
-      ).result);
+      return serialized(() => outboxRead(
+        (outbox) => outboxOps.operationIdentityRange(outbox, authorityCohortKey).result,
+        () => null,
+      ));
     },
 
     async outboxPending() {
       requireOpen();
-      return serialized(async () => pendingOutboxRecords((await readState()).outbox));
+      return serialized(() => outboxRead(pendingOutboxRecords, () => []));
     },
 
     async outboxAuthorizationStatus() {
       requireOpen();
-      return serialized(async () => outboxAuthorizationStatus((await readState()).outbox));
+      return serialized(() => outboxRead(
+        outboxAuthorizationStatus,
+        unavailableOutboxAuthorizationStatus,
+      ));
     },
 
     async outboxAuthorizationTransitionVisible(
@@ -852,12 +919,15 @@ export function createFileRqsResumeStore({
       expectedAuthorityGeneration = null,
     ) {
       requireOpen();
-      return serialized(async () => outboxOps.authorizationTransitionVisible(
-        (await readState()).outbox,
-        kind,
-        payload,
-        expectedAuthorityGeneration,
-      ).result);
+      return serialized(() => outboxRead(
+        (outbox) => outboxOps.authorizationTransitionVisible(
+          outbox,
+          kind,
+          payload,
+          expectedAuthorityGeneration,
+        ).result,
+        () => false,
+      ));
     },
 
     async outboxApplyAuthorizationObligation(obligation, expectedAuthorityGeneration = null) {
@@ -920,7 +990,7 @@ export function createFileRqsResumeStore({
 
     async outboxRecords() {
       requireOpen();
-      return serialized(async () => allOutboxRecords((await readState()).outbox));
+      return serialized(() => outboxRead(allOutboxRecords, () => []));
     },
 
     async outboxSettle(id, expectedAuthorizationFence = null) {
@@ -1075,11 +1145,14 @@ export function createFileRqsResumeStore({
 
     async outboxPendingAcknowledgements(userId = null, limit = 64, authorityDescriptor = null) {
       requireOpen();
-      return serialized(async () => pendingAcknowledgementsFor(
-        (await readState()).outbox,
-        userId,
-        limit,
-        authorityDescriptor,
+      return serialized(() => outboxRead(
+        (outbox) => pendingAcknowledgementsFor(
+          outbox,
+          userId,
+          limit,
+          authorityDescriptor,
+        ),
+        () => [],
       ));
     },
 
@@ -1448,9 +1521,9 @@ export function createFileRqsResumeStore({
     async inspection() {
       requireOpen();
       return serialized(async () => {
-        let state = null;
+        let projection = null;
         try {
-          state = await readState();
+          projection = await readStateForOutboxProjection();
         } catch {
           return Object.freeze({
             writer: this.isWriter(),
@@ -1461,6 +1534,7 @@ export function createFileRqsResumeStore({
             maxEntries,
           });
         }
+        const { state } = projection;
         const records = Object.values(state.entries);
         return Object.freeze({
           writer: this.isWriter(),
@@ -1469,17 +1543,20 @@ export function createFileRqsResumeStore({
           bytes: records.reduce((sum, record) => sum + (record?.bytes ?? 0), 0),
           maxBytes,
           maxEntries,
-          outbox: Object.freeze({
-            pending: pendingOutboxRecords(state.outbox).length,
-            failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
-            stranded: allOutboxRecords(state.outbox)
-              .filter((r) => r.status === 'stranded').length,
-            quarantined: allOutboxRecords(state.outbox)
-              .filter((r) => r.status === 'quarantined').length,
-            resultGone: allOutboxRecords(state.outbox)
-              .filter((r) => r.status === 'result-gone').length,
-            pendingAcknowledgements: state.outbox.acks.length,
-          }),
+          outbox: projection.available
+            ? Object.freeze({
+              pending: pendingOutboxRecords(state.outbox).length,
+              failed: allOutboxRecords(state.outbox)
+                .filter((r) => r.status === 'failed').length,
+              stranded: allOutboxRecords(state.outbox)
+                .filter((r) => r.status === 'stranded').length,
+              quarantined: allOutboxRecords(state.outbox)
+                .filter((r) => r.status === 'quarantined').length,
+              resultGone: allOutboxRecords(state.outbox)
+                .filter((r) => r.status === 'result-gone').length,
+              pendingAcknowledgements: state.outbox.acks.length,
+            })
+            : unavailableOutboxInspection(),
         });
       });
     },

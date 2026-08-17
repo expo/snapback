@@ -43,6 +43,29 @@ export const RQS_STORE_MAX_ENTRIES = 256;
 export const RQS_TOKEN_MAX_BYTES = 1024;
 export const RQS_REACT_BINDING_RECEIPT_MAX_BYTES = 64 * 1024;
 
+// Same-realm writer calls can be awaited directly. Browser tabs/workers do
+// not share this registry; a reader there keeps the outbox projection blank
+// until Web-Lock takeover unless another broker is introduced explicitly.
+// @ref LLP 0166#writer-discipline-and-format-versioning — non-holders do not
+//   write store bytes; exact writer availability gates durable projection.
+const indexedDbWriterBrokers = new WeakMap();
+
+const unavailableOutboxAuthorizationStatus = () => Object.freeze({
+  generation: 0,
+  suspended: true,
+  pendingScopeCount: 0,
+  effectiveDisposition: 'delete',
+});
+
+const unavailableOutboxInspection = () => Object.freeze({
+  pending: 0,
+  failed: 0,
+  stranded: 0,
+  quarantined: 0,
+  resultGone: 0,
+  pendingAcknowledgements: 0,
+});
+
 const ENTRIES = 'entries';
 const OUTBOX = 'outbox';
 const MATERIALIZATIONS = 'materializations';
@@ -300,8 +323,24 @@ export function createIndexedDbRqsResumeStore({
   let releaseLock = null;
   let pendingReactBindingReceipt = null;
   let pendingOutboxNormalization = false;
+  let outboxNormalizationTask = null;
   let initialMeta = createInitialStoreMeta({ clientStoreId, randomBytes });
   const writerLockListeners = new Set();
+  const writerBrokerToken = Symbol(databaseName);
+  let writerBrokers = indexedDbWriterBrokers.get(indexedDB);
+  if (writerBrokers === undefined) {
+    writerBrokers = new Map();
+    indexedDbWriterBrokers.set(indexedDB, writerBrokers);
+  }
+  function registerOutboxNormalizationBroker() {
+    writerBrokers.set(lockName, Object.freeze({
+      token: writerBrokerToken,
+      request: () => requestOutboxNormalization(),
+    }));
+  }
+  function unregisterOutboxNormalizationBroker() {
+    if (writerBrokers.get(lockName)?.token === writerBrokerToken) writerBrokers.delete(lockName);
+  }
   const notifyWriterLock = (value) => {
     for (const listener of [...writerLockListeners]) {
       try { listener(value); } catch { /* observation cannot own the lock */ }
@@ -365,6 +404,7 @@ export function createIndexedDbRqsResumeStore({
         return undefined;
       }
       writer = true;
+      registerOutboxNormalizationBroker();
       adjudicateLock();
       notifyWriterLock(true);
       void flushPendingReactBindingReceipt().catch((error) => {
@@ -456,36 +496,53 @@ export function createIndexedDbRqsResumeStore({
     }
 
     pendingOutboxNormalization = true;
-    if (!writer || closed) {
-      // Non-writers adopt the payload-free normalized projection but never
-      // upgrade their read into a write. The marker follows this context to
-      // writer takeover; an authorization writer also clears it through the
-      // ordinary guarded outboxWrite path.
-      // @ref LLP 0166#writer-discipline-and-format-versioning — non-holders
-      //   read and adopt, never write store bytes.
-      return normalized.state;
+    let completed = false;
+    if (writer && !closed) {
+      completed = await requestOutboxNormalization();
+    } else if (!closed) {
+      const broker = writerBrokers.get(lockName);
+      if (typeof broker?.request === 'function') completed = await broker.request();
     }
 
-    // IndexedDB transactions cannot be upgraded. Re-read under one readwrite
-    // transaction and commit the latest normalized record before exposing it;
-    // a concurrent outbox writer is serialized ahead of or behind this cut.
+    if (!completed) return null;
+    // Confirm against durable bytes after the writer's transaction completes;
+    // the normalized projection is never trusted merely because a broker said
+    // it scheduled work.
     // @ref LLP 0053#dispositions-with-producers-and-meanings — a delete root
     //   destroys predecessor payload in durable custody, not just its return.
-    tx = db.transaction([OUTBOX], 'readwrite');
+    tx = db.transaction([OUTBOX], 'readonly');
     normalized = await readOutboxState(tx.objectStore(OUTBOX));
     await transactionDone(tx);
-    pendingOutboxNormalization = false;
+    pendingOutboxNormalization = normalized.changed;
+    if (normalized.changed) return null;
     return normalized.state;
   };
 
-  async function flushPendingOutboxNormalization() {
-    if (!pendingOutboxNormalization || !writer || closed) return;
-    await readDurablyNormalizedOutboxState();
+  function requestOutboxNormalization() {
+    if (outboxNormalizationTask !== null || closed || !writer) return outboxNormalizationTask;
+    const task = (async () => {
+      const db = await database();
+      const tx = db.transaction([OUTBOX], 'readwrite');
+      await readOutboxState(tx.objectStore(OUTBOX));
+      await transactionDone(tx);
+      pendingOutboxNormalization = false;
+      return true;
+    })();
+    outboxNormalizationTask = task;
+    void task.finally(() => {
+      if (outboxNormalizationTask === task) outboxNormalizationTask = null;
+    }).catch(() => {});
+    return task;
   }
 
-  const outboxRead = async (reader) => {
+  async function flushPendingOutboxNormalization() {
+    if (!pendingOutboxNormalization || !writer || closed) return;
+    await requestOutboxNormalization();
+  }
+
+  const outboxRead = async (reader, unavailable) => {
     const state = await readDurablyNormalizedOutboxState();
-    return reader(state);
+    return state === null ? unavailable() : reader(state);
   };
 
   const outboxWrite = async (
@@ -519,7 +576,12 @@ export function createIndexedDbRqsResumeStore({
         closed,
         database,
         requestResult,
-        async (txStore) => (await readOutboxState(txStore)).state,
+        async (txStore) => {
+          const normalized = await readOutboxState(txStore);
+          return normalized.changed && txStore.transaction.mode === 'readonly'
+            ? null
+            : normalized.state;
+        },
         readMetaFromStore,
         storeError,
         transactionDone,
@@ -578,10 +640,11 @@ export function createIndexedDbRqsResumeStore({
     async outboxEmpty() {
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
       try {
-        return await outboxRead((state) => (
-          unresolvedOutboxRecords(state).length === 0
-          && outboxAuthorizationStatus(state).suspended === false
-        ));
+        return await outboxRead(
+          (state) => unresolvedOutboxRecords(state).length === 0
+            && outboxAuthorizationStatus(state).suspended === false,
+          () => false,
+        );
       } catch {
         return false;
       }
@@ -597,7 +660,7 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async outboxAuthorizationStatus() {
-      return outboxRead((state) => outboxAuthorizationStatus(state));
+      return outboxRead(outboxAuthorizationStatus, unavailableOutboxAuthorizationStatus);
     },
 
     async outboxAuthorizationTransitionVisible(
@@ -605,12 +668,15 @@ export function createIndexedDbRqsResumeStore({
       payload,
       expectedAuthorityGeneration = null,
     ) {
-      return outboxRead((state) => outboxOps.authorizationTransitionVisible(
-        state,
-        kind,
-        payload,
-        expectedAuthorityGeneration,
-      ).result);
+      return outboxRead(
+        (state) => outboxOps.authorizationTransitionVisible(
+          state,
+          kind,
+          payload,
+          expectedAuthorityGeneration,
+        ).result,
+        () => false,
+      );
     },
 
     async outboxApplyAuthorizationObligation(obligation, expectedAuthorityGeneration = null) {
@@ -700,14 +766,14 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async outboxOperationIdentityRange(authorityCohortKey) {
-      return outboxRead((state) => outboxOps.operationIdentityRange(
-        state,
-        authorityCohortKey,
-      ).result);
+      return outboxRead(
+        (state) => outboxOps.operationIdentityRange(state, authorityCohortKey).result,
+        () => null,
+      );
     },
 
     async outboxPending() {
-      return outboxRead((state) => pendingOutboxRecords(state));
+      return outboxRead(pendingOutboxRecords, () => []);
     },
 
     async outboxPrepareSubmission(id, options = undefined) {
@@ -715,7 +781,7 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async outboxRecords() {
-      return outboxRead((state) => allOutboxRecords(state));
+      return outboxRead(allOutboxRecords, () => []);
     },
 
     async outboxSettle(id, expectedAuthorizationFence = null) {
@@ -849,6 +915,7 @@ export function createIndexedDbRqsResumeStore({
     async outboxPendingAcknowledgements(userId = null, limit = 64, authorityDescriptor = null) {
       return outboxRead(
         (state) => pendingAcknowledgementsFor(state, userId, limit, authorityDescriptor),
+        () => [],
       );
     },
 
@@ -1166,17 +1233,19 @@ export function createIndexedDbRqsResumeStore({
         bytes: all.reduce((sum, candidate) => sum + candidate.bytes, 0),
         maxBytes,
         maxEntries,
-        outbox: Object.freeze({
-          pending: pendingOutboxRecords(outboxState).length,
-          failed: allOutboxRecords(outboxState).filter((r) => r.status === 'failed').length,
-          stranded: allOutboxRecords(outboxState)
-            .filter((r) => r.status === 'stranded').length,
-          quarantined: allOutboxRecords(outboxState)
-            .filter((r) => r.status === 'quarantined').length,
-          resultGone: allOutboxRecords(outboxState)
-            .filter((r) => r.status === 'result-gone').length,
-          pendingAcknowledgements: outboxState.acks.length,
-        }),
+        outbox: outboxState === null
+          ? unavailableOutboxInspection()
+          : Object.freeze({
+            pending: pendingOutboxRecords(outboxState).length,
+            failed: allOutboxRecords(outboxState).filter((r) => r.status === 'failed').length,
+            stranded: allOutboxRecords(outboxState)
+              .filter((r) => r.status === 'stranded').length,
+            quarantined: allOutboxRecords(outboxState)
+              .filter((r) => r.status === 'quarantined').length,
+            resultGone: allOutboxRecords(outboxState)
+              .filter((r) => r.status === 'result-gone').length,
+            pendingAcknowledgements: outboxState.acks.length,
+          }),
       });
     },
 
@@ -1185,6 +1254,7 @@ export function createIndexedDbRqsResumeStore({
       closed = true;
       pendingReactBindingReceipt = null;
       const wasWriter = releaseLock !== null;
+      unregisterOutboxNormalizationBroker();
       releaseLock?.();
       releaseLock = null;
       writer = false;

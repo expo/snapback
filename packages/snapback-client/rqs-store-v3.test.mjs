@@ -77,6 +77,30 @@ const createLockManagerDouble = () => {
   };
 };
 
+const createUnavailableThenTakeoverLockManager = () => {
+  let pending = null;
+  return {
+    request(name, options, callback) {
+      if (options?.ifAvailable) return Promise.resolve(callback(null));
+      return new Promise((resolve, reject) => {
+        const entry = { name, callback, resolve, reject, aborted: false };
+        options?.signal?.addEventListener('abort', () => {
+          entry.aborted = true;
+          reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+        });
+        pending = entry;
+      });
+    },
+    grant() {
+      const entry = pending;
+      pending = null;
+      if (entry === null || entry.aborted) return;
+      Promise.resolve(entry.callback({ name: entry.name, mode: 'exclusive' }))
+        .then(entry.resolve, entry.reject);
+    },
+  };
+};
+
 const requestResult = (request) => new Promise((resolve, reject) => {
   request.onsuccess = () => resolve(request.result);
   request.onerror = () => reject(request.error);
@@ -496,7 +520,7 @@ test('current V3 file read durably redacts predecessor secrets before exposure',
   await store.close();
 });
 
-test('same-directory file reader adopts tokens and defers predecessor redaction to writer', async (t) => {
+test('same-directory file reader adopts tokens and awaits writer-brokered redaction', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'snapback-rqs-delete-reader-v3-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const identity = 'reader-normalization';
@@ -515,14 +539,48 @@ test('same-directory file reader adopts tokens and defers predecessor redaction 
   await writeFile(blobPath, JSON.stringify(seeded));
   assert.equal((await readFile(blobPath, 'utf8')).includes('quarantined-predecessor-secret'), true);
 
+  let observeNormalizedRead;
+  const normalizedReadStarted = new Promise((resolve) => { observeNormalizedRead = resolve; });
+  let releaseNormalizedRead;
+  const normalizedReadGate = new Promise((resolve) => { releaseNormalizedRead = resolve; });
+  let holdNormalizedRead = true;
+  const readerBase = createNodeFilesAdapter();
   const reader = createFileRqsResumeStore({
     directory,
+    files: {
+      ...readerBase,
+      async readFile(path) {
+        const value = await readerBase.readFile(path);
+        if (
+          holdNormalizedRead
+          && path === blobPath
+          && typeof value === 'string'
+          && !value.includes('quarantined-predecessor-secret')
+        ) {
+          holdNormalizedRead = false;
+          observeNormalizedRead();
+          await normalizedReadGate;
+        }
+        return value;
+      },
+    },
     identity,
     clientStoreId: 'predecessor-delete-store',
   });
   await reader.whenLockSettled();
   assert.equal(reader.isWriter(), false);
-  const records = await reader.outboxRecords();
+  let outboxReadResolved = false;
+  const recordsTask = reader.outboxRecords().then((normalized) => {
+    outboxReadResolved = true;
+    return normalized;
+  });
+  await normalizedReadStarted;
+  const durableBeforeExposure = await readFile(blobPath, 'utf8');
+  assert.equal(durableBeforeExposure.includes('quarantined-predecessor-secret'), false);
+  assert.equal(durableBeforeExposure.includes('stranded-predecessor-secret'), false);
+  assert.equal(outboxReadResolved, false);
+  releaseNormalizedRead();
+  const records = await recordsTask;
   assert.deepEqual(records.map((record) => record.status), ['stranded', 'stranded']);
   for (const record of records) {
     assert.equal(record.disposition, 'delete');
@@ -535,17 +593,63 @@ test('same-directory file reader adopts tokens and defers predecessor redaction 
   assert.equal(
     adopted.token,
     fixtureEntry.token,
-    'Channel-B load adopts the writer token while normalization is deferred',
+    'Channel-B load remains independently readable after writer-brokered normalization',
   );
   assert.deepEqual(adopted.rows, fixtureEntry.rows);
   assert.deepEqual(adopted.meta, fixtureEntry.meta);
 
-  await writer.whenLockSettled();
-  const normalizedBytes = await readFile(blobPath, 'utf8');
-  assert.equal(normalizedBytes.includes('quarantined-predecessor-secret'), false);
-  assert.equal(normalizedBytes.includes('stranded-predecessor-secret'), false);
   await reader.close();
   await writer.close();
+});
+
+test('file reader keeps outbox blank without a broker while Channel-B entries remain readable', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-rqs-delete-unbrokered-v3-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let store = createFileRqsResumeStore({
+    directory,
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await store.whenLockSettled();
+  assert.equal((await store.commit('reader-token', fixtureEntry)).persisted, true);
+  await store.close();
+
+  const blobName = (await readdir(directory)).find((name) => name.endsWith('.v1.json'));
+  const blobPath = join(directory, blobName);
+  const lockPath = join(directory, blobName.replace('.v1.json', '.v1.lock'));
+  const seeded = JSON.parse(await readFile(blobPath, 'utf8'));
+  seeded.outbox = predecessorDeleteOutbox().state;
+  await writeFile(blobPath, JSON.stringify(seeded));
+  await writeFile(lockPath, JSON.stringify({ pid: 91_337, instanceId: 'foreign-writer' }));
+
+  const base = createNodeFilesAdapter();
+  store = createFileRqsResumeStore({
+    directory,
+    files: {
+      ...base,
+      processId: () => 73_113,
+      processAlive: () => true,
+    },
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await store.whenLockSettled();
+  assert.equal(store.isWriter(), false);
+  assert.deepEqual(await store.outboxRecords(), []);
+  assert.equal((await store.outboxAuthorizationStatus()).suspended, true);
+  const adopted = await store.load('reader-token');
+  assert.equal(adopted.token, fixtureEntry.token);
+  assert.deepEqual(adopted.rows, fixtureEntry.rows);
+  assert.deepEqual(adopted.meta, fixtureEntry.meta);
+  assert.equal((await readFile(blobPath, 'utf8')).includes('quarantined-predecessor-secret'), true);
+
+  await rm(lockPath);
+  await store.whenLockSettled();
+  assert.equal(store.isWriter(), true);
+  const normalized = await store.outboxRecords();
+  assert.deepEqual(normalized.map((record) => record.status), ['stranded', 'stranded']);
+  const durableAfterTakeover = await readFile(blobPath, 'utf8');
+  assert.equal(durableAfterTakeover.includes('quarantined-predecessor-secret'), false);
+  assert.equal(durableAfterTakeover.includes('stranded-predecessor-secret'), false);
+  await store.close();
 });
 
 test('IndexedDB read durably redacts predecessor raw record before proof or re-entry', async () => {
@@ -601,7 +705,7 @@ test('IndexedDB read durably redacts predecessor raw record before proof or re-e
   await store.close();
 });
 
-test('IndexedDB reader exposes normalized custody without writing and flushes after takeover', async () => {
+test('IndexedDB reader awaits current-writer normalization before exposing custody', async () => {
   const indexedDB = new IDBFactory();
   const lockManager = createLockManagerDouble();
   const databaseName = 'rqs-v3-indexeddb-delete-reader';
@@ -630,34 +734,89 @@ test('IndexedDB reader exposes normalized custody without writing and flushes af
   });
   await tick();
   assert.equal(reader.isWriter(), false);
-  const exposed = await reader.outboxRecords();
+  let outboxReadResolved = false;
+  const exposedTask = reader.outboxRecords().then((normalized) => {
+    outboxReadResolved = true;
+    return normalized;
+  });
+  let durableBeforeExposure = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const durableDb = await openDatabase(indexedDB, databaseName);
+    const durableTx = durableDb.transaction(['outbox'], 'readonly');
+    durableBeforeExposure = await requestResult(durableTx.objectStore('outbox').get('state'));
+    await transactionDone(durableTx);
+    durableDb.close();
+    if (!JSON.stringify(durableBeforeExposure).includes('quarantined-predecessor-secret')) break;
+  }
+  const raw = JSON.stringify(durableBeforeExposure);
+  assert.equal(raw.includes('quarantined-predecessor-secret'), false);
+  assert.equal(raw.includes('stranded-predecessor-secret'), false);
+  assert.equal(outboxReadResolved, false);
+  const exposed = await exposedTask;
   assert.deepEqual(exposed.map((record) => record.status), ['stranded', 'stranded']);
+  await reader.close();
+  await writer.close();
+});
+
+test('IndexedDB reader keeps outbox blank without a broker until writer takeover', async () => {
+  const indexedDB = new IDBFactory();
+  const databaseName = 'rqs-v3-indexeddb-delete-unbrokered';
+  const owner = createIndexedDbRqsResumeStore({
+    indexedDB,
+    lockManager: grantingLocks,
+    databaseName,
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await tick();
+  await owner.readStoreMeta();
+  assert.equal((await owner.commit('reader-token', fixtureEntry)).persisted, true);
+  await owner.close();
+
+  let db = await openDatabase(indexedDB, databaseName);
+  let tx = db.transaction(['outbox'], 'readwrite');
+  tx.objectStore('outbox').put(predecessorDeleteOutbox().state, 'state');
+  await transactionDone(tx);
+  db.close();
+
+  const lockManager = createUnavailableThenTakeoverLockManager();
+  const reader = createIndexedDbRqsResumeStore({
+    indexedDB,
+    lockManager,
+    databaseName,
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await reader.whenLockSettled();
+  assert.equal(reader.isWriter(), false);
+  assert.deepEqual(await reader.outboxRecords(), []);
+  assert.equal((await reader.outboxAuthorizationStatus()).suspended, true);
+  const adopted = await reader.load('reader-token');
+  assert.equal(adopted.token, fixtureEntry.token);
+  assert.deepEqual(adopted.rows, fixtureEntry.rows);
+  assert.deepEqual(adopted.meta, fixtureEntry.meta);
 
   db = await openDatabase(indexedDB, databaseName);
   tx = db.transaction(['outbox'], 'readonly');
-  let durable = await requestResult(tx.objectStore('outbox').get('state'));
+  const durableBeforeTakeover = await requestResult(tx.objectStore('outbox').get('state'));
   await transactionDone(tx);
   db.close();
   assert.equal(
-    JSON.stringify(durable).includes('quarantined-predecessor-secret'),
+    JSON.stringify(durableBeforeTakeover).includes('quarantined-predecessor-secret'),
     true,
-    'reader normalization never bypasses the writer gate',
   );
 
-  await writer.close();
-  for (let attempt = 0; attempt < 20 && !reader.isWriter(); attempt += 1) await tick();
+  lockManager.grant();
+  await tick();
   assert.equal(reader.isWriter(), true);
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    db = await openDatabase(indexedDB, databaseName);
-    tx = db.transaction(['outbox'], 'readonly');
-    durable = await requestResult(tx.objectStore('outbox').get('state'));
-    await transactionDone(tx);
-    db.close();
-    if (!JSON.stringify(durable).includes('quarantined-predecessor-secret')) break;
-    await tick();
-  }
-  assert.equal(JSON.stringify(durable).includes('quarantined-predecessor-secret'), false);
-  assert.equal(JSON.stringify(durable).includes('stranded-predecessor-secret'), false);
+  const normalized = await reader.outboxRecords();
+  assert.deepEqual(normalized.map((record) => record.status), ['stranded', 'stranded']);
+  db = await openDatabase(indexedDB, databaseName);
+  tx = db.transaction(['outbox'], 'readonly');
+  const durableAfterTakeover = await requestResult(tx.objectStore('outbox').get('state'));
+  await transactionDone(tx);
+  db.close();
+  const raw = JSON.stringify(durableAfterTakeover);
+  assert.equal(raw.includes('quarantined-predecessor-secret'), false);
+  assert.equal(raw.includes('stranded-predecessor-secret'), false);
   await reader.close();
 });
 
