@@ -191,6 +191,66 @@ test('same-process reader defers an authority transition to the file writer', as
   await writer.close();
 });
 
+test('foreign-process reader public authority wipe returns false without weakening strict dispatch', async (t) => {
+  const directory = await makeDirectory(t);
+  const adapter = createNodeFilesAdapter();
+  const foreignPid = adapter.processId() + 10_000;
+  await writeFile(
+    join(directory, 'rqs-anonymous.v1.lock'),
+    JSON.stringify({ pid: foreignPid, instanceId: 'foreign-authority-writer' }),
+  );
+  const reader = createFileRqsResumeStore({
+    directory,
+    files: {
+      ...adapter,
+      processAlive: (pid) => pid === foreignPid,
+    },
+  });
+  await reader.whenLockSettled();
+  assert.equal(reader.isWriter(), false);
+  assert.equal(await reader.wipeForAuthorityTransition(), false);
+  await assert.rejects(
+    reader.withOutboxAuthorizationDispatch(async () => true),
+    (error) => error.code === 'SNAPBACK_OUTBOX_NOT_WRITER',
+  );
+  await reader.close();
+});
+
+test('public authority wipe returns false while a same-process owner is provisional', async (t) => {
+  const directory = await makeDirectory(t);
+  const baseFiles = createNodeFilesAdapter();
+  let releaseLockCreate;
+  let markLockCreated;
+  const lockCreated = new Promise((resolve) => { markLockCreated = resolve; });
+  const lockCreateRelease = new Promise((resolve) => { releaseLockCreate = resolve; });
+  t.after(() => releaseLockCreate());
+  const provisionalFiles = {
+    ...baseFiles,
+    async writeFileExclusive(path, value) {
+      const acquired = await baseFiles.writeFileExclusive(path, value);
+      if (acquired && path.endsWith('.lock')) {
+        markLockCreated();
+        await lockCreateRelease;
+      }
+      return acquired;
+    },
+  };
+  const provisionalWriter = createFileRqsResumeStore({
+    directory,
+    files: provisionalFiles,
+  });
+  await lockCreated;
+  const reader = createFileRqsResumeStore({ directory, files: baseFiles });
+  await reader.whenLockSettled();
+  assert.equal(reader.isWriter(), false);
+  assert.equal(await reader.wipeForAuthorityTransition(), false);
+
+  releaseLockCreate();
+  await provisionalWriter.whenLockSettled();
+  await reader.close();
+  await provisionalWriter.close();
+});
+
 test('writer and follower-request file wipers wait behind the shared dispatch fence', async (t) => {
   const directory = await makeDirectory(t);
   const writer = createFileRqsResumeStore({ directory, identity: 'wipe-dispatch' });

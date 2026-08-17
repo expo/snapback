@@ -1592,6 +1592,10 @@ async function runPublicLogoutBridgeEvidence() {
       wipeCalls += 1;
       return store.wipeForAuthorityTransition();
     };
+    injectedStore.wipeForAuthorityTransitionWithinDispatch = async (...args) => {
+      wipeCalls += 1;
+      return store.wipeForAuthorityTransitionWithinDispatch(...args);
+    };
     const coordinator = new AuthCoordinator({
       appId: LOGOUT_BRIDGE_APP,
       storage: createMemoryAuthCustodyStorage(),

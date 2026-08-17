@@ -999,10 +999,30 @@ export function createFileRqsResumeStore({
   };
 
   // @ref LLP 0053#client-fences — public and follower-request wipes share the
-  // writer's dispatch order; only the coordinator calls the raw helper above.
-  const authorityTransitionWipeWithDispatch = (...args) => (
-    withSharedAuthorizationDispatch(() => authorityTransitionWipe(...args))
-  );
+  // writer's dispatch order when this process can reach it. A foreign-process
+  // reader, or one observing a provisional same-process owner, must preserve
+  // the raw helper's false result so the caller installs its predecessor fence.
+  const authorityTransitionWipeWithDispatch = async (...args) => {
+    await initialAcquisition;
+    if (writer) {
+      return withAuthorizationDispatch(() => authorityTransitionWipe(...args));
+    }
+    const holder = heldLocks.get(lockPath);
+    if (
+      holder?.instanceId === competingWriter?.instanceId
+      && typeof holder?.authorizationDispatch === 'function'
+    ) {
+      return holder.authorizationDispatch(async () => {
+        borrowedAuthorizationDispatchDepth += 1;
+        try {
+          return await authorityTransitionWipe(...args);
+        } finally {
+          borrowedAuthorizationDispatchDepth -= 1;
+        }
+      });
+    }
+    return authorityTransitionWipe(...args);
+  };
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
