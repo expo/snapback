@@ -10,7 +10,6 @@ status: current
 targets: [local]
 maturity: shipped
 since: 0.1.24
-unreleased: true
 reviewed: 2026-08-17
 reviewed-authorities-digest: sha256:6655d93fe02e6bd5a58ecd5bd0240c2479195e265404cec00047e8fdd5e2e4fd
 ---
@@ -20,10 +19,6 @@ reviewed-authorities-digest: sha256:6655d93fe02e6bd5a58ecd5bd0240c2479195e265404
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
-
-> **Unreleased.** Membership-backed ephemeral authoring is implemented after
-> the newest published `@expo/snapback-*` closure, 0.1.23. Use a source build
-> until a later closure is published.
 
 A typing indicator should disappear after inactivity and should be visible and
 writable only inside the conversation where the user is a current member. Use

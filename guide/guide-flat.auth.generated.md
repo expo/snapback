@@ -1238,10 +1238,10 @@ export default function App() {
 ```
 
 **Expo web** selects the shipped browser IndexedDB/Web Locks carrier and has
-the same durable reload restoration as React web. **Both native OS paths are
-source-current at the exact iOS/Android + `single-runtime` tuples, but the
-package closure remains UNPUBLISHED** behind
-[the custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md);
+the same durable reload restoration as React web. **Both native OS paths ship
+at the exact iOS/Android + `single-runtime` tuples in the published 0.1.24
+closure** (first publish recorded in
+[the closed custody first-publish gate](repo:issues/closed/20260816-custody-first-publish-gate.md));
 neither path falls back to memory. The iOS receipt proves only the share-sheet extension kind. Its
 built/embedded Notification Service Extension remains a nonclaim because
 simulator `simctl push` cannot invoke that service stage. The disposable
@@ -1459,9 +1459,9 @@ These are not shipped, and Snapback says so rather than pretending:
 - **Do not implement user switch as sign-in over an authenticated principal.**
   Sign out, wait for settled anonymous, then enter the successor account.
 - **Do not infer Expo-native restoration from browser or Expo-web evidence.**
-  The source-current iOS and Android `single-runtime` arms have separate
-  Phase-2 receipts and both remain unpublished behind the
-  [custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md). The iOS extension evidence
+  The iOS and Android `single-runtime` arms have separate Phase-2 receipts
+  and ship in the published 0.1.24 closure (first publish recorded in the
+  [closed custody first-publish gate](repo:issues/closed/20260816-custody-first-publish-gate.md)). The iOS extension evidence
   is share-sheet-kind-only; NSE/`simctl push` remains a nonclaim.
 - **Do not generalize this local bearer journey into hosted or
   sender-constrained auth.** Check [Targets](./targets.md) first.

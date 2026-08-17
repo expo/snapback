@@ -66,3 +66,23 @@ package's Experimental / adapter-reported posture. The iOS row must retain the
 share-sheet-kind-only evidence boundary and the NSE/`simctl push` nonclaim.
 This addendum performs no publication, changes no npm tag, and does not close
 this gate.
+
+## Resolution — 2026-08-17 (0.1.24 ceremony complete)
+
+The separately authorized qualified ceremony (author-triggered 2026-08-17)
+published the thirteen-package closure from clean revision
+`f8cbf3d253b59d747572ec166750efc208709686` under holding tag
+`fastpath-0-1-24-f8cbf3d253b5`. `@expo/snapback-expo-custody@0.1.24` was
+first-published in this cut with the both-OS `single-runtime` grade table and
+preserved iOS evidence boundary/nonclaims in its README (rider `9fc2e5580`).
+All thirteen registry tarballs re-downloaded byte-identical to the retained
+candidate ledger
+(`~/snapback-release-ledgers/fastpath-ledger-0.1.24-f8cbf3d253b5.json`,
+SHA-256 `d5254fd820c88cb67af3cc4be361cb5cfb00f1d82e49e15d0c0dae039b88fb8b`),
+the external registry-installed boot smoke passed all eleven checks, and all
+thirteen `latest` tags converge on 0.1.24
+(readback retained as `~/snapback-release-ledgers/latest-readback-0.1.24.json`).
+npm's first-publish read-path lag reproduced on the custody name exactly as
+the umbrella precedent predicted; the idempotent resume closed it. The full
+ceremony record, including the recorded smoke-harness deviation, is in
+LLP 0041 §0.1.24. Gate closed.

@@ -3472,9 +3472,10 @@ for anonymous `ready`, signup and its one-time recovery projection, sign-in,
 restoration, sign-out, and user switch.
 
 Expo web has the shipped browser durable-custody evidence. Both native OS
-paths are source-current at the exact iOS/Android + `single-runtime` tuples on
-their separate Phase-2 receipts, but remain UNPUBLISHED behind
-[the custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md). The iOS proof is
+paths ship at the exact iOS/Android + `single-runtime` tuples on their
+separate Phase-2 receipts in the published 0.1.24 closure (first publish
+recorded in
+[the closed custody first-publish gate](repo:issues/closed/20260816-custody-first-publish-gate.md)). The iOS proof is
 share-sheet-kind-only; the built/embedded Notification Service Extension and
 `simctl push` service-stage invocation remain nonclaims. The cross-platform
 disposable template therefore remains
@@ -3496,7 +3497,7 @@ npm create snapback-app my-app
 #               bun create snapback-app my-app
 #               pnpm create snapback-app my-app
 # scoped CLI spelling, same scaffolder:
-#   npx --yes @expo/snapback-cli@0.1.23 new my-app --template expo-chat
+#   npx --yes @expo/snapback-cli@0.1.24 new my-app --template expo-chat
 ```
 
 `expo-chat` is `create-snapback-app`'s default template, so `--template` is
@@ -3520,11 +3521,11 @@ published closure is the checked-in record in
 
 ```sh
 npx expo install \
-  @expo/snapback-cli@0.1.23 \
-  @expo/snapback-client@0.1.23 \
-  @expo/snapback-codegen@0.1.23 \
-  @expo/snapback-expo@0.1.23 \
-  @expo/snapback-react@0.1.23 \
+  @expo/snapback-cli@0.1.24 \
+  @expo/snapback-client@0.1.24 \
+  @expo/snapback-codegen@0.1.24 \
+  @expo/snapback-expo@0.1.24 \
+  @expo/snapback-react@0.1.24 \
   expo-file-system expo-crypto expo-image-picker
 ```
 

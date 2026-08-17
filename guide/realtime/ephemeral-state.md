@@ -239,12 +239,6 @@ The matching permission string is
 durable membership also participates in the authorization-invalidation barrier.
 Custom-key authorization beyond connection ownership is not shipped.
 
-<!-- since: 0.1.24 unreleased -->
-
-> **Unreleased.** Membership-backed ephemeral authoring is implemented after
-> the newest published `@expo/snapback-*` closure, 0.1.23. Use a source build
-> until a later closure is published.
-
 For conversation, channel, or document rooms, the normal protected posture is
 `allow.members(declarationId)` on both operations. The messaging demo binds its
 typing room to the canonical `conversationMemberships` declaration:

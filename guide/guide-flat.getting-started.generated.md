@@ -724,11 +724,6 @@ started by this command is stopped. If later generation succeeds but live load
 fails, the event state is `generated-but-not-loaded`; generation errors are
 the distinct `generation-failed` state.
 
-<!-- since: 0.1.24 unreleased -->
-
-> **Unreleased.** Automatic repository-local visibility-governance config
-> minting is newer than the newest published closure, 0.1.23.
-
 Fresh generation always carries the visibility-governance activation record.
 The local dev loop therefore mints an owner-only config at
 `.snapback/visibility-governance-dev-target-config.json` before starting or

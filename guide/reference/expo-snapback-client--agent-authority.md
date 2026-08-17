@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:4c5f6b5f5176945687a8936c1c83c89ab2e45f507b66
 # @expo/snapback-client/agent-authority
 
 Build-bound public API projection for `@expo/snapback-client/agent-authority`. Canonical registry identity:
-`sha256:d55f5980016e0dc18a22e24ed7d1a3c06e56c85e53ac3569fa287bf873b5eae9`.
+`sha256:174dd2ba45daab90daa896ea20224e8cba47c348ab203b3ba339af3cc9bcac71`.
 Runtime parity condition:
 `import` → `packages/snapback-client/agent-authority.mjs`.
 

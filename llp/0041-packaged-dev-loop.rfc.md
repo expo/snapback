@@ -6,6 +6,11 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (0.1.24 ceremony complete):** 2026-08-17 (the thirteen-package
+closure published and promoted from `f8cbf3d253b5`; custody first-published;
+the first-publish gate is closed; see §0.1.24 for the completed record and
+its recorded smoke-harness deviation.)
+
 **Revised (0.1.24 custody publication posture):** 2026-08-16 (author ruling:
 the Experimental `@expo/snapback-expo-custody` identity joins the next
 qualified closure as its thirteenth package without a legacy alias or native
@@ -1501,6 +1506,50 @@ under the holding tag, the exact candidate becomes an already-promoted prior
 member and its promotion row is a verified no-op. Until the complete ceremony
 closes, no qualified-publication claim may cite the candidate and the gate
 remains open for explicit reconciliation.
+
+**Ceremony completed 2026-08-17 (author-triggered).** The thirteen-package
+closure published from clean revision
+`f8cbf3d253b59d747572ec166750efc208709686` under holding tag
+`fastpath-0-1-24-f8cbf3d253b5`. Darwin arm64 store qualification passed
+locally; Linux x64 store and template-portfolio qualification passed on the
+fleet Linux host against the exact staged closure (attested
+`build-linux-runtime-release` inputs at the same revision). All thirteen
+packages published, `@expo/snapback-expo-custody` first-published; every
+registry tarball re-downloaded byte-identical to the retained ledger
+(`~/snapback-release-ledgers/fastpath-ledger-0.1.24-f8cbf3d253b5.json`,
+SHA-256 `d5254fd820c88cb67af3cc4be361cb5cfb00f1d82e49e15d0c0dae039b88fb8b`);
+all thirteen `latest` tags converge on 0.1.24. The candidate carried the
+2026-08-17 pre-cut gate program: the react-starter live-subscription fix, the
+six-commit auth queue-store isolation program, the Expo web wasm bundling fix,
+and four fixture-visibility closures, each proven by the release gate's
+clean-room cold-install chain before the pin.
+
+Operational evidence, in the LLP 0233 tradition:
+
+- npm's read path for the brand-new custody name lagged its write path (E404
+  on redownload after a successful publish), exactly as the umbrella's
+  first publish did; the idempotent resume re-verified all thirteen and
+  continued.
+- The post-publish smoke refused its own embedded fixture's codegen with
+  `SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` — a fifth LLP 0234 G2 corpus
+  straggler, in the smoke harness rather than the closure. The published
+  bytes were already byte-verified and cold-install-proven at identical
+  content. **Recorded deviation** (0.1.17-precedent shape): the fixture fix
+  landed forward as `225cb9638`, the smoke was rerun green from the fixed
+  harness against the published closure (receipt retained as
+  `~/snapback-release-ledgers/smoke-0.1.24-rerun-receipt.json`, all eleven
+  checks true), and `latest` promotion plus the thirteen-name readback
+  (`~/snapback-release-ledgers/latest-readback-0.1.24.json`) were executed
+  per the script's own final-loop semantics.
+- The isolate mode of the fastpath script itself was caught silently
+  no-opping (exit 0, `ok:true`) under macOS's symlinked default TMPDIR —
+  filed as
+  `issues/20260817-fastpath-isolated-worktree-symlink-tmpdir-false-success.md`;
+  the ceremony ran `--no-isolate-worktree` from a dedicated clean worktree.
+
+The closure record advances both `newestPublished` and `newestQualified` to
+0.1.24, and `issues/closed/20260816-custody-first-publish-gate.md` records the
+gate's closure.
 
 ### 0.1.16 (2026-08-09) — first cut under the rapid-publication ruling
 

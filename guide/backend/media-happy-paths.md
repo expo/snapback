@@ -86,11 +86,6 @@ For a plain opaque reference with the older pending-attachment behavior, use
 [`v.optional(v.assetRef(...))`](./assets.md#declare-the-upload-intent-and-the-reference-field).
 It is a different contract and does not return `MediaRef`.
 
-<!-- since: 0.1.24 unreleased -->
-
-> **Unreleased.** The collection client projection below is implemented in
-> contributor source but is newer than the published 0.1.23 closure.
-
 ## Path 2 — attach a bounded media collection
 
 Declare a finite collection before accepting files: `maxItems` is required and
@@ -217,12 +212,6 @@ export function ProfileMedia({ media }: { media: MediaRef<'image'> | null }) {
 `denied` is intentionally distinct from `unavailable`: denial carries a typed
 authorization diagnostic and no URL. A transient unavailable state may be
 retried. A valid URL remains visible while the controller is `refreshing`.
-
-<!-- since: 0.1.24 unreleased -->
-
-> **Unreleased.** The complete React/Expo command projection below is
-> implemented in contributor source but is newer than the published 0.1.23
-> closure.
 
 ## Path 4 — grant recipient access and revoke it
 
