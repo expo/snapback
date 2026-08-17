@@ -7,6 +7,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { Worker } from 'node:worker_threads';
 
 import { IDBFactory } from 'fake-indexeddb';
 
@@ -24,6 +25,7 @@ import {
 import {
   DATABASE_VERSION,
   createIndexedDbRqsResumeStore,
+  requestIndexedDbOutboxNormalization,
 } from './rqs-store.mjs';
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -101,6 +103,44 @@ const createUnavailableThenTakeoverLockManager = () => {
   };
 };
 
+const createHeldBroadcastHub = () => {
+  const channels = new Set();
+  const heldDeliveries = [];
+  let held = true;
+  const deliver = (sender, data) => {
+    for (const channel of [...channels]) {
+      if (channel === sender || channel.closed) continue;
+      queueMicrotask(() => channel.onmessage?.({ data: structuredClone(data) }));
+    }
+  };
+  return {
+    factory() {
+      const channel = {
+        closed: false,
+        onmessage: null,
+        postMessage(data) {
+          if (this.closed) throw new Error('channel closed');
+          if (held) heldDeliveries.push([this, structuredClone(data)]);
+          else deliver(this, data);
+        },
+        close() {
+          this.closed = true;
+          channels.delete(this);
+        },
+      };
+      channels.add(channel);
+      return channel;
+    },
+    pending() {
+      return heldDeliveries.length;
+    },
+    release() {
+      held = false;
+      for (const [sender, data] of heldDeliveries.splice(0)) deliver(sender, data);
+    },
+  };
+};
+
 const requestResult = (request) => new Promise((resolve, reject) => {
   request.onsuccess = () => resolve(request.result);
   request.onerror = () => reject(request.error);
@@ -133,7 +173,7 @@ const fixtureOutbox = () => {
   return state;
 };
 
-const predecessorDeleteOutbox = () => {
+const predecessorDeleteOutbox = ({ authorityGeneration = 0 } = {}) => {
   const principalScope = {
     authMode: 'sessions',
     authorizationStreamIncarnation: '018f0d90-7b31-7a22-8c33-445566778899',
@@ -184,9 +224,12 @@ const predecessorDeleteOutbox = () => {
     },
     retryEpisodeId: null,
   };
+  const empty = emptyOutboxState();
+  empty.authorizationQueue.authorityGeneration = authorityGeneration;
   const rooted = outboxOps.applyAuthorizationObligation(
-    emptyOutboxState(),
+    empty,
     obligation,
+    authorityGeneration,
   ).state;
   const records = structuredClone(payloadState.records);
   for (const record of Object.values(records)) {
@@ -455,7 +498,7 @@ test('file upgrade redacts predecessor delete custody before proof and re-entry'
     witness: predecessor.obligation.witness,
     maxDisposition: 'delete',
     ackToken: 'predecessor-delete-proof',
-  });
+  }, (await store.outboxAuthorizationStatus()).authorityGeneration);
   assert.deepEqual(await store.outboxReenterQuarantined(), {
     count: 0,
     clientMutationIds: [],
@@ -512,7 +555,7 @@ test('current V3 file read durably redacts predecessor secrets before exposure',
     witness: predecessor.obligation.witness,
     maxDisposition: 'delete',
     ackToken: 'current-v3-delete-proof',
-  });
+  }, (await store.outboxAuthorizationStatus()).authorityGeneration);
   assert.deepEqual(await store.outboxReenterQuarantined(), {
     count: 0,
     clientMutationIds: [],
@@ -697,7 +740,7 @@ test('IndexedDB read durably redacts predecessor raw record before proof or re-e
     witness: predecessor.obligation.witness,
     maxDisposition: 'delete',
     ackToken: 'indexeddb-delete-proof',
-  });
+  }, (await store.outboxAuthorizationStatus()).authorityGeneration);
   assert.deepEqual(await store.outboxReenterQuarantined(), {
     count: 0,
     clientMutationIds: [],
@@ -758,6 +801,160 @@ test('IndexedDB reader awaits current-writer normalization before exposing custo
   await writer.close();
 });
 
+test('IndexedDB normalization request crosses a worker realm to the exact lock holder', async (t) => {
+  const indexedDB = new IDBFactory();
+  const databaseName = `rqs-v3-worker-broker-${Date.now()}-${Math.random()}`;
+  const writer = createIndexedDbRqsResumeStore({
+    indexedDB,
+    lockManager: createLockManagerDouble(),
+    databaseName,
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await tick();
+  await writer.readStoreMeta();
+  assert.equal(writer.isWriter(), true);
+
+  let db = await openDatabase(indexedDB, databaseName);
+  let tx = db.transaction(['outbox'], 'readwrite');
+  tx.objectStore('outbox').put(predecessorDeleteOutbox().state, 'state');
+  await transactionDone(tx);
+  db.close();
+
+  const worker = new Worker(`
+    const { parentPort, workerData } = require('node:worker_threads');
+    import(workerData.moduleUrl).then(async (module) => {
+      const outcome = await module.requestIndexedDbOutboxNormalization({
+        databaseName: workerData.databaseName,
+        timeoutMs: 5000,
+      });
+      parentPort.postMessage({ outcome });
+    }).catch((error) => {
+      parentPort.postMessage({ error: String(error && (error.stack || error)) });
+    });
+  `, {
+    eval: true,
+    workerData: {
+      moduleUrl: new URL('./rqs-store.mjs', import.meta.url).href,
+      databaseName,
+    },
+  });
+  t.after(async () => {
+    await worker.terminate();
+    await writer.close();
+  });
+  const brokered = await new Promise((resolve, reject) => {
+    worker.once('message', resolve);
+    worker.once('error', reject);
+    worker.once('exit', (code) => {
+      if (code !== 0) reject(new Error(`normalization worker exited with ${code}`));
+    });
+  });
+  assert.equal(brokered.error, undefined);
+  assert.deepEqual(brokered.outcome, { status: 'committed' });
+
+  db = await openDatabase(indexedDB, databaseName);
+  tx = db.transaction(['outbox'], 'readonly');
+  const durable = await requestResult(tx.objectStore('outbox').get('state'));
+  await transactionDone(tx);
+  db.close();
+  const raw = JSON.stringify(durable);
+  assert.equal(raw.includes('quarantined-predecessor-secret'), false);
+  assert.equal(raw.includes('stranded-predecessor-secret'), false);
+});
+
+test('captured authority generation stale-rejects delayed reader work after writer advance', async () => {
+  const indexedDB = new IDBFactory();
+  const lockManager = createLockManagerDouble();
+  const databaseName = 'rqs-v3-indexeddb-authority-advance-race';
+  const writer = createIndexedDbRqsResumeStore({ indexedDB, lockManager, databaseName });
+  const reader = createIndexedDbRqsResumeStore({ indexedDB, lockManager, databaseName });
+  await tick();
+  assert.equal(writer.isWriter(), true);
+  assert.equal(reader.isWriter(), false);
+
+  const captured = await reader.outboxAuthorizationStatus();
+  assert.equal(await writer.wipeForAuthorityTransition('logout:predecessor->successor', 2), true);
+  await assert.rejects(
+    () => reader.outboxApplyAuthorizationObligation(
+      predecessorDeleteOutbox().obligation,
+      captured.authorityGeneration,
+    ),
+    (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE',
+  );
+  const successor = await reader.outboxAuthorizationStatus();
+  assert.equal(successor.authorityGeneration, captured.authorityGeneration + 1);
+  assert.equal(successor.suspended, false);
+  await reader.close();
+  await writer.close();
+});
+
+test('writer logout wins a predecessor-delete rewrite window without reinstalling its root', async () => {
+  const indexedDB = new IDBFactory();
+  const lockManager = createLockManagerDouble();
+  const hub = createHeldBroadcastHub();
+  const databaseName = 'rqs-v3-indexeddb-logout-normalization-race';
+  const channelFactory = () => hub.factory();
+  const writer = createIndexedDbRqsResumeStore({
+    indexedDB,
+    lockManager,
+    databaseName,
+    broadcastChannelFactory: channelFactory,
+  });
+  const reader = createIndexedDbRqsResumeStore({
+    indexedDB,
+    lockManager,
+    databaseName,
+    broadcastChannelFactory: channelFactory,
+  });
+  await tick();
+  await writer.readStoreMeta();
+
+  const predecessor = predecessorDeleteOutbox();
+  let db = await openDatabase(indexedDB, databaseName);
+  let tx = db.transaction(['outbox'], 'readwrite');
+  tx.objectStore('outbox').put(predecessor.state, 'state');
+  await transactionDone(tx);
+  db.close();
+
+  const captured = await reader.outboxAuthorizationStatus();
+  assert.equal(captured.authorityGeneration, 0);
+  assert.equal(captured.suspended, true);
+  assert.ok(hub.pending() > 0, 'reader posted normalization before returning metadata');
+
+  db = await openDatabase(indexedDB, databaseName);
+  tx = db.transaction(['outbox'], 'readonly');
+  const beforeLogout = await requestResult(tx.objectStore('outbox').get('state'));
+  await transactionDone(tx);
+  db.close();
+  assert.equal(
+    JSON.stringify(beforeLogout).includes('quarantined-predecessor-secret'),
+    true,
+    'payload rewrite remains pending while metadata is already available',
+  );
+
+  assert.equal(await writer.wipeForAuthorityTransition('logout:during-rewrite', 2), true);
+  hub.release();
+  await tick();
+  await assert.rejects(
+    () => reader.outboxApplyAuthorizationObligation(
+      predecessor.obligation,
+      captured.authorityGeneration,
+    ),
+    (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE',
+  );
+  const successorRecords = await reader.outboxRecords();
+  assert.deepEqual(
+    successorRecords.map((record) => record.status),
+    ['stranded', 'stranded'],
+  );
+  assert.equal(JSON.stringify(successorRecords).includes('predecessor-secret'), false);
+  const successor = await reader.outboxAuthorizationStatus();
+  assert.equal(successor.authorityGeneration, 1);
+  assert.equal(successor.suspended, false);
+  await reader.close();
+  await writer.close();
+});
+
 test('IndexedDB reader keeps outbox blank without a broker until writer takeover', async () => {
   const indexedDB = new IDBFactory();
   const databaseName = 'rqs-v3-indexeddb-delete-unbrokered';
@@ -774,21 +971,35 @@ test('IndexedDB reader keeps outbox blank without a broker until writer takeover
 
   let db = await openDatabase(indexedDB, databaseName);
   let tx = db.transaction(['outbox'], 'readwrite');
-  tx.objectStore('outbox').put(predecessorDeleteOutbox().state, 'state');
+  tx.objectStore('outbox').put(predecessorDeleteOutbox({ authorityGeneration: 7 }).state, 'state');
   await transactionDone(tx);
   db.close();
 
   const lockManager = createUnavailableThenTakeoverLockManager();
+  assert.deepEqual(
+    await requestIndexedDbOutboxNormalization({
+      databaseName,
+      broadcastChannelFactory: null,
+    }),
+    { status: 'unavailable', reason: 'channel-unavailable' },
+  );
   const reader = createIndexedDbRqsResumeStore({
     indexedDB,
     lockManager,
     databaseName,
     clientStoreId: 'predecessor-delete-store',
+    broadcastChannelFactory: null,
   });
   await reader.whenLockSettled();
   assert.equal(reader.isWriter(), false);
   assert.deepEqual(await reader.outboxRecords(), []);
-  assert.equal((await reader.outboxAuthorizationStatus()).suspended, true);
+  assert.deepEqual(await reader.outboxAuthorizationStatus(), {
+    authorityGeneration: 7,
+    generation: 1,
+    suspended: true,
+    pendingScopeCount: 1,
+    effectiveDisposition: 'delete',
+  });
   const adopted = await reader.load('reader-token');
   assert.equal(adopted.token, fixtureEntry.token);
   assert.deepEqual(adopted.rows, fixtureEntry.rows);
@@ -807,6 +1018,11 @@ test('IndexedDB reader keeps outbox blank without a broker until writer takeover
   lockManager.grant();
   await tick();
   assert.equal(reader.isWriter(), true);
+  await assert.rejects(
+    () => reader.outboxApplyAuthorizationObligation(predecessorDeleteOutbox().obligation),
+    (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE',
+    'an omitted authority generation is never recaptured as the current generation',
+  );
   const normalized = await reader.outboxRecords();
   assert.deepEqual(normalized.map((record) => record.status), ['stranded', 'stranded']);
   db = await openDatabase(indexedDB, databaseName);

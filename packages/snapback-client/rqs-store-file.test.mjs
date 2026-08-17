@@ -221,10 +221,11 @@ test('file reader and writer share one authorization dispatch order', async (t) 
   const rootHeld = new Promise((resolve) => { releaseRoot = resolve; });
   let rootEntered;
   const rootStarted = new Promise((resolve) => { rootEntered = resolve; });
+  const rootAuthorityGeneration = (await writer.outboxAuthorizationStatus()).authorityGeneration;
   const rootCommit = writer.withOutboxAuthorizationDispatch(async () => {
     rootEntered();
     await rootHeld;
-    return writer.outboxApplyAuthorizationObligation(root);
+    return writer.outboxApplyAuthorizationObligation(root, rootAuthorityGeneration);
   });
   await rootStarted;
   let readerEntered = false;

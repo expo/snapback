@@ -764,14 +764,17 @@ test('an unrelated shared root cannot satisfy reader-tab persistence or permit A
       persistResume: false,
       onAuthorizationError(error) { authorizationErrors.push(error); },
     });
-    await applyAuthorizationObligation(obligation({
-      ...scopeId,
-      subscriptionId: 'sub_unrelated_authorization',
-      namespace: {
-        ...scopeId.namespace,
-        queryInstanceId: scopeId.namespace.queryInstanceId + 100,
-      },
-    }, 1, 11));
+    await applyAuthorizationObligation(
+      obligation({
+        ...scopeId,
+        subscriptionId: 'sub_unrelated_authorization',
+        namespace: {
+          ...scopeId.namespace,
+          queryInstanceId: scopeId.namespace.queryInstanceId + 100,
+        },
+      }, 1, 11),
+      (await durableStore.outboxAuthorizationStatus()).authorityGeneration,
+    );
     durableStore.outboxApplyAuthorizationObligation = async () => {
       const error = new Error('reader does not hold the shared writer');
       error.code = 'SNAPBACK_OUTBOX_NOT_WRITER';

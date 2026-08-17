@@ -91,6 +91,63 @@ const testQueueResolution = Object.freeze({
   ackToken: 'outbox-store-authorization-proof',
 });
 
+const currentAuthorityGeneration = async (store) => (
+  (await store.outboxAuthorizationStatus()).authorityGeneration
+);
+
+const applyQueueRoot = async (store, obligation, expectedAuthorityGeneration = undefined) => (
+  store.outboxApplyAuthorizationObligation(
+    obligation,
+    expectedAuthorityGeneration === undefined
+      ? await currentAuthorityGeneration(store)
+      : expectedAuthorityGeneration,
+  )
+);
+
+const resolveQueueRoot = async (store, resolution, expectedAuthorityGeneration = undefined) => (
+  store.outboxResolveAuthorizationObligation(
+    resolution,
+    expectedAuthorityGeneration === undefined
+      ? await currentAuthorityGeneration(store)
+      : expectedAuthorityGeneration,
+  )
+);
+
+const acknowledgeQueueRoot = async (
+  store,
+  resolution,
+  expectedAuthorityGeneration = undefined,
+) => store.outboxAcknowledgeAuthorizationResolution(
+  resolution,
+  expectedAuthorityGeneration === undefined
+    ? await currentAuthorityGeneration(store)
+    : expectedAuthorityGeneration,
+);
+
+const retireQueueScopes = async (store, scopes, expectedAuthorityGeneration = undefined) => (
+  store.outboxRetireAuthorizationScopes(
+    scopes,
+    expectedAuthorityGeneration === undefined
+      ? await currentAuthorityGeneration(store)
+      : expectedAuthorityGeneration,
+  )
+);
+
+const reconcileQueueCustody = async (
+  store,
+  principalScope,
+  authorityDescriptor,
+  custody,
+  expectedAuthorityGeneration = undefined,
+) => store.outboxReconcileCustody(
+  principalScope,
+  authorityDescriptor,
+  custody,
+  expectedAuthorityGeneration === undefined
+    ? await currentAuthorityGeneration(store)
+    : expectedAuthorityGeneration,
+);
+
 const adoptionInspection = (generation = TEST_ARTIFACT_GENERATION) => ({
   schema: {
     schemaVersion: generation.schemaVersion,
@@ -232,14 +289,14 @@ async function exerciseOutboxContract(store, { label }) {
     ['cm-1', 'cm-2'],
     `${label}: pending in sequence order`,
   );
-  const suspended = await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  const suspended = await applyQueueRoot(store, testQueueObligation);
   assert.equal(suspended.suspended, true, `${label}: authorization root suspends replay`);
   assert.equal(
     (await store.outboxPrepareSubmission('cm-1')).status,
     'authorization-suspended',
     `${label}: submission checks the persisted root`,
   );
-  const released = await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  const released = await resolveQueueRoot(store, testQueueResolution);
   assert.equal(released.suspended, false, `${label}: exact proof releases the root`);
   assert.equal(
     (await store.outboxPrepareSubmission('cm-1')).status,
@@ -247,7 +304,7 @@ async function exerciseOutboxContract(store, { label }) {
     `${label}: replay resumes only after exact proof`,
   );
   assert.equal(
-    await store.outboxAcknowledgeAuthorizationResolution(testQueueResolution),
+    await acknowledgeQueueRoot(store, testQueueResolution),
     true,
     `${label}: acknowledged proof cleanup is durable`,
   );
@@ -388,7 +445,7 @@ async function exerciseOutboxContract(store, { label }) {
     authorityDescriptor: predecessorDescriptor,
   }, predecessorScope.userId);
   await store.outboxMarkAcknowledgementsReady(['cm-custody-settled']);
-  const stranded = await store.outboxReconcileCustody(predecessorScope, {
+  const stranded = await reconcileQueueCustody(store, predecessorScope, {
     ...predecessorDescriptor,
     authorityInstanceId: 'authority-b',
     sessionGeneration: 2,
@@ -432,7 +489,8 @@ async function exerciseOutboxContract(store, { label }) {
     predecessorScope,
   );
   assert.deepEqual(discarded.clientMutationIds, ['cm-strand-pending']);
-  const deleted = await store.outboxReconcileCustody(
+  const deleted = await reconcileQueueCustody(
+    store,
     { ...predecessorScope, userId: 'user-b' },
     { ...predecessorDescriptor, authorityInstanceId: 'authority-c' },
     { authorityEpoch: 3, authorityKey: 'authority-key-c' },
@@ -469,7 +527,8 @@ async function exerciseOutboxContract(store, { label }) {
     principalScope: agentScope,
     custody: { authorityEpoch: 1, authorityKey: 'grant-tuple-a' },
   });
-  const agentDeleted = await store.outboxReconcileCustody(
+  const agentDeleted = await reconcileQueueCustody(
+    store,
     agentScope,
     {
       descriptorVersion: 1,
@@ -650,7 +709,7 @@ test('authorization generations fence prepare, settlement, late enqueue, and del
   });
   const preparedBefore = await store.outboxPrepareSubmission(before.id);
   assert.equal(preparedBefore.status, 'ready');
-  const suspended = await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  const suspended = await applyQueueRoot(store, testQueueObligation);
   assert.equal(suspended.suspended, true);
   await assert.rejects(
     () => store.outboxDurablyConsume(
@@ -671,7 +730,7 @@ test('authorization generations fence prepare, settlement, late enqueue, and del
     (await store.outboxPrepareSubmission(duringQuarantine.id)).status,
     'authorization-suspended',
   );
-  await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  await resolveQueueRoot(store, testQueueResolution);
   await assert.rejects(
     () => store.outboxEnqueue(
       { id: 'cm-delayed-enqueue', function: 'createThing', args: { secret: 'stale' } },
@@ -708,7 +767,7 @@ test('authorization generations fence prepare, settlement, late enqueue, and del
     },
     maxDisposition: 'delete',
   };
-  await store.outboxApplyAuthorizationObligation(deleteRoot);
+  await applyQueueRoot(store, deleteRoot);
   const admittedUnderDelete = await store.outboxEnqueue({
     id: 'cm-generation-delete',
     function: 'createThing',
@@ -724,7 +783,7 @@ test('authorization generations fence prepare, settlement, late enqueue, and del
 test('default foreground mutation without an explicit id defers behind an active root', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  await applyQueueRoot(store, testQueueObligation);
   let mutationAttempts = 0;
   globalThis.fetch = async () => {
     mutationAttempts += 1;
@@ -769,7 +828,7 @@ test('delete roots redact quarantined and rerecordable stranded intent before re
     'authority_instance_changed',
     predecessorScope,
   );
-  await store.outboxApplyAuthorizationObligation({
+  await applyQueueRoot(store, {
     ...testQueueObligation,
     maxDisposition: 'delete',
   });
@@ -813,12 +872,13 @@ test('delete tombstones survive same-authority observation, discard after proof,
 
   const discardStore = createMemoryRqsResumeStore();
   await enqueueFenced(discardStore, 'cm-delete-tombstone-discard');
-  await discardStore.outboxApplyAuthorizationObligation({
+  await applyQueueRoot(discardStore, {
     ...testQueueObligation,
     maxDisposition: 'delete',
   });
   const rooted = await discardStore.outboxAuthorizationStatus();
-  const observed = await discardStore.outboxReconcileCustody(
+  const observed = await reconcileQueueCustody(
+    discardStore,
     principalScope,
     TEST_AUTHORITY_DESCRIPTOR,
     custody,
@@ -826,7 +886,7 @@ test('delete tombstones survive same-authority observation, discard after proof,
   );
   assert.equal(observed.deleted, 0, 'same-authority status reconciliation retains the tombstone');
   assert.equal((await discardStore.outboxRecords())[0].discardOnly, true);
-  await discardStore.outboxResolveAuthorizationObligation({
+  await resolveQueueRoot(discardStore, {
     ...testQueueResolution,
     maxDisposition: 'delete',
   });
@@ -841,13 +901,14 @@ test('delete tombstones survive same-authority observation, discard after proof,
 
   const transitionStore = createMemoryRqsResumeStore();
   await enqueueFenced(transitionStore, 'cm-delete-tombstone-transition');
-  await transitionStore.outboxApplyAuthorizationObligation({
+  await applyQueueRoot(transitionStore, {
     ...testQueueObligation,
     maxDisposition: 'delete',
   });
   await transitionStore.wipeForAuthorityTransition('delete-tombstone:1->2', 2);
   const successor = await transitionStore.outboxAuthorizationStatus();
-  const retired = await transitionStore.outboxReconcileCustody(
+  const retired = await reconcileQueueCustody(
+    transitionStore,
     principalScope,
     { ...TEST_AUTHORITY_DESCRIPTOR, sessionGeneration: 2 },
     { authorityEpoch: 2, authorityKey: 'delete-tombstone-successor' },
@@ -870,7 +931,7 @@ test('active authorization root retains settled ACK collection until proof', asy
     prepared.fence,
   );
   await store.outboxMarkAcknowledgementsReady(['cm-ack-under-root']);
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  await applyQueueRoot(store, testQueueObligation);
   const suspendedAckFence = await store.outboxAuthorizationStatus();
   await assert.rejects(
     () => store.outboxConfirmAcknowledgements(
@@ -882,7 +943,7 @@ test('active authorization root retains settled ACK collection until proof', asy
     (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
   );
   assert.equal((await store.outboxRecords())[0].status, 'settled');
-  await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  await resolveQueueRoot(store, testQueueResolution);
   assert.equal(
     await store.outboxConfirmAcknowledgements(
       ['cm-ack-under-root'],
@@ -936,7 +997,7 @@ test('standalone ACK serializes server confirmation and local collection against
   while (!requestStarted) await new Promise((resolve) => setImmediate(resolve));
   let rootCommitted = false;
   const root = store.withOutboxAuthorizationDispatch(async () => {
-    await store.outboxApplyAuthorizationObligation(testQueueObligation);
+    await applyQueueRoot(store, testQueueObligation);
     rootCommitted = true;
   });
   await new Promise((resolve) => setImmediate(resolve));
@@ -969,7 +1030,7 @@ test('authorization dispatch gate makes prepare-to-transport and root installati
   await new Promise((resolve) => setImmediate(resolve));
   let rootCommitted = false;
   const root = store.withOutboxAuthorizationDispatch(async () => {
-    await store.outboxApplyAuthorizationObligation(testQueueObligation);
+    await applyQueueRoot(store, testQueueObligation);
     rootCommitted = true;
   });
   await new Promise((resolve) => setImmediate(resolve));
@@ -995,14 +1056,14 @@ test('active authorization root retains result-gone discard until proof', async 
     outcome: 'committed',
     receiptDigest: `sha256:${'a'.repeat(64)}`,
   }, prepared.fence);
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  await applyQueueRoot(store, testQueueObligation);
   const suspendedFence = await store.outboxAuthorizationStatus();
   await assert.rejects(
     () => store.outboxDiscard('cm-result-gone-discard-root', suspendedFence),
     (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
   );
   assert.equal((await store.outboxRecords())[0].status, 'result-gone');
-  await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  await resolveQueueRoot(store, testQueueResolution);
   assert.equal(
     await store.outboxDiscard(
       'cm-result-gone-discard-root',
@@ -1028,7 +1089,7 @@ test('authority transition atomically retires roots and dispositions predecessor
     },
     custody: { authorityEpoch: 1, authorityKey: 'predecessor-authority-key' },
   });
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  await applyQueueRoot(store, testQueueObligation);
   const predecessor = await store.outboxAuthorizationStatus();
   assert.equal(predecessor.suspended, true);
   assert.equal(await store.wipeForAuthorityTransition(), true);
@@ -1036,21 +1097,24 @@ test('authority transition atomically retires roots and dispositions predecessor
   assert.equal(retired.authorityGeneration, predecessor.authorityGeneration + 1);
   assert.equal(retired.suspended, false, 'orphaned subscription root is retired');
   await assert.rejects(
-    () => store.outboxApplyAuthorizationObligation(
+    () => applyQueueRoot(
+      store,
       testQueueObligation,
       predecessor.authorityGeneration,
     ),
     (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE',
   );
   await assert.rejects(
-    () => store.outboxResolveAuthorizationObligation(
+    () => resolveQueueRoot(
+      store,
       testQueueResolution,
       predecessor.authorityGeneration,
     ),
     (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE',
   );
   await assert.rejects(
-    () => store.outboxRetireAuthorizationScopes(
+    () => retireQueueScopes(
+      store,
       [testQueueObligation.scopeId],
       predecessor.authorityGeneration,
     ),
@@ -1066,7 +1130,8 @@ test('authority transition atomically retires roots and dispositions predecessor
     authorityInstanceId: '018f0d90-7b26-7a22-8c33-445566778899',
     sessionGeneration: 2,
   };
-  const disposition = await store.outboxReconcileCustody(
+  const disposition = await reconcileQueueCustody(
+    store,
     {
       authMode: 'sessions',
       authorizationStreamIncarnation: 'stream-predecessor',
@@ -1078,7 +1143,7 @@ test('authority transition atomically retires roots and dispositions predecessor
   assert.deepEqual(disposition.strandedIds, ['cm-predecessor-authority']);
   assert.equal((await store.outboxRecords())[0].status, 'stranded');
   const beforeDiscard = await store.outboxAuthorizationStatus();
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  await applyQueueRoot(store, testQueueObligation);
   const activeDiscard = await store.outboxAuthorizationStatus();
   await assert.rejects(
     () => store.outboxDiscardStranded(
@@ -1093,7 +1158,7 @@ test('authority transition atomically retires roots and dispositions predecessor
     (error) => error.code === 'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
   );
   assert.equal((await store.outboxRecords()).length, 1);
-  await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  await resolveQueueRoot(store, testQueueResolution);
   await assert.rejects(
     () => store.outboxDiscardStranded(
       ['cm-predecessor-authority'],
@@ -1130,7 +1195,8 @@ test('authorization dispatch serializes a delayed predecessor root behind author
   });
   await new Promise((resolve) => setImmediate(resolve));
   const delayedRoot = store.withOutboxAuthorizationDispatch(() => (
-    store.outboxApplyAuthorizationObligation(
+    applyQueueRoot(
+      store,
       testQueueObligation,
       predecessor.authorityGeneration,
     )
@@ -1153,18 +1219,18 @@ test('root, proof, and retirement rewrites preserve keyed authority-transition i
   assert.equal(await store.wipeForAuthorityTransition(transitionKey, 4), true);
   const advanced = await store.outboxAuthorizationStatus();
 
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  await applyQueueRoot(store, testQueueObligation);
   const rooted = await store.outboxAuthorizationStatus();
   assert.equal(await store.wipeForAuthorityTransition(transitionKey, 4), true);
   assert.deepEqual(await store.outboxAuthorizationStatus(), rooted);
 
-  await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  await resolveQueueRoot(store, testQueueResolution);
   const proven = await store.outboxAuthorizationStatus();
   assert.equal(await store.wipeForAuthorityTransition(transitionKey, 4), true);
   assert.deepEqual(await store.outboxAuthorizationStatus(), proven);
 
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
-  await store.outboxRetireAuthorizationScopes([testQueueObligation.scopeId]);
+  await applyQueueRoot(store, testQueueObligation);
+  await retireQueueScopes(store, [testQueueObligation.scopeId]);
   const retired = await store.outboxAuthorizationStatus();
   assert.equal(await store.wipeForAuthorityTransition(transitionKey, 4), true);
   assert.deepEqual(await store.outboxAuthorizationStatus(), retired);
@@ -1196,7 +1262,8 @@ test('custody reconciliation is bound to the authority generation its transition
   assert.equal(await store.wipeForAuthorityTransition('transition-b', 3), true);
   const transitionB = await store.outboxAuthorizationStatus();
 
-  const successorB = await store.outboxReconcileCustody(
+  const successorB = await reconcileQueueCustody(
+    store,
     {
       authMode: 'sessions',
       authorizationStreamIncarnation: 'stream-predecessor',
@@ -1212,7 +1279,8 @@ test('custody reconciliation is bound to the authority generation its transition
   );
   assert.deepEqual(successorB.strandedIds, ['cm-interleaved-transition']);
   await assert.rejects(
-    () => store.outboxReconcileCustody(
+    () => reconcileQueueCustody(
+      store,
       {
         authMode: 'sessions',
         authorizationStreamIncarnation: 'stream-predecessor',
@@ -1275,7 +1343,8 @@ test('authority transition leaves quarantined and result-gone records recoverabl
     authorityInstanceId: '018f0d90-7b29-7a22-8c33-445566778899',
     sessionGeneration: 2,
   };
-  const reconciled = await store.outboxReconcileCustody(
+  const reconciled = await reconcileQueueCustody(
+    store,
     principalScope,
     successorDescriptor,
     { authorityEpoch: 2, authorityKey: 'terminal-transition-successor' },
@@ -1495,7 +1564,7 @@ test("queue:'auto' retains authorization fencing when replay capability is unava
 
   for (const variant of ['explicit-id', 'generated', 'queue-false', 'forged-ownership']) {
     const store = createDurableTestStore();
-    await store.outboxApplyAuthorizationObligation({
+    await applyQueueRoot(store, {
       ...testQueueObligation,
       scopeId: {
         ...testQueueObligation.scopeId,
@@ -2085,7 +2154,7 @@ test('foreground range preparation defers while an authorization root remains ac
     queue: true,
   });
   await rangeRequested;
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  await applyQueueRoot(store, testQueueObligation);
   releaseRange(Response.json({
     schemaVersion: 1,
     range: {
@@ -2108,13 +2177,13 @@ test('foreground range preparation defers while an authorization root remains ac
   const [retained] = await store.outboxRecords();
   assert.equal(retained.status, 'pending');
   assert.equal(retained.operationIssuance, null);
-  await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  await resolveQueueRoot(store, testQueueResolution);
 });
 
 test('operation-identity enqueue under delete is redacted without range transport', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
-  await store.outboxApplyAuthorizationObligation({
+  await applyQueueRoot(store, {
     ...testQueueObligation,
     maxDisposition: 'delete',
   });
@@ -2235,7 +2304,7 @@ test('replay range preparation pauses while an authorization root remains active
   });
   const replaying = client.replayQueuedMutations();
   await rangeRequested;
-  await store.outboxApplyAuthorizationObligation(testQueueObligation);
+  await applyQueueRoot(store, testQueueObligation);
   releaseRange(Response.json({
     schemaVersion: 1,
     range: {
@@ -2258,7 +2327,7 @@ test('replay range preparation pauses while an authorization root remains active
   const [retained] = await store.outboxRecords();
   assert.equal(retained.status, 'pending');
   assert.equal(retained.operationIssuance, null);
-  await store.outboxResolveAuthorizationObligation(testQueueResolution);
+  await resolveQueueRoot(store, testQueueResolution);
 });
 
 test('server epoch-capacity refusal keeps uncovered intent queued for fresh authority', async (t) => {

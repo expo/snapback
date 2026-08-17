@@ -664,7 +664,7 @@ const requireAuthorizationAuthorityGeneration = (
   expectedAuthorityGeneration = null,
 ) => {
   const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
-  const expected = expectedAuthorityGeneration ?? current.authorityGeneration;
+  const expected = expectedAuthorityGeneration;
   if (
     !Number.isSafeInteger(expected)
     || expected < 0

@@ -5,7 +5,14 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-16 (author ruling: the JS library default now ingests
+**Revised:** 2026-08-16 (authorization observation amendment: every validated
+queue exposes its real payload-free authorization metadata even while a
+legacy/destructive record normalization awaits the exact writer; records,
+acknowledgements, and inspection remain blank until the writer's transaction
+and a confirming reread. IndexedDB routes that work to the exact Web-Lock
+holder through a cross-context request/ack broker. An unavailable projection
+has no invented authority generation, and delayed work must compare-and-commit
+the generation it captured.) 2026-08-16 (author ruling: the JS library default now ingests
 LLP 0053 mutation-queue obligations. The durable queue persists a separate
 authority generation, compare-and-commit queue generation, and exact roots;
 enqueue, foreground dispatch, replay, settlement, and discard share the
@@ -780,14 +787,26 @@ quarantined, and rerecordable stranded intent into terminal discard-only
 records. Root, proof, acknowledgement-token, and scope
 retirement operations separately compare-and-commit the captured authority
 generation, so a predecessor task cannot reinstall custody after an authority
-advance. A proof or authenticated retirement releases local presentation only
-after the exact matching queue transition is durable; a reader that cannot
-commit or observe it remains blank and defers to the writer. IndexedDB
-authorization-root, authority-transition, and custody-
-reconciliation writes are the narrow exceptions to the long-held drain-writer
-lock: any tab owning the live query or transition may commit the cut in the
-shared transaction domain, while a short cross-tab Web Lock serializes it
-with writer transport.
+advance. Generation capture rejects typed normalization unavailability and
+never substitutes the generation current at eventual commit time.
+
+Authorization observation is a split projection. A readonly, validated
+`authorizationQueue` always exposes payload-free metadata with the real
+`authorityGeneration`, `generation`, `suspended`, `pendingScopeCount`, and
+`effectiveDisposition`; this projection does not wait for a destructive
+legacy-record rewrite. Records, acknowledgement custody, and inspection stay
+blank until the exact writer has committed that rewrite and the requesting
+context has confirmed the durable bytes by reread. IndexedDB routes the
+normalization request across tabs/workers to the exact long-held Web-Lock
+holder, which acknowledges only after its transaction completes; a realm-local
+object registry is not a writer broker. If there is no reachable holder, the
+payload-bearing projection is typed unavailable rather than fabricating queue
+metadata. A proof or authenticated retirement releases local presentation only
+after the exact matching queue transition is durable. Authorization-root,
+authority-transition, and custody-reconciliation writes remain the narrow
+exceptions to the long-held drain-writer lock: any tab owning the live query or
+transition may commit the cut in the shared transaction domain, while a short
+cross-tab Web Lock serializes it with writer transport.
 
 The server remains authoritative regardless of captured claims — captured
 facts are claims, and possessing a descriptor never authenticates a caller.

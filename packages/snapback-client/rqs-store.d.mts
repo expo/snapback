@@ -159,6 +159,7 @@ export interface RqsResumeStore {
   subscribeWriterLock?(listener: (writer: boolean) => void): () => void;
   outboxEmpty(): Promise<boolean>;
   outboxAuthorizationStatus(): Promise<Readonly<{
+    authorityGeneration: number;
     generation: number;
     suspended: boolean;
     pendingScopeCount: number;
@@ -166,15 +167,19 @@ export interface RqsResumeStore {
   }>>;
   outboxApplyAuthorizationObligation(
     obligation: Readonly<Record<string, unknown>>,
+    expectedAuthorityGeneration: number,
   ): Promise<Readonly<Record<string, unknown>>>;
   outboxResolveAuthorizationObligation(
     resolution: Readonly<Record<string, unknown>>,
+    expectedAuthorityGeneration: number,
   ): Promise<Readonly<Record<string, unknown>>>;
   outboxAcknowledgeAuthorizationResolution(
     resolution: Readonly<Record<string, unknown>>,
+    expectedAuthorityGeneration: number,
   ): Promise<boolean>;
   outboxRetireAuthorizationScopes(
     scopes: readonly Readonly<Record<string, unknown>>[],
+    expectedAuthorityGeneration: number,
   ): Promise<Readonly<Record<string, unknown>>>;
   outboxEnqueue(
     record: Readonly<Record<string, unknown>>,
@@ -199,6 +204,7 @@ export interface RqsResumeStore {
     principalScope: Readonly<Record<string, unknown>>,
     authorityDescriptor: Readonly<Record<string, unknown>>,
     custody: Readonly<{ authorityEpoch: number; authorityKey: string }>,
+    expectedAuthorityGeneration: number,
   ): Promise<false | Readonly<{
     deleted: number;
     deletedIds: readonly string[];
@@ -282,6 +288,12 @@ export function createIndexedDbRqsResumeStore(options?: {
   readonly maxEntries?: number;
   readonly clientStoreId?: string | null;
   readonly randomBytes?: (length: number) => Uint8Array;
+  readonly broadcastChannelFactory?: ((name: string) => Readonly<{
+    postMessage(message: unknown): void;
+    close(): void;
+    onmessage: ((event: Readonly<{ data: unknown }>) => void) | null;
+  }>) | null;
+  readonly outboxNormalizationTimeoutMs?: number;
   readonly onBeforeStoreIdentityRotation?: ((transition: Readonly<{
     carrier: 'indexeddb';
     databaseName: string;
@@ -290,3 +302,22 @@ export function createIndexedDbRqsResumeStore(options?: {
   }>) => void | Promise<void>) | null;
   readonly relaunchOutboxEmpty?: (() => boolean | Promise<boolean>) | null;
 }): RqsResumeStore;
+
+/** Request a destructive legacy-outbox normalization from the exact
+ * long-held IndexedDB Web-Lock owner. A committed outcome is only an ACK;
+ * the caller must reread durable bytes before exposing payload state. */
+export function requestIndexedDbOutboxNormalization(options?: {
+  readonly databaseName?: string;
+  readonly broadcastChannelFactory?: ((name: string) => Readonly<{
+    postMessage(message: unknown): void;
+    close(): void;
+    onmessage: ((event: Readonly<{ data: unknown }>) => void) | null;
+  }>) | null;
+  readonly timeoutMs?: number;
+}): Promise<
+  | Readonly<{ status: 'committed' }>
+  | Readonly<{
+    status: 'unavailable';
+    reason: 'channel-unavailable' | 'channel-failed' | 'timeout' | 'writer-refused';
+  }>
+>;

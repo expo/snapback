@@ -246,13 +246,6 @@ const heldLocks = new Map();
 
 let instanceCounter = 0;
 
-const unavailableOutboxAuthorizationStatus = () => Object.freeze({
-  generation: 0,
-  suspended: true,
-  pendingScopeCount: 0,
-  effectiveDisposition: 'delete',
-});
-
 const unavailableOutboxInspection = () => Object.freeze({
   pending: 0,
   failed: 0,
@@ -471,7 +464,7 @@ export function createFileRqsResumeStore({
     } else competingWriter = { pid: null, lockPath, storePath: blobPath };
   };
 
-  const readState = async () => {
+  const readState = async ({ persistOutboxNormalization = true } = {}) => {
     if (corrupt) throw corruptError(blobPath);
     const raw = await files.readFile(blobPath);
     if (raw === null) {
@@ -540,9 +533,11 @@ export function createFileRqsResumeStore({
       //   destroys retained predecessor payload before normalized outbox state
       //   becomes observable.
       pendingOutboxNormalization = true;
-      if (writer) {
+      if (writer && persistOutboxNormalization) {
         await writeState(state);
         pendingOutboxNormalization = false;
+      } else if (writer) {
+        void requestOutboxNormalization().catch(() => {});
       } else {
         const holder = heldLocks.get(lockPath);
         if (
@@ -633,6 +628,16 @@ export function createFileRqsResumeStore({
       if (writer) state = await readState();
     }
     return { available: !pendingOutboxNormalization, state };
+  };
+
+  const readOutboxAuthorizationMetadata = async () => {
+    await acquireLock();
+    const state = await readState({ persistOutboxNormalization: false });
+    // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — split projection keeps exact payload-free metadata readable while payload-bearing custody remains blank.
+    // Payload normalization is a separate writer-owned cut. The validated
+    // authorization queue is payload-free and retains its exact durable
+    // authority generation while that rewrite remains pending.
+    return outboxAuthorizationStatus(state.outbox);
   };
 
   const outboxRead = async (reader, unavailable) => {
@@ -907,10 +912,7 @@ export function createFileRqsResumeStore({
 
     async outboxAuthorizationStatus() {
       requireOpen();
-      return serialized(() => outboxRead(
-        outboxAuthorizationStatus,
-        unavailableOutboxAuthorizationStatus,
-      ));
+      return serialized(readOutboxAuthorizationMetadata);
     },
 
     async outboxAuthorizationTransitionVisible(

@@ -43,19 +43,130 @@ export const RQS_STORE_MAX_ENTRIES = 256;
 export const RQS_TOKEN_MAX_BYTES = 1024;
 export const RQS_REACT_BINDING_RECEIPT_MAX_BYTES = 64 * 1024;
 
-// Same-realm writer calls can be awaited directly. Browser tabs/workers do
-// not share this registry; a reader there keeps the outbox projection blank
-// until Web-Lock takeover unless another broker is introduced explicitly.
-// @ref LLP 0166#writer-discipline-and-format-versioning — non-holders do not
-//   write store bytes; exact writer availability gates durable projection.
-const indexedDbWriterBrokers = new WeakMap();
+const OUTBOX_NORMALIZATION_REQUEST = 'snapback.outbox-normalization-request.v1';
+const OUTBOX_NORMALIZATION_OUTCOME = 'snapback.outbox-normalization-outcome.v1';
+const OUTBOX_NORMALIZATION_TIMEOUT_MS = 5_000;
+let outboxNormalizationRequestCounter = 0;
 
-const unavailableOutboxAuthorizationStatus = () => Object.freeze({
-  generation: 0,
-  suspended: true,
-  pendingScopeCount: 0,
-  effectiveDisposition: 'delete',
+const exactRecord = (value, fields) => (
+  value !== null
+  && typeof value === 'object'
+  && !Array.isArray(value)
+  && Object.keys(value).length === fields.length
+  && fields.every((field) => Object.hasOwn(value, field))
+);
+
+const normalizationChannelName = (databaseName) => (
+  `snapback:rqs-store:${databaseName}:outbox-normalization`
+);
+
+const defaultBroadcastChannelFactory = () => (
+  typeof globalThis.BroadcastChannel === 'function'
+    ? (name) => new globalThis.BroadcastChannel(name)
+    : null
+);
+
+const mintOutboxNormalizationRequestId = () => {
+  outboxNormalizationRequestCounter += 1;
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  const nonce = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${nonce}-${outboxNormalizationRequestCounter.toString(16)}`;
+};
+
+const validOutboxNormalizationRequest = (value) => (
+  exactRecord(value, ['format', 'requestId'])
+  && value.format === OUTBOX_NORMALIZATION_REQUEST
+  && typeof value.requestId === 'string'
+  && value.requestId.length > 0
+  && value.requestId.length <= 128
+);
+
+const validOutboxNormalizationOutcome = (value) => (
+  exactRecord(value, ['format', 'requestId', 'outcome'])
+  && value.format === OUTBOX_NORMALIZATION_OUTCOME
+  && typeof value.requestId === 'string'
+  && value.requestId.length > 0
+  && value.requestId.length <= 128
+  && ['committed', 'refused'].includes(value.outcome)
+);
+
+const unavailableOutboxProjection = () => Object.freeze({
+  availability: 'unavailable',
+  reason: 'normalization-pending',
 });
+
+const availableOutboxProjection = (state) => Object.freeze({
+  availability: 'available',
+  state,
+});
+
+/// Cross-context request half of the destructive outbox-normalization broker.
+/// The exact long-held Web-Lock owner is the only context that acknowledges;
+/// callers must still reread durable bytes after a `committed` outcome.
+// @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — cross-context requests target the exact writer and acknowledgement precedes a confirming reread.
+export async function requestIndexedDbOutboxNormalization({
+  databaseName = RQS_STORE_DATABASE_NAME,
+  broadcastChannelFactory = undefined,
+  timeoutMs = OUTBOX_NORMALIZATION_TIMEOUT_MS,
+} = {}) {
+  const channelFactory = broadcastChannelFactory === undefined
+    ? defaultBroadcastChannelFactory()
+    : broadcastChannelFactory;
+  if (typeof channelFactory !== 'function') {
+    return Object.freeze({ status: 'unavailable', reason: 'channel-unavailable' });
+  }
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 0) {
+    throw new TypeError('outbox normalization broker timeoutMs must be a non-negative number');
+  }
+
+  let channel;
+  try {
+    channel = channelFactory(normalizationChannelName(databaseName));
+  } catch {
+    return Object.freeze({ status: 'unavailable', reason: 'channel-unavailable' });
+  }
+  if (
+    channel === null
+    || typeof channel !== 'object'
+    || typeof channel.postMessage !== 'function'
+    || typeof channel.close !== 'function'
+  ) {
+    try { channel?.close?.(); } catch { /* an invalid carrier is already unavailable */ }
+    return Object.freeze({ status: 'unavailable', reason: 'channel-unavailable' });
+  }
+  channel.unref?.();
+
+  const requestId = mintOutboxNormalizationRequestId();
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer = null;
+    const finish = (outcome) => {
+      if (settled) return;
+      settled = true;
+      if (timer !== null) clearTimeout(timer);
+      channel.onmessage = null;
+      try { channel.close(); } catch { /* completion is already known */ }
+      resolve(Object.freeze(outcome));
+    };
+    channel.onmessage = (event) => {
+      const message = event?.data;
+      if (!validOutboxNormalizationOutcome(message) || message.requestId !== requestId) return;
+      finish(message.outcome === 'committed'
+        ? { status: 'committed' }
+        : { status: 'unavailable', reason: 'writer-refused' });
+    };
+    timer = setTimeout(
+      () => finish({ status: 'unavailable', reason: 'timeout' }),
+      timeoutMs,
+    );
+    try {
+      channel.postMessage({ format: OUTBOX_NORMALIZATION_REQUEST, requestId });
+    } catch {
+      finish({ status: 'unavailable', reason: 'channel-failed' });
+    }
+  });
+}
 
 const unavailableOutboxInspection = () => Object.freeze({
   pending: 0,
@@ -293,6 +404,8 @@ export function createIndexedDbRqsResumeStore({
   maxEntries = RQS_STORE_MAX_ENTRIES,
   clientStoreId = null,
   randomBytes = undefined,
+  broadcastChannelFactory = undefined,
+  outboxNormalizationTimeoutMs = OUTBOX_NORMALIZATION_TIMEOUT_MS,
   onBeforeStoreIdentityRotation = null,
   // LLP 0090 D3 outbox rule hook: a relaunching client with a non-empty
   // mutation outbox must not send resumeFromToken. The raw @expo/snapback-client
@@ -326,20 +439,63 @@ export function createIndexedDbRqsResumeStore({
   let outboxNormalizationTask = null;
   let initialMeta = createInitialStoreMeta({ clientStoreId, randomBytes });
   const writerLockListeners = new Set();
-  const writerBrokerToken = Symbol(databaseName);
-  let writerBrokers = indexedDbWriterBrokers.get(indexedDB);
-  if (writerBrokers === undefined) {
-    writerBrokers = new Map();
-    indexedDbWriterBrokers.set(indexedDB, writerBrokers);
+  const resolvedBroadcastChannelFactory = broadcastChannelFactory === undefined
+    ? defaultBroadcastChannelFactory()
+    : broadcastChannelFactory;
+  if (
+    resolvedBroadcastChannelFactory !== null
+    && typeof resolvedBroadcastChannelFactory !== 'function'
+  ) {
+    throw new TypeError('broadcastChannelFactory must be a function, null, or undefined');
   }
+  let outboxNormalizationChannel = null;
   function registerOutboxNormalizationBroker() {
-    writerBrokers.set(lockName, Object.freeze({
-      token: writerBrokerToken,
-      request: () => requestOutboxNormalization(),
-    }));
+    if (outboxNormalizationChannel !== null || resolvedBroadcastChannelFactory === null) return;
+    let channel;
+    try {
+      channel = resolvedBroadcastChannelFactory(normalizationChannelName(databaseName));
+    } catch {
+      return;
+    }
+    if (
+      channel === null
+      || typeof channel !== 'object'
+      || typeof channel.postMessage !== 'function'
+      || typeof channel.close !== 'function'
+    ) {
+      try { channel?.close?.(); } catch { /* invalid broker carrier */ }
+      return;
+    }
+    channel.unref?.();
+    channel.onmessage = (event) => {
+      const message = event?.data;
+      if (!validOutboxNormalizationRequest(message) || !writer || closed) return;
+      void requestOutboxNormalization().then((committed) => {
+        if (!writer || closed) return;
+        channel.postMessage({
+          format: OUTBOX_NORMALIZATION_OUTCOME,
+          requestId: message.requestId,
+          outcome: committed === true ? 'committed' : 'refused',
+        });
+      }).catch(() => {
+        if (!writer || closed) return;
+        try {
+          channel.postMessage({
+            format: OUTBOX_NORMALIZATION_OUTCOME,
+            requestId: message.requestId,
+            outcome: 'refused',
+          });
+        } catch { /* a failed broker remains fail-closed */ }
+      });
+    };
+    outboxNormalizationChannel = channel;
   }
   function unregisterOutboxNormalizationBroker() {
-    if (writerBrokers.get(lockName)?.token === writerBrokerToken) writerBrokers.delete(lockName);
+    const channel = outboxNormalizationChannel;
+    outboxNormalizationChannel = null;
+    if (channel === null) return;
+    channel.onmessage = null;
+    try { channel.close(); } catch { /* close remains best-effort */ }
   }
   const notifyWriterLock = (value) => {
     for (const listener of [...writerLockListeners]) {
@@ -492,7 +648,7 @@ export function createIndexedDbRqsResumeStore({
     await transactionDone(tx);
     if (!normalized.changed) {
       pendingOutboxNormalization = false;
-      return normalized.state;
+      return availableOutboxProjection(normalized.state);
     }
 
     pendingOutboxNormalization = true;
@@ -500,11 +656,15 @@ export function createIndexedDbRqsResumeStore({
     if (writer && !closed) {
       completed = await requestOutboxNormalization();
     } else if (!closed) {
-      const broker = writerBrokers.get(lockName);
-      if (typeof broker?.request === 'function') completed = await broker.request();
+      const brokered = await requestIndexedDbOutboxNormalization({
+        databaseName,
+        broadcastChannelFactory: resolvedBroadcastChannelFactory,
+        timeoutMs: outboxNormalizationTimeoutMs,
+      });
+      completed = brokered.status === 'committed';
     }
 
-    if (!completed) return null;
+    if (!completed) return unavailableOutboxProjection();
     // Confirm against durable bytes after the writer's transaction completes;
     // the normalized projection is never trusted merely because a broker said
     // it scheduled work.
@@ -514,8 +674,32 @@ export function createIndexedDbRqsResumeStore({
     normalized = await readOutboxState(tx.objectStore(OUTBOX));
     await transactionDone(tx);
     pendingOutboxNormalization = normalized.changed;
-    if (normalized.changed) return null;
-    return normalized.state;
+    if (normalized.changed) return unavailableOutboxProjection();
+    return availableOutboxProjection(normalized.state);
+  };
+
+  const readOutboxAuthorizationMetadata = async () => {
+    const db = await database();
+    const tx = db.transaction([OUTBOX], 'readonly');
+    const normalized = await readOutboxState(tx.objectStore(OUTBOX));
+    await transactionDone(tx);
+    if (normalized.changed) {
+      pendingOutboxNormalization = true;
+      if (writer && !closed) {
+        void requestOutboxNormalization().catch(() => {});
+      } else if (!closed) {
+        void requestIndexedDbOutboxNormalization({
+          databaseName,
+          broadcastChannelFactory: resolvedBroadcastChannelFactory,
+          timeoutMs: outboxNormalizationTimeoutMs,
+        }).catch(() => {});
+      }
+    }
+    // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — split projection keeps exact payload-free metadata readable while payload-bearing custody remains blank.
+    // The queue is already schema-validated and contains no mutation payload.
+    // Its exact authority generation remains observable while the holder owns
+    // the separate destructive record rewrite.
+    return outboxAuthorizationStatus(normalized.state);
   };
 
   function requestOutboxNormalization() {
@@ -541,8 +725,10 @@ export function createIndexedDbRqsResumeStore({
   }
 
   const outboxRead = async (reader, unavailable) => {
-    const state = await readDurablyNormalizedOutboxState();
-    return state === null ? unavailable() : reader(state);
+    const projection = await readDurablyNormalizedOutboxState();
+    return projection.availability === 'available'
+      ? reader(projection.state)
+      : unavailable(projection);
   };
 
   const outboxWrite = async (
@@ -552,6 +738,13 @@ export function createIndexedDbRqsResumeStore({
     if ((!writer && !authorizationWriter) || closed) {
       if (throwWhenNotWriter) throw outboxNotWriterError();
       return false;
+    }
+    if (authorizationWriter) {
+      const projection = await readDurablyNormalizedOutboxState();
+      if (projection.availability !== 'available') {
+        if (throwWhenNotWriter) throw outboxNotWriterError();
+        return false;
+      }
     }
     const db = await database();
     const tx = db.transaction([OUTBOX], 'readwrite');
@@ -660,7 +853,7 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async outboxAuthorizationStatus() {
-      return outboxRead(outboxAuthorizationStatus, unavailableOutboxAuthorizationStatus);
+      return readOutboxAuthorizationMetadata();
     },
 
     async outboxAuthorizationTransitionVisible(
@@ -1222,7 +1415,7 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async inspection() {
-      const outboxState = await readDurablyNormalizedOutboxState();
+      const outboxProjection = await readDurablyNormalizedOutboxState();
       const db = await database();
       const tx = db.transaction([ENTRIES], 'readonly');
       const all = await readAllForBudget(tx.objectStore(ENTRIES));
@@ -1233,18 +1426,19 @@ export function createIndexedDbRqsResumeStore({
         bytes: all.reduce((sum, candidate) => sum + candidate.bytes, 0),
         maxBytes,
         maxEntries,
-        outbox: outboxState === null
+        outbox: outboxProjection.availability !== 'available'
           ? unavailableOutboxInspection()
           : Object.freeze({
-            pending: pendingOutboxRecords(outboxState).length,
-            failed: allOutboxRecords(outboxState).filter((r) => r.status === 'failed').length,
-            stranded: allOutboxRecords(outboxState)
+            pending: pendingOutboxRecords(outboxProjection.state).length,
+            failed: allOutboxRecords(outboxProjection.state)
+              .filter((r) => r.status === 'failed').length,
+            stranded: allOutboxRecords(outboxProjection.state)
               .filter((r) => r.status === 'stranded').length,
-            quarantined: allOutboxRecords(outboxState)
+            quarantined: allOutboxRecords(outboxProjection.state)
               .filter((r) => r.status === 'quarantined').length,
-            resultGone: allOutboxRecords(outboxState)
+            resultGone: allOutboxRecords(outboxProjection.state)
               .filter((r) => r.status === 'result-gone').length,
-            pendingAcknowledgements: outboxState.acks.length,
+            pendingAcknowledgements: outboxProjection.state.acks.length,
           }),
       });
     },

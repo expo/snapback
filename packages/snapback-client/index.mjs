@@ -8042,8 +8042,22 @@ export class SnapbackClient {
     if (store === null && externalAdapter === null) return null;
     return Object.freeze({
       async captureAuthorityGeneration() {
-        const status = await store?.outboxAuthorizationStatus?.();
-        return status?.authorityGeneration ?? null;
+        if (store === null) return null;
+        if (typeof store.outboxAuthorizationStatus !== 'function') {
+          throw persistenceError('capture the authorization authority generation');
+        }
+        const status = await store.outboxAuthorizationStatus();
+        if (
+          !Number.isSafeInteger(status?.authorityGeneration)
+          || status.authorityGeneration < 0
+        ) {
+          // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — unavailable generation capture defers instead of rebinding delayed work to a successor.
+          // A normalization-pending/unavailable projection is not generation
+          // zero and is never permission to compare against whatever durable
+          // successor happens to be current when delayed work finally runs.
+          throw persistenceDeferred('capture the authorization authority generation');
+        }
+        return status.authorityGeneration;
       },
       async applyObligation(obligation, expectedAuthorityGeneration = null) {
         await persist(
@@ -8257,14 +8271,37 @@ export class SnapbackClient {
       return { settled: false, authority: null, error };
     }
     let authority;
+    let expectedAuthorityGeneration;
     try {
-      authority = await this.#captureQueueAuthority();
+      // @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — custody compare-and-commits the exact generation captured before delayed authority work.
+      // Capture both lineage axes before any delayed reconciliation work. A
+      // normalization-pending projection is typed unavailability, never an
+      // invitation to compare against whichever queue generation is current
+      // when the transaction eventually runs.
+      const capture = this.authorityFence.capture();
+      const status = await store.outboxAuthorizationStatus();
+      if (
+        !Number.isSafeInteger(status?.authorityGeneration)
+        || status.authorityGeneration < 0
+      ) {
+        const error = new Error(
+          'SNAPBACK_OUTBOX_AUTHORIZATION_DEFERRED: authorization generation is unavailable',
+        );
+        error.code = 'SNAPBACK_OUTBOX_AUTHORIZATION_DEFERRED';
+        throw error;
+      }
+      expectedAuthorityGeneration = status.authorityGeneration;
+      const session = await this.authSession();
+      if (!this.authorityFence.isCurrent?.(capture)) throw staleAuthorityError();
+      authority = this.#queueAuthorityFromSession(capture, session);
     } catch (error) {
       if (required) throw error;
       return { settled: false, authority: null, error };
     }
     try {
-      const result = await this.#applyQueueCustodyReconciliation(store, authority);
+      const result = await this.#applyQueueCustodyReconciliation(store, authority, {
+        expectedAuthorityGeneration,
+      });
       return { settled: true, authority, result };
     } catch (error) {
       if (required) throw error;
