@@ -10721,49 +10721,49 @@ mod membership_bridge_tests {
                         "name": "list",
                         "kind": "LiveQuery",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackQuery"],
+                        "hooks": ["useSnapbackQuery", "useSnapbackAuthorityRoster"],
                         "transitionOps": []
                     },
                     {
                         "name": "myRole",
                         "kind": "LiveQuery",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackQuery"],
+                        "hooks": ["useSnapbackQuery", "useSnapbackAuthorityMyRole"],
                         "transitionOps": []
                     },
                     {
                         "name": "invite",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
                         "transitionOps": ["insert"]
                     },
                     {
                         "name": "join",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
                         "transitionOps": ["setRole"]
                     },
                     {
                         "name": "changeRole",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
                         "transitionOps": ["setRole"]
                     },
                     {
                         "name": "transferOwner",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
                         "transitionOps": ["transferOwner"]
                     },
                     {
                         "name": "remove",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
                         "transitionOps": ["remove"]
                     }
                 ]

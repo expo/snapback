@@ -1262,21 +1262,26 @@ fn synthetic_manifest_rooted_generation_consumer(manifest: &MembershipManifest) 
         name: 'list',
         kind: 'LiveQuery',
         authRequirement: 'authenticated',
-        hooks: ['useSnapbackQuery'],
+        hooks: ['useSnapbackQuery', 'useSnapbackAuthorityRoster'],
         transitionOps: [],
       },
       {
         name: 'myRole',
         kind: 'LiveQuery',
         authRequirement: 'authenticated',
-        hooks: ['useSnapbackQuery'],
+        hooks: ['useSnapbackQuery', 'useSnapbackAuthorityMyRole'],
         transitionOps: [],
       },
       ...['invite', 'join', 'leave', 'changeRole', 'transferOwner', 'remove'].map((name) => ({
         name,
         kind: 'Mutation',
         authRequirement: 'authenticated',
-        hooks: ['useSnapbackMutation', 'useSnapbackOutbox.mutationStatus'],
+        hooks: [
+          'useSnapbackMutation',
+          'useSnapbackAuthorityMutation',
+          'useSnapbackOutbox.mutationStatus',
+          'useSnapbackAuthorityMutationStatus',
+        ],
         transitionOps: [name === 'transferOwner' ? 'transferOwner' : (
           ['invite'].includes(name) ? 'insert' : (
             ['join', 'changeRole'].includes(name) ? 'setRole' : 'remove'

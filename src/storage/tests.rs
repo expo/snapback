@@ -13904,7 +13904,10 @@ mod membership_write_tests {
     fn authority_profile_schema() -> SchemaManifest {
         let mut schema = membership_schema();
         let table = &mut schema.tables[1];
-        let membership = table.membership.as_mut().expect("membership declaration");
+        let membership = table
+            .membership
+            .as_mut()
+            .expect("membership declaration");
         membership.id = Some("event_members".to_owned());
         let rename = |role: &mut String| {
             *role = match role.as_str() {
@@ -14017,14 +14020,14 @@ mod membership_write_tests {
                         "name": "list",
                         "kind": "LiveQuery",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackQuery"],
+                        "hooks": ["useSnapbackQuery", "useSnapbackAuthorityRoster"],
                         "transitionOps": []
                     },
                     {
                         "name": "transferOwner",
                         "kind": "Mutation",
                         "authRequirement": "authenticated",
-                        "hooks": ["useSnapbackMutation", "useSnapbackOutbox.mutationStatus"],
+                        "hooks": ["useSnapbackMutation", "useSnapbackAuthorityMutation", "useSnapbackOutbox.mutationStatus", "useSnapbackAuthorityMutationStatus"],
                         "transitionOps": ["transferOwner"]
                     }
                 ]
@@ -14884,10 +14887,7 @@ mod membership_write_tests {
     fn authority_profile_bootstrap_refuses_an_initial_owner() {
         let mut schema = authority_profile_schema();
         let table = &mut schema.tables[1];
-        let membership = table
-            .membership
-            .as_mut()
-            .expect("membership declaration");
+        let membership = table.membership.as_mut().expect("membership declaration");
         membership.transitions.push(MembershipTransition {
             op: MembershipOp::Insert,
             by: vec!["owner".to_owned()],

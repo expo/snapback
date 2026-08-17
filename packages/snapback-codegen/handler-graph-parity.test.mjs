@@ -70,47 +70,47 @@ const demoGoldens = {
   },
   'demos/rbac/snapback': {
         'createApp': [
-            'sha256:1ef81edfa4a490a10fa3f7f5a1fff5a97989ef6893c17ac93b6e785f8ac36d9b',
+            'sha256:67f040d7bf34ec08cb1db637f078dae01f5ec50838255d96df76f54f596e2586',
             'sha256:0dde744f4decbe5aa7d146ecb64c2fa65c85456d7fe789d4a93f1d4ed31b5c90'
         ],
         'listAnnouncements': [
-            'sha256:d061b5e75eaedb8945c1552074966af3bf19f7a70143dfac113689929f5b0d9c',
+            'sha256:5020010d16c89c4c2de91af330118dc99e59d5479c722fc01e2cf166f8bd1ca3',
             null
         ],
         'postAnnouncement': [
-            'sha256:76a101eff738f1c7d6627b5fc8847453ff633f1a235690f3f3375fead714c1f1',
+            'sha256:3e8f5b65e4add85360449e1827b98b8ad97dfbe1f96176bc3cb732b3df2b7ec8',
             'sha256:6090fe79870d25224e107bd924ef02fa301c2486f78ac8eabc401c5e6d7d3b9c'
         ],
         'appAccess.list': [
-            'sha256:bf5e014dca3d89eced780e24f98939869fe5499a92f6853ad1a8dfa97ced21c7',
+            'sha256:28b636ee796975b45cf551fd163a0618012e56d721004e2bcf43680818df5065',
             'sha256:41dcdc7063ea1c392caa6fca921d69bf0c18f319174586072fc962bfe53b6c77'
         ],
         'appAccess.myRole': [
-            'sha256:630f4eb4a7f35be1b531a362897f2c8b77fa9751b981a222da274326f2c3a36c',
+            'sha256:1c57b056f6f7b05e30cb3e79a660b04935c327a8443c1e432e4c91e09075224a',
             'sha256:2dead41c79000ba3310c8dd54467dc7486f347891a1ba9673645dd0f87f2828b'
         ],
         'appAccess.invite': [
-            'sha256:00d2866f600973682bb7abd6282d59edda0fe360b8537bc7b0a009bd7be78df4',
+            'sha256:8fde2d3d0906fd16e3075be7b83afc75b095a8d73cf8c84a36eb496c76838c95',
             'sha256:d42ed83563f00cb0c4455f387d80e67446f9a1402ebc27e3f42cb15fc7042f47'
         ],
         'appAccess.join': [
-            'sha256:a8e1488e31b348f7372f3f72ce34d81cab4cc68ddddbbe5b7f3bcb9755ee07b7',
+            'sha256:426e0487ec7194af3b61a7a9fea63225409ef784f278d262c2c22f3f81c93640',
             'sha256:4c0d6255b975025fb542efac8d897a7d9ebc92c8749f12017097971c21322a44'
         ],
         'appAccess.leave': [
-            'sha256:fc379c756a7a33d3733a14d57d522e18a1e8f3abf53b8ddeab4753b4e8f1f1b8',
+            'sha256:1e929c46b5ffedd03867180ff21b158ee97c42d5d8e0c1fa14ddf3430cafd88b',
             'sha256:6d2fbf0dc7fda9f5e5c2abccd9e9bb2eff5485887d6483d742cfb30b5e394b0c'
         ],
         'appAccess.changeRole': [
-            'sha256:fbed58c033f885162c45ac8eeb1cd5211a5f41dcec188cf523f92f8547055250',
+            'sha256:5a72d58ddb5b81f7140937e24a40635f5b9696d749f7b93f25c8850c966cb989',
             'sha256:3fcfd2f82b8c2db56311903400890f7160d90cf7c448ffa439106fb33499907a'
         ],
         'appAccess.transferOwner': [
-            'sha256:fc537c9e28e9c05bbb490008dd4bb2bd1f867dd17090f519f34dedf6fc2d23bf',
+            'sha256:9da526385cb3ac60cde8eb7d3e4e967cfc63f437fc5049e0475fa48f55d521b8',
             'sha256:c784ac5716a5daaf2778cd92560c674417f511d094048d16c5c6f48c4166a54b'
         ],
         'appAccess.remove': [
-            'sha256:97ceba65c889f8ff781023de05d9d7fd3571e374b2986a6cc90070116adc46ff',
+            'sha256:172bb828b84869503ae84e6eb4b21a58dd3097dc9f897fb82c12b83df0ca6764',
             'sha256:271403b2d33d42b2f0ae11b0d53498c3ba71e12fde26197a03941d58f08a3a7a'
         ]
     },

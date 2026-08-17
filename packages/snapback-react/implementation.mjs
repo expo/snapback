@@ -19,7 +19,10 @@ import {
   applicationDescriptorForAppClient,
   createSnapbackAppClientWithBootstrapObserver,
 } from '@expo/snapback-client/app-client-internal';
-import { SnapbackDiagnosticError } from '@expo/snapback-client/diagnostic-error';
+import {
+  SnapbackDiagnosticError,
+  asSnapbackDiagnosticError,
+} from '@expo/snapback-client/diagnostic-error';
 
 import {
   admittedReactCommand,
@@ -77,6 +80,11 @@ const REACT_RUNTIME_FALLBACK_RETRY_MS = 250;
 const DEFAULT_HOOK_CHURN_TRANSITION_THRESHOLD = 8;
 const DEFAULT_HOOK_CHURN_WINDOW_MS = 2_000;
 const DEFAULT_OUTBOX_DRAIN_OPTIONS = Object.freeze({});
+const AUTHORITY_CURSOR_INVALID = 'SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID';
+const AUTHORITY_EMPTY_ROWS = Object.freeze([]);
+const AUTHORITY_PAGE_TASK_ABORTED = Symbol('snapback.react.authority-page-task-aborted');
+const AUTHORITY_MUTATION_UNKNOWN = Object.freeze({ status: 'unknown' });
+const AUTHORITY_CALLER_UNKNOWN = Object.freeze({ status: 'loading' });
 const providerContext = createContext(null);
 const appClientContext = createContext(null);
 let providerSequence = 0;
@@ -1147,6 +1155,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     const generation = ++store.generation;
     store.snapshot = pending('connecting');
     store.freshness = 'unknown';
+    const notifyLivePublish = () => {
+      if (terminal || generation !== store.generation) return;
+      for (const listener of [...store.livePublishListeners.values()]) {
+        try { listener(); } catch { /* observation cannot own publication */ }
+      }
+    };
     let handle;
     handle = client.startLiveQuery(store.reference, {
       connectionId,
@@ -1170,6 +1184,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         : { registeredSubscription: store.registeredSubscription }),
       onUpdate(rows, detail) {
         if (store.blockedPreparedPublication) return;
+        notifyLivePublish();
         clearUnadoptedSubscription(store);
         if (detail?.optimisticPresentation !== undefined) {
           store.generatedPresentation = detail.optimisticPresentation;
@@ -1230,6 +1245,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         );
       },
       onConnectionChange(connection, detail) {
+        notifyLivePublish();
         const normalized = normalizeConnection(connection, detail);
         captureRetention(store);
         publish(
@@ -1377,6 +1393,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           }),
       consumers: 0,
       listeners: new Map(),
+      livePublishListeners: new Map(),
       handle: null,
       generation: 0,
       idleEpoch: 0,
@@ -1949,6 +1966,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       throw new TypeError('React mutation queue option must be false when supplied');
     }
     const queue = dispatchOptions.queue === false ? false : 'auto';
+    const includeAuthorityTransitions = dispatchOptions.authorityTransitions === true;
     const mutationContract = preparedReactResultContract(binding, admittedMutation);
     if (optimistic === null) {
       // @ref LLP 0100#product-receipt — the admitted local-dev
@@ -1976,7 +1994,19 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         output.result,
         { violationCode: 'SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED' },
       );
-      return queue === false ? result : Object.freeze({ status: 'settled', result });
+      return queue === false
+        ? result
+        : Object.freeze({
+            status: 'settled',
+            result,
+            ...(includeAuthorityTransitions
+              ? {
+                  authorityTransitions: Object.freeze([
+                    ...(output.authorityTransitions ?? []),
+                  ]),
+                }
+              : {}),
+          });
     }
 
     if (
@@ -2231,6 +2261,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       const store = stores.get(edge.key);
       if (!store) continue;
       store.listeners.delete(edge.edgeId);
+      store.livePublishListeners.delete(edge.edgeId);
       store.consumers -= 1;
       if (store.consumers === 0 && store.pins === 0) {
         const idleEpoch = ++store.idleEpoch;
@@ -2257,7 +2288,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     notifyConnection();
   };
 
-  const subscribeMany = (descriptors, listener, previousLease = null) => {
+  const subscribeMany = (
+    descriptors,
+    listener,
+    previousLease = null,
+    livePublishListener = null,
+  ) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
     const admitted = [];
     const pendingHandoffs = [];
@@ -2337,11 +2373,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         store.idleEpoch += 1;
         store.consumers += 1;
         store.listeners.set(edgeId, listener);
+        if (livePublishListener !== null) {
+          store.livePublishListeners.set(edgeId, livePublishListener);
+        }
         next.edges.push({ key: store.key, edgeId });
       }
       leases.add(next);
       consumers += next.edges.length;
-      for (const entry of pendingHandoffs) attachHandoffWaiter(next, entry, listener);
+      for (const entry of pendingHandoffs) {
+        attachHandoffWaiter(next, entry, listener, livePublishListener);
+      }
       let successorHandle = null;
       if (supersession) supersession.predecessor.handoffPending += 1;
       for (const key of uniqueNew.keys()) {
@@ -3381,7 +3422,12 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     });
   };
 
-  const attachHandoffWaiter = (lease, descriptor, listener) => {
+  const attachHandoffWaiter = (
+    lease,
+    descriptor,
+    listener,
+    livePublishListener = null,
+  ) => {
     const state = generationHandoff;
     const waiter = () => {
       if (lease.released || terminal) return;
@@ -3400,6 +3446,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           store.idleEpoch += 1;
           store.consumers += 1;
           store.listeners.set(edgeId, listener);
+          if (livePublishListener !== null) {
+            store.livePublishListeners.set(edgeId, livePublishListener);
+          }
           lease.edges.push({ key: store.key, edgeId });
           consumers += 1;
           startStore(store);
@@ -3658,8 +3707,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         return Object.freeze(deferred);
       }
     },
-    subscribe(descriptor, listener, previousLease = null) {
-      return subscribeMany([descriptor], listener, previousLease);
+    subscribe(descriptor, listener, previousLease = null, livePublishListener = null) {
+      return subscribeMany([descriptor], listener, previousLease, livePublishListener);
     },
     subscribeMany,
     subscribeOptimisticCreate,
@@ -4518,9 +4567,12 @@ const canonicalContractInputKey = (contract, value, path) => (
       )
 );
 
-export function useSnapbackQuery(reference, args) {
+function useSnapbackQueryProjection(reference, args, onLivePublish) {
   const provider = useProvider();
   const lease = useRef(null);
+  const livePublishListener = useRef(onLivePublish);
+  livePublishListener.current = onLivePublish;
+  const observesLivePublish = onLivePublish !== null;
   const churnDetectorRef = useRef(HOOK_CHURN_UNINITIALIZED);
   if (churnDetectorRef.current === HOOK_CHURN_UNINITIALIZED) {
     churnDetectorRef.current = createHookChurnDetector(provider, 'query');
@@ -4557,7 +4609,12 @@ export function useSnapbackQuery(reference, args) {
     [provider, reference, argsKey],
   );
   const subscribe = useCallback((listener) => {
-    const next = provider.registry.subscribe(descriptor, listener, lease.current);
+    const next = provider.registry.subscribe(
+      descriptor,
+      listener,
+      lease.current,
+      observesLivePublish ? () => livePublishListener.current?.() : null,
+    );
     lease.current = next;
     recordCommittedHookDescriptor(churnDetectorRef.current, {
       primaryIdentity: descriptor.key,
@@ -4571,12 +4628,508 @@ export function useSnapbackQuery(reference, args) {
         releasing.release();
       });
     };
-  }, [provider, descriptor]);
+  }, [provider, descriptor, observesLivePublish]);
   return useSyncExternalStore(
     subscribe,
     () => provider.registry.snapshot(descriptor),
     () => (descriptor.skipped ? SKIPPED : SERVER_PENDING),
   );
+}
+
+export function useSnapbackQuery(reference, args) {
+  return useSnapbackQueryProjection(reference, args, null);
+}
+
+function authorityProfileReferences(profile) {
+  if (
+    profile === null
+    || typeof profile !== 'object'
+    || profile.list?.kind !== 'LiveQuery'
+    || profile.myRole?.kind !== 'LiveQuery'
+  ) {
+    throw new TypeError(
+      'authority hooks require a generated profile with list and myRole live references',
+    );
+  }
+  return profile;
+}
+
+function authorityRosterFirstArgs(scopeId, limit) {
+  return Object.freeze({
+    scopeId,
+    ...(limit === undefined ? {} : { page: Object.freeze({ limit }) }),
+  });
+}
+
+function authorityRosterNextArgs(scopeId, limit, cursor) {
+  return Object.freeze({
+    scopeId,
+    page: Object.freeze({
+      after: cursor,
+      ...(limit === undefined ? {} : { limit }),
+    }),
+  });
+}
+
+function authorityReferenceGenerationIdentity(reference) {
+  return canonicalizeClientValueV1({
+    appId: reference.appId,
+    id: reference.id,
+    implementationHash: reference.implementationHash,
+    expectedGeneration: reference.expectedGeneration ?? null,
+  });
+}
+
+function authorityCallerKey(principal) {
+  return canonicalizeClientValueV1(principal);
+}
+
+function useAuthorityCaller(client) {
+  const auth = client?.auth;
+  const subscribe = useCallback(
+    (listener) => (
+      typeof auth?.subscribeCurrentPrincipal === 'function'
+        ? auth.subscribeCurrentPrincipal(listener)
+        : () => {}
+    ),
+    [auth],
+  );
+  const snapshot = useCallback(
+    () => (
+      typeof auth?.currentPrincipal === 'function'
+        ? auth.currentPrincipal()
+        : AUTHORITY_CALLER_UNKNOWN
+    ),
+    [auth],
+  );
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
+}
+
+function emptyAuthorityRosterPage(identity) {
+  return {
+    identity,
+    rows: AUTHORITY_EMPTY_ROWS,
+    cursor: null,
+    loaded: false,
+    loadingInitial: false,
+    loadingMore: false,
+    initialError: null,
+    pageError: null,
+  };
+}
+
+function abortableAuthorityPageQuery(client, reference, args, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(AUTHORITY_PAGE_TASK_ABORTED);
+      return;
+    }
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener('abort', onAbort);
+      callback(value);
+    };
+    const onAbort = () => finish(reject, AUTHORITY_PAGE_TASK_ABORTED);
+    signal.addEventListener('abort', onAbort, { once: true });
+    try {
+      Promise.resolve(client.query(reference, { args, signal })).then(
+        (output) => finish(resolve, output),
+        (error) => finish(reject, error),
+      );
+    } catch (error) {
+      finish(reject, error);
+    }
+  });
+}
+
+function authorityPageOutput(output) {
+  if (!Array.isArray(output?.rows)) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_AUTHORITY_PAGE_INVALID',
+      'authority roster query returned an invalid page',
+    );
+  }
+  if (output.cursor !== undefined && output.cursor !== null && typeof output.cursor !== 'string') {
+    throw diagnosticError(
+      'SNAPBACK_REACT_AUTHORITY_PAGE_INVALID',
+      'authority roster query returned an invalid continuation',
+    );
+  }
+  return Object.freeze({
+    rows: Object.freeze([...output.rows]),
+    cursor: output.cursor ?? null,
+  });
+}
+
+function authorityErrorCode(error) {
+  return error?.diagnostic?.code ?? error?.code ?? null;
+}
+
+/**
+ * Dedicated authority-roster projection over the canonical live query and
+ * one-shot QueryOutput cursor carrier. The server owns cursor meaning; React
+ * only retains the opaque token while scope, caller, and generation identity
+ * remain unchanged.
+ *
+ * @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — generated
+ * profile references remain the only authority API and the dedicated hook
+ * adds lifecycle convenience without a parallel protocol.
+ * @ref LLP 0238#d3-one-observable-handle-grammar — the live reference owns
+ * authorization wakeups and query state; pagination adds controls to that
+ * same projection.
+ * @ref LLP 0053#client-fences — live publications synchronously advance the
+ * request epoch; other accumulator replacements and unmount fence delayed
+ * continuation callbacks through that same epoch.
+ */
+export function useSnapbackAuthorityRoster(profile, scopeId, options = {}) {
+  const references = authorityProfileReferences(profile);
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError('useSnapbackAuthorityRoster options must be an object');
+  }
+  const { limit } = options;
+  if (
+    limit !== undefined
+    && (!Number.isSafeInteger(limit) || limit < 1 || limit > 1_000)
+  ) {
+    throw new TypeError('authority roster limit must be an integer in 1..1000');
+  }
+  const client = useSnapbackProviderClient();
+  const caller = useAuthorityCaller(client);
+  const scopeKey = canonicalHookInputKey(scopeId);
+  const firstArgs = useMemo(
+    () => authorityRosterFirstArgs(scopeId, limit),
+    [scopeKey, limit],
+  );
+  const firstArgsKey = canonicalFunctionArgsKey(references.list, firstArgs);
+  const generationKey = authorityReferenceGenerationIdentity(references.list);
+  const callerKey = authorityCallerKey(caller);
+  const identity = `${generationKey}\u0000${scopeKey}\u0000${callerKey}`;
+  const [page, setPage] = useState(() => emptyAuthorityRosterPage(identity));
+  const [resetRevision, setResetRevision] = useState(0);
+  const requestEpoch = useRef(0);
+  const loadMoreTask = useRef(null);
+  const mounted = useRef(false);
+  const pendingPageTasks = useRef(new Set());
+
+  const invalidateAccumulator = useCallback(() => {
+    requestEpoch.current += 1;
+    for (const controller of pendingPageTasks.current) controller.abort();
+    pendingPageTasks.current.clear();
+    loadMoreTask.current = null;
+    return requestEpoch.current;
+  }, []);
+  const live = useSnapbackQueryProjection(
+    references.list,
+    firstArgs,
+    invalidateAccumulator,
+  );
+  const identityRef = useRef(identity);
+  const pageRef = useRef(page);
+  identityRef.current = identity;
+  pageRef.current = page.identity === identity ? page : emptyAuthorityRosterPage(identity);
+
+  const publishAccumulator = useCallback((next) => {
+    if (!mounted.current) return null;
+    pageRef.current = next;
+    setPage(next);
+    return requestEpoch.current;
+  }, []);
+
+  const replaceAccumulator = useCallback((next) => {
+    invalidateAccumulator();
+    return publishAccumulator(next);
+  }, [invalidateAccumulator, publishAccumulator]);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      invalidateAccumulator();
+    };
+  }, [invalidateAccumulator]);
+
+  useEffect(() => {
+    if (live.status === 'refreshing') {
+      publishAccumulator({
+        ...emptyAuthorityRosterPage(identity),
+        rows: Object.freeze([...live.data]),
+      });
+      return undefined;
+    }
+    if (live.status !== 'ready') {
+      publishAccumulator(emptyAuthorityRosterPage(identity));
+      return undefined;
+    }
+    const epoch = publishAccumulator({
+      ...emptyAuthorityRosterPage(identity),
+      rows: Object.freeze([...live.data]),
+      loadingInitial: true,
+    });
+    if (epoch === null) return undefined;
+    const controller = new AbortController();
+    pendingPageTasks.current.add(controller);
+    void abortableAuthorityPageQuery(
+      client,
+      references.list,
+      firstArgs,
+      controller.signal,
+    ).then((output) => {
+      if (
+        !mounted.current
+        || controller.signal.aborted
+        || requestEpoch.current !== epoch
+        || identityRef.current !== identity
+      ) {
+        return;
+      }
+      const initial = authorityPageOutput(output);
+      replaceAccumulator({
+        ...emptyAuthorityRosterPage(identity),
+        rows: initial.rows,
+        cursor: initial.cursor,
+        loaded: true,
+      });
+    }).catch((error) => {
+      if (
+        error === AUTHORITY_PAGE_TASK_ABORTED
+        || !mounted.current
+        || controller.signal.aborted
+        || requestEpoch.current !== epoch
+        || identityRef.current !== identity
+      ) {
+        return;
+      }
+      replaceAccumulator({
+        ...emptyAuthorityRosterPage(identity),
+        initialError: serializeError(error),
+      });
+    }).finally(() => {
+      pendingPageTasks.current.delete(controller);
+    });
+    return () => {
+      controller.abort();
+      pendingPageTasks.current.delete(controller);
+    };
+  }, [
+    client,
+    references.list,
+    firstArgsKey,
+    identity,
+    live,
+    publishAccumulator,
+    resetRevision,
+  ]);
+
+  const reset = useCallback(() => {
+    if (!mounted.current) return;
+    replaceAccumulator(emptyAuthorityRosterPage(identityRef.current));
+    setResetRevision((revision) => revision + 1);
+  }, [replaceAccumulator]);
+
+  const loadMore = useCallback(() => {
+    if (loadMoreTask.current !== null) return loadMoreTask.current;
+    const capturedIdentity = identityRef.current;
+    const current = pageRef.current;
+    if (!current.loaded || current.cursor === null) {
+      return Promise.resolve(Object.freeze({ status: 'complete' }));
+    }
+    const cursor = current.cursor;
+    const epoch = replaceAccumulator({
+      ...current,
+      loadingMore: true,
+      pageError: null,
+    });
+    if (epoch === null) {
+      return Promise.resolve(Object.freeze({ status: 'reset', reason: 'identity-changed' }));
+    }
+    const controller = new AbortController();
+    pendingPageTasks.current.add(controller);
+    const task = abortableAuthorityPageQuery(
+      client,
+      references.list,
+      authorityRosterNextArgs(scopeId, limit, cursor),
+      controller.signal,
+    ).then((output) => {
+      if (
+        !mounted.current
+        || controller.signal.aborted
+        || requestEpoch.current !== epoch
+        || identityRef.current !== capturedIdentity
+      ) {
+        return Object.freeze({ status: 'reset', reason: 'identity-changed' });
+      }
+      const next = authorityPageOutput(output);
+      const value = pageRef.current;
+      if (value.identity !== capturedIdentity) {
+        return Object.freeze({ status: 'reset', reason: 'identity-changed' });
+      }
+      replaceAccumulator({
+        ...value,
+        rows: Object.freeze([...value.rows, ...next.rows]),
+        cursor: next.cursor,
+        loadingMore: false,
+        pageError: null,
+      });
+      return Object.freeze({
+        status: 'appended',
+        rows: next.rows.length,
+        cursor: next.cursor,
+        hasMore: next.cursor !== null,
+      });
+    }).catch((error) => {
+      if (
+        error === AUTHORITY_PAGE_TASK_ABORTED
+        || !mounted.current
+        || controller.signal.aborted
+        || requestEpoch.current !== epoch
+        || identityRef.current !== capturedIdentity
+      ) {
+        return Object.freeze({ status: 'reset', reason: 'identity-changed' });
+      }
+      if (authorityErrorCode(error) === AUTHORITY_CURSOR_INVALID) {
+        reset();
+        return Object.freeze({ status: 'reset', reason: 'cursor-invalid' });
+      }
+      const value = pageRef.current;
+      if (value.identity !== capturedIdentity) {
+        return Object.freeze({ status: 'reset', reason: 'identity-changed' });
+      }
+      replaceAccumulator({
+        ...value,
+        loadingMore: false,
+        pageError: serializeError(error),
+      });
+      throw error;
+    }).finally(() => {
+      pendingPageTasks.current.delete(controller);
+      if (loadMoreTask.current === task) loadMoreTask.current = null;
+    });
+    loadMoreTask.current = task;
+    return task;
+  }, [client, references.list, scopeKey, limit, replaceAccumulator, reset]);
+
+  const currentPage = page.identity === identity ? page : emptyAuthorityRosterPage(identity);
+  return useMemo(() => {
+    const controls = {
+      cursor: currentPage.cursor,
+      hasMore: currentPage.cursor !== null,
+      loadingInitial: currentPage.loadingInitial,
+      loadingMore: currentPage.loadingMore,
+      pageError: currentPage.pageError,
+      loadMore,
+      reset,
+    };
+    if (currentPage.initialError !== null) {
+      return Object.freeze({
+        status: 'error',
+        data: undefined,
+        error: currentPage.initialError,
+        connection: live.connection,
+        freshness: 'unknown',
+        answerClass: 'unknown',
+        retention: live.retention,
+        optimisticPresentation: null,
+        ...controls,
+      });
+    }
+    if (!['ready', 'refreshing'].includes(live.status)) {
+      return Object.freeze({ ...live, ...controls });
+    }
+    return Object.freeze({
+      ...live,
+      data: currentPage.loaded ? currentPage.rows : live.data,
+      ...controls,
+    });
+  }, [currentPage, live, loadMore, reset]);
+}
+
+/** The caller's generated role/status row, projected as one nullable value. */
+export function useSnapbackAuthorityMyRole(profile, scopeId) {
+  const references = authorityProfileReferences(profile);
+  const state = useSnapbackQuery(references.myRole, { scopeId });
+  return useMemo(() => {
+    if (!['ready', 'refreshing'].includes(state.status)) return state;
+    return Object.freeze({ ...state, data: state.data[0] ?? null });
+  }, [state]);
+}
+
+/** Authority mutation dispatch with post-commit transition receipts retained. */
+export function useSnapbackAuthorityMutation(reference) {
+  const provider = useProvider();
+  const admitted = useMemo(
+    () => provider.registry.mutationReference(reference),
+    [provider, reference],
+  );
+  return useCallback(async (args) => {
+    try {
+      return await provider.registry.runMutation(
+        admitted,
+        args,
+        null,
+        { authorityTransitions: true },
+      );
+    } catch (error) {
+      throw asSnapbackDiagnosticError(error, {
+        operation: 'authority-mutation',
+        refKind: 'Mutation',
+        fallbackCode: 'SNAPBACK_AUTHORITY_MUTATION_REFUSED',
+      });
+    }
+  }, [provider, admitted]);
+}
+
+function projectAuthorityMutationDisposition(disposition) {
+  if (disposition?.status !== 'settled') return disposition;
+  return Object.freeze({
+    ...disposition,
+    settlement: Object.freeze({
+      ...disposition.settlement,
+      authorityTransitions: Object.freeze([
+        ...(disposition.settlement?.authorityTransitions ?? []),
+      ]),
+    }),
+  });
+}
+
+/** Live durable settlement/refusal projection for a queued authority intent. */
+export function useSnapbackAuthorityMutationStatus(clientMutationId) {
+  const client = useSnapbackProviderClient();
+  if (
+    clientMutationId !== null
+    && clientMutationId !== undefined
+    && (typeof clientMutationId !== 'string' || clientMutationId.length === 0)
+  ) {
+    throw new TypeError('authority mutation status requires a non-empty mutation id');
+  }
+  if (
+    clientMutationId !== null
+    && clientMutationId !== undefined
+    && typeof client.subscribeMutation !== 'function'
+  ) {
+    throw asSnapbackDiagnosticError(
+      diagnosticError(
+        'SNAPBACK_REACT_OUTBOX_AFFORDANCE_UNSUPPORTED',
+        'the bound client does not expose subscribeMutation',
+      ),
+      { operation: 'authority-mutation-status' },
+    );
+  }
+  const store = useMemo(() => {
+    let snapshot = AUTHORITY_MUTATION_UNKNOWN;
+    return Object.freeze({
+      getSnapshot: () => snapshot,
+      subscribe(listener) {
+        if (clientMutationId === null || clientMutationId === undefined) return () => {};
+        return client.subscribeMutation(clientMutationId, (disposition) => {
+          snapshot = projectAuthorityMutationDisposition(disposition);
+          listener();
+        });
+      },
+    });
+  }, [client, clientMutationId]);
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 }
 
 export function useSnapbackPresence(reference, options) {

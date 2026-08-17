@@ -70,13 +70,10 @@ if (group.queries.feed.status === 'ready') {
   group.queries.feed.data[0]?.body.toUpperCase();
 }
 const realGeneratedGroup = useSnapbackQueries(generatedBackendBakeoff);
-if (realGeneratedGroup.queries.listMyRooms.status === 'ready') {
-  realGeneratedGroup.queries.listMyRooms.data[0]?.displayName.toUpperCase();
-}
 if (realGeneratedGroup.queries.unreadDeliveries.status === 'ready') {
   realGeneratedGroup.queries.unreadDeliveries.data[0]?.body.toUpperCase();
 }
-// @ts-expect-error the real generated route declaration has exactly two keys.
+// @ts-expect-error the real generated route declaration has exactly one key.
 realGeneratedGroup.queries.roomMessages;
 
 const create = useSnapbackMutation(createTodo);

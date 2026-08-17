@@ -3208,6 +3208,9 @@ async function generateInProcessLocked({
       || compareOptionalCodeUnitLists(left.fields, right.fields)
     ));
   };
+  // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — the
+  // operation descriptor truthfully names both generic and dedicated client
+  // projections; those names do not add another generated operation.
   const authorityOperationsForMembership = (membership) => {
     const transitions = membership.transitions ?? [];
     const activeRoles = membership.roles ?? [];
@@ -3235,14 +3238,14 @@ async function generateInProcessLocked({
         name: 'list',
         kind: 'LiveQuery',
         authRequirement: 'authenticated',
-        hooks: ['useSnapbackQuery'],
+        hooks: ['useSnapbackQuery', 'useSnapbackAuthorityRoster'],
         transitionOps: [],
       },
       {
         name: 'myRole',
         kind: 'LiveQuery',
         authRequirement: 'authenticated',
-        hooks: ['useSnapbackQuery'],
+        hooks: ['useSnapbackQuery', 'useSnapbackAuthorityMyRole'],
         transitionOps: [],
       },
     ];
@@ -3250,7 +3253,12 @@ async function generateInProcessLocked({
       name,
       kind: 'Mutation',
       authRequirement: 'authenticated',
-      hooks: ['useSnapbackMutation', 'useSnapbackOutbox.mutationStatus'],
+      hooks: [
+        'useSnapbackMutation',
+        'useSnapbackAuthorityMutation',
+        'useSnapbackOutbox.mutationStatus',
+        'useSnapbackAuthorityMutationStatus',
+      ],
       transitionOps,
     });
     if (inviteRoles.length > 0) addMutation('invite', ['insert']);

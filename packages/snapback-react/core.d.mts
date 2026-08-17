@@ -24,6 +24,10 @@ export {
   projectRecordFields,
   skip,
   useEphemeralRepublisher,
+  useSnapbackAuthorityMutation,
+  useSnapbackAuthorityMutationStatus,
+  useSnapbackAuthorityMyRole,
+  useSnapbackAuthorityRoster,
   useSnapbackConnection,
   useSnapbackDiagnostics,
   useSnapbackMutation,
@@ -37,6 +41,12 @@ export {
 } from './index.mjs';
 
 export type {
+  AuthorityMyRoleRow,
+  AuthorityProfileReferences,
+  AuthorityProfileScopeId,
+  AuthorityRosterLoadMoreOutcome,
+  AuthorityRosterRow,
+  AuthorityRosterState,
   ConnectionEphemeralCollectionReference,
   MutationReference,
   OptimisticCreateEntity,
@@ -67,6 +77,8 @@ export type {
   SnapbackQueryGroupObserver,
   SnapbackReactCoreProvider as SnapbackReactProvider,
   SnapbackRetention,
+  SnapbackAuthorityMutationDispatchOutcome,
+  SnapbackAuthorityMutationDisposition,
 } from './index.mjs';
 
 export function createSnapbackReactProvider(
