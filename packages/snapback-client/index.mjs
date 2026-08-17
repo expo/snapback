@@ -13543,6 +13543,21 @@ export class SnapbackClient {
     const bridgingSettlementEvidence = new Map();
     let lastAuthoritativeDetail = null;
 
+    // Authority fencing annotates each delivered row with a non-enumerable
+    // symbol. Keep that metadata on the live handle, but never feed it into
+    // the optimistic engine's CanonicalClientValueV1 boundary: the engine
+    // consumes the public row projection, not transport-private custody.
+    // This is required for public rows too when the client advertises auth
+    // invalidation v1, because their request/response still carries an
+    // authority capture even though no authorization scope is installed.
+    // @ref LLP 0053#client-fences — capture metadata fences publication; it
+    //   is not part of an authority-independent query's canonical answer.
+    const optimisticAuthoritativeRows = () => authoritativeRows.map((row) => (
+      row !== null && typeof row === 'object' && !Array.isArray(row)
+        ? { ...row }
+        : row
+    ));
+
     const closeAutomaticOptimisticView = () => {
       automaticOptimisticViewGeneration += 1;
       automaticOptimisticViewUnsubscribe?.();
@@ -13681,7 +13696,7 @@ export class SnapbackClient {
       suppressOptimisticViewNotification = true;
       try {
         await view.rebase({
-          authoritativeRows: { [optimisticTable]: authoritativeRows },
+          authoritativeRows: { [optimisticTable]: optimisticAuthoritativeRows() },
           retiredSettlementIdentities: retirements.retired,
           settlementIdReplacements: retirements.idReplacements,
           connected: connection === 'live' || connection === 'polling',
@@ -13704,7 +13719,7 @@ export class SnapbackClient {
       const openingGeneration = automaticOptimisticViewGeneration;
       const opening = client
         .__createGeneratedOptimisticMaterializationView({
-          authoritativeRows: { [optimisticTable]: authoritativeRows },
+          authoritativeRows: { [optimisticTable]: optimisticAuthoritativeRows() },
           connected: connection === 'live' || connection === 'polling',
           materializationIdentity: optimisticMaterializationIdentity,
           table: optimisticTable,

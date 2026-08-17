@@ -1,81 +1,131 @@
-# Auth-invalidation client advertisement report
+# Public live-subscription regression report
 
-**Date:** 2026-08-16
-**Ticket:** `issues/closed/20260816-react-provider-missing-auth-invalidation-protocol.md`
+**Date:** 2026-08-17
+**Requested commit:** `fix(client): accept live subscriptions under the v1 invalidation protocol`
 
 ## Outcome
 
-`SnapbackClient` now advertises authorization-invalidation protocol v1 by
-default, so headless, React, and Expo/app-data arms inherit the capability.
-Passing `authInvalidationProtocol: null` is the explicit legacy embedded
-integration opt-out. React surfaces protocol/profile negotiation refusals as
-terminal diagnostics and does not retry unchanged mounted demand.
+Fixed the real React starter regression. A default-advertising application
+client can now establish a public/anonymous generated live query from either a
+fresh snapshot or a rowless `current_as_of` answer. The React provider retains
+one accepted handle, projects `Connection: live`, and does not enter its
+subscribe retry ladder.
 
-## Promise verification
+Auth-scoped v1 behavior is unchanged: query namespaces, authorization scopes,
+invalidation fences, quarantine/delete handling, durable custody, and ACK
+ordering still operate on the original authority-marked rows.
 
-The default was enabled only after checking LLP 0053's invalidation
-obligation, LLP 0095's transition catalogue, LLP 0096's `auth/live` profile,
-and the server refusal paths in `src/server.rs` and `src/local.rs`.
+## Root cause
 
-The server assumes a v1 client will:
+The default v1 client uses an `AuthCoordinator`, so successful responses carry
+an internal authority capture. `liveQuery()` intentionally attaches that
+capture to its row array and each row as a non-enumerable symbol. Generated
+single-table queries also open the ordinary optimistic-presentation view, even
+when no mutation is currently pending.
 
-- offer v1 at connection open and on every sessions live lifecycle request;
-- give auth-scoped materializations a stable authorization namespace;
-- consume invalidations from both live-stream and polled delivery;
-- quarantine affected rows before they can be observed;
-- install the replacement snapshot or terminal deletion before acknowledging;
-- retain per-scope invalidation high-water state; and
-- synchronously blank prior-principal memory and remove selected durable
-  materializations across an authority transition.
+The optimistic rebase boundary was given those transport-private row objects
+directly. `CanonicalClientValueV1` correctly rejected the symbol at
+`$.todos` with `SNAPBACK_REACT_ARGS_INVALID`. This happened after the server
+had already accepted the subscription and after query rows could be projected,
+so React observed a rejected `handle.started()`, removed the handle, and
+scheduled its 250 ms -> 10 s subscribe retry ladder. Each later
+`current_as_of` consequently named a handle React had already abandoned. The
+leaf query could transiently say `live`, while the aggregate connection stayed
+`idle` with zero accepted subscriptions—the exact captured symptom.
 
-The library implements all of those duties in `SnapbackClient.liveQuery`, its
-authorization-invalidation fence/ACK state machine, auth materialization
-registration, and the auth transport participant used by principal changes.
-No application callback, React hook, or provider-specific behavior is needed.
-The capability advertisement is therefore truthful without app cooperation.
+The fix preserves authority metadata on the live handle and passes shallow
+enumerable row projections into the optimistic engine at initial-view and
+rebase boundaries. The private capture symbol is therefore still available to
+the v1 publication fence but is no longer misclassified as application data.
 
-## Implementation evidence
+## Regression coverage
 
-- The `SnapbackClient` constructor defaults `authInvalidationProtocol` to `1`.
-- External-session and app-data factories no longer overwrite an explicit
-  `null`, so all arms inherit the library default while preserving opt-out.
-- Public declarations expose `authInvalidationProtocol?: 1 | null` and
-  document `null` as the legacy embedded-integration escape hatch.
-- HTTP 400 protocol/profile negotiation refusals are marked non-retryable by
-  the client and classified as terminal by the React registry.
-- A terminal React subscribe publishes an error snapshot, records the
-  provider diagnostic, and holds a timer-free failure sentinel until demand is
-  deliberately released/remounted.
-- The React starter was not changed: no option remains app-visible by default.
+`packages/snapback-react/cold-boot-binding.test.mjs` now exercises the full
+shape that was missing:
+
+- a real `SnapbackClient` with the library-default invalidation protocol;
+- an anonymous authority handshake and an authority-independent public query;
+- a generated single-table composition, engaging ordinary optimistic
+  presentation;
+- retained rows followed by a rowless subscribe response and a WebSocket
+  `current_as_of` frame;
+- the real React provider registry and connection aggregate; and
+- assertions for `live`, exactly one active handle, one subscribe POST, and
+  inherited v1 open/header advertisement.
 
 ## VERIFY (verbatim)
 
-- `packages/snapback-client package.test.mjs + tsc fixtures`: PASS.
-  - `node packages/snapback-client/package.test.mjs`
-  - `node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler packages/snapback-client/exact-reference-types.fixture.ts packages/snapback-client/push-registry-types.fixture.ts packages/snapback-client/auth-identity-types.fixture.ts packages/snapback-client/app-client-types.fixture.ts`
-- `packages/snapback-react full suite`: PASS under the repository's canonical
-  Node 24 after process-isolating the three fixture-generation prerequisites,
-  then running `commands.test.mjs` and the complete package `test` script body
-  with `npm test --ignore-scripts`. Every React JavaScript test and every
-  TypeScript fixture passed.
-  - Qualification: the unmodified `prepare-type-fixtures.mjs` entrypoint runs
-    multiple `generate()` calls in one process and currently fails before the
-    React suite with
-    `SNAPBACK_CODEGEN_DEFINITION_OBJECT_PROTOTYPE_INVALID` on
-    `tests/fixtures/familiar-todo-explicit`. Each identical generator job
-    passes in its own process. This ambient pretest defect is outside the auth
-    change; it was not hidden or changed here.
-- `snapback-cli template static acceptance if it pins provider wiring`: PASS.
-  - `node packages/snapback-cli/templates/react/acceptance.static.mjs`
-- `node --check on changed files`: PASS for every changed `.mjs` implementation
-  and test file.
+### Regression test: red before / green after
 
-Additional affected-scope checks:
+Test-only change, before the implementation fix:
 
-- `node scripts/check-guide.mjs`: PASS (19 checks; freshness warnings only).
-- `./ref-check --verbose`: PASS (0 errors, 0 unchecked).
-- `./scripts/check-generated-artifacts`: PASS.
-- Focused real-wire provider test: PASS; connection open and live subscribe
-  both carry invalidation v1 without provider/app configuration.
-- Focused terminal-refusal regression: PASS; one attempt, surfaced diagnostic,
-  and no retries across render churn plus 120 seconds of simulated time.
+```text
+$ node packages/snapback-react/cold-boot-binding.test.mjs
+AssertionError [ERR_ASSERTION]: the accepted handle enters the provider connection aggregate
+actual:   { status: 'idle', diagnostic: null, activeSubscriptions: 0 }
+expected: { status: 'live', diagnostic: null, activeSubscriptions: 1 }
+```
+
+After the implementation fix:
+
+```text
+$ node packages/snapback-react/cold-boot-binding.test.mjs
+snapback-react cold-boot binding tests: ok
+```
+
+The packed-starter diagnostic also reproduced repeated rejected starts with:
+
+```text
+SNAPBACK_REACT_ARGS_INVALID: React query arguments are not a CanonicalClientValueV1: symbol object key
+details: { reason: 'symbol object key', path: '$.todos' }
+```
+
+### Requested client checks
+
+```text
+$ SNAPBACK_CLIENT_RQS_DIR=/private/tmp/snapback-rel0124-client-package-rqs node packages/snapback-client/package.test.mjs
+package.test.mjs: packaged client exports are consumable
+PASS
+
+$ node packages/snapback-client/authorization-invalidation.test.mjs
+tests 7; pass 7; fail 0
+PASS
+
+$ node packages/snapback-client/subscribe-retry.test.mjs
+tests 3; pass 3; fail 0
+PASS
+```
+
+The first `package.test.mjs` invocation without the override was blocked by the
+managed filesystem when the default store tried to create
+`/Users/ccheever/.snapback/rqs/...lock` (`EPERM`). The rerun above uses the
+client's supported store-directory setting and passed. No product assertion
+failed in the blocked invocation.
+
+### React full suite
+
+```text
+$ cd packages/snapback-react
+$ SNAPBACK_CLIENT_RQS_DIR=/private/tmp/snapback-rel0124-react-suite-rqs npm test
+exit 0
+PASS
+```
+
+This ran the package pretest, every JavaScript test—including
+`authorization-denial`, `auth-blocked-resource`, `subscribe-retry`, the new
+`cold-boot-binding` case, lifecycle/HMR/assets/offline coverage—and the strict
+TypeScript fixture check.
+
+### Syntax and reference checks
+
+```text
+$ node --check packages/snapback-client/index.mjs
+PASS
+$ node --check packages/snapback-react/cold-boot-binding.test.mjs
+PASS
+$ git diff --check
+PASS
+$ ./ref-check --verbose
+ref-check: ok — 275 LLP docs, 6527 refs in 11622 files, 0 errors, 0 unchecked
+PASS
+```

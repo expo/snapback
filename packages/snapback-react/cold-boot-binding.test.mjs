@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 
-import { createExternalSessionClient } from '../snapback-client/index.mjs';
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '@expo/snapback-contract/auth-coordinator';
+
+import { SnapbackClient, createExternalSessionClient } from '../snapback-client/index.mjs';
 import { createMemoryRqsResumeStore } from '../snapback-client/rqs-store-memory.mjs';
 import { rqsEntryKey } from '../snapback-client/rqs-store.mjs';
 import { argsHash, digestOfRows } from '../snapback-client/rqs.mjs';
@@ -55,6 +60,22 @@ const cellsDefinition = Object.freeze({
   resultContractHash: resultContractHash(queryContract),
   resultContract: queryContract,
   authorityIndependent: true,
+  // Match the generated single-table references used by starters. This
+  // engages the ordinary optimistic-presentation view even when no mutation
+  // is pending, which is where authority metadata must remain private.
+  composition: Object.freeze({
+    normalizedCompositePlan: Object.freeze({
+      nodes: Object.freeze([
+        Object.freeze({
+          nodePlan: Object.freeze({
+            normalizedPlan: Object.freeze({
+              query: Object.freeze({ table: 'cells' }),
+            }),
+          }),
+        }),
+      ]),
+    }),
+  }),
 });
 const functions = Object.freeze({
   artifactKind: 'functionManifest',
@@ -193,14 +214,33 @@ const resume = Object.freeze({
 });
 
 const onlineRequests = [];
+let rowlessWire = null;
 const onlineFetch = async (url, init = {}) => {
-  const path = new URL(url).pathname;
+  const parsedUrl = new URL(url);
+  const path = parsedUrl.pathname;
   onlineRequests.push({
     path,
     headers: new Headers(init.headers),
     body: init.body === undefined ? null : JSON.parse(init.body),
   });
-  if (path === '/auth/session') return Response.json(handshake);
+  if (path === '/auth/session') {
+    return Response.json(parsedUrl.hostname === 'public-current-as-of.test'
+      ? {
+          ...handshake,
+          authority: {
+            kind: 'anonymous',
+            userId: null,
+            sessionId: null,
+            isAuthenticated: false,
+          },
+          authorityDescriptor: {
+            descriptorVersion: 1,
+            authorityInstanceId: INCARNATION,
+            sessionGeneration: 0,
+          },
+        }
+      : handshake);
+  }
   if (path === '/inspect') {
     return Response.json({
       targetProfileId: PROFILE,
@@ -219,6 +259,23 @@ const onlineFetch = async (url, init = {}) => {
     });
   }
   if (path === '/live/cells/subscribe') {
+    if (rowlessWire !== null) {
+      const subscriptionId = `sub-cells-rowless-${rowlessWire.subscribeCalls + 1}`;
+      rowlessWire.subscribeCalls += 1;
+      setTimeout(() => rowlessWire.socket?.emit('message', {
+        data: JSON.stringify({
+          kind: 'current_as_of',
+          subscription_id: subscriptionId,
+          function: 'cells',
+          version: 5,
+          resume,
+        }),
+      }), 10);
+      return Response.json({
+        subscription_id: subscriptionId,
+        facts: { activeGeneration: descriptorCellsReference.expectedGeneration },
+      });
+    }
     return Response.json({
       subscription_id: 'sub-cells-1',
       snapshot: { version: 5, rows: ROWS },
@@ -270,6 +327,7 @@ class ProviderWireWebSocket {
   constructor() {
     this.listeners = new Map();
     this.readyState = 0;
+    if (rowlessWire !== null) rowlessWire.socket = this;
     queueMicrotask(() => {
       this.readyState = 1;
       this.emit('open', {});
@@ -300,13 +358,22 @@ class ProviderWireWebSocket {
 globalThis.fetch = onlineFetch;
 globalThis.WebSocket = ProviderWireWebSocket;
 let wireClient = null;
+let wireCoordinator = null;
 let wireProvider = null;
 let wireObserver = null;
 try {
   onlineRequests.length = 0;
-  wireClient = createExternalSessionClient('http://cold-boot-binding.test', {
-    bearerToken: BEARER,
-    rqsStore: createMemoryRqsResumeStore(),
+  rowlessWire = { socket: null, subscribeCalls: 0 };
+  wireCoordinator = new AuthCoordinator({
+    appId: APP_ID,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  wireClient = new SnapbackClient('http://public-current-as-of.test', {
+    authCoordinator: wireCoordinator,
+    authClientProtocol: 1,
+    rqsStore: store,
   });
   const wireBinding = await wireClient.prepareReactBinding({ generatedManifest });
   wireProvider = createSnapbackReactProvider(wireBinding, { connectionId: 'provider-wire' });
@@ -317,11 +384,23 @@ try {
   );
   await flush();
   await flush();
+  await new Promise((resolve) => setTimeout(resolve, 600));
   assert.equal(
     wireObserver.snapshot().queries.cells.status,
     'ready',
     'the real provider live path establishes successfully',
   );
+  assert.equal(
+    wireObserver.snapshot().queries.cells.connection,
+    'live',
+    'a public CurrentAsOf answer admits the provider as live',
+  );
+  assert.deepEqual(
+    wireProvider.registry.aggregateConnection(),
+    { status: 'live', diagnostic: null, activeSubscriptions: 1 },
+    'the accepted handle enters the provider connection aggregate',
+  );
+  assert.equal(rowlessWire.subscribeCalls, 1, 'CurrentAsOf does not trigger a resubscribe loop');
   const wireOpen = onlineRequests.find(({ path }) => path === '/connection/open');
   const wireSubscribe = onlineRequests.find(({ path }) => path === '/live/cells/subscribe');
   assert.equal(
@@ -338,6 +417,8 @@ try {
   wireObserver?.dispose();
   await wireProvider?.dispose();
   await wireClient?.close();
+  await wireCoordinator?.close();
+  rowlessWire = null;
   globalThis.WebSocket = originalWebSocket;
   globalThis.fetch = originalFetch;
 }
