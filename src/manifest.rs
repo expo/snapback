@@ -3487,6 +3487,7 @@ impl FunctionManifest {
             }
 
             validate_protected_query_profile(function)?;
+            validate_custom_authorization(function)?;
             validate_authority_independent(function)?;
             validate_public_inline(function)?;
             validate_retainable_query(function)?;
@@ -5359,6 +5360,94 @@ fn validate_known_v1_capabilities<'a>(
                 format!("unknown required target capability {capability}"),
             )
         })?;
+    }
+    Ok(())
+}
+
+fn validate_custom_authorization(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let Some(custom) = &function.custom_authorization else {
+        return Ok(());
+    };
+    let invalid = |reason: &str| {
+        SnapbackError::error(
+            "SNAPBACK_CUSTOM_AUTHORIZATION_MANIFEST_INVALID",
+            "auth",
+            format!(
+                "function {} has invalid custom authorization: {reason}",
+                function.name
+            ),
+        )
+    };
+    if !matches!(
+        function.kind,
+        FunctionKind::Query | FunctionKind::LiveQuery | FunctionKind::Mutation
+    ) || !matches!(function.runtime, FunctionRuntime::IbexModule(_))
+    {
+        return Err(invalid(
+            "only query/live-query/mutation Ibex handlers are admitted",
+        ));
+    }
+    if function.effective_auth_requirement() != AuthRequirement::Authenticated {
+        return Err(invalid(
+            "the operation must require an authenticated principal",
+        ));
+    }
+    if function.retainable
+        || custom.offline != "none"
+        || custom.sync != "coarse-global"
+        || custom.input_completeness != "unproven"
+        || custom.pushdown != "none"
+        || custom.retention != "none"
+        || custom.precise_invalidation
+    {
+        return Err(invalid(
+            "coarse-global must remain online-only with no pushdown, retention, precise invalidation, or completeness claim",
+        ));
+    }
+    let expected_wake_universe = vec![
+        "membership-relation-insert-update-delete".to_owned(),
+        "protected-resource-row-insert-update-delete".to_owned(),
+        "effective-principal-or-auth-context-change".to_owned(),
+        "authority-profile-generation-activation".to_owned(),
+    ];
+    if custom.coarse_global_wake_universe != expected_wake_universe {
+        return Err(invalid(
+            "the coarse-global wake universe is not the closed LLP 0240 set",
+        ));
+    }
+    if custom.inputs.is_empty()
+        || custom.inputs.iter().any(|input| {
+            input.kind != "table"
+                || !is_user_identifier(&input.table)
+                || input.subject != "ctx.auth.userId"
+                || input.key.is_empty()
+                || input.key.iter().any(|field| !is_user_identifier(field))
+                || input.key.iter().collect::<BTreeSet<_>>().len() != input.key.len()
+                || !function.read_set_summary.tables.contains(&input.table)
+        })
+    {
+        return Err(invalid(
+            "policy inputs are empty, malformed, repeated, or outside the read set",
+        ));
+    }
+    let digest = custom
+        .evaluator_identity
+        .strip_prefix("sha256:")
+        .unwrap_or_default();
+    if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(invalid("evaluatorIdentity is not a sha256 digest"));
+    }
+    let dimensions = function
+        .authorization_dependence
+        .iter()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    if !dimensions.contains(&AuthorizationInputDimension::UserId)
+        || !dimensions.contains(&AuthorizationInputDimension::Opaque)
+    {
+        return Err(invalid(
+            "authorizationDependence must disclose userId and opaque",
+        ));
     }
     Ok(())
 }
@@ -9206,6 +9295,37 @@ pub struct FunctionWritePolicyV1 {
     pub declared_table_ceiling: Option<Vec<String>>,
 }
 
+/// One declared backing-table input to an opaque custom authorization
+/// evaluator. This is review evidence and wake input, never a completeness or
+/// pushdown claim.
+///
+/// @ref LLP 0240#d4-custom-function-mediated-authority-has-an-honest-declaration
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CustomAuthorizationPolicyInputV1 {
+    pub kind: String,
+    pub table: String,
+    pub subject: String,
+    pub key: Vec<String>,
+}
+
+/// Closed coarse-global custom authorization fact emitted beside an Ibex
+/// operation. Strings that describe unproved properties are fixed literals
+/// validated at activation; they are not author-extensible vocabularies.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CustomAuthorizationV1 {
+    pub offline: String,
+    pub sync: String,
+    pub inputs: Vec<CustomAuthorizationPolicyInputV1>,
+    pub input_completeness: String,
+    pub pushdown: String,
+    pub retention: String,
+    pub precise_invalidation: bool,
+    pub coarse_global_wake_universe: Vec<String>,
+    pub evaluator_identity: String,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FunctionDefinition {
@@ -9405,6 +9525,15 @@ pub struct FunctionDefinition {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub authorization_dependence: Vec<AuthorizationInputDimension>,
+    /// Opaque function-mediated authority remains private manifest authority:
+    /// the public function projection deliberately omits its policy topology.
+    #[serde(
+        default,
+        rename = "customAuthorization",
+        alias = "custom_authorization",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub custom_authorization: Option<CustomAuthorizationV1>,
     /// Authority-profile generations mechanically referenced by this
     /// function's compiled membership predicates or membership-table writes.
     /// Authors cannot supply this field; codegen derives it alongside
@@ -9513,6 +9642,7 @@ impl FunctionDefinition {
             refusals: Vec::new(),
             tracked_refusals: Vec::new(),
             authorization_dependence: Vec::new(),
+            custom_authorization: None,
             authority_profile_dependence: Vec::new(),
             generated_authority_operation: None,
             syncability_class: Some(syncability_class.to_owned()),
@@ -10310,6 +10440,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             refusals: _,
             tracked_refusals: _,
             authorization_dependence,
+            custom_authorization: _,
             authority_profile_dependence,
             generated_authority_operation,
             syncability_class,

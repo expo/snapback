@@ -3,14 +3,14 @@ title: Scoped roles and memberships
 id: auth.scoped-roles
 order: 5
 audience: agent-first
-capabilities: [auth.scoped-roles, authority.profile.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
-examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen/rbac-authoring.test.mjs]
+capabilities: [auth.scoped-roles, authority.profile.v1, authority.custom.coarse-global, authority.inspection.v1]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/admin.rs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
+examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen/custom-authorization.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:25bdca3cfd5d6843c705816a3e529fe5bb7cfa6cb279772af41580c6f53b1eaa
+reviewed-authorities-digest: sha256:c4978542d3184b50789dde574d70e83214609204f5e9767ede6470c5557cbaf7
 ---
 
 # Scoped roles and memberships
@@ -299,6 +299,35 @@ Composition with membership-visible search or asset sharing fails generation wit
 `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS`; hosted targets fail
 with `SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_TARGET`.
 
+### Search one profile scope
+
+A membership-visible search index may name the profile's declaration and
+minimum role. Codegen closes that role through the canonical profile lattice
+and lowers it directly into the existing membership search plan—there is no
+second generated visibility policy to keep in sync.
+
+```js source=demos/rbac/snapback/functions.mjs
+export const searchAnnouncements = defineSearchQuery({
+  auth: 'authenticated',
+  table: announcements,
+  index: 'search_announcements',
+  resourceArg: 'appId',
+});
+```
+
+The corresponding index on `announcements` declares
+`visibility: { kind: 'membership', declaration: 'appAccess', resourceField:
+'appId', roles: ['member'] }`. Each call supplies exactly one `appId`. Active
+members search that partition; an outsider gets the same empty page as a
+missing scope, and a membership revocation stops subsequent results under the
+ordinary authorization invalidation semantics. Roster visibility is not
+widened: stored search fields come only from the index's explicit
+`storedFields`, never from the private membership row.
+
+See [Portable indexed text search](../backend/text-search.md) for query syntax,
+cursor behavior, and bounded refusals. Search remains online-only and is not a
+live-query or retained/offline claim.
+
 ### Admit a named handler once
 
 When a named query or mutation already receives the membership resource as a
@@ -440,6 +469,45 @@ JavaScript catches the thrown error. Multi-hop cases may still call
 `ctx.permissions.<declaration>.requireRole(resource, ...roles)` inside a query
 or mutation transaction. Actions have no transactional read set, so
 `ctx.permissions` is deliberately unavailable there.
+
+### Declare an online-only custom evaluator
+
+Use custom authorization when a finite role predicate cannot express the
+operation's policy. The shipped lane is deliberately conservative:
+
+```js fragment reason="Executable generation, refusal, wake, and authorization-review coverage lives in packages/snapback-codegen/custom-authorization.test.mjs"
+authorization: authorization.custom({
+  inputs: [policyInput.table('documentAccess', {
+    subject: 'ctx.auth.userId',
+    key: ['documentId', 'userId'],
+  })],
+  evaluate: canReadDocument,
+  offline: 'none',
+  sync: 'coarse-global',
+})
+```
+
+The evaluator is source-closed with its inline handler. Its direct
+`ctx.db.elevated` read sites must name the declared input tables, and every
+input needs a witnessed site. Returning false invokes the same trusted terminal
+`SNAPBACK_AUTH_PERMISSION_DENIED` seam as a declared role check, before the
+handler runs.
+
+Generation keeps
+`SNAPBACK_CUSTOM_AUTHORIZATION_INPUT_COMPLETENESS_UNPROVEN` visible and writes
+the operation's input, evaluator identity, offline/sync, pushdown, retention,
+and invalidation facts into `authorization-review.json`. Coarse-global means
+every relevant application or authorization change reauthorizes. It makes no
+pushdown, retention, protected-local-execution, or precise-invalidation claim.
+The local target supplies that conservative wake; an incapable target refuses
+with `SNAPBACK_CUSTOM_AUTHORIZATION_COARSE_WAKE_UNAVAILABLE`.
+
+`sync: 'reauthorize-on-change'` is not a spelling for the same behavior. It
+fails generation with
+`SNAPBACK_CUSTOM_AUTHORIZATION_PRECISE_COMPLETENESS_UNAVAILABLE` because LLP
+0146 does not yet provide enforceable strict input completeness. Do not replace
+the refusal with a free-form declaration or assume that the coarse warning is
+a completeness proof.
 
 ## Choose between filtering and denying
 
@@ -628,6 +696,43 @@ assumption the target was present corrupts product state on the no-op.
 Write companions that are correct in both branches (an attempt log, an
 idempotent display patch), or derive display state from a query instead.
 
+## Inspect effective authority
+
+The local developer/admin API can explain one named principal's effective
+profile branch without exposing a public policy oracle:
+
+```json fragment reason="Closed request shape and byte-identical unauthenticated probes are covered by admin::tests::effective_authority_unauthenticated_probes_are_byte_identical_and_public_inspect_is_clean"
+{
+  "profileId": "appAccess",
+  "profileGeneration": "sha256:...",
+  "principalId": "user_123",
+  "scopeId": "app_456",
+  "target": {
+    "kind": "view",
+    "name": "membership-visible-search",
+    "index": { "table": "announcements", "name": "search_announcements" }
+  }
+}
+```
+
+POST that body to `/_snapback/api/authority/effective` with an administrator
+credential. The registered route is `AdminWrite` and authenticates before JSON
+extraction or lookup. Its response contains only ids, closed role/status and
+decision enums, policy identities, membership row/provenance ids, the exact
+membership and transition-log index plans read, invalidation disposition, the
+LLP 0243 offline reference, the still-refused asset-sharing consequence, and
+the guide/code source paths. It links `snapback.authorization-review.v2` as
+the static half instead of duplicating that generated inventory. A search view
+must name its exact table/index identity; the answer evaluates that index's
+lowered role set, not merely the profile's class-level permission to compose
+with search.
+
+An absent member appears as the closed-default denial with
+`SNAPBACK_AUTH_PERMISSION_DENIED`. Unknown profile/generation probes fail
+through the same role-denial machinery. Unauthenticated probes for different
+principals or scopes are byte-identical, and public `/inspect` contains none of
+these authority facts.
+
 ## Keep the authorization composition seams aligned
 
 An authorized live effect is valid only while all of these captured facts
@@ -681,5 +786,5 @@ coordinator transition.
   app-owned membership table is both product roster and authority relation.
 - **Do not infer unsupported operations from `authorityProfile()`.** A missing
   membership transition means the corresponding mutation reference is absent,
-  not a runtime no-op. Search sharing, asset sharing, hosted profiles, and
+  not a runtime no-op. Asset sharing, hosted profiles, and
   protected offline retention are still outside this surface.

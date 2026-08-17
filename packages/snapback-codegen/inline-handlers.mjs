@@ -1202,6 +1202,7 @@ export function extractInlineHandlers(source, {
     };
   });
   const handlers = new Map();
+  const authorizationEvaluators = new Map();
   const replacements = [];
   const stringExportAliases = new Map();
   for (const statement of sourceFile.statements) {
@@ -1393,6 +1394,152 @@ export function extractInlineHandlers(source, {
     });
   };
 
+  const extractCustomAuthorizationEvaluator = (name, fields) => {
+    const authorizationProperty = fields.get('authorization');
+    if (!authorizationProperty) return null;
+    const authorizationCall = unwrapParentheses(authorizationProperty.initializer);
+    if (
+      !ts.isCallExpression(authorizationCall)
+      || !ts.isPropertyAccessExpression(authorizationCall.expression)
+      || !ts.isIdentifier(authorizationCall.expression.expression)
+      || authorizationCall.expression.expression.text !== 'authorization'
+      || authorizationCall.expression.name.text !== 'custom'
+      || authorizationCall.arguments.length !== 1
+      || !ts.isObjectLiteralExpression(authorizationCall.arguments[0])
+    ) return null;
+    const declaration = authorizationCall.arguments[0];
+    const evaluateMembers = declaration.properties.filter(
+      (member) => authoredPropertyName(member) === 'evaluate',
+    );
+    const evaluateMember = evaluateMembers[0];
+    if (
+      evaluateMembers.length !== 1
+      || !ts.isPropertyAssignment(evaluateMember)
+      || ts.isComputedPropertyName(evaluateMember.name)
+    ) {
+      diagnostics.push(diagnostic(
+        'SNAPBACK_CUSTOM_AUTHORIZATION_EVALUATOR_FORM_UNAVAILABLE',
+        `${name}: authorization.custom evaluate must be one direct, non-computed data property`,
+        path,
+        evaluateMember ?? declaration,
+        sourceFile,
+        { function: name },
+      ));
+      return null;
+    }
+
+    const authoredExpression = unwrapParentheses(evaluateMember.initializer);
+    let expression = authoredExpression;
+    if (ts.isIdentifier(authoredExpression)) {
+      const classification = topLevelClassification(
+        checker.getSymbolAtLocation(authoredExpression),
+        sourceFile,
+      );
+      if (classification?.kind !== 'helper') {
+        diagnostics.push(diagnostic(
+          'SNAPBACK_CUSTOM_AUTHORIZATION_EVALUATOR_FORM_UNAVAILABLE',
+          `${name}: authorization.custom evaluate identifier must resolve to one top-level function declaration`,
+          path,
+          authoredExpression,
+          sourceFile,
+          { function: name },
+        ));
+        return null;
+      }
+      expression = classification.declaration;
+    } else if (!ts.isArrowFunction(authoredExpression) && !ts.isFunctionExpression(authoredExpression)) {
+      diagnostics.push(diagnostic(
+        'SNAPBACK_CUSTOM_AUTHORIZATION_EVALUATOR_FORM_UNAVAILABLE',
+        `${name}: authorization.custom evaluate must be a direct function expression or top-level function declaration`,
+        path,
+        authoredExpression,
+        sourceFile,
+        { function: name },
+      ));
+      return null;
+    }
+
+    const {
+      forbidden,
+      free,
+      freeTopLevel,
+      helperRefs,
+      inadmissibleRefs,
+      elevatedDbUses,
+    } = selfContainedProblems(expression, checker, sourceFile);
+    for (const problem of forbidden) {
+      diagnostics.push(diagnostic(
+        problem.details?.elevatedReadEscape
+          ? 'SNAPBACK_ELEVATED_READ_SITE_UNCLASSIFIABLE'
+          : 'SNAPBACK_INLINE_HANDLER_SYNTAX_FORBIDDEN',
+        `${name} custom authorization evaluator: ${problem.reason}`,
+        path,
+        problem.node,
+        sourceFile,
+        { function: name, customAuthorization: true, ...problem.details },
+      ));
+    }
+    if (free.length > 0) {
+      diagnostics.push(diagnostic(
+        'SNAPBACK_INLINE_HANDLER_FREE_IDENTIFIER',
+        `${name} custom authorization evaluator references identifiers outside its admitted expression: `
+          + `${free.join(', ')}${freeIdentifierHints(free, freeTopLevel)}`,
+        path,
+        expression,
+        sourceFile,
+        { function: name, customAuthorization: true, identifiers: free },
+      ));
+    }
+    for (const reference of inadmissibleRefs) {
+      diagnostics.push(diagnostic(
+        'SNAPBACK_INLINE_HELPER_INADMISSIBLE',
+        `${name} custom authorization evaluator references ${reference.name}, which ${reference.reason}`,
+        path,
+        reference.node,
+        sourceFile,
+        { function: name, customAuthorization: true, reference: reference.name },
+      ));
+    }
+    if (forbidden.length > 0 || free.length > 0 || inadmissibleRefs.length > 0) return null;
+    for (const [helperName, { declaration: helperDeclaration }] of helperRefs) {
+      analyzeHelper(helperName, helperDeclaration);
+    }
+    const helpers = reachableHelpers(helperRefs);
+    const expressionSource = source.slice(expression.getStart(sourceFile), expression.end);
+    const ast = canonicalAst(expression, sourceFile);
+    const token = createHash('sha256')
+      .update(`snapback:inline-authorization-evaluator-marker:v1\n${name}\n${ast}`)
+      .digest('hex');
+    const start = sourceFile.getLineAndCharacterOfPosition(expression.getStart(sourceFile));
+    const extracted = {
+      name,
+      token,
+      expressionSource,
+      ast,
+      helpers,
+      elevatedDbUses: [
+        ...elevatedDbUses.map((use) => ({ ...use, capture: 'custom-authorization-evaluator' })),
+        ...helpers.flatMap((helper) => helper.elevatedDbUses ?? []),
+      ].sort((left, right) => (
+        left.source.line - right.source.line
+        || left.source.column - right.source.column
+        || compareText(left.capture, right.capture)
+      )),
+      sourceSpan: {
+        file: path,
+        line: start.line + 1,
+        column: start.character + 1,
+      },
+    };
+    authorizationEvaluators.set(name, extracted);
+    replacements.push({
+      start: evaluateMember.initializer.getStart(sourceFile),
+      end: evaluateMember.initializer.end,
+      value: `({__snapbackInlineAuthorizationEvaluatorMarker:${JSON.stringify(token)}})`,
+    });
+    return extracted;
+  };
+
   for (const statement of sourceFile.statements) {
     if (!ts.isVariableStatement(statement)) continue;
     const exported = statement.modifiers?.some(
@@ -1496,6 +1643,7 @@ export function extractInlineHandlers(source, {
         ));
         continue;
       }
+      extractCustomAuthorizationEvaluator(name, fields);
       const expression = handler.initializer;
       if (!ts.isArrowFunction(expression) && !ts.isFunctionExpression(expression)) {
         diagnostics.push(diagnostic(
@@ -1613,7 +1761,7 @@ export function extractInlineHandlers(source, {
       + replacement.value
       + transformedSource.slice(replacement.end);
   }
-  return { transformedSource, handlers, diagnostics };
+  return { transformedSource, handlers, authorizationEvaluators, diagnostics };
 }
 
 export function renderInlineHandlerModule(name, expressionSource) {
@@ -1684,6 +1832,58 @@ export function renderInlineOperationModule(name, extracted) {
   let source = registration;
   let nextLine = lineCount(registration) + 1;
   for (const helper of extracted.helpers ?? []) {
+    const text = `${helper.source}\n`;
+    const lines = lineCount(text);
+    segments.push({
+      kind: 'helper',
+      name: helper.name,
+      startLine: nextLine,
+      endLine: nextLine + lines - 1,
+      sourceSpan: helper.sourceSpan,
+    });
+    source += text;
+    nextLine += lines;
+  }
+  return { source, segments };
+}
+
+// Wrap one already-admitted handler with one separately admitted custom
+// evaluator. Both source roots keep their own authored spans and share only
+// the deterministic helper union emitted below the registration statement.
+// A false evaluator result crosses the ordinary trusted terminal-denial host
+// seam, so handler code never gets a chance to catch and reverse it.
+// @ref LLP 0240#d4-custom-function-mediated-authority-has-an-honest-declaration
+export function renderInlineCustomAuthorizationModule(name, handler, evaluator) {
+  const registration = `globalThis.__snapbackHandlers = { ${JSON.stringify(name)}: async (ctx, args) => {\n`
+    + `  if ((await ((${evaluator.expressionSource})(ctx, args))) !== true) {\n`
+    + `    return await ctx.permissions.__snapbackCustomAuthorization.deny();\n`
+    + `  }\n`
+    + `  return await ((${handler.expressionSource})(ctx, args));\n`
+    + `} };\n`;
+  const lineCount = (text) => text.split('\n').length - 1;
+  const segments = [
+    {
+      kind: 'handler',
+      name,
+      startLine: 1,
+      endLine: lineCount(registration),
+      sourceSpan: handler.sourceSpan,
+    },
+    {
+      kind: 'authorization-evaluator',
+      name,
+      startLine: 2,
+      endLine: 2,
+      sourceSpan: evaluator.sourceSpan,
+    },
+  ];
+  let source = registration;
+  let nextLine = lineCount(registration) + 1;
+  const helpers = new Map();
+  for (const helper of [...(handler.helpers ?? []), ...(evaluator.helpers ?? [])]) {
+    helpers.set(helper.name, helper);
+  }
+  for (const helper of [...helpers.values()].sort((left, right) => compareText(left.name, right.name))) {
     const text = `${helper.source}\n`;
     const lines = lineCount(text);
     segments.push({

@@ -268,6 +268,7 @@ const applicationAuthSource = {
       { class: 'binding-app-profile-mismatch', state: 'error', remediations: ['regenerateAppDescriptor', 'retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_APP_INVALID', 'SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID', 'SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID'] },
       { class: 'binding-capability-unavailable', state: 'error', remediations: ['selectCompatibleBinding'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE'] },
       { class: 'binding-owner-conflict', state: 'error', remediations: ['disposeAndReconstruct', 'useStoragePartition'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT'] },
+      { class: 'rqs-store-identity-conflict', state: 'error', remediations: ['disposeAndReconstruct'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT'] },
       { class: 'live-policy-rotation', state: 'error', remediations: ['disposeAndReconstruct'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION'] },
       { class: 'stale-or-expired-binding', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE', 'SNAPBACK_APP_BINDING_EXPIRED'] },
       { class: 'hosted-binding-invalid', state: 'error', remediations: ['retryAuthBootstrap'], codes: ['SNAPBACK_APP_BINDING_TARGET_INVALID', 'SNAPBACK_APP_BINDING_INTEGRITY_INVALID'] },

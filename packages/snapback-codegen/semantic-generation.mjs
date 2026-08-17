@@ -237,6 +237,9 @@ function semanticOperation(operation) {
       authorityIndependent: operation?.authorityIndependent === true,
       authorityCreating: operation?.authorityCreating === true,
       fieldBoundary: operation?.fieldBoundary ?? null,
+      ...(operation?.customAuthorization === undefined
+        ? {}
+        : { customAuthorization: canonicalClone(operation.customAuthorization) }),
     },
     reads: operation?.readSetSummary ?? null,
     writes: operation?.writeSetSummary ?? null,
@@ -392,6 +395,7 @@ const NORMALIZED_DECORATED_OPERATION_FIELD_DECISIONS = Object.freeze({
   refusals: 'include:refusals',
   trackedRefusals: 'include:trackedRefusals',
   authorizationDependence: 'include:authority',
+  customAuthorization: 'include:authority',
   authorityProfileDependence: 'include:authority',
   // @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — changing
   // generated-operation capability identity must invalidate semantic receipts.
@@ -444,6 +448,9 @@ function normalizedOperation(operation) {
       authorityIndependent: operation?.authorityIndependent === true,
       authorityCreating: operation?.authorityCreating === true,
       fieldBoundary: operation?.fieldBoundary ?? null,
+      ...(operation?.customAuthorization === undefined
+        ? {}
+        : { customAuthorization: canonicalClone(operation.customAuthorization) }),
       elevatedDbCapabilities: canonicalClone(operation?.elevatedDbCapabilities ?? []),
       authorityProfileDependence: canonicalClone(
         operation?.authorityProfileDependence ?? [],

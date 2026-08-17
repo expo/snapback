@@ -169,3 +169,36 @@ published demo therefore contains only declaration-owned `ctx.membership`
 operations and keeps Eve's unseated read/live probes.
 This is more explicit than app-authored RLS mutation code and avoids turning a
 read membership declaration into generic write authority.
+
+## 2026-08-16 — profile-backed search without a second roster
+
+I added `search_announcements` to the same `announcements` table and pointed
+its membership visibility at `appAccess`. The pleasant part was how little new
+authority code appeared: the index declares the same resource field and
+minimum role as ordinary table visibility, while `searchAnnouncements` only
+names the index and its `appId` argument. Codegen closes `member` through the
+profile hierarchy and emits the existing membership search plan; the demo did
+not need a search-specific ACL table, copied seats, or a handler-side role
+check.
+
+The acceptance made the privacy boundary concrete. Alice sees the indexed
+announcement. Bob and Eve, before membership, receive byte-identical empty
+search pages even though one probes a real application. After Bob joins he
+sees the result, and after removal the same operation immediately returns the
+outsider baseline again. That was a better test than checking only a refusal
+code because the product contract for search is non-enumerating emptiness.
+
+The awkward edge is that the visibility declaration appears both on the table
+and its search index. They lower to different established runtime carriers, so
+the duplication is currently explicit rather than inferred. The authority
+profile still prevents the important drift: both role sets come from one
+canonical lattice/generation, and the generation-consumer lint watches the
+Rust fields that interpret it.
+
+Compared with Convex, I would otherwise put the same membership helper in the
+search function and rely on application discipline to keep it aligned with the
+roster query. Compared with Supabase/Postgres, this resembles an RLS-filtered
+full-text index, but the empty-page non-enumeration and cursor/revocation
+binding are part of the generated operation rather than separate policy SQL
+and client conventions. Asset sharing remains refused; the demo does not
+manufacture a mirror to work around that boundary.

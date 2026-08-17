@@ -59,6 +59,32 @@ export const appMembers = defineTable({
   roster: { visible: ['userId', 'role'] },
 });
 
+export const announcements = defineTable({
+  appId: v.id('applications'),
+  authorId: v.principal(),
+  message: v.string(),
+}).visibility({
+  kind: 'membership',
+  declaration: 'appAccess',
+  resourceField: 'appId',
+  roles: ['member'],
+}).searchIndex('search_announcements', {
+  semanticVersion: 'rbac-profile-search.v1',
+  textFields: { message: { weight: 4, classification: 'private' } },
+  fieldClassifications: {
+    appId: 'private',
+    authorId: 'private',
+  },
+  storedFields: ['appId', 'authorId', 'message'],
+  highlightFields: ['message'],
+  visibility: {
+    kind: 'membership',
+    declaration: 'appAccess',
+    resourceField: 'appId',
+    roles: ['member'],
+  },
+}).sync();
+
 export default defineSchema({
   applications: defineTable({
     name: v.string(),
@@ -69,14 +95,5 @@ export default defineSchema({
     roles: ['member'],
   }),
   appMembers,
-  announcements: defineTable({
-    appId: v.id('applications'),
-    authorId: v.principal(),
-    message: v.string(),
-  }).visibility({
-    kind: 'membership',
-    declaration: 'appAccess',
-    resourceField: 'appId',
-    roles: ['member'],
-  }).sync(),
+  announcements,
 }, { auth: { mode: 'sessions' }, authProgram });

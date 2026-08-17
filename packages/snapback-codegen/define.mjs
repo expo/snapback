@@ -102,6 +102,7 @@ export const MUTATION_SPEC_FIELDS = new Set([
 export const JS_MUTATION_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'writes', 'result', 'auth',
   'authorityCreating', 'refusals', 'trackedRefusals', 'authorizationDependence',
+  'authorization',
   'requires', 'membership', 'elevatedReads', 'sequences', 'outgrewIr',
   'discloseUniqueConflicts', 'opaqueWritePosture', 'declaredTableCeiling',
   'writeElevation', 'stream',
@@ -164,9 +165,138 @@ export const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'handler', 'reads', 'result', 'authScopeField',
   'defaultLive', 'auth', 'authorityIndependent', 'retainable', 'refusals', 'trackedRefusals',
   'authorizationDependence', 'requires', 'fieldBoundary', 'membership',
-  'elevatedReads',
+  'elevatedReads', 'authorization',
 ]);
 const ELEVATED_READ_FORMS = new Set(['get', 'getMany', 'uniqueMany', 'query']);
+
+// @ref LLP 0240#d4-custom-function-mediated-authority-has-an-honest-declaration
+// — custom policy inputs are closed review facts. They do not claim that an
+// opaque evaluator's inputs are complete; precise invalidation stays refused
+// until LLP 0146's enforceable-completeness prerequisite exists.
+export const policyInput = Object.freeze({
+  table(table, spec) {
+    assert(
+      isUserIdentifier(table),
+      'policyInput.table requires a non-reserved table identifier',
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    exactObject(
+      spec,
+      'policyInput.table',
+      new Set(['subject', 'key']),
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    assert(
+      spec.subject === 'ctx.auth.userId',
+      'policyInput.table subject must be exactly "ctx.auth.userId"',
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    assert(
+      Array.isArray(spec.key) && spec.key.length > 0
+        && spec.key.every((field) => isUserIdentifier(field))
+        && new Set(spec.key).size === spec.key.length,
+      'policyInput.table key must be a non-empty unique identifier array',
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    return Object.freeze({
+      __policyInput: true,
+      kind: 'table',
+      table,
+      subject: spec.subject,
+      key: Object.freeze([...spec.key]),
+    });
+  },
+});
+
+export const authorization = Object.freeze({
+  custom(spec) {
+    exactObject(
+      spec,
+      'authorization.custom',
+      new Set(['inputs', 'evaluate', 'offline', 'sync']),
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    assert(
+      Array.isArray(spec.inputs) && spec.inputs.length > 0
+        && spec.inputs.every((input) => input?.__policyInput === true),
+      'authorization.custom inputs must be a non-empty policyInput array',
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    assert(
+      typeof spec.evaluate === 'function'
+        || typeof spec.evaluate?.__snapbackInlineAuthorizationEvaluatorMarker === 'string',
+      'authorization.custom evaluate must be an admitted inline function',
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    assert(
+      spec.offline === 'none',
+      'authorization.custom offline must be exactly "none"',
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    assert(
+      spec.sync === 'coarse-global' || spec.sync === 'reauthorize-on-change',
+      'authorization.custom sync must be "coarse-global" or "reauthorize-on-change"',
+      'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+    );
+    assert(
+      spec.sync !== 'reauthorize-on-change',
+      'authorization.custom sync "reauthorize-on-change" is unavailable: LLP 0146 enforceable strict input completeness is not yet present',
+      'SNAPBACK_CUSTOM_AUTHORIZATION_PRECISE_COMPLETENESS_UNAVAILABLE',
+    );
+    return Object.freeze({
+      __customAuthorization: true,
+      inputs: Object.freeze(spec.inputs.map((input) => Object.freeze({
+        kind: input.kind,
+        table: input.table,
+        subject: input.subject,
+        key: Object.freeze([...input.key]),
+      }))),
+      evaluate: spec.evaluate,
+      offline: spec.offline,
+      sync: spec.sync,
+    });
+  },
+});
+
+function normalizeCustomAuthorization(value, { inline, kind, retainable, auth }) {
+  if (value === undefined) return undefined;
+  assert(
+    value?.__customAuthorization === true,
+    `${kind} authorization must come from authorization.custom(...)`,
+    'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+  );
+  assert(
+    inline,
+    `${kind} custom authorization requires an inline handler so evaluator custody is source-closed`,
+    'SNAPBACK_CUSTOM_AUTHORIZATION_EVALUATOR_FORM_UNAVAILABLE',
+  );
+  assert(
+    auth === 'authenticated',
+    `${kind} custom authorization requires auth: "authenticated"`,
+    'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+  );
+  assert(
+    retainable !== true,
+    `${kind} custom authorization is online-only and cannot be retainable`,
+    'SNAPBACK_CUSTOM_AUTHORIZATION_RETENTION_UNAVAILABLE',
+  );
+  return Object.freeze({
+    inputs: value.inputs,
+    evaluator: value.evaluate,
+    offline: value.offline,
+    sync: value.sync,
+    inputCompleteness: 'unproven',
+    pushdown: 'none',
+    retention: 'none',
+    preciseInvalidation: false,
+    coarseGlobalWakeUniverse: Object.freeze([
+      'membership-relation-insert-update-delete',
+      'protected-resource-row-insert-update-delete',
+      'effective-principal-or-auth-context-change',
+      'authority-profile-generation-activation',
+    ]),
+  });
+}
 
 function normalizeElevatedReads(value, inline, where) {
   if (value === undefined) return [];
@@ -3938,6 +4068,12 @@ function jsQueryDef(kind, spec) {
     assert(spec.exportName, `${kind} requires exportName`);
   }
   const elevatedReads = normalizeElevatedReads(spec.elevatedReads, inline, kind);
+  const customAuthorization = normalizeCustomAuthorization(spec.authorization, {
+    inline,
+    kind,
+    retainable: spec.retainable,
+    auth: spec.auth,
+  });
   assert(spec.reads && Array.isArray(spec.reads) && spec.reads.length > 0, `${kind} requires declared reads`);
   if (spec.authScopeField !== undefined) {
     assert(
@@ -3970,6 +4106,7 @@ function jsQueryDef(kind, spec) {
       : (spec.result !== undefined ? { result: spec.result } : {})),
     ...(fieldBoundary === undefined ? {} : { fieldBoundary }),
     ...(spec.membership === undefined ? {} : { membership: [...spec.membership] }),
+    ...(customAuthorization === undefined ? {} : { customAuthorization }),
     // LLP 0034 D3: per-definition defaultLive opt-out (see queryDef).
     ...(kind === 'LiveQuery' && spec.defaultLive === false ? { defaultLive: false } : {}),
     js: {
@@ -4727,6 +4864,12 @@ export function defineJsMutation(spec) {
     assert(spec.exportName, 'defineJsMutation requires exportName');
   }
   const elevatedReads = normalizeElevatedReads(spec.elevatedReads, inline, 'Mutation');
+  const customAuthorization = normalizeCustomAuthorization(spec.authorization, {
+    inline,
+    kind: 'Mutation',
+    retainable: false,
+    auth: spec.auth,
+  });
   const sequences = normalizeSequences(spec.sequences);
   if (spec.membership !== undefined) {
     assert(Array.isArray(spec.membership) && spec.membership.length > 0, 'defineJsMutation membership must be a non-empty array');
@@ -4768,6 +4911,7 @@ export function defineJsMutation(spec) {
     ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     ...(spec.outgrewIr !== undefined ? { outgrewIr: spec.outgrewIr } : {}),
     ...(spec.membership === undefined ? {} : { membership: [...spec.membership] }),
+    ...(customAuthorization === undefined ? {} : { customAuthorization }),
     discloseUniqueConflicts: normalizeUniqueConflictDisclosures(
       spec.discloseUniqueConflicts,
       'defineJsMutation',

@@ -1,9 +1,10 @@
-import { appMembers } from './schema.mjs';
+import { announcements, appMembers } from './schema.mjs';
 import {
   asc,
   arg,
   defineJsMutation,
   defineLiveQuery,
+  defineSearchQuery,
   eq,
   membershipResource,
   results,
@@ -16,6 +17,13 @@ export const listAnnouncements = defineLiveQuery({
   args: { appId: v.id('applications') },
   filter: [eq('appId', arg('appId'))],
   order: [asc('_createdAt')],
+});
+
+export const searchAnnouncements = defineSearchQuery({
+  auth: 'authenticated',
+  table: announcements,
+  index: 'search_announcements',
+  resourceArg: 'appId',
 });
 
 // Resource creation is the one specialized operation outside the common

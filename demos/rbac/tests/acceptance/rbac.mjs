@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { asUser } from '../../../_kit/as-user.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
+import api from '../../snapback/generated/api.mjs';
 import {
   closeAcceptanceSession,
   OwnedLiveSubscriptions,
@@ -458,6 +459,37 @@ try {
   );
   assert.deepEqual(bobRows.rows, [], 'a non-member cannot see existing rows');
 
+  const searchRequest = {
+    appId,
+    query: { all: [{ Term: { value: 'members' } }] },
+  };
+  const [aliceSearch, bobSearch, eveSearch, absentScopeSearch] = await Promise.all([
+    alice.client.search(api.searchAnnouncements, searchRequest),
+    bob.client.search(api.searchAnnouncements, searchRequest),
+    eve.client.search(api.searchAnnouncements, searchRequest),
+    eve.client.search(api.searchAnnouncements, {
+      ...searchRequest,
+      appId: `${appId}-absent`,
+    }),
+  ]);
+  assert.deepEqual(
+    aliceSearch.items.map(({ fields }) => fields.message),
+    ['members only', 'still members only'],
+    'profile-backed membership search returns same-scope rows to a member',
+  );
+  const outsiderSearchBytes = JSON.stringify(bobSearch);
+  assert.equal(
+    JSON.stringify(eveSearch),
+    outsiderSearchBytes,
+    'two outsiders receive byte-identical nonenumerating search responses',
+  );
+  assert.equal(
+    JSON.stringify(absentScopeSearch),
+    outsiderSearchBytes,
+    'an absent scope is byte-identical to the same query against a hidden existing scope',
+  );
+  assert.deepEqual(bobSearch.items, [], 'an outsider receives no protected search hits');
+
   await assert.rejects(
     () => bob.client.mutate('postAnnouncement', { args: { appId, message: 'not yet' } }),
     (error) => error?.diagnostic?.code === 'SNAPBACK_AUTH_PERMISSION_DENIED',
@@ -497,6 +529,12 @@ try {
   );
   await drainLive(eveLive);
   assert.deepEqual(eveLive.rows, [], 'Bob membership invalidation crossed into Eve live state');
+  assert.deepEqual(
+    (await bob.client.search(api.searchAnnouncements, searchRequest)).items
+      .map(({ fields }) => fields.message),
+    ['members only', 'still members only'],
+    'the profile grant admits search using the same role closure as list visibility',
+  );
 
   const transferred = await alice.client.mutate('appAccess.transferOwner', {
     args: { scopeId: appId, principal: bobUserId },
@@ -557,6 +595,22 @@ try {
     () => bob.client.mutate('postAnnouncement', { args: { appId, message: 'after leaving' } }),
     (error) => error?.diagnostic?.code === 'SNAPBACK_AUTH_PERMISSION_DENIED',
     'a self-leave must revoke subsequent role checks',
+  );
+  await alice.client.mutate('postAnnouncement', {
+    args: { appId, message: 'revocation remains closed' },
+  });
+  const revocationSearchRequest = {
+    appId,
+    query: { all: [{ Term: { value: 'revocation' } }] },
+  };
+  const [revokedSearch, sameQueryOutsiderSearch] = await Promise.all([
+    bob.client.search(api.searchAnnouncements, revocationSearchRequest),
+    eve.client.search(api.searchAnnouncements, revocationSearchRequest),
+  ]);
+  assert.equal(
+    JSON.stringify(revokedSearch),
+    JSON.stringify(sameQueryOutsiderSearch),
+    'revocation stops fresh protected results byte-identically to a same-query outsider',
   );
 
   assert.deepEqual(

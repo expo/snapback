@@ -4409,6 +4409,17 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             .with_session_overlay(SessionModeOverlay::secret_read()),
             get(admin_inspect),
         ),
+        // @ref LLP 0240#d6-inspection-and-diagnostics-explain-effective-authority —
+        // named-subject authority facts are POST-body-only, write-grade admin
+        // inspection; the public root projection remains unchanged.
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/authority/effective",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(admin_authority_effective),
+        ),
         RegisteredRoute::new(
             read(
                 "/_snapback/api/receipts",
@@ -5489,6 +5500,20 @@ async fn admin_inspect(
     Ok(Json(response))
 }
 
+async fn admin_authority_effective(
+    State(snapback): State<SharedSnapback>,
+    Json(request): Json<crate::membership_rules::AuthorityEffectiveInspectionRequestV1>,
+) -> Result<Json<crate::membership_rules::AuthorityEffectiveInspectionV1>, ApiError> {
+    // Registered-route authorization runs before JSON extraction, so invalid,
+    // missing-profile, and well-formed probes all meet the identical AdminWrite
+    // gate before any profile or membership lookup can occur.
+    let response = crate::server::with_snapback(&snapback, move |snapback| {
+        snapback.inspect_effective_authority(request)
+    })
+    .await?;
+    Ok(Json(response))
+}
+
 #[derive(Debug, Deserialize)]
 struct DataQuery {
     limit: Option<usize>,
@@ -6283,6 +6308,104 @@ mod tests {
             .is_err(),
             "publication-boundary re-resolution refuses a revoked credential"
         );
+    }
+
+    #[test]
+    fn effective_authority_route_is_exact_admin_write_inspection() {
+        let route = crate::server::route_registry()
+            .into_iter()
+            .find(|route| {
+                route.path == "/_snapback/api/authority/effective" && route.method == "POST"
+            })
+            .expect("registered effective-authority route");
+        assert_eq!(route.class, RouteClass::SystemApi);
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AdminCredential
+        );
+        assert_eq!(route.invocation_authority, InvocationAuthority::Operator);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::SensitiveApplicationData
+        );
+    }
+
+    #[tokio::test]
+    async fn effective_authority_unauthenticated_probes_are_byte_identical_and_public_inspect_is_clean()
+    {
+        use axum::body::{Body, to_bytes};
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let snapback = LocalSnapback::memory().expect("memory app");
+        let mut context = ServerContext::detached();
+        context.admin_token = Some("authority-inspection-admin".to_owned());
+        let state =
+            AppState::try_from_snapback(snapback, context).expect("effective-authority app state");
+        let router = crate::server::app(state);
+        let request = |principal: &str, scope: &str| {
+            Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/authority/effective")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    serde_json::to_vec(&serde_json::json!({
+                        "profileId": "hidden-profile",
+                        "profileGeneration": "sha256:hidden-generation",
+                        "principalId": principal,
+                        "scopeId": scope,
+                        "target": {
+                            "kind": "view",
+                            "name": "membership-visible-search",
+                            "index": {
+                                "table": "hidden-members",
+                                "name": "search-hidden-members"
+                            }
+                        }
+                    }))
+                    .expect("inspection probe JSON"),
+                ))
+                .expect("inspection probe request")
+        };
+        let first = router
+            .clone()
+            .oneshot(request("alice", "existing-scope"))
+            .await
+            .expect("first unauthenticated probe");
+        let second = router
+            .clone()
+            .oneshot(request("outsider", "missing-scope"))
+            .await
+            .expect("second unauthenticated probe");
+        assert_eq!(first.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(second.status(), StatusCode::UNAUTHORIZED);
+        let first_body = to_bytes(first.into_body(), 1_000_000)
+            .await
+            .expect("first refusal body");
+        let second_body = to_bytes(second.into_body(), 1_000_000)
+            .await
+            .expect("second refusal body");
+        assert_eq!(first_body, second_body, "the admin gate precedes lookup");
+
+        let public = router
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/inspect")
+                    .body(Body::empty())
+                    .expect("public inspect request"),
+            )
+            .await
+            .expect("public inspect response");
+        assert_eq!(public.status(), StatusCode::OK);
+        let public_body = to_bytes(public.into_body(), 4_000_000)
+            .await
+            .expect("public inspect body");
+        let public_text = std::str::from_utf8(&public_body).expect("public inspect UTF-8");
+        assert!(!public_text.contains("authority-effective-inspection"));
+        assert!(!public_text.contains("hidden-profile"));
+        assert!(!public_text.contains("membership-visible-search"));
     }
 
     #[tokio::test]

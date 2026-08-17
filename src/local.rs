@@ -8022,6 +8022,17 @@ impl LocalSnapback {
         &self.functions
     }
 
+    /// Authenticated admin projection of one named subject's effective
+    /// profile authority. Keeping manifest interpretation in
+    /// `membership_rules` preserves the reviewed authority-consumer closure;
+    /// this method supplies only the private database boundary.
+    pub(crate) fn inspect_effective_authority(
+        &self,
+        request: crate::membership_rules::AuthorityEffectiveInspectionRequestV1,
+    ) -> SnapbackResult<crate::membership_rules::AuthorityEffectiveInspectionV1> {
+        crate::membership_rules::authority_effective_inspection(&self.db, request)
+    }
+
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {
         let mut inspect = self.inspect_core()?;
         inspect.ephemeral = self.ephemeral.diagnostics();

@@ -518,6 +518,7 @@ const authorityProfileSchema = ({
   lastHolderProtect = 'owner',
   legacyAuthority = false,
   membershipId = 'eventMembers',
+  membershipSearch = null,
   membershipMutation = '',
   omitMembershipId = false,
   pendingRoles = ['invited'],
@@ -570,6 +571,26 @@ const authorityProfileSchema = ({
         },
       })`
     : '';
+  const membershipSearchIndex = membershipSearch === null
+    ? ''
+    : `.searchIndex('search_members', {
+        semanticVersion: 'authority-profile-membership-table-search.v1',
+        textFields: {
+          ${membershipSearch === 'visible' ? 'role' : 'displayName'}: {
+            weight: 1,
+            classification: 'private',
+          },
+        },
+        fieldClassifications: { eventId: 'private' },
+        storedFields: [${JSON.stringify(membershipSearch === 'visible' ? 'role' : 'displayName')}],
+        highlightFields: [${JSON.stringify(membershipSearch === 'visible' ? 'role' : 'displayName')}],
+        visibility: {
+          kind: 'membership',
+          declaration: 'eventMembers',
+          resourceField: 'eventId',
+          roles: ['member'],
+        },
+      })`;
   const visibility = unsupportedComposition === 'search'
     ? `.visibility({ kind: 'public-read' })`
     : !consumerVisibility
@@ -594,13 +615,13 @@ const eventMembersBase = defineTable({
   ${expiryField || expiryPresent ? 'expiresAt: v.optional(v.integer()),' : ''}
 })${indexName === null ? '' : `.index(${JSON.stringify(indexName)}, ['userId'])`};
 
-export const eventMembers = eventMembersBase${profileBeforeMembership ? `${profile}${membership}` : `${membership}${profile}`}
+export const eventMembers = eventMembersBase${profileBeforeMembership ? `${profile}${membership}` : `${membership}${profile}`}${membershipSearchIndex}
   .visibility({ kind: 'owner', field: 'userId' });
 ${duplicateProfile ? `eventMembers${profile};` : ''}
 ${legacyAuthority ? 'eventMembers.permissionBackingDeclared = true;' : ''}
 ${membershipMutation}
 
-const eventNotes = defineTable({ eventId: v.id('events'), body: v.string() })
+export const eventNotes = defineTable({ eventId: v.id('events'), body: v.string() })
   ${searchIndex}${visibility}${assetSharing};
 
 export default defineSchema({
@@ -656,6 +677,18 @@ export const addNote = defineJsMutation({
   writes: ['eventNotes'],
   membership: [eventMembers.hasRole(membershipResource.arg('eventId'), 'member')],
   handler: async (ctx, args) => ctx.db.insert('eventNotes', args),
+});
+`;
+
+const authorityProfileSearchFunctions = `
+import { defineSearchQuery } from '${defineUrl}';
+import { eventNotes } from './schema.mjs';
+
+export const searchEventNotes = defineSearchQuery({
+  table: eventNotes,
+  index: 'search_notes',
+  auth: 'authenticated',
+  resourceArg: 'eventId',
 });
 `;
 
@@ -1244,11 +1277,11 @@ fn synthetic_manifest_rooted_generation_consumer(manifest: &MembershipManifest) 
     assert.deepEqual(profile.permittedCompositionClasses, [
       'table-visibility.membership.v1',
       'function-admission.membership.v1',
+      'membership-visible-search.v1',
       'authority-roster-projection.v1',
       'authority-roster-transitions.v1',
     ]);
     assert.deepEqual(profile.notYetQualifiedCompositionClasses, [
-      'membership-visible-search.v1',
       'authority-profile-asset-sharing.v1',
     ]);
     assert.deepEqual(profile.subjectDerivation.coarseGlobalWakeUniverse, [
@@ -1783,12 +1816,6 @@ void exhaustStatus;
       'SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID',
     ],
     [
-      'search composition',
-      { unsupportedComposition: 'search' },
-      'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS',
-      (details) => details?.compositionClass === 'membership-visible-search.v1',
-    ],
-    [
       'asset composition',
       { unsupportedComposition: 'asset' },
       'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS',
@@ -1798,6 +1825,138 @@ void exhaustStatus;
     const { result } = await run('export {};\n', authorityProfileSchema(variant));
     authorityProfileDiagnostic(result, code, detail);
     assert.equal(result.ok, false, `${label} unexpectedly generated`);
+  }
+
+  {
+    const { dir, result } = await run(
+      authorityProfileSearchFunctions,
+      authorityProfileSchema({ unsupportedComposition: 'search' }),
+    );
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    const generatedSchema = JSON.parse(readFileSync(
+      join(dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    const search = generatedSchema.tables
+      .find(({ name }) => name === 'eventNotes')
+      .searchIndexes.find(({ name }) => name === 'search_notes');
+    assert.deepEqual(
+      search.visibility,
+      {
+        kind: 'membership',
+        declaration: 'eventMembers',
+        resourceField: 'eventId',
+        roles: ['admin', 'member', 'owner'],
+      },
+      'profile search compiles directly to the existing membership visibility plan with closed roles',
+    );
+    assert.deepEqual(Object.keys(search.textFields), ['body']);
+    assert.deepEqual(search.storedFields, ['body']);
+    assert.deepEqual(
+      search.highlightFields,
+      [],
+      'the membership-table roster boundary does not alter the announcement index projection',
+    );
+    const profile = generatedSchema.tables
+      .find(({ name }) => name === 'eventMembers')
+      .authorityProfile;
+    const generatedFunctions = JSON.parse(readFileSync(
+      join(dir, 'generated', 'functions.manifest.json'),
+      'utf8',
+    ));
+    const searchOperation = generatedFunctions.functions
+      .find(({ name }) => name === 'searchEventNotes');
+    assert.deepEqual(searchOperation.authorityProfileDependence, [{
+      id: 'eventMembers',
+      generation: profile.generation,
+    }]);
+    const review = JSON.parse(readFileSync(
+      join(dir, 'generated', 'authorization-review.json'),
+      'utf8',
+    ));
+    assert.deepEqual(
+      review.operations.find(({ name }) => name === 'searchEventNotes')
+        .authorityProfileIdentities,
+      searchOperation.authorityProfileDependence,
+      'authorization review carries the profile-backed search dependence',
+    );
+
+    const edited = await run(
+      authorityProfileSearchFunctions,
+      authorityProfileSchema({ unsupportedComposition: 'search', provenance: 'creation' }),
+    );
+    assert.equal(edited.result.ok, true, JSON.stringify(edited.result.diagnostics));
+    const editedSchema = JSON.parse(readFileSync(
+      join(edited.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    const editedGeneration = editedSchema.tables
+      .find(({ name }) => name === 'eventMembers')
+      .authorityProfile.generation;
+    const editedFunctions = JSON.parse(readFileSync(
+      join(edited.dir, 'generated', 'functions.manifest.json'),
+      'utf8',
+    ));
+    const editedSearch = editedFunctions.functions
+      .find(({ name }) => name === 'searchEventNotes');
+    assert.notEqual(editedGeneration, profile.generation);
+    assert.deepEqual(editedSearch.authorityProfileDependence, [{
+      id: 'eventMembers',
+      generation: editedGeneration,
+    }]);
+    assert.notEqual(
+      editedSearch.implementationHash,
+      searchOperation.implementationHash,
+      'the runtime operation fence rotates with its profile-backed search dependence',
+    );
+    const editedReview = JSON.parse(readFileSync(
+      join(edited.dir, 'generated', 'authorization-review.json'),
+      'utf8',
+    ));
+    assert.deepEqual(
+      editedReview.operations.find(({ name }) => name === 'searchEventNotes')
+        .authorityProfileIdentities,
+      editedSearch.authorityProfileDependence,
+      'the edited review rotates the same search profile identity',
+    );
+  }
+
+  {
+    const visible = await run(
+      'export {};\n',
+      authorityProfileSchema({ membershipSearch: 'visible' }),
+    );
+    assert.equal(visible.result.ok, true, JSON.stringify(visible.result.diagnostics));
+    const schemaManifest = JSON.parse(readFileSync(
+      join(visible.dir, 'generated', 'schema.manifest.json'),
+      'utf8',
+    ));
+    const search = schemaManifest.tables
+      .find(({ name }) => name === 'eventMembers')
+      .searchIndexes.find(({ name }) => name === 'search_members');
+    assert.deepEqual(Object.keys(search.textFields), ['role']);
+    assert.deepEqual(search.storedFields, ['role']);
+    assert.deepEqual(search.highlightFields, ['role']);
+    assert.deepEqual(search.visibility.roles, ['admin', 'member', 'owner']);
+  }
+
+  {
+    const { result } = await run(
+      'export {};\n',
+      authorityProfileSchema({
+        membershipSearch: 'invisible',
+        roster: "{ visible: ['userId', 'role'] }",
+      }),
+    );
+    const diagnostic = authorityProfileDiagnostic(
+      result,
+      'SNAPBACK_AUTHORITY_PROFILE_SEARCH_FIELD_NOT_VISIBLE',
+      (details) => (
+        details?.index === 'search_members'
+        && details?.invisibleFields?.includes('displayName')
+      ),
+    );
+    assert.deepEqual(diagnostic.details.visibleFields, ['role', 'userId']);
   }
 
   {
@@ -1967,6 +2126,87 @@ export default defineSchema({
       const { result } = await run('export {};\n', principalAddressedSchema(variant));
       assert.equal(result.ok, false, `${label} unexpectedly generated`);
     }
+  }
+
+  // A profile membership table cannot select another profile's membership
+  // declaration to evade its own roster projection and dependence identity.
+  {
+    const crossProfileSearchSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+
+export const eventMembers = defineTable({
+  eventId: v.id('events'),
+  userId: v.principal(),
+  role: v.string(),
+  displayName: v.optional(v.string()),
+}).membership({
+  id: 'eventMembers',
+  principal: 'userId',
+  resource: 'eventId',
+  role: 'role',
+  roles: ['owner', 'admin', 'member'],
+  pendingRoles: ['invited'],
+  bootstrapRole: 'owner',
+  lastHolder: { protect: 'owner' },
+  provenance: 'full',
+  transitions: ${JSON.stringify(authorityTransitions)},
+}).authorityProfile({
+  name: 'eventMembers',
+  hierarchy: { owner: ['admin', 'member'], admin: ['member'], member: [] },
+  roster: { visible: ['userId', 'role'] },
+}).searchIndex('search_members', {
+  semanticVersion: 'cross-profile-alias-refusal.v1',
+  textFields: { displayName: { weight: 1, classification: 'private' } },
+  fieldClassifications: { eventId: 'private' },
+  storedFields: ['displayName'],
+  highlightFields: ['displayName'],
+  visibility: {
+    kind: 'membership',
+    declaration: 'alternateMembers',
+    resourceField: 'eventId',
+    roles: ['member'],
+  },
+}).visibility({ kind: 'owner', field: 'userId' });
+
+export const alternateMembers = defineTable({
+  eventId: v.id('events'),
+  userId: v.principal(),
+  role: v.string(),
+  displayName: v.optional(v.string()),
+}).membership({
+  id: 'alternateMembers',
+  principal: 'userId',
+  resource: 'eventId',
+  role: 'role',
+  roles: ['owner', 'admin', 'member'],
+  pendingRoles: ['invited'],
+  bootstrapRole: 'owner',
+  lastHolder: { protect: 'owner' },
+  provenance: 'full',
+  transitions: ${JSON.stringify(authorityTransitions)},
+}).authorityProfile({
+  name: 'alternateMembers',
+  hierarchy: { owner: ['admin', 'member'], admin: ['member'], member: [] },
+  roster: { visible: ['userId', 'role', 'displayName'] },
+}).visibility({ kind: 'owner', field: 'userId' });
+
+export default defineSchema({
+  events: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  eventMembers,
+  alternateMembers,
+}, { auth: { mode: 'sessions' } });
+`;
+    const { result } = await run('export {};\n', crossProfileSearchSchema);
+    const diagnostic = authorityProfileDiagnostic(
+      result,
+      'SNAPBACK_AUTHORITY_PROFILE_SEARCH_DECLARATION_MISMATCH',
+      (details) => (
+        details?.index === 'search_members'
+        && details?.tableProfileDeclaration === 'eventMembers'
+        && details?.visibilityDeclaration === 'alternateMembers'
+      ),
+    );
+    assert.match(diagnostic.message, /alternateMembers.*eventMembers|eventMembers.*alternateMembers/u);
   }
 
   console.log('rbac-authoring.test.mjs: all cases passed');

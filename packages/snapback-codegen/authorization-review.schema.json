@@ -131,6 +131,50 @@
             "type": "array",
             "items": { "$ref": "#/$defs/profileIdentity" }
           },
+          "customAuthorization": {
+            "type": "object",
+            "required": [
+              "offline", "sync", "inputs", "inputCompleteness", "pushdown",
+              "retention", "preciseInvalidation", "coarseGlobalWakeUniverse",
+              "evaluatorIdentity"
+            ],
+            "properties": {
+              "offline": { "const": "none" },
+              "sync": { "const": "coarse-global" },
+              "inputs": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["kind", "table", "subject", "key"],
+                  "properties": {
+                    "kind": { "const": "table" },
+                    "table": { "type": "string", "minLength": 1 },
+                    "subject": { "const": "ctx.auth.userId" },
+                    "key": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "inputCompleteness": { "const": "unproven" },
+              "pushdown": { "const": "none" },
+              "retention": { "const": "none" },
+              "preciseInvalidation": { "const": false },
+              "coarseGlobalWakeUniverse": {
+                "type": "array",
+                "prefixItems": [
+                  { "const": "membership-relation-insert-update-delete" },
+                  { "const": "protected-resource-row-insert-update-delete" },
+                  { "const": "effective-principal-or-auth-context-change" },
+                  { "const": "authority-profile-generation-activation" }
+                ],
+                "minItems": 4,
+                "maxItems": 4
+              },
+              "evaluatorIdentity": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+            },
+            "additionalProperties": false
+          },
           "fieldBoundary": {
             "oneOf": [
               { "type": "null" },

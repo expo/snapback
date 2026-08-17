@@ -3,14 +3,14 @@ title: Portable indexed text search
 id: backend.text-search
 order: 27
 audience: agent-first
-capabilities: [backend.text-search]
-authorities: [llp/0073-portable-full-text-search.rfc.md, llp/0131-structured-argument-contracts.spec.md, src/search/types.rs, src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs, packages/snapback-client/search.mjs]
-examples: [demos/signal-desk]
+capabilities: [backend.text-search, authority.profile.v1]
+authorities: [llp/0073-portable-full-text-search.rfc.md, llp/0131-structured-argument-contracts.spec.md, llp/0240-application-authority-profiles.rfc.md, src/search/types.rs, src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-client/search.mjs]
+examples: [demos/rbac, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-10
-reviewed-authorities-digest: sha256:dfeb7a6cbfe90ea9ec4f1c6a768fd6075accd769ed424d201b73dac2d9e2eecc
+reviewed-authorities-digest: sha256:5e680f348cb234fc1cc9f17ced62ccdbd88940e0a57db43733e514c47e2e81f9
 ---
 
 # Portable indexed text search
@@ -101,6 +101,16 @@ a continuation minted before a seat revocation fails with the uniform
 several resources means iterating your own seats — multi-seat union search is
 deliberately rejected. Other relation-derived visibility shapes remain
 unaccepted.
+
+When `declaration` names an `authorityProfile()`, codegen derives the effective
+role set from that profile's canonical `roleLattice` and lowers it directly
+into this same membership visibility plan. The search function carries the
+profile `{ id, generation }` dependence; no second visibility-policy object is
+generated. This keeps roster listing and search on the same non-enumeration
+boundary while reusing the existing indexed membership check and revocation
+semantics. The RBAC demo's `searchAnnouncements` acceptance proves active
+member results, byte-identical outsider/missing-scope pages, and blank results
+after revocation.
 
 Export the operation with
 `defineSearchQuery({ table: incidents, index: 'search_incidents' })`. It is an

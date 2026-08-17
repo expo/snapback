@@ -249,6 +249,15 @@
       "inputSchema": null,
       "method": "POST",
       "outputSchema": null,
+      "path": "/_snapback/api/authority/effective",
+      "path_policy": "AdminWrite"
+    },
+    {
+      "class": "SystemApi",
+      "credential_resolution": "AdminCredential",
+      "inputSchema": null,
+      "method": "POST",
+      "outputSchema": null,
       "path": "/_snapback/api/client-mutations/purge",
       "path_policy": "AdminWrite"
     },

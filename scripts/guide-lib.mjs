@@ -62,7 +62,9 @@ const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 // Bumped 58368 -> 58880 on 2026-08-15 for the assets.media-collection.v1
 // experimental introduction row (LLP 0239 R3,
 // issues/20260815-finish-media-happy-path.md).
-const CAPABILITIES_SIZE_BUDGET_BYTES = 58880;
+// Bumped 58880 -> 60416 on 2026-08-16 for LLP 0240's shipped custom-authority
+// and effective-authority-inspection rows.
+const CAPABILITIES_SIZE_BUDGET_BYTES = 60416;
 const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.

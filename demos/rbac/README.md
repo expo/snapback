@@ -1,11 +1,12 @@
 # Scoped roles and memberships
 
 This deliberately small sessions app exercises Snapback's public RBAC
-authoring path. `appMembers` is the app-singleton form of a membership
-declaration: a signed-in non-member may join as themselves, members may read
-and post announcements, a member can invite another principal, and that
-principal can accept and later leave without learning the private roster row
-id. Raw `ctx.db` writes to the roster remain refused.
+authoring path. Resource-scoped `appMembers` is both the product roster and
+the authority relation for each application. Its `authorityProfile()` drives
+the generated roster and role reads, invite/join/leave/change/remove and owner
+transfer mutations, ordinary announcement visibility, and the
+`search_announcements` membership partition. Raw `ctx.db` writes and private
+roster row ids remain refused.
 
 Run the generated, real-server proof:
 
@@ -38,12 +39,13 @@ if the stale-predecessor fence admits an old-password session. The lockout
 witness does not claim the missing authenticated lock-state read projection;
 it proves the uniform public wire and AdminWrite unlock only.
 
-The resource-scoped form uses the same declaration with a required
-`resource: "projectId"` field typed as `v.id("projects")`. Query helpers then
-take `membershipResource.arg("projectId")` or
-`membershipResource.rowField("projectId")`; codegen refuses a different
-nominal id target before emitting artifacts.
+The acceptance proves member roster/list/search/post behavior, byte-identical
+outsider search pages, transition receipts, owner transfer, and revocation
+blanking without a mirrored seat table. The resource field is nominally typed
+as `v.id('applications')`; handler admission and search both require that exact
+scope type before artifacts are emitted.
 
-Not claiming: directly readable roster rows, role hierarchies,
-retained/offline membership reads, a password attempt-ledger admin read
-projection, deterministic public KDF rendezvous, or hosted/multi-replica RBAC.
+Not claiming: generic roster reads, dedicated React/Expo profile hooks,
+retained/offline membership or search reads, profile-backed asset sharing, a
+password attempt-ledger admin read projection, deterministic public KDF
+rendezvous, or hosted/multi-replica RBAC.

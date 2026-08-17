@@ -6,6 +6,14 @@
 Live Queries, Assets, Code generation, Diagnostics, Guide, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-12
+**Revised:** 2026-08-17 (closes the Phase 3 review findings: membership-table
+search projection is roster-bounded, named search handlers carry generation
+dependence, D6 evaluates the named index's lowered roles, and custom-evaluator
+policy reads join the static elevated-access inventory). 2026-08-16 (records the source-current Phase 3 implementation:
+membership-visible search lowers directly from `AuthorityProfileV1` into the
+existing search visibility plan; custom authorization ships only the visibly
+incomplete coarse-global lane and refuses precise sync; authenticated D6
+inspection links the runtime answer to the static LLP 0173 artifact). 2026-08-16 (reconciles landing A `824e3ef7f` and reviewed landing
 **Revised:** 2026-08-16 (ships the dedicated package-generic React/Expo roster,
 role, mutation-receipt, and durable-status lifecycle hooks. Truthful operation
 metadata necessarily rotates the profile and generated client generation;
@@ -223,6 +231,20 @@ The reviewed generation-consumer file allowlist has an access-lint for direct
 field idioms throughout each enumerated Rust file. Residual: new files, helper
 indirection, and receiver identifiers outside the scanned root set.
 
+`membership-visible-search.v1` compiles directly from this profile into the
+existing `SearchVisibilityV1::Membership` carrier. Codegen closes the search
+role set through `roleLattice`, retains the profile `{ id, generation }`
+dependence, and lets the existing indexed membership check, cursor binding,
+and authorization invalidation enforce the read. It does not emit a second
+generated visibility-plan object. That direct choice keeps one runtime search
+consumer and avoids a profile-derived policy copy whose shape or generation
+could drift from the already-qualified search plan. When the searched table is
+the profile's membership table, text, stored, and highlight fields are bounded
+to `roster.visibleFields`; explicitly authoring any invisible field refuses
+generation. The named index's lowered role predicate remains the row scope.
+Asset sharing remains in `notYetQualifiedCompositionClasses` and still refuses
+generation.
+
 The first local implementation exposes that identity to named handlers as a
 declaration-bound `membership` predicate. Codegen accepts only a direct,
 nominally typed resource argument, lowers the requested minimum roles through
@@ -323,24 +345,32 @@ authorization: authorization.custom({
   ],
   evaluate: canReadDocument,
   offline: "none",
-  sync: "reauthorize-on-change",
+  sync: "coarse-global",
 })
 ```
 
 This clears static “unknown authority” warnings only for the claims the
 descriptor proves:
 
-- declared backing inputs are complete for invalidation;
-- online invocation reauthorizes on their change; and
-- no offline/retention or pushdown claim is made unless the evaluator compiles
-  to an admitted IR.
+- every direct elevated evaluator read site names one declared backing input,
+  and every declared input has such a witnessed site;
+- online invocation uses the profile IR's conservative wake-universe
+  vocabulary and reauthorizes on every relevant application or authorization
+  change; and
+- offline, retention, pushdown, protected-local-execution, and precise
+  invalidation are all explicitly `none`/false.
 
-Precise `sync: "reauthorize-on-change"` activates only when LLP 0146 strict
-input completeness is enabled and enforceable on the target. An observed or
-attempted undeclared authority read refuses before value release and cannot be
-downgraded to a warning while the precise claim remains active. Strictness may
-strengthen refusal; it may never preserve a static completeness claim after
-contradictory observation.
+Generation emits
+`SNAPBACK_CUSTOM_AUTHORIZATION_INPUT_COMPLETENESS_UNPROVEN` for this lane and
+projects the complete fact under the operation in
+`authorization-review.json`. The warning is intentional: site witnessing is
+not a proof that a future runtime read cannot escape an author-declared input.
+
+Precise `sync: "reauthorize-on-change"` is not active today. Generation refuses
+it with
+`SNAPBACK_CUSTOM_AUTHORIZATION_PRECISE_COMPLETENESS_UNAVAILABLE`, explicitly
+naming the missing LLP 0146 enforceable strict-input-completeness
+prerequisite. It is never silently downgraded to coarse-global.
 
 Without enforced completeness, an opaque evaluator may still be a valid
 online-only policy, but it compiles as `sync: "coarse-global"`: every relevant
@@ -405,6 +435,21 @@ Generate-time errors distinguish missing index, ambiguous owner, ungoverned
 write path, unsupported target, and an unsupported composition class.
 Runtime denials reuse declared application refusal-code machinery rather than
 generic `SNAPBACK_HANDLER_FAILED`.
+
+The source-current local implementation serves this answer at
+`POST /_snapback/api/authority/effective` under the registered `AdminWrite`
+policy. The request names an exact profile generation, principal, optional
+scope, and closed operation/view enum; a membership-visible-search view also
+names the exact `{ table, name }` search index whose lowered role branch is
+evaluated. The response projects the resolved
+role/status, admit/deny branch, membership row ids and creation provenance,
+the `_membership_pk` and transition-log index plans, latest matching transition
+identity, global authorization invalidation disposition, the LLP 0243 offline
+reference, the still-refused asset-sharing consequence, and exact guide/code
+sources. It links `snapback.authorization-review.v2` as the static half rather
+than copying that operation inventory into runtime state. Authentication runs
+before JSON extraction or lookup; public `/inspect` remains unchanged, and
+different unauthenticated inspection-shaped probes are byte-identical.
 
 ## Compatibility and migration
 
@@ -559,8 +604,13 @@ dual state.
 
 1. Can profile-backed asset reads avoid per-recipient grant rows on every target
    without adding an unacceptable lookup to signed issuance?
-2. Should membership-visible search compile directly from the profile IR or
-   consume a separately generated visibility plan so search stays decoupled?
+
+## Resolved questions
+
+2. **Resolved 2026-08-16 — compile direct.** Membership-visible search compiles
+   from the profile IR into the existing `SearchVisibilityV1::Membership`
+   carrier; D2 records the identity, invalidation, field-boundary, and
+   single-consumer rationale.
 
 ## Status
 

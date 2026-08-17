@@ -170,6 +170,14 @@ pub(crate) fn live_subscription_match_outcome(
     if changes.is_empty() {
         return LiveMatchOutcome::ConservativeFallback;
     }
+    // @ref LLP 0240#d4-custom-function-mediated-authority-has-an-honest-declaration
+    // — an opaque custom evaluator has no enforceable complete input set.
+    // Every application-row change therefore wakes and reauthorizes; auth
+    // context and generation activation travel their existing invalidation
+    // lanes. Never consult the declared inputs as a precision claim.
+    if definition.custom_authorization.is_some() {
+        return LiveMatchOutcome::ConservativeFallback;
+    }
     // @ref LLP 0231#d3--composed-into-the-plan-sized-by-a-plan-class-model
     // — policy dependencies are broader than the row dependencies these
     // carriers currently capture. Put the conservative posture ahead of the
@@ -1021,9 +1029,9 @@ mod dependency_gate_tests {
         BoundedParentVisibility, BoundedProjectionField, JoinEquality, JoinKind,
     };
     use crate::manifest::{
-        AuthInput, BoundedChildrenQueryPlan, FunctionDefinition, FunctionKind, IbexModule,
-        RelationalQueryPlan, SnapshotBatchNodeV2, SnapshotBatchPlanV1, SnapshotBatchPlanV2,
-        TableVisibilityV1,
+        AuthInput, BoundedChildrenQueryPlan, CustomAuthorizationPolicyInputV1,
+        CustomAuthorizationV1, FunctionDefinition, FunctionKind, IbexModule, RelationalQueryPlan,
+        SnapshotBatchNodeV2, SnapshotBatchPlanV1, SnapshotBatchPlanV2, TableVisibilityV1,
     };
 
     fn input() -> HandlerInput {
@@ -1217,6 +1225,38 @@ mod dependency_gate_tests {
                 "policy-composed multi-table surfaces must resnapshot before dependency disjointness",
             );
         }
+    }
+
+    #[test]
+    fn coarse_custom_authorization_wakes_on_every_application_change() {
+        let mut definition = ibex_live_query();
+        definition.custom_authorization = Some(CustomAuthorizationV1 {
+            offline: "none".to_owned(),
+            sync: "coarse-global".to_owned(),
+            inputs: vec![CustomAuthorizationPolicyInputV1 {
+                kind: "table".to_owned(),
+                table: "documentAccess".to_owned(),
+                subject: "ctx.auth.userId".to_owned(),
+                key: vec!["documentId".to_owned(), "userId".to_owned()],
+            }],
+            input_completeness: "unproven".to_owned(),
+            pushdown: "none".to_owned(),
+            retention: "none".to_owned(),
+            precise_invalidation: false,
+            coarse_global_wake_universe: vec![
+                "membership-relation-insert-update-delete".to_owned(),
+                "protected-resource-row-insert-update-delete".to_owned(),
+                "effective-principal-or-auth-context-change".to_owned(),
+                "authority-profile-generation-activation".to_owned(),
+            ],
+            evaluator_identity: format!("sha256:{}", "1".repeat(64)),
+        });
+        let unrelated = [update("unrelated", "row-1", json!({ "_id": "row-1" }), &[])];
+        assert_eq!(
+            live_subscription_match_outcome(&definition, &input(), &[], &unrelated),
+            LiveMatchOutcome::ConservativeFallback,
+            "declared inputs are never used to make a precision claim",
+        );
     }
 
     #[test]

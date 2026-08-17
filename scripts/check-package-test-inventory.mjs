@@ -223,6 +223,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'activity-presence.test.mjs',
       'assets.test.mjs',
       'auth-bootstrap.test.mjs',
+      'authority-hooks.test.mjs',
       'ssr-hydration.test.mjs',
       'auth-blocked-resource.test.mjs',
       'authorization-denial.test.mjs',
@@ -338,6 +339,7 @@ export const PACKAGE_TEST_INVENTORIES = [
       'client-lifecycle.test.mjs',
       'contract-binding-reads.test.mjs',
       'contract-output-mode.test.mjs',
+      'custom-authorization.test.mjs',
       'data-tier-corpus.test.mjs',
       'declaration-suggestion.test.mjs',
       'dependency-graph.test.mjs',
@@ -549,7 +551,7 @@ export function inspectInventory(options) {
 export function auditPackageTestInventories({
   root = ROOT,
   inventories = PACKAGE_TEST_INVENTORIES,
-  expectedTotal = 310,
+  expectedTotal = 312,
 } = {}) {
   const results = inventories.map((inventory) => auditInventory({ root, inventory }));
   const total = results.reduce((sum, result) => sum + result.count, 0);
@@ -1003,6 +1005,10 @@ export function checkPackageTestInventories(options = {}) {
 // 308 -> 310 (2026-08-16, LLP 0270 Expo carrier): @expo/snapback-client gains the shared
 // SQLite store contract suite and @expo/snapback-expo gains provider resolution,
 // registry, and discard-and-refetch migration coverage.
+// 311 (registration fix, 2026-08-17): @expo/snapback-react's authority-hooks.test.mjs
+// (landed 205ba0bb9 without inventory registration) is registered: 311 -> 312.
+// 310 -> 311 (2026-08-16, LLP 0240 Slice C): @expo/snapback-codegen gains the
+// coarse-global custom-authorization declaration, refusal, and review suite.
 const invoked = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invoked) {
   const rootArg = process.argv.indexOf('--root');

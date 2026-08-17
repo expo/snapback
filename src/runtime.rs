@@ -3633,7 +3633,8 @@ impl<'a> IbexHostContext<'a> {
                 | "authority.list"
                 | "authority.myRole"
                 | "permissions.allowsRole"
-                | "permissions.requireRole" => {}
+                | "permissions.requireRole"
+                | "permissions.deny" => {}
                 "runtime.now" => {
                     return Err(protected_host_input_error(
                         "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY",
@@ -4994,15 +4995,28 @@ impl<'a> IbexHostContext<'a> {
                     .with_details(json!({ "error": error.to_string() }))
                 })
             }
+            // @ref LLP 0240#d4-custom-function-mediated-authority-has-an-honest-declaration
+            // — a false generated custom evaluator reaches the same branded
+            // terminal denial as the role gate; the handler cannot catch it
+            // and proceed because terminal state is retained out of band.
+            "permissions.deny" => {
+                if self.mode == IbexInvocationMode::Action {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_PERMISSIONS_UNAVAILABLE_IN_ACTION",
+                        "runtime",
+                        "ctx.permissions does not exist in actions",
+                    ));
+                }
+                let denial = crate::membership_rules::role_denial();
+                self.terminal_denial = Some(denial.clone());
+                Err(denial)
+            }
             // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
             // — declaration-bound role evaluation uses the shared authority IR.
             // The imperative twins are decomposed so LLP 0053's one-class-per-op
             // rule holds exactly: the membership read (DatabaseCaptured, both
             // outcomes) captured into the read set, then — on a failed check —
-            // the EXISTING TerminalAuthorization deny (`role_denial`), which
-            // reuses the existing `SNAPBACK_AUTH_PERMISSION_DENIED` (no new
-            // trusted code). It is generated sugar over that composition, not a
-            // third host operation.
+            // the existing TerminalAuthorization deny (`role_denial`).
             "permissions.allowsRole" | "permissions.requireRole" => {
                 let terminal = op == "permissions.requireRole";
                 // `ctx.permissions` does not exist in actions — no transactional
@@ -10640,6 +10654,47 @@ mod membership_bridge_tests {
                 fields: None,
             },
         ];
+        table.search_indexes.push(
+            serde_json::from_value(json!({
+                "formatVersion": 1,
+                "name": "search_admin_members",
+                "semanticVersion": "authority-inspection-admin-members.v1",
+                "analyzer": "snapback-category-unicode17-v1",
+                "analyzerTablesDigest": "sha256:67feb427579c6f3f9d601d93251c19cb18b15ab13cf46e7f33d285c3ff10181d",
+                "textFields": {
+                    "role": { "weight": 1, "classification": "private" }
+                },
+                "fieldClassifications": { "eventId": "private" },
+                "equalityFilters": [],
+                "storedFields": ["role"],
+                "highlightFields": ["role"],
+                "visibility": {
+                    "kind": "membership",
+                    "declaration": "event_members",
+                    "resourceField": "eventId",
+                    "roles": ["admin", "owner"]
+                },
+                "tieBreak": "score-desc-row-id-asc.v1",
+                "sourceLimits": {
+                    "maxIndexedBytes": 32768,
+                    "maxTokens": 2048,
+                    "maxPostingOperations": 4096
+                },
+                "queryLimits": {
+                    "maxCandidateWork": 10000,
+                    "maxPrefixTerms": 256,
+                    "minPrefixScalars": 2
+                },
+                "cursorLimits": { "ttlMs": 120000, "maxBytes": 2048 },
+                "maintenanceLimits": {
+                    "searchMaintenanceEffects": 1024,
+                    "searchPostingOps": 4096,
+                    "searchPositions": 8192,
+                    "searchBytes": 262144
+                }
+            }))
+            .expect("admin-only profile search index"),
+        );
         let transition_matrix =
             crate::manifest::canonical_membership_transition_matrix(&membership.transitions);
         table.authority_profile = Some(
@@ -10713,7 +10768,10 @@ mod membership_bridge_tests {
                         "lookup": "protected-holders-and-scope-invalidation-range"
                     }
                 ],
-                "permittedCompositionClasses": ["table-visibility.membership.v1"],
+                "permittedCompositionClasses": [
+                    "table-visibility.membership.v1",
+                    "membership-visible-search.v1"
+                ],
                 "notYetQualifiedCompositionClasses": [],
                 "roster": { "visibleFields": ["userId", "role"] },
                 "operations": [
@@ -11702,6 +11760,155 @@ globalThis.__snapbackHandlers = {
             .expect_err("the write twin remains terminal after removal");
         assert_eq!(denial.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
         assert!(terminal.take_terminal_denial().is_some());
+    }
+
+    #[test]
+    fn custom_authorization_deny_reuses_the_terminal_permission_refusal() {
+        let db = ready_db();
+        let mut ctx = context(&db);
+        let error = ctx
+            .handle_host_call("permissions.deny", json!({}))
+            .expect_err("a false custom evaluator must stop before its handler");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+        assert_eq!(
+            ctx.take_terminal_denial()
+                .expect("terminal refusal remains branded")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_PERMISSION_DENIED"
+        );
+    }
+
+    #[test]
+    fn effective_authority_inspection_projects_only_gated_profile_facts() {
+        use crate::membership_rules::{
+            AuthorityEffectiveInspectionRequestV1, AuthorityInspectionDecisionV1,
+            AuthorityInspectionSearchIndexV1, AuthorityInspectionTargetV1,
+            AuthorityInspectionViewV1,
+        };
+
+        let mut db = authority_profile_ready_db();
+        db.schema_seed()
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "events".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("event-a")),
+                            ("title".to_owned(), json!("A")),
+                        ])],
+                    ),
+                    (
+                        "event_members".to_owned(),
+                        vec![
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("member-alice")),
+                                ("eventId".to_owned(), json!("event-a")),
+                                ("userId".to_owned(), json!("alice")),
+                                ("role".to_owned(), json!("owner")),
+                            ]),
+                            Map::from_iter([
+                                ("_id".to_owned(), json!("member-bob")),
+                                ("eventId".to_owned(), json!("event-a")),
+                                ("userId".to_owned(), json!("bob")),
+                                ("role".to_owned(), json!("member")),
+                            ]),
+                        ],
+                    ),
+                ]),
+            })
+            .expect("seed one resource with its bootstrap owner");
+
+        let admitted = crate::membership_rules::authority_effective_inspection(
+            &db,
+            AuthorityEffectiveInspectionRequestV1 {
+                profile_id: "event_members".to_owned(),
+                profile_generation: "sha256:authority-profile-runtime-gate".to_owned(),
+                principal_id: "alice".to_owned(),
+                scope_id: Some("event-a".to_owned()),
+                target: AuthorityInspectionTargetV1::View {
+                    name: AuthorityInspectionViewV1::MembershipVisibleSearch,
+                    index: Some(AuthorityInspectionSearchIndexV1 {
+                        table: "event_members".to_owned(),
+                        name: "search_admin_members".to_owned(),
+                    }),
+                },
+            },
+        )
+        .expect("authenticated inspector resolves the active member");
+        assert_eq!(
+            admitted.policy_branch.decision,
+            AuthorityInspectionDecisionV1::Admit
+        );
+        assert_eq!(admitted.subject.role.as_deref(), Some("owner"));
+        assert_eq!(admitted.backing.membership_rows.len(), 1);
+        assert_eq!(
+            admitted.backing.membership_index_plan.name,
+            "_membership_pk"
+        );
+        assert_eq!(
+            admitted.backing.transition_index_plan.name,
+            "_snapback_membership_transitions_by_declaration"
+        );
+        assert_eq!(
+            admitted.static_authorization_review.policy_identity,
+            "snapback.authorization-review.v2"
+        );
+        assert_eq!(
+            admitted.sources.code,
+            "src/membership_rules.rs#authority_effective_inspection"
+        );
+
+        let member_denied = crate::membership_rules::authority_effective_inspection(
+            &db,
+            AuthorityEffectiveInspectionRequestV1 {
+                profile_id: "event_members".to_owned(),
+                profile_generation: "sha256:authority-profile-runtime-gate".to_owned(),
+                principal_id: "bob".to_owned(),
+                scope_id: Some("event-a".to_owned()),
+                target: AuthorityInspectionTargetV1::View {
+                    name: AuthorityInspectionViewV1::MembershipVisibleSearch,
+                    index: Some(AuthorityInspectionSearchIndexV1 {
+                        table: "event_members".to_owned(),
+                        name: "search_admin_members".to_owned(),
+                    }),
+                },
+            },
+        )
+        .expect("the inspector answers against the named admin-only index");
+        assert_eq!(
+            member_denied.policy_branch.decision,
+            AuthorityInspectionDecisionV1::Deny
+        );
+        assert_eq!(member_denied.subject.role.as_deref(), Some("member"));
+        assert_eq!(
+            member_denied.policy_branch.identity,
+            "event_members.view.membership-visible-search.event_members.search_admin_members.v1"
+        );
+
+        let denied = crate::membership_rules::authority_effective_inspection(
+            &db,
+            AuthorityEffectiveInspectionRequestV1 {
+                profile_id: "event_members".to_owned(),
+                profile_generation: "sha256:authority-profile-runtime-gate".to_owned(),
+                principal_id: "outsider".to_owned(),
+                scope_id: Some("event-a".to_owned()),
+                target: AuthorityInspectionTargetV1::View {
+                    name: AuthorityInspectionViewV1::Roster,
+                    index: None,
+                },
+            },
+        )
+        .expect("authenticated inspection represents a closed-default denial");
+        assert_eq!(
+            denied.policy_branch.decision,
+            AuthorityInspectionDecisionV1::Deny
+        );
+        assert_eq!(
+            denied.policy_branch.refusal_code.as_deref(),
+            Some("SNAPBACK_AUTH_PERMISSION_DENIED")
+        );
+        assert!(denied.backing.membership_rows.is_empty());
     }
 
     #[test]

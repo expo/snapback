@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:af05f0c3c7e4c8f66fdee42ffbe920e6827de7a44e73015b65a2078c086d1c9c
+reviewed-authorities-digest: sha256:ecc5fe3900eaed7359f58b7e31139a32a633368e04b81e44db0110d621b48a9a
 ---
 
 # Surface map
@@ -53,6 +53,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/auth/integrations/{id}/resume | auth.agent-principals |
 | /_snapback/api/auth/integrations/{id}/retire | auth.agent-principals |
 | /_snapback/api/auth/integrations/{id}/suspend | auth.agent-principals |
+| /_snapback/api/authority/effective | authority.inspection.v1 |
 | /_snapback/api/client-mutations/purge | notAuthorFacing (operator settlement maintenance) |
 | /_snapback/api/config/plan | operating.secrets-config |
 | /_snapback/api/config/set | operating.secrets-config |

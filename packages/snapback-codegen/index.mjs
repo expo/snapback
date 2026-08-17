@@ -126,6 +126,7 @@ import {
   captureElevatedDbUseSites,
   extractInlineHandlers,
   renameExtractedInlineHandler,
+  renderInlineCustomAuthorizationModule,
   renderInlineHandlerModule,
   renderInlineOperationGraphModule,
   renderInlineOperationModule,
@@ -2144,6 +2145,7 @@ async function generateInProcessLocked({
       if (erased) definitionSourceOverrides.set(resolve(path), erased);
     }
     const handlers = new Map();
+    const authorizationEvaluators = new Map();
     const attributionDefinitions = [];
     const attributionProperties = new Map();
     familiarFunctionSourceSpans = {};
@@ -2181,6 +2183,14 @@ async function generateInProcessLocked({
             renameExtractedInlineHandler(extractedHandler, operation.name),
           );
         }
+        const extractedEvaluator = extracted.authorizationEvaluators.get(local)
+          ?? extracted.authorizationEvaluators.get(operation.localName);
+        if (extractedEvaluator) {
+          authorizationEvaluators.set(operation.name, {
+            ...extractedEvaluator,
+            name: operation.name,
+          });
+        }
         const definition = attribution.definitions.find(
           (candidate) => candidate.binding === operation.localName,
         );
@@ -2217,6 +2227,7 @@ async function generateInProcessLocked({
     inlineExtraction = {
       transformedSource: functionsSource,
       handlers,
+      authorizationEvaluators,
       diagnostics: [],
     };
   } else {
@@ -3600,11 +3611,11 @@ async function generateInProcessLocked({
       permittedCompositionClasses: [
         'table-visibility.membership.v1',
         'function-admission.membership.v1',
+        'membership-visible-search.v1',
         'authority-roster-projection.v1',
         'authority-roster-transitions.v1',
       ],
       notYetQualifiedCompositionClasses: [
-        'membership-visible-search.v1',
         'authority-profile-asset-sharing.v1',
       ],
       roster: { visibleFields: [...visibleFields] },
@@ -3640,14 +3651,52 @@ async function generateInProcessLocked({
     }
     for (const search of table.searchIndexes ?? []) {
       if (search.visibility?.kind !== 'membership') continue;
-      if (!authorityProfiles.has(search.visibility.declaration)) continue;
-      authorityProfileError(
-        'SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS',
-        table.name,
-        `search index ${search.name} references authority profile ${search.visibility.declaration}, but membership-visible search is not yet qualified`,
-        'Use a non-profile membership declaration for this search index, or remove the composition until the search qualification lane lands.',
-        { compositionClass: 'membership-visible-search.v1', declaration: search.visibility.declaration },
-      );
+      const authority = authorityProfileForMembershipSearch(table, search, authorityProfiles, authorityProfileError);
+      if (!authority) continue;
+      // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+      // — profile-backed search lowers directly into the existing closed
+      // SearchVisibilityV1 membership carrier. The search runtime therefore
+      // consumes the same literal role closure and nonenumerating predicate
+      // as list visibility; no second visibility plan or evaluator exists.
+      const requested = search.visibility.roles
+        ?? authority.profile.roleLattice.map(({ role }) => role);
+      search.visibility.roles = [...new Set(requested.flatMap((minimumRole) => (
+        authority.profile.roleLattice
+          .filter(({ implies }) => implies.includes(minimumRole))
+          .map(({ role }) => role)
+      )))].sort();
+      if (table.name === authority.profile.scopeRelation.table) {
+        const visibleFields = new Set(authority.profile.roster.visibleFields);
+        const authoredProjectionFields = [...new Set([
+          ...Object.keys(search.textFields ?? {}),
+          ...(search.storedFields ?? []),
+          ...(search.highlightFields ?? []),
+        ])].sort();
+        const invisibleFields = authoredProjectionFields.filter((field) => !visibleFields.has(field));
+        // Defense in depth: retain only the roster projection even though an
+        // authored invisible field also fails this generation below. Resource
+        // partitioning and the lowered role predicate remain unchanged.
+        search.textFields = Object.fromEntries(
+          Object.entries(search.textFields ?? {}).filter(([field]) => visibleFields.has(field)),
+        );
+        search.storedFields = (search.storedFields ?? []).filter((field) => visibleFields.has(field));
+        search.highlightFields = (search.highlightFields ?? []).filter((field) => visibleFields.has(field));
+        if (invisibleFields.length > 0) {
+          authorityProfileError(
+            'SNAPBACK_AUTHORITY_PROFILE_SEARCH_FIELD_NOT_VISIBLE',
+            table.name,
+            `profile-backed membership-table search index ${search.name} names roster-invisible fields ${invisibleFields.join(', ')}`,
+            'Remove every invisible text/stored/highlight field from the index, or explicitly add the intended projection fields to authorityProfile().roster.visible.',
+            {
+              compositionClass: 'membership-visible-search.v1',
+              declaration: authority.profile.id,
+              index: search.name,
+              invisibleFields,
+              visibleFields: [...visibleFields].sort(),
+            },
+          );
+        }
+      }
     }
     if (table.assetSharing?.kind === 'membership'
       && authorityProfiles.has(table.assetSharing.membership)) {
@@ -4164,15 +4213,40 @@ async function generateInProcessLocked({
       // dependency inside a shared helper refuses exactly like inline code,
       // with the refusal mapped back to the helper's authored span.
       const canonicalRendered = renderInlineOperation(name, extracted);
-      for (const issue of scanUnsupportedHandlerSource(canonicalRendered.source, 'functions.mjs')) {
-        const segment = canonicalRendered.segments.findLast(
+      const customAuthorization = def.customAuthorization;
+      const extractedEvaluator = inlineExtraction.authorizationEvaluators?.get(name);
+      let renderedCustomAuthorization = null;
+      if (customAuthorization !== undefined) {
+        const marker = customAuthorization.evaluator
+          ?.__snapbackInlineAuthorizationEvaluatorMarker;
+        if (!extractedEvaluator || marker !== extractedEvaluator.token) {
+          err(
+            'SNAPBACK_CUSTOM_AUTHORIZATION_EVALUATOR_MARKER_INVALID',
+            'auth',
+            `${name}: custom authorization evaluator marker does not match its direct source expression`,
+            { function: name },
+          );
+        } else {
+          renderedCustomAuthorization = renderInlineCustomAuthorizationModule(
+            name,
+            extracted,
+            extractedEvaluator,
+          );
+        }
+      }
+      const capabilityRendered = renderedCustomAuthorization ?? canonicalRendered;
+      for (const issue of scanUnsupportedHandlerSource(capabilityRendered.source, 'functions.mjs')) {
+        const segment = capabilityRendered.segments.findLast(
           (candidate) => issue.line >= candidate.startLine,
-        ) ?? canonicalRendered.segments[0];
+        ) ?? capabilityRendered.segments[0];
         err(issue.code, 'bundle', `${name}: ${issue.message}`, {
           function: name,
           source: 'functions.mjs',
           token: issue.token,
           ...(segment.kind === 'helper' ? { helper: segment.name } : {}),
+          ...(segment.kind === 'authorization-evaluator'
+            ? { customAuthorizationEvaluator: true }
+            : {}),
           sourceSpan: {
             file: 'functions.mjs',
             line: segment.sourceSpan.line + issue.line - segment.startLine,
@@ -4189,11 +4263,11 @@ async function generateInProcessLocked({
         ? renderFamiliarHandlerRuntime(
             name,
             extracted,
-            canonicalRendered,
+            capabilityRendered,
             def.familiarContext,
             familiarBootstrap.apiDigest,
           )
-        : canonicalRendered;
+        : capabilityRendered;
       return {
         source: rendered.source,
         analysisSource: extracted.expressionSource,
@@ -4207,6 +4281,13 @@ async function generateInProcessLocked({
           ({ name: helperName, contentHash }) => ({ name: helperName, contentHash }),
         ),
         elevatedDbUses: extracted.elevatedDbUses ?? [],
+        customAuthorizationEvaluator: extractedEvaluator
+          ? {
+              token: extractedEvaluator.token,
+              sourceSpan: extractedEvaluator.sourceSpan,
+              elevatedDbUses: extractedEvaluator.elevatedDbUses ?? [],
+            }
+          : null,
         sourceSpan: extracted.sourceSpan,
       };
     }
@@ -4271,6 +4352,112 @@ async function generateInProcessLocked({
       ...resolved,
       ...wrapped,
       membershipReads: [...new Set(admission.map(({ table }) => table))],
+    };
+  };
+
+  const compileCustomAuthorization = (def, name, resolvedHandler) => {
+    const declaration = def.customAuthorization;
+    if (declaration === undefined) return null;
+    // @ref LLP 0240#d4-custom-function-mediated-authority-has-an-honest-declaration
+    // — keep the precise lane closed at the compiler boundary as well as the
+    // public factory so a future alternate caller cannot bypass the refusal.
+    if (declaration.sync === 'reauthorize-on-change') {
+      err(
+        'SNAPBACK_CUSTOM_AUTHORIZATION_PRECISE_COMPLETENESS_UNAVAILABLE',
+        'auth',
+        `${name}: custom authorization sync "reauthorize-on-change" is unavailable: LLP 0146 enforceable strict input completeness is not yet present`,
+        {
+          function: name,
+          requestedSync: declaration.sync,
+          prerequisite: 'LLP 0146 enforceable strict input completeness',
+        },
+      );
+    }
+    if (targetProfile !== TARGET_PROFILE_LOCAL) {
+      err(
+        'SNAPBACK_CUSTOM_AUTHORIZATION_COARSE_WAKE_UNAVAILABLE',
+        'auth',
+        `${name}: target ${targetProfile} cannot conservatively wake the declared coarse-global custom authorization universe`,
+        {
+          function: name,
+          targetProfile,
+          supportedTarget: TARGET_PROFILE_LOCAL,
+          coarseGlobalWakeUniverse: declaration.coarseGlobalWakeUniverse,
+        },
+      );
+    }
+    const inputTables = [...new Set(declaration.inputs.map(({ table }) => table))].sort();
+    for (const table of inputTables) {
+      if (!tables[table]) {
+        err(
+          'SNAPBACK_CUSTOM_AUTHORIZATION_INPUT_TABLE_UNKNOWN',
+          'auth',
+          `${name}: custom authorization input references unknown table ${table}`,
+          { function: name, table },
+        );
+      }
+    }
+    const evaluator = resolvedHandler?.customAuthorizationEvaluator;
+    const elevatedUses = evaluator?.elevatedDbUses ?? [];
+    for (const use of elevatedUses) {
+      if (use.table === null || !inputTables.includes(use.table)) {
+        err(
+          'SNAPBACK_CUSTOM_AUTHORIZATION_INPUT_SITE_UNPROVEN',
+          'auth',
+          `${name}: custom evaluator elevated ${use.member} site must name one literal declared policy input table`,
+          {
+            function: name,
+            readForm: use.member,
+            table: use.table,
+            sourceSpan: use.source,
+            declaredInputTables: inputTables,
+          },
+        );
+      }
+    }
+    for (const table of inputTables) {
+      if (!elevatedUses.some((use) => use.table === table)) {
+        err(
+          'SNAPBACK_CUSTOM_AUTHORIZATION_INPUT_SITE_UNPROVEN',
+          'auth',
+          `${name}: custom authorization input ${table} has no direct elevated evaluator read site`,
+          { function: name, table, declaredInputTables: inputTables },
+        );
+      }
+    }
+    warn(
+      'SNAPBACK_CUSTOM_AUTHORIZATION_INPUT_COMPLETENESS_UNPROVEN',
+      'auth',
+      `${name}: coarse-global custom authorization is online-only; declared policy inputs are review facts, not a completeness proof, so every relevant app/auth change reauthorizes`,
+      {
+        function: name,
+        details: {
+          inputCompleteness: 'unproven',
+          sync: declaration.sync,
+          offline: declaration.offline,
+          pushdown: 'none',
+          retention: 'none',
+          preciseInvalidation: false,
+          coarseGlobalWakeUniverse: declaration.coarseGlobalWakeUniverse,
+          inputs: declaration.inputs,
+        },
+      },
+    );
+    return {
+      offline: declaration.offline,
+      sync: declaration.sync,
+      inputs: declaration.inputs.map(({ kind, table, subject, key }) => ({
+        kind,
+        table,
+        subject,
+        key: [...key],
+      })),
+      inputCompleteness: declaration.inputCompleteness,
+      pushdown: declaration.pushdown,
+      retention: declaration.retention,
+      preciseInvalidation: declaration.preciseInvalidation,
+      coarseGlobalWakeUniverse: [...declaration.coarseGlobalWakeUniverse],
+      evaluatorIdentity: `sha256:${evaluator?.token ?? 'invalid'}`,
     };
   };
 
@@ -5184,9 +5371,11 @@ async function generateInProcessLocked({
       };
     } else if ((def.__kind === 'Query' || def.__kind === 'LiveQuery') && def.js) {
       const resolvedHandler = resolveAdmittedJsHandler(def, name);
+      const customAuthorization = compileCustomAuthorization(def, name, resolvedHandler);
       const readTables = [...new Set([
         ...(def.js.reads ?? []),
         ...(resolvedHandler?.membershipReads ?? []),
+        ...(customAuthorization?.inputs.map(({ table }) => table) ?? []),
       ])];
       for (const table of readTables) {
         if (!tables[table]) {
@@ -5319,6 +5508,7 @@ async function generateInProcessLocked({
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
         elevatedDbUses: resolvedHandler?.elevatedDbUses ?? [],
+        customAuthorizationEvaluator: resolvedHandler?.customAuthorizationEvaluator ?? null,
         elevatedDbCapabilities: resolvedHandler?.elevatedDbCapabilities ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
@@ -5327,6 +5517,14 @@ async function generateInProcessLocked({
         ...(def.fieldBoundary === undefined ? {} : { fieldBoundary: def.fieldBoundary }),
         authScopeField: def.js.authScopeField ?? null,
         authorizationDependence: jsAuthorizationDependence(def),
+        ...(customAuthorization === null ? {} : {
+          customAuthorization,
+          authorizationDependence: [...new Set([
+            ...jsAuthorizationDependence(def),
+            'userId',
+            'opaque',
+          ])].sort(),
+        }),
         syncabilityClass: def.js.syncabilityClass,
       });
       contractQueries[name] = {
@@ -5614,9 +5812,11 @@ async function generateInProcessLocked({
       };
     } else if (def.__kind === 'Mutation' && def.js) {
       const resolvedHandler = resolveAdmittedJsHandler(def, name);
+      const customAuthorization = compileCustomAuthorization(def, name, resolvedHandler);
       const reads = [...new Set([
         ...(def.js.reads ?? []),
         ...(resolvedHandler?.membershipReads ?? []),
+        ...(customAuthorization?.inputs.map(({ table }) => table) ?? []),
       ])];
       const writes = def.js.writes ?? [];
       for (const table of [...reads, ...writes]) {
@@ -5659,6 +5859,7 @@ async function generateInProcessLocked({
         inlineAst: resolvedHandler?.inlineAst,
         inlineHelpers: resolvedHandler?.inlineHelpers,
         elevatedDbUses: resolvedHandler?.elevatedDbUses ?? [],
+        customAuthorizationEvaluator: resolvedHandler?.customAuthorizationEvaluator ?? null,
         elevatedDbCapabilities: resolvedHandler?.elevatedDbCapabilities ?? [],
         typescriptIdentity: resolvedHandler?.typescriptIdentity,
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
@@ -5681,6 +5882,16 @@ async function generateInProcessLocked({
             : { declaredTableCeiling: def.declaredTableCeiling }),
         },
         sequences: def.sequences ?? [],
+        ...(customAuthorization === null ? {} : {
+          customAuthorization,
+          authorizationDependence: [...new Set([
+            ...(Array.isArray(def.authorizationDependence)
+              ? def.authorizationDependence
+              : []),
+            'userId',
+            'opaque',
+          ])].sort(),
+        }),
         syncabilityClass: 'mutation',
       });
       // The class-specific "outgrew the IR" diagnostic (LLP 0051 D2 /
@@ -6048,11 +6259,22 @@ async function generateInProcessLocked({
     const declarations = new Set();
     const def = functionsModule[fn.name];
     const query = fn.runtime?.HostPlan?.Query;
+    const search = fn.runtime?.HostPlan?.SearchQuery;
     for (const predicate of query?.membershipFilters ?? []) {
       declarations.add(predicate.declaration);
     }
     for (const leaf of tableVisibilityMembershipLeaves(query?.tableVisibility)) {
       declarations.add(leaf.declaration);
+    }
+    // @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions
+    // — a named search operation is itself a profile consumer, so the same
+    // generation identity participates in its runtime fence and review facts.
+    if (search) {
+      const index = (tables[search.table]?.searchIndexes ?? [])
+        .find((candidate) => candidate.name === search.index);
+      if (index?.visibility?.kind === 'membership') {
+        declarations.add(index.visibility.declaration);
+      }
     }
     for (const tableName of fn.declaredWrites ?? []) {
       const id = tables[tableName]?.authorityProfile?.id;
@@ -11735,8 +11957,10 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
     // — profile generation is an implementation-identity input only for
     // operations that mechanically depend on that profile. Legacy functions
     // retain their byte-identical v1-v4 hashes.
-    const implementationFormatVersion = elevatedDbCapabilities.length > 0
-      ? 'v6'
+    const implementationFormatVersion = fn.customAuthorization !== undefined
+      ? 'v7'
+      : elevatedDbCapabilities.length > 0
+        ? 'v6'
       : hasAuthorityProfileDependence
         ? 'v5'
         : (fn.stream === true
@@ -11789,6 +12013,9 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
       ...(fn.boundedSkew !== undefined ? { boundedSkew: fn.boundedSkew } : {}),
       ...(elevatedDbCapabilities.length > 0 ? { elevatedDbCapabilities } : {}),
       ...(fn.writePolicy !== undefined ? { writePolicy: fn.writePolicy } : {}),
+      ...(fn.customAuthorization !== undefined
+        ? { customAuthorization: fn.customAuthorization }
+        : {}),
     };
     return {
       id: functionId(appId, fn.name),
@@ -11828,6 +12055,9 @@ function decorateFunctions(appId, functions, sourceSpans = {}) {
         : {}),
       ...(fn.generatedAuthorityOperation !== undefined
         ? { generatedAuthorityOperation: { ...fn.generatedAuthorityOperation } }
+        : {}),
+      ...(fn.customAuthorization !== undefined
+        ? { customAuthorization: structuredClone(fn.customAuthorization) }
         : {}),
       ...(fn.fieldBoundary !== undefined ? { fieldBoundary: fn.fieldBoundary } : {}),
       ...(elevatedDbCapabilities.length > 0 ? { elevatedDbCapabilities } : {}),
@@ -18339,6 +18569,10 @@ const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
   'SNAPBACK_CODEGEN_FAMILIAR_RETURNS_UNLOWERABLE',
   'SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED',
   'SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE',
+  'SNAPBACK_CUSTOM_AUTHORIZATION_DECLARATION_INVALID',
+  'SNAPBACK_CUSTOM_AUTHORIZATION_EVALUATOR_FORM_UNAVAILABLE',
+  'SNAPBACK_CUSTOM_AUTHORIZATION_PRECISE_COMPLETENESS_UNAVAILABLE',
+  'SNAPBACK_CUSTOM_AUTHORIZATION_RETENTION_UNAVAILABLE',
   'SNAPBACK_API_BUDGETS_UNAVAILABLE',
   'SNAPBACK_API_ASK_BUDGETS_INVALID',
   'SNAPBACK_API_ASK_BUDGETS_REQUIRED',
@@ -19632,4 +19866,33 @@ function isDirectCliInvocation(metaUrl, argv1) {
 
 if (isDirectCliInvocation(import.meta.url, process.argv[1])) {
   await runCodegenCli(process.argv);
+}
+
+// @ref LLP 0240#d2-compile-one-authority-ir-for-read-and-write-decisions — a
+// profile membership table cannot select another declaration's roster or
+// generation identity while retaining its own authority-table semantics.
+function authorityProfileForMembershipSearch(
+  table,
+  search,
+  authorityProfiles,
+  reportAuthorityProfileError,
+) {
+  const tableProfileDeclaration = table.authorityProfile?.id;
+  if (tableProfileDeclaration !== undefined
+    && search.visibility.declaration !== tableProfileDeclaration) {
+    reportAuthorityProfileError(
+      'SNAPBACK_AUTHORITY_PROFILE_SEARCH_DECLARATION_MISMATCH',
+      table.name,
+      `authority-profile membership table search index ${search.name} names visibility declaration ${search.visibility.declaration} instead of its own declaration ${tableProfileDeclaration}`,
+      `Set the index membership visibility declaration to ${JSON.stringify(tableProfileDeclaration)}; cross-declaration membership visibility remains available only on non-profile tables.`,
+      {
+        compositionClass: 'membership-visible-search.v1',
+        index: search.name,
+        tableProfileDeclaration,
+        visibilityDeclaration: search.visibility.declaration,
+      },
+    );
+    return null;
+  }
+  return authorityProfiles.get(search.visibility.declaration);
 }

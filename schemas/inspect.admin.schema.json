@@ -4068,6 +4068,85 @@
       ],
       "type": "string"
     },
+    "CustomAuthorizationPolicyInputV1": {
+      "additionalProperties": false,
+      "description": "One declared backing-table input to an opaque custom authorization\nevaluator. This is review evidence and wake input, never a completeness or\npushdown claim.\n\n@ref LLP 0240#d4-custom-function-mediated-authority-has-an-honest-declaration",
+      "properties": {
+        "key": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "table",
+        "subject",
+        "key"
+      ],
+      "type": "object"
+    },
+    "CustomAuthorizationV1": {
+      "additionalProperties": false,
+      "description": "Closed coarse-global custom authorization fact emitted beside an Ibex\noperation. Strings that describe unproved properties are fixed literals\nvalidated at activation; they are not author-extensible vocabularies.",
+      "properties": {
+        "coarseGlobalWakeUniverse": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "evaluatorIdentity": {
+          "type": "string"
+        },
+        "inputCompleteness": {
+          "type": "string"
+        },
+        "inputs": {
+          "items": {
+            "$ref": "#/$defs/CustomAuthorizationPolicyInputV1"
+          },
+          "type": "array"
+        },
+        "offline": {
+          "type": "string"
+        },
+        "preciseInvalidation": {
+          "type": "boolean"
+        },
+        "pushdown": {
+          "type": "string"
+        },
+        "retention": {
+          "type": "string"
+        },
+        "sync": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "offline",
+        "sync",
+        "inputs",
+        "inputCompleteness",
+        "pushdown",
+        "retention",
+        "preciseInvalidation",
+        "coarseGlobalWakeUniverse",
+        "evaluatorIdentity"
+      ],
+      "type": "object"
+    },
     "DependencySummary": {
       "properties": {
         "authScopeField": {
@@ -5185,6 +5264,17 @@
             "string",
             "null"
           ]
+        },
+        "customAuthorization": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CustomAuthorizationV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Opaque function-mediated authority remains private manifest authority:\nthe public function projection deliberately omits its policy topology."
         },
         "effectCeiling": {
           "anyOf": [

@@ -1301,6 +1301,13 @@
         ? new Proxy(Object.create(null), {
             get: function(_target, declaration) {
               if (typeof declaration !== "string") { return undefined; }
+              if (declaration === "__snapbackCustomAuthorization") {
+                return {
+                  deny: function() {
+                    return host("permissions.deny", {});
+                  }
+                };
+              }
               return {
                 allowsRole: function(resource) {
                   var roles = Array.prototype.slice.call(arguments, 1);

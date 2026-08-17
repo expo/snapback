@@ -409,6 +409,36 @@ export interface QueryAuthOptions extends FunctionAuthOptions {
   retainable?: boolean;
 }
 
+export interface PolicyInputTableV1 {
+  readonly kind: 'table';
+  readonly table: string;
+  readonly subject: 'ctx.auth.userId';
+  readonly key: readonly string[];
+}
+
+export interface CustomAuthorizationV1 {
+  readonly inputs: readonly PolicyInputTableV1[];
+  readonly evaluate: (ctx: any, args: any) => boolean | Promise<boolean>;
+  readonly offline: 'none';
+  readonly sync: 'coarse-global' | 'reauthorize-on-change';
+}
+
+declare const customAuthorizationDeclarationBrand: unique symbol;
+export interface CustomAuthorizationDeclarationV1 {
+  readonly [customAuthorizationDeclarationBrand]: true;
+}
+
+export declare const policyInput: {
+  table<const Table extends string, const Key extends readonly string[]>(
+    table: Table,
+    spec: { subject: 'ctx.auth.userId'; key: Key },
+  ): PolicyInputTableV1 & { readonly table: Table; readonly key: Key };
+};
+
+export declare const authorization: {
+  custom(spec: CustomAuthorizationV1): CustomAuthorizationDeclarationV1;
+};
+
 export interface HostPlanQuerySpec extends QueryAuthOptions {
   table: string;
   args?: Record<string, Validator>;
@@ -449,6 +479,10 @@ interface JsQuerySpecBase extends QueryAuthOptions {
    * Row-set reads blank on denial; mutations use the same rule as a terminal
    * gate. Scalar/document and nonempty row-set read results are refused. */
   membership?: MembershipPredicate[];
+  /** Opaque function-mediated authority. Coarse-global is online-only and
+   * wakes conservatively; precise reauthorization is a typed generation
+   * refusal until strict input completeness is enforceable. */
+  authorization?: CustomAuthorizationDeclarationV1;
 }
 export type JsQuerySpec = JsQuerySpecBase & (
   | { source: string; exportName: string; handler?: never }
@@ -494,6 +528,7 @@ interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
   result?: ResultContract;
   /** Authority-profile predicates compiled as terminal pre-handler gates. */
   membership?: MembershipPredicate[];
+  authorization?: CustomAuthorizationDeclarationV1;
   /** Declares the named out-of-profile class keeping this mutation JS-tier;
    * codegen emits the class-specific "outgrew the IR" info diagnostic. */
   outgrewIr?: OutgrewIrClass;

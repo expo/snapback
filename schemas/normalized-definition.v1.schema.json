@@ -199,6 +199,7 @@
         "authorityIndependent": { "type": "boolean" },
         "authorityCreating": { "type": "boolean" },
         "fieldBoundary": { "type": ["object", "null"] },
+        "customAuthorization": { "type": "object" },
         "elevatedDbCapabilities": { "type": "array" },
         "authorityProfileDependence": { "type": "array" },
         "generatedAuthorityOperation": {

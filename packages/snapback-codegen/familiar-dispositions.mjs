@@ -63,6 +63,7 @@ export const FAMILIAR_DISPOSITIONS = Object.freeze({
     authorityIndependent: entry(2, 'defaults to false; use the explicit profile for true'),
     authorityCreating: entry(2, 'defaults to false; use the explicit profile for true'),
     authorizationDependence: entry(2, 'derived as for canonical JS handlers'),
+    authorization: entry(4, 'use the explicit profile for custom authorization'),
     fieldBoundary: entry(4, 'use the explicit profile'),
     boundedSkew: entry(4, 'use the explicit profile'),
     standardPattern: entry(4, 'use the explicit profile'),

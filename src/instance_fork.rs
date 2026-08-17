@@ -2329,6 +2329,7 @@ impl EgressFamily {
             // not a derived-fork egress effect.
             | "permissions.allowsRole"
             | "permissions.requireRole"
+            | "permissions.deny"
             | "authority.list"
             | "authority.myRole" => None,
             _ => Some(Self::UnclassifiedHostOperation),

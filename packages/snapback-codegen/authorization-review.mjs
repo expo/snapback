@@ -226,9 +226,13 @@ function elevatedDatabase(fn, sourceFn) {
     fn.runtime?.IbexModule
     && ['Query', 'LiveQuery', 'Mutation'].includes(fn.kind),
   );
+  const directUses = [
+    ...(sourceFn?.elevatedDbUses ?? []),
+    ...(sourceFn?.customAuthorizationEvaluator?.elevatedDbUses ?? []),
+  ];
   const capturedUses = available
     ? sortedBy(
-        (sourceFn?.elevatedDbUses ?? []).map(({ member, table = null, source, capture }) => ({
+        directUses.map(({ member, table = null, source, capture }) => ({
           member,
           table,
           source: portableSource(source),
@@ -315,6 +319,9 @@ export function createAuthorizationReview({
         ({ id, generation }) => `${id}\0${generation}`,
       ),
       fieldBoundary: normalizedFieldBoundary(fn.fieldBoundary),
+      ...(fn.customAuthorization === undefined
+        ? {}
+        : { customAuthorization: clone(fn.customAuthorization) }),
       maskedFieldUses: [],
     };
   }).sort((left, right) => compareText(left.name, right.name));
@@ -431,6 +438,24 @@ export function validateAuthorizationReview(value) {
   for (const operation of value.operations ?? []) {
     if (!Array.isArray(operation.maskedFieldUses) || operation.maskedFieldUses.length !== 0) {
       problems.push(`${operation.name ?? '<unknown>'}.maskedFieldUses must be empty in v1`);
+    }
+    if (operation.customAuthorization !== undefined) {
+      const custom = operation.customAuthorization;
+      if (!custom || typeof custom !== 'object' || Array.isArray(custom)) {
+        problems.push(`${operation.name ?? '<unknown>'}.customAuthorization must be an object`);
+      } else if (
+        custom.offline !== 'none'
+        || custom.sync !== 'coarse-global'
+        || custom.inputCompleteness !== 'unproven'
+        || custom.pushdown !== 'none'
+        || custom.retention !== 'none'
+        || custom.preciseInvalidation !== false
+        || !Array.isArray(custom.inputs)
+        || custom.inputs.length === 0
+        || !Array.isArray(custom.coarseGlobalWakeUniverse)
+      ) {
+        problems.push(`${operation.name ?? '<unknown>'}.customAuthorization is not the closed coarse-global review fact`);
+      }
     }
   }
   return problems;

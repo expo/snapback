@@ -37,6 +37,7 @@ use crate::manifest::{
     TableManifest, ValueExpr,
 };
 use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead, KeysetAfter};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 pub(crate) use crate::manifest::{
@@ -663,6 +664,569 @@ pub fn authority_my_role(
             AuthorityMyRoleV1 { role, status },
             vec![dependency],
         ))
+    })
+}
+
+/// The closed operation/view vocabulary accepted by the authenticated
+/// effective-authority inspector. This is deliberately narrower than a free
+/// string so the diagnostic cannot become a policy-name discovery oracle.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuthorityInspectionViewV1 {
+    Roster,
+    MembershipVisibleSearch,
+    AuthorityProfileAssetSharing,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityInspectionSearchIndexV1 {
+    pub table: String,
+    pub name: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub enum AuthorityInspectionTargetV1 {
+    Operation {
+        name: crate::manifest::AuthorityProfileOperationNameV1,
+    },
+    View {
+        name: AuthorityInspectionViewV1,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        index: Option<AuthorityInspectionSearchIndexV1>,
+    },
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AuthorityEffectiveInspectionRequestV1 {
+    pub profile_id: String,
+    pub profile_generation: String,
+    pub principal_id: String,
+    pub scope_id: Option<String>,
+    pub target: AuthorityInspectionTargetV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuthorityInspectionResolvedStatusV1 {
+    Active,
+    Invited,
+    Absent,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AuthorityInspectionDecisionV1 {
+    Admit,
+    Deny,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionProfileV1 {
+    pub id: String,
+    pub generation: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionSubjectV1 {
+    pub principal_id: String,
+    pub scope_id: Option<String>,
+    pub role: Option<String>,
+    pub status: AuthorityInspectionResolvedStatusV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionPolicyBranchV1 {
+    pub decision: AuthorityInspectionDecisionV1,
+    pub identity: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refusal_code: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionCreationProvenanceV1 {
+    pub actor_principal_id: String,
+    pub effective_principal_id: String,
+    pub grant_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionMembershipRowV1 {
+    pub row_id: String,
+    pub role: String,
+    pub status: AuthorityInspectionResolvedStatusV1,
+    pub creation_provenance: Option<AuthorityInspectionCreationProvenanceV1>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionTransitionV1 {
+    pub operation: String,
+    pub principal_id: String,
+    pub scope_id: Option<String>,
+    pub from_role: Option<String>,
+    pub to_role: Option<String>,
+    pub actor_principal_id: String,
+    pub effective_principal_id: String,
+    pub grant_id: Option<String>,
+    pub commit_version: u64,
+    pub writer_class: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionIndexPlanV1 {
+    pub name: String,
+    pub fields: Vec<String>,
+    pub unique: bool,
+    pub lookup: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionBackingV1 {
+    pub membership_rows: Vec<AuthorityInspectionMembershipRowV1>,
+    pub membership_index_plan: AuthorityInspectionIndexPlanV1,
+    pub latest_transition: Option<AuthorityInspectionTransitionV1>,
+    pub transition_index_plan: AuthorityInspectionIndexPlanV1,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionInvalidationV1 {
+    pub disposition: crate::storage::AuthorityInvalidationDispositionV1,
+    pub subject_derivation_identity: String,
+    pub coarse_global_wake_universe: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionReferenceV1 {
+    pub disposition: String,
+    pub policy_identity: String,
+    pub source: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionAssetSharingV1 {
+    pub composition_class: String,
+    pub disposition: String,
+    pub refusal_code: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityInspectionSourcesV1 {
+    pub guide: String,
+    pub code: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorityEffectiveInspectionV1 {
+    pub schema_version: String,
+    pub profile: AuthorityInspectionProfileV1,
+    pub subject: AuthorityInspectionSubjectV1,
+    pub target: AuthorityInspectionTargetV1,
+    pub policy_branch: AuthorityInspectionPolicyBranchV1,
+    pub backing: AuthorityInspectionBackingV1,
+    pub invalidation: AuthorityInspectionInvalidationV1,
+    pub offline_eligibility: AuthorityInspectionReferenceV1,
+    pub static_authorization_review: AuthorityInspectionReferenceV1,
+    pub asset_sharing: AuthorityInspectionAssetSharingV1,
+    pub sources: AuthorityInspectionSourcesV1,
+}
+
+fn inspection_request_id_valid(value: &str) -> bool {
+    !value.is_empty() && value.len() <= 1_024
+}
+
+fn inspection_transition_op(
+    operation: &crate::manifest::AuthorityProfileOperationNameV1,
+) -> Option<crate::manifest::MembershipOp> {
+    use crate::manifest::AuthorityProfileOperationNameV1 as Operation;
+    match operation {
+        Operation::Invite => Some(crate::manifest::MembershipOp::Insert),
+        Operation::Join | Operation::ChangeRole => Some(crate::manifest::MembershipOp::SetRole),
+        Operation::Leave | Operation::Remove => Some(crate::manifest::MembershipOp::Remove),
+        Operation::List | Operation::MyRole | Operation::TransferOwner => None,
+    }
+}
+
+fn inspection_operation_branch(
+    profile: &crate::manifest::AuthorityProfileV1,
+    membership: &MembershipManifest,
+    operation: &crate::manifest::AuthorityProfileOperationNameV1,
+    role: Option<&str>,
+    status: &AuthorityInspectionResolvedStatusV1,
+) -> Option<String> {
+    use crate::manifest::{AuthorityProfileOperationNameV1 as Operation, MembershipTarget};
+    let operation_profile = profile
+        .operations
+        .iter()
+        .find(|candidate| &candidate.name == operation)?;
+    match operation {
+        Operation::List if matches!(status, AuthorityInspectionResolvedStatusV1::Active) => {
+            return Some(format!("{}.operation.list.active-member.v1", profile.id));
+        }
+        Operation::MyRole if !matches!(status, AuthorityInspectionResolvedStatusV1::Absent) => {
+            return Some(format!("{}.operation.my-role.member-row.v1", profile.id));
+        }
+        Operation::TransferOwner
+            if role == Some(profile.owner_bootstrap_invariant.role.as_str()) =>
+        {
+            return Some(format!("{}.operation.transfer-owner.owner.v1", profile.id));
+        }
+        _ => {}
+    }
+    let expected = inspection_transition_op(operation)?;
+    let profile_names_expected = operation_profile.transition_ops.iter().any(|candidate| {
+        matches!(
+            (candidate, expected),
+            (
+                crate::manifest::AuthorityProfileTransitionOpV1::Insert,
+                crate::manifest::MembershipOp::Insert
+            ) | (
+                crate::manifest::AuthorityProfileTransitionOpV1::SetRole,
+                crate::manifest::MembershipOp::SetRole
+            ) | (
+                crate::manifest::AuthorityProfileTransitionOpV1::Remove,
+                crate::manifest::MembershipOp::Remove
+            )
+        )
+    });
+    if !profile_names_expected {
+        return None;
+    }
+    let self_operation = matches!(operation, Operation::Join | Operation::Leave);
+    let role = role?;
+    membership
+        .transitions
+        .iter()
+        .enumerate()
+        .find(|(_, transition)| {
+            if transition.op != expected {
+                return false;
+            }
+            if self_operation {
+                transition.target == MembershipTarget::Own
+                    && transition.by.iter().any(|caller| caller == "self")
+                    && transition
+                        .from
+                        .as_ref()
+                        .is_none_or(|from| from.iter().any(|candidate| candidate == role))
+            } else {
+                transition.target == MembershipTarget::Other
+                    && transition.by.iter().any(|caller| caller == role)
+            }
+        })
+        .map(|(index, transition)| {
+            format!(
+                "{}.transition.{}.{}.{}.v1",
+                profile.id,
+                transition.op.as_str(),
+                transition.target.as_str(),
+                index
+            )
+        })
+}
+
+fn inspection_policy_branch(
+    schema: &crate::manifest::SchemaManifest,
+    profile: &crate::manifest::AuthorityProfileV1,
+    membership: &MembershipManifest,
+    target: &AuthorityInspectionTargetV1,
+    role: Option<&str>,
+    status: &AuthorityInspectionResolvedStatusV1,
+) -> AuthorityInspectionPolicyBranchV1 {
+    let search_branch_identity = |index: &AuthorityInspectionSearchIndexV1| {
+        format!(
+            "{}.view.membership-visible-search.{}.{}.v1",
+            profile.id, index.table, index.name
+        )
+    };
+    let admitted = match target {
+        AuthorityInspectionTargetV1::Operation { name } => {
+            inspection_operation_branch(profile, membership, name, role, status)
+        }
+        AuthorityInspectionTargetV1::View {
+            name: AuthorityInspectionViewV1::Roster,
+            index: None,
+        } if matches!(status, AuthorityInspectionResolvedStatusV1::Active) => {
+            Some(profile.table_policy.identity.clone())
+        }
+        AuthorityInspectionTargetV1::View {
+            name: AuthorityInspectionViewV1::MembershipVisibleSearch,
+            index: Some(index_identity),
+        } if matches!(status, AuthorityInspectionResolvedStatusV1::Active)
+            && profile
+                .permitted_composition_classes
+                .iter()
+                .any(|class| class == "membership-visible-search.v1")
+            && schema
+                .tables
+                .iter()
+                .find(|table| table.name == index_identity.table)
+                .and_then(|table| {
+                    table
+                        .search_indexes
+                        .iter()
+                        .find(|index| index.name == index_identity.name)
+                })
+                .is_some_and(|index| {
+                    matches!(
+                        &index.visibility,
+                        crate::search::SearchVisibilityV1::Membership {
+                            declaration,
+                            roles,
+                            ..
+                        } if declaration == &profile.membership.declaration
+                            && roles.as_ref().is_none_or(|roles| role.is_some_and(|role| {
+                                roles.iter().any(|candidate| candidate == role)
+                            }))
+                    )
+                }) =>
+        {
+            Some(search_branch_identity(index_identity))
+        }
+        _ => None,
+    };
+    match admitted {
+        Some(identity) => AuthorityInspectionPolicyBranchV1 {
+            decision: AuthorityInspectionDecisionV1::Admit,
+            identity,
+            refusal_code: None,
+        },
+        None => AuthorityInspectionPolicyBranchV1 {
+            decision: AuthorityInspectionDecisionV1::Deny,
+            identity: match target {
+                AuthorityInspectionTargetV1::View {
+                    name: AuthorityInspectionViewV1::MembershipVisibleSearch,
+                    index: Some(index),
+                } => search_branch_identity(index),
+                _ => format!("{}.closed-default.v1", profile.id),
+            },
+            refusal_code: Some(role_denial().diagnostic.code),
+        },
+    }
+}
+
+/// Resolve effective authority for one named subject without widening the
+/// application-facing roster. The caller is the authenticated admin route;
+/// this core reads only the canonical profile/membership projection, the
+/// point row, its creation provenance, and the append-only transition log.
+///
+/// @ref LLP 0240#d6-inspection-and-diagnostics-explain-effective-authority —
+///   ids, closed enum facts, and policy identities are the complete payload.
+/// @ref LLP 0173#3-operation-facts — build-time authorization review remains a linked
+///   static artifact instead of being duplicated into this runtime answer.
+pub(crate) fn authority_effective_inspection(
+    db: &crate::storage::LocalDatabase,
+    request: AuthorityEffectiveInspectionRequestV1,
+) -> SnapbackResult<AuthorityEffectiveInspectionV1> {
+    let target_identity_valid = match &request.target {
+        AuthorityInspectionTargetV1::View {
+            name: AuthorityInspectionViewV1::MembershipVisibleSearch,
+            index: Some(index),
+        } => inspection_request_id_valid(&index.table) && inspection_request_id_valid(&index.name),
+        AuthorityInspectionTargetV1::View { index: Some(_), .. }
+        | AuthorityInspectionTargetV1::View {
+            name: AuthorityInspectionViewV1::MembershipVisibleSearch,
+            index: None,
+        } => false,
+        _ => true,
+    };
+    if !inspection_request_id_valid(&request.profile_id)
+        || !inspection_request_id_valid(&request.profile_generation)
+        || !inspection_request_id_valid(&request.principal_id)
+        || !target_identity_valid
+        || request
+            .scope_id
+            .as_deref()
+            .is_some_and(|scope| !inspection_request_id_valid(scope))
+    {
+        return Err(role_denial());
+    }
+    let Some((table, membership)) = find_declaration(db.schema(), &request.profile_id) else {
+        return Err(role_denial());
+    };
+    let Some(profile) = table.authority_profile.as_ref() else {
+        return Err(role_denial());
+    };
+    if profile.id != request.profile_id
+        || profile.generation != request.profile_generation
+        || profile.membership.declaration != request.profile_id
+    {
+        return Err(role_denial());
+    }
+    let binding = authority_resource_binding(membership, request.scope_id.as_deref())
+        .map_err(|_| role_denial())?;
+    let roles = membership
+        .vocabulary()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let plan = membership_probe_plan(
+        membership,
+        &table.name,
+        &request.principal_id,
+        &binding,
+        &roles,
+    );
+    let output = DbRead::Live(db).query_private_membership(&plan, &HandlerInput::default())?;
+    let row = output.rows.first();
+    let role = row
+        .and_then(|row| row.get(&membership.role))
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    let status = match role.as_deref() {
+        Some(role) if membership.roles.iter().any(|candidate| candidate == role) => {
+            AuthorityInspectionResolvedStatusV1::Active
+        }
+        Some(role)
+            if membership
+                .pending_roles
+                .iter()
+                .flatten()
+                .any(|candidate| candidate == role) =>
+        {
+            AuthorityInspectionResolvedStatusV1::Invited
+        }
+        Some(_) => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE",
+                "auth",
+                "effective-authority inspection encountered a role outside the profile vocabulary",
+            ));
+        }
+        None => AuthorityInspectionResolvedStatusV1::Absent,
+    };
+    let membership_row = row
+        .and_then(|row| row.get("_id").and_then(Value::as_str))
+        .map(|row_id| {
+            let creation_provenance =
+                db.membership_creation_provenance(&table.name, row_id)?
+                    .map(|provenance| AuthorityInspectionCreationProvenanceV1 {
+                        actor_principal_id: provenance.actor,
+                        effective_principal_id: provenance.effective,
+                        grant_id: provenance.grant,
+                    });
+            Ok::<_, SnapbackError>(AuthorityInspectionMembershipRowV1 {
+                row_id: row_id.to_owned(),
+                role: role.clone().expect("a resolved membership row has a role"),
+                status: status.clone(),
+                creation_provenance,
+            })
+        })
+        .transpose()?;
+    let latest_transition = db
+        .membership_transition_log(&request.profile_id)?
+        .into_iter()
+        .rev()
+        .find(|transition| {
+            transition.principal == request.principal_id
+                && transition.resource.as_deref() == request.scope_id.as_deref()
+        })
+        .map(|transition| AuthorityInspectionTransitionV1 {
+            operation: transition.op,
+            principal_id: transition.principal,
+            scope_id: transition.resource,
+            from_role: transition.from_role,
+            to_role: transition.to_role,
+            actor_principal_id: transition.actor,
+            effective_principal_id: transition.effective,
+            grant_id: transition.grant,
+            commit_version: transition.commit_version,
+            writer_class: transition.writer_class,
+        });
+    let membership_index_plan = profile
+        .required_indexes
+        .iter()
+        .find(|index| index.lookup == "principal-in-scope-point")
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTHORITY_PROFILE_INDEX_REQUIRED",
+                "auth",
+                "effective-authority inspection requires the profile point index",
+            )
+        })?;
+    let policy_branch = inspection_policy_branch(
+        db.schema(),
+        profile,
+        membership,
+        &request.target,
+        role.as_deref(),
+        &status,
+    );
+    Ok(AuthorityEffectiveInspectionV1 {
+        schema_version: "snapback.authority-effective-inspection.v1".to_owned(),
+        profile: AuthorityInspectionProfileV1 {
+            id: profile.id.clone(),
+            generation: profile.generation.clone(),
+        },
+        subject: AuthorityInspectionSubjectV1 {
+            principal_id: request.principal_id,
+            scope_id: request.scope_id,
+            role,
+            status,
+        },
+        target: request.target,
+        policy_branch,
+        backing: AuthorityInspectionBackingV1 {
+            membership_rows: membership_row.into_iter().collect(),
+            latest_transition,
+            membership_index_plan: AuthorityInspectionIndexPlanV1 {
+                name: membership_index_plan.name.clone(),
+                fields: membership_index_plan.fields.clone(),
+                unique: membership_index_plan.unique,
+                lookup: membership_index_plan.lookup.clone(),
+            },
+            transition_index_plan: AuthorityInspectionIndexPlanV1 {
+                name: "_snapback_membership_transitions_by_declaration".to_owned(),
+                fields: vec![
+                    "declarationId".to_owned(),
+                    "commitVersion".to_owned(),
+                    "id".to_owned(),
+                ],
+                unique: false,
+                lookup: "declaration-ordered-log".to_owned(),
+            },
+        },
+        invalidation: AuthorityInspectionInvalidationV1 {
+            disposition:
+                crate::storage::AuthorityInvalidationDispositionV1::GlobalAuthorizationEpochAdvanced,
+            subject_derivation_identity: profile.subject_derivation.strategy.clone(),
+            coarse_global_wake_universe: profile
+                .subject_derivation
+                .coarse_global_wake_universe
+                .clone(),
+        },
+        offline_eligibility: AuthorityInspectionReferenceV1 {
+            disposition: "reference-only-not-inferred".to_owned(),
+            policy_identity: "snapback.offline-authority.undecided.v1".to_owned(),
+            source: "LLP 0243".to_owned(),
+        },
+        static_authorization_review: AuthorityInspectionReferenceV1 {
+            disposition: "generated-static-half".to_owned(),
+            policy_identity: "snapback.authorization-review.v2".to_owned(),
+            source: "generated/authorization-review.json (LLP 0173)".to_owned(),
+        },
+        asset_sharing: AuthorityInspectionAssetSharingV1 {
+            composition_class: "authority-profile-asset-sharing.v1".to_owned(),
+            disposition: "refused-unqualified".to_owned(),
+            refusal_code: "SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS".to_owned(),
+        },
+        sources: AuthorityInspectionSourcesV1 {
+            guide: "guide/auth/scoped-roles.md#inspect-effective-authority".to_owned(),
+            code: "src/membership_rules.rs#authority_effective_inspection".to_owned(),
+        },
     })
 }
 
