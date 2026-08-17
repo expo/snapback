@@ -13,6 +13,7 @@ import {
   validateDevIdentityCapability,
 } from './dev-identity-capability.mjs';
 import { SnapbackClient } from './index.mjs';
+import { isDefaultRqsStoreResolution } from './rqs-store-default.mjs';
 
 export const DEFAULT_AUTH_STORAGE_PARTITION = 'default';
 
@@ -586,11 +587,26 @@ function preflight(input) {
   );
   // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
   // — volatile auth custody creates a fresh epoch domain with each owner;
-  // its default queue participant must have the same lifetime instead of
-  // reopening a durable owner-key namespace carrying predecessor epochs.
+  // its default queue participant must have the same lifetime, while an
+  // explicit injected store is refused instead of silently losing identity.
   // @ref LLP 0059#transition-barrier — commitDurable keeps the monotone CAS
   // fence intact; coupling lifetimes prevents a fresh volatile coordinator
   // from ever starting below a persisted queue transition floor.
+  const disabledRqsStore = input.rqsStore === null || input.rqsStore === false;
+  const providerDefaultRqsStore = isDefaultRqsStoreResolution(input.rqsStore);
+  const explicitRqsStore = input.rqsStore !== undefined
+    && !disabledRqsStore
+    && !providerDefaultRqsStore;
+  if (policy.custody === 'volatile-explicit' && explicitRqsStore) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE',
+      'An explicitly injected RQS store cannot share authority-transition custody with volatile auth.',
+      {
+        custody: policy.custody,
+        requiredQueueLifetime: 'client',
+      },
+    );
+  }
   const volatileQueueLifetime = policy.custody === 'volatile-explicit'
     && input.rqsStore !== null
     && input.rqsStore !== false;

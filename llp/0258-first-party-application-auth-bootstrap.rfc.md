@@ -9,6 +9,7 @@ Guide, Testing, Developer experience
 **Date:** 2026-08-15
 **Revised:** 2026-08-17 (`volatile-explicit` now couples the application
 queue's authority-transition epoch domain to the volatile custody lifetime;
+explicit injected RQS stores refuse before I/O rather than lose identity;
 durable custody and queue fencing semantics are unchanged)
 **Revised:** 2026-08-16 (Phase 2 iOS evidence closes the extension-refusal
 blocker and admits iOS native custody at `single-runtime`; both native OS arms
@@ -508,15 +509,18 @@ reports `custody: "volatile"` in inspection and cannot pass a restart claim.
 lifetime.** The composed application client's RQS/outbox participant persists
 LLP 0059's exact transition key and monotone successor epoch. It therefore
 belongs to the same epoch domain as the `AuthCoordinator` custody that drives
-those transitions. Under `volatile-explicit`, the application client admits
-only a fresh client-lifetime memory queue (or an explicit disabled queue), even
-when the platform or an Expo provider has resolved a durable default store. A
-durable queue cannot outlive discarded volatile custody: reconstruction would
-restart the coordinator below the persisted queue epoch and correctly trip the
-existing stale-transition CAS on the next distinct authority successor. This
-selection rule does not rebase, adopt, clear, or weaken that fence. Under
-`durable-required`, the owner-key durable queue remains selected and resumes in
-the same persistent epoch domain as custody.
+those transitions. Under `volatile-explicit`, omission and a branded
+platform/Expo-resolved default select a fresh client-lifetime memory queue,
+while `null`/`false` explicitly disable the queue. Any other explicitly
+injected RQS store is incompatible and construction refuses with
+`SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE` before custody or transport
+I/O; the application client never erases the injected store's identity or hides
+its queued intent. A durable queue cannot outlive discarded volatile custody:
+reconstruction would restart the coordinator below the persisted queue epoch
+and correctly trip the existing stale-transition CAS on the next distinct
+authority successor. This selection rule does not rebase, adopt, clear, or
+weaken that fence. Under `durable-required`, the owner-key durable queue remains
+selected and resumes in the same persistent epoch domain as custody.
 
 ### D4. Credential entry adopts into the existing coordinator automatically
 
@@ -1110,6 +1114,10 @@ custody/barrier semantics.
   sign-up, owner disposal/reconstruction, volatile anonymous bootstrap, and a
   distinct same-user sign-in successor; the pre-fix durable queue retained the
   first transition epoch and refused the second as stale.
+- Fix round 5 (2026-08-17) limits that replacement to omitted and branded
+  provider-default stores. An explicit injected store now receives the typed
+  pre-I/O `SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE` refusal instead of
+  losing its identity and queued intent; explicit disabled queues are unchanged.
 
 ## Revision history
 

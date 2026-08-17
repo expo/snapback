@@ -18,7 +18,7 @@ reviewed-authorities-digest: sha256:ef9c3b03966f5a030c2c79ab61535e8cdd5d5877f3c8
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:3891db6af91a56be9ef1f4a10b42317731841c8866bf2b18237df6fb1c5fdc0d`.
+`sha256:340b196957b816cb351027f7659613e6be55e3c277fff67a4be49f16370941bf`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -1593,7 +1593,7 @@ export function classifyRegeneratedReactReference(
 
 Stable identity: `npm:@expo/snapback-client#clearNativeRqsFiles`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:42`
+Source: `packages/snapback-client/rqs-store-default.d.mts:69`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function clearNativeRqsFiles(): void;
@@ -4429,7 +4429,7 @@ export function registerExpoFileSystemRqsFiles(
 
 Stable identity: `npm:@expo/snapback-client#registerNativeRqsFiles`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:38`
+Source: `packages/snapback-client/rqs-store-default.d.mts:65`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function registerNativeRqsFiles(
@@ -4578,12 +4578,12 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#resolveDefaultRqsStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:34`
+Source: `packages/snapback-client/rqs-store-default.d.mts:61`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
-export declare function resolveDefaultRqsStore(options?: {
-  baseUrl?: string;
-}): DefaultRqsStoreResolution;
+export declare function resolveDefaultRqsStore(
+  options?: DefaultRqsStoreOptions,
+): DefaultRqsStoreResolution;
 ```
 
 <a id="symbol-result-contract-limits-v1-17fea70521"></a>
@@ -7588,6 +7588,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID'
   | 'SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION'
   | 'SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT'
+  | 'SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE'
   | 'SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE'
   | 'SNAPBACK_AUTH_BUDGET_POLICY_INVALID'
   | 'SNAPBACK_AUTH_CATALOG_CORRUPT'

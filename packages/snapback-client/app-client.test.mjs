@@ -14,9 +14,14 @@ import { createIndexedDbAuthCustodyStorage } from '@expo/snapback-contract/auth-
 
 import {
   DEFAULT_AUTH_STORAGE_PARTITION,
+  SnapbackDiagnosticError,
   createSnapbackAppClient,
 } from './index.mjs';
-import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
+import {
+  brandDefaultRqsStoreResolution,
+  resolveDefaultRqsStore,
+} from './rqs-store-default.mjs';
+import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
 import {
   __adoptSupervisedBootstrapAuthority,
@@ -1074,6 +1079,67 @@ test('volatile custody recreates its queue epoch domain before a later password 
   } finally {
     await recreated?.dispose();
     await first?.dispose();
+    server.restore();
+  }
+});
+
+test('volatile custody refuses an explicit RQS store before transport I/O', async () => {
+  const server = installServer();
+  const app = makeApp({ custody: 'volatile-explicit' });
+  const rqsStore = createMemoryRqsResumeStore();
+  try {
+    await assert.rejects(
+      createSnapbackAppClient(optionsFor(app, makeBinding(app), { rqsStore })),
+      (error) => error instanceof SnapbackDiagnosticError
+        && error.code === 'SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE'
+        && error.bootstrapState?.diagnostic?.code
+          === 'SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_INCOMPATIBLE',
+    );
+    assert.equal(server.requests.length, 0, 'incompatible injection refuses before transport I/O');
+  } finally {
+    await rqsStore.close();
+    server.restore();
+  }
+});
+
+test('volatile custody replaces a provider-branded durable default with fresh memory', async () => {
+  const server = installServer();
+  delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+  const app = makeApp({ custody: 'volatile-explicit' });
+  const indexedDB = new IDBFactory();
+  const lockManager = createSerialLockManager();
+  const providerStore = createIndexedDbRqsResumeStore({
+    indexedDB,
+    lockManager,
+    databaseName: 'snapback-app-client-provider-default-volatile-test',
+  });
+  const providerDefault = brandDefaultRqsStoreResolution({
+    store: providerStore,
+    info: Object.freeze({
+      source: 'default',
+      implementation: 'indexeddb',
+      durable: true,
+      reason: null,
+    }),
+  });
+  let appClient = null;
+  try {
+    appClient = await createSnapbackAppClient(optionsFor(app, makeBinding(app), {
+      rqsStore: providerDefault,
+    }));
+    assert.notStrictEqual(appClient.client.rqsStore, providerStore);
+    assert.deepEqual(
+      {
+        implementation: appClient.client.rqsStoreInfo.implementation,
+        durable: appClient.client.rqsStoreInfo.durable,
+        reason: appClient.client.rqsStoreInfo.reason,
+      },
+      { implementation: 'memory', durable: false, reason: 'volatile-platform' },
+      'the branded durable default is replaced by the volatile owner lifetime',
+    );
+  } finally {
+    await appClient?.dispose();
+    await providerStore.close();
     server.restore();
   }
 });
