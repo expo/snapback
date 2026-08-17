@@ -211,19 +211,24 @@ const resolveNativeStore = (baseUrl, ownerKey = null) => {
     typeof nativeRqsFiles.randomBytes !== 'function'
     && typeof globalThis.crypto?.getRandomValues !== 'function'
   ) return unavailableFallback('secure-random-unavailable');
+  // File-store authority wipes sweep sibling identities within a
+  // directory, so admitted owners need both an owner-scoped directory
+  // and an owner-scoped identity. Ambient resolution retains the legacy
+  // origin-only directory and identity inside the availability guard.
+  // Owner-key derivation happens before that guard so a malformed owner
+  // key fails validation like the browser arm instead of degrading to
+  // memory.
+  const ownerDirectory = ownerKey === null
+    ? null
+    : appOwnerFileDirectory(nativeRqsFiles.directory, ownerKey);
+  const ownerIdentity = ownerKey === null
+    ? null
+    : appOwnerFileIdentity(baseUrl, ownerKey);
   try {
     const store = createFileRqsResumeStore({
-      // File-store authority wipes sweep sibling identities within a
-      // directory, so admitted owners need both an owner-scoped directory
-      // and an owner-scoped identity. Ambient resolution retains the legacy
-      // origin-only directory and identity below.
-      directory: ownerKey === null
-        ? nativeRqsFiles.directory
-        : appOwnerFileDirectory(nativeRqsFiles.directory, ownerKey),
+      directory: ownerDirectory ?? nativeRqsFiles.directory,
       files: nativeRqsFiles.files,
-      identity: ownerKey === null
-        ? originIdentity(baseUrl)
-        : appOwnerFileIdentity(baseUrl, ownerKey),
+      identity: ownerIdentity ?? originIdentity(baseUrl),
       randomBytes: nativeRqsFiles.randomBytes,
     });
     const durable = store.durability().durable === true;
