@@ -267,7 +267,10 @@ function writeBackend(backendRoot) {
   writeFileSync(join(backendRoot, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
 export default defineSchema({
+  // Anonymous, disposable smoke fixture served by public functions only:
+  // public-read is the honest declaration (LLP 0234 G2), matching 18607c046.
   items: defineTable({ bucket: v.string(), label: v.string() })
+    .visibility({ kind: 'public-read' })
     .index('by_bucket', ['bucket'])
     .sync(),
 });
