@@ -18,7 +18,8 @@ use crate::auth::mode::{
     SCHEMA_V1_PREFIX,
 };
 use crate::ephemeral::{
-    AdmittedRealtimeEnvelope, EphemeralErrorCode, RemoveReason, ResyncReason, RoomAuthorityPermit,
+    AccessPolicy, AdmittedRealtimeEnvelope, CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON,
+    EphemeralErrorCode, RemoveReason, ResyncReason, RoomAuthorityPermit,
 };
 use crate::manifest::{
     AuthManifest, AuthRequirement, FieldManifest, FieldType, FilterExpr, FilterOp, IbexModule,
@@ -26,8 +27,8 @@ use crate::manifest::{
     TargetCapabilityId,
 };
 use crate::storage::{
-    AuthorizationCommitFaultForTest, AuthorizationVersion,
-    inject_authorization_commit_fault_for_test,
+    AuthorizationCommitFaultForTest, AuthorizationCommitPreflight, AuthorizationVersion,
+    MembershipWriter, inject_authorization_commit_fault_for_test,
 };
 use serde_json::{Map, Value, json};
 use std::sync::{Arc, Mutex, PoisonError, mpsc};
@@ -40,6 +41,7 @@ const CONNECTION_B: &str = "player-b";
 const CONNECTION_UNRELATED: &str = "player-b-unrelated-room";
 const USER_A: &str = "018f0d90-7b31-7a22-8c33-445566778899";
 const USER_B: &str = "018f0d90-7b32-7a22-8c33-445566778899";
+const USER_C: &str = "018f0d90-7b37-7a22-8c33-445566778899";
 const SESSION_A: &str = "018f0d90-7b33-7a22-8c33-445566778899";
 const SESSION_B: &str = "018f0d90-7b34-7a22-8c33-445566778899";
 const AUTHORITY_A: &str = "018f0d90-7b35-7a22-8c33-445566778899";
@@ -550,6 +552,154 @@ impl KickFixture {
 }
 
 #[test]
+fn codegen_manifest_enforces_anonymous_nonmember_and_member_room_grants() {
+    let snapback = codegen_membership_snapback();
+    let scope = codegen_membership_scope();
+
+    let anonymous = snapback
+        .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(None))
+        .expect_err("anonymous authority cannot satisfy a membership projection");
+    assert_eq!(anonymous.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+
+    let nonmember = snapback
+        .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_C)))
+        .expect_err("an authenticated non-member cannot satisfy the projection");
+    assert_eq!(nonmember.diagnostic.code, "SNAPBACK_AUTH_PERMISSION_DENIED");
+
+    let (member, observed) = snapback
+        .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_A)))
+        .expect("the codegen-emitted projection grants a current member");
+    assert!(
+        member.permissions.contains(&format!(
+            "m_conversation_members:{}",
+            scope.normalized_key()
+        )),
+        "the grant uses the slice-1 generated membership prefix"
+    );
+    assert_eq!(
+        snapback.ephemeral.authorization_expectation_for_test(),
+        Some(observed),
+        "the durable grant observes the installed sessions invalidation authority"
+    );
+}
+
+#[test]
+fn legacy_room_permission_without_backing_refuses_sessions_activation() {
+    let mut schema = codegen_membership_schema();
+    let collection = schema
+        .ephemeral_collections
+        .first_mut()
+        .expect("codegen fixture collection");
+    collection.publish = AccessPolicy::RequireRoomPermission {
+        prefix: "legacy_room".to_owned(),
+    };
+    collection.subscribe = AccessPolicy::RequireRoomPermission {
+        prefix: "legacy_room".to_owned(),
+    };
+    collection.permission_backing = None;
+
+    let mut activation = LocalSnapback::memory().expect("legacy activation fixture");
+    let refused = activation
+        .apply_schema(schema.clone())
+        .expect_err("sessions activation must reject an unbacked protected collection");
+    assert_eq!(
+        refused.diagnostic.code,
+        "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+    );
+    assert!(refused.diagnostic.message.contains("permissionBacking"));
+
+    let snapback = codegen_membership_snapback();
+    snapback
+        .ephemeral
+        .replace_collections(schema.ephemeral_collections)
+        .expect("direct embedder can expose the legacy runtime compatibility shape");
+    let unavailable = snapback
+        .authorize_ephemeral_room_observed(
+            "typing",
+            &codegen_membership_scope(),
+            codegen_membership_auth(Some(USER_A)),
+        )
+        .expect_err("the runtime compatibility path also fails closed without backing");
+    assert_eq!(
+        unavailable.diagnostic.code,
+        "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE"
+    );
+}
+
+#[test]
+fn codegen_membership_removal_unregisters_the_room_subscriber() {
+    let mut snapback = codegen_membership_snapback();
+    let ephemeral = snapback.ephemeral_api();
+    let scope = codegen_membership_scope();
+    let (member_auth, observed) = snapback
+        .authorize_ephemeral_room_observed("typing", &scope, codegen_membership_auth(Some(USER_A)))
+        .expect("current member receives the codegen-backed room grant");
+    let permit = ephemeral
+        .begin_server_authorized_room_act("typing", &scope)
+        .expect("room authority is available")
+        .expect("protected collection returns a room permit");
+    assert_eq!(
+        ephemeral.authorization_expectation_for_test(),
+        Some(observed)
+    );
+    ephemeral
+        .subscribe(
+            SubscribeRequest {
+                collection: "typing".to_owned(),
+                scope: scope.clone(),
+                connection_id: "codegen-member-a".to_owned(),
+                auth: member_auth,
+                since_chunk: None,
+            },
+            10,
+        )
+        .expect("member registers in the codegen-backed room");
+    drop(permit);
+    assert_eq!(ephemeral.diagnostics().subscriber_count, 1);
+
+    let writer = MembershipWriter::User {
+        effective_principal: USER_B.to_owned(),
+    };
+    let removal = snapback
+        .db
+        .membership_plans()
+        .plan_membership_remove(&writer, "conversationMembers", MEMBER_A)
+        .expect("the emitted owner transition authorizes removing the member");
+    let committed = snapback
+        .try_with_direct_authorization_write(
+            AuthorizationCommitPreflight::AllProtectedRooms,
+            move |snapback| {
+                snapback
+                    .db
+                    .membership_plans()
+                    .commit_membership_plan(&writer, removal)
+            },
+        )
+        .expect("the direct embedder installs the room reservation")
+        .expect("membership removal commits through the authorization interlock");
+    assert_eq!(committed.output.changed_count, 1);
+    let pending = ephemeral.pending_room_reauthorizations();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(
+        pending[0].obligation.min_commit_version,
+        committed.output.version
+    );
+
+    let completed = snapback
+        .reauthorize_pending_ephemeral_rooms(|connection_id, previous| {
+            assert_eq!(connection_id, "codegen-member-a");
+            Ok(Some(previous.clone()))
+        })
+        .expect("the committed removal is re-read through the emitted projection");
+    assert_eq!(completed, 1);
+    assert_eq!(
+        ephemeral.diagnostics().subscriber_count,
+        0,
+        "durable membership denial unregisters the subscriber"
+    );
+}
+
+#[test]
 fn frame_construction_before_first_enqueue_is_commit_ordered() {
     let fixture = KickFixture::new();
     let (room_auth, room_permit) = {
@@ -1038,6 +1188,92 @@ fn commit_error_with_durable_rollback_removes_only_its_exact_room_ticket() {
         31,
     )
     .expect("the exact room reopens after confirmed rollback");
+}
+
+fn codegen_membership_schema() -> SchemaManifest {
+    serde_json::from_str(CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON)
+        .expect("slice-1 codegen membership manifest parses")
+}
+
+fn codegen_membership_scope() -> crate::ephemeral::Scope {
+    crate::ephemeral::Scope::from_pairs([("conversationId", BOARD_ID)])
+}
+
+fn codegen_membership_auth(user_id: Option<&str>) -> AuthContext {
+    AuthContext {
+        principal: user_id.map(str::to_owned),
+        session_id: None,
+        user_id: user_id.map(str::to_owned),
+        permissions: BTreeSet::new(),
+        stream_initiator: None,
+    }
+}
+
+fn codegen_membership_snapback() -> LocalSnapback {
+    let schema = codegen_membership_schema();
+    let schema_hash = schema.schema_hash.clone().expect("generated schema hash");
+    let inputs_hash = schema.inputs_hash.clone().expect("generated inputs hash");
+    let deployment = DeploymentIdentity {
+        schema_version: schema.schema_version.clone(),
+        auth_mode: schema.effective_auth_mode(),
+        app_id: schema.app_id.clone(),
+        schema_hash,
+        bundle_hash: format!("{FUNCTION_V1_PREFIX}{}", "d".repeat(64)),
+        inputs_hash,
+    };
+    let mut snapback = LocalSnapback::memory().expect("codegen membership memory snapback");
+    snapback
+        .auth_database_mut()
+        .stage_auth_mode(
+            deployment,
+            schema.clone(),
+            Some(SeedData {
+                tables: BTreeMap::from([(
+                    "conversations".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!(BOARD_ID)),
+                        ("title".to_owned(), json!("Codegen conformance")),
+                    ])],
+                )]),
+            }),
+        )
+        .expect("stage the codegen-emitted sessions schema");
+    let settled = snapback
+        .auth_database_mut()
+        .consume_sessions_auth_mode(&AuthProgramReadiness::new(
+            true, true, true, true, true, true, false,
+        ))
+        .expect("consume the codegen-emitted sessions schema");
+    snapback
+        .synchronize_auth_mode_admission(&settled)
+        .expect("bind codegen fixture sessions admission");
+    snapback
+        .seed(SeedData {
+            tables: BTreeMap::from([(
+                "conversationMembers".to_owned(),
+                vec![
+                    Map::from_iter([
+                        ("_id".to_owned(), json!(MEMBER_A)),
+                        ("userId".to_owned(), json!(USER_A)),
+                        ("conversationId".to_owned(), json!(BOARD_ID)),
+                        ("role".to_owned(), json!("member")),
+                    ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!(MEMBER_B)),
+                        ("userId".to_owned(), json!(USER_B)),
+                        ("conversationId".to_owned(), json!(BOARD_ID)),
+                        ("role".to_owned(), json!("owner")),
+                    ]),
+                ],
+            )]),
+        })
+        .expect("seed current membership rows after their resource exists");
+    snapback
+        .ephemeral
+        .replace_collections(schema.ephemeral_collections)
+        .expect("publish the codegen-emitted membership-backed collection");
+    install_invalidation(&mut snapback);
+    snapback
 }
 
 fn game_schema() -> SchemaManifest {

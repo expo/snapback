@@ -1062,6 +1062,87 @@ import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from 
 export default defineSchema({${tables}}, { ephemeral: defineEphemeral({${collections}}) });
 `;
 
+// Counterpart: src/ephemeral.rs:
+// tests::codegen_emitted_membership_projection_parses_and_activates_in_sessions.
+const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256 =
+  '8fb7b3c54c59d1b711c79f951ee2247a111a59ddc8dcdceef6203bc78de5aec3';
+
+function canonicalJson(value) {
+  const sort = (entry) => {
+    if (Array.isArray(entry)) return entry.map(sort);
+    if (entry && typeof entry === 'object') {
+      return Object.fromEntries(
+        Object.keys(entry).sort().map((key) => [key, sort(entry[key])]),
+      );
+    }
+    return entry;
+  };
+  return JSON.stringify(sort(value));
+}
+
+async function codegenEmittedMembershipManifestMatchesRustFixtureDigest() {
+  const root = mkdtempSync(join(tmpdir(), 'snapback-membership-digest-'));
+  dirs.push(root);
+  const backend = join(root, 'snapback');
+  mkdirSync(backend);
+  writeFileSync(join(root, 'demo.snapback.json'), '{"id":"membership-digest-fixture"}\n');
+  const snapbackModules = join(backend, 'node_modules', '@expo');
+  mkdirSync(snapbackModules, { recursive: true });
+  symlinkSync(packageDir, join(snapbackModules, 'snapback-codegen'), 'dir');
+  writeFileSync(join(backend, 'schema.mjs'), `
+import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from './node_modules/@expo/snapback-codegen/define.mjs';
+export default defineSchema({
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  conversationMembers: defineTable({
+    userId: v.principal(),
+    conversationId: v.id('conversations'),
+    role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }).membership({
+    id: 'conversation_members',
+    principal: 'userId',
+    resource: 'conversationId',
+    role: 'role',
+    roles: ['owner', 'member'],
+    transitions: [{ op: 'remove', from: ['member'], by: ['owner'], target: 'other' }],
+  }),
+}, { ephemeral: defineEphemeral({
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('conversation_members'),
+    subscribe: allow.members('conversation_members'),
+  }),
+}), auth: { mode: 'sessions' } });
+`);
+  writeFileSync(join(backend, 'functions.mjs'), 'export const nothing = 0;\n');
+
+  const previousGeneratedAt = process.env.SNAPBACK_GENERATED_AT_MS;
+  process.env.SNAPBACK_GENERATED_AT_MS = '0';
+  let generated;
+  try {
+    generated = await generate(backend);
+  } finally {
+    if (previousGeneratedAt === undefined) delete process.env.SNAPBACK_GENERATED_AT_MS;
+    else process.env.SNAPBACK_GENERATED_AT_MS = previousGeneratedAt;
+  }
+  assert.equal(
+    generated.ok,
+    true,
+    `membership digest fixture failed codegen: ${JSON.stringify(generated.diagnostics)}`,
+  );
+  const emittedBytes = readFileSync(join(generated.outDir, 'schema.manifest.json'));
+  const canonicalBytes = canonicalJson(JSON.parse(emittedBytes.toString('utf8')));
+  const actual = createHash('sha256').update(canonicalBytes).digest('hex');
+  assert.equal(
+    actual,
+    CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256,
+    'actual codegen schema manifest drifted from the Rust embedded fixture',
+  );
+}
+
+await codegenEmittedMembershipManifestMatchesRustFixtureDigest();
+
 // Only canonical membership() declarations resolve. A similarly named raw
 // permission-backing or ordinary table is deliberately not an authority source.
 for (const tableDeclaration of [

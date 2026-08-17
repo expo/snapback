@@ -3153,6 +3153,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         version: 9,
         changed_count: 1,
         result: json!({ "id": "todo_1" }),
+        authority_transitions: Vec::new(),
         ctx_ledger: None,
         authority_descriptor: AuthorityDescriptor {
             descriptor_version: 1,

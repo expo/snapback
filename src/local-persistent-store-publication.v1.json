@@ -11,15 +11,15 @@
     "triageMove1Exit": "sha256:791b493998152f717ed341bbfa1128f2aef382ad271fdd3f60987f731b4127cf"
   },
   "executorSourceSha256": {
-    "src/local.rs": "sha256:4d84030c99ca430765848af268c3d3a7b28173ed3a3d2a913f989b9088ceeb99",
-    "src/local/auth_room_kick_acceptance.rs": "sha256:16bce2b8708c424dd8fdd4ebb5968720a0ca290b57d930d5c6e72af06f1d4f2f",
-    "src/local/authorization_acceptance.rs": "sha256:eafa4848f3b8e3c9b55f2b1fd4266212f0a6240d8488f6279eb7fa340af2f3c8",
+    "src/local.rs": "sha256:6e78847ef78138bedb11d407f0b93c1595136e04690abebd991e3bfed2016711",
+    "src/local/auth_room_kick_acceptance.rs": "sha256:e06a2b8454fca1d59a7f73b3bdf9a7e5ba8349becc477aaebafe091ead744b90",
+    "src/local/authorization_acceptance.rs": "sha256:a408f1c836f6a37e169286fd026ba10550eb51430ad8810d89d0faf23b993daa",
     "src/local/config_types.rs": "sha256:ccae542de561b1e394053f482f21b88118c74d028017f72307691b806f2b0e85",
     "src/local/inspection.rs": "sha256:93c424b9923c7872a0dea804fd50352b5020712994f09f1ecb881193fc44f679",
     "src/local/live_protocol.rs": "sha256:5e4e2faff869916551efa4165c6259a9788bc7f796e3b27925561bf45d6c9090",
     "src/local/receipt_log.rs": "sha256:04320e18e96a0788885e44a37e05c33b673430a7a01bbcae98601eab96a45add",
-    "src/local/tests.rs": "sha256:3071e0d7aa99b65833f24fe9e9724c0878aaa2030264232698e4ae9b5374ac5b",
-    "src/storage.rs": "sha256:64bf562115078640f827ecf4b42431b229c577cebd3fc55343dc374647b20323",
+    "src/local/tests.rs": "sha256:208dff80ff7b8d5c063a7826bb939ed88abed69b8597b8373b786acebb462852",
+    "src/storage.rs": "sha256:9d9469e4bd24ffdf717330b41975229159a1e4a1e7d1e599d19b4d8969d0d10d",
     "src/storage/auth.rs": "sha256:3f6e71b3b32d7beda075b336b98aeb618a1fe0eaf54e8049540119b3dea16820",
     "src/storage/auth_agent_credentials.rs": "sha256:d2c5f512a26fd2afca8df6202743b51077d15cde9e0fbd1aed48c555f34dbf3e",
     "src/storage/auth_agents.rs": "sha256:221bff2b8468479f3b5fa601d677133f7be22e117ee8b81a90e28e88cd90051f",
@@ -40,19 +40,19 @@
     "src/storage/migration_scan.rs": "sha256:43bfda997ab189b4ecdfa3d6fb8442487f26c57d86c6f21cd9ba1b8fa36a412c",
     "src/storage/projection_rebuild.rs": "sha256:cdc288f51d056d284eac37337fa533f06e9c80e93085719ada2afa81b07ef0c5",
     "src/storage/schema_transition.rs": "sha256:c91c85ef764082865c95059dc2ba755f23ea3eabc88b6260a2f08f8705957952",
-    "src/storage/tests.rs": "sha256:de33e91bf21597e439c674be2acba466bdbad21bf8d9c531d640c2b2b5fc40f5",
+    "src/storage/tests.rs": "sha256:2c5fa4a2f62dab669f77a8290321bb57901d9ad565ff48ddb485e626e05a1004",
     "src/storage/write_authority.rs": "sha256:d4f13836da07680ed8c359f20be5865ef1c131c23138bb73c151679ead7ac615"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/index.mjs": "sha256:17c2b955cb5574c5838107eb8ba3decf8d29528e69fe516c74be21f421a73980"
+    "packages/snapback-codegen/index.mjs": "sha256:fa836f52fd26aa1d4c3c30b97ebeb862e09b34a44dfb2c983c58e645b043fde3"
   },
   "clientSourceSha256": {
     "packages/snapback-client/local-read-admission.mjs": "sha256:703f293078782ab3d595d518925be5b299ed7e26e19edc8ecef8c29627cc7900",
-    "packages/snapback-client/materialization-bridge.mjs": "sha256:c6aac06b5147a742073c941a6359c9e023cd81b4e7137862776c3ab3c59b1b63",
-    "packages/snapback-client/materialization-store.mjs": "sha256:947eb3d549fdedf03f873bba76644ed3bb4d7eb57ae3f4b5ea9812e6144d1fa3",
-    "packages/snapback-client/materialization-store-runtime.mjs": "sha256:525ffb0bee554a6b9c2e65256e0668ebfbcc23c43b0d4ae046c399aed410c049",
+    "packages/snapback-client/materialization-bridge.mjs": "sha256:e462be652f46faa365f329a9c238cc64da8e86c708af11631fb1348711615083",
+    "packages/snapback-client/materialization-store.mjs": "sha256:2891b4a20355862fbad7ac0bad90020a4ff5a7baea1fc7418bc69b2ac27d856d",
+    "packages/snapback-client/materialization-store-runtime.mjs": "sha256:46b280a00feb856b0fc44b2ce586cd51e65ed69d1890949793c91a7e84c75aa9",
     "packages/snapback-client/rqs-preload-core.mjs": "sha256:6635964dd97069c68e42f88ff7d0ac74431b88204855afce30aa3def5b4d5286",
-    "packages/snapback-client/store-runtime.mjs": "sha256:b40e6e3807118cce81e5aaf8a799fab0c42db166373a8e7f9222180b841cde1e"
+    "packages/snapback-client/store-runtime.mjs": "sha256:bb205c7426d2627307b7412e9bf51f6ff4b428ece8960473995c2fbb283fa2bb"
   },
   "packageClosureSha256": null,
   "buildProvenanceRequirement": "source-commit-and-embedded-carrier-sha256"

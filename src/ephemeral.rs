@@ -948,6 +948,175 @@ pub struct RoomPermissionProjection {
     pub scope_fields: BTreeMap<String, String>,
 }
 
+/// Exact `schema.manifest.json` bytes emitted by the slice-1 codegen for the
+/// minimal sessions fixture mirrored by the `allow.members` golden in
+/// `packages/snapback-codegen/authoring-validation.test.mjs`. Keeping the
+/// emitted artifact here makes Rust conformance tests independent of Node while
+/// preserving explicit provenance; this is not a hand-built `SchemaManifest`.
+#[cfg(test)]
+pub(crate) const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
+  "appId": "membership-digest-fixture",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "authoredSourceHash": "sha256:942cb1c36c709566ff8c7e32af306feff1d83d381b80fbdd6881789e24b71f08",
+  "authoringProfile": "snapback-explicit-v1",
+  "ephemeralCollections": [
+    {
+      "burst": 60,
+      "defaultTtlMs": 1000,
+      "dispatchMs": 33,
+      "hardMaxValueBytes": 4096,
+      "keyMode": "Connection",
+      "maxPendingEphemeralKeys": 1024,
+      "maxTtlMs": 30000,
+      "maxValueBytes": 1024,
+      "name": "typing",
+      "permissionBacking": {
+        "scopeFields": {
+          "conversationId": "conversationId"
+        },
+        "subjectField": "userId",
+        "table": "conversationMembers"
+      },
+      "publish": {
+        "RequireRoomPermission": {
+          "prefix": "m_conversation_members"
+        }
+      },
+      "routingFields": [
+        "conversationId"
+      ],
+      "scopeContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "conversationId",
+            "required": true,
+            "value": {
+              "kind": "id",
+              "table": "conversations"
+            }
+          }
+        ],
+        "kind": "object"
+      },
+      "scopeFields": [
+        "conversationId"
+      ],
+      "subscribe": {
+        "RequireRoomPermission": {
+          "prefix": "m_conversation_members"
+        }
+      },
+      "sustainedHz": 20,
+      "valueContract": {
+        "allowExtra": false,
+        "fields": [
+          {
+            "name": "active",
+            "required": true,
+            "value": {
+              "kind": "boolean"
+            }
+          }
+        ],
+        "kind": "object"
+      },
+      "withdrawalVisibilityDeadlineMs": 500
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:ba4e4030aaad36eadc657c777bc5c5c7e274612a605473036c3287449f157982",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:cf4ceb3187cae9cc9d28ee1e65939906215360430505394e6d0cdf03d6e66ed2",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "conversations",
+      "syncable": false,
+      "visibility": {
+        "kind": "public-read"
+      }
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": {
+            "Id": {
+              "table": "conversations"
+            }
+          },
+          "name": "conversationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "id": "conversation_members",
+        "principal": "userId",
+        "resource": "conversationId",
+        "resourceTable": "conversations",
+        "role": "role",
+        "roles": [
+          "owner",
+          "member"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "owner"
+            ],
+            "from": [
+              "member"
+            ],
+            "op": "remove",
+            "target": "other"
+          }
+        ]
+      },
+      "name": "conversationMembers",
+      "syncable": false,
+      "visibility": {
+        "field": "userId",
+        "kind": "owner"
+      }
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}
+"#;
+
+// Counterpart: packages/snapback-codegen/authoring-validation.test.mjs:
+// codegenEmittedMembershipManifestMatchesRustFixtureDigest.
+#[cfg(test)]
+const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256: &str =
+    "8fb7b3c54c59d1b711c79f951ee2247a111a59ddc8dcdceef6203bc78de5aec3";
+
 fn default_max_pending_ephemeral_keys() -> usize {
     1_024
 }
@@ -10437,6 +10606,101 @@ mod tests {
         );
         assert!(selector.matches(&room()));
         assert!(selector.matches(&other_room));
+    }
+
+    #[test]
+    fn codegen_emitted_membership_projection_parses_and_activates_in_sessions() {
+        use crate::contract_types::AuthMode;
+        use crate::manifest::SchemaManifest;
+
+        fn canonical_json(value: &serde_json::Value) -> String {
+            match value {
+                serde_json::Value::Null
+                | serde_json::Value::Bool(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::String(_) => serde_json::to_string(value)
+                    .expect("canonical primitive JSON serialization succeeds"),
+                serde_json::Value::Array(values) => format!(
+                    "[{}]",
+                    values
+                        .iter()
+                        .map(canonical_json)
+                        .collect::<Vec<_>>()
+                        .join(",")
+                ),
+                serde_json::Value::Object(entries) => {
+                    let mut keys = entries.keys().collect::<Vec<_>>();
+                    keys.sort_unstable();
+                    let fields = keys
+                        .into_iter()
+                        .map(|key| {
+                            format!(
+                                "{}:{}",
+                                serde_json::to_string(key)
+                                    .expect("canonical object key serialization succeeds"),
+                                canonical_json(&entries[key])
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    format!("{{{fields}}}")
+                }
+            }
+        }
+
+        let embedded: serde_json::Value =
+            serde_json::from_str(CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON)
+                .expect("slice-1 codegen schema manifest is valid JSON");
+        let digest = format!(
+            "{:x}",
+            Sha256::digest(canonical_json(&embedded).as_bytes())
+        );
+        assert_eq!(
+            digest, CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256,
+            "embedded manifest drifted from the actual-codegen JS fixture"
+        );
+
+        let schema: SchemaManifest = serde_json::from_value(embedded)
+            .expect("slice-1 codegen schema manifest parses through the Rust carrier");
+        schema
+            .validate_artifact()
+            .expect("slice-1 codegen schema artifact header is valid");
+        assert_eq!(schema.effective_auth_mode(), AuthMode::Sessions);
+
+        let collection = schema
+            .ephemeral_collections
+            .iter()
+            .find(|collection| collection.name == "typing")
+            .expect("codegen emitted the membership-backed collection");
+        assert_eq!(
+            collection.permission_backing,
+            Some(RoomPermissionProjection {
+                table: "conversationMembers".to_owned(),
+                subject_field: "userId".to_owned(),
+                scope_fields: BTreeMap::from([(
+                    "conversationId".to_owned(),
+                    "conversationId".to_owned(),
+                )]),
+            })
+        );
+        for policy in [&collection.publish, &collection.subscribe] {
+            assert_eq!(
+                policy,
+                &AccessPolicy::RequireRoomPermission {
+                    prefix: "m_conversation_members".to_owned(),
+                },
+                "publish and subscribe must carry one generated membership authority"
+            );
+        }
+
+        validate_collection_definitions(&schema.ephemeral_collections)
+            .expect("codegen-emitted collection definitions are valid");
+        validate_collection_permission_backing(
+            &schema.ephemeral_collections,
+            &schema.tables,
+            schema.effective_auth_mode() == AuthMode::Sessions,
+        )
+        .expect("sessions activation accepts the codegen-emitted membership projection");
     }
 
     #[test]
