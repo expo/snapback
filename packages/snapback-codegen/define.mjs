@@ -2707,13 +2707,27 @@ export function defineLiveSearchQuery(spec) {
 // @ref LLP 0013#proposal — source-authored ephemeral collections are typed,
 // scoped, TTL-bounded latest-state maps rather than ad hoc realtime routes.
 
-export const allow = {
-  all: () => ({ __accessPolicy: true, kind: 'AllowAll' }),
+export const allow = Object.freeze({
+  all: () => Object.freeze({ __accessPolicy: true, kind: 'AllowAll' }),
   roomPermission: (prefix) => {
     assert(typeof prefix === 'string' && prefix.length > 0, 'allow.roomPermission() expects a prefix');
-    return { __accessPolicy: true, kind: 'RequireRoomPermission', prefix };
+    return Object.freeze({ __accessPolicy: true, kind: 'RequireRoomPermission', prefix });
   },
-};
+  members: (declarationId, opts = {}) => {
+    assert(
+      typeof declarationId === 'string' && declarationId.length > 0,
+      'allow.members() expects a membership declaration id',
+    );
+    exactObject(opts, 'allow.members() options', new Set(['scopeField', 'roles']));
+    return Object.freeze({
+      __accessPolicy: true,
+      kind: 'RequireMembership',
+      declaration: declarationId,
+      ...(Object.hasOwn(opts, 'scopeField') ? { scopeField: opts.scopeField } : {}),
+      ...(Object.hasOwn(opts, 'roles') ? { roles: opts.roles } : {}),
+    });
+  },
+});
 
 export const ephemeral = {
   collection(spec) {

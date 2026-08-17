@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { generate } from './index.mjs';
 import { formatCodegenSummary } from './codegen-summary.mjs';
 import {
+  allow,
   defineAction,
   defineMutation,
   defineQuery,
@@ -29,6 +30,22 @@ export default defineSchema({
   todos: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }).sync(),
 });
 `;
+
+{
+  const policy = allow.members('conversation_members', { scopeField: 'conversationId' });
+  assert.equal(Object.isFrozen(allow), true, 'allow must be a closed frozen namespace');
+  assert.equal(Object.isFrozen(policy), true, 'allow.members() must return a frozen policy');
+  assert.deepEqual(policy, {
+    __accessPolicy: true,
+    kind: 'RequireMembership',
+    declaration: 'conversation_members',
+    scopeField: 'conversationId',
+  });
+  assert.throws(
+    () => allow.members('conversation_members', { scopeFiled: 'conversationId' }),
+    /unknown field scopeFiled/u,
+  );
+}
 
 // LLP 0010's no-silent-drops rule applies uniformly to the three primary
 // function builders. In particular LLP 0249's proposed `runtime`/`effects`
@@ -1012,6 +1029,406 @@ export default defineSchema({}, { ephemeral: defineEphemeral({
     && d.operation === 'publish'
     && d.prefix === 'room:admin'
   )));
+}
+
+const ephemeralMembershipSchema = ({
+  tables = `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  profiles: defineTable({ name: v.string() }).visibility({ kind: 'public-read' }),
+  conversationMembers: defineTable({
+    userId: v.principal(),
+    conversationId: v.id('conversations'),
+    role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }).membership({
+    id: 'conversation_members',
+    principal: 'userId',
+    resource: 'conversationId',
+    role: 'role',
+    roles: ['member'],
+    transitions: [],
+  }),
+`,
+  collections = `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('conversation_members'),
+    subscribe: allow.members('conversation_members'),
+  }),
+`,
+} = {}) => `
+import { allow, defineEphemeral, defineSchema, defineTable, ephemeral, v } from '${defineUrl}';
+export default defineSchema({${tables}}, { ephemeral: defineEphemeral({${collections}}) });
+`;
+
+// Only canonical membership() declarations resolve. A similarly named raw
+// permission-backing or ordinary table is deliberately not an authority source.
+for (const tableDeclaration of [
+  `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  roomMembers: defineTable({
+    userId: v.principal(), conversationId: v.id('conversations'), role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }),
+`,
+  `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  roomMembers: defineTable({
+    userId: v.principal(), conversationId: v.id('conversations'), role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }).permissionBacking(),
+`,
+]) {
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      tables: tableDeclaration,
+      collections: `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('roomMembers'),
+    subscribe: allow.members('roomMembers'),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(
+    diagnostics.some((d) => (
+      d.code === 'EPHEMERAL_MEMBERSHIP_UNKNOWN_DECLARATION'
+        && d.declaration === 'roomMembers'
+    )),
+    JSON.stringify(diagnostics),
+  );
+}
+
+for (const [scope, policy, expectedReason] of [
+  [
+    `{ conversationId: v.id('conversations') }`,
+    `allow.members('conversation_members', { scopeField: 'missing' })`,
+    'unknown-scope-field',
+  ],
+  [
+    `{ conversationId: v.id('conversations'), threadId: v.string() }`,
+    `allow.members('conversation_members')`,
+    'multi-scope-unbacked',
+  ],
+  [
+    `{ conversationId: v.id('conversations'), threadId: v.string() }`,
+    `allow.members('conversation_members', { scopeField: 'conversationId' })`,
+    'multi-scope-unbacked',
+  ],
+]) {
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      collections: `
+  typing: ephemeral.collection({
+    scope: ${scope},
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: ${policy},
+    subscribe: ${policy},
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(
+    diagnostics.some((d) => (
+      d.code === 'EPHEMERAL_MEMBERSHIP_SCOPE_MISMATCH'
+        && d.reason === expectedReason
+    )),
+    JSON.stringify(diagnostics),
+  );
+}
+
+// A room scope is not merely string-shaped: its mapped field must inhabit the
+// membership declaration's exact nominal resource-id domain. This applies to
+// both implicit and explicit single-scope mapping, and non-id validators can
+// never bind a membership resource in v1.
+for (const [scope, policy, actualResourceTable, actualOptional = false] of [
+  [
+    `{ profileId: v.id('profiles') }`,
+    `allow.members('conversation_members')`,
+    'profiles',
+  ],
+  [
+    `{ profileId: v.id('profiles') }`,
+    `allow.members('conversation_members', { scopeField: 'profileId' })`,
+    'profiles',
+  ],
+  [
+    `{ conversationId: v.string() }`,
+    `allow.members('conversation_members')`,
+    null,
+  ],
+  [
+    `{ conversationId: v.string() }`,
+    `allow.members('conversation_members', { scopeField: 'conversationId' })`,
+    null,
+  ],
+  [
+    `{ conversationId: v.optional(v.id('conversations')) }`,
+    `allow.members('conversation_members')`,
+    'conversations',
+    true,
+  ],
+]) {
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      collections: `
+  typing: ephemeral.collection({
+    scope: ${scope},
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: ${policy},
+    subscribe: ${policy},
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(
+    diagnostics.some((d) => (
+      d.code === 'EPHEMERAL_MEMBERSHIP_SCOPE_DOMAIN_MISMATCH'
+        && d.reason === 'resource-domain-mismatch'
+        && d.scopeField === (actualResourceTable === 'profiles' ? 'profileId' : 'conversationId')
+        && d.expectedResourceTable === 'conversations'
+        && d.actualResourceTable === actualResourceTable
+        && d.actualOptional === actualOptional
+        && /must use v\.id\("conversations"\)/u.test(d.message)
+    )),
+    JSON.stringify(diagnostics),
+  );
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      tables: `
+  appMembers: defineTable({
+    userId: v.principal(), role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }).membership({
+    id: 'app_members', scope: 'app', principal: 'userId', role: 'role',
+    roles: ['member'], transitions: [],
+  }),
+`,
+      collections: `
+  typing: ephemeral.collection({
+    scope: { roomId: v.string() },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('app_members'),
+    subscribe: allow.members('app_members'),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_MEMBERSHIP_SCOPE_MISMATCH'
+      && d.reason === 'app-scope'
+  )), JSON.stringify(diagnostics));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      tables: `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  firstMembers: defineTable({ userId: v.principal(), conversationId: v.id('conversations'), role: v.string() })
+    .visibility({ kind: 'owner', field: 'userId' })
+    .membership({ id: 'first_members', principal: 'userId', resource: 'conversationId', role: 'role', roles: ['member'], transitions: [] }),
+  secondMembers: defineTable({ userId: v.principal(), conversationId: v.id('conversations'), role: v.string() })
+    .visibility({ kind: 'owner', field: 'userId' })
+    .membership({ id: 'second_members', principal: 'userId', resource: 'conversationId', role: 'role', roles: ['member'], transitions: [] }),
+`,
+      collections: `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('first_members'),
+    subscribe: allow.members('second_members'),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => d.code === 'EPHEMERAL_MEMBERSHIP_MIXED_POLICY'), JSON.stringify(diagnostics));
+}
+
+for (const [publish, subscribe] of [
+  [`allow.members('conversation_members')`, `allow.all()`],
+  [`allow.all()`, `allow.members('conversation_members')`],
+  [`allow.members('conversation_members')`, `allow.roomPermission('legacy_room')`],
+]) {
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      collections: `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: ${publish},
+    subscribe: ${subscribe},
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_MEMBERSHIP_MIXED_POLICY'
+      && /runtime derives room authority from the subscribe policy/u.test(d.message)
+      && /future runtime capability/u.test(d.message)
+  )), JSON.stringify(diagnostics));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      tables: `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  conversationMembers: defineTable({
+    userId: v.principal(), conversationId: v.id('conversations'), role: v.string(),
+  }).visibility({ kind: 'owner', field: 'userId' }).membership({
+    id: 'conversation_members', principal: 'userId', resource: 'conversationId', role: 'role',
+    roles: ['member'], pendingRoles: ['invited'], transitions: [],
+  }),
+`,
+      collections: `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('conversation_members'),
+    subscribe: allow.members('conversation_members'),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => d.code === 'EPHEMERAL_MEMBERSHIP_PENDING_ROLES'), JSON.stringify(diagnostics));
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      collections: `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('conversation_members', { roles: ['member'] }),
+    subscribe: allow.members('conversation_members'),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_MEMBERSHIP_ROLES_UNSUPPORTED'
+      && /not yet supported/u.test(d.message)
+  )), JSON.stringify(diagnostics));
+}
+
+for (const [prefix, namespace] of [
+  ['m_conversation_members', 'generated-membership'],
+  ['_snapback_stream_server', 'platform-stream'],
+]) {
+  const diagnostics = await invalidCase({
+    schema: `
+import { allow, defineEphemeral, defineSchema, ephemeral, v } from '${defineUrl}';
+export default defineSchema({}, { ephemeral: defineEphemeral({
+  typing: ephemeral.collection({
+    scope: { roomId: v.string() },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.roomPermission(${JSON.stringify(prefix)}),
+    subscribe: allow.all(),
+  }),
+}) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_RESERVED_AUTH_PREFIX'
+      && d.prefix === prefix
+      && d.namespace === namespace
+  )), JSON.stringify(diagnostics));
+}
+
+{
+  const declaration = 'd'.repeat(63);
+  const diagnostics = await invalidCase({
+    schema: ephemeralMembershipSchema({
+      tables: `
+  conversations: defineTable({ title: v.string() }).visibility({ kind: 'public-read' }),
+  conversationMembers: defineTable({ userId: v.principal(), conversationId: v.id('conversations'), role: v.string() })
+    .visibility({ kind: 'owner', field: 'userId' })
+    .membership({ id: ${JSON.stringify(declaration)}, principal: 'userId', resource: 'conversationId', role: 'role', roles: ['member'], transitions: [] }),
+`,
+      collections: `
+  typing: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members(${JSON.stringify(declaration)}),
+    subscribe: allow.members(${JSON.stringify(declaration)}),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => (
+    d.code === 'EPHEMERAL_INVALID_AUTH'
+      && d.prefix === `m_${declaration}`
+      && d.maximum === 64
+  )), JSON.stringify(diagnostics));
+}
+
+// Golden: implicit and explicit single-scope mapping lower to the exact Rust
+// serde projection when both operations bind the same membership declaration.
+{
+  const generated = await validCase({
+    schema: ephemeralMembershipSchema({
+      collections: `
+  implicitTyping: ephemeral.collection({
+    scope: { conversationId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('conversation_members'),
+    subscribe: allow.members('conversation_members'),
+  }),
+  explicitTyping: ephemeral.collection({
+    scope: { roomId: v.id('conversations') },
+    value: v.object({ active: v.boolean() }),
+    ttlMs: 1000,
+    publish: allow.members('conversation_members', { scopeField: 'roomId' }),
+    subscribe: allow.members('conversation_members', { scopeField: 'roomId' }),
+  }),
+`,
+    }),
+    functions: 'export const nothing = 0;\n',
+  });
+  const manifest = JSON.parse(readFileSync(join(generated.outDir, 'schema.manifest.json'), 'utf8'));
+  const byName = Object.fromEntries(manifest.ephemeralCollections.map((collection) => [collection.name, collection]));
+  assert.deepEqual(byName.implicitTyping.permissionBacking, {
+    table: 'conversationMembers',
+    subjectField: 'userId',
+    scopeFields: { conversationId: 'conversationId' },
+  });
+  assert.deepEqual(byName.implicitTyping.publish, {
+    RequireRoomPermission: { prefix: 'm_conversation_members' },
+  });
+  assert.deepEqual(byName.implicitTyping.subscribe, {
+    RequireRoomPermission: { prefix: 'm_conversation_members' },
+  });
+  assert.deepEqual(byName.explicitTyping.permissionBacking, {
+    table: 'conversationMembers',
+    subjectField: 'userId',
+    scopeFields: { roomId: 'conversationId' },
+  });
 }
 
 // Handler admission is an AST walk, not a token blacklist. Every direct

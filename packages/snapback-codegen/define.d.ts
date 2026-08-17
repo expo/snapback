@@ -1174,7 +1174,27 @@ export declare function defineCron(jobs: Record<string, unknown>): unknown;
 export declare function defineConfig(entries: Record<string, unknown>): unknown;
 export declare function runMutation(name: string, args?: Record<string, ValueExpr>, opts?: { bindResultAs?: string }): unknown;
 
-export declare const allow: Record<string, (...args: unknown[]) => unknown>;
+export interface MembershipAccessPolicyOptions {
+  /** The collection scope field that maps to the declaration's resource field. */
+  readonly scopeField?: string;
+  /** Reserved for role narrowing; current codegen refuses this option fail-closed. */
+  readonly roles?: ReadonlyArray<string>;
+}
+export declare const allow: Readonly<{
+  all(): Readonly<{ __accessPolicy: true; kind: 'AllowAll' }>;
+  roomPermission(prefix: string): Readonly<{
+    __accessPolicy: true;
+    kind: 'RequireRoomPermission';
+    prefix: string;
+  }>;
+  members(declarationId: string, opts?: MembershipAccessPolicyOptions): Readonly<{
+    __accessPolicy: true;
+    kind: 'RequireMembership';
+    declaration: string;
+    scopeField?: string;
+    roles?: ReadonlyArray<string>;
+  }>;
+}>;
 export declare const ephemeral: { collection(spec: Record<string, unknown>): unknown };
 export declare function defineEphemeral(collections: Record<string, unknown>): unknown;
 

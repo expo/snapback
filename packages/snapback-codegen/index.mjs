@@ -4065,7 +4065,7 @@ async function generateInProcessLocked({
   }
 
   // --- Build + validate functions --------------------------------------------
-  const ephemeralCollections = buildEphemeralCollections(schemaDef.ephemeral, err, targetProfile);
+  const ephemeralCollections = buildEphemeralCollections(schemaDef.ephemeral, tables, err, targetProfile);
   const functions = [];
   const contractQueries = dict();
   const contractMutations = dict();
@@ -8410,8 +8410,17 @@ async function generateInProcessLocked({
   }
 }
 
-function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
+function buildEphemeralCollections(ephemeralDef, tables, err, targetProfile) {
   if (!ephemeralDef) return [];
+
+  const membershipDeclarations = new Map();
+  for (const table of Object.values(tables)) {
+    if (!table.membership) continue;
+    const declaration = table.membership.id ?? table.name;
+    if (!membershipDeclarations.has(declaration)) {
+      membershipDeclarations.set(declaration, { table, membership: table.membership });
+    }
+  }
 
   // @ref LLP 0013#agent-and-developer-diagnostics — missing TTL/auth/routing
   // and unsupported targets must be generated diagnostics, not silent drops.
@@ -8527,9 +8536,11 @@ function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
         hardMaxValueBytes: def.hardMaxValueBytes,
       });
     }
+    let permissionBacking;
     if (!def.publish || !def.publish.__accessPolicy || !def.subscribe || !def.subscribe.__accessPolicy) {
       err('EPHEMERAL_MISSING_AUTH', 'ephemeral', `${name} needs explicit publish and subscribe auth policies`, { collection: name });
     } else {
+      const membershipPolicies = [];
       for (const [operation, policy] of [['publish', def.publish], ['subscribe', def.subscribe]]) {
         if (
           policy.kind === 'RequireRoomPermission'
@@ -8543,12 +8554,206 @@ function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
             operation,
             prefix: policy.prefix,
           });
+        } else if (
+          policy.kind === 'RequireRoomPermission'
+          && isReservedRoomPermissionPrefix(policy.prefix)
+        ) {
+          err(
+            'EPHEMERAL_RESERVED_AUTH_PREFIX',
+            'ephemeral',
+            `${name} ${operation} room-permission prefix ${policy.prefix} is reserved by Snapback`,
+            {
+              collection: name,
+              operation,
+              prefix: policy.prefix,
+              namespace: policy.prefix === '_snapback_stream_server'
+                ? 'platform-stream'
+                : 'generated-membership',
+            },
+          );
+        } else if (policy.kind === 'RequireMembership') {
+          membershipPolicies.push({ operation, policy });
+          const prefix = membershipPermissionPrefix(policy.declaration);
+          if (!IDENT.test(prefix) || Buffer.byteLength(prefix) > MAX_EPHEMERAL_SCOPE_KEY_BYTES) {
+            err(
+              'EPHEMERAL_INVALID_AUTH',
+              'ephemeral',
+              `${name} ${operation} generated membership prefix must be a portable identifier within ${MAX_EPHEMERAL_SCOPE_KEY_BYTES} bytes`,
+              {
+                collection: name,
+                operation,
+                declaration: policy.declaration ?? null,
+                prefix,
+                maximum: MAX_EPHEMERAL_SCOPE_KEY_BYTES,
+              },
+            );
+          }
+          if (Object.hasOwn(policy, 'roles')) {
+            err(
+              'EPHEMERAL_MEMBERSHIP_ROLES_UNSUPPORTED',
+              'ephemeral',
+              `${name} ${operation} uses allow.members roles, but role narrowing is not yet supported`,
+              {
+                collection: name,
+                operation,
+                declaration: policy.declaration ?? null,
+              },
+            );
+          }
         } else if (policy.kind !== 'AllowAll' && policy.kind !== 'RequireRoomPermission') {
           err('EPHEMERAL_INVALID_AUTH', 'ephemeral', `${name} ${operation} uses an unsupported access policy`, {
             collection: name,
             operation,
             policyKind: policy.kind,
           });
+        }
+      }
+
+      if (membershipPolicies.length > 0) {
+        const membershipIds = new Set(membershipPolicies.map(({ policy }) => policy.declaration));
+        const hasUniformMembershipPolicy = membershipPolicies.length === 2
+          && membershipIds.size === 1;
+        if (!hasUniformMembershipPolicy) {
+          err(
+            'EPHEMERAL_MEMBERSHIP_MIXED_POLICY',
+            'ephemeral',
+            `${name} publish and subscribe must both use allow.members with the same declaration; v1 refuses per-operation mixing because the runtime derives room authority from the subscribe policy. Per-operation mixing is a future runtime capability`,
+            {
+              collection: name,
+              declarations: [...membershipIds],
+              publishPolicy: def.publish.kind,
+              subscribePolicy: def.subscribe.kind,
+            },
+          );
+        }
+
+        const resolvedDeclarations = new Map();
+        for (const declaration of membershipIds) {
+          const resolved = membershipDeclarations.get(declaration);
+          if (!resolved) {
+            err(
+              'EPHEMERAL_MEMBERSHIP_UNKNOWN_DECLARATION',
+              'ephemeral',
+              `${name} allow.members names unknown membership declaration ${String(declaration)}`,
+              { collection: name, declaration: declaration ?? null },
+            );
+          } else {
+            resolvedDeclarations.set(declaration, resolved);
+            if ((resolved.membership.pendingRoles?.length ?? 0) > 0) {
+              err(
+                'EPHEMERAL_MEMBERSHIP_PENDING_ROLES',
+                'ephemeral',
+                `${name} membership declaration ${declaration} has pendingRoles; membership-backed rooms require role-aware grants before that declaration is safe`,
+                { collection: name, declaration },
+              );
+            }
+          }
+        }
+
+        if (hasUniformMembershipPolicy) {
+          const declaration = membershipIds.values().next().value;
+          const resolved = resolvedDeclarations.get(declaration);
+          if (resolved) {
+            let roomScopeField = null;
+            let scopeMismatch = false;
+            if (resolved.membership.scope !== 'resource' || !resolved.membership.resource) {
+              err(
+                'EPHEMERAL_MEMBERSHIP_SCOPE_MISMATCH',
+                'ephemeral',
+                `${name} cannot bind app-scoped membership declaration ${declaration} to a room scope`,
+                { collection: name, declaration, reason: 'app-scope' },
+              );
+              scopeMismatch = true;
+            } else if (scopeFields.length !== 1) {
+              const explicitScopeFields = membershipPolicies
+                .filter(({ policy }) => Object.hasOwn(policy, 'scopeField'))
+                .map(({ policy }) => policy.scopeField);
+              const invalidExplicit = explicitScopeFields.find((field) => !scopeFields.includes(field));
+              err(
+                'EPHEMERAL_MEMBERSHIP_SCOPE_MISMATCH',
+                'ephemeral',
+                invalidExplicit !== undefined
+                  ? `${name} allow.members scopeField ${String(invalidExplicit)} is not in the collection scope`
+                  : `${name} has ${scopeFields.length} scope fields; v1 membership backing requires exactly one because every room scope field needs a backing column`,
+                {
+                  collection: name,
+                  declaration,
+                  scopeFields,
+                  ...(invalidExplicit !== undefined ? { scopeField: invalidExplicit } : {}),
+                  reason: invalidExplicit !== undefined ? 'unknown-scope-field' : 'multi-scope-unbacked',
+                },
+              );
+              scopeMismatch = true;
+            } else {
+              [roomScopeField] = scopeFields;
+              const mismatchedPolicy = membershipPolicies.find(({ policy }) => (
+                Object.hasOwn(policy, 'scopeField') && policy.scopeField !== roomScopeField
+              ));
+              if (mismatchedPolicy) {
+                err(
+                  'EPHEMERAL_MEMBERSHIP_SCOPE_MISMATCH',
+                  'ephemeral',
+                  `${name} ${mismatchedPolicy.operation} allow.members scopeField must name the collection scope field ${roomScopeField}`,
+                  {
+                    collection: name,
+                    operation: mismatchedPolicy.operation,
+                    declaration,
+                    scopeFields,
+                    scopeField: mismatchedPolicy.policy.scopeField ?? null,
+                    reason: 'unknown-scope-field',
+                  },
+                );
+                scopeMismatch = true;
+              }
+            }
+
+            const expectedResourceTable = resolved.membership.resourceTable;
+            if (!scopeMismatch && typeof expectedResourceTable !== 'string') {
+              // The membership declaration's own schema diagnostic explains
+              // why its resource axis is not a nominal id. Do not lower a
+              // projection whose resource domain codegen could not establish.
+              scopeMismatch = true;
+            } else if (!scopeMismatch) {
+              const scopeValidator = def.scope?.[roomScopeField];
+              const actualResourceTable = idFieldTypeTable(scopeValidator?.fieldType);
+              const actualOptional = scopeValidator?.optional === true;
+              if (actualResourceTable !== expectedResourceTable || actualOptional) {
+                const actualDomain = actualResourceTable === null
+                  ? 'a non-id validator'
+                  : `${actualOptional ? 'v.optional(' : ''}v.id(${JSON.stringify(actualResourceTable)})${actualOptional ? ')' : ''}`;
+                err(
+                  'EPHEMERAL_MEMBERSHIP_SCOPE_DOMAIN_MISMATCH',
+                  'ephemeral',
+                  `${name} scope field ${roomScopeField} must use v.id(${JSON.stringify(expectedResourceTable)}) to bind membership declaration ${declaration}; found ${actualDomain}`,
+                  {
+                    collection: name,
+                    declaration,
+                    scopeField: roomScopeField,
+                    expectedResourceTable,
+                    actualResourceTable,
+                    actualOptional,
+                    reason: 'resource-domain-mismatch',
+                  },
+                );
+                scopeMismatch = true;
+              }
+            }
+
+            const prefix = membershipPermissionPrefix(declaration);
+            const prefixValid = IDENT.test(prefix)
+              && Buffer.byteLength(prefix) <= MAX_EPHEMERAL_SCOPE_KEY_BYTES;
+            const pendingRoles = (resolved.membership.pendingRoles?.length ?? 0) > 0;
+            if (!scopeMismatch && prefixValid && !pendingRoles) {
+              // @ref LLP 0013#dated-note-declaration-bound-room-authority-2026-07-16
+              //   — the stable declaration id lowers to the room permission and
+              //   its canonical membership table supplies the durable projection.
+              permissionBacking = {
+                table: resolved.table.name,
+                subjectField: resolved.membership.principal,
+                scopeFields: { [roomScopeField]: resolved.membership.resource },
+              };
+            }
+          }
         }
       }
     }
@@ -8604,6 +8809,7 @@ function buildEphemeralCollections(ephemeralDef, err, targetProfile) {
       dispatchMs: def.delivery?.dispatchMs ?? 33,
       publish: serializeAccessPolicy(def.publish),
       subscribe: serializeAccessPolicy(def.subscribe),
+      ...(permissionBacking ? { permissionBacking } : {}),
       maxPendingEphemeralKeys: def.maxPendingEphemeralKeys,
     });
   }
@@ -8709,7 +8915,18 @@ function serializeAccessPolicy(policy) {
   if (policy.kind === 'RequireRoomPermission') {
     return { RequireRoomPermission: { prefix: policy.prefix } };
   }
+  if (policy.kind === 'RequireMembership') {
+    return { RequireRoomPermission: { prefix: membershipPermissionPrefix(policy.declaration) } };
+  }
   return 'AllowAll';
+}
+
+function membershipPermissionPrefix(declaration) {
+  return `m_${String(declaration ?? '')}`;
+}
+
+function isReservedRoomPermissionPrefix(prefix) {
+  return prefix === '_snapback_stream_server' || prefix.startsWith('m_');
 }
 
 // --- serialization helpers ---------------------------------------------------
