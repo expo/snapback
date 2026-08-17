@@ -167,6 +167,38 @@ describe('Coterie backendless provider', () => {
     expect(fresh.find((profile) => profile.id === 'alice')?.displayName).toBe('Alice Alvarez');
   });
 
+  it('isolates delivered session rows from the backing memory state', () => {
+    const { provider } = createCoterieMemoryHarness();
+    const delivered = readRows<{ id: string; token: string }>(provider, 'listSession', {});
+    expect(delivered[0]?.token).toBe('coterie-memory-session-alice-0000');
+    if (!delivered[0]) throw new Error('Alice session fixture was not delivered');
+
+    delivered[0].token = 'mutated-by-subscriber';
+
+    const fresh = readRows<{ id: string; token: string }>(provider, 'listSession', {});
+    expect(fresh[0]?.token).toBe('coterie-memory-session-alice-0000');
+  });
+
+  it('isolates delivered search rows from the backing memory state', () => {
+    const { provider } = createCoterieMemoryHarness();
+    const delivered = readRows<{ id: string; title: string }>(
+      provider,
+      'searchSocial',
+      { query: 'Alice' },
+    );
+    expect(delivered[0]?.title).toBe('Alice Alvarez');
+    if (!delivered[0]) throw new Error('Alice search fixture was not delivered');
+
+    delivered[0].title = 'Mutated by subscriber';
+
+    const fresh = readRows<{ id: string; title: string }>(
+      provider,
+      'searchSocial',
+      { query: 'Alice' },
+    );
+    expect(fresh[0]?.title).toBe('Alice Alvarez');
+  });
+
   it('configures a distinct adapter implementation against the shared Coterie surface', () => {
     const delegate = createCoterieMemoryProvider();
     const alternateAdapter: ContractDataProvider = {

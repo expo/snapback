@@ -1,0 +1,15 @@
+component MisappliedFrozenIds
+  view
+    column
+      row testId="sm-trending-row"
+        row
+          text "Mentions of sm-feed-item and FeedCard( in copy are not surfaces"
+          // FeedCard(postId="decoy") and testId="sm-feed-item" in a comment
+      button "Blue" press=chooseColor("blue") valueText="blue" testId="sm-chatsettings-color"
+      button "Tomorrow" press=chooseDuration("tomorrow") valueText="tomorrow" accessibilitySelected=false testId="sm-chatsettings-disappearing"
+      image src="/static-preview.png" alt="Not a chooser" testId="sm-convo-file"
+      button "Blue background" press=chooseAccent("blue") valueText="blue" accessibilitySelected=true testId="sm-chatsettings-background"
+      link "Media" href="/media" press=selectMedia testId="sm-convo-attach"
+      column testId="sm-convo-media"
+        text "No rendered media"
+      text "Not pressable" testId="sm-convo-quote-preview"

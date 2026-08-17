@@ -1,6 +1,6 @@
 # Coterie memory provider leaks backing rows through direct list queries
 
-**Filed:** 2026-08-17 · **Status:** Open · **Systems:** Demos, Contract,
+**Filed:** 2026-08-17 · **Status:** Closed · **Systems:** Demos, Contract,
 Provider adapters, Testing
 
 **Related:** LLP 0266; `demos/coterie/src/data/memory-provider.ts`
@@ -33,3 +33,12 @@ using the file's existing `cloneRows` idiom. Add isolation regressions that
 mutate a delivered row and prove a fresh snapshot remains unchanged. Keep the
 declared provider shapes and compatibility tokens unchanged because this is an
 ownership fix, not a value-shape change.
+
+## Resolution (2026-08-17)
+
+`listSession` now clones every row returned from the `sessions` table, and
+`searchSocial` clones its filtered result rows, both at the query delivery
+boundary through the existing `cloneRows` helper. Two regressions mutate a
+delivered session token and search-result title respectively, then prove a
+fresh query still returns the original fixture value. Provider declarations,
+generated shapes, and compatibility tokens are unchanged.

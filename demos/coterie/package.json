@@ -9,13 +9,14 @@
     "exact:web": "bun node_modules/@exact/server/src/cli.ts --config exact.web.config.mjs",
     "generate:provider": "bun run node_modules/@exact/devtools/src/scripts/provider-generate.ts src/data/coterie.provider.json --out src/data/generated --write",
     "check:provider": "bun run node_modules/@exact/devtools/src/scripts/provider-generate.ts src/data/coterie.provider.json --out src/data/generated --check",
+    "check:sm-vocabulary": "node ./scripts/check-sm-vocabulary.mjs",
     "generate:routes": "bun run node_modules/@exact/devtools/src/scripts/generate-route-registries.ts --source-root src",
     "check:platform-splits": "bun run node_modules/@exact/devtools/src/scripts/check-platform-splits.ts --source-root src",
     "typecheck": "bun run generate:routes && bun run check:platform-splits && tsc --noEmit",
     "test": "bun test tests",
     "test:snapback-provider": "COTERIE_SNAPBACK_INTEGRATION=1 bun test tests/snapback-provider.test.ts tests/snapback-provider.integration.test.ts",
     "accept:coterie": "bun run ./scripts/accept-coterie.mjs",
-    "verify:coterie": "bun run check:provider && bun run typecheck && bun run test && bun run build",
+    "verify:coterie": "bun run check:provider && bun run check:sm-vocabulary && bun run typecheck && bun run test && bun run build",
     "setup-mcp": "bun run node_modules/@exact/devtools/src/scripts/setup-mcp.ts"
   },
   "dependencies": {

@@ -1,0 +1,4 @@
+component ExtensionsAllowed
+  view
+    column testId="sm-auth-form"
+      text "Coterie extension" testId="sm-feed-author"

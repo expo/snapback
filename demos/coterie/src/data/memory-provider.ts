@@ -1262,7 +1262,11 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
   const provider = createBoundaryContractDataProvider(coterieSurfaceManifest, boundary, {
     queries: {
       listSession: (_args, queryBoundary) =>
-        queryBoundary.query<Session>('sessions', (rows) => rows as Session[], { key: 'session' }),
+        queryBoundary.query<Session>(
+          'sessions',
+          (rows) => cloneRows(rows as Session[]),
+          { key: 'session' },
+        ),
       listFeed: (args, queryBoundary) =>
         queryAcrossTables<FeedItem>(
           queryBoundary,
@@ -1401,9 +1405,9 @@ export function createCoterieMemoryHarness(): CoterieMemoryHarness {
         queryBoundary.query<SearchResult>(
           'search',
           (rows) =>
-            (rows as SearchResult[]).filter((result) =>
+            cloneRows((rows as SearchResult[]).filter((result) =>
               matchesWordPrefix(`${result.title} ${result.subtitle}`, String(args.query ?? '')),
-            ),
+            )),
           { key: `search:${String(args.query)}` },
         ),
       listInsights: (_args, queryBoundary) =>
