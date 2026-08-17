@@ -3360,6 +3360,22 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
       ['cm-after-result-expired', 'pending'],
     ],
   );
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'known-committed' },
+      clientMutationId: 'cm-result-expired',
+    }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_OUTBOX_MUTATION_NOT_REPLAYABLE');
+      assert.equal(error.mutationDisposition.status, 'result-gone');
+      assert.equal(error.effectCommitted, true);
+      assert.equal(error.effectMayHaveCommitted, true);
+      assert.equal(error.diagnostic.details.effectCommitted, true);
+      assert.equal(error.diagnostic.details.effectMayHaveCommitted, true);
+      return true;
+    },
+  );
+  assert.equal(calls, 0, 'committed result-gone redispatch never reaches transport');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
     {
@@ -3368,6 +3384,67 @@ test('committed result-expired becomes durable result-gone and blocks ordered su
       oldestPendingAtMs: (await store.outboxRecords())
         .find((record) => record.status === 'pending').enqueuedAt,
       drainPhase: 'idle', lastAttemptAtMs: null, nextRetryAtMs: null, blockedReason: null,
+    },
+  );
+});
+
+test('failed and missing-record redispatch preserve their distinct effect facts', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('https://outbox-disposition.example', { rqsStore: store });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_FIXTURE_REFUSED',
+        message: 'fixture refusal',
+        details: { effectCommitted: false },
+      },
+    }, { status: 409 });
+  };
+  const input = {
+    args: { title: 'known-refused' },
+    clientMutationId: 'cm-failed-redispatch',
+  };
+  await assert.rejects(() => client.mutate('createThing', input));
+  assert.equal((await store.outboxRecords())[0].status, 'failed');
+  const callsBeforeRedispatch = calls;
+  await assert.rejects(
+    () => client.mutate('createThing', input),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_OUTBOX_MUTATION_NOT_REPLAYABLE');
+      assert.equal(error.mutationDisposition.status, 'failed');
+      assert.equal(error.effectCommitted, false);
+      assert.equal(error.effectMayHaveCommitted, false);
+      assert.equal(error.diagnostic.details.effectCommitted, false);
+      assert.equal(error.diagnostic.details.effectMayHaveCommitted, false);
+      return true;
+    },
+  );
+  assert.equal(calls, callsBeforeRedispatch, 'failed redispatch never reaches transport');
+
+  const missingStore = Object.create(createDurableTestStore());
+  missingStore.outboxEnqueue = async () => null;
+  const missingClient = new SnapbackClient('https://outbox-missing.example', {
+    rqsStore: missingStore,
+  });
+  globalThis.fetch = async () => {
+    throw new Error('missing durable record must refuse before transport');
+  };
+  await assert.rejects(
+    () => missingClient.mutate('createThing', {
+      args: { title: 'missing' },
+      clientMutationId: 'cm-missing-redispatch',
+    }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_OUTBOX_MUTATION_NOT_REPLAYABLE');
+      assert.equal(error.mutationDisposition.status, 'unknown');
+      assert.equal(error.effectCommitted, null);
+      assert.equal(error.effectMayHaveCommitted, null);
+      assert.equal(Object.hasOwn(error.diagnostic.details, 'effectCommitted'), false);
+      assert.equal(Object.hasOwn(error.diagnostic.details, 'effectMayHaveCommitted'), false);
+      return true;
     },
   );
 });

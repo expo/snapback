@@ -418,19 +418,51 @@ export function createIndexedDbRqsResumeStore({
     }));
   };
 
+  const normalizedOutboxState = (stored) => {
+    const state = validateOutboxState(stored);
+    if (state === null) return { state: emptyOutboxState(), changed: false };
+    let changed = true;
+    try {
+      changed = JSON.stringify(stored) !== JSON.stringify(state);
+    } catch {
+      // IndexedDB can clone values JSON cannot encode. A valid outbox state is
+      // nevertheless JSON-shaped, so such a record is not durable-normalized.
+    }
+    return { state, changed };
+  };
+
   // One-record atomic read-modify-write for the outbox section: the whole
   // LLP 0043 M2 state (sequence, records, pending ACKs) commits in a single
   // IndexedDB transaction, mirroring the file arm's atomic blob replace.
   const readOutboxState = async (txStore) => {
     const stored = await requestResult(txStore.get(OUTBOX_STATE_KEY));
-    return validateOutboxState(stored) ?? emptyOutboxState();
+    const normalized = normalizedOutboxState(stored);
+    if (normalized.changed && txStore.transaction.mode === 'readwrite') {
+      txStore.put(normalized.state, OUTBOX_STATE_KEY);
+    }
+    return normalized;
+  };
+
+  const readDurablyNormalizedOutboxState = async () => {
+    const db = await database();
+    let tx = db.transaction([OUTBOX], 'readonly');
+    let normalized = await readOutboxState(tx.objectStore(OUTBOX));
+    await transactionDone(tx);
+    if (!normalized.changed) return normalized.state;
+
+    // IndexedDB transactions cannot be upgraded. Re-read under one readwrite
+    // transaction and commit the latest normalized record before exposing it;
+    // a concurrent outbox writer is serialized ahead of or behind this cut.
+    // @ref LLP 0053#dispositions-with-producers-and-meanings — a delete root
+    //   destroys predecessor payload in durable custody, not just its return.
+    tx = db.transaction([OUTBOX], 'readwrite');
+    normalized = await readOutboxState(tx.objectStore(OUTBOX));
+    await transactionDone(tx);
+    return normalized.state;
   };
 
   const outboxRead = async (reader) => {
-    const db = await database();
-    const tx = db.transaction([OUTBOX], 'readonly');
-    const state = await readOutboxState(tx.objectStore(OUTBOX));
-    await transactionDone(tx);
+    const state = await readDurablyNormalizedOutboxState();
     return reader(state);
   };
 
@@ -445,7 +477,7 @@ export function createIndexedDbRqsResumeStore({
     const db = await database();
     const tx = db.transaction([OUTBOX], 'readwrite');
     const txStore = tx.objectStore(OUTBOX);
-    const state = await readOutboxState(txStore);
+    const { state } = await readOutboxState(txStore);
     const applied = transition(state);
     if (applied.state !== state) txStore.put(applied.state, OUTBOX_STATE_KEY);
     await transactionDone(tx);
@@ -454,12 +486,22 @@ export function createIndexedDbRqsResumeStore({
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
-  const materializationTransaction = (mode, operation) => import(
-    './materialization-store-runtime.mjs'
-  ).then(({ indexedDbMaterializationTransaction }) => indexedDbMaterializationTransaction([
-    mode, operation, writer, closed, database, requestResult, readOutboxState,
-    readMetaFromStore, storeError, transactionDone,
-  ]));
+  const materializationTransaction = async (mode, operation) => {
+    await readDurablyNormalizedOutboxState();
+    return import('./materialization-store-runtime.mjs')
+      .then(({ indexedDbMaterializationTransaction }) => indexedDbMaterializationTransaction([
+        mode,
+        operation,
+        writer,
+        closed,
+        database,
+        requestResult,
+        async (txStore) => (await readOutboxState(txStore)).state,
+        readMetaFromStore,
+        storeError,
+        transactionDone,
+      ]));
+  };
 
   return {
     isWriter() {
@@ -1006,7 +1048,7 @@ export function createIndexedDbRqsResumeStore({
       const db = await database();
       const tx = db.transaction(ALL_STORES, 'readwrite');
       const outboxStore = tx.objectStore(OUTBOX);
-      const predecessorOutbox = await readOutboxState(outboxStore);
+      const { state: predecessorOutbox } = await readOutboxState(outboxStore);
       const advanced = outboxOps.advanceAuthorizationAuthority(
         predecessorOutbox,
         authorityTransitionKey,
@@ -1075,10 +1117,10 @@ export function createIndexedDbRqsResumeStore({
     },
 
     async inspection() {
+      const outboxState = await readDurablyNormalizedOutboxState();
       const db = await database();
-      const tx = db.transaction([ENTRIES, OUTBOX], 'readonly');
+      const tx = db.transaction([ENTRIES], 'readonly');
       const all = await readAllForBudget(tx.objectStore(ENTRIES));
-      const outboxState = await readOutboxState(tx.objectStore(OUTBOX));
       await transactionDone(tx);
       return Object.freeze({
         writer: this.isWriter(),

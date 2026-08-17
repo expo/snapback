@@ -511,8 +511,25 @@ const authorizationDeleteTombstone = (record) => (
   && record?.replayable === false
 );
 
+const nonReplayableOutboxEffectFacts = (record) => {
+  if (record?.status === 'result-gone') {
+    if (record?.resultGone?.outcome === 'committed') {
+      return { effectCommitted: true, effectMayHaveCommitted: true };
+    }
+    if (record?.resultGone?.outcome === 'refused') {
+      return { effectCommitted: false, effectMayHaveCommitted: false };
+    }
+    return { effectCommitted: null, effectMayHaveCommitted: null };
+  }
+  if (['failed', 'stranded', 'quarantined'].includes(record?.status)) {
+    return { effectCommitted: false, effectMayHaveCommitted: false };
+  }
+  return { effectCommitted: null, effectMayHaveCommitted: null };
+};
+
 const nonReplayableOutboxDispositionError = (record) => {
   const deleteTombstone = authorizationDeleteTombstone(record);
+  const effectFacts = nonReplayableOutboxEffectFacts(record);
   const code = deleteTombstone
     ? 'SNAPBACK_OUTBOX_AUTHORIZATION_DELETE_TOMBSTONE'
     : 'SNAPBACK_OUTBOX_MUTATION_NOT_REPLAYABLE';
@@ -535,7 +552,12 @@ const nonReplayableOutboxDispositionError = (record) => {
     details: Object.freeze({
       clientMutationId: record?.id ?? null,
       mutationDisposition,
-      effectCommitted: false,
+      ...(typeof effectFacts.effectCommitted === 'boolean'
+        ? {
+          effectCommitted: effectFacts.effectCommitted,
+          effectMayHaveCommitted: effectFacts.effectMayHaveCommitted,
+        }
+        : {}),
       retryable: false,
     }),
   });
@@ -543,8 +565,8 @@ const nonReplayableOutboxDispositionError = (record) => {
     message,
     operation: 'mutation',
     retryable: false,
-    effectCommitted: false,
-    effectMayHaveCommitted: false,
+    effectCommitted: effectFacts.effectCommitted,
+    effectMayHaveCommitted: effectFacts.effectMayHaveCommitted,
   });
   error.clientMutationId = record?.id ?? null;
   error.mutationDisposition = mutationDisposition;
@@ -11050,6 +11072,7 @@ export class SnapbackClient {
     } : null;
     let durableOnlineRecord = false;
     let durableOnlineStoredRecord = null;
+    let queueRecordAlreadyExisted = false;
     const storedDispatchDisposition = async (stored) => {
       if (stored?.status === 'pending' && stored?.replayable !== false) return null;
       this.#notifyOutboxListeners();
@@ -11085,6 +11108,19 @@ export class SnapbackClient {
         // manufacturing a replay-eligible `queued` outcome.
         throw error;
       }
+      if (!await this.#compensateStaleQueueWrite(
+        queueStore,
+        clientMutationId,
+        queueAuthority,
+        {
+          discard: current !== null && !queueRecordAlreadyExisted,
+          expectedAuthorizationFence: current === null
+            ? null
+            : outboxAuthorizationFenceFrom(current),
+        },
+      )) {
+        throw staleAuthorityError();
+      }
       return storedDispatchDisposition(current);
     };
     let authorizationDispatchRelease = null;
@@ -11116,7 +11152,6 @@ export class SnapbackClient {
     try {
       if (queueStore && durableMutationRecord) {
       try {
-        let queueRecordAlreadyExisted = false;
         const enqueueDurably = async (operation) => {
           const queueFence = outboxAuthorizationFenceFrom(
             await queueStore.outboxAuthorizationStatus(),
@@ -11270,20 +11305,22 @@ export class SnapbackClient {
             queueStore.outboxEnqueue(durableMutationRecord, queueFence)
           ));
           durableOnlineStoredRecord = stored;
-          const storedDisposition = await storedDispatchDisposition(stored);
-          if (storedDisposition !== null) return storedDisposition;
-          claimForegroundOwnership(stored);
           if (!await this.#compensateStaleQueueWrite(
             queueStore,
-            stored.id,
+            stored?.id ?? clientMutationId,
             queueAuthority,
             {
               discard: !queueRecordAlreadyExisted,
-              expectedAuthorizationFence: outboxAuthorizationFenceFrom(stored),
+              expectedAuthorizationFence: stored === null || stored === undefined
+                ? null
+                : outboxAuthorizationFenceFrom(stored),
             },
           )) {
             throw staleAuthorityError();
           }
+          const storedDisposition = await storedDispatchDisposition(stored);
+          if (storedDisposition !== null) return storedDisposition;
+          claimForegroundOwnership(stored);
         }
         durableOnlineRecord = true;
         this.#notifyOutboxListeners();

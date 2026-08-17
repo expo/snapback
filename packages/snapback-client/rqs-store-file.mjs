@@ -346,6 +346,15 @@ export function createFileRqsResumeStore({
     memberships: {},
     storeMeta,
   });
+  const outboxNormalizationChanged = (stored, normalized) => {
+    try {
+      return JSON.stringify(stored) !== JSON.stringify(normalized);
+    } catch {
+      // A value that cannot be serialized back into the file carrier cannot
+      // be treated as already-normalized durable state.
+      return true;
+    }
+  };
 
   // DK-9 single-connection mutex analogue: one promise chain serializes every
   // operation, including lock acquisition.
@@ -491,7 +500,7 @@ export function createFileRqsResumeStore({
       corrupt = true;
       throw corruptError(blobPath);
     }
-    return {
+    const state = {
       entries: parsed.entries,
       outbox: normalizedOutbox,
       materializations: parsed.materializations,
@@ -502,6 +511,22 @@ export function createFileRqsResumeStore({
       // absent or independently invalid receipt bytes simply mean no receipt.
       reactBindingReceipt: prepareReactBindingReceipt(parsed.reactBindingReceipt),
     };
+    if (outboxNormalizationChanged(parsed.outbox, normalizedOutbox)) {
+      // A live delete root makes validation a destructive security migration,
+      // not an in-memory projection. Publish no normalized state until the
+      // current V3 blob has crossed the same atomic replace + fsync cut used
+      // by ordinary writes.
+      // @ref LLP 0053#dispositions-with-producers-and-meanings — delete
+      //   destroys retained predecessor payload before any later exposure.
+      if (!writer) {
+        throw storeError(
+          'SNAPBACK_RQS_STORE_NOT_WRITER',
+          'durable outbox normalization requires store ownership',
+        );
+      }
+      await writeState(state);
+    }
+    return state;
   };
 
   // Atomic and power-loss durable replace: flush temp contents, rename, then

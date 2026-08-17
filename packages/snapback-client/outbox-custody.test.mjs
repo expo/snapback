@@ -420,6 +420,57 @@ test('capture-validate-commit race preserves successor-owned stranded dispositio
   assert.equal(record.replayable, false);
 });
 
+test('authority transition racing an idempotent settled enqueue refuses before projection', async (t) => {
+  const fixture = makeFixture();
+  const underlying = fixture.store;
+  const first = makeClient(fixture);
+  t.after(() => first.client.closeAuth());
+  await signIn(fixture, first.client);
+  fixture.offlineMutations = false;
+  const mutationInput = {
+    clientMutationId: 'cm-settled-enqueue-authority-race',
+    args: { value: 'predecessor-settlement' },
+  };
+  const settled = await first.client.mutate('settledBeforeAuthorityRace', mutationInput);
+  assert.equal(settled.status, 'settled');
+  assert.equal((await underlying.outboxRecords())[0].status, 'settled');
+
+  let raced = false;
+  const injectedStore = Object.create(underlying);
+  injectedStore.outboxEnqueue = async (...args) => {
+    const stored = await underlying.outboxEnqueue(...args);
+    if (!raced) {
+      raced = true;
+      await transitionTo(
+        fixture,
+        first.coordinator,
+        actorA2(),
+        'settled_enqueue_authority_race',
+      );
+    }
+    return stored;
+  };
+  const racingClient = new SnapbackClient(fixture.baseUrl, {
+    authCoordinator: first.coordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    rqsStore: injectedStore,
+  });
+  t.after(() => racingClient.closeAuth());
+
+  await assert.rejects(
+    racingClient.mutate('settledBeforeAuthorityRace', mutationInput),
+    (error) => isSnapbackDiagnosticError(error)
+      && error.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  assert.equal(raced, true);
+  assert.equal(
+    (await underlying.outboxRecords())[0].status,
+    'settled',
+    'successor may retain the settlement, but the stale call cannot project it',
+  );
+});
+
 test('post-dispatch authority change releases queue custody before reconciliation', async (t) => {
   const fixture = makeFixture();
   const { client, coordinator } = makeClient(fixture);

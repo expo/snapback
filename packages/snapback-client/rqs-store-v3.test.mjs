@@ -399,6 +399,111 @@ test('file upgrade redacts predecessor delete custody before proof and re-entry'
   await store.close();
 });
 
+test('current V3 file read durably redacts predecessor secrets before exposure', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-rqs-delete-v3-read-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let store = createFileRqsResumeStore({
+    directory,
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await store.whenLockSettled();
+  await store.close();
+
+  const blobName = (await readdir(directory)).find((name) => name.endsWith('.v1.json'));
+  const blobPath = join(directory, blobName);
+  const predecessor = predecessorDeleteOutbox();
+  const seeded = JSON.parse(await readFile(blobPath, 'utf8'));
+  assert.equal(seeded.format, RQS_FILE_STORE_FORMAT);
+  seeded.outbox = predecessor.state;
+  await writeFile(blobPath, JSON.stringify(seeded));
+
+  store = createFileRqsResumeStore({
+    directory,
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await store.whenLockSettled();
+  const durableBeforeExposure = await readFile(blobPath, 'utf8');
+  assert.equal(durableBeforeExposure.includes('quarantined-predecessor-secret'), false);
+  assert.equal(durableBeforeExposure.includes('stranded-predecessor-secret'), false);
+
+  const records = await store.outboxRecords();
+  assert.deepEqual(records.map((record) => record.status), ['stranded', 'stranded']);
+  for (const record of records) {
+    assert.equal(record.disposition, 'delete');
+    assert.equal(record.discardOnly, true);
+    assert.equal(record.rerecordable, false);
+    assert.equal(Object.hasOwn(record, 'args'), false);
+    assert.equal(Object.hasOwn(record, 'predecessorPrincipalScope'), false);
+  }
+  await store.outboxResolveAuthorizationObligation({
+    protocolVersion: 1,
+    kind: 'snapshot',
+    scopeId: predecessor.obligation.scopeId,
+    revision: predecessor.obligation.revision,
+    witness: predecessor.obligation.witness,
+    maxDisposition: 'delete',
+    ackToken: 'current-v3-delete-proof',
+  });
+  assert.deepEqual(await store.outboxReenterQuarantined(), {
+    count: 0,
+    clientMutationIds: [],
+  });
+  await store.close();
+});
+
+test('IndexedDB read durably redacts predecessor raw record before proof or re-entry', async () => {
+  const indexedDB = new IDBFactory();
+  const databaseName = 'rqs-v3-indexeddb-delete-read';
+  const store = createIndexedDbRqsResumeStore({
+    indexedDB,
+    lockManager: grantingLocks,
+    databaseName,
+    clientStoreId: 'predecessor-delete-store',
+  });
+  await tick();
+  await store.readStoreMeta();
+  const predecessor = predecessorDeleteOutbox();
+  let db = await openDatabase(indexedDB, databaseName);
+  let tx = db.transaction(['outbox'], 'readwrite');
+  tx.objectStore('outbox').put(predecessor.state, 'state');
+  await transactionDone(tx);
+  db.close();
+
+  const exposed = await store.outboxRecords();
+  assert.deepEqual(exposed.map((record) => record.status), ['stranded', 'stranded']);
+  db = await openDatabase(indexedDB, databaseName);
+  tx = db.transaction(['outbox'], 'readonly');
+  const durableBeforeProof = await requestResult(tx.objectStore('outbox').get('state'));
+  await transactionDone(tx);
+  db.close();
+  const rawRecord = JSON.stringify(durableBeforeProof);
+  assert.equal(rawRecord.includes('quarantined-predecessor-secret'), false);
+  assert.equal(rawRecord.includes('stranded-predecessor-secret'), false);
+  for (const record of Object.values(durableBeforeProof.records)) {
+    assert.equal(record.status, 'stranded');
+    assert.equal(record.disposition, 'delete');
+    assert.equal(record.discardOnly, true);
+    assert.equal(record.rerecordable, false);
+    assert.equal(Object.hasOwn(record, 'args'), false);
+    assert.equal(Object.hasOwn(record, 'predecessorPrincipalScope'), false);
+  }
+
+  await store.outboxResolveAuthorizationObligation({
+    protocolVersion: 1,
+    kind: 'snapshot',
+    scopeId: predecessor.obligation.scopeId,
+    revision: predecessor.obligation.revision,
+    witness: predecessor.obligation.witness,
+    maxDisposition: 'delete',
+    ackToken: 'indexeddb-delete-proof',
+  });
+  assert.deepEqual(await store.outboxReenterQuarantined(), {
+    count: 0,
+    clientMutationIds: [],
+  });
+  await store.close();
+});
+
 test('file migration crash cuts leave the prior or successor blob, never a hybrid', async (t) => {
   for (const boundary of ['temp-write', 'rename', 'directory-sync']) {
     const directory = await mkdtemp(join(tmpdir(), `snapback-rqs-v3-${boundary}-`));
