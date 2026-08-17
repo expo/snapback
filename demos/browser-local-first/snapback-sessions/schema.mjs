@@ -1,7 +1,7 @@
 // Sessions-mode variant of the same app, used only by the browser public
 // witness's protected-retention-refusal phase. The auth mode is a SCHEMA
 // declaration (see demos/file-drop/snapback/schema.mjs): under sessions mode
-// every non-authorityIndependent live subscription is auth-scoped (LLP 0053's
+// the opaque protectedTodosFeed subscription is auth-scoped (LLP 0053's
 // protected class), which is what makes the shipped client classify
 // SNAPBACK_RETENTION_NOT_RETAINABLE — dev custody never mints an
 // authorization scope, so the refusal is unreachable there.

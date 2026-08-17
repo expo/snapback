@@ -5,7 +5,11 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-12 (D3 Node file carrier hardening: owner-only creation
+**Revised:** 2026-08-16 (LLP 0270 wave 3 public-exact amendment: on the
+local/Ibex host, the owner-derived public closed-inputs proof admits RQS
+retention without an app-authored `authorityIndependent` retention switch.
+The Cloudflare arm remains flag-gated pending the port recorded in LLP 0092;
+protected retention is unchanged). 2026-08-12 (D3 Node file carrier hardening: owner-only creation
 modes plus best-effort permission tightening on open; Q4 application-level
 encryption remains open). 2026-08-04 (mixed-route v2 successor amendment promoted to
 normative by Charlie Cheever's explicit author direction; capability maturity
@@ -123,13 +127,15 @@ and LLP 0043/0053 define the signed-lease machinery that governs when retained
 auth-scoped rows may be *displayed* at all. This RFC does not renegotiate any
 of that. In v1:
 
-- `resumeFromToken` and render-before-resume apply only to
-  **authority-independent** subscriptions. Authority-independence is not a
-  property this RFC re-derives: it is exactly LLP 0053's declared, trusted
-  `authorityIndependent: true` fact as carried in the served functions
-  manifest, with 0053's fail-closed default — undeclared means auth-scoped,
-  and a manifest entry (D1.4) naming an undeclared query is **refused at
-  admission**.
+- `resumeFromToken` and render-before-resume apply only to owner-proved
+  **authority-independent** subscriptions. Under LLP 0270 D1/D2's
+  public-exact wave, a public declarative single-table LiveQuery enters this
+  class on the local/Ibex arm when codegen and the host independently prove
+  its closed plan and inputs; app-authored `authorityIndependent` is neither
+  required nor sufficient for that arm's retention admission. The Cloudflare
+  coordinator still requires its validated flag plus the proof pending the
+  LLP 0092 port. Absence of the applicable proof remains
+  auth-scoped/online-only and is **refused at admission**.
 - **Eligibility additionally requires input closure.** Authority-independence
   asserts invariance across *callers*, not purity: a query reading time or
   randomness (declarative `RuntimeNow`, or `Date.now()` in an opaque plan) is
@@ -141,9 +147,10 @@ of that. In v1:
   behavior) and are not persisted for render-before-resume. Acceptance
   includes a fixture proving a time-dependent query re-executes on relaunch
   rather than receiving `CurrentAsOf`. The conjunction gets one name used
-  everywhere downstream: a query is **`rqsEligible`** iff it carries the
-  declared `authorityIndependent` fact (which per the codegen invariant
-  entails `public`) *and* the LLP 0053 closed-inputs/retainable proof — this
+  everywhere downstream: on the local/Ibex arm a query is **`rqsEligible`**
+  iff it is a public LiveQuery and carries the owner-derived LLP 0053
+  closed-inputs/authority-independent exact proof; Cloudflare additionally
+  requires its explicit validated flag until the pending port lands. This
   served-manifest predicate is what token minting, bundle `resume` presence,
   Channel B persistence, and D1.1 admission all key on; non-eligible entries
   return rows with `resume: null` and are never persisted for
@@ -438,8 +445,9 @@ deprecation rules.
 The subscribe request gains an optional `resumeFromToken`. **Admission**: the
 server verifies the MAC, then accepts the token only if `app`, `generation`,
 and `versionStream` match the served instance, the named `queryArtifact` +
-`argsHash` match the subscription being opened, and the query carries both the
-declared `authorityIndependent` fact and the closed-inputs proof (v1;
+`argsHash` match the subscription being opened, and the query carries the
+target's applicable public-exact closed-inputs proof (the local/Ibex arm
+derives it; Cloudflare still conjoins its validated flag pending LLP 0092) (v1;
 Authorization scope); any mismatch, unknown field state,
 or future/implausible version is answered with a fresh `LiveReplace` — the
 always-correct fallback (the client's reconnect path already re-enters

@@ -884,10 +884,16 @@ async function prepareReactBindingOnce(
       descriptorReceiptFact?.queryArtifact
         ?? queryArtifactHash(generated.descriptorMode ? actual : definition),
     );
+    // @ref LLP 0270#d1-default-is-automatic-request-plus-owner-admission —
+    // the served owner proof supplies public authority independence even when
+    // the generated declaration carries no app-authored assertion.
     authorityIndependentById.set(
       reference.id,
       descriptorReceiptFact?.authorityIndependent
-        ?? (generated.descriptorMode ? actual : definition).authorityIndependent === true,
+        ?? (
+          actual.rqsEligible === true
+          || (generated.descriptorMode ? actual : definition).authorityIndependent === true
+        ),
     );
     const descriptor = deepFreeze(
       structuredClone(definition.resultContract ?? { kind: 'unknown' }),
@@ -1509,7 +1515,8 @@ async function prepareReactBindingOnce(
             return {
               id: definition.id,
               queryArtifact: queryArtifactHash(actual),
-              authorityIndependent: actual.authorityIndependent === true,
+              authorityIndependent: actual.rqsEligible === true
+                || actual.authorityIndependent === true,
             };
           }),
           ephemeralCollections: structuredClone(

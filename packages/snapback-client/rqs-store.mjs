@@ -251,6 +251,7 @@ export const rqsEvictionOrder = (a, b) => (
 );
 
 const evictionOrder = rqsEvictionOrder;
+const authorityTransitionWipersByLockManager = new WeakMap();
 
 /**
  * IndexedDB-backed persisted RQS resume store under the same-origin Web-Lock
@@ -293,12 +294,19 @@ export function createIndexedDbRqsResumeStore({
   }
 
   const lockName = `snapback:rqs-store:${databaseName}`;
+  let authorityTransitionWipersByLock = authorityTransitionWipersByLockManager.get(lockManager);
+  if (authorityTransitionWipersByLock === undefined) {
+    authorityTransitionWipersByLock = new Map();
+    authorityTransitionWipersByLockManager.set(lockManager, authorityTransitionWipersByLock);
+  }
+  const authorityTransitionInstance = {};
   let databasePromise = null;
   let closed = false;
   let writer = false;
   let releaseLock = null;
   let pendingReactBindingReceipt = null;
   let initialMeta = createInitialStoreMeta({ clientStoreId, randomBytes });
+  let authorityTransitionWipe = null;
   const writerLockListeners = new Set();
   const notifyWriterLock = (value) => {
     for (const listener of [...writerLockListeners]) {
@@ -363,6 +371,10 @@ export function createIndexedDbRqsResumeStore({
         return undefined;
       }
       writer = true;
+      authorityTransitionWipersByLock.set(lockName, {
+        instance: authorityTransitionInstance,
+        request: () => authorityTransitionWipe(),
+      });
       adjudicateLock();
       notifyWriterLock(true);
       void flushPendingReactBindingReceipt().catch((error) => {
@@ -456,6 +468,28 @@ export function createIndexedDbRqsResumeStore({
     mode, operation, writer, closed, database, requestResult, readOutboxState,
     readMetaFromStore, storeError, transactionDone,
   ]));
+
+  authorityTransitionWipe = async () => {
+    pendingReactBindingReceipt = null;
+    if (!writer || closed) return false;
+    const db = await database();
+    const tx = db.transaction(ALL_STORES, 'readwrite');
+    const nextMeta = wipeStoreMeta(
+      await readMetaFromStore(tx.objectStore(STORE_META)),
+      { randomBytes },
+    );
+    if (nextMeta === null) {
+      tx.abort();
+      throw storeError('SNAPBACK_RQS_STORE_CORRUPT', 'RQS store metadata is invalid');
+    }
+    for (const storeName of RESIDENT_STORES) {
+      if (storeName !== OUTBOX) tx.objectStore(storeName).clear();
+    }
+    tx.objectStore(OUTBOX).delete(REACT_BINDING_RECEIPT_KEY);
+    tx.objectStore(STORE_META).put(nextMeta, RQS_STORE_META_KEY);
+    await transactionDone(tx);
+    return true;
+  };
 
   return {
     isWriter() {
@@ -853,26 +887,13 @@ export function createIndexedDbRqsResumeStore({
       return true;
     },
 
-    async wipeForAuthorityTransition() {
-      pendingReactBindingReceipt = null;
-      if (!this.isWriter()) return false;
-      const db = await database();
-      const tx = db.transaction(ALL_STORES, 'readwrite');
-      const nextMeta = wipeStoreMeta(
-        await readMetaFromStore(tx.objectStore(STORE_META)),
-        { randomBytes },
-      );
-      if (nextMeta === null) {
-        tx.abort();
-        throw storeError('SNAPBACK_RQS_STORE_CORRUPT', 'RQS store metadata is invalid');
-      }
-      for (const storeName of RESIDENT_STORES) {
-        if (storeName !== OUTBOX) tx.objectStore(storeName).clear();
-      }
-      tx.objectStore(OUTBOX).delete(REACT_BINDING_RECEIPT_KEY);
-      tx.objectStore(STORE_META).put(nextMeta, RQS_STORE_META_KEY);
-      await transactionDone(tx);
-      return true;
+    wipeForAuthorityTransition: authorityTransitionWipe,
+
+    requestAuthorityTransitionWipe() {
+      if (closed) return null;
+      const owner = authorityTransitionWipersByLock.get(lockName);
+      if (!owner || typeof owner.request !== 'function') return null;
+      return Object.freeze({ settlement: Promise.resolve().then(() => owner.request()) });
     },
 
     /// Caller-authorized recovery for a database whose metadata/schema cannot
@@ -948,6 +969,10 @@ export function createIndexedDbRqsResumeStore({
       releaseLock?.();
       releaseLock = null;
       writer = false;
+      if (
+        authorityTransitionWipersByLock.get(lockName)?.instance
+          === authorityTransitionInstance
+      ) authorityTransitionWipersByLock.delete(lockName);
       notifyWriterLock(false);
       writerLockListeners.clear();
       if (wasWriter) await lockReleased;

@@ -16,7 +16,9 @@ function backend(functions, handler = undefined) {
   writeFileSync(join(dir, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  todos: defineTable({ ownerId: v.string(), title: v.string(), delegated: v.boolean() }).sync(),
+  todos: defineTable({ ownerId: v.string(), title: v.string(), delegated: v.boolean() })
+    .visibility({ kind: 'public-read' })
+    .sync(),
 });
 `);
   writeFileSync(join(dir, 'functions.mjs'), functions);
@@ -53,7 +55,7 @@ export const actorAware = defineLiveQuery({
 
 {
   const functions = `
-import { arg, authUserId, defineLiveQuery, defineQuery, eq, v } from '${defineUrl}';
+import { arg, authUserId, defineJsLiveQuery, defineLiveQuery, defineQuery, eq, v } from '${defineUrl}';
 export const myTodos = defineQuery({
   table: 'todos',
   filter: [eq('ownerId', authUserId())],
@@ -75,7 +77,20 @@ export const publicLive = defineLiveQuery({
   args: { zed: v.string(), alpha: v.string() },
   filter: [eq('title', arg('zed'))],
   auth: 'public',
+});
+export const explicitPublicLive = defineLiveQuery({
+  table: 'todos',
+  auth: 'public',
   authorityIndependent: true,
+});
+export const protectedLive = defineLiveQuery({
+  table: 'todos',
+  filter: [eq('ownerId', authUserId())],
+});
+export const opaquePublicLive = defineJsLiveQuery({
+  reads: ['todos'],
+  auth: 'public',
+  handler: async (ctx) => ctx.db.query('todos').collect(),
 });
 `;
   const dir = backend(functions);
@@ -100,7 +115,12 @@ export const publicLive = defineLiveQuery({
   assert.equal(Object.hasOwn(byName.get('publicTodos'), 'authorizationDependence'), false);
 
   const publicLive = byName.get('publicLive');
-  assert.equal(publicLive.authorityIndependent, true);
+  assert.equal(
+    Object.hasOwn(publicLive, 'authorityIndependent'),
+    false,
+    'the app authors no authority assertion for the host-derived public-exact class',
+  );
+  assert.equal(Object.hasOwn(publicLive, 'retainable'), false);
   assert.equal(publicLive.rqsEligible, undefined, 'rqsEligible remains derived, never authored');
   assert.deepEqual(publicLive.argsContract.fields.map((field) => field.name), ['zed', 'alpha']);
   assert.equal(publicLive.requiredCapabilities.includes('single_table_v1'), true,
@@ -138,6 +158,18 @@ export const publicLive = defineLiveQuery({
     'sha256:5adc42769ab270a7deb6813bf9256316e7b38b98945faadea82f8b49f0247324',
     'activated capability classification rotates identically in codegen and Rust reconstruction',
   );
+  const explicitComposition = (await import(
+    `${pathToFileURL(join(dir, 'generated', 'api.mjs')).href}?single-table-explicit`
+  )).api.explicitPublicLive.composition;
+  assert.equal(
+    explicitComposition.normalizedCompositePlan.classification.retention,
+    'rqs-authority-independent-snapshot-v1',
+    'the compatible explicit assertion path reaches only the same owner-derived class',
+  );
+  const protectedLive = byName.get('protectedLive');
+  assert.equal(protectedLive.requiredCapabilities.includes('single_table_v1'), false);
+  const opaquePublicLive = byName.get('opaquePublicLive');
+  assert.equal(opaquePublicLive.requiredCapabilities.includes('single_table_v1'), false);
 
   for (const name of ['myTodos', 'scopedTodos', 'publicTodos']) {
     assert.equal(contract.queries[name].retainable, true);

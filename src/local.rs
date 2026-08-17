@@ -3274,6 +3274,10 @@ fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs_contract:
     crate::manifest::rqs_eligible_digest_kind(function)
 }
 
+fn owner_admits_authority_independence(function: &FunctionDefinition) -> bool {
+    crate::manifest::owner_admits_authority_independence(function)
+}
+
 /// The reserved system live query projecting one asset record (LLP 0044
 /// §Live asset lifecycle). The `_snapback` prefix is refused for user
 /// identifiers, so the name cannot collide with a generated function; it is
@@ -14761,13 +14765,17 @@ impl LocalSnapback {
                         .get(query_index)
                         .and_then(Option::as_ref);
                     if authority.active_mode() == AuthMode::Sessions {
-                        if function.authority_independent && supplied_namespace.is_some() {
+                        if owner_admits_authority_independence(&function)
+                            && supplied_namespace.is_some()
+                        {
                             return Err(refuse(
                                 code::ENTRY_INVALID,
                                 "authority-independent registered children require a null authorization namespace",
                             ));
                         }
-                        if !function.authority_independent && supplied_namespace.is_none() {
+                        if !owner_admits_authority_independence(&function)
+                            && supplied_namespace.is_none()
+                        {
                             return Err(refuse(
                                 code::ENTRY_INVALID,
                                 "auth-scoped registered children require an authorization namespace",
@@ -15019,13 +15027,19 @@ impl LocalSnapback {
                         "read-only mixed children require a null authorization namespace",
                     ));
                 }
-                if admission.live && function.authority_independent && namespace.is_some() {
+                if admission.live
+                    && owner_admits_authority_independence(&function)
+                    && namespace.is_some()
+                {
                     return Err(refuse(
                         code::ENTRY_INVALID,
                         "authority-independent live children require a null authorization namespace",
                     ));
                 }
-                if admission.live && !function.authority_independent && namespace.is_none() {
+                if admission.live
+                    && !owner_admits_authority_independence(&function)
+                    && namespace.is_none()
+                {
                     return Err(refuse(
                         code::ENTRY_INVALID,
                         "auth-scoped live children require an authorization namespace",
@@ -15742,8 +15756,8 @@ impl LocalSnapback {
         // auth-scoped live subscription is admitted only when its connection
         // negotiated the exact protocol and supplied a stable query namespace.
         self.touch_connection(&input.connection_id, now_millis());
-        let auth_scoped =
-            authority.active_mode() == AuthMode::Sessions && !function.authority_independent;
+        let auth_scoped = authority.active_mode() == AuthMode::Sessions
+            && !owner_admits_authority_independence(&function);
         if auth_scoped && self.auth_invalidation.is_none() {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -22434,7 +22448,7 @@ impl LocalSnapback {
     pub(crate) fn function_is_authority_independent(&self, name: &str) -> bool {
         self.functions
             .function(name)
-            .is_some_and(|function| function.authority_independent)
+            .is_some_and(owner_admits_authority_independence)
     }
 
     /// A handle to the lock-free read lane. Cloneable; shares the manifest

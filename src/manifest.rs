@@ -160,7 +160,6 @@ mod single_table_v1_tests {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
         );
         function.auth_requirement = Some(AuthRequirement::Public);
-        function.authority_independent = true;
         function.args_contract = Some(FunctionArgsContract {
             fields: vec![
                 ResultObjectFieldContract {
@@ -251,6 +250,7 @@ mod single_table_v1_tests {
     #[test]
     fn normalization_and_identity_match_the_codegen_golden() {
         let mut function = eligible_function();
+        assert!(!function.authority_independent, "fixture carries no app assertion");
         let normalized = single_table_plan_v1(&function)
             .expect("normalization succeeds")
             .expect("derived predicate selects the class");
@@ -278,6 +278,7 @@ mod single_table_v1_tests {
             identity.plan_hash,
             "sha256:5adc42769ab270a7deb6813bf9256316e7b38b98945faadea82f8b49f0247324"
         );
+        assert!(owner_admits_authority_independence(&function));
         let node = &identity.normalized_composite_plan["nodes"][0]["nodePlan"];
         assert_eq!(node["classId"], "single_table_v1");
         assert_eq!(node["capability"]["live"]["delivery"], "live_delta");
@@ -358,8 +359,12 @@ mod single_table_v1_tests {
             );
         }
 
+        let mut explicit = eligible_function();
+        explicit.authority_independent = true;
+        assert!(single_table_plan_v1(&explicit).unwrap().is_some());
+
         let mut ineligible = eligible_function();
-        ineligible.authority_independent = false;
+        ineligible.auth_requirement = Some(AuthRequirement::OptionalUser);
         assert!(single_table_plan_v1(&ineligible).unwrap().is_none());
         assert!(
             single_node_identity_v1(&ineligible, None)
@@ -5451,15 +5456,15 @@ fn validate_public_inline(function: &FunctionDefinition) -> SnapbackResult<()> {
 }
 
 /// The derived, never-authored `rqsEligible` served-manifest predicate
-/// (LLP 0090 Authorization scope; LLP 0092 §0C.2): declared
-/// `authorityIndependent` (entailing `public`) AND the LLP 0053
-/// closed-inputs/retainable proof — HostPlan query runtime, no ambient or
-/// membership dependency, and a complete `singleTable` read summary whose
-/// table set equals the plan's. Evaluated non-erroringly: a query failing the
-/// proof is simply not eligible, never a load error. Returns the digest kind
-/// the eligible query's `contentDigest` takes (LLP 0091 §0A.4's selector:
-/// DK-3-analyzable unordered → `mset1`; ordered/limited replace-only →
-/// `seq1`).
+/// (LLP 0270 D1/D2; LLP 0092 §0C.2): public application semantics AND the
+/// host-owned LLP 0053 closed-inputs proof — HostPlan query runtime, no ambient
+/// or membership dependency, and a complete `singleTable` read summary whose
+/// table set equals the plan's. The app-authored `authorityIndependent` flag
+/// is deliberately not an input to this public-exact retention admission.
+/// Evaluated non-erroringly: a query failing the proof is simply not eligible,
+/// never a load error. Returns the digest kind the eligible query's
+/// `contentDigest` takes (LLP 0091 §0A.4's selector: DK-3-analyzable unordered
+/// → `mset1`; ordered/limited replace-only → `seq1`).
 ///
 /// Everything keyed on the predicate — token minting, bundle `resume`
 /// presence, Channel B persistence, D1.1 admission — reads this one derived
@@ -5472,9 +5477,6 @@ pub fn rqs_eligible_digest_kind(
     // — media projection reads protected asset metadata in addition to the
     // app table, so it cannot inhabit the current exact one-table RQS class.
     if result_contract_contains_media(&function.result_contract) {
-        return None;
-    }
-    if !function.authority_independent {
         return None;
     }
     if function.kind != FunctionKind::LiveQuery {
@@ -5521,6 +5523,16 @@ pub fn rqs_eligible_digest_kind(
     } else {
         crate::rqs_contract::DigestKind::Seq1
     })
+}
+
+/// Owner-admitted authority independence used by live lifecycle and bundle
+/// namespace selection. Explicit validated declarations retain their existing
+/// meaning; the public-exact class additionally derives the fact from the
+/// closed host plan. No client/app assertion can widen this predicate.
+// @ref LLP 0270#d1-default-is-automatic-request-plus-owner-admission — the
+// owner proof, not local configuration, selects the authority-independent lane.
+pub fn owner_admits_authority_independence(function: &FunctionDefinition) -> bool {
+    function.authority_independent || rqs_eligible_digest_kind(function).is_some()
 }
 
 pub(crate) fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {

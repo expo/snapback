@@ -129,7 +129,7 @@ function Rows({ query, rows }) {
   useEffect(() => {
     counters.rowEffects += 1;
   }, [rows]);
-  const handle = exactHandle('todosByList');
+  const handle = exactHandle('todosFeed');
   return (
     <section
       id="todo-surface"
@@ -166,12 +166,12 @@ function Rows({ query, rows }) {
 
 function WitnessApp() {
   counters.appRenders += 1;
-  const todos = useSnapbackQuery(api.todosByList, LIST_ARGS);
-  const mine = useSnapbackQuery(api.todosFeed, FEED_ARGS);
+  const todos = useSnapbackQuery(api.todosFeed, LIST_ARGS);
+  const mine = useSnapbackQuery(api.protectedTodosFeed, FEED_ARGS);
   const outbox = useSnapbackOutbox();
   const canonicalRows = useStableCanonicalTodos(todos.data);
-  const retainedHandle = exactHandle('todosByList');
-  const protectedHandle = exactHandle('todosFeed');
+  const retainedHandle = exactHandle('todosFeed');
+  const protectedHandle = exactHandle('protectedTodosFeed');
 
   latestSurface = { canonicalRows, todos, mine, outbox };
   useEffect(() => {
@@ -232,8 +232,8 @@ const request = (value) => new Promise((resolveRequest, rejectRequest) => {
 });
 
 async function inspectIndexedDb() {
-  const retainedKey = rqsEntryKey('todosByList', LIST_ARGS);
-  const protectedKey = rqsEntryKey('todosFeed', FEED_ARGS);
+  const retainedKey = rqsEntryKey('todosFeed', LIST_ARGS);
+  const protectedKey = rqsEntryKey('protectedTodosFeed', FEED_ARGS);
   const [retainedEntry, protectedEntry, inspection] = await Promise.all([
     client.rqsStore?.load?.(retainedKey) ?? null,
     client.rqsStore?.load?.(protectedKey) ?? null,
@@ -260,6 +260,8 @@ async function inspectIndexedDb() {
       protectedEntryPresent: protectedEntry !== null,
       retainedEntry: retainedEntry === null ? null : {
         version: retainedEntry.meta?.version ?? null,
+        generation: retainedEntry.meta?.generation ?? null,
+        queryArtifact: retainedEntry.meta?.queryArtifact ?? null,
         rows: canonicalizeTodos(retainedEntry.rows),
         inProgress: retainedEntry.inProgress ?? null,
       },
@@ -299,18 +301,18 @@ async function state() {
     storageWriter: client.rqsStore?.isWriter?.() === true,
     rows: latestSurface?.canonicalRows ?? [],
     rowJson: canonicalTodoJson(latestSurface?.canonicalRows ?? []),
-    handleRows: canonicalizeTodos(exactHandle('todosByList')?.rows ?? []),
+    handleRows: canonicalizeTodos(exactHandle('todosFeed')?.rows ?? []),
     query: {
       status: latestSurface?.todos.status ?? 'unknown',
       freshness: latestSurface?.todos.freshness ?? null,
       connection: latestSurface?.todos.connection ?? null,
       hookRetention: latestSurface?.todos.retention ?? null,
-      ...handleFacts('todosByList'),
+      ...handleFacts('todosFeed'),
     },
     protectedQuery: {
       status: latestSurface?.mine.status ?? 'unknown',
       hookRetention: latestSurface?.mine.retention ?? null,
-      ...handleFacts('todosFeed'),
+      ...handleFacts('protectedTodosFeed'),
     },
     outbox: {
       ...status,
@@ -395,7 +397,7 @@ globalThis.snapbackBrowserLocalFirst = Object.freeze({
   storageFacts,
   inspectIndexedDb,
   async flushRetention() {
-    await exactHandle('todosByList')?.flushResumeState?.();
+    await exactHandle('todosFeed')?.flushResumeState?.();
     return inspectIndexedDb();
   },
   markPhase(name) {

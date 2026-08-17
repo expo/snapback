@@ -108,12 +108,42 @@ const nodesFromPlan = (plan) => plan.nodes.map((entry) => ({
   nodePlanHash: entry.nodePlanHash,
 }));
 
+// Generated composition bytes are transported through application code, but
+// their identities are owner-defined. Reproduce every hash before consuming
+// classification (especially retention): changing a protected plan's class
+// or retention label without rotating its identities is a refusal, never an
+// admission shortcut.
+// @ref LLP 0157#d2--plan-identity — PlanHashV1 and NodePlanHashV1 bind the
+// complete normalized plan and node plans consumed by the materialization.
+function compositionIdentityReproduces(composition) {
+  const plan = composition?.normalizedCompositePlan;
+  if (
+    plan === null
+    || typeof plan !== 'object'
+    || Array.isArray(plan)
+    || !Array.isArray(plan.nodes)
+    || plan.nodes.length === 0
+  ) return false;
+  for (let index = 0; index < plan.nodes.length; index += 1) {
+    const entry = plan.nodes[index];
+    if (
+      entry?.position !== index
+      || entry.nodePlan === null
+      || typeof entry.nodePlan !== 'object'
+      || Array.isArray(entry.nodePlan)
+      || domainDigest('snapback:node-plan:v1:', entry.nodePlan) !== entry.nodePlanHash
+    ) return false;
+  }
+  return domainDigest('snapback:plan-hash:v1:', plan) === composition.planHash;
+}
+
 const generatedInputs = (ref, args) => {
   const activation = ref?.artifacts?.trustedCompositionActivation ?? null;
   const composition = ref?.composition ?? null;
   if (
     activation === null
     || composition === null
+    || !compositionIdentityReproduces(composition)
     || ref?.artifactKind !== 'functionReference'
     || ref?.kind !== 'LiveQuery'
   ) return null;

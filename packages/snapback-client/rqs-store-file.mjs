@@ -242,6 +242,7 @@ const REQUIRED_ADAPTER_METHODS = [
 // the same lock path must not both claim the writer role (the on-disk pid
 // check alone cannot tell them apart).
 const heldLocks = new Map();
+const authorityTransitionWipersByLock = new Map();
 
 let instanceCounter = 0;
 
@@ -301,6 +302,7 @@ export function createFileRqsResumeStore({
   let corrupt = false;
   let migrationMeta = null;
   let competingWriter = null;
+  let authorityTransitionWipe = null;
 
   const chmodBestEffort = async (path, mode) => {
     if (typeof files.chmod !== 'function') return;
@@ -373,6 +375,10 @@ export function createFileRqsResumeStore({
       writer = true;
       competingWriter = null;
       heldLocks.set(lockPath, instanceId);
+      authorityTransitionWipersByLock.set(lockPath, {
+        instanceId,
+        request: () => authorityTransitionWipe(),
+      });
       files.trackLockForExitCleanup?.(lockPath);
     };
     if (await files.writeFileExclusive(lockPath, payload)) {
@@ -547,6 +553,29 @@ export function createFileRqsResumeStore({
       }
     }
   };
+
+  authorityTransitionWipe = () => serialized(async () => {
+    requireOpen();
+    await acquireLock();
+    if (!writer) return false;
+    // LLP 0166's client-wide cut still destroys every sibling identity
+    // blob. Only this resolved store's outbox receives LLP 0043's
+    // per-record custody carve-out.
+    await sweepSiblingIdentityBlobs();
+    let state;
+    try {
+      state = await readState();
+    } catch {
+      return false;
+    }
+    const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
+    if (storeMeta === null) return false;
+    await writeState({
+      ...emptyState(storeMeta),
+      outbox: state.outbox,
+    });
+    return true;
+  });
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
@@ -1058,28 +1087,17 @@ export function createFileRqsResumeStore({
       });
     },
 
-    async wipeForAuthorityTransition() {
+    wipeForAuthorityTransition: authorityTransitionWipe,
+
+    // A readable follower cannot mutate the shared blob, but it can enqueue
+    // the destructive barrier on the actual same-domain writer. The returned
+    // settlement is the writer's serialized durable commit, not a wake hint.
+    requestAuthorityTransitionWipe() {
       requireOpen();
-      return serialized(async () => {
-        await acquireLock();
-        if (!writer) return false;
-        // LLP 0166's client-wide cut still destroys every sibling identity
-        // blob. Only this resolved store's outbox receives LLP 0043's
-        // per-record custody carve-out.
-        await sweepSiblingIdentityBlobs();
-        let state;
-        try {
-          state = await readState();
-        } catch {
-          return false;
-        }
-        const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
-        if (storeMeta === null) return false;
-        await writeState({
-          ...emptyState(storeMeta),
-          outbox: state.outbox,
-        });
-        return true;
+      const owner = authorityTransitionWipersByLock.get(lockPath);
+      if (!owner || typeof owner.request !== 'function') return null;
+      return Object.freeze({
+        settlement: Promise.resolve().then(() => owner.request()),
       });
     },
 
@@ -1173,6 +1191,9 @@ export function createFileRqsResumeStore({
         if (writer) {
           writer = false;
           if (heldLocks.get(lockPath) === instanceId) heldLocks.delete(lockPath);
+          if (authorityTransitionWipersByLock.get(lockPath)?.instanceId === instanceId) {
+            authorityTransitionWipersByLock.delete(lockPath);
+          }
           files.untrackLockForExitCleanup?.(lockPath);
           try {
             await files.unlink(lockPath);

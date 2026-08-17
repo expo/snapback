@@ -282,16 +282,20 @@ export function commitPageInView(input) {
     authorizedLeaseHash: fragmentInput.authorizedLeaseHash,
   });
   const context = requireContext(resolveValidationContext, admittedAddress, record, 'commit');
+  fragment.proof = validateProof(record, fragment, proofInput, context, signatureReceipts);
   if (
     fragmentInput.freshness === 'retained'
-    && !retainedAuthorityValid(context, fragmentInput.authorizedLeaseHash)
+    && !retainedAuthorityValid(
+      context,
+      fragmentInput.authorizedLeaseHash,
+      fragment.proof,
+    )
   ) {
     refuse(
       'SNAPBACK_COMPLETENESS_LEASE_INVALID',
-      'retained commit requires exact valid owner lease custody',
+      'retained commit lacks exact owner lease custody or a signed public-exact class proof',
     );
   }
-  fragment.proof = validateProof(record, fragment, proofInput, context, signatureReceipts);
   const memberships = fragmentInput.memberships.map(
     (entry, index) => prepareMembership(entry, `fragment.memberships[${index}]`),
   );

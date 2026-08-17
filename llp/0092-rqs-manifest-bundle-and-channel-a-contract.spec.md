@@ -5,7 +5,12 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-10 (depth-one JavaScript route parameters derive from
+**Revised:** 2026-08-16 (LLP 0270 wave 3 public-exact amendment: the
+local/Ibex host and codegen now derive `rqsEligible` from the closed public
+single-table proof without using app-authored `authorityIndependent` as an
+admission input. The Cloudflare coordinator remains flag-gated pending its
+port; protected admission and `publicInline`'s explicit disclosure assertion
+are unchanged). 2026-08-10 (depth-one JavaScript route parameters derive from
 the carried argument contract; HostPlan inference is unchanged — see the
 2026-08-10 dated amendment). 2026-08-08 (§0E.6's step-3 top-level-only narrowing partially
 lifted: `$param` references are admitted at object-reachable positions, typed
@@ -28,7 +33,7 @@ implementation reconciliation", ENG-25454; and the dated step-4 amendment:
 the Cloudflare arm — compiled routes manifest, HostPlan-subset eligibility,
 read-mode-only bundle endpoint, gateway Channel A — see "Dated amendment:
 step-4 Cloudflare arm", ENG-25455)
-**Related:** LLP 0030, LLP 0031, LLP 0041, LLP 0051, LLP 0053, LLP 0076, LLP 0077, LLP 0090, LLP 0091
+**Related:** LLP 0030, LLP 0031, LLP 0041, LLP 0051, LLP 0053, LLP 0076, LLP 0077, LLP 0090, LLP 0091, LLP 0270
 
 ## Summary
 
@@ -144,20 +149,25 @@ error; per 0090 D1.4, manifest presence authorizes *preload selection* only.
 
 ### 0C.2 The `rqsEligible` served-manifest predicate
 
-`rqsEligible` is the single predicate 0090 defines (Authorization scope):
+`rqsEligible` is the single predicate 0090 defines (Authorization scope). On
+the local/Ibex target, LLP 0270 D1/D2 amends its inputs for the public-exact
+default:
 
-> a query is `rqsEligible` iff it carries the declared
-> `authorityIndependent` fact (which per the codegen invariant entails
-> `public`) **and** the LLP 0053 closed-inputs/retainable proof.
+> on local/Ibex, a query is `rqsEligible` iff it is a public LiveQuery and the
+> owner/codegen proves the exact LLP 0053 closed-inputs,
+> authority-independent single-table profile.
 
-This spec pins it as a **derived, never authored** served-manifest fact:
+For the local/Ibex host this spec pins it as a **derived, never authored**
+served-manifest fact:
 
-- **Inputs.** The declared `authorityIndependent: true` fact, already
-  validated on both sides: codegen accepts it only on a public HostPlan
-  query with no auth, membership, auth-scope, runtime-clock, or runtime-id
-  dependency (`validateFunctionAuthDefinition`,
-  `packages/snapback-codegen/index.mjs`), and the server re-validates the
-  same profile (`validate_authority_independent`, `src/manifest.rs`).
+- **Inputs.** The application-semantic `auth: 'public'` declaration plus the
+  generated/served HostPlan and read summary. Codegen and the server each
+  prove that the operation is a LiveQuery with no auth, membership,
+  auth-scope, runtime-clock, runtime-id, config, media-projection, or opaque
+  handler dependency. App-authored `authorityIndependent` is not an input to
+  this public-exact admission. It remains a validated explicit assertion for
+  existing non-retention consumers such as `publicInline`; it cannot cause a
+  failed host proof to pass.
 - **Closed-inputs proof.** The obligations are exactly those
   `validate_retainable_query` (`src/manifest.rs`) enforces for the
   retainable class — HostPlan query runtime (no opaque JavaScript), a
@@ -166,23 +176,35 @@ This spec pins it as a **derived, never authored** served-manifest fact:
   (empty, for an authority-independent query). Channel B persistence places
   the query in LLP 0053's retainable class, so these are not new
   obligations; `rqsEligible` reuses the existing proof machinery.
-- **Derivation rule.** At every ensure/deploy the server computes, per
-  function: `rqsEligible = authorityIndependent (validated) ∧
-  closed-inputs proof holds`, evaluated **non-erroringly** — a query that
+- **Derivation rule.** At every codegen generation and local ensure, codegen and the
+  server compute, per function: `rqsEligible = public LiveQuery ∧
+  owner closed-inputs/public-exact proof holds`, evaluated **non-erroringly** — a query that
   fails the proof is simply not eligible (`rqsEligible: false`); derivation
   never turns an otherwise admissible manifest into a load error. (The
   existing rule that a *declared* `retainable: true` query failing the
   proof is a load error, `SNAPBACK_AUTH_UNDECLARABLE_RETENTION`, is
   unchanged — declaration is a promise, derivation is a measurement.)
-  Authors do **not** need to declare `retainable: true` for RQS: the RQS
-  store is its own retention consumer and keys on `rqsEligible` alone.
+  Authors do **not** need to declare `authorityIndependent: true` or
+  `retainable: true` for RQS retention: the RQS/materialization store keys on
+  the owner-derived class alone.
+
+Target posture for the 2026-08-16 amendment:
+
+| Target | No-declaration public-exact admission | Status |
+|---|---|---|
+| local/Ibex (`src/manifest.rs`) | codegen and the served host independently derive the class; `authorityIndependent` is not an input | Implemented |
+| Cloudflare (`cloudflare/src/rqs-host.mjs`) | still requires a validated `authorityIndependent: true` flag in addition to the closed HostPlan/read-summary proof | **Pending** — port the owner-derived proof and its adversarial acceptance before removing the flag |
+
+Thus every unqualified no-declaration/default-retention claim in this dated
+amendment is local/Ibex-scoped. The older Cloudflare amendment below remains
+normative for that target until the pending row lands.
 
 **Schema changes this carries:**
 
 - Codegen (`packages/snapback-codegen`): the functions manifest gains the
   authored `publicInline` boolean (§0C.3); no authored `rqsEligible` field
   exists anywhere.
-- Served manifest (`src/manifest.rs` `FunctionDefinition` family): accepts
+- Local served manifest (`src/manifest.rs` `FunctionDefinition` family): accepts
   `publicInline` (serde-renamed like `authorityIndependent`), validates it
   per §0C.3, computes `rqsEligible`, and carries both on the served
   functions manifest **and its public projection** (`PublicFunctionManifest`
@@ -191,11 +213,11 @@ This spec pins it as a **derived, never authored** served-manifest fact:
   disclosed by the behavior it authorizes). Both are facts about a public
   query's classification, not handler source, so the projection-trim rules
   are unaffected.
-- Everything that 0090/0091 key on the predicate — token minting, bundle
+- Everything on the local/Ibex arm that 0090/0091 key on the predicate — token minting, bundle
   `resume` presence (§0D.1), Channel B persistence, D1.1 admission
   (`SNAPBACK_RESUME_NOT_ELIGIBLE`) — reads this one served-manifest fact.
 
-> **Dated producer projection (2026-08-03, `single_table_v1@1` owner
+> **Dated local/Ibex producer projection (2026-08-03, `single_table_v1@1` owner
 > acceptance):** this same derived, non-erroring `rqsEligible` fact now also
 > selects `single_table_v1@1`. For a selected function the host reconstructs,
 > emits, and exact-recomputes the owner-normalized `SingleTablePlanV1` and
@@ -810,7 +832,9 @@ ENG-25454):**
   with a warning diagnostic. While a route manifest is served, the step-2
   `devManifestEntry` dev/test form refuses by design
   (`SNAPBACK_BUNDLE_ENTRY_INVALID`).
-- **§0C.2 `rqsEligible` is derived exactly as specified**; the fact (and
+- **§0C.2 `rqsEligible` was derived under the then-current flag-gated rule**;
+  the 2026-08-16 no-declaration amendment above changes the local/Ibex
+  derivation only. The fact (and
   `publicInline`) ride the *public* manifest projection
   (`PublicFunctionDefinition.rqsEligible`), and an authored `rqsEligible`
   field refuses at load via `deny_unknown_fields` — the "never authored"
@@ -898,15 +922,18 @@ is normative; the sections above read as amended for this arm:
    warning diagnostic is logged) — the deploy-time analog of the local
    `SNAPBACK_ROUTES_MANIFEST_INVALID` ensure refusal. Its canonical hash is
    the `routeManifestHash` component of `generation` (LLP 0091 §0A.6).
-2. **§0C.2/§0C.3 — eligibility derives from compiled HostPlan facts.** The
+2. **§0C.2/§0C.3 — eligibility derives from compiled HostPlan facts plus the
+   explicit authority-independent flag.** The
    Cloudflare deploy pipeline has no codegen lane; the app bundle's function
    entries carry the codegen-shaped facts (`authRequirement`,
    `authorityIndependent`, `publicInline`, `readSetSummary`,
    `runtime.HostPlan.Query`), and the coordinator **derives** `rqsEligible`
-   with the same conjunction as `src/manifest.rs` — declared
-   `authorityIndependent` on a public LiveQuery with no uses/auth-scope,
-   plus the closed-inputs proof (HostPlan query, complete `singleTable`
-   summary). The closed-inputs fact is honest because eligible queries are
+   under this arm's still-current conjunction — a validated
+   `authorityIndependent: true` public LiveQuery with no uses/auth-scope plus
+   the closed-inputs proof (HostPlan query, complete `singleTable` summary).
+   Unlike the local/Ibex arm after the 2026-08-16 amendment, the flag remains
+   an admission input here; removing it is the explicit pending row in §0C.2.
+   The closed-inputs fact is honest because eligible queries are
    **evaluated natively by the coordinator** over a validated HostPlan
    subset (single table, `Eq` filters over Arg/Literal, field order clauses,
    optional limit) — no opaque JS runs for them; opaque-JS handlers can

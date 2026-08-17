@@ -45,7 +45,10 @@ const hashRecord = (domain, value) => (
   `sha256:${hex(sha256(concat(encoder.encode(domain), jcsBytes(value))))}`
 );
 
-function applicationFixture() {
+function applicationFixture({
+  classId = 'relational_query_v1',
+  retention = 'opaque-authorized-snapshot-v1',
+} = {}) {
   const { publicKey, privateKey } = generateKeyPairSync('ed25519');
   const proofKeys = {
     format: 'snapback.completeness-proof-keys.v1',
@@ -77,15 +80,29 @@ function applicationFixture() {
     activationHash: hashRecord('snapback:composition-activation:v1:', activation),
     proofKeys,
   };
+  const nodePlan = {
+    format: 'snapback.node-plan.v1',
+    classId,
+    classVersion: 1,
+  };
   const nodes = [{
     position: 0,
-    nodePlan: {
-      format: 'snapback.node-plan.v1',
-      classId: 'relational_query_v1',
-      classVersion: 1,
-    },
-    nodePlanHash: digest('4'),
+    nodePlan,
+    nodePlanHash: hashRecord('snapback:node-plan:v1:', nodePlan),
   }];
+  const normalizedCompositePlan = {
+    format: 'snapback.normalized-composite-plan.v1',
+    profileId: 'single-node.v1',
+    nodes,
+    mergedArgsContractHash: digest('9'),
+    classification: {
+      callable: true,
+      live: { kind: 'admitted', delivery: 'live_replace', pageDomain: 'cursor-free-first-page' },
+      invalidation: 'table-granular-resnapshot',
+      retention,
+    },
+    parentAuthorizationGroups: [],
+  };
   const ref = {
     artifactKind: 'functionReference',
     schemaVersion: 'snapback.v0',
@@ -99,20 +116,8 @@ function applicationFixture() {
     expectedGeneration,
     argumentSchema: { type: 'object', additionalProperties: false, properties: {} },
     composition: {
-      planHash: digest('8'),
-      normalizedCompositePlan: {
-        format: 'snapback.normalized-composite-plan.v1',
-        profileId: 'single-node.v1',
-        nodes,
-        mergedArgsContractHash: digest('9'),
-        classification: {
-          callable: true,
-          live: { kind: 'admitted', delivery: 'live_replace', pageDomain: 'cursor-free-first-page' },
-          invalidation: 'table-granular-resnapshot',
-          retention: 'opaque-authorized-snapshot-v1',
-        },
-        parentAuthorizationGroups: [],
-      },
+      planHash: hashRecord('snapback:plan-hash:v1:', normalizedCompositePlan),
+      normalizedCompositePlan,
       resultContract: { kind: 'unknown' },
     },
   };
@@ -290,29 +295,20 @@ test('offline volatile query and liveQuery establishment expose the D4 unknown a
   );
 });
 
-test('single_table_v1 maps to durable no-lease retention without consuming AuthorizedLease', async () => {
+test('unhashed retention/class mutation of a protected composition is refused', () => {
   const fixture = applicationFixture();
   fixture.ref.composition.normalizedCompositePlan.nodes[0].nodePlan.classId = 'single_table_v1';
   fixture.ref.composition.normalizedCompositePlan.classification.retention =
     'rqs-authority-independent-snapshot-v1';
-  const bridge = deriveGeneratedMaterializationBridge({
+  assert.equal(deriveGeneratedMaterializationBridge({
     ref: fixture.ref,
     args: {},
-    clientStoreId: 'single-table-store',
+    clientStoreId: 'tampered-single-table-store',
     authorizationScope: { ...scope(), session: session(fixture) },
     durableCarrier: true,
     persistResume: true,
     authorizedLeaseAvailable: false,
-  });
-  assert.equal(bridge.retentionClass, 'rqs-authority-independent-snapshot-v1');
-  assert.equal(bridge.retentionRequested, true);
-  assert.equal(bridge.leaseRequired, false);
-  assert.equal(bridge.identities.storageProfile, 'durable-fragments-v1');
-  assert.deepEqual(await loadMaterializationLeaseCustody(null, bridge), {
-    leaseStatus: 'not-required',
-    authorizedLeaseHash: null,
-    witness: null,
-  });
+  }), null);
 });
 
 test('composition activation v2 uses current generated identity after minted-generation drift', () => {
@@ -350,10 +346,10 @@ test('composition activation v2 uses current generated identity after minted-gen
 test('single-table connected prove arm atomically adopts legacy bytes and discards its token', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'snapback-single-table-adoption-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const fixture = applicationFixture();
-  fixture.ref.composition.normalizedCompositePlan.nodes[0].nodePlan.classId = 'single_table_v1';
-  fixture.ref.composition.normalizedCompositePlan.classification.retention =
-    'rqs-authority-independent-snapshot-v1';
+  const fixture = applicationFixture({
+    classId: 'single_table_v1',
+    retention: 'rqs-authority-independent-snapshot-v1',
+  });
   const rows = [{ _id: 'legacy-row', title: 'proved-current' }];
   const legacyResume = {
     token: 'sbrt1.legacy_key.eyJ2ZXJzaW9uIjo3fQ.bGVnYWN5LW1hYw',
@@ -487,8 +483,8 @@ test('single-table connected prove arm atomically adopts legacy bytes and discar
   await retainedStore.close();
 });
 
-test('P2 public liveQuery establishes, retains, and relaunches authoritative-retained through qmk1', async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), 'snapback-materialization-bridge-'));
+test('protected generated liveQuery keeps explicit lease-backed retention and retained relaunch', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-materialization-bridge-protected-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const fixture = applicationFixture();
   const rows = [{ _id: 'retained-1', title: 'proof-backed' }];
@@ -559,7 +555,9 @@ test('P2 public liveQuery establishes, retains, and relaunches authoritative-ret
       authorizationWitness: witness,
     };
   };
+  let leaseRequests = 0;
   first.authorizedLeaseQuery = async (_ref, options) => {
+    leaseRequests += 1;
     const now = Date.now();
     return {
       rows,
@@ -604,6 +602,7 @@ test('P2 public liveQuery establishes, retains, and relaunches authoritative-ret
   assert.equal(live.answerClass, 'authoritative');
   assert.equal(live.freshness, 'current');
   assert.equal(live.retention.retainable, true);
+  assert.equal(leaseRequests, 1, 'protected retention still requires its authorized lease');
   assert.match(subscribedNamespace.queryKey, /^qmk1\.[A-Za-z0-9_-]{43}$/u);
   await live.dispose();
   await firstStore.close();

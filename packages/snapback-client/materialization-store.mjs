@@ -660,12 +660,6 @@ function validateProof(record, fragment, suppliedProof, context, signatureReceip
     refuse('SNAPBACK_COMPLETENESS_WITNESS_INVALID', 'authorization witness lacks owner provenance');
   }
   if (
-    record.productState.freshness === 'retained'
-    && !retainedAuthorityValid(context, fragment.authorizedLeaseHash)
-  ) {
-    refuse('SNAPBACK_COMPLETENESS_LEASE_INVALID', 'retained fragment does not match valid owner lease custody');
-  }
-  if (
     proof.materializationKey !== record.address[2]
     || proof.queryInstanceId !== record.queryInstanceId
     || proof.activationHash !== record.activationHash
@@ -702,6 +696,15 @@ function validateProof(record, fragment, suppliedProof, context, signatureReceip
   const rawKey = decodeBase64url(key.publicKeyBase64url, 32, 'proof public key');
   if (!signatureReceipts?.has(signatureReceiptId(rawKey, proof))) {
     refuse('SNAPBACK_COMPLETENESS_SIGNATURE_INVALID', 'proof signature is invalid');
+  }
+  if (
+    record.productState.freshness === 'retained'
+    && !retainedAuthorityValid(context, fragment.authorizedLeaseHash, proof)
+  ) {
+    refuse(
+      'SNAPBACK_COMPLETENESS_LEASE_INVALID',
+      'retained fragment lacks exact owner lease custody or a signed public-exact class proof',
+    );
   }
   return proof;
 }
@@ -1033,11 +1036,26 @@ function requireContext(resolveValidationContext, address, record, phase) {
 
 const INDEPENDENT_RETENTION_AUTHORITY = 'rqs-authority-independent-snapshot-v1';
 
-function retainedAuthorityValid(context, fragmentAuthorizedLeaseHash = undefined) {
+function retainedAuthorityValid(
+  context,
+  fragmentAuthorizedLeaseHash = undefined,
+  ownerProof = undefined,
+) {
   if (context.retentionAuthority === INDEPENDENT_RETENTION_AUTHORITY) {
-    return context.leaseStatus === 'not-required'
+    const custodyMatches = context.leaseStatus === 'not-required'
       && context.authorizedLeaseHash === null
       && (fragmentAuthorizedLeaseHash === undefined || fragmentAuthorizedLeaseHash === null);
+    // Calls without a concrete fragment/proof are preliminary maintenance
+    // gates; validateProof performs the authoritative decision for every byte
+    // before commit or render. Once a proof is present, no-lease retention is
+    // admitted only by the owner's signed exact single-table class, never by
+    // caller-carried classification bytes alone.
+    if (!custodyMatches || ownerProof === undefined) return custodyMatches;
+    return Array.isArray(ownerProof.nodes)
+      && ownerProof.nodes.length === 1
+      && ownerProof.nodes[0]?.position === 0
+      && ownerProof.nodes[0]?.classId === 'single_table_v1'
+      && ownerProof.nodes[0]?.classVersion === 1;
   }
   return context.leaseStatus === 'valid'
     && (
@@ -1485,16 +1503,20 @@ export async function createMaterializationStore(storeHandle, {
       authorizedLeaseHash: fragmentInput.authorizedLeaseHash,
     });
     const context = requireContext(resolveValidationContext, admittedAddress, record, 'commit');
+    fragment.proof = validateProof(record, fragment, proofInput, context, signatureReceipts);
     if (
       fragmentInput.freshness === 'retained'
-      && !retainedAuthorityValid(context, fragmentInput.authorizedLeaseHash)
+      && !retainedAuthorityValid(
+        context,
+        fragmentInput.authorizedLeaseHash,
+        fragment.proof,
+      )
     ) {
       refuse(
         'SNAPBACK_COMPLETENESS_LEASE_INVALID',
-        'retained commit requires exact valid owner lease custody',
+        'retained commit lacks exact owner lease custody or a signed public-exact class proof',
       );
     }
-    fragment.proof = validateProof(record, fragment, proofInput, context, signatureReceipts);
     const memberships = fragmentInput.memberships.map((entry, index) => prepareMembership(entry, `fragment.memberships[${index}]`));
     for (const membership of memberships) {
       if (

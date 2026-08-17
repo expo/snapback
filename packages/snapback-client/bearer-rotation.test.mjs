@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { createExternalSessionClient, isSnapbackDiagnosticError } from './index.mjs';
+import { argsHash, digestOfRows } from './rqs.mjs';
+import {
+  createFileRqsResumeStore,
+  createNodeFilesAdapter,
+} from './rqs-store-file.mjs';
+import { rqsEntryKey } from './rqs-store.mjs';
 
 // Regression: 0137 A1-Expo f4 (carrier-agnostic) — replaceBearerToken to a
 // lesser-privileged successor must SETTLE (the denial becomes a handle
@@ -183,13 +192,15 @@ const createHarness = () => {
   return harness;
 };
 
-const withHarness = async (run) => {
+const withHarness = async (run, { clientOptions = {} } = {}) => {
   const originalFetch = globalThis.fetch;
   const harness = createHarness();
   globalThis.fetch = harness.fetch;
   try {
     const client = createExternalSessionClient('http://bearer-rotation.test', {
       bearerToken: ALICE,
+      rqsStore: null,
+      ...clientOptions,
     });
     await run({ client, harness });
   } finally {
@@ -350,6 +361,205 @@ await withHarness(async ({ client, harness }) => {
   await settle();
   assert.deepEqual(sites.rows, SITE_ROWS, 'a later transition recovers the parked handle');
   assert.equal(sites.paused, false);
+});
+
+// --- 5: external-bearer custody has no AuthCoordinator participant, so its
+// --- own transition must delete durable predecessor facts before installing
+// --- the successor. This is the executable sbs_alice -> sbs_mallory repro.
+{
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-bearer-rqs-wipe-'));
+  const store = createFileRqsResumeStore({
+    directory,
+    clientStoreId: 'bearer-rotation-rqs',
+  });
+  const key = rqsEntryKey('sites', {});
+  const rows = SITE_ROWS;
+  await store.commit(key, {
+    rows,
+    token: 'sbrt1.owner-issued-public-exact-fixture',
+    meta: {
+      app: 'bearer-rotation',
+      generation: 'sha256:alice-owner-generation',
+      versionStream: 'alice-stream',
+      queryArtifact: 'sha256:sites-public-exact',
+      argsHash: argsHash({}),
+      contentDigest: digestOfRows('mset1', rows),
+      version: 1,
+    },
+  });
+  assert.ok(await store.load(key), 'durable Alice public-exact record was not seeded');
+
+  let wipes = 0;
+  const instrumentedStore = Object.create(store);
+  instrumentedStore.wipeForAuthorityTransition = async () => {
+    wipes += 1;
+    return store.wipeForAuthorityTransition();
+  };
+
+  try {
+    await withHarness(async ({ client }) => {
+      await client.auth.authSession();
+      await client.replaceBearerToken(MALLORY);
+      assert.ok(wipes >= 1, `expected at least one durable wipe, received ${wipes}`);
+      assert.equal(await store.load(key), null,
+        'Mallory can still load Alice durable public-exact bytes after transition');
+      assert.equal((await store.inspection()).entries, 0,
+        'the authority transition left a discoverable durable entry');
+    }, { clientOptions: { rqsStore: instrumentedStore } });
+
+    const originalFetch = globalThis.fetch;
+    const offlineUpdates = [];
+    globalThis.fetch = async () => { throw new TypeError('offline'); };
+    try {
+      const offlineMallory = createExternalSessionClient('http://bearer-rotation.test', {
+        bearerToken: MALLORY,
+        rqsStore: instrumentedStore,
+      });
+      await assert.rejects(
+        () => offlineMallory.liveQuery('sites', {
+          args: {},
+          connectionId: 'mallory-offline-selection',
+          persistResume: true,
+          onUpdate(rowsUpdate, detail) {
+            offlineUpdates.push({ rows: rowsUpdate, detail });
+          },
+        }),
+        /offline|fetch failed|connection/u,
+      );
+      assert.equal(offlineUpdates.length, 0,
+        'offline Mallory rediscovered Alice rows through retained selection');
+      assert.equal(await store.load(key), null,
+        'offline selection recreated or rediscovered the predecessor entry');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+// --- 6: a shared-store follower installs the predecessor fence, wakes the
+// --- actual writer, and exposes Mallory only after that writer's durable
+// --- handle-key rotation deletes Alice's entry.
+{
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-bearer-rqs-follower-'));
+  const files = createNodeFilesAdapter();
+  const writerStore = createFileRqsResumeStore({
+    directory,
+    files,
+    clientStoreId: 'bearer-rotation-shared-rqs',
+  });
+  let followerStore = null;
+  const key = rqsEntryKey('sites', {});
+  let releaseWriterWipe;
+  let observeWriterWipe;
+  const writerWipeRelease = new Promise((resolve) => { releaseWriterWipe = resolve; });
+  const writerWipeObserved = new Promise((resolve) => { observeWriterWipe = resolve; });
+  const rename = files.rename.bind(files);
+  let holdNextRename = false;
+  files.rename = async (...args) => {
+    if (holdNextRename) {
+      holdNextRename = false;
+      observeWriterWipe();
+      await writerWipeRelease;
+    }
+    return rename(...args);
+  };
+
+  try {
+    await writerStore.whenLockSettled();
+    followerStore = createFileRqsResumeStore({
+      directory,
+      files,
+      clientStoreId: 'bearer-rotation-shared-rqs',
+    });
+    await followerStore.whenLockSettled();
+    assert.equal(writerStore.isWriter(), true, 'shared-store owner did not acquire writership');
+    assert.equal(followerStore.isWriter(), false, 'shared-store follower unexpectedly became writer');
+    await writerStore.commit(key, {
+      rows: SITE_ROWS,
+      token: 'sbrt1.shared-alice-owner-issued-public-exact-fixture',
+      meta: {
+        app: 'bearer-rotation',
+        generation: 'sha256:shared-alice-owner-generation',
+        versionStream: 'shared-alice-stream',
+        queryArtifact: 'sha256:sites-public-exact',
+        argsHash: argsHash({}),
+        contentDigest: digestOfRows('mset1', SITE_ROWS),
+        version: 1,
+      },
+    });
+    assert.ok(await followerStore.load(key), 'follower could not see the seeded Alice entry');
+    holdNextRename = true;
+
+    await withHarness(async ({ client, harness }) => {
+      await client.auth.authSession();
+      const transition = client.replaceBearerToken(MALLORY);
+      await writerWipeObserved;
+      assert.equal(client.__externalBearerRetainedReadsFenced(), true,
+        'follower did not install its client-local predecessor fence');
+      assert.equal(client.bearerToken, ALICE,
+        'successor bearer installed before the writer deletion barrier settled');
+      await assert.rejects(
+        () => client.__readQmk1LocalAnswer(),
+        /retained predecessor data is fenced/u,
+        'follower retention reads did not fail closed while predecessor bytes survived',
+      );
+
+      releaseWriterWipe();
+      await transition;
+      assert.equal(client.__externalBearerRetainedReadsFenced(), false,
+        'writer handle-key rotation did not release the predecessor fence');
+      assert.equal(client.bearerToken, MALLORY);
+      assert.equal(await writerStore.load(key), null,
+        'writer wake left Alice durable bytes in the shared store');
+      assert.equal(await followerStore.load(key), null,
+        'follower rediscovered Alice durable bytes after writer settlement');
+
+      const offlineUpdates = [];
+      globalThis.fetch = async () => { throw new TypeError('offline'); };
+      await assert.rejects(
+        () => client.liveQuery('sites', {
+          args: {},
+          connectionId: 'mallory-shared-follower-offline-selection',
+          persistResume: true,
+          onUpdate(rows, detail) { offlineUpdates.push({ rows, detail }); },
+        }),
+        /offline|fetch failed|connection/u,
+      );
+      globalThis.fetch = harness.fetch;
+      assert.equal(offlineUpdates.length, 0,
+        'Mallory rendered Alice rows through follower retained rediscovery');
+    }, { clientOptions: { rqsStore: followerStore, offlineQueue: false } });
+  } finally {
+    releaseWriterWipe();
+    await Promise.allSettled([followerStore?.close(), writerStore.close()]);
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+// --- 7: false is never success for an injected store that can provide
+// --- neither an exact predecessor fence nor a wake to a writer owner.
+await withHarness(async ({ client }) => {
+  await client.auth.authSession();
+  await assert.rejects(
+    () => client.replaceBearerToken(MALLORY),
+    (error) => error instanceof AggregateError
+      && error.errors.some((inner) => (
+        /cannot install a predecessor fence/u.test(inner?.message ?? '')
+      ))
+      && client.bearerToken === ALICE,
+    'an unfenceable non-writer store must block successor installation',
+  );
+}, {
+  clientOptions: {
+    rqsStore: {
+      durability: () => ({ implementation: 'incapable-test-store', durable: true }),
+      wipeForAuthorityTransition: async () => false,
+    },
+    offlineQueue: false,
+  },
 });
 
 console.log('snapback-client bearer rotation tests: ok');

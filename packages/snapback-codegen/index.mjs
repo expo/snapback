@@ -707,9 +707,12 @@ function serializedValueUsesAuthorityOrAmbientInput(value) {
   return false;
 }
 
-// @ref LLP 0092#0c2-the-rqseligible-served-manifest-predicate — class selection
-// is a projection of the served function's derived fact, never an authored
-// class marker.
+// @ref LLP 0270#d1-default-is-automatic-request-plus-owner-admission — class
+// selection is a projection of the closed owner/codegen proof, never an
+// authored class marker or an app-authored authority claim.
+// @ref LLP 0270#d2-persist-owner-admitted-query-facts-by-default — public,
+// ambient-free exact single-table LiveQueries enter the first default-retained
+// risk class without requiring authorityIndependent as a retention switch.
 function singleTableRqsDigestKind(fn) {
   const plan = fn.runtime?.HostPlan?.Query;
   // Generation derives the served read summary in the same pass that emits
@@ -718,7 +721,6 @@ function singleTableRqsDigestKind(fn) {
   // positions; an author-supplied class marker is never consulted.
   const summary = fn.readSetSummary ?? readSummary(fn);
   if (resultContractContainsMedia(fn.resultContract)
-    || fn.authorityIndependent !== true
     || fn.kind !== 'LiveQuery'
     || fn.authRequirement !== 'public'
     || (fn.uses?.length ?? 0) !== 0

@@ -79,6 +79,21 @@ export function createMemoryRqsResumeStore({
     return state.writer === instance;
   };
 
+  const authorityTransitionWipe = async () => {
+    if (!requireWriter()) return false;
+    const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
+    if (storeMeta === null) return false;
+    state.entries.clear();
+    state.reactBindingReceipt = null;
+    state.materializations.clear();
+    state.pageSets.clear();
+    state.memberships.clear();
+    state.storeMeta = storeMeta;
+    return true;
+  };
+  state.authorityTransitionWipers ??= new Map();
+  state.authorityTransitionWipers.set(instance, authorityTransitionWipe);
+
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
   const materializationTransaction = (mode, operation) => import(
@@ -270,17 +285,13 @@ export function createMemoryRqsResumeStore({
 
     /// AuthCoordinator transitions clear retained/read projections while the
     /// per-record LLP 0043 custody matrix keeps ownership of outbox bytes.
-    async wipeForAuthorityTransition() {
-      if (!requireWriter()) return false;
-      const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
-      if (storeMeta === null) return false;
-      state.entries.clear();
-      state.reactBindingReceipt = null;
-      state.materializations.clear();
-      state.pageSets.clear();
-      state.memberships.clear();
-      state.storeMeta = storeMeta;
-      return true;
+    wipeForAuthorityTransition: authorityTransitionWipe,
+
+    requestAuthorityTransitionWipe() {
+      requireOpen();
+      const request = state.authorityTransitionWipers.get(state.writer);
+      if (typeof request !== 'function') return null;
+      return Object.freeze({ settlement: Promise.resolve().then(request) });
     },
 
     async resetCorruptStoreIdentity() {
@@ -516,6 +527,7 @@ export function createMemoryRqsResumeStore({
     async close() {
       if (closed) return;
       closed = true;
+      state.authorityTransitionWipers.delete(instance);
       if (state.writer !== instance) {
         writerLockListeners.clear();
         return;
@@ -553,6 +565,7 @@ export function createMemoryRqsStoreBacking({ clientStoreId = null, randomBytes 
     storeMeta: createInitialStoreMeta({ clientStoreId, randomBytes }),
     writer: null,
     waiters: [],
+    authorityTransitionWipers: new Map(),
   };
 }
 

@@ -109,16 +109,37 @@ function createMediaFixture() {
     activationHash: hashRecord('snapback:composition-activation:v1:', activation),
     proofKeys,
   };
+  const nodePlan = {
+    format: 'snapback.node-plan.v1',
+    classId: 'relational_query_v1',
+    classVersion: 1,
+  };
   const nodes = [{
     position: 0,
-    nodePlan: {
-      format: 'snapback.node-plan.v1',
-      classId: 'relational_query_v1',
-      classVersion: 1,
-    },
-    nodePlanHash: digest('4'),
+    nodePlan,
+    nodePlanHash: hashRecord('snapback:node-plan:v1:', nodePlan),
   }];
   const resultContract = mediaResultContract();
+  const normalizedCompositePlan = {
+    format: 'snapback.normalized-composite-plan.v1',
+    profileId: 'single-node.v1',
+    nodes,
+    mergedArgsContractHash: digest('9'),
+    classification: {
+      callable: true,
+      live: {
+        kind: 'admitted',
+        delivery: 'live_replace',
+        pageDomain: 'cursor-free-first-page',
+      },
+      invalidation: 'table-granular-resnapshot',
+      // A media projection reads both the application row and the asset
+      // system record, so it deliberately uses protected QMK retention
+      // instead of the single-table RQS resume class (LLP 0244 D4).
+      retention: 'opaque-authorized-snapshot-v1',
+    },
+    parentAuthorizationGroups: [],
+  };
   const ref = {
     artifactKind: 'functionReference',
     schemaVersion: 'snapback.v0',
@@ -133,27 +154,8 @@ function createMediaFixture() {
     expectedGeneration,
     argumentSchema: { type: 'object', additionalProperties: false, properties: {} },
     composition: {
-      planHash: digest('8'),
-      normalizedCompositePlan: {
-        format: 'snapback.normalized-composite-plan.v1',
-        profileId: 'single-node.v1',
-        nodes,
-        mergedArgsContractHash: digest('9'),
-        classification: {
-          callable: true,
-          live: {
-            kind: 'admitted',
-            delivery: 'live_replace',
-            pageDomain: 'cursor-free-first-page',
-          },
-          invalidation: 'table-granular-resnapshot',
-          // A media projection reads both the application row and the asset
-          // system record, so it deliberately uses protected QMK retention
-          // instead of the single-table RQS resume class (LLP 0244 D4).
-          retention: 'opaque-authorized-snapshot-v1',
-        },
-        parentAuthorizationGroups: [],
-      },
+      planHash: hashRecord('snapback:plan-hash:v1:', normalizedCompositePlan),
+      normalizedCompositePlan,
       resultContract,
     },
   };

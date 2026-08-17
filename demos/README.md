@@ -28,7 +28,7 @@ rows in `guide/capabilities.md`, the current capability truth.
 | `all-aboard` | Caltrain next-train app: cron, real 511.org data through server-side actions, routed ETAs, Contract UI, native arm | headless/cron/egress/real-data/contract/update-economy (required), native (commit-pinned), react-control (control arm) | yes |
 | `backend-bakeoff` | Signal Desk: one incident-response React product on Snapback, Convex, and Supabase for honest comparison | react three-backend product + native acceptances (required / comparison arms) | yes |
 | `browser-auth` | Local product-shaped browser sign-in: verified external assertion seam, immutable identity binding, protected app rows, IndexedDB reload custody, and logout | browser-auth-witness (integration) | yes |
-| `browser-local-first` | Real-Chrome witness for public authority-independent IndexedDB retention and queued replay | browser-public-witness (integration) | yes |
+| `browser-local-first` | Real-Chrome witness for no-declaration public-exact IndexedDB retention, opaque refusal, and queued replay | browser-public-witness (integration) | yes |
 | `campfire` | Campfire chat contract rebuilt on the first-class React surface and a registered generated bundle (query-group rerun arm) | reactQueryGroupArm (required-local-nonclaim) | yes |
 | `card-game` | Sessions-mode hidden-hand isolation, two-axis queue custody, live logout blanking, lease-bounded offline retention | sessionAuthProof (required) | yes |
 | `catalog-lens` | Owner-scoped books joined to a public publisher dimension through a bounded relational query | headless (required) | yes |

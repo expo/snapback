@@ -1,7 +1,7 @@
 {
   "id": "browser-local-first",
   "title": "Browser local-first public witness",
-  "description": "A deliberately small React todo surface whose real-Chrome acceptance proves the public authority-independent IndexedDB retention and queued-replay slice.",
+  "description": "A deliberately small React todo surface whose real-Chrome acceptance proves no-declaration public-exact IndexedDB retention, opaque-query refusal, and queued replay.",
   "artifactSchemaVersion": "snapback.v0",
   "targetProfile": "local-dev-sqlite-ibex",
   "systems": ["Sync", "Realtime", "React", "Storage", "Testing"],
@@ -37,9 +37,9 @@
       "offline add/toggle intents survive process death and replay only after a fresh authoritative snapshot",
       "settlement follows durable sequence order and duplicate delivery republishes without re-execution",
       "a storeless independent Node observer converges to the browser rows and version",
-      "under dev custody an authUserId-scoped browser query truthfully reports SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE and leaves no IndexedDB entry",
+      "under dev custody an opaque public browser query truthfully reports SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE and leaves no IndexedDB entry",
       "a same-process SPA reload reconstructs the React surface without a render storm",
-      "on the same browser and origin, an anonymous sessions-mode server makes the authUserId query report SNAPBACK_RETENTION_NOT_RETAINABLE while the authority-independent query remains retained"
+      "on the same browser and origin, an anonymous sessions-mode server rotates owner generation, makes the opaque query report SNAPBACK_RETENTION_NOT_RETAINABLE, and retains the no-declaration public-exact query"
     ]
   },
   "notClaiming": [

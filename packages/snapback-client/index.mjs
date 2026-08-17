@@ -2328,6 +2328,23 @@ const clientCodedError = (error, code) => {
   return new SnapbackDiagnosticError(diagnostic, { message, cause: error });
 };
 
+const EXTERNAL_BEARER_FENCED_STORE_READS = new Set([
+  '__admitLocalMutationReads',
+  '__evaluateLocalMutationWithReadAdmission',
+  '__prepareGeneratedMaterializationBridge',
+  '__readQmk1LocalAnswer',
+  'evaluateLocalResultTransform',
+  'prepareGeneratedMutation',
+  'prepareProtectedQueryRetention',
+  'registerQuery',
+  'seedFromMaterializationState',
+  'seedProtectedQueryRetention',
+  'seedProtectedQueryRetentionState',
+]);
+const externalBearerPredecessorFencedError = () => new Error(
+  'retained predecessor data is fenced until the writer completes the authority-transition wipe',
+);
+
 const OFFLINE_MUTATION_REPLAY_CAPABILITY = 'offline_mutation_replay';
 const OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED =
   'SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED';
@@ -2395,9 +2412,8 @@ export function rqsRetentionIneligibilityReason(ref) {
   if (ref !== null && typeof ref === 'object' && ref.artifactKind === 'functionReference') {
     return 'the generated declaration carries no retention classification: '
       + 'eligibility requires a declarative defineLiveQuery over one table '
-      + "with auth: 'public' and authorityIndependent: true and no membership "
-      + 'or ambient inputs (explicit args are allowed; JS handlers are never '
-      + 'eligible)';
+      + "with auth: 'public' and no membership or ambient inputs (explicit "
+      + 'args are allowed; JS handlers are never eligible)';
   }
   return 'the server minted no resume token: not an '
     + 'authority-independent closed-inputs live query (LLP 0090)';
@@ -2903,6 +2919,7 @@ export class SnapbackClient {
     // which permanently excluded a handle a previous transition left paused.)
     this.__externalBearerParkedHandles = new WeakSet();
     this.__externalBearerTransition = null;
+    this.__externalBearerPredecessorFence = null;
     // A finite terminal response closes one exact explicit-bearer generation.
     // Keep the presented bearer installed for an explicit caller-controlled
     // replacement, but refuse every later auth admission until a genuinely
@@ -3531,6 +3548,79 @@ export class SnapbackClient {
     );
   }
 
+  __externalBearerRetainedReadsFenced() {
+    return this.__externalBearerPredecessorFence !== null
+      && this.__externalBearerPredecessorFence !== undefined;
+  }
+
+  async #wipeExternalBearerPredecessorStore() {
+    const store = this.rqsStore;
+    if (!store) return;
+    let predecessorMarker = null;
+    if (typeof store.readStoreMeta === 'function') {
+      try {
+        const meta = await store.readStoreMeta();
+        if (
+          typeof meta?.clientStoreId === 'string'
+          && /^[0-9a-f]{64}$/u.test(meta?.handleKey ?? '')
+        ) {
+          predecessorMarker = Object.freeze({
+            clientStoreId: meta.clientStoreId,
+            handleKey: meta.handleKey,
+          });
+        }
+      } catch {
+        // A successful writer wipe below remains authoritative. If it refuses,
+        // unreadable metadata cannot supply the local predecessor fence.
+      }
+    }
+
+    const wipe = typeof store.wipeForAuthorityTransition === 'function'
+      ? store.wipeForAuthorityTransition
+      : store.wipe;
+    if (typeof wipe !== 'function') {
+      throw new Error('configured RQS store has no authority-transition wipe');
+    }
+    if ((await wipe.call(store)) === true) {
+      this.__externalBearerPredecessorFence = null;
+      return;
+    }
+
+    // @ref LLP 0053#client-fences — a non-writer transition first installs
+    // an exact local predecessor marker, then queues phase-7 deletion on the
+    // actual shared-store writer. No retained selector may run while the
+    // marker remains current.
+    if (predecessorMarker === null) {
+      throw new Error(
+        'RQS store refused the authority-transition wipe and cannot install a predecessor fence',
+      );
+    }
+    this.__externalBearerPredecessorFence = predecessorMarker;
+
+    const wake = typeof store.requestAuthorityTransitionWipe === 'function'
+      ? store.requestAuthorityTransitionWipe()
+      : null;
+    if (!wake || typeof wake.settlement?.then !== 'function') {
+      throw new Error(
+        'RQS store refused the authority-transition wipe and cannot wake its writer owner',
+      );
+    }
+    if ((await wake.settlement) !== true) {
+      throw new Error('the shared-store writer refused the authority-transition wipe');
+    }
+    const successorMeta = await store.readStoreMeta();
+    if (
+      typeof successorMeta?.clientStoreId !== 'string'
+      || !/^[0-9a-f]{64}$/u.test(successorMeta?.handleKey ?? '')
+      || successorMeta.handleKey === predecessorMarker.handleKey
+    ) {
+      throw new Error('the shared-store writer completed without rotating the predecessor fence');
+    }
+    if (this.__externalBearerPredecessorFence === predecessorMarker) {
+      this.__externalBearerPredecessorFence = null;
+    }
+  }
+
   // @ref LLP 0059#exposure-invariant — external bearer replacement is a
   // custody barrier: release predecessor demand, blank synchronously, retire
   // old transports/grants, then re-enter under the successor.
@@ -3614,6 +3704,21 @@ export class SnapbackClient {
       this.__connectionGrants.clear();
       this.__receiptRing.length = 0;
       this.__liveStreamManagers?.clear?.();
+      // External-bearer custody has no AuthCoordinator participant to perform
+      // phase 7. Run the same durable predecessor deletion before installing
+      // or resuming any successor bearer. A failed wipe keeps the predecessor
+      // bearer installed and the visible surfaces blank/parked.
+      // @ref LLP 0059#transition-barrier — durable participants delete before
+      // successor settlement and exposure resume.
+      try {
+        await this.#wipeExternalBearerPredecessorStore();
+      } catch (error) {
+        failures.push(error);
+        throw new AggregateError(
+          failures,
+          'external bearer custody transition could not delete predecessor durable facts',
+        );
+      }
       this.bearerToken = token;
       this.__externalBearerTerminalError = null;
       this.__terminalAuthorityCapture = undefined;
@@ -5934,6 +6039,10 @@ export class SnapbackClient {
   }
 
   async __storeRuntimeInvoke(name, ...args) {
+    if (
+      this.__externalBearerRetainedReadsFenced()
+      && EXTERNAL_BEARER_FENCED_STORE_READS.has(name)
+    ) throw externalBearerPredecessorFencedError();
     const module = await this.__ensureStoreRuntimeModule();
     return module.storeRuntimeMethods[name].call(this, ...args);
   }
@@ -5984,7 +6093,8 @@ export class SnapbackClient {
 
   async __prepareGeneratedMaterializationBridge(ref, ...args) {
     if (
-      ref?.artifacts?.trustedCompositionActivation == null
+      this.__externalBearerRetainedReadsFenced()
+      || ref?.artifacts?.trustedCompositionActivation == null
       || ref?.composition == null
       || typeof this.rqsStore?.materializationTransaction !== 'function'
     ) return null;
@@ -12281,6 +12391,7 @@ export class SnapbackClient {
     let preparedProtectedRetention = null;
     if (
       preparedMaterialization === null
+      && !this.__externalBearerRetainedReadsFenced()
       && persistResume === true
       && authorizationNamespace === null
       && this.authProtocols.authInvalidation === 1
@@ -12859,7 +12970,9 @@ export class SnapbackClient {
     // the pagehide/visibility flush below mapped on native to the host
     // lifecycle calling handle.flushResumeState() on background/inactive.
     // -----------------------------------------------------------------
-    const resumeStore = persistResume && (preparedMaterialization === null || legacySingleTableAdoption)
+    const resumeStore = persistResume
+      && !client.__externalBearerRetainedReadsFenced()
+      && (preparedMaterialization === null || legacySingleTableAdoption)
       ? client.rqsStore
       : null;
     const resumeStoreKey = resumeStore ? rqsEntryKey(name, args) : null;

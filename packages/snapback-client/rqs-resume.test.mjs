@@ -917,7 +917,7 @@ test('rqsRetentionIneligibilityReason names the failed eligibility layer from th
   );
   assert.match(
     rqsRetentionIneligibilityReason({ artifactKind: 'functionReference' }),
-    /carries no retention classification.*explicit args are allowed.*JS handlers are never/su,
+    /carries no retention classification.*auth: 'public'.*explicit args are allowed.*JS handlers are never/su,
     'an unclassified generated declaration names the declaration rules (and that args are fine)',
   );
   assert.match(
