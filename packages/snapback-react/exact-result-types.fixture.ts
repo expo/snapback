@@ -5,8 +5,8 @@ import type {
   SnapbackFunctionReference,
 } from '@expo/snapback-client';
 import type {
-  GeneratedQueryGroups as CampfireQueryGroups,
-} from '../../demos/campfire/snapback/generated/api.d.ts';
+  GeneratedQueryGroups as BackendBakeoffQueryGroups,
+} from '../../demos/team-chat/snapback/generated/api.d.ts';
 import type { GeneratedAppDescriptorV1 as ConversationAppDescriptor } from './fixtures/conversation/app/snapback/generated/app.d.ts';
 import type { Id } from './fixtures/conversation/app/snapback/generated/api.d.ts';
 import {
@@ -51,7 +51,7 @@ declare const createTodo: SnapbackFunctionReference<
 // @ref LLP 0112#evidence-and-acceptance — the prepared-group result proof
 // consumes a maintained app's emitted declaration, not a hand-authored twin.
 declare const generatedBackendBakeoff:
-  PreparedReactQueryGroup<CampfireQueryGroups['/rooms/:roomId']>;
+  PreparedReactQueryGroup<BackendBakeoffQueryGroups['/']>;
 
 const query = useSnapbackQuery(todos, { owner: 'ada' });
 if (query.status === 'ready' || query.status === 'refreshing') {
@@ -70,14 +70,6 @@ if (group.queries.feed.status === 'ready') {
   group.queries.feed.data[0]?.body.toUpperCase();
 }
 const realGeneratedGroup = useSnapbackQueries(generatedBackendBakeoff);
-if (realGeneratedGroup.queries.liveMessages.status === 'ready') {
-  realGeneratedGroup.queries.liveMessages.data[0]?.body.toUpperCase();
-}
-if (realGeneratedGroup.queries.liveReactions.status === 'ready') {
-  realGeneratedGroup.queries.liveReactions.data[0]?.emoji.toUpperCase();
-}
-// @ts-expect-error the real generated route declaration has exactly two keys.
-realGeneratedGroup.queries.roomParticipants;
 if (realGeneratedGroup.queries.unreadDeliveries.status === 'ready') {
   realGeneratedGroup.queries.unreadDeliveries.data[0]?.body.toUpperCase();
 }
