@@ -5,7 +5,9 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-15 (bounded atomic initial rosters on generated resource
+**Revised:** 2026-08-17 (companion pointer to LLP 0013's shipped
+membership-backed ephemeral lowering and its role-narrowing boundary).
+2026-08-15 (bounded atomic initial rosters on generated resource
 bootstrap; transition-checked, consent-gated, and still one host command).
 2026-08-01 (the receipted trusted-import lane — see the
 dated amendment: fixture seats through the `Seed` writer class in the
@@ -1235,11 +1237,14 @@ member list cannot break role evaluation for guests.
   0053's one-commit-hook rule for **every** writer, with no bulk-path special
   case (reset/import carry event-3/declared-restore incarnation semantics;
   schema activation is event 2 — inherited, not restated).
-- **Rooms.** Because membership writes are event 1, a kick — by delete **or by
-  role downgrade** — on a resource backing a protected ephemeral room
-  ([LLP 0013](./0013-ephemeral-realtime-state.rfc.md)) advances the version and
-  projects room-authority suspension and fresh membership-snapshot
-  reauthorization, exactly 0053's card-game fixture. The declaration gives the
+- **Rooms.** Because membership writes are event 1, a kick by delete — and a
+  role downgrade, which fires the same barrier but re-grants under the shipped
+  role-blind row-existence check (downgrade-as-kick is the LLP 0013 2026-08-17
+  amendment's role-narrowing follow-on) — on a resource backing a protected
+  ephemeral room ([LLP 0013](./0013-ephemeral-realtime-state.rfc.md)) advances
+  the version and projects room-authority suspension and fresh
+  membership-snapshot reauthorization, exactly 0053's card-game fixture. The
+  declaration gives the
   room authority the concrete table and stable id its predicate binds to.
 - **Retained results** are **not** produced by role-gated queries in v1
   (§Non-Goals). When the 0008 semi-join amendment makes them eligible, they
@@ -1755,10 +1760,11 @@ semi-join amendment** and are not v1 acceptance.
   `system` authority through the generated sweep form — materializes a timeout
   as an ordinary event-1 delete that wakes subscriptions and suspends rooms
   exactly like a user-authored kick.
-- [live] Room binding: a kick **by delete and by downgrade** on a declared
-  membership backing a protected room suspends delivery and reauthorizes from a
-  fresh membership snapshot (0053's card-game fixture, driven through the
-  declaration and its stable id).
+- [live] Room binding: a kick **by delete** on a declared membership backing a
+  protected room suspends delivery and reauthorizes from a fresh membership
+  snapshot (0053's card-game fixture, driven through the declaration and its
+  stable id); a downgrade suspends and re-grants under the shipped role-blind
+  check (role narrowing pending — LLP 0013 2026-08-17 amendment).
 - [live] Blast-radius measurement reports version advances and
   quarantine/resnapshot counts **per declaration and globally**.
 - [retained — deferred with the 0008 semi-join amendment] A retained role-gated
@@ -1793,8 +1799,10 @@ semi-join amendment** and are not v1 acceptance.
 - Is `lastHolder: "protect"` the right shape for the "don't strand a resource
   without a host" invariant, or should richer transition policy wait entirely
   for the declarative rules?
-- May a protected room bind its predicate to **two** declarations (the OR shape
-  blessed for queries)?
+- May a future protected room bind its predicate to **two** declarations (the
+  OR shape blessed for queries)? V1 binds exactly one declaration on both
+  operations and refuses mixing; see
+  [LLP 0013's source-authored membership-backed rooms amendment](./0013-ephemeral-realtime-state.rfc.md#dated-amendment-source-authored-membership-backed-rooms-2026-08-17).
 - Does a future teams/orgs model reuse this table shape, or need its own?
 - When this RFC is accepted, does the LLP 0011 roles answer get ratified in the
   same change?
@@ -1827,8 +1835,11 @@ semi-join amendment** and are not v1 acceptance.
   for role-gated queries** (which v1 does not claim).
 - **LLP 0024 amendment** — the `--as-role` exactly-one-declaration rule, the
   declaration-qualified spelling, and `--as-membership` as row-seeding sugar.
-- **LLP 0013 note** — room membership predicates bind to declarations by stable
-  id; downgrade is a kick.
+- **LLP 0013 companion amendment** —
+  [source-authored membership-backed rooms](./0013-ephemeral-realtime-state.rfc.md#dated-amendment-source-authored-membership-backed-rooms-2026-08-17)
+  binds room policy to this declaration's stable id and ships current-row
+  removal invalidation. Its v1 grant is role-blind row existence; role
+  narrowing and the downgrade kick remain the named follow-on.
 - **LLP 0012 registrations** — the vocabulary/uniqueness/immutability/nullability/
   activation/raw-write diagnostics, the role-denial details schema (invariant
   public payload; full doctor variant), and the unique-index manifest capability.

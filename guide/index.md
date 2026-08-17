@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:9bc993498cacf9c06be9392fb007475a1329f498346ece1f2edc4832683f66b3
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:dfe849b4ace4f244e4bbbaeab156390f714d6993d9ff092d0d0e05ad6fcd8b94
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -364,6 +364,9 @@ proof command, and honest nonclaims without opening every demo.
   custody, protected rows, and revoking logout (local product-shaped recipe).
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,
   publish budgets (the cursors-web demo, distilled).
+- [Membership-scoped typing indicators](./recipes/typing-indicators.md) —
+  canonical conversation membership, idle withdrawal, and the Sessions
+  negative-observer battery (messaging-snapback, distilled).
 - [Hidden hands](./recipes/hidden-hands.md) — per-principal secrecy, logout
   blanking, lease-bounded offline retention (card-game, distilled).
 - [Optimistic toggle](./recipes/optimistic-toggle.md) — like/favorite with a

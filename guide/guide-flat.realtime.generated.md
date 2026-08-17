@@ -286,13 +286,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:db92bd62a8b6e44311e5a8b2db0b1bd3e3c76e27bcd1237d3f199aada3ced9f0
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:450da96937a6405df735bd10bb8444ceebb57c2dc307f852030433f45844dbac
 ---
 
 # Ephemeral realtime state
@@ -306,9 +306,10 @@ presence, cursors, selections, typing, drag state, and live viewport state.
 They are deliberately lossy: if a value must survive restart, support offline
 reads, or enter history/audit, put it in a durable table instead.
 
-Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
-building a feature. Use this page when choosing collection options or handling
-recovery.
+Start with the [typing-indicators recipe](../recipes/typing-indicators.md) for
+a membership-scoped conversation or the
+[presence-cursors recipe](../recipes/presence-cursors.md) for a public room.
+Use this page when choosing collection options or handling recovery.
 
 <!-- since: 0.1.23 -->
 
@@ -477,7 +478,7 @@ The option inventory is:
 | `maxValueBytes` / `hardMaxValueBytes` | Defaults 1,024/4,096 bytes; neither may cross the 4 KiB local hard cap. |
 | `publishRate` | Defaults to `{ sustainedHz: 20, burst: 60 }`, enforced per connection/collection. |
 | `delivery` | Defaults to `{ mode: 'latest', dispatchMs: 33 }`; `latest` is the only shipped mode. |
-| `publish` / `subscribe` | Both required explicit policies: `allow.all()` or `allow.roomPermission(prefix)`. |
+| `publish` / `subscribe` | Both require explicit policies: `allow.all()`, `allow.roomPermission(prefix)`, or declaration-bound `allow.members(declarationId)`. |
 | `value` | Required portable validator; generated clients and the server validate it. |
 | `targets` | Defaults to `local-dev-sqlite-ibex`; codegen rejects an undeclared selected target. |
 | `maxPendingEphemeralKeys` | Defaults to 1,024, bounding coalesced keys retained for dispatch. |
@@ -517,11 +518,60 @@ subscribe: allow.roomPermission('boardPresence'),
 
 The matching permission string is
 `SnapbackClient.roomPermission('boardPresence', scope)`. A room protected by
-durable membership also participates in the authorization-invalidation
-barrier. Membership-backed room authority binds to the declaration's stable id,
-not a table name or ambient role string; removing or downgrading a required role
-quiesces affected room sinks before the commit becomes visible. Custom-key
-authorization beyond connection ownership is not shipped.
+durable membership also participates in the authorization-invalidation barrier.
+Custom-key authorization beyond connection ownership is not shipped.
+
+<!-- since: 0.1.24 unreleased -->
+
+> **Unreleased.** Membership-backed ephemeral authoring is implemented after
+> the newest published `@expo/snapback-*` closure, 0.1.23. Use a source build
+> until a later closure is published.
+
+For conversation, channel, or document rooms, the normal protected posture is
+`allow.members(declarationId)` on both operations. The messaging demo binds its
+typing room to the canonical `conversationMemberships` declaration:
+
+```js source=demos/messaging-snapback/snapback/schema.mjs
+      // @ref LLP 0013#authorization-and-privacy — both operations bind to one
+      // durable membership declaration so removal revokes the whole room edge.
+      publish: allow.members('conversationMemberships'),
+      subscribe: allow.members('conversationMemberships'),
+```
+
+The stable declaration id lowers to a generated `m_<declarationId>` room
+permission and a `permissionBacking` projection over the declaration's
+canonical table. V1 grants on row existence: the session principal must have a
+current membership row whose resource id equals the room scope. That ships
+current-membership reads, removal invalidation, and write scoping—only a current
+member may subscribe or publish. Both policies must name the same declaration;
+mixing `allow.members` with `allow.all()` is refused because room authority is
+currently derived from the subscribe policy. V1 also refuses app-scoped or
+multi-field scopes, a scope validator other than `v.id()` of the declaration's
+resource table, unknown declarations, and declarations with `pendingRoles`.
+
+Role narrowing is not shipped. The `roles` option is refused, and the runtime's
+existence check has no role predicate. A change between active roles wakes the
+authorization barrier but can regrant the same row, so a role downgrade alone
+is not yet a kick. The follow-on is tracked in
+[`issues/20260817-ephemeral-membership-role-narrowing.md`](repo:issues/20260817-ephemeral-membership-role-narrowing.md).
+
+Sessions mode enforces the emitted projection: identity comes from the session,
+and client permission strings are ignored. Direct/dev mode instead admits room
+subscribe/publish solely on the exact asserted
+`SnapbackClient.roomPermission('m_<declarationId>', scope)` token; the asserted
+`userId` supplies handler identity (entry ownership, bootstrap writes), not
+room admission. The messaging
+demo's `useTyping` wrapper shows that dev-only bridge; it is not a production
+authorization proof. Run the recipe's Sessions acceptance shape before claiming
+membership privacy.
+
+Removal is correct on the wire: the removed subscriber receives its terminal
+denial and then no later frames, while survivors receive `AuthRevoked` removal.
+The base client overlay does not yet apply that terminal `Error` frame, so React
+hooks cannot surface terminal status/diagnostic until
+[`issues/20260817-ephemeral-overlay-missing-error-arm.md`](repo:issues/20260817-ephemeral-overlay-missing-error-arm.md)
+lands. Do not interpret an empty/stalled hook after removal as a surfaced
+terminal state.
 
 ## Subscribe to snapshot plus deltas
 

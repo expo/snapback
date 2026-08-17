@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:9db8da0333d179bf95df5ff625e6d5bcb97bbc0ae2aa9f4a14b8c2981ad06af4
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:7f9585e2924827e7f5057f9a42dfda3b1c15cefeb0c142a6f5c2a2fcaab3db64
 ---
 
 # Capability index
@@ -75,12 +75,12 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.jobs-one-off | Experimental LLP 0070 one-off durable work: transaction `ctx.jobs.enqueue`, default queue, delayed availability, fenced claims, append-only attempts, job rows, bounded enqueue/confirmed-mutation facts, generated status live query, injected-clock drain, and secret-read-leased admin inspect. `jobs_one_off_v1` stays experimental; no durable-background-work class while LLP 0070 is pre-Accepted. | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, job status, retryable by design, dead-letter, DLQ, succeeded after retry, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates. Actions can query the advisory 15-second connected-client predicate. | subscription, realtime, connected client, hasFreshClient | local | shipped | route /live/{name}/subscribe + capability manifest `connectedClientPredicate` semanticsVersion 2 | llp/0008, llp/0222 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
-| realtime.ephemeral | Typed ephemeral rooms/React presence: typing, cursors, TTL, activity-idle and Expo background withdrawal; 1s delivery budget | presence, cursors, ephemeral, useSnapbackPresence, useSnapbackActivityPresence, typing indicator, Supabase Presence, Supabase Broadcast, presence withdrawal | local | shipped | route /ephemeral/publish + React/Expo activity hook tests | llp/0013, llp/0107, llp/0114, llp/0247, llp/0257 | realtime/ephemeral-state.md |
-| realtime.snapshot-bundles | RQS bundles evaluate a served route's queries at one commit with resume tokens; register mode arms live owners. Structured args accept `routeParam()` at object-reachable leaves beside validated literal context (contributor-only after 0.1.15). Local Experimental mixed-route evaluates live and ordinary children at one snapshot, registering only live children. Legacy adoption remains prove-or-fresh; `publicInline` powers Channel A; Cloudflare read mode ships while register/mixed remain deferred. | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest, routeParam, nested routeParam, structured route arguments, route group args, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) + packages/snapback-codegen/authoring-validation.test.mjs | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
+| realtime.ephemeral | Typed ephemeral rooms/React presence: typing, cursors, TTL, activity/Expo withdrawal, 1s delivery budget. Membership-backed rooms enforce current-row subscribe/publish and removal invalidation (source-current; unreleased after 0.1.23); role narrowing/downgrade kick are unshipped. | presence, cursors, ephemeral, allow.members, useSnapbackPresence, useSnapbackActivityPresence, typing indicator, Supabase Presence, Supabase Broadcast | local | shipped | route /ephemeral/publish + demos/messaging-snapback/tests/acceptance/headless.mjs | llp/0013, llp/0056, llp/0107, llp/0114, llp/0247, llp/0257 | realtime/ephemeral-state.md |
+| realtime.snapshot-bundles | RQS bundles: one-commit route snapshots with resume; register mode arms live owners. Structured args admit nested `routeParam()`. Experimental local mixed routes register only live children; legacy adoption stays prove-or-fresh. `publicInline` powers Channel A. Cloudflare read ships; register/mixed are deferred. | bundle, preload, resumable snapshot, RQS, mixed route, publicInline, routeParam, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
-| sync.offline-js-arm | JS/React offline: IndexedDB/Web Locks, Node files, memory fallback; mounted owner-admitted public-exact queries retain by default on qualified durable stores; protected/opaque/memory behavior unchanged; durable M2 outbox; generated optimistic restart rebase; platform drain. Chrome proves generated public retention and opaque refusal. Expo SQLite is code-complete but pending real-device qualification; no blanket Expo retention/Parity claim. Prediction is never authority | offline browser, cold boot, restart-safe queue, IndexedDB, default public retention, optimistic replay, pending intent render, queued dispatch union, platform drain | local | partial | packages/snapback-client/materialization-bridge.test.mjs + packages/snapback-client/generated-optimistic-default.test.mjs + packages/snapback-client/rqs-resume.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166, llp/0218, llp/0270 | sync/offline-and-retention.md |
+| sync.offline-js-arm | JS/React offline: IndexedDB/Web Locks, Node files, memory fallback; qualified durable stores retain mounted owner-admitted public-exact queries. Protected/opaque/memory behavior is unchanged; durable outbox, optimistic restart rebase, and platform drain ship. Chrome proves public retention/opaque refusal. Expo SQLite awaits device qualification; prediction is never authority. | offline browser, cold boot, IndexedDB, public retention, optimistic replay, platform drain | local | partial | packages/snapback-client/materialization-bridge.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166, llp/0218, llp/0270 | sync/offline-and-retention.md |
 | sync.offline-js-arm-sessions | JS browser-session/agent-custody queue: enqueue captures authority, principal scope, and custody lineage. Same-principal replacement strands rerecordable work for explicit read/discard/re-record with a new id; principal change privacy-deletes old bytes and reports a count before successor observation. Stale-auth replay strands; content refusal fails. Server-refusal-only v1: no LLP 0053 queue-obligation port (Contract asymmetry). | sessions custody, agent custody offline, strand, re-record, cross-principal delete, offline auth queue | local | shipped | demos/card-game/tests/acceptance/offline-sessions-custody.mjs + packages/snapback-client/outbox-custody.test.mjs | llp/0043, llp/0053, llp/0129 | sync/offline-and-retention.md |
-| sync.local-persistent-store | LLP 0166 v3 store/hydration per `clientStoreId`: trusted activation, completeness proof, preload, proof-checked relaunch, durable programmatic demand. Mounted `single_table_v1@1` demand requests durable retention; protected classes require lease. D7 passes IndexedDB/Node-file; memory refuses. Expo SQLite is pending real-device qualification and its packaged manifest is empty. Contributor carrier: Experimental 17 PASS; Triage/Fleet 8/8. Remote/Cloudflare nonclaims. | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094, llp/0270 | sync/offline-and-retention.md |
+| sync.local-persistent-store | LLP 0166 v3 store/hydration per `clientStoreId`: trusted activation, completeness proof, preload, checked relaunch, and durable programmatic demand. `single_table_v1@1` may retain; protected classes need leases. IndexedDB/Node-file pass; memory refuses. Expo SQLite awaits device qualification; remote/Cloudflare are nonclaims. | retained render, materialization, completeness proof, hydration, preload, relaunch, result transform | local | partial | src/local-persistent-store-publication.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094, llp/0270 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention for generated JS/React live queries: exact namespace, atomic fresh-query/lease custody, equality expiry, and mismatch delete-before-render | offline auth browser, lease js, private chat offline | local | partial | packages/snapback-client/rqs-resume.test.mjs (custody matrix + fresh-client offline handoff) | llp/0043, llp/0053, llp/0129 | GAP (real-process restart witness; owner: orchestrator, review: 2026-08-26; issue: issues/20260801-js-arm-integrated-authenticated-restart-witness.md); sync/offline-and-retention.md |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
 | api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE and remote MCP; capability links, durable watches, and approval-gated mutation/action effects; read-only `ask` v1 with provider credentials, result schemas, durable token/result-volume budgets, and HMAC provenance receipts. Telemetry stays lossy; billing metering is a gap | external api, oauth, remote mcp, approval, effects, capability links, watches, ask, near-data ai, api budgets | local | partial | route /effects + src/storage/pending_effects.rs + route /api/v1/ask + src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
@@ -146,7 +146,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | testing.acceptance | Headless-first acceptance harness and package-owned backend comparator profile | tests, acceptance, harness, comparator, backend bake-off, native push receipt | local | shipped | `runComparatorAcceptance` in packages/snapback-cli/comparator-profile.mjs | llp/0010, llp/0012, llp/0013, llp/0034 | testing/acceptance.md |
 | testing.large-fixtures | Load a deterministic acceptance fixture past the 1,024-effect seed ceiling: gated ≤900-row batch-ingest mutation, loader session mint from the readiness descriptor, digest verification under the null/absent canonical form | large fixture, bulk load, bulk import, batch ingest, ingestFixtureBatch, seed ceiling, SNAPBACK_SEED_EFFECT_LIMIT_EXCEEDED, fixture loader, load test data | local | shipped | `fixtureLoadPlan` in demos/zerobugs/control/scripts/load-fixture.mts | llp/0109, llp/0183 | testing/large-fixtures.md |
 | deploy.release-build | Target-neutral immutable release build, scan, content identity, and read-back verification | deploy build, release artifact, dirty preview, release digest | all | partial | `buildRelease` in packages/snapback-cli/index.mjs | llp/0072 | deploying/releases.md |
-| deploy.target-control | Descriptor-first owner-only authority I/O. Content-addressed provider/storage/TLS/supervisor/log/credential/cost plans cover preflight, deploy, backup, rollback, destructive restore; pinned inspect, fenced apply, paused restore/activation, redacted logs, verified backups, receipts/hash audit, hosted-auth/qualification/release, MAC startup admission. Evidence: Fly lease, sentinel supervisor, scoped credentials, SQLite→Tigris→external-anchor recovery. GAP: public lifecycle/registration/channel/online admission/served inspect/migration/activation/rollback/complete packed receipt; no hosted capability advertised. | target add, target doctor, remote drill plan, deploy plan, deploy apply, deploy rollback, deploy status, backup create, backup list, backup verify, restore plan, restore apply, restore verify, restore activate, hosted admission, qualification, prepared release, logs, inspect, audit verify | single-instance-container-vm | partial | `applyDeployPlan` in packages/snapback-cli/deployment-control.mjs | llp/0072, llp/0105 | deploying/releases.md |
+| deploy.target-control | Descriptor-first owner-only authority I/O: content-addressed preflight/deploy/backup/rollback/restore plans, pinned inspect, fenced apply, paused activation, redacted logs, verified backups, receipts, and MAC admission. Fly lease, supervisor, scoped credentials, and SQLite→Tigris recovery are proven. Public lifecycle/registration/online admission/migration/rollback remain GAPs; no hosted capability is advertised. | target add, doctor, deploy plan/apply/status/rollback, backup, restore, hosted admission, logs, audit | single-instance-container-vm | partial | `applyDeployPlan` in packages/snapback-cli/deployment-control.mjs | llp/0072, llp/0105 | deploying/releases.md |
 | deploy.cloudflare | The hosted Cloudflare target, as far as it is real | deploy, hosting, production | cloudflare | partial | cloudflare/test/local-suite.mjs | llp/0014, llp/0040, llp/0049 | deploying/cloudflare.md |
 
 Cross-repo seam: Contract/Exact *authoring* (language, components, styling,
@@ -168,8 +168,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:9bc993498cacf9c06be9392fb007475a1329f498346ece1f2edc4832683f66b3
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:dfe849b4ace4f244e4bbbaeab156390f714d6993d9ff092d0d0e05ad6fcd8b94
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -523,6 +523,9 @@ proof command, and honest nonclaims without opening every demo.
   custody, protected rows, and revoking logout (local product-shaped recipe).
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,
   publish budgets (the cursors-web demo, distilled).
+- [Membership-scoped typing indicators](./recipes/typing-indicators.md) —
+  canonical conversation membership, idle withdrawal, and the Sessions
+  negative-observer battery (messaging-snapback, distilled).
 - [Hidden hands](./recipes/hidden-hands.md) — per-principal secrecy, logout
   blanking, lease-bounded offline retention (card-game, distilled).
 - [Optimistic toggle](./recipes/optimistic-toggle.md) — like/favorite with a
@@ -22992,13 +22995,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs]
-examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-15
-reviewed-authorities-digest: sha256:db92bd62a8b6e44311e5a8b2db0b1bd3e3c76e27bcd1237d3f199aada3ced9f0
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:450da96937a6405df735bd10bb8444ceebb57c2dc307f852030433f45844dbac
 ---
 
 # Ephemeral realtime state
@@ -23012,9 +23015,10 @@ presence, cursors, selections, typing, drag state, and live viewport state.
 They are deliberately lossy: if a value must survive restart, support offline
 reads, or enter history/audit, put it in a durable table instead.
 
-Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
-building a feature. Use this page when choosing collection options or handling
-recovery.
+Start with the [typing-indicators recipe](../recipes/typing-indicators.md) for
+a membership-scoped conversation or the
+[presence-cursors recipe](../recipes/presence-cursors.md) for a public room.
+Use this page when choosing collection options or handling recovery.
 
 <!-- since: 0.1.23 -->
 
@@ -23183,7 +23187,7 @@ The option inventory is:
 | `maxValueBytes` / `hardMaxValueBytes` | Defaults 1,024/4,096 bytes; neither may cross the 4 KiB local hard cap. |
 | `publishRate` | Defaults to `{ sustainedHz: 20, burst: 60 }`, enforced per connection/collection. |
 | `delivery` | Defaults to `{ mode: 'latest', dispatchMs: 33 }`; `latest` is the only shipped mode. |
-| `publish` / `subscribe` | Both required explicit policies: `allow.all()` or `allow.roomPermission(prefix)`. |
+| `publish` / `subscribe` | Both require explicit policies: `allow.all()`, `allow.roomPermission(prefix)`, or declaration-bound `allow.members(declarationId)`. |
 | `value` | Required portable validator; generated clients and the server validate it. |
 | `targets` | Defaults to `local-dev-sqlite-ibex`; codegen rejects an undeclared selected target. |
 | `maxPendingEphemeralKeys` | Defaults to 1,024, bounding coalesced keys retained for dispatch. |
@@ -23223,11 +23227,60 @@ subscribe: allow.roomPermission('boardPresence'),
 
 The matching permission string is
 `SnapbackClient.roomPermission('boardPresence', scope)`. A room protected by
-durable membership also participates in the authorization-invalidation
-barrier. Membership-backed room authority binds to the declaration's stable id,
-not a table name or ambient role string; removing or downgrading a required role
-quiesces affected room sinks before the commit becomes visible. Custom-key
-authorization beyond connection ownership is not shipped.
+durable membership also participates in the authorization-invalidation barrier.
+Custom-key authorization beyond connection ownership is not shipped.
+
+<!-- since: 0.1.24 unreleased -->
+
+> **Unreleased.** Membership-backed ephemeral authoring is implemented after
+> the newest published `@expo/snapback-*` closure, 0.1.23. Use a source build
+> until a later closure is published.
+
+For conversation, channel, or document rooms, the normal protected posture is
+`allow.members(declarationId)` on both operations. The messaging demo binds its
+typing room to the canonical `conversationMemberships` declaration:
+
+```js source=demos/messaging-snapback/snapback/schema.mjs
+      // @ref LLP 0013#authorization-and-privacy — both operations bind to one
+      // durable membership declaration so removal revokes the whole room edge.
+      publish: allow.members('conversationMemberships'),
+      subscribe: allow.members('conversationMemberships'),
+```
+
+The stable declaration id lowers to a generated `m_<declarationId>` room
+permission and a `permissionBacking` projection over the declaration's
+canonical table. V1 grants on row existence: the session principal must have a
+current membership row whose resource id equals the room scope. That ships
+current-membership reads, removal invalidation, and write scoping—only a current
+member may subscribe or publish. Both policies must name the same declaration;
+mixing `allow.members` with `allow.all()` is refused because room authority is
+currently derived from the subscribe policy. V1 also refuses app-scoped or
+multi-field scopes, a scope validator other than `v.id()` of the declaration's
+resource table, unknown declarations, and declarations with `pendingRoles`.
+
+Role narrowing is not shipped. The `roles` option is refused, and the runtime's
+existence check has no role predicate. A change between active roles wakes the
+authorization barrier but can regrant the same row, so a role downgrade alone
+is not yet a kick. The follow-on is tracked in
+[`issues/20260817-ephemeral-membership-role-narrowing.md`](repo:issues/20260817-ephemeral-membership-role-narrowing.md).
+
+Sessions mode enforces the emitted projection: identity comes from the session,
+and client permission strings are ignored. Direct/dev mode instead admits room
+subscribe/publish solely on the exact asserted
+`SnapbackClient.roomPermission('m_<declarationId>', scope)` token; the asserted
+`userId` supplies handler identity (entry ownership, bootstrap writes), not
+room admission. The messaging
+demo's `useTyping` wrapper shows that dev-only bridge; it is not a production
+authorization proof. Run the recipe's Sessions acceptance shape before claiming
+membership privacy.
+
+Removal is correct on the wire: the removed subscriber receives its terminal
+denial and then no later frames, while survivors receive `AuthRevoked` removal.
+The base client overlay does not yet apply that terminal `Error` frame, so React
+hooks cannot surface terminal status/diagnostic until
+[`issues/20260817-ephemeral-overlay-missing-error-arm.md`](repo:issues/20260817-ephemeral-overlay-missing-error-arm.md)
+lands. Do not interpret an empty/stalled hook after removal as a surfaced
+terminal state.
 
 ## Subscribe to snapshot plus deltas
 
@@ -23920,6 +23973,347 @@ hidden rows before any fallback could serve them:
 - **Do not pass the player as a query argument.** The server derives the
   principal; an owner argument is spoofable and is rejected in sessions
   mode.
+
+---
+
+<!-- snapback-guide-source: guide/recipes/typing-indicators.md -->
+---
+title: "Recipe: membership-scoped typing indicators"
+id: recipes.typing-indicators
+order: 2
+audience: agent-first
+capabilities: [realtime.ephemeral]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts, demos/messaging-snapback/tests/acceptance/headless.mjs]
+examples: [demos/messaging-snapback]
+status: current
+targets: [local]
+maturity: shipped
+since: 0.1.24
+unreleased: true
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:6655d93fe02e6bd5a58ecd5bd0240c2479195e265404cec00047e8fdd5e2e4fd
+---
+
+# Recipe: membership-scoped typing indicators
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+> **Unreleased.** Membership-backed ephemeral authoring is implemented after
+> the newest published `@expo/snapback-*` closure, 0.1.23. Use a source build
+> until a later closure is published.
+
+A typing indicator should disappear after inactivity and should be visible and
+writable only inside the conversation where the user is a current member. Use
+one canonical `membership()` declaration as durable authority and bind both
+ephemeral operations with `allow.members()`. The complete working reference is
+`demos/messaging-snapback`; the
+[ephemeral-state reference](../realtime/ephemeral-state.md) owns every lower-level
+collection and recovery option.
+
+## 1. Declare membership and the typing room together
+
+The messaging demo keeps its public conversation projection separate from this
+restricted canonical authority table. One row means current membership; removal
+deletes the row rather than preserving a historical incarnation:
+
+```js source=demos/messaging-snapback/snapback/schema.mjs
+export const conversationMemberships = defineTable({
+  conversationId: v.id('conversations'),
+  userHandle: v.principal(),
+  role: v.string(),
+  // The generated bootstrap owns the creator seat and therefore cannot take
+  // app-authored incidental fields for it; initial roster seats still stamp it.
+  joinedAt: v.optional(v.integer()),
+})
+  .visibility({ kind: 'owner', field: 'userHandle' })
+  .index('by_conversation', ['conversationId'])
+  .index('by_user', ['userHandle'])
+  .index('by_conversation_user', ['conversationId', 'userHandle'], { unique: true })
+  // @ref LLP 0056#declaring-a-membership-table — typing authority is one
+  // canonical current principal/resource/role row, never a historical flag.
+  .membership({
+    id: 'conversationMemberships',
+    principal: 'userHandle',
+    resource: 'conversationId',
+    role: 'role',
+    roles: ['owner', 'member'],
+    bootstrapRole: 'owner',
+    provenance: 'full',
+    transitions: [
+      { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
+      { op: 'remove', by: ['self'], target: 'self', from: ['member'] },
+    ],
+  });
+```
+
+The room scope uses `v.id('conversations')`, the same nominal resource table as
+the declaration. Publish and subscribe name the same stable declaration id:
+
+```js source=demos/messaging-snapback/snapback/schema.mjs
+    typing: ephemeral.collection({
+      scope: { conversationId: v.id('conversations') },
+      routing: ['conversationId'],
+      key: 'connection',
+      ttlMs: 6_000,
+      maxTtlMs: 15_000,
+      maxValueBytes: 256,
+      publishRate: { sustainedHz: 5, burst: 10 },
+      delivery: { mode: 'latest', dispatchMs: 100 },
+      value: v.object({
+        userHandle: v.string(),
+        name: v.string(),
+      }),
+      // @ref LLP 0013#authorization-and-privacy — both operations bind to one
+      // durable membership declaration so removal revokes the whole room edge.
+      publish: allow.members('conversationMemberships'),
+      subscribe: allow.members('conversationMemberships'),
+    }),
+```
+
+Codegen emits the generated `m_conversationMemberships` permission prefix and
+the durable `permissionBacking` projection. V1 intentionally accepts only one
+room scope field, and that field must be exactly `v.id()` of the membership
+resource table. It refuses `pendingRoles`, `roles` narrowing, app-scoped
+memberships, multi-field scope, unknown declarations, wrong-table ids, and any
+mix of `allow.members()` with `allow.all()`.
+
+## 2. Publish on activity and withdraw on idle
+
+At the screen boundary, the demo's hook gives the component peers plus two
+intent-first actions:
+
+```tsx source=demos/messaging-snapback/src/app/conversation/[id].tsx
+  const { typers, publishTyping, clearTyping } = useTyping(id, self.handle, self.name);
+```
+
+Each non-empty edit is an activity tick; clearing or sending withdraws without
+waiting for TTL:
+
+```tsx source=demos/messaging-snapback/src/app/conversation/[id].tsx
+  function onChangeBody(text: string) {
+    setBody(text);
+    if (text.trim().length > 0) {
+      publishTyping();
+    } else {
+      void clearTyping();
+    }
+  }
+```
+
+LLP 0257's normal provider-owned implementation is
+`useSnapbackActivityPresence`: pass the generated typing reference, the
+conversation scope, a value thunk, and `idleMs: 3_000`; use its `peers`,
+`touch()`, and `withdraw()` results. It owns the absolute idle deadline,
+Strict-Mode-safe teardown, scope reset, and Expo background withdrawal while
+the provider owns lease renewal.
+
+The messaging demo has a deliberate direct/dev exception. Its provider cannot
+carry the asserted persona and generated room permission, so `useTyping`
+constructs the exact dev permission:
+
+```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
+  const scope = useMemo(() => ({ conversationId }), [conversationId]);
+  const permissions = useMemo(
+    () => [(SnapbackClient as unknown as {
+      roomPermission(prefix: string, permissionScope: Record<string, unknown>): string;
+    }).roomPermission('m_conversationMemberships', scope)],
+    [scope],
+  );
+```
+
+It passes both assertions at subscription; overlay publish/delete inherit them:
+
+```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
+    void client.subscribeEphemeral(typingRef, {
+      connectionId,
+      scope,
+      userId: selfHandle,
+      permissions,
+    }).then((subscribed) => {
+      overlay = subscribed;
+      if (cancelled) {
+        void subscribed.delete().catch(() => {}).finally(() => subscribed.dispose());
+        return;
+      }
+      overlayRef.current = subscribed;
+      const refresh = () => setEntries(subscribed.currentEntries());
+      stopObserving = subscribed.onChange(refresh);
+      refresh();
+    }).catch((error) => {
+      if (!cancelled) reportTypingFailure('subscribe', error);
+    });
+```
+
+Do not copy that assertion bridge into production auth. Under Sessions,
+Snapback ignores caller-asserted identity and permission strings and evaluates
+the generated projection against the authenticated principal.
+
+## 3. Prove the three negative observers in Sessions mode
+
+Run privacy acceptance against a Sessions copy of the backend. Anonymous and
+authenticated non-member clients must fail both subscribe and publish:
+
+```js source=demos/messaging-snapback/tests/acceptance/headless.mjs
+  await suite.check('typing membership (a): anonymous subscribe and publish are denied', async () => {
+    const scope = { conversationId: dmId };
+    const subscribeError = await captureRejection(app.clients.anonymous.subscribeEphemeral(typingRef, {
+      connectionId: 'typing-anonymous-subscribe',
+      scope,
+      transport: 'poll',
+    }), 'anonymous typing subscribe');
+    assertPermissionDenied(subscribeError, 'anonymous typing subscribe');
+
+    const publishError = await captureRejection(app.clients.anonymous.publishEphemeral(typingRef, {
+      connectionId: 'typing-anonymous-publish',
+      scope,
+      value: { userHandle: 'anonymous', name: 'Anonymous' },
+      ttlMs: typingRef.maxTtlMs,
+    }), 'anonymous typing publish');
+    assertPermissionDenied(publishError, 'anonymous typing publish');
+    return {
+      subscribe: subscribeError.diagnostic.code,
+      publish: publishError.diagnostic.code,
+    };
+  });
+
+  await suite.check('typing membership (b): an authenticated non-member is denied', async () => {
+    const scope = { conversationId: dmId };
+    const subscribeError = await captureRejection(app.clients.outsider.subscribeEphemeral(typingRef, {
+      connectionId: 'typing-outsider-subscribe',
+      scope,
+      transport: 'poll',
+    }), 'non-member typing subscribe');
+    assertPermissionDenied(subscribeError, 'non-member typing subscribe');
+
+    const publishError = await captureRejection(app.clients.outsider.publishEphemeral(typingRef, {
+      connectionId: 'typing-outsider-publish',
+      scope,
+      value: { userHandle: 'outsider', name: 'Outsider' },
+      ttlMs: typingRef.maxTtlMs,
+    }), 'non-member typing publish');
+    assertPermissionDenied(publishError, 'non-member typing publish');
+    return {
+      subscribe: subscribeError.diagnostic.code,
+      publish: publishError.diagnostic.code,
+    };
+  });
+```
+
+For a former member, remove the canonical row while subscriptions are live.
+The former member receives one terminal denial, cannot publish, and receives no
+later frames; a surviving member receives the `AuthRevoked` removal:
+
+```js source=demos/messaging-snapback/tests/acceptance/headless.mjs
+  await suite.check('typing membership (e): removing B revokes B and removes B from A', async () => {
+    await app.clients.recipientA.mutate(api.leaveConversation, {
+      args: { conversationId: typingConversationId },
+    });
+
+    await eventually(async () => {
+      await Promise.all([memberAOverlay.drain(), memberBOverlay.drain()]);
+      const denied = ephemeralMessage(memberBFrames.at(-1));
+      assert(memberBTerminalMessage, 'removed member receives the PermissionDenied terminal frame');
+      assertEqual(
+        denied?.Error?.error?.code,
+        'PermissionDenied',
+        'PermissionDenied is the last frame received at revocation time',
+      );
+      assertEqual(
+        memberBFrames.length,
+        memberBTerminalFrameCount,
+        'no frame follows the first PermissionDenied at the revocation checkpoint',
+      );
+      assertEqual(
+        denied.Error.room_authority_generation,
+        2,
+        'removed member terminal frame carries the successor authority generation',
+      );
+      const revoked = memberAFrames
+        .map(ephemeralMessage)
+        .find((message) => (
+          message?.Remove?.key === memberBEntryKey
+          && message.Remove.reason === 'AuthRevoked'
+        ));
+      assert(revoked, 'surviving member receives the AuthRevoked removal frame');
+      assert(
+        !memberAOverlay.currentEntries().some((entry) => entry.key === memberBEntryKey),
+        'member A no longer sees member B typing',
+      );
+    }, 'membership removal revokes B and deletes B typing');
+
+    const publishError = await captureRejection(memberBOverlay.publish(
+      { userHandle: recipientAPrincipal, name: 'Removed member B' },
+      { ttlMs: typingRef.maxTtlMs },
+    ), 'removed member typing publish');
+    assertPermissionDenied(publishError, 'removed member typing publish');
+
+    assertEqual(
+      memberBFrames.length,
+      memberBTerminalFrameCount,
+      'removed member receives zero frames between terminal denial and survivor probe',
+    );
+    await memberAOverlay.publish(
+      { userHandle: ownerPrincipal, name: 'Member A after removal' },
+      { ttlMs: typingRef.maxTtlMs },
+    );
+    await memberAOverlay.drain();
+    await memberBOverlay.drain();
+    assertEqual(
+      memberBFrames.length,
+      memberBTerminalFrameCount,
+      'removed member subscription stays silent after its terminal frame',
+    );
+    const removal = memberAFrames
+      .map(ephemeralMessage)
+      .find((message) => (
+        message?.Remove?.key === memberBEntryKey
+        && message.Remove.reason === 'AuthRevoked'
+      ));
+    return {
+      removedSubscriberFrameCode: memberBTerminalMessage.Error.error.code,
+      successorAuthorityGeneration: memberBTerminalMessage.Error.room_authority_generation,
+      survivorRemovalReason: removal.Remove.reason,
+      formerMemberPublish: publishError.diagnostic.code,
+      postTerminalFrames: memberBFrames.length - memberBTerminalFrameCount,
+    };
+  });
+```
+
+Keep the two positive witnesses in the same battery: member A sees member B's
+typing entry before removal, and B can publish through a fresh subscription
+after rejoin. Together these are the five capability scenarios, not merely
+three static denials.
+
+The terminal behavior above is currently a wire-level proof. The base client
+overlay has no `Error` arm, so React/activity hooks do not yet expose the
+removed member's terminal status or diagnostic; follow
+[`issues/20260817-ephemeral-overlay-missing-error-arm.md`](repo:issues/20260817-ephemeral-overlay-missing-error-arm.md).
+
+## Sessions and direct/dev prove different things
+
+- **Sessions is the privacy proof.** The authenticated principal and emitted
+  durable projection decide membership. Removal invalidates the live room edge
+  and later publication.
+- **Direct/dev is an assertion harness.** The caller supplies `userId` and
+  `roomPermission('m_<declarationId>', scope)`. It proves room behavior, not
+  that the server derived the authority from membership.
+- **Role is not a v1 predicate.** `allow.members(..., { roles })` and
+  declarations with `pendingRoles` fail closed. A role downgrade is not yet a
+  kick; track the role-narrowing follow-on from the reference page.
+
+## Anti-patterns
+
+- **Do not use `allow.all()` for conversation typing.** Anyone who learns the
+  conversation id could observe or inject activity.
+- **Do not preserve historical membership rows as the backing declaration.**
+  V1 row-existence authority would retain former-member access.
+- **Do not treat a direct/dev permission token as Sessions evidence.** Run the
+  negative observer battery against an authenticated Sessions server.
+- **Do not hand-roll idle timers when the provider owns authority.** Use
+  `useSnapbackActivityPresence`; keep a custom `useTyping` only for a real
+  credential-carrying seam such as the demo's direct/dev exception.
 
 ---
 

@@ -5,8 +5,8 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-15 (first-delivery latency budget: the local target's already-subscribed accept-to-client-apply path has a 1,000 ms regression ceiling, additive accept/dispatch/flush timestamps, and an observation-honesty rule that excludes synthetic typing-action duration). 2026-08-10 (LLP 0222 boundary amendment: server-owned connected-client witnesses are not author-writable ephemeral collections). 2026-07-23 (LLP 0086 CC-8 row 4: deliberate partyserver posture recorded — parallel, not wrap; hibernation bounds noted). 2026-07-17 (client-visible scope, entry, and room-authority generations are bounded by `Number.MAX_SAFE_INTEGER`; entry exhaustion terminally retires the room and emits only a clearing epoch boundary). 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0039, LLP 0053, LLP 0083, LLP 0086
+**Revised:** 2026-08-17 (source-authored membership-backed rooms: `allow.members`, fail-closed v1 refusals, deterministic `permissionBacking` lowering, honest row-existence grant semantics, and the Sessions capability battery). 2026-08-15 (first-delivery latency budget: the local target's already-subscribed accept-to-client-apply path has a 1,000 ms regression ceiling, additive accept/dispatch/flush timestamps, and an observation-honesty rule that excludes synthetic typing-action duration). 2026-08-10 (LLP 0222 boundary amendment: server-owned connected-client witnesses are not author-writable ephemeral collections). 2026-07-23 (LLP 0086 CC-8 row 4: deliberate partyserver posture recorded — parallel, not wrap; hibernation bounds noted). 2026-07-17 (client-visible scope, entry, and room-authority generations are bounded by `Number.MAX_SAFE_INTEGER`; entry exhaustion terminally retires the room and emits only a clearing epoch boundary). 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0037, LLP 0039, LLP 0053, LLP 0056, LLP 0083, LLP 0086
 
 ## Summary
 
@@ -941,10 +941,115 @@ The accepted implementation must keep the following acceptance proofs green:
 ## Dated note: declaration-bound room authority (2026-07-16)
 
 Room membership predicates bind to a membership declaration by stable id, not
-table spelling or an ambient role string. Any transition that removes a
-required role—including a role downgrade—is a kick for room authority: the
-existing item-6 barrier reauthorizes or unregisters the affected connection
-before later effects can escape.
+table spelling or an ambient role string. Removal is a kick for room
+authority: the existing item-6 barrier reauthorizes or unregisters the
+affected connection before later effects can escape. A role DOWNGRADE fires
+the same barrier but, in the shipped role-blind row-existence grant, the
+re-grant succeeds — downgrade today is a transient suspension, not a kick.
+Downgrade-as-kick is the role-narrowing follow-on (see the 2026-08-17
+amendment and issues/20260817-ephemeral-membership-role-narrowing.md).
+
+## Dated amendment: source-authored membership-backed rooms (2026-08-17)
+
+This amendment lands the declaration-bound authoring half of the 2026-07-16
+note and narrows its role sentence to the still-open completion described
+below.
+
+### Authoring surface and v1 refusals
+
+`allow.members(declarationId, opts?)` is the closed membership-backed
+ephemeral policy. `declarationId` resolves by stable effective id to one
+installed LLP 0056 `membership()` declaration; arbitrary tables, legacy raw
+`permissionBacking()` tables, and unknown declarations are not admitted.
+`opts` is closed to `scopeField` and the reserved `roles` option.
+
+V1 fails closed unless all of these are true:
+
+- publish and subscribe both use `allow.members` with the same declaration;
+  neither direction may mix it with `allow.all()` or
+  `allow.roomPermission()`. The runtime derives room authority from the
+  subscribe policy and then uses it for every operation; per-operation
+  membership authority is a future runtime capability, not an authoring-only
+  choice;
+- the declaration is resource-scoped, the collection has exactly one scope
+  field, and any explicit `scopeField` names that field. App-scoped and
+  multi-field collections are refused because the current runtime projection
+  must back every room-scope field;
+- the room scope validator is exactly
+  `v.id(<the declaration resource table>)`. A non-id validator, optional id,
+  or `v.id()` naming another table is refused: matching field spelling does
+  not establish the same nominal resource domain;
+- the declaration has no `pendingRoles`. The runtime grant is role-blind row
+  existence, so admitting invited rows would leak membership authority; and
+- neither policy supplies `roles`. The option is reserved for the role-aware
+  follow-on and is refused rather than ignored.
+
+Generated membership prefixes occupy the `m_<declarationId>` namespace.
+Author-supplied `allow.roomPermission()` prefixes may not collide with that
+namespace or the platform-reserved `_snapback_stream_server` prefix.
+
+### Lowering and one-validator convergence
+
+For both operations, codegen lowers `allow.members(id)` to the existing
+`RequireRoomPermission` policy with prefix `m_<id>`. The collection also emits:
+
+```text
+permissionBacking: {
+  table: <canonical declaration table>,
+  subjectField: <declaration principal field>,
+  scopeFields: { <room scope field>: <declaration resource field> }
+}
+```
+
+The stable id is therefore the authoring binding; the generated runtime
+projection names the resolved canonical table and fields. The emitted artifact
+uses the existing Rust-owned manifest shape and passes the same activation
+validator as a hand-built manifest. Codegen does not create a parallel
+validator or wire concept: this is the one-validator convergence required by
+LLP 0037.
+
+### V1 grant and invalidation semantics
+
+In Sessions mode the authenticated principal is matched against the emitted
+projection with a pinned-snapshot `EXISTS` query over subject and resource.
+Because only a canonical LLP 0056 declaration may back the policy, row
+existence is equivalent to **current membership** rather than a historical
+incarnation. A current member can subscribe and publish. Removing the row
+installs the existing authorization barrier, re-resolves at or after the
+membership commit, unregisters the denied subscriber, removes that
+connection's entries for survivors, and denies later publication.
+
+V1 does **not** narrow by role: `permissionBacking` has no role field or
+allowed-role set and the `EXISTS` query has no role predicate. A transition
+between active roles wakes the barrier but row existence can regrant the
+connection. Therefore the 2026-07-16 sentence “a role downgrade is a kick” is
+the intended role-aware completion, not a claim about this shipped slice.
+[`issues/20260817-ephemeral-membership-role-narrowing.md`](../issues/20260817-ephemeral-membership-role-narrowing.md)
+owns `roleField`/`allowedRoles`, the role predicate, validation, codegen's
+lifting of the `pendingRoles`/`roles` refusals, and the downgrade-kick witness.
+
+Direct/dev mode remains intentionally different: room admission rests solely on
+the asserted `roomPermission('m_<id>', scope)` token (the runtime's
+RequireRoomPermission checks only `auth.permissions`); the asserted identity
+feeds handler semantics, not admission. It exercises room behavior but does not
+prove the Sessions projection. Production privacy claims bind to Sessions evidence.
+
+### Capability fixture obligations
+
+Membership-backed ephemeral rooms are a capability claim only while the
+messaging demo's Sessions acceptance battery preserves all five scenarios:
+
+1. anonymous subscribe and publish are denied;
+2. authenticated non-member subscribe and publish are denied;
+3. member A observes member B's typing entry;
+4. removing B gives B one terminal denial followed by wire silence, removes
+   B's entry from A with `AuthRevoked`, and denies B's later publish; and
+5. reseating B admits a fresh subscription and publication.
+
+These are first-class fixtures, not prose examples. The terminal guarantee in
+scenario 4 is currently wire-level; the client overlay's missing `Error` arm is
+tracked separately in
+[`issues/20260817-ephemeral-overlay-missing-error-arm.md`](../issues/20260817-ephemeral-overlay-missing-error-arm.md).
 
 ## Dated note: partyserver posture (2026-07-23)
 

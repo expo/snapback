@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:975052f8e2dc1b1cf53c45d32073f27a57b2a60940f84ba3eb60421db0c16430"
+    "sourceDigest": "sha256:a30c94577066bcac0a80ac282490c741be883fa3a0e92841364c5db062bcdf66"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -377,6 +377,11 @@
         "id": "recipes.hidden-hands",
         "order": 2,
         "title": "Recipe: hidden hands"
+      },
+      {
+        "id": "recipes.typing-indicators",
+        "order": 2,
+        "title": "Recipe: membership-scoped typing indicators"
       },
       {
         "id": "recipes.optimistic-toggle",
@@ -2845,9 +2850,9 @@
         "packages/snapback-react/implementation.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-16",
-      "reviewedAuthoritiesDigest": "sha256:9db8da0333d179bf95df5ff625e6d5bcb97bbc0ae2aa9f4a14b8c2981ad06af4",
-      "sha256": "b3da00c688fc4ad8769055f76c30091db31139876b405102dc5dfdb0c5733cff",
+      "reviewed": "2026-08-17",
+      "reviewedAuthoritiesDigest": "sha256:7f9585e2924827e7f5057f9a42dfda3b1c15cefeb0c142a6f5c2a2fcaab3db64",
+      "sha256": "b69428e242aa303261761ff6381ab8861d4a47601f4494b53319180cee3b71c1",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3946,9 +3951,9 @@
         "demos/partiful-matrix",
         "demos/expo-golden-path-fixture"
       ],
-      "reviewed": "2026-08-15",
-      "reviewedAuthoritiesDigest": "sha256:9bc993498cacf9c06be9392fb007475a1329f498346ece1f2edc4832683f66b3",
-      "sha256": "f88cf91f3b01ddd2789956df35c71381909a4a0e439476bc693ae4da27509a2b",
+      "reviewed": "2026-08-17",
+      "reviewedAuthoritiesDigest": "sha256:dfe849b4ace4f244e4bbbaeab156390f714d6993d9ff092d0d0e05ad6fcd8b94",
+      "sha256": "62f17bd5cca0c25d06c20f13325618b892b10a985234f5a7c1824cc8d602c024",
       "snippets": [
         {
           "lang": "json",
@@ -4443,6 +4448,7 @@
       ],
       "authorities": [
         "llp/0013-ephemeral-realtime-state.rfc.md",
+        "llp/0056-scoped-roles-and-memberships.rfc.md",
         "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0247-ordinary-client-normalization-and-recovery.rfc.md",
@@ -4462,16 +4468,18 @@
         "packages/snapback-react/activity-presence.test.mjs",
         "packages/snapback-expo/activity-presence.mjs",
         "packages/snapback-expo/activity-presence.test.mjs",
-        "demos/_kit/tests/regression-multiplexed-lanes.mjs"
+        "demos/_kit/tests/regression-multiplexed-lanes.mjs",
+        "demos/messaging-snapback/snapback/schema.mjs",
+        "demos/messaging-snapback/tests/acceptance/headless.mjs"
       ],
       "examples": [
         "demos/cursors-web",
         "demos/todo-v2/snapback/schema.mjs",
-        "demos/messaging-snapback/src/lib/useTyping.ts"
+        "demos/messaging-snapback"
       ],
-      "reviewed": "2026-08-15",
-      "reviewedAuthoritiesDigest": "sha256:db92bd62a8b6e44311e5a8b2db0b1bd3e3c76e27bcd1237d3f199aada3ced9f0",
-      "sha256": "df1a5a351aed110bf9a74bf2c22bdb56f328c6aec22c733862fe81a7f9832551",
+      "reviewed": "2026-08-17",
+      "reviewedAuthoritiesDigest": "sha256:450da96937a6405df735bd10bb8444ceebb57c2dc307f852030433f45844dbac",
+      "sha256": "e8339ac1c990f18fd1b7887bdd22e8a022a408709630763bed81c2f0597b8ce6",
       "snippets": [
         {
           "lang": "tsx",
@@ -4495,6 +4503,11 @@
         {
           "lang": "js",
           "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/snapback/schema.mjs"
         },
         {
           "lang": "contract",
@@ -5185,6 +5198,82 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/coterie/snapback/seed-m1.mjs"
+        }
+      ]
+    },
+    "recipes.typing-indicators": {
+      "path": "guide/recipes/typing-indicators.md",
+      "title": "Recipe: membership-scoped typing indicators",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "since": "0.1.24",
+      "unreleased": true,
+      "capabilities": [
+        "realtime.ephemeral"
+      ],
+      "authorities": [
+        "llp/0013-ephemeral-realtime-state.rfc.md",
+        "llp/0056-scoped-roles-and-memberships.rfc.md",
+        "llp/0257-activity-scoped-presence-convenience.rfc.md",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-react/activity-presence.test.mjs",
+        "packages/snapback-expo/activity-presence.test.mjs",
+        "demos/messaging-snapback/snapback/schema.mjs",
+        "demos/messaging-snapback/src/lib/useTyping.ts",
+        "demos/messaging-snapback/tests/acceptance/headless.mjs"
+      ],
+      "examples": [
+        "demos/messaging-snapback"
+      ],
+      "reviewed": "2026-08-17",
+      "reviewedAuthoritiesDigest": "sha256:6655d93fe02e6bd5a58ecd5bd0240c2479195e265404cec00047e8fdd5e2e4fd",
+      "sha256": "af4b52e6905f07485b504631d58eb16136d4bf0c730e2aee48f193e50967e661",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/snapback/schema.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/snapback/schema.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/src/app/conversation/[id].tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/src/app/conversation/[id].tsx"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/src/lib/useTyping.ts"
+        },
+        {
+          "lang": "tsx",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/src/lib/useTyping.ts"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/messaging-snapback/tests/acceptance/headless.mjs"
         }
       ]
     },
@@ -12238,7 +12327,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2399671,
-      "sha256": "71cf860c5fb752d430f36b2506b4666641b10897517028f756c480f15c60c803",
+      "sha256": "56fdf388bfb764eb8bf583c8f8a843e75613a42356765e0f7c04312fe5895215",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12247,7 +12336,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:7a9df94e5fcf41dd304ac72e1038505f12a20f1338aa62afb9fa53ce92a5780f",
+      "sourceDigest": "sha256:0a84d45872f0f53df1ea8799ef18d5ef321e0623cfe8db3ac9dd227ae1b953c9",
       "codes": 3427,
       "emittingSites": 11748
     }
@@ -12385,16 +12474,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3503896,
-      "sha256": "30138b5750891b77a20477d119784b4268bcbda75339db55f9b4928eca56f329"
+      "bytes": 3520343,
+      "sha256": "4411467539b7c51c320959f07ea9e78a4c1c0d5cd44448273746985dcf0ff0cb"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 150014,
-        "sha256": "3a5a40607698f3fa60dbf4f4a6b1808e098ede0a225adab778d62a87a1e4d25f"
+        "bytes": 148827,
+        "sha256": "cf74b98605ccbf51b32f093945039a7bd7df1f27469e28bf8a072a954ff05266"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -12449,15 +12538,15 @@
         "path": "guide/guide-flat.realtime.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.realtime.generated.md",
         "uri": "snapback-guide://flat/realtime",
-        "bytes": 44188,
-        "sha256": "17c9a54e8478239b2ef037343527792036e21b7e89a9e27b325b0fc3c2bf301e"
+        "bytes": 47293,
+        "sha256": "9c709a1d75b5c708ffadff5c4d31a75cef439d743ce56375a326b94b8c3bf816"
       },
       "recipes": {
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 116390,
-        "sha256": "d8639c7e2771b442871802443908299a08f096bf9cd17aa9c475340ad4501c3a"
+        "bytes": 130919,
+        "sha256": "d6492f670e252775f3c2e69a17646782473cd03a7597b72a1fa90c8607526a94"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
@@ -12489,5 +12578,5 @@
       }
     }
   },
-  "contentHash": "975052f8e2dc1b1cf53c45d32073f27a57b2a60940f84ba3eb60421db0c16430"
+  "contentHash": "a30c94577066bcac0a80ac282490c741be883fa3a0e92841364c5db062bcdf66"
 }
