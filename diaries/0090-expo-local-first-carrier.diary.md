@@ -99,3 +99,22 @@ an exclusive connection; the typed close-failed state is less convenient but
 honest and recoverable. No Guide gap was found: these were implementation and
 qualification-falsifiability defects inside the already documented pending
 carrier stage.
+
+## 2026-08-16 unattended command-channel correction
+
+The live iOS simulator run exposed a system boundary that a visible interactive
+run hid: every custom-scheme `simctl openurl` delivery can present an “Open in
+<app>?” confirmation. On a headless simulator that dialog is invisible and
+unanswerable, so deep links cannot be the director transport for unattended
+qualification cycles even though they remain useful for manual probe runs.
+
+The director now binds a fixed, build-inlined port and serves the current
+nonce-bearing command over HTTP. Each cold launch polls once (with bounded
+startup retries), reports the nonce through the existing phase events, and the
+director clears only a matching `armed` or `verified` command. This made the
+launch itself ordinary on every device class and moved correlation into the
+recorded protocol instead of an OS URL-dispatch side effect. Android's generated
+launcher was inspected and is started explicitly as `.MainActivity`, avoiding
+a VIEW intent there as well. No Guide gap was filed: this is qualification-
+harness/platform behavior, not application-author knowledge the Snapback Guide
+should have supplied.
