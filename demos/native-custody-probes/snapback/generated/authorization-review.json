@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:24ac572a6aa93f41717eeab5010dfb3ea214a5b49003112957c64ab4f936387e",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:9e10b91abf99acb535b39ee1742df85cc4146a54f90dcc5dd8a16123022ad799",
   "operations": [
     {
       "authRequirement": {
@@ -75,7 +75,7 @@
     "maskedFieldUses": "snapback.authorization-review.masked-field-uses.reserved.v1",
     "tablePolicyTransitions": "snapback.authorization-review.table-policy-transitions.v1",
     "visibilityOverrides": "snapback.authorization-review.visibility-overrides.v1",
-    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.reserved.v1"
+    "writePolicyChecks": "snapback.authorization-review.write-policy-checks.v2"
   },
   "tablePolicies": [
     {

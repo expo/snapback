@@ -26,7 +26,7 @@
       "authRequirement": "authenticated",
       "declaredReads": [],
       "delivery": {
-        "kind": "private-strict"
+        "kind": "public-immutable"
       },
       "exportedName": "profileImageUpload",
       "handlerForm": "inline",
@@ -34,8 +34,8 @@
       "image": {
         "location": "strip"
       },
-      "implementationHash": "sha256:479b6945ef11a5cf94161afdbd5eec7ef4e6ea78bf8a14b7a5a61b7a2e967a94",
-      "intentPolicyHash": "sha256:be2a84cd578b68b825fec40d9c7c26a688f01666ef1cdab5b70cacd9ac6de43f",
+      "implementationHash": "sha256:845c3119dee3c14faf46b838b97adb9d08e0a769f76a75eacc0fc80026f313c6",
+      "intentPolicyHash": "sha256:b36a2fdcdcb9e0dc6783ee66c7f70756f1c9d2f388a53fcc378d35a70ac4a34d",
       "name": "profileImageUpload",
       "runtime": {
         "IbexModule": {
@@ -46,7 +46,7 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 18
+        "line": 19
       }
     },
     {
@@ -86,16 +86,16 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 38
+        "line": 40
       },
       "video": {
         "location": "strip"
       }
     }
   ],
-  "authoredSourceHash": "sha256:7ac4dd795adbb0433def4db1c39f797f924ce1c0e1cc02d3da7968709152ccc5",
+  "authoredSourceHash": "sha256:7fee9955840360ff38d375808536ab10621d791d9d0c4c6bb563340547eac0f0",
   "authoringProfile": "snapback-explicit-v1",
-  "bundleHash": "sha256:6a1abfe98c53f0fe",
+  "bundleHash": "sha256:8401d40accffbc9e",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -244,7 +244,7 @@
       "sourceSpan": {
         "column": 12,
         "file": "functions.mjs",
-        "line": 63
+        "line": 65
       },
       "syncabilityClass": "mutation",
       "uses": [],
@@ -579,7 +579,7 @@
       "sourceSpan": {
         "column": 12,
         "file": "functions.mjs",
-        "line": 116
+        "line": 118
       },
       "syncabilityClass": "mutation",
       "uses": [],
@@ -2763,7 +2763,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25",
+  "inputsHash": "22389c24eeb48647d4f61e9c29ab9ca7eb789a4c3e785ecddbe920a5155bb013",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

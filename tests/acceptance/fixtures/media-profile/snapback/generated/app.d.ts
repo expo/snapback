@@ -38,7 +38,7 @@ export interface GeneratedAppCommands {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-command.v1`, `assets.media-ref-projection.v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
    * Dispatch/task states: `validating`, `uploading`, `committing`, `committed`, `failed`, `cancelled`, `ambiguous`.
-   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `22389c24eeb48647d4f61e9c29ab9ca7eb789a4c3e785ecddbe920a5155bb013`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   readonly "createPost": MediaCommandDescriptor<GeneratedCommandTargets["createPostMutation"], "media", "assetIds", 1, 4, never, GeneratedApi["sharedMediaUpload"]>;
   /**
@@ -47,7 +47,7 @@ export interface GeneratedAppCommands {
    * Auth: `authenticated`; required capabilities: `args_contract_v1`, `assets.media-collection.v1`, `assets.media-command.v1`, `assets.media-ref-projection.v1`, `ibex_ctx_db_host_bridge`, `inline_handler_v1`, `mutation_read_set_validation`, `result_contract_v1`.
    * Freshness: task snapshot is process-local; mutation settlement remains durable Retention: command task is process-local; constituent mutation follows outbox retention.
    * Dispatch/task states: `validating`, `uploading`, `committing`, `committed`, `failed`, `cancelled`, `ambiguous`.
-   * Build identity: `6453006e621a715eeaef23a3e992cce1aa2ebee5b7d6bbcf13226c4df0bbff25`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
+   * Build identity: `22389c24eeb48647d4f61e9c29ab9ca7eb789a4c3e785ecddbe920a5155bb013`. Guide: `/_snapback/guide/clients/headless.md#generated-reference-kinds-and-legal-verbs`.
    */
   readonly "sendMessage": MediaCommandDescriptor<GeneratedCommandTargets["sendMessageMutation"], "media", "assetIds", 1, 8, "recipients", GeneratedApi["sharedMediaUpload"]>;
 }

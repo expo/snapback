@@ -2161,6 +2161,29 @@ async function generateInProcessLocked({
       const extracted = extractInlineHandlers(captured, {
         path: relative(backendRoot, module.path).split(sep).join('/'),
       });
+      if (erased.sourceMap) {
+        const remap = (holder) => {
+          if (holder.generatedSourceSpan) return;
+          const generatedSourceSpan = holder.sourceSpan;
+          const authored = mapGeneratedTypeScriptPosition(
+            erased.sourceMap,
+            generatedSourceSpan.line,
+            generatedSourceSpan.column,
+          );
+          if (!authored) return;
+          holder.generatedSourceSpan = generatedSourceSpan;
+          holder.sourceMap = erased.sourceMap;
+          holder.sourceSpan = {
+            file: relative(backendRoot, module.path).split(sep).join('/'),
+            line: authored.line,
+            column: authored.column,
+          };
+        };
+        for (const handler of extracted.handlers.values()) {
+          remap(handler);
+          for (const helper of handler.helpers ?? []) remap(helper);
+        }
+      }
       diagnostics.push(...extracted.diagnostics);
       definitionSourceOverrides.set(resolve(module.path), {
         ...erased,
@@ -4251,7 +4274,8 @@ async function generateInProcessLocked({
             file: 'functions.mjs',
             line: segment.sourceSpan.line + issue.line - segment.startLine,
             column: issue.line === segment.startLine
-              ? segment.sourceSpan.column + issue.column - 1
+              ? segment.sourceSpan.column + issue.column
+                - (segment.renderedStartColumn ?? 1)
               : issue.column,
           },
         });
@@ -4270,6 +4294,12 @@ async function generateInProcessLocked({
         : capabilityRendered;
       return {
         source: rendered.source,
+        // The write census consumes the canonical splice-rendered closure,
+        // not a Familiar or membership runtime wrapper around it. Its
+        // segments retain authored positions for the handler and each
+        // reachable same-file helper.
+        writePolicyAnalysisSource: canonicalRendered.source,
+        writePolicySourceSegments: canonicalRendered.segments,
         analysisSource: extracted.expressionSource,
         analysisDirect: true,
         analysisSourceSpan: extracted.sourceSpan,
@@ -5869,6 +5899,10 @@ async function generateInProcessLocked({
         // @ref LLP 0264#d9-authorization-review-projection
         writePolicySourcePath:
           resolvedHandler?.analysisSourceSpan?.file ?? 'functions.mjs',
+        writePolicyAnalysisSource:
+          resolvedHandler?.writePolicyAnalysisSource ?? resolvedHandler?.source ?? '',
+        writePolicySourceSegments:
+          resolvedHandler?.writePolicySourceSegments ?? null,
         declaredReads: reads,
         declaredWrites: writes,
         writePolicy: {
@@ -17668,8 +17702,16 @@ function eraseFamiliarDefinitionSource(source, sourcePath, diagnostics) {
   }
   const javascript = transformed.outputText
     .replace(/\/\/# sourceMappingURL=.*?(?:\r?\n)?$/u, '');
+  let sourceMap = null;
+  try {
+    sourceMap = typeof transformed.sourceMapText === 'string'
+      ? JSON.parse(transformed.sourceMapText) : null;
+  } catch {
+    sourceMap = null;
+  }
   return {
     javascript,
+    sourceMap,
     identity: handlerTypeScriptIdentity(),
     runtimeBytes: Buffer.from(javascript, 'utf8'),
   };
@@ -17784,7 +17826,15 @@ function captureFamiliarApiReferences(source, sourcePath, apiDigest, err) {
         }
       }
     }
-    replacements.push({ start: statement.getFullStart(), end: statement.end, value: '' });
+    // Keep every line/column position stable for the TypeScript source map
+    // consumed by authored write-site attribution. Whitespace removes the
+    // definition-time import just as completely as an empty replacement.
+    replacements.push({
+      start: statement.getFullStart(),
+      end: statement.end,
+      value: source.slice(statement.getFullStart(), statement.end)
+        .replace(/[^\r\n]/gu, ' '),
+    });
   }
   const reported = new Set();
   const report = (node, reason) => {

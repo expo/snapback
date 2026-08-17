@@ -900,49 +900,6 @@
   "visibilityOverrides": [],
   "writePolicyChecks": [
     {
-      "absentDisposition": "ctx-db-false",
-      "absentDispositionDigest": null,
-      "authoritativeChecks": [
-        "pre-0264-runtime-behavior"
-      ],
-      "authorityTableClass": "ordinary",
-      "declarationOrigin": "declared",
-      "declaredTableCeiling": null,
-      "genericWriteDisposition": "migration-pending",
-      "id": "sha256:205a73ea44d3fb2760539d49da1d5e7d4311c8827364f6690383e9d18417c865",
-      "operation": "annotateMessage",
-      "ownerField": null,
-      "ownerFieldResolution": "not-applicable",
-      "ownerInputDisposition": "not-applicable",
-      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
-      "policyKind": "public-read",
-      "preflightChecks": [
-        "target-policy",
-        "authority-table-class"
-      ],
-      "principalSource": "not-applicable",
-      "resultEgress": "separate-phase-not-covered",
-      "runtimeClass": "javascript-handler",
-      "siteId": "sha256:822e40a5639764e43332b302aa3203b8420d9d68fdd8f8da56f74383e2824db6",
-      "siteResolution": "exact-static",
-      "sourceEvidence": {
-        "column": 11,
-        "kind": "static-inline",
-        "line": 2,
-        "path": "functions.mjs"
-      },
-      "surface": "ctx-db",
-      "table": "conversations",
-      "tableResolution": "exact",
-      "uniqueConflictDisposition": {
-        "constraints": [],
-        "kind": "not-applicable"
-      },
-      "writeElevation": "unavailable",
-      "writeForm": "patch",
-      "writeFormCeiling": null
-    },
-    {
       "absentDisposition": "not-applicable",
       "absentDispositionDigest": null,
       "authoritativeChecks": [
@@ -1108,6 +1065,49 @@
       },
       "writeElevation": "unavailable",
       "writeForm": "delete",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "ctx-db-false",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:754542de3fc4b97d99e82325d01fd75fba9c677e081b7b28b4286f257c8a3c1b",
+      "operation": "annotateMessage",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:57fd3f6ada4ecfd69b058ffd8441f10c1eb47c53ba04c284284509859791b0b9",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 11,
+        "kind": "static-inline",
+        "line": 177,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "conversations",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "patch",
       "writeFormCeiling": null
     },
     {

@@ -11,6 +11,10 @@ import {
   compareVisibilityPolicies,
   normalizePolicyBody,
 } from './visibility-governance.mjs';
+import {
+  extractInlineHandlers,
+  renderInlineOperationGraphModule,
+} from './inline-handlers.mjs';
 
 const ownerTable = (extra = {}) => ({
   name: 'todos',
@@ -42,11 +46,17 @@ function hostMutation(name, steps, writePolicy = { semanticVersion: 'snapback.ow
 }
 
 function jsMutation(name, source, metadata = {}) {
+  const resolved = typeof source === 'string' ? { runtimeSource: source } : source;
   return {
     name,
     kind: 'Mutation',
     handlerForm: metadata.handlerForm ?? 'inline',
-    runtime: { IbexModule: { source, export: name } },
+    runtime: { IbexModule: { source: resolved.runtimeSource, export: name } },
+    writePolicyAnalysisSource:
+      resolved.writePolicyAnalysisSource ?? resolved.runtimeSource,
+    writePolicySourceSegments:
+      resolved.writePolicySourceSegments ?? null,
+    writePolicySourcePath: metadata.sourcePath ?? 'functions.mjs',
     declaredWrites: ['todos'],
     writePolicy: {
       semanticVersion: 'snapback.owner-write.v1',
@@ -56,6 +66,20 @@ function jsMutation(name, source, metadata = {}) {
       ...(metadata.declaredTableCeiling === undefined
         ? {} : { declaredTableCeiling: metadata.declaredTableCeiling }),
     },
+  };
+}
+
+function resolvedInlineModule(name, source, { path = 'functions.mjs' } = {}) {
+  const extracted = extractInlineHandlers(source, { path });
+  assert.deepEqual(extracted.diagnostics, []);
+  const handler = extracted.handlers.get(name);
+  assert(handler, `expected ${name} to resolve as an inline handler`);
+  const rendered = renderInlineOperationGraphModule(name, handler);
+  return {
+    runtimeSource: rendered.source,
+    writePolicyAnalysisSource: rendered.source,
+    writePolicySourceSegments: rendered.segments,
+    extracted: handler,
   };
 }
 
@@ -139,7 +163,23 @@ test('opaque migration facts use the declared write set without claiming a site 
   assert.equal(warnings[0][0], WRITE_POSTURE_MIGRATION_WARNING);
 });
 
-test('inline census preserves distinct same-table sites and rejects authored owner input', () => {
+test('direct inline write census remains exact and rejects authored owner input', () => {
+  const directSource = resolvedInlineModule('createTodo', `
+export const createTodo = defineJsMutation({
+  handler: async (ctx, args) => ctx.db.insert('todos', { title: args.title }),
+});
+`);
+  const direct = jsMutation('createTodo', directSource);
+  const directResult = buildWritePolicyChecks({
+    tables: { todos: ownerTable() },
+    functions: [direct],
+    sourceFunctions: [direct],
+    err: errorSink,
+  });
+  assert.equal(directResult.rows.length, 1);
+  assert.equal(directResult.rows[0].siteResolution, 'exact-static');
+  assert.equal(directResult.rows[0].writeForm, 'insert');
+
   const source = `async function write(ctx) {
     await ctx.db.insert('todos', { title: 'first' });
     await ctx.db.insert('todos', { title: 'second' });
@@ -158,6 +198,402 @@ test('inline census preserves distinct same-table sites and rejects authored own
     ({ code, details }) => code === 'SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED'
       && details.candidateWritePolicyCheck.ownerInputDisposition === 'host-stamped',
   );
+});
+
+test('inline census projects writes from the splice-resolved same-file helper closure', () => {
+  const authored = `
+async function insertTodo(ctx, title) {
+  return ctx.db.insert('todos', { title });
+}
+
+export const createTodo = defineJsMutation({
+  handler: async (ctx, args) => insertTodo(ctx, args.title),
+});
+`;
+  const source = resolvedInlineModule('createTodo', authored);
+  const fn = jsMutation('createTodo', source);
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+  });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].siteResolution, 'exact-static');
+  assert.equal(result.rows[0].writeForm, 'insert');
+  assert.deepEqual(result.rows[0].sourceEvidence, {
+    kind: 'static-inline',
+    path: 'functions.mjs',
+    line: authored.slice(0, authored.indexOf('ctx.db.insert')).split('\n').length,
+    column: 10,
+  });
+  assert.deepEqual(result.rows[0].authoritativeChecks, ['installed-policy', 'owner-stamp']);
+});
+
+test('inline census follows a splice-resolved helper-calling-helper chain', () => {
+  const source = resolvedInlineModule('createTodo', `
+async function insertTodo(ctx, title) {
+  return ctx.db.insert('todos', { title });
+}
+
+async function saveTodo(ctx, title) {
+  return insertTodo(ctx, title);
+}
+
+export const createTodo = defineJsMutation({
+  handler: async (ctx, args) => saveTodo(ctx, args.title),
+});
+`);
+  const fn = jsMutation('createTodo', source);
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+  });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].siteResolution, 'exact-static');
+  assert.equal(result.rows[0].writeForm, 'insert');
+  assert.deepEqual(result.rows[0].preflightChecks, [
+    'target-policy', 'authority-table-class', 'owner-input', 'unique-disclosure',
+  ]);
+});
+
+test('dynamic and detached ctx.db write dispatch project honest opaque operation rows', () => {
+  const sources = [
+    `
+globalThis.__snapbackHandlers = {
+  dynamicWrite: async (ctx, args) => {
+    const write = ctx.db.insert;
+    return write('todos', { title: args.title });
+  },
+};
+`,
+    `
+globalThis.__snapbackHandlers = {
+  dynamicWrite: async (ctx, args) => ctx.db[args.writeForm](
+    'todos', { title: args.title },
+  ),
+};
+`,
+  ];
+  for (const source of sources) {
+    const fn = jsMutation('dynamicWrite', source, {
+      opaqueWritePosture: 'conservative-v1',
+      declaredTableCeiling: ['todos'],
+    });
+    const result = buildWritePolicyChecks({
+      tables: { todos: ownerTable() },
+      functions: [fn],
+      sourceFunctions: [fn],
+      err: errorSink,
+    });
+    assert.equal(result.rows.length, 1);
+    assert.equal(result.rows[0].siteResolution, 'opaque-module');
+    assert.equal(result.rows[0].writeForm, 'opaque');
+    assert.deepEqual(result.rows[0].writeFormCeiling, ['insert', 'patch', 'delete']);
+  }
+});
+
+test('whole ctx.db aliases, destructuring, and pass-through project opaque operation rows', () => {
+  const sources = [
+    `globalThis.__snapbackHandlers = {
+      escape: async (ctx) => { const db = ctx.db; return db.insert('todos', {}); },
+    };`,
+    `globalThis.__snapbackHandlers = {
+      escape: async (ctx) => { const { insert } = ctx.db; return insert('todos', {}); },
+    };`,
+    `function helper(db) { return db.insert('todos', {}); }
+    globalThis.__snapbackHandlers = { escape: async (ctx) => helper(ctx.db) };`,
+  ];
+  for (const source of sources) {
+    const fn = jsMutation('escape', source, {
+      handlerForm: 'module',
+      opaqueWritePosture: 'conservative-v1',
+      declaredTableCeiling: ['todos'],
+    });
+    const result = buildWritePolicyChecks({
+      tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+    });
+    assert.equal(result.rows.length, 1);
+    assert.equal(result.rows[0].siteResolution, 'opaque-module');
+    assert.equal(result.rows[0].writeForm, 'opaque');
+  }
+});
+
+test('module census follows a registered handler into a top-level helper', () => {
+  const source = `
+async function insertTodo(ctx, title) {
+  return ctx.db.insert('todos', { title });
+}
+globalThis.__snapbackHandlers = {
+  createTodo: async (ctx, args) => insertTodo(ctx, args.title),
+};
+`;
+  const fn = jsMutation('createTodo', source, { handlerForm: 'module' });
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+  });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].siteResolution, 'exact-static');
+  assert.equal(result.rows[0].sourceEvidence.line, 3);
+});
+
+test('module census follows top-level variable helpers with function-valued initializers', () => {
+  const sources = [
+    `const persist = (context, title) => context.db.insert('todos', { title });`,
+    `let persist = function save(context, title) {
+       return context.db.insert('todos', { title });
+     };`,
+    `var persist = async (context, title) => context.db.insert('todos', { title });`,
+  ];
+  for (const helper of sources) {
+    const source = `${helper}
+      globalThis.__snapbackHandlers = {
+        createTodo: async (ctx, args) => persist(ctx, args.title),
+      };`;
+    const fn = jsMutation('createTodo', source, { handlerForm: 'module' });
+    const result = buildWritePolicyChecks({
+      tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+    });
+    assert.equal(result.rows.length, 1);
+    assert.equal(result.rows[0].siteResolution, 'exact-static');
+    assert.equal(result.rows[0].writeForm, 'insert');
+  }
+});
+
+test('a local binding shadowing a top-level helper makes the module census opaque', () => {
+  const source = `
+function persist(ctx) {
+  return ctx.db.insert('todos', { title: 'top-level' });
+}
+globalThis.__snapbackHandlers = {
+  createTodo: async (ctx) => {
+    const persist = () => 'local';
+    return persist();
+  },
+};
+`;
+  const census = scanGenericWriteSites(source, 'createTodo');
+  assert.equal(census.opaque, true);
+  assert.deepEqual(census.sites, []);
+  const fn = jsMutation('createTodo', source, {
+    handlerForm: 'module',
+    opaqueWritePosture: 'conservative-v1',
+    declaredTableCeiling: ['todos'],
+  });
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+  });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].siteResolution, 'opaque-module');
+});
+
+test('ctx.db recognition is rooted in the renamed handler context binding', () => {
+  const source = `globalThis.__snapbackHandlers = {
+    inspect: async (context, args) => {
+      String(args.db);
+      args.db.insert('todos', {});
+      return context.db.insert('todos', {});
+    },
+  };`;
+  const census = scanGenericWriteSites(source, 'inspect');
+  assert.equal(census.opaque, false);
+  assert.equal(census.sites.length, 1);
+  assert.equal(census.sites[0].writeForm, 'insert');
+  assert.equal(census.sites[0].source.line, 5);
+
+  const argsOnly = scanGenericWriteSites(`globalThis.__snapbackHandlers = {
+    inspect: async (context, args) => {
+      String(args.db);
+      return args.db.insert('todos', {});
+    },
+  };`, 'inspect');
+  assert.equal(argsOnly.opaque, false);
+  assert.deepEqual(argsOnly.sites, []);
+
+  const shadowedContext = scanGenericWriteSites(`globalThis.__snapbackHandlers = {
+    inspect: async (context, args) => {
+      {
+        const context = args;
+        return context.db.insert('todos', {});
+      }
+    },
+  };`, 'inspect');
+  assert.equal(shadowedContext.opaque, true);
+  assert.deepEqual(shadowedContext.sites, []);
+});
+
+test('context db destructuring in a handler or helper is opaque', () => {
+  const sources = [
+    `globalThis.__snapbackHandlers = {
+      escape: async (ctx) => {
+        const { db } = ctx;
+        return db.insert('todos', {});
+      },
+    };`,
+    `function helper({ db }) { return db.patch('todos', 'id', {}); }
+     globalThis.__snapbackHandlers = { escape: async (ctx) => helper(ctx) };`,
+    `function helper({ db }) { return db.patch('todos', 'id', {}); }
+     globalThis.__snapbackHandlers = { escape: async (ctx) => helper(ctx.db) };`,
+    `globalThis.__snapbackHandlers = {
+      escape: async (ctx, args) => {
+        const { [args.key]: db } = ctx;
+        return db.insert('todos', {});
+      },
+    };`,
+  ];
+  for (const source of sources) {
+    const census = scanGenericWriteSites(source, 'escape');
+    assert.equal(census.opaque, true);
+    const fn = jsMutation('escape', source, {
+      handlerForm: 'module',
+      opaqueWritePosture: 'conservative-v1',
+      declaredTableCeiling: ['todos'],
+    });
+    const result = buildWritePolicyChecks({
+      tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+    });
+    assert.equal(result.rows.length, 1);
+    assert.equal(result.rows[0].siteResolution, 'opaque-module');
+  }
+});
+
+test('module handler census isolates each operation to its own helper closure', () => {
+  const source = `
+function helperA(ctx) { return ctx.db.insert('todos', {}); }
+function helperB(ctx, id) { return ctx.db.delete('todos', id); }
+globalThis.__snapbackHandlers = {
+  opA: async (ctx) => helperA(ctx),
+  opB: async (ctx, args) => helperB(ctx, args.id),
+};
+`;
+  const functions = ['opA', 'opB'].map((name) => (
+    jsMutation(name, source, { handlerForm: 'module' })
+  ));
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions, sourceFunctions: functions, err: errorSink,
+  });
+  assert.deepEqual(
+    result.rows.map(({ operation, writeForm }) => ({ operation, writeForm }))
+      .sort((left, right) => left.operation.localeCompare(right.operation)),
+    [
+      { operation: 'opA', writeForm: 'insert' },
+      { operation: 'opB', writeForm: 'delete' },
+    ],
+  );
+});
+
+test('unused sibling helper writes stay outside the operation splice census', () => {
+  const authored = `
+async function unusedDelete(ctx, id) {
+  return ctx.db.delete('todos', id);
+}
+export const createTodo = defineJsMutation({
+  handler: async (ctx, args) => ctx.db.insert('todos', { title: args.title }),
+});
+`;
+  const fn = jsMutation('createTodo', resolvedInlineModule('createTodo', authored));
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+  });
+  assert.deepEqual(result.rows.map(({ writeForm }) => writeForm), ['insert']);
+});
+
+test('detached and dynamic ctx.db dispatch inside reachable helpers is opaque', () => {
+  const sources = [
+    `function helper(ctx) { const write = ctx.db.insert; return write('todos', {}); }
+     globalThis.__snapbackHandlers = { escape: async (ctx) => helper(ctx) };`,
+    `function helper(ctx, form) { return ctx.db[form]('todos', {}); }
+     globalThis.__snapbackHandlers = { escape: async (ctx, args) => helper(ctx, args.form) };`,
+  ];
+  for (const source of sources) {
+    const fn = jsMutation('escape', source, {
+      handlerForm: 'module',
+      opaqueWritePosture: 'conservative-v1',
+      declaredTableCeiling: ['todos'],
+    });
+    const result = buildWritePolicyChecks({
+      tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+    });
+    assert.equal(result.rows.length, 1);
+    assert.equal(result.rows[0].siteResolution, 'opaque-module');
+  }
+});
+
+test('two operations sharing one helper each receive their own exact attribution', () => {
+  const authored = `
+async function insertTodo(ctx, title) {
+  return ctx.db.insert('todos', { title });
+}
+export const createA = defineJsMutation({
+  handler: async (ctx, args) => insertTodo(ctx, args.title),
+});
+export const createB = defineJsMutation({
+  handler: async (ctx, args) => insertTodo(ctx, args.title),
+});
+`;
+  const functions = ['createA', 'createB'].map((name) => (
+    jsMutation(name, resolvedInlineModule(name, authored))
+  ));
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions, sourceFunctions: functions, err: errorSink,
+  });
+  assert.deepEqual(result.rows.map(({ operation }) => operation).sort(), ['createA', 'createB']);
+  assert.equal(new Set(result.rows.map(({ siteId }) => siteId)).size, 2);
+  assert.deepEqual(new Set(result.rows.map(({ sourceEvidence }) => sourceEvidence.line)), new Set([3]));
+});
+
+test('Familiar runtime wrapping retains the canonical authored write census', async () => {
+  const { renderFamiliarHandlerRuntime } = await import('./index.mjs');
+  const authored = `
+export const create = mutation({
+  handler: async (ctx, args) => ctx.db.insert('todos', { title: args.title }),
+});
+`;
+  const canonical = resolvedInlineModule('create', authored, { path: 'todos.ts' });
+  const familiar = renderFamiliarHandlerRuntime(
+    'create',
+    canonical.extracted,
+    {
+      source: canonical.writePolicyAnalysisSource,
+      segments: canonical.writePolicySourceSegments,
+    },
+    'data',
+    'sha256:test-api',
+  );
+  const fn = jsMutation('create', {
+    runtimeSource: familiar.source,
+    writePolicyAnalysisSource: canonical.writePolicyAnalysisSource,
+    writePolicySourceSegments: canonical.writePolicySourceSegments,
+  }, { sourcePath: 'todos.ts' });
+  const result = buildWritePolicyChecks({
+    tables: { todos: ownerTable() }, functions: [fn], sourceFunctions: [fn], err: errorSink,
+  });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].siteResolution, 'exact-static');
+  assert.deepEqual(result.rows[0].sourceEvidence, {
+    kind: 'static-inline', path: 'todos.ts', line: 3, column: 33,
+  });
+});
+
+test('Familiar TypeScript generation maps the splice census through syntax erasure', async () => {
+  const { cpSync, mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { generate } = await import('./index.mjs');
+  const root = mkdtempSync(join(tmpdir(), 'snapback-write-policy-familiar-'));
+  try {
+    const fixture = join(process.cwd(), 'tests/fixtures/familiar-todo');
+    for (const file of ['codegen.policy.json', 'contracts.ts', 'schema.ts', 'todos.ts']) {
+      cpSync(join(fixture, file), join(root, file));
+    }
+    const generated = await generate(root);
+    assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+    const row = generated.authorizationReview.writePolicyChecks.find(
+      ({ operation }) => operation === 'todos.create',
+    );
+    assert(row, 'the Familiar-wrapped insert must appear in the write census');
+    assert.deepEqual(row.sourceEvidence, {
+      kind: 'static-inline', path: 'todos.ts', line: 26, column: 33,
+    });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('authority tables refuse before their row-policy kind', () => {

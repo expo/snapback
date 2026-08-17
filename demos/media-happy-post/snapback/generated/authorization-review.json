@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:c382703269c1ec9b348ad2abc2d6175e165d78e1dec64e38e8aeeee89d9c315b",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:0ac015325672b1874599b2e3b9033c43b07c6dfed1fe1c67777d27c6b388853c",
   "operations": [
     {
       "authRequirement": {
@@ -726,98 +726,6 @@
   "visibilityOverrides": [],
   "writePolicyChecks": [
     {
-      "absentDisposition": "not-applicable",
-      "absentDispositionDigest": null,
-      "authoritativeChecks": [
-        "installed-policy",
-        "owner-stamp"
-      ],
-      "authorityTableClass": "ordinary",
-      "declarationOrigin": "declared",
-      "declaredTableCeiling": null,
-      "genericWriteDisposition": "owner-policy",
-      "id": "sha256:68345e44721373d28ce92b8521cd937ab47fd116486fc819df9dd87e68fe7588",
-      "operation": "ensureProfile",
-      "ownerField": "ownerId",
-      "ownerFieldResolution": "exact",
-      "ownerInputDisposition": "host-stamped",
-      "policyDigest": "sha256:c0fb737f6167eed5efa47cc1b0d0239999a204705f3de2c0449654b3f956bcb7",
-      "policyKind": "owner",
-      "preflightChecks": [
-        "target-policy",
-        "authority-table-class",
-        "owner-input",
-        "unique-disclosure"
-      ],
-      "principalSource": "auth.userId",
-      "resultEgress": "separate-phase-not-covered",
-      "runtimeClass": "javascript-handler",
-      "siteId": "sha256:4165e5df55e98fc77b6e66566e0f7823ec717deae4aedaf7fbd5f348f02eb005",
-      "siteResolution": "exact-static",
-      "sourceEvidence": {
-        "column": 12,
-        "kind": "static-inline",
-        "line": 15,
-        "path": "functions.mjs"
-      },
-      "surface": "ctx-db",
-      "table": "profiles",
-      "tableResolution": "exact",
-      "uniqueConflictDisposition": {
-        "constraints": [],
-        "kind": "owner-partitioned"
-      },
-      "writeElevation": "unavailable",
-      "writeForm": "insert",
-      "writeFormCeiling": null
-    },
-    {
-      "absentDisposition": "not-applicable",
-      "absentDispositionDigest": null,
-      "authoritativeChecks": [
-        "installed-policy",
-        "owner-stamp"
-      ],
-      "authorityTableClass": "ordinary",
-      "declarationOrigin": "declared",
-      "declaredTableCeiling": null,
-      "genericWriteDisposition": "owner-policy",
-      "id": "sha256:69f47a622ae25eb3cfe4ab0d53a7f2ce7bef6633edbbe6ecacdde5d12b89dc20",
-      "operation": "createPostMutation",
-      "ownerField": "ownerId",
-      "ownerFieldResolution": "exact",
-      "ownerInputDisposition": "host-stamped",
-      "policyDigest": "sha256:c0fb737f6167eed5efa47cc1b0d0239999a204705f3de2c0449654b3f956bcb7",
-      "policyKind": "owner",
-      "preflightChecks": [
-        "target-policy",
-        "authority-table-class",
-        "owner-input",
-        "unique-disclosure"
-      ],
-      "principalSource": "auth.userId",
-      "resultEgress": "separate-phase-not-covered",
-      "runtimeClass": "javascript-handler",
-      "siteId": "sha256:14aff024345710dc7c1d8f94eed3d3a068b715af49596115bf24d102dbd9f25e",
-      "siteResolution": "exact-static",
-      "sourceEvidence": {
-        "column": 18,
-        "kind": "static-inline",
-        "line": 7,
-        "path": "functions.mjs"
-      },
-      "surface": "ctx-db",
-      "table": "posts",
-      "tableResolution": "exact",
-      "uniqueConflictDisposition": {
-        "constraints": [],
-        "kind": "owner-partitioned"
-      },
-      "writeElevation": "unavailable",
-      "writeForm": "insert",
-      "writeFormCeiling": null
-    },
-    {
       "absentDisposition": "ctx-db-false",
       "absentDispositionDigest": null,
       "authoritativeChecks": [
@@ -829,54 +737,7 @@
       "declarationOrigin": "declared",
       "declaredTableCeiling": null,
       "genericWriteDisposition": "owner-policy",
-      "id": "sha256:9c2749ea11cefa02de56227ad783d34a4d593206d989ed24f193e323bf4d6297",
-      "operation": "ensureProfile",
-      "ownerField": "ownerId",
-      "ownerFieldResolution": "exact",
-      "ownerInputDisposition": "refused",
-      "policyDigest": "sha256:c0fb737f6167eed5efa47cc1b0d0239999a204705f3de2c0449654b3f956bcb7",
-      "policyKind": "owner",
-      "preflightChecks": [
-        "target-policy",
-        "authority-table-class",
-        "owner-immutability",
-        "unique-disclosure"
-      ],
-      "principalSource": "auth.userId",
-      "resultEgress": "separate-phase-not-covered",
-      "runtimeClass": "javascript-handler",
-      "siteId": "sha256:ac4fe55912e8494de9aaf9e4bad4bcb313c8d99af73d2a9be8b34248c2951e5d",
-      "siteResolution": "exact-static",
-      "sourceEvidence": {
-        "column": 15,
-        "kind": "static-inline",
-        "line": 9,
-        "path": "functions.mjs"
-      },
-      "surface": "ctx-db",
-      "table": "profiles",
-      "tableResolution": "exact",
-      "uniqueConflictDisposition": {
-        "constraints": [],
-        "kind": "owner-partitioned"
-      },
-      "writeElevation": "unavailable",
-      "writeForm": "patch",
-      "writeFormCeiling": null
-    },
-    {
-      "absentDisposition": "ctx-db-false",
-      "absentDispositionDigest": null,
-      "authoritativeChecks": [
-        "installed-policy",
-        "old-owner",
-        "identical-absent"
-      ],
-      "authorityTableClass": "ordinary",
-      "declarationOrigin": "declared",
-      "declaredTableCeiling": null,
-      "genericWriteDisposition": "owner-policy",
-      "id": "sha256:bc9761b5df67e69aae7e243ec9f3e11dab893a79dcb936568a179bf49752c4d1",
+      "id": "sha256:491661bf18639d405c7ebb7adb3fc844c6d0fc305582f7e06ba9ba58411b549a",
       "operation": "changeAvatarMutation",
       "ownerField": "ownerId",
       "ownerFieldResolution": "exact",
@@ -892,12 +753,12 @@
       "principalSource": "auth.userId",
       "resultEgress": "separate-phase-not-covered",
       "runtimeClass": "javascript-handler",
-      "siteId": "sha256:f7c6e300a4c502ec6cb10e7ab435f66a667425d659889ffb886de02dc6c962f6",
+      "siteId": "sha256:8b2598ffdeb0ef88419d1db91a8f4ef8270fdc9f70f9162bc8e05951817ca25d",
       "siteResolution": "exact-static",
       "sourceEvidence": {
         "column": 11,
         "kind": "static-inline",
-        "line": 6,
+        "line": 96,
         "path": "functions.mjs"
       },
       "surface": "ctx-db",
@@ -909,6 +770,145 @@
       },
       "writeElevation": "unavailable",
       "writeForm": "patch",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "not-applicable",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "installed-policy",
+        "owner-stamp"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "owner-policy",
+      "id": "sha256:5334af5644ffb9ba300b90f49ffa4520c371c500becebcea916f643374d048b9",
+      "operation": "ensureProfile",
+      "ownerField": "ownerId",
+      "ownerFieldResolution": "exact",
+      "ownerInputDisposition": "host-stamped",
+      "policyDigest": "sha256:c0fb737f6167eed5efa47cc1b0d0239999a204705f3de2c0449654b3f956bcb7",
+      "policyKind": "owner",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class",
+        "owner-input",
+        "unique-disclosure"
+      ],
+      "principalSource": "auth.userId",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:143f6897f8046a097974be0dbf1bed87e0d735b46ab54226fdd37e70bf974c19",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 12,
+        "kind": "static-inline",
+        "line": 78,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "profiles",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "owner-partitioned"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "insert",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "ctx-db-false",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "installed-policy",
+        "old-owner",
+        "identical-absent"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "owner-policy",
+      "id": "sha256:998924bcc385d044dfa51db37fffa77726934841180a26166d63a208c587dabe",
+      "operation": "ensureProfile",
+      "ownerField": "ownerId",
+      "ownerFieldResolution": "exact",
+      "ownerInputDisposition": "refused",
+      "policyDigest": "sha256:c0fb737f6167eed5efa47cc1b0d0239999a204705f3de2c0449654b3f956bcb7",
+      "policyKind": "owner",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class",
+        "owner-immutability",
+        "unique-disclosure"
+      ],
+      "principalSource": "auth.userId",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:588ad1e57595635d5c265c56828b883887a99c2036a78ebf90fc93bd79aa9dcd",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 15,
+        "kind": "static-inline",
+        "line": 72,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "profiles",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "owner-partitioned"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "patch",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "not-applicable",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "installed-policy",
+        "owner-stamp"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "owner-policy",
+      "id": "sha256:b1b5f045a663354429c72bad715ca7666e5984e8f78d163c8798841748b84b25",
+      "operation": "createPostMutation",
+      "ownerField": "ownerId",
+      "ownerFieldResolution": "exact",
+      "ownerInputDisposition": "host-stamped",
+      "policyDigest": "sha256:c0fb737f6167eed5efa47cc1b0d0239999a204705f3de2c0449654b3f956bcb7",
+      "policyKind": "owner",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class",
+        "owner-input",
+        "unique-disclosure"
+      ],
+      "principalSource": "auth.userId",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:57547c5658f952ab31f092d0610076ade2453d4a8986e8d196bba97cdb1c4fa1",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 18,
+        "kind": "static-inline",
+        "line": 135,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "posts",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "owner-partitioned"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "insert",
       "writeFormCeiling": null
     }
   ]

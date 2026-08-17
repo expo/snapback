@@ -32,3 +32,29 @@ is the wrong fix and was explicitly rejected at review.
 Repo-wide: any demo/app backend using helper writes has the same census
 gap. The Coterie M2 landing records the affected operations in
 `demos/coterie/snapback/LANE-NOTES-M2.md`.
+
+## Resolution
+
+Resolved 2026-08-17 in the codegen authorization census.
+
+- `scanGenericWriteSites` now scans the inline operation module's complete
+  splice-resolved closure, so execution and the census share the same
+  same-module helper reachability decision rather than maintaining parallel
+  call graphs.
+- Dynamic `ctx.db[...]` dispatch and detached `ctx.db.insert|patch|delete`
+  callees now make the operation census `opaque`; they no longer silently
+  project zero write-policy checks.
+- Codegen unit coverage pins direct writes, one same-file helper, a transitive
+  helper chain, and the opaque unresolvable-callee case.
+- Regeneration changed Coterie's requested counts as follows: `createPost`
+  0 -> 5, `setFollow` 0 -> 3, `setLike` 0 -> 5, `setRepost` 0 -> 7,
+  `ensureFixtureFollow` 0 -> 3, `ensureFixtureLike` 0 -> 5, and
+  `ensureFixtureRepost` 0 -> 7. `ensureFixturePost`'s partial census expanded
+  from 2 -> 9. Every one of these rows is `exact-static`; none required an
+  opaque classification.
+
+No application write site was inlined or restructured. The full ordered
+codegen package chain ran all 76 commands; the two reds reproduced unchanged
+at merge base `84e7bdab661c7f9852f20e2f96bdf867cd5547a3` and are unrelated to this
+ticket (`client-lifecycle.test.mjs` diagnostic-corpus drift and
+`familiar-phase-a.test.mjs`'s absent generated Todo runtime-profile fixture).

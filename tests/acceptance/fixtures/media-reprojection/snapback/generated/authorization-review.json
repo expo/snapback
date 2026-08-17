@@ -5,7 +5,7 @@
   "authorizationTables": [],
   "elevatedReadSites": [],
   "fieldPolicies": [],
-  "inputsHash": "d19ab5f5e93e6f58c0a58f00a213040aa3e78489b124b3edff6a64138f1a2a0f",
+  "inputsHash": "388d5ad457bcc5f449dc3f219ad86b40ffa7958ad756089d65f24ab324c952fa",
   "operations": [
     {
       "authRequirement": {
@@ -234,7 +234,7 @@
       "declarationOrigin": "declared",
       "declaredTableCeiling": null,
       "genericWriteDisposition": "owner-policy",
-      "id": "sha256:08b2e4b811c7560a450c2945b82a508f9191258cd4f041b59c15acba2f01e3f1",
+      "id": "sha256:58378907a8a824b5b7502641ce27f88e390b8a62e8572be06bb3a2b634a13fba",
       "operation": "returnStoredProfile",
       "ownerField": "ownerId",
       "ownerFieldResolution": "exact",
@@ -250,59 +250,12 @@
       "principalSource": "auth.userId",
       "resultEgress": "separate-phase-not-covered",
       "runtimeClass": "javascript-handler",
-      "siteId": "sha256:3311dfac0c53362fb29f5bc1b81de44d33e041b97edbf32fca4f370eaa82d2ec",
+      "siteId": "sha256:a102f14a2896dea70b1bb499653bb1aba3b37830d9940defe0311a1722cd36e4",
       "siteResolution": "exact-static",
       "sourceEvidence": {
         "column": 11,
         "kind": "static-inline",
-        "line": 7,
-        "path": "functions.mjs"
-      },
-      "surface": "ctx-db",
-      "table": "profiles",
-      "tableResolution": "exact",
-      "uniqueConflictDisposition": {
-        "constraints": [],
-        "kind": "owner-partitioned"
-      },
-      "writeElevation": "unavailable",
-      "writeForm": "patch",
-      "writeFormCeiling": null
-    },
-    {
-      "absentDisposition": "ctx-db-false",
-      "absentDispositionDigest": null,
-      "authoritativeChecks": [
-        "installed-policy",
-        "old-owner",
-        "identical-absent"
-      ],
-      "authorityTableClass": "ordinary",
-      "declarationOrigin": "declared",
-      "declaredTableCeiling": null,
-      "genericWriteDisposition": "owner-policy",
-      "id": "sha256:4b3fbb19345a57e626606100b42af6f52fff34c6f2eec01794e614009be27efa",
-      "operation": "setProfileImage",
-      "ownerField": "ownerId",
-      "ownerFieldResolution": "exact",
-      "ownerInputDisposition": "refused",
-      "policyDigest": "sha256:c0fb737f6167eed5efa47cc1b0d0239999a204705f3de2c0449654b3f956bcb7",
-      "policyKind": "owner",
-      "preflightChecks": [
-        "target-policy",
-        "authority-table-class",
-        "owner-immutability",
-        "unique-disclosure"
-      ],
-      "principalSource": "auth.userId",
-      "resultEgress": "separate-phase-not-covered",
-      "runtimeClass": "javascript-handler",
-      "siteId": "sha256:edc3ad2bacd83139d86313b3d39d7f787d88ebc3249b4bc5342d69dc908851da",
-      "siteResolution": "exact-static",
-      "sourceEvidence": {
-        "column": 11,
-        "kind": "static-inline",
-        "line": 2,
+        "line": 71,
         "path": "functions.mjs"
       },
       "surface": "ctx-db",
@@ -327,7 +280,7 @@
       "declarationOrigin": "declared",
       "declaredTableCeiling": null,
       "genericWriteDisposition": "owner-policy",
-      "id": "sha256:55125e9b8295c451067901bb599a775bbecc4907c1a4167d91129b7be337d369",
+      "id": "sha256:587070d29fc0966f79f2f99e39205d10b0dc6ec2a9d8c2b486b8965c04f0b3dd",
       "operation": "createProfile",
       "ownerField": "ownerId",
       "ownerFieldResolution": "exact",
@@ -343,12 +296,12 @@
       "principalSource": "auth.userId",
       "resultEgress": "separate-phase-not-covered",
       "runtimeClass": "javascript-handler",
-      "siteId": "sha256:b566590e619b0b9dede54cb449968df7987885186e61065261f354c8671d2e02",
+      "siteId": "sha256:0cbb9849f7e30a93540f30cd4846f2918bac5473d8f2ebc17ab7c0b0935e1374",
       "siteResolution": "exact-static",
       "sourceEvidence": {
         "column": 5,
         "kind": "static-inline",
-        "line": 2,
+        "line": 28,
         "path": "functions.mjs"
       },
       "surface": "ctx-db",
@@ -360,6 +313,53 @@
       },
       "writeElevation": "unavailable",
       "writeForm": "insert",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "ctx-db-false",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "installed-policy",
+        "old-owner",
+        "identical-absent"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "owner-policy",
+      "id": "sha256:6d4e9d0f422c4e8f69f3e1583825eb69d6a20998dc9d1c6966c051d1f2a869fe",
+      "operation": "setProfileImage",
+      "ownerField": "ownerId",
+      "ownerFieldResolution": "exact",
+      "ownerInputDisposition": "refused",
+      "policyDigest": "sha256:c0fb737f6167eed5efa47cc1b0d0239999a204705f3de2c0449654b3f956bcb7",
+      "policyKind": "owner",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class",
+        "owner-immutability",
+        "unique-disclosure"
+      ],
+      "principalSource": "auth.userId",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:c69f6b33b5bb63d2560027935d116bcc4bb07e4129fb09f6756cb67557ae7a8d",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 11,
+        "kind": "static-inline",
+        "line": 48,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "profiles",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "owner-partitioned"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "patch",
       "writeFormCeiling": null
     }
   ]

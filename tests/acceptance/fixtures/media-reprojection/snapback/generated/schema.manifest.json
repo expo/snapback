@@ -6,12 +6,12 @@
   "authoringProfile": "snapback-explicit-v1",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "d19ab5f5e93e6f58c0a58f00a213040aa3e78489b124b3edff6a64138f1a2a0f",
+  "inputsHash": "388d5ad457bcc5f449dc3f219ad86b40ffa7958ad756089d65f24ab324c952fa",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "assets.media-ref-projection.v1"
   ],
-  "schemaHash": "sha256:cb27c6b0871b1055",
+  "schemaHash": "sha256:ee5c7f82f5df05ce",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

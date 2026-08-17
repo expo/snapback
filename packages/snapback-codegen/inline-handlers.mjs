@@ -1820,6 +1820,7 @@ export function renameExtractedInlineHandler(extracted, name) {
 // The returned segments map rendered lines back to authored source spans so
 // capability rescans over the spliced bytes keep precise refusal positions.
 export function renderInlineOperationModule(name, extracted) {
+  const registrationPrefix = `globalThis.__snapbackHandlers = { ${JSON.stringify(name)}: (`;
   const registration = renderInlineHandlerModule(name, extracted.expressionSource);
   const lineCount = (text) => text.split('\n').length - 1;
   const segments = [{
@@ -1827,7 +1828,14 @@ export function renderInlineOperationModule(name, extracted) {
     name,
     startLine: 1,
     endLine: lineCount(registration),
+    renderedStartColumn: registrationPrefix.length + 1,
     sourceSpan: extracted.sourceSpan,
+    ...(extracted.sourceMap && extracted.generatedSourceSpan
+      ? {
+          sourceMap: extracted.sourceMap,
+          generatedSourceSpan: extracted.generatedSourceSpan,
+        }
+      : {}),
   }];
   let source = registration;
   let nextLine = lineCount(registration) + 1;
@@ -1839,7 +1847,14 @@ export function renderInlineOperationModule(name, extracted) {
       name: helper.name,
       startLine: nextLine,
       endLine: nextLine + lines - 1,
+      renderedStartColumn: 1,
       sourceSpan: helper.sourceSpan,
+      ...(helper.sourceMap && helper.generatedSourceSpan
+        ? {
+            sourceMap: helper.sourceMap,
+            generatedSourceSpan: helper.generatedSourceSpan,
+          }
+        : {}),
     });
     source += text;
     nextLine += lines;

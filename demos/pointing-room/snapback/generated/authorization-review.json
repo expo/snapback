@@ -535,49 +535,6 @@
   "visibilityOverrides": [],
   "writePolicyChecks": [
     {
-      "absentDisposition": "not-applicable",
-      "absentDispositionDigest": null,
-      "authoritativeChecks": [
-        "pre-0264-runtime-behavior"
-      ],
-      "authorityTableClass": "ordinary",
-      "declarationOrigin": "declared",
-      "declaredTableCeiling": null,
-      "genericWriteDisposition": "migration-pending",
-      "id": "sha256:55ffadc3deb88d723e91b8a5668044d6690527695253f41a959b81e9a25c81cc",
-      "operation": "startRound",
-      "ownerField": null,
-      "ownerFieldResolution": "not-applicable",
-      "ownerInputDisposition": "not-applicable",
-      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
-      "policyKind": "public-read",
-      "preflightChecks": [
-        "target-policy",
-        "authority-table-class"
-      ],
-      "principalSource": "not-applicable",
-      "resultEgress": "separate-phase-not-covered",
-      "runtimeClass": "javascript-handler",
-      "siteId": "sha256:4d5da90cea5f6786bcc18d5e325895aa65f7b7677563925b5fe93abaa237d507",
-      "siteResolution": "exact-static",
-      "sourceEvidence": {
-        "column": 18,
-        "kind": "static-inline",
-        "line": 13,
-        "path": "functions.mjs"
-      },
-      "surface": "ctx-db",
-      "table": "rounds",
-      "tableResolution": "exact",
-      "uniqueConflictDisposition": {
-        "constraints": [],
-        "kind": "not-applicable"
-      },
-      "writeElevation": "unavailable",
-      "writeForm": "insert",
-      "writeFormCeiling": null
-    },
-    {
       "absentDisposition": "ctx-db-false",
       "absentDispositionDigest": null,
       "authoritativeChecks": [
@@ -587,93 +544,7 @@
       "declarationOrigin": "declared",
       "declaredTableCeiling": null,
       "genericWriteDisposition": "migration-pending",
-      "id": "sha256:720a731784a67155ebe7c2a81710211f165eab9d6f9bac61c1b1e864bcc5745f",
-      "operation": "castVote",
-      "ownerField": null,
-      "ownerFieldResolution": "not-applicable",
-      "ownerInputDisposition": "not-applicable",
-      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
-      "policyKind": "public-read",
-      "preflightChecks": [
-        "target-policy",
-        "authority-table-class"
-      ],
-      "principalSource": "not-applicable",
-      "resultEgress": "separate-phase-not-covered",
-      "runtimeClass": "javascript-handler",
-      "siteId": "sha256:9bae9ab16812ee383de5a1d46b3bdbce926c9e60a7d6f9e651f0994b487bf2e9",
-      "siteResolution": "exact-static",
-      "sourceEvidence": {
-        "column": 13,
-        "kind": "static-inline",
-        "line": 12,
-        "path": "functions.mjs"
-      },
-      "surface": "ctx-db",
-      "table": "votes",
-      "tableResolution": "exact",
-      "uniqueConflictDisposition": {
-        "constraints": [],
-        "kind": "not-applicable"
-      },
-      "writeElevation": "unavailable",
-      "writeForm": "patch",
-      "writeFormCeiling": null
-    },
-    {
-      "absentDisposition": "not-applicable",
-      "absentDispositionDigest": null,
-      "authoritativeChecks": [
-        "pre-0264-runtime-behavior"
-      ],
-      "authorityTableClass": "ordinary",
-      "declarationOrigin": "declared",
-      "declaredTableCeiling": null,
-      "genericWriteDisposition": "migration-pending",
-      "id": "sha256:7d70066804500b6af058c61ac8cf0252a140db87071d5a758d76f2b726aeae4a",
-      "operation": "castVote",
-      "ownerField": null,
-      "ownerFieldResolution": "not-applicable",
-      "ownerInputDisposition": "not-applicable",
-      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
-      "policyKind": "public-read",
-      "preflightChecks": [
-        "target-policy",
-        "authority-table-class"
-      ],
-      "principalSource": "not-applicable",
-      "resultEgress": "separate-phase-not-covered",
-      "runtimeClass": "javascript-handler",
-      "siteId": "sha256:0d674eeb96391e4556af9b8e63a01657985367daa949d7e8ca0b10413149df6e",
-      "siteResolution": "exact-static",
-      "sourceEvidence": {
-        "column": 18,
-        "kind": "static-inline",
-        "line": 15,
-        "path": "functions.mjs"
-      },
-      "surface": "ctx-db",
-      "table": "votes",
-      "tableResolution": "exact",
-      "uniqueConflictDisposition": {
-        "constraints": [],
-        "kind": "not-applicable"
-      },
-      "writeElevation": "unavailable",
-      "writeForm": "insert",
-      "writeFormCeiling": null
-    },
-    {
-      "absentDisposition": "ctx-db-false",
-      "absentDispositionDigest": null,
-      "authoritativeChecks": [
-        "pre-0264-runtime-behavior"
-      ],
-      "authorityTableClass": "ordinary",
-      "declarationOrigin": "declared",
-      "declaredTableCeiling": null,
-      "genericWriteDisposition": "migration-pending",
-      "id": "sha256:c85a1ede30508634e9519b0c097e8bc2d831939e1cb9ee8d974552c3038b6573",
+      "id": "sha256:892f8c021a38e20bd89ced67aceb90437f1d10ac0719864f46a3d849174e25e7",
       "operation": "revealRound",
       "ownerField": null,
       "ownerFieldResolution": "not-applicable",
@@ -687,12 +558,12 @@
       "principalSource": "not-applicable",
       "resultEgress": "separate-phase-not-covered",
       "runtimeClass": "javascript-handler",
-      "siteId": "sha256:2e4053402862df5a96f33a56ec883aecb35eb450eaf758938617d7527809ae53",
+      "siteId": "sha256:ea8ff5f056e19dfbbfb0bc546cbb65750e2da193a1104817d9f87317370a4f22",
       "siteResolution": "exact-static",
       "sourceEvidence": {
         "column": 13,
         "kind": "static-inline",
-        "line": 5,
+        "line": 161,
         "path": "functions.mjs"
       },
       "surface": "ctx-db",
@@ -704,6 +575,135 @@
       },
       "writeElevation": "unavailable",
       "writeForm": "patch",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "ctx-db-false",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:979d48d8f7aa4c70b9ff5923a0f392ae512827df4f0f987b67257424bb1acc0d",
+      "operation": "castVote",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:cac10c29223fde32edd4dbc8e391b9035f60df7025c7b89461c58047d1de1108",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 13,
+        "kind": "static-inline",
+        "line": 138,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "votes",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "patch",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "not-applicable",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:b83440915b892f4d2fe8f7bb1ea70c5a8cff7966b17bccc9a57bd1b82533b76f",
+      "operation": "castVote",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:90acbfdc24415ecbea654c900d0eff516033fc0b2f7848038721cf020d71e411",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 18,
+        "kind": "static-inline",
+        "line": 141,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "votes",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "insert",
+      "writeFormCeiling": null
+    },
+    {
+      "absentDisposition": "not-applicable",
+      "absentDispositionDigest": null,
+      "authoritativeChecks": [
+        "pre-0264-runtime-behavior"
+      ],
+      "authorityTableClass": "ordinary",
+      "declarationOrigin": "declared",
+      "declaredTableCeiling": null,
+      "genericWriteDisposition": "migration-pending",
+      "id": "sha256:cd20b7310406e29a9c945ad45080a926cb1764bd6b3c8f52711849eb50b9f8e6",
+      "operation": "startRound",
+      "ownerField": null,
+      "ownerFieldResolution": "not-applicable",
+      "ownerInputDisposition": "not-applicable",
+      "policyDigest": "sha256:b26fa8031778bc8a926af7da0c6e4d46d90a986a5cb6b0f836bae6527ce9dced",
+      "policyKind": "public-read",
+      "preflightChecks": [
+        "target-policy",
+        "authority-table-class"
+      ],
+      "principalSource": "not-applicable",
+      "resultEgress": "separate-phase-not-covered",
+      "runtimeClass": "javascript-handler",
+      "siteId": "sha256:d8ee63be17c04d09edeb5b68d5ec0de445ba65592c4ce8b0cd9a13d02e7ffe3c",
+      "siteResolution": "exact-static",
+      "sourceEvidence": {
+        "column": 18,
+        "kind": "static-inline",
+        "line": 100,
+        "path": "functions.mjs"
+      },
+      "surface": "ctx-db",
+      "table": "rounds",
+      "tableResolution": "exact",
+      "uniqueConflictDisposition": {
+        "constraints": [],
+        "kind": "not-applicable"
+      },
+      "writeElevation": "unavailable",
+      "writeForm": "insert",
       "writeFormCeiling": null
     }
   ]
