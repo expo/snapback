@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -6,24 +7,25 @@ import {
   isTerminalLiveProtocolRefusal,
 } from './index.mjs';
 
-const TERMINAL_CODES = [
-  'SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED',
-  'SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED',
-  'SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED',
-  'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED',
-  'SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED',
-  'SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED',
-  'SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH',
-  'SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH',
-  'SNAPBACK_WIRE_VERSION_MISMATCH',
-  'SNAPBACK_WIRE_VERSION_REQUIRED',
-  'SNAPBACK_WIRE_VERSION_UNSUPPORTED',
-];
+const refusalRegistrySource = readFileSync(
+  new URL('../../src/server/api_error.rs', import.meta.url),
+  'utf8',
+);
+const refusalRegistryBlock = refusalRegistrySource.match(
+  /TERMINAL_LIVE_PROTOCOL_REFUSAL_CODES_BEGIN([\s\S]*?)TERMINAL_LIVE_PROTOCOL_REFUSAL_CODES_END/,
+)?.[1] ?? '';
+const TERMINAL_CODES = [...refusalRegistryBlock.matchAll(/"(SNAPBACK_[A-Z0-9_]+)"/g)]
+  .map((match) => match[1]);
 
 const retryableNeighbors = [
   { code: 'SNAPBACK_REQUEST_JSON_INVALID', status: 400, label: 'legacy probe' },
   { code: 'SNAPBACK_AUTH_POLICY_UNAVAILABLE', status: 503, label: 'readiness' },
   { code: 'SNAPBACK_WIRE_VERSION_UNSUPPORTED', status: 409, label: 'conflict' },
+  {
+    code: 'SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED',
+    status: 400,
+    label: 'reconnectable authority-instance negotiation',
+  },
   { code: 'SNAPBACK_CLIENT_REFUSED', status: undefined, label: 'transport' },
 ];
 
@@ -50,7 +52,8 @@ const waitFor = async (check, label) => {
   throw new Error(`${label}: ${lastError?.message ?? 'timed out'}`);
 };
 
-test('terminal live-protocol classifier is a closed allowlist', () => {
+test('terminal live-protocol classifier exhausts the authoritative server registry', () => {
+  assert.ok(TERMINAL_CODES.length > 0, 'server refusal registry marker must remain parseable');
   for (const code of TERMINAL_CODES) {
     assert.equal(isTerminalLiveProtocolRefusal(refusal(code, 400)), true, code);
     assert.equal(isTerminalLiveProtocolRefusal(refusal(code, undefined)), true, code);
@@ -120,4 +123,3 @@ test('legacy-probe, 503, 409, and transport neighbors retain reconnect', async (
     await client.close();
   }
 });
-

@@ -97,6 +97,14 @@ export interface SnapbackLiveQueryAuthorizationFence {
     snapshot: SnapbackLiveQuerySnapshotInput;
     commit?: SnapbackLiveQueryCommit | null;
   }): SnapbackLiveQueryOutcome;
+  previewRetireScopes(input: {
+    retirement: unknown;
+    freshSnapshot?: SnapbackLiveQuerySnapshotInput | null;
+  }): SnapbackLiveQueryOutcome;
+  previewRetireIssuer(input: {
+    retirement: unknown;
+    freshSnapshot?: SnapbackLiveQuerySnapshotInput | null;
+  }): SnapbackLiveQueryOutcome;
   retireScopes(input: {
     retirement: unknown;
     freshSnapshot?: SnapbackLiveQuerySnapshotInput | null;

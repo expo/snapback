@@ -297,6 +297,7 @@ try {
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     senderConstrained: true,
+    rqsStore: null,
   });
   const projection = await client.authExchange({
     challengeId: 'challenge-1',
@@ -418,6 +419,7 @@ try {
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     senderConstrained: true,
+    rqsStore: null,
   });
   serverMode = 'recover-expiry';
   const recoveredProjection = await recoveryClient.authSession({ force: true });
@@ -546,6 +548,7 @@ try {
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     senderConstrained: true,
+    rqsStore: null,
   });
   await serializedClient.authExchange({
     challengeId: 'serialized-challenge',
@@ -642,6 +645,7 @@ try {
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     senderConstrained: true,
+    rqsStore: null,
   });
   await logoutClient.authExchange({
     challengeId: 'logout-challenge',
@@ -722,6 +726,7 @@ try {
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     senderConstrained: true,
+    rqsStore: null,
   });
   await tombstoneClient.authExchange({
     challengeId: 'tombstone-challenge',
@@ -870,6 +875,7 @@ try {
     authInvalidationProtocol: 1,
     authorityDescriptorProtocol: 1,
     senderConstrained: true,
+    rqsStore: null,
   });
   await invalidationClient.authExchange({
     challengeId: 'invalidation-challenge',
@@ -1045,6 +1051,7 @@ try {
     authClientProtocol: 1,
     authorityDescriptorProtocol: 1,
     senderConstrained: true,
+    rqsStore: null,
   });
   await wsNonceClient.authExchange({
     challengeId: 'ws-nonce-challenge',

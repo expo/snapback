@@ -210,6 +210,11 @@ const fixtureFetch = async (url, init = {}) => {
       diagnostic: { code: refusal.code, message: refusal.message ?? refusal.code },
     }, { status: refusal.status ?? 409 });
   }
+  // Fetch is invoked synchronously inside the final authority commit. Yield
+  // once so race fixtures transition only after that publication callback has
+  // returned, matching a real response that arrives later on the event loop.
+  await Promise.resolve();
+  await fixture.beforeMutationSuccess?.();
   fixture.successfulMutationBodies.push(structuredClone(body));
   fixture.version += 1;
   return Response.json({ result: { ok: true }, version: fixture.version });
@@ -230,6 +235,7 @@ const makeFixture = ({ store = createDurableTestStore(), storage = null } = {}) 
     onOfflineAttempt: null,
     onAuthSessionAttempt: null,
     beforeOfflineFailure: null,
+    beforeMutationSuccess: null,
     refusalFor: null,
     mutationAttempts: [],
     successfulMutationBodies: [],
@@ -376,7 +382,7 @@ test('clearing fence refuses post-connectivity enqueue and preserves the origina
   await unregister();
 });
 
-test('capture-validate-commit race compensates the write and surfaces connectivity', async (t) => {
+test('capture-validate-commit race preserves successor-owned stranded disposition', async (t) => {
   const fixture = makeFixture();
   const underlying = fixture.store;
   const { client, coordinator } = makeClient(fixture);
@@ -408,10 +414,55 @@ test('capture-validate-commit race compensates the write and surfaces connectivi
       && /original fixture connectivity failure/u.test(error.cause.message),
   );
   assert.equal(raced, true);
-  assert.deepEqual(await underlying.outboxRecords(), []);
+  const [record] = await underlying.outboxRecords();
+  assert.equal(record.status, 'stranded');
+  assert.equal(record.reason, 'authority_instance_changed');
+  assert.equal(record.replayable, false);
 });
 
-test('authority resume remains available when queue custody reconciliation is refused', async (t) => {
+test('post-dispatch authority change releases queue custody before reconciliation', async (t) => {
+  const fixture = makeFixture();
+  const { client, coordinator } = makeClient(fixture);
+  t.after(() => client.closeAuth());
+  await signIn(fixture, client);
+  const successor = actorA2();
+  let transition = null;
+  fixture.beforeMutationSuccess = async () => {
+    fixture.beforeMutationSuccess = null;
+    fixture.actorsByBearer.set(successor.bearer, successor);
+    transition = coordinator.transition(coordinator.capture(), {
+      authority: {
+        kind: 'session',
+        authMode: 'sessions',
+        authorizationStreamIncarnation: successor.authorizationStreamIncarnation,
+        sessionId: successor.sessionId,
+        userId: successor.userId,
+      },
+      bearer: successor.bearer,
+      refreshAfterMs: Date.now() + 60_000,
+    }, 'post_dispatch_authority_race');
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      try { coordinator.capture(); } catch { return; }
+      await Promise.resolve();
+    }
+    throw new Error('post-dispatch fixture did not enter authority clearing');
+  };
+
+  await assert.rejects(
+    client.mutate('postDispatchAuthorityRace', {
+      clientMutationId: 'cm-post-dispatch-authority-race',
+      args: { value: 1 },
+    }),
+    (error) => isSnapbackDiagnosticError(error)
+      && error.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  await transition;
+  const [record] = await fixture.store.outboxRecords();
+  assert.equal(record.status, 'stranded');
+  assert.equal(record.reason, 'authority_instance_changed');
+});
+
+test('authority resume fails closed when queue custody reconciliation is refused', async (t) => {
   const underlying = createDurableTestStore();
   let refuseReconciliation = false;
   let refusedCalls = 0;
@@ -430,12 +481,16 @@ test('authority resume remains available when queue custody reconciliation is re
 
   refuseReconciliation = true;
   const successor = actorA2();
-  await transitionTo(fixture, coordinator, successor, 'refused_resume_reconciliation');
+  await assert.rejects(
+    transitionTo(fixture, coordinator, successor, 'refused_resume_reconciliation'),
+    (error) => error.code === 'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
 
   assert.equal(refusedCalls, 1);
-  assert.equal(coordinator.authority.userId, successor.userId);
-  assert.equal(coordinator.authority.sessionId, successor.sessionId);
-  assert.doesNotThrow(() => coordinator.capture());
+  assert.throws(() => coordinator.capture(), (error) => (
+    error.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+    || error.code === 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+  ));
 });
 
 test('cold-process replay uses the stored descriptor and applies one delivery', async (t) => {

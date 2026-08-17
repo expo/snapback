@@ -302,6 +302,12 @@ export function createFileRqsResumeStore({
   let corrupt = false;
   let migrationMeta = null;
   let competingWriter = null;
+  let authorityTransitionBroker = null;
+  let authorizationMutationBroker = null;
+  let authorizationMutationWithinDispatchBroker = null;
+  let authorityTransitionWithinDispatchBroker = null;
+  let authorizationDispatchBroker = null;
+  let borrowedAuthorizationDispatchDepth = 0;
 
   const chmodBestEffort = async (path, mode) => {
     if (typeof files.chmod !== 'function') return;
@@ -350,6 +356,20 @@ export function createFileRqsResumeStore({
     return result;
   };
 
+  let authorizationDispatchTail = Promise.resolve();
+  const withAuthorizationDispatch = async (operation) => {
+    requireOpen();
+    const predecessor = authorizationDispatchTail;
+    let release;
+    authorizationDispatchTail = new Promise((resolve) => { release = resolve; });
+    await predecessor;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  };
+
   const acquireLock = async () => {
     if (writer || closed) return;
     await files.mkdir(directory);
@@ -359,7 +379,7 @@ export function createFileRqsResumeStore({
       // retain enough identity to make the availability refusal actionable.
       competingWriter = {
         pid: files.processId(),
-        instanceId: heldLocks.get(lockPath),
+        instanceId: heldLocks.get(lockPath)?.instanceId ?? heldLocks.get(lockPath),
         lockPath,
         storePath: blobPath,
       };
@@ -373,7 +393,18 @@ export function createFileRqsResumeStore({
     const granted = () => {
       writer = true;
       competingWriter = null;
-      heldLocks.set(lockPath, instanceId);
+      heldLocks.set(lockPath, {
+        instanceId,
+        authorityTransition: (...args) => authorityTransitionBroker?.(...args),
+        authorityTransitionWithinDispatch: (...args) => (
+          authorityTransitionWithinDispatchBroker?.(...args)
+        ),
+        authorizationMutation: (...args) => authorizationMutationBroker?.(...args),
+        authorizationMutationWithinDispatch: (...args) => (
+          authorizationMutationWithinDispatchBroker?.(...args)
+        ),
+        authorizationDispatch: (...args) => authorizationDispatchBroker?.(...args),
+      });
       files.trackLockForExitCleanup?.(lockPath);
     };
     if (await files.writeFileExclusive(lockPath, payload)) {
@@ -516,9 +547,26 @@ export function createFileRqsResumeStore({
   // Writer-gated outbox transition committed atomically with the whole blob
   // (the DK-9 transaction analogue). Enqueue throws on a non-writer; the
   // other transitions report false, matching the entry methods' posture.
-  const outboxWrite = async (transition, { throwWhenNotWriter = false } = {}) => {
+  const outboxWrite = async (
+    transition,
+    { throwWhenNotWriter = false, deferToWriter = false } = {},
+  ) => {
     await acquireLock();
     if (!writer) {
+      const holder = heldLocks.get(lockPath);
+      if (
+        deferToWriter
+        && holder?.instanceId === competingWriter?.instanceId
+        && typeof holder?.authorizationMutation === 'function'
+      ) {
+        const broker = borrowedAuthorizationDispatchDepth > 0
+          ? holder.authorizationMutationWithinDispatch
+          : holder.authorizationMutation;
+        return {
+          skipped: false,
+          result: await broker(transition),
+        };
+      }
       if (throwWhenNotWriter) throw outboxNotWriterError();
       return { skipped: true, result: false };
     }
@@ -529,6 +577,17 @@ export function createFileRqsResumeStore({
     }
     return { skipped: false, result: applied.result };
   };
+
+  authorizationMutationWithinDispatchBroker = async (transition) => {
+    const applied = await serialized(
+      () => outboxWrite(transition, { throwWhenNotWriter: true }),
+    );
+    return applied.result;
+  };
+  authorizationMutationBroker = (transition) => withAuthorizationDispatch(
+    () => authorizationMutationWithinDispatchBroker(transition),
+  );
+  authorizationDispatchBroker = (operation) => withAuthorizationDispatch(operation);
 
   const requireOpen = () => {
     if (closed) throw storeError('SNAPBACK_RQS_STORE_CLOSED', 'RQS resume store is closed');
@@ -550,6 +609,47 @@ export function createFileRqsResumeStore({
     }
   };
 
+  const commitAuthorityTransitionAsWriter = async (
+    authorityTransitionKey,
+    authorityTransitionEpoch,
+  ) => {
+    if (!writer) return false;
+    let state;
+    try {
+      state = await readState();
+    } catch {
+      return false;
+    }
+    const advanced = outboxOps.advanceAuthorizationAuthority(
+      state.outbox,
+      authorityTransitionKey,
+      authorityTransitionEpoch,
+    );
+    if (advanced.result.status === 'authority-current') return true;
+    // LLP 0166's client-wide cut still destroys every sibling identity
+    // blob. Only this resolved store's outbox receives LLP 0043's
+    // per-record custody carve-out.
+    await sweepSiblingIdentityBlobs();
+    const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
+    if (storeMeta === null) return false;
+    await writeState({
+      ...emptyState(storeMeta),
+      outbox: advanced.state,
+    });
+    return true;
+  };
+
+  // Same-process readers cannot take the writer's long-held file lock, but
+  // they can defer this one atomic authority cut to that exact lock holder.
+  // The writer's dispatch gate keeps roots, transport, and the generation
+  // advance in one order; foreign-process readers continue to return false.
+  authorityTransitionWithinDispatchBroker = (...args) => serialized(
+    () => commitAuthorityTransitionAsWriter(...args),
+  );
+  authorityTransitionBroker = (...args) => withAuthorizationDispatch(
+    () => authorityTransitionWithinDispatchBroker(...args),
+  );
+
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
   const materializationTransaction = (mode, operation) => import(
@@ -562,6 +662,24 @@ export function createFileRqsResumeStore({
   return {
     isWriter() {
       return writer && !closed;
+    },
+
+    async withOutboxAuthorizationDispatch(operation) {
+      await initialAcquisition;
+      if (writer) return withAuthorizationDispatch(operation);
+      const holder = heldLocks.get(lockPath);
+      if (
+        holder?.instanceId !== competingWriter?.instanceId
+        || typeof holder?.authorizationDispatch !== 'function'
+      ) throw outboxNotWriterError();
+      return holder.authorizationDispatch(async () => {
+        borrowedAuthorizationDispatchDepth += 1;
+        try {
+          return await operation();
+        } finally {
+          borrowedAuthorizationDispatchDepth -= 1;
+        }
+      });
     },
 
     /// Settles (and, unlike web's queued lock, re-attempts) ownership: a
@@ -604,18 +722,23 @@ export function createFileRqsResumeStore({
 
     // ---- LLP 0043 M2 outbox (LLP 0129 Phase 0, JS/node arm) ----
 
-    async outboxEnqueue(record) {
+    async outboxEnqueue(record, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => {
         const { result } = await outboxWrite(
-          (outbox) => outboxOps.enqueue(outbox, record, now()),
+          (outbox) => outboxOps.enqueue(outbox, record, now(), expectedAuthorizationFence),
           { throwWhenNotWriter: true },
         );
         return result;
       });
     },
 
-    async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
+    async outboxEnqueueWithOperationIdentity(
+      record,
+      authorityCohortKey,
+      range = null,
+      expectedAuthorizationFence = null,
+    ) {
       requireOpen();
       return serialized(async () => {
         const { result } = await outboxWrite(
@@ -625,6 +748,7 @@ export function createFileRqsResumeStore({
             now(),
             authorityCohortKey,
             range,
+            expectedAuthorizationFence,
           ),
           { throwWhenNotWriter: true },
         );
@@ -638,6 +762,7 @@ export function createFileRqsResumeStore({
       range = null,
       authorityDescriptor = undefined,
       authorityPrincipalId = undefined,
+      expectedAuthorizationFence = null,
     ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
@@ -649,6 +774,7 @@ export function createFileRqsResumeStore({
           range,
           authorityDescriptor,
           authorityPrincipalId,
+          expectedAuthorizationFence,
         ),
       )).result);
     },
@@ -671,42 +797,75 @@ export function createFileRqsResumeStore({
       return serialized(async () => outboxAuthorizationStatus((await readState()).outbox));
     },
 
-    async outboxApplyAuthorizationObligation(obligation) {
+    async outboxAuthorizationTransitionVisible(
+      kind,
+      payload,
+      expectedAuthorityGeneration = null,
+    ) {
+      requireOpen();
+      return serialized(async () => outboxOps.authorizationTransitionVisible(
+        (await readState()).outbox,
+        kind,
+        payload,
+        expectedAuthorityGeneration,
+      ).result);
+    },
+
+    async outboxApplyAuthorizationObligation(obligation, expectedAuthorityGeneration = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.applyAuthorizationObligation(outbox, obligation),
-        { throwWhenNotWriter: true },
+        (outbox) => outboxOps.applyAuthorizationObligation(
+          outbox,
+          obligation,
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, deferToWriter: true },
       )).result);
     },
 
-    async outboxResolveAuthorizationObligation(resolution) {
+    async outboxResolveAuthorizationObligation(resolution, expectedAuthorityGeneration = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.resolveAuthorizationObligation(outbox, resolution),
-        { throwWhenNotWriter: true },
+        (outbox) => outboxOps.resolveAuthorizationObligation(
+          outbox,
+          resolution,
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, deferToWriter: true },
       )).result);
     },
 
-    async outboxAcknowledgeAuthorizationResolution(resolution) {
+    async outboxAcknowledgeAuthorizationResolution(
+      resolution,
+      expectedAuthorityGeneration = null,
+    ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.acknowledgeAuthorizationResolution(outbox, resolution),
-        { throwWhenNotWriter: true },
+        (outbox) => outboxOps.acknowledgeAuthorizationResolution(
+          outbox,
+          resolution,
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, deferToWriter: true },
       )).result);
     },
 
-    async outboxRetireAuthorizationScopes(scopes) {
+    async outboxRetireAuthorizationScopes(scopes, expectedAuthorityGeneration = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.retireAuthorizationScopes(outbox, scopes),
-        { throwWhenNotWriter: true },
+        (outbox) => outboxOps.retireAuthorizationScopes(
+          outbox,
+          scopes,
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, deferToWriter: true },
       )).result);
     },
 
-    async outboxPrepareSubmission(id) {
+    async outboxPrepareSubmission(id, options = undefined) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.prepareSubmission(outbox, id),
+        (outbox) => outboxOps.prepareSubmission(outbox, id, options),
       )).result);
     },
 
@@ -715,14 +874,20 @@ export function createFileRqsResumeStore({
       return serialized(async () => allOutboxRecords((await readState()).outbox));
     },
 
-    async outboxSettle(id) {
+    async outboxSettle(id, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.settle(outbox, id),
+        (outbox) => outboxOps.settle(outbox, id, expectedAuthorizationFence),
       )).result);
     },
 
-    async outboxDurablyConsume(id, settlement, userId = null, confirmedAcknowledgements = []) {
+    async outboxDurablyConsume(
+      id,
+      settlement,
+      userId = null,
+      confirmedAcknowledgements = [],
+      expectedAuthorizationFence = null,
+    ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
         (outbox) => outboxOps.durablyConsume(
@@ -732,18 +897,24 @@ export function createFileRqsResumeStore({
           userId,
           now(),
           confirmedAcknowledgements,
+          expectedAuthorizationFence,
         ),
       )).result);
     },
 
-    async outboxMarkFailed(id, failure) {
+    async outboxMarkFailed(id, failure, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.markFailed(outbox, id, failure),
+        (outbox) => outboxOps.markFailed(outbox, id, failure, expectedAuthorizationFence),
       )).result);
     },
 
-    async outboxMarkStranded(id, reason, predecessorPrincipalScope = null) {
+    async outboxMarkStranded(
+      id,
+      reason,
+      predecessorPrincipalScope = null,
+      expectedAuthorizationFence = null,
+    ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
         (outbox) => outboxOps.markStranded(
@@ -752,11 +923,17 @@ export function createFileRqsResumeStore({
           reason,
           now(),
           predecessorPrincipalScope,
+          expectedAuthorizationFence,
         ),
       )).result);
     },
 
-    async outboxReconcileCustody(principalScope, authorityDescriptor, custody) {
+    async outboxReconcileCustody(
+      principalScope,
+      authorityDescriptor,
+      custody,
+      expectedAuthorityGeneration = null,
+    ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
         (outbox) => outboxOps.reconcileCustody(
@@ -765,42 +942,60 @@ export function createFileRqsResumeStore({
           authorityDescriptor,
           custody,
           now(),
+          expectedAuthorityGeneration,
+        ),
+        { deferToWriter: true },
+      )).result);
+    },
+
+    async outboxDiscardStranded(ids, principalScope, expectedAuthorizationFence = null) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.discardStranded(
+          outbox,
+          ids,
+          principalScope,
+          expectedAuthorizationFence,
         ),
       )).result);
     },
 
-    async outboxDiscardStranded(ids, principalScope) {
+    async outboxMarkQuarantined(id, refusal, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.discardStranded(outbox, ids, principalScope),
+        (outbox) => outboxOps.markQuarantined(
+          outbox,
+          id,
+          refusal,
+          now(),
+          expectedAuthorizationFence,
+        ),
       )).result);
     },
 
-    async outboxMarkQuarantined(id, refusal) {
+    async outboxReenterQuarantined(expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.markQuarantined(outbox, id, refusal, now()),
+        (outbox) => outboxOps.reenterQuarantined(outbox, expectedAuthorizationFence),
       )).result);
     },
 
-    async outboxReenterQuarantined() {
+    async outboxMarkResultGone(id, resultGone, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.reenterQuarantined(outbox),
+        (outbox) => outboxOps.markResultGone(
+          outbox,
+          id,
+          resultGone,
+          expectedAuthorizationFence,
+        ),
       )).result);
     },
 
-    async outboxMarkResultGone(id, resultGone) {
+    async outboxDiscard(id, expectedAuthorizationFence = null) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.markResultGone(outbox, id, resultGone),
-      )).result);
-    },
-
-    async outboxDiscard(id) {
-      requireOpen();
-      return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.discard(outbox, id),
+        (outbox) => outboxOps.discard(outbox, id, expectedAuthorizationFence),
       )).result);
     },
 
@@ -828,10 +1023,21 @@ export function createFileRqsResumeStore({
       )).result);
     },
 
-    async outboxConfirmAcknowledgements(ids, userId = undefined, authorityDescriptor = undefined) {
+    async outboxConfirmAcknowledgements(
+      ids,
+      userId = undefined,
+      authorityDescriptor = undefined,
+      expectedAuthorizationFence = null,
+    ) {
       requireOpen();
       return serialized(async () => (await outboxWrite(
-        (outbox) => outboxOps.confirmAcks(outbox, ids, userId, authorityDescriptor),
+        (outbox) => outboxOps.confirmAcks(
+          outbox,
+          ids,
+          userId,
+          authorityDescriptor,
+          expectedAuthorizationFence,
+        ),
       )).result);
     },
 
@@ -1098,28 +1304,33 @@ export function createFileRqsResumeStore({
       });
     },
 
-    async wipeForAuthorityTransition() {
+    async wipeForAuthorityTransition(
+      authorityTransitionKey = null,
+      authorityTransitionEpoch = null,
+    ) {
       requireOpen();
       return serialized(async () => {
         await acquireLock();
-        if (!writer) return false;
-        // LLP 0166's client-wide cut still destroys every sibling identity
-        // blob. Only this resolved store's outbox receives LLP 0043's
-        // per-record custody carve-out.
-        await sweepSiblingIdentityBlobs();
-        let state;
-        try {
-          state = await readState();
-        } catch {
-          return false;
+        if (writer) {
+          return commitAuthorityTransitionAsWriter(
+            authorityTransitionKey,
+            authorityTransitionEpoch,
+          );
         }
-        const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
-        if (storeMeta === null) return false;
-        await writeState({
-          ...emptyState(storeMeta),
-          outbox: state.outbox,
-        });
-        return true;
+        const holder = heldLocks.get(lockPath);
+        if (
+          holder?.instanceId === competingWriter?.instanceId
+          && typeof holder?.authorityTransition === 'function'
+        ) {
+          const broker = borrowedAuthorizationDispatchDepth > 0
+            ? holder.authorityTransitionWithinDispatch
+            : holder.authorityTransition;
+          return broker(
+            authorityTransitionKey,
+            authorityTransitionEpoch,
+          );
+        }
+        return false;
       });
     },
 
@@ -1212,7 +1423,7 @@ export function createFileRqsResumeStore({
         closed = true;
         if (writer) {
           writer = false;
-          if (heldLocks.get(lockPath) === instanceId) heldLocks.delete(lockPath);
+          if (heldLocks.get(lockPath)?.instanceId === instanceId) heldLocks.delete(lockPath);
           files.untrackLockForExitCleanup?.(lockPath);
           try {
             await files.unlink(lockPath);

@@ -5,7 +5,12 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-15 (removed the LLP 0255 amendment after the author
+**Revised:** 2026-08-16 (author ruling: the JS library default now ingests
+LLP 0053 mutation-queue obligations. The durable queue persists a separate
+authority generation, compare-and-commit queue generation, and exact roots;
+enqueue, foreground dispatch, replay, settlement, and discard share the
+suspension fence. Quarantine/error suspends optimistic-create custody until
+proof; delete/authority loss closes it.) 2026-08-15 (removed the LLP 0255 amendment after the author
 selected LLP 0254 D10 Withdraw)
 **Revised:** 2026-08-15 (authorized-lease offer/query-admission separation:
 the session-level offer only makes the protocol available; a generated
@@ -727,12 +732,13 @@ Contract arm's shipped format-6 transitions:
    records stay pending but the drain is inadmissible (below); the eventual
    successor bind resolves them through row 1 or row 2.
 4. **Permission-epoch advance (LLP 0053) under an unchanged authority
-   instance: does not strand.** The descriptor is unchanged; the server
-   re-validates authorization at replay and refuses or admits each mutation
-   on its own merits. v1 of this design carries no client-side ingestion of
-   LLP 0053 mutation-queue obligations (ratified point 1, ruled at sitting
-   #3 — this is the named asymmetry with the Contract arm's
-   `pendingByScope` suspension).
+   instance: suspends locally until proof.** The descriptor is unchanged, so
+   the permission advance does not itself strand. The client nevertheless
+   persists the exact LLP 0053 query root before ACK and prevents enqueue,
+   foreground transport, replay, settlement, and discard from crossing the
+   queue-generation cut. Quarantine/error records admitted while suspended
+   remain pending and rebase onto the proof generation; delete records are
+   immediately payload-redacted and terminal.
 5. **Lease expiry: does not strand.** The lease bounds retained *display*
    (M1); the queue axis is the descriptor. Queue custody neither requires nor
    consumes leases.
@@ -751,6 +757,37 @@ current settled authority **before transport**. A mismatch strands locally
 change, and must never be transmitted under an authority other than the one
 that captured it. Records that pass the gate replay with the **stored**
 descriptor, per this milestone's normative rule (never a newly observed one).
+
+The queue's authorization state has two independent monotones. The
+**authority generation** advances atomically in the AuthCoordinator durable
+transition, retiring every predecessor root and resolution token before
+successor publication. The queue persists the exact durable transition key,
+paired with its monotone successor epoch, so a peer tab replaying the same
+transition reuses that generation while a genuinely newer transition advances
+it and a delayed older transition is refused. Custody reconciliation is bound to
+that exact generation, then deletes or strands predecessor records before the
+successor may observe them. The **queue
+generation** advances on root/proof changes. Enqueue stamps both generations;
+enqueue compare-and-commits the captured pair; prepare returns the exact pair;
+the shared authorization dispatch gate is acquired at the exact pre-transport
+cut and retained through successful settlement, ACK collection, or terminal
+local disposition; raw transport and post-dispatch authority failures release
+it with the pair still compare-and-committed by any later disposition. Root
+installation therefore cannot split transport from its successful durable
+consume. Re-entry and every destructive disposition also compare-and-commit
+the pair. Delete roots immediately payload-redact pending, failed,
+quarantined, and rerecordable stranded intent into terminal discard-only
+records. Root, proof, acknowledgement-token, and scope
+retirement operations separately compare-and-commit the captured authority
+generation, so a predecessor task cannot reinstall custody after an authority
+advance. A proof or authenticated retirement releases local presentation only
+after the exact matching queue transition is durable; a reader that cannot
+commit or observe it remains blank and defers to the writer. IndexedDB
+authorization-root, authority-transition, and custody-
+reconciliation writes are the narrow exceptions to the long-held drain-writer
+lock: any tab owning the live query or transition may commit the cut in the
+shared transaction domain, while a short cross-tab Web Lock serializes it
+with writer transport.
 
 The server remains authoritative regardless of captured claims — captured
 facts are claims, and possessing a descriptor never authenticates a caller.
@@ -794,15 +831,13 @@ point 4, ruled at sitting #3).
   resume only over an empty outbox, fail-closed. Sessions-custody **pending**
   records hold that gate exactly like dev-custody ones; **stranded** records
   are terminal and do not.
-- **Contract arm (deliberate asymmetries, named):** (a) no client-side
-  LLP 0053 queue-obligation suspension in v1 (matrix row 4); (b) no port of
+- **Contract arm (remaining deliberate asymmetries, named):** (a) both arms
+  now ingest LLP 0053 queue-obligation suspension (matrix row 4); (b) no port of
   format-6 `bindAuthority`/`transitionAuthority`/`terminallyUnbound` store
   machinery — the JS arm fences through the coordinator plus per-record
   descriptor/principal/custody equality, and its terminal cut is the
   authority fence's custody clear plus `authTerminalStatus`, not a store
-  format bit; (c) queue suspension codes
-  (`SNAPBACK_CLIENT_QUEUE_SUSPENDED`) therefore have no JS-arm counterpart
-  in v1. Everything else — capture-at-enqueue requirement, stranding
+  format bit. Everything else — capture-at-enqueue requirement, stranding
   dispositions, cohort-scoped ACK — matches the Contract arm's semantics.
 - **LLP 0166 (Accepted):** the store Spec consumes this RFC's custody,
   outbox, and settlement contracts unchanged; its pending-intent
@@ -814,13 +849,11 @@ genuine under-determination of the hypothesis, recorded 2026-08-03 as an
 open alternative; each is now ruled. The design text above stands as
 recorded; the rulings resolve the alternatives:
 
-1. **LLP 0053 queue-obligation ingestion — RULED: server-refusal-only for
-   v1.** v1 relies on server re-validation at replay (matrix row 4); no
-   `pendingByScope` queue-obligation suspension port on the JS arm. The
-   consequence stands as recorded: a delete-disposition invalidation
-   strands a queued record only at replay time, not at obligation
-   delivery. The named Contract-arm asymmetry stands; revisit only on
-   evidence of meaningful refusal rates. (Ruled at sitting #3.)
+1. **LLP 0053 queue-obligation ingestion — SUPERSEDED 2026-08-16 by author
+   ruling.** The earlier server-refusal-only v1 ruling is retained here as
+   history, but no longer governs: the JS arm persists `pendingByScope`,
+   enforces the two-generation suspension fence at every queue lifecycle cut,
+   and redacts delete-disposition records at obligation delivery.
 2. **Stranded-vs-failed taxonomy for `SNAPBACK_AUTH_STALE_RESULT` on
    replay — RULED: the refinement stands.** An authority-change refusal at
    replay surfaces client-side as *stranded* (a custody outcome, with the

@@ -80,6 +80,19 @@ export function createMemoryRqsResumeStore({
     return state.writer === instance;
   };
 
+  const withAuthorizationDispatch = async (operation) => {
+    requireOpen();
+    const predecessor = state.authorizationDispatchTail;
+    let release;
+    state.authorizationDispatchTail = new Promise((resolve) => { release = resolve; });
+    await predecessor;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  };
+
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
   const materializationTransaction = (mode, operation) => import(
@@ -97,6 +110,10 @@ export function createMemoryRqsResumeStore({
 
     whenLockSettled() {
       return ownership;
+    },
+
+    withOutboxAuthorizationDispatch(operation) {
+      return withAuthorizationDispatch(operation);
     },
 
     // @ref LLP 0218#43-the-platform-owned-drain — lock takeover is a level
@@ -272,8 +289,17 @@ export function createMemoryRqsResumeStore({
 
     /// AuthCoordinator transitions clear retained/read projections while the
     /// per-record LLP 0043 custody matrix keeps ownership of outbox bytes.
-    async wipeForAuthorityTransition() {
-      if (!requireWriter()) return false;
+    async wipeForAuthorityTransition(
+      authorityTransitionKey = null,
+      authorityTransitionEpoch = null,
+    ) {
+      requireOpen();
+      const advanced = outboxOps.advanceAuthorizationAuthority(
+        state.outbox,
+        authorityTransitionKey,
+        authorityTransitionEpoch,
+      );
+      if (advanced.result.status === 'authority-current') return true;
       const storeMeta = wipeStoreMeta(state.storeMeta, { randomBytes });
       if (storeMeta === null) return false;
       state.entries.clear();
@@ -281,6 +307,7 @@ export function createMemoryRqsResumeStore({
       state.materializations.clear();
       state.pageSets.clear();
       state.memberships.clear();
+      state.outbox = advanced.state;
       state.storeMeta = storeMeta;
       return true;
     },
@@ -312,14 +339,24 @@ export function createMemoryRqsResumeStore({
 
     // ---- LLP 0043 M2 outbox ----
 
-    async outboxEnqueue(record) {
+    async outboxEnqueue(record, expectedAuthorizationFence = null) {
       if (!requireWriter()) throw outboxNotWriterError();
-      const applied = outboxOps.enqueue(state.outbox, record, now());
+      const applied = outboxOps.enqueue(
+        state.outbox,
+        record,
+        now(),
+        expectedAuthorizationFence,
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
+    async outboxEnqueueWithOperationIdentity(
+      record,
+      authorityCohortKey,
+      range = null,
+      expectedAuthorizationFence = null,
+    ) {
       if (!requireWriter()) throw outboxNotWriterError();
       const applied = outboxOps.enqueueWithOperationIdentity(
         state.outbox,
@@ -327,6 +364,7 @@ export function createMemoryRqsResumeStore({
         now(),
         authorityCohortKey,
         range,
+        expectedAuthorizationFence,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);
@@ -338,6 +376,7 @@ export function createMemoryRqsResumeStore({
       range = null,
       authorityDescriptor = undefined,
       authorityPrincipalId = undefined,
+      expectedAuthorizationFence = null,
     ) {
       if (!requireWriter()) return false;
       const applied = outboxOps.assignOperationIdentity(
@@ -348,6 +387,7 @@ export function createMemoryRqsResumeStore({
         range,
         authorityDescriptor,
         authorityPrincipalId,
+        expectedAuthorizationFence,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);
@@ -370,37 +410,70 @@ export function createMemoryRqsResumeStore({
       return structuredClone(outboxAuthorizationStatus(state.outbox));
     },
 
-    async outboxApplyAuthorizationObligation(obligation) {
-      if (!requireWriter()) throw outboxNotWriterError();
-      const applied = outboxOps.applyAuthorizationObligation(state.outbox, obligation);
+    async outboxAuthorizationTransitionVisible(
+      kind,
+      payload,
+      expectedAuthorityGeneration = null,
+    ) {
+      requireOpen();
+      return outboxOps.authorizationTransitionVisible(
+        state.outbox,
+        kind,
+        payload,
+        expectedAuthorityGeneration,
+      ).result;
+    },
+
+    async outboxApplyAuthorizationObligation(obligation, expectedAuthorityGeneration = null) {
+      requireOpen();
+      const applied = outboxOps.applyAuthorizationObligation(
+        state.outbox,
+        obligation,
+        expectedAuthorityGeneration,
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxResolveAuthorizationObligation(resolution) {
-      if (!requireWriter()) throw outboxNotWriterError();
-      const applied = outboxOps.resolveAuthorizationObligation(state.outbox, resolution);
+    async outboxResolveAuthorizationObligation(resolution, expectedAuthorityGeneration = null) {
+      requireOpen();
+      const applied = outboxOps.resolveAuthorizationObligation(
+        state.outbox,
+        resolution,
+        expectedAuthorityGeneration,
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxAcknowledgeAuthorizationResolution(resolution) {
-      if (!requireWriter()) throw outboxNotWriterError();
-      const applied = outboxOps.acknowledgeAuthorizationResolution(state.outbox, resolution);
+    async outboxAcknowledgeAuthorizationResolution(
+      resolution,
+      expectedAuthorityGeneration = null,
+    ) {
+      requireOpen();
+      const applied = outboxOps.acknowledgeAuthorizationResolution(
+        state.outbox,
+        resolution,
+        expectedAuthorityGeneration,
+      );
       state.outbox = applied.state;
       return applied.result;
     },
 
-    async outboxRetireAuthorizationScopes(scopes) {
-      if (!requireWriter()) throw outboxNotWriterError();
-      const applied = outboxOps.retireAuthorizationScopes(state.outbox, scopes);
+    async outboxRetireAuthorizationScopes(scopes, expectedAuthorityGeneration = null) {
+      requireOpen();
+      const applied = outboxOps.retireAuthorizationScopes(
+        state.outbox,
+        scopes,
+        expectedAuthorityGeneration,
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxPrepareSubmission(id) {
+    async outboxPrepareSubmission(id, options = undefined) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.prepareSubmission(state.outbox, id);
+      const applied = outboxOps.prepareSubmission(state.outbox, id, options);
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
@@ -410,14 +483,20 @@ export function createMemoryRqsResumeStore({
       return structuredClone(allOutboxRecords(state.outbox));
     },
 
-    async outboxSettle(id) {
+    async outboxSettle(id, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.settle(state.outbox, id);
+      const applied = outboxOps.settle(state.outbox, id, expectedAuthorizationFence);
       state.outbox = applied.state;
       return applied.result;
     },
 
-    async outboxDurablyConsume(id, settlement, userId = null, confirmedAcknowledgements = []) {
+    async outboxDurablyConsume(
+      id,
+      settlement,
+      userId = null,
+      confirmedAcknowledgements = [],
+      expectedAuthorizationFence = null,
+    ) {
       if (!requireWriter()) return false;
       const applied = outboxOps.durablyConsume(
         state.outbox,
@@ -426,19 +505,30 @@ export function createMemoryRqsResumeStore({
         userId,
         now(),
         confirmedAcknowledgements,
+        expectedAuthorizationFence,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxMarkFailed(id, failure) {
+    async outboxMarkFailed(id, failure, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.markFailed(state.outbox, id, failure);
+      const applied = outboxOps.markFailed(
+        state.outbox,
+        id,
+        failure,
+        expectedAuthorizationFence,
+      );
       state.outbox = applied.state;
       return applied.result;
     },
 
-    async outboxMarkStranded(id, reason, predecessorPrincipalScope = null) {
+    async outboxMarkStranded(
+      id,
+      reason,
+      predecessorPrincipalScope = null,
+      expectedAuthorizationFence = null,
+    ) {
       if (!requireWriter()) return false;
       const applied = outboxOps.markStranded(
         state.outbox,
@@ -446,55 +536,81 @@ export function createMemoryRqsResumeStore({
         reason,
         now(),
         predecessorPrincipalScope,
+        expectedAuthorizationFence,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxReconcileCustody(principalScope, authorityDescriptor, custody) {
-      if (!requireWriter()) return false;
+    async outboxReconcileCustody(
+      principalScope,
+      authorityDescriptor,
+      custody,
+      expectedAuthorityGeneration = null,
+    ) {
+      requireOpen();
       const applied = outboxOps.reconcileCustody(
         state.outbox,
         principalScope,
         authorityDescriptor,
         custody,
         now(),
+        expectedAuthorityGeneration,
       );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxDiscardStranded(ids, principalScope) {
+    async outboxDiscardStranded(ids, principalScope, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.discardStranded(state.outbox, ids, principalScope);
+      const applied = outboxOps.discardStranded(
+        state.outbox,
+        ids,
+        principalScope,
+        expectedAuthorizationFence,
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxMarkQuarantined(id, refusal) {
+    async outboxMarkQuarantined(id, refusal, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.markQuarantined(state.outbox, id, refusal, now());
+      const applied = outboxOps.markQuarantined(
+        state.outbox,
+        id,
+        refusal,
+        now(),
+        expectedAuthorizationFence,
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxReenterQuarantined() {
+    async outboxReenterQuarantined(expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.reenterQuarantined(state.outbox);
+      const applied = outboxOps.reenterQuarantined(
+        state.outbox,
+        expectedAuthorizationFence,
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxMarkResultGone(id, resultGone) {
+    async outboxMarkResultGone(id, resultGone, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.markResultGone(state.outbox, id, resultGone);
+      const applied = outboxOps.markResultGone(
+        state.outbox,
+        id,
+        resultGone,
+        expectedAuthorizationFence,
+      );
       state.outbox = applied.state;
       return structuredClone(applied.result);
     },
 
-    async outboxDiscard(id) {
+    async outboxDiscard(id, expectedAuthorizationFence = null) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.discard(state.outbox, id);
+      const applied = outboxOps.discard(state.outbox, id, expectedAuthorizationFence);
       state.outbox = applied.state;
       return applied.result;
     },
@@ -518,9 +634,20 @@ export function createMemoryRqsResumeStore({
       return applied.result;
     },
 
-    async outboxConfirmAcknowledgements(ids, userId = undefined, authorityDescriptor = undefined) {
+    async outboxConfirmAcknowledgements(
+      ids,
+      userId = undefined,
+      authorityDescriptor = undefined,
+      expectedAuthorizationFence = null,
+    ) {
       if (!requireWriter()) return false;
-      const applied = outboxOps.confirmAcks(state.outbox, ids, userId, authorityDescriptor);
+      const applied = outboxOps.confirmAcks(
+        state.outbox,
+        ids,
+        userId,
+        authorityDescriptor,
+        expectedAuthorizationFence,
+      );
       state.outbox = applied.state;
       return applied.result;
     },
@@ -588,6 +715,7 @@ export function createMemoryRqsStoreBacking({ clientStoreId = null, randomBytes 
     storeMeta: createInitialStoreMeta({ clientStoreId, randomBytes }),
     writer: null,
     waiters: [],
+    authorizationDispatchTail: Promise.resolve(),
   };
 }
 

@@ -470,7 +470,10 @@ export const emptyOutboxState = () => ({
   // @ref LLP 0053#dispositions-with-producers-and-meanings —
   //   mutation replay roots share the outbox's atomic persistence domain.
   authorizationQueue: {
+    authorityGeneration: 0,
     generation: 0,
+    authorityTransitionKey: null,
+    authorityTransitionEpoch: null,
     pendingByScope: {},
     resolvedByToken: {},
   },
@@ -484,12 +487,39 @@ export function validateOutboxState(value) {
     || !Array.isArray(value.acks)
   ) return null;
   const authorizationQueue = value.authorizationQueue === undefined
-    ? { generation: 0, pendingByScope: {}, resolvedByToken: {} }
+    ? {
+      authorityGeneration: 0,
+      generation: 0,
+      authorityTransitionKey: null,
+      authorityTransitionEpoch: null,
+      pendingByScope: {},
+      resolvedByToken: {},
+    }
     : value.authorizationQueue;
   if (
     !plainRecord(authorizationQueue)
+    || (authorizationQueue.authorityGeneration !== undefined
+      && (!Number.isSafeInteger(authorizationQueue.authorityGeneration)
+        || authorizationQueue.authorityGeneration < 0))
     || !Number.isSafeInteger(authorizationQueue.generation)
     || authorizationQueue.generation < 0
+    || (
+      authorizationQueue.authorityTransitionKey !== undefined
+      && authorizationQueue.authorityTransitionKey !== null
+      && (
+        typeof authorizationQueue.authorityTransitionKey !== 'string'
+        || authorizationQueue.authorityTransitionKey.length === 0
+        || authorizationQueue.authorityTransitionKey.length > 2_048
+      )
+    )
+    || (
+      authorizationQueue.authorityTransitionEpoch !== undefined
+      && authorizationQueue.authorityTransitionEpoch !== null
+      && (
+        !Number.isSafeInteger(authorizationQueue.authorityTransitionEpoch)
+        || authorizationQueue.authorityTransitionEpoch < 0
+      )
+    )
     || !plainRecord(authorizationQueue.pendingByScope)
     || (authorizationQueue.resolvedByToken !== undefined
       && !plainRecord(authorizationQueue.resolvedByToken))
@@ -519,13 +549,27 @@ export function validateOutboxState(value) {
   }
   return {
     ...value,
+    records: Object.fromEntries(Object.entries(value.records).map(([id, record]) => [id, {
+      ...record,
+      authorizationAuthorityGeneration: Number.isSafeInteger(
+        record?.authorizationAuthorityGeneration,
+      )
+        ? record.authorizationAuthorityGeneration
+        : (authorizationQueue.authorityGeneration ?? 0),
+      authorizationQueueGeneration: Number.isSafeInteger(record?.authorizationQueueGeneration)
+        ? record.authorizationQueueGeneration
+        : authorizationQueue.generation,
+    }])),
     operationIdentityRanges: value.operationIdentityRanges
       && typeof value.operationIdentityRanges === 'object'
       && !Array.isArray(value.operationIdentityRanges)
       ? value.operationIdentityRanges
       : {},
     authorizationQueue: {
+      authorityGeneration: authorizationQueue.authorityGeneration ?? 0,
       generation: authorizationQueue.generation,
+      authorityTransitionKey: authorizationQueue.authorityTransitionKey ?? null,
+      authorityTransitionEpoch: authorizationQueue.authorityTransitionEpoch ?? null,
       pendingByScope,
       resolvedByToken,
     },
@@ -548,17 +592,124 @@ const advanceAuthorizationQueueGeneration = (authorizationQueue) => {
   return authorizationQueue.generation + 1;
 };
 
+const advanceAuthorizationAuthorityGeneration = (authorizationQueue) => {
+  if (authorizationQueue.authorityGeneration === Number.MAX_SAFE_INTEGER) {
+    throw outboxError(
+      'SNAPBACK_AUTH_INVALIDATION_AUTHORITY_GENERATION_EXHAUSTED',
+      'authorization authority generation is exhausted and the client store must be replaced',
+    );
+  }
+  return authorizationQueue.authorityGeneration + 1;
+};
+
+const authorizationFence = (authorizationQueue) => Object.freeze({
+  authorityGeneration: authorizationQueue.authorityGeneration,
+  generation: authorizationQueue.generation,
+});
+
+const recordAuthorizationFence = (record) => ({
+  authorityGeneration: record?.authorizationAuthorityGeneration,
+  generation: record?.authorizationQueueGeneration,
+});
+
+const sameAuthorizationFence = (left, right) => (
+  Number.isSafeInteger(left?.authorityGeneration)
+  && Number.isSafeInteger(left?.generation)
+  && left.authorityGeneration === right?.authorityGeneration
+  && left.generation === right?.generation
+);
+
+const requireAuthorizationFence = (state, record, expectedFence = null) => {
+  const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+  if (authorizationQueueResult(current).suspended) {
+    throw outboxError(
+      'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
+      'the mutation queue authorization root blocks this record transition',
+    );
+  }
+  const expected = expectedFence ?? recordAuthorizationFence(record);
+  if (!sameAuthorizationFence(expected, authorizationFence(current))) {
+    throw outboxError(
+      'SNAPBACK_OUTBOX_AUTHORIZATION_STALE',
+      'the mutation queue authorization generation changed before compare-and-commit',
+      { expected, actual: authorizationFence(current) },
+    );
+  }
+  return current;
+};
+
+const requireAuthorizationAuthorityGeneration = (
+  state,
+  expectedAuthorityGeneration = null,
+) => {
+  const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+  const expected = expectedAuthorityGeneration ?? current.authorityGeneration;
+  if (
+    !Number.isSafeInteger(expected)
+    || expected < 0
+    || expected !== current.authorityGeneration
+  ) {
+    throw outboxError(
+      'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE',
+      'the mutation queue authority generation changed before compare-and-commit',
+      { expected, actual: current.authorityGeneration },
+    );
+  }
+  return current;
+};
+
+const requireCurrentAuthorizationFence = (
+  state,
+  expectedFence = null,
+  { allowSuspended = false } = {},
+) => {
+  const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+  if (!allowSuspended && authorizationQueueResult(current).suspended) {
+    throw outboxError(
+      'SNAPBACK_OUTBOX_AUTHORIZATION_SUSPENDED',
+      'the mutation queue authorization root blocks this queue transition',
+    );
+  }
+  const expected = expectedFence ?? authorizationFence(current);
+  if (!sameAuthorizationFence(expected, authorizationFence(current))) {
+    throw outboxError(
+      'SNAPBACK_OUTBOX_AUTHORIZATION_STALE',
+      'the mutation queue authorization generation changed before compare-and-commit',
+      { expected, actual: authorizationFence(current) },
+    );
+  }
+  return current;
+};
+
+const rebaseAuthorizationFencesAfterProof = (records, authorizationQueue) => Object.fromEntries(
+  Object.entries(records).map(([id, record]) => (
+    record.status !== 'stranded'
+      ? [id, {
+        ...record,
+        authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+        authorizationQueueGeneration: authorizationQueue.generation,
+      }]
+      : [id, record]
+  )),
+);
+
 const authorizationQueueResult = (authorizationQueue, extra = {}) => Object.freeze({
   ...extra,
+  authorityGeneration: authorizationQueue.authorityGeneration,
   generation: authorizationQueue.generation,
   suspended: Object.keys(authorizationQueue.pendingByScope).length > 0,
   pendingScopeCount: Object.keys(authorizationQueue.pendingByScope).length,
   effectiveDisposition: effectiveDisposition(authorizationQueue.pendingByScope),
 });
 
-const redactOutboxForAuthorizationDelete = (records) => Object.fromEntries(
+const redactOutboxForAuthorizationDelete = (records, authorizationQueue) => Object.fromEntries(
   Object.entries(records).map(([id, record]) => {
-    if (record.status !== 'pending' && record.status !== 'failed') return [id, record];
+    if (
+      record.status !== 'pending'
+      && record.status !== 'failed'
+      && record.status !== 'quarantined'
+      && !(record.status === 'stranded' && record.rerecordable === true)
+    ) return [id, record];
     return [id, {
       id: record.id,
       function: record.function,
@@ -566,6 +717,8 @@ const redactOutboxForAuthorizationDelete = (records) => Object.fromEntries(
       enqueuedAt: record.enqueuedAt,
       authorityEpoch: record.authorityEpoch ?? null,
       authorityKey: record.authorityKey ?? null,
+      authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+      authorizationQueueGeneration: authorizationQueue.generation,
       status: 'stranded',
       disposition: 'delete',
       reason: 'authorization_invalidation',
@@ -684,7 +837,11 @@ const allocateIdentity = (state, key, now) => {
 export const outboxOps = {
   // @ref LLP 0053#client-fences — root apply precedes blank/ACK, and replay
   //   stays suspended until an exact proof or authenticated retirement wins.
-  applyAuthorizationObligation(state, obligationValue) {
+  applyAuthorizationObligation(
+    state,
+    obligationValue,
+    expectedAuthorityGeneration = null,
+  ) {
     const obligation = validateResyncObligation(obligationValue);
     if (obligation.scopeId.kind === 'connection') {
       throw outboxError(
@@ -698,7 +855,10 @@ export const outboxOps = {
         'retain does not create a mutation-queue suspension root',
       );
     }
-    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    const current = requireAuthorizationAuthorityGeneration(
+      state,
+      expectedAuthorityGeneration,
+    );
     const key = scopeKey(obligation.scopeId);
     const merged = mergeResyncObligation(
       current.pendingByScope[key] ?? null,
@@ -709,6 +869,7 @@ export const outboxOps = {
       return { state, result: authorizationQueueResult(current, { status: merged.status }) };
     }
     const authorizationQueue = {
+      ...current,
       generation: advanceAuthorizationQueueGeneration(current),
       pendingByScope: {
         ...current.pendingByScope,
@@ -721,15 +882,22 @@ export const outboxOps = {
         ...state,
         authorizationQueue,
         records: merged.obligation.maxDisposition === 'delete'
-          ? redactOutboxForAuthorizationDelete(state.records)
+          ? redactOutboxForAuthorizationDelete(state.records, authorizationQueue)
           : state.records,
       },
       result: authorizationQueueResult(authorizationQueue, { status: 'accepted' }),
     };
   },
-  resolveAuthorizationObligation(state, resolutionValue) {
+  resolveAuthorizationObligation(
+    state,
+    resolutionValue,
+    expectedAuthorityGeneration = null,
+  ) {
     const resolution = validateResolutionTicket(resolutionValue);
-    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    const current = requireAuthorizationAuthorityGeneration(
+      state,
+      expectedAuthorityGeneration,
+    );
     const key = scopeKey(resolution.scopeId);
     const obligation = current.pendingByScope[key];
     if (!obligation || !resolutionSatisfies(obligation, resolution)) {
@@ -764,6 +932,7 @@ export const outboxOps = {
     }
     delete pendingByScope[key];
     const authorizationQueue = {
+      ...current,
       generation: advanceAuthorizationQueueGeneration(current),
       pendingByScope,
       resolvedByToken: {
@@ -772,16 +941,29 @@ export const outboxOps = {
       },
     };
     return {
-      state: { ...state, authorizationQueue },
+      state: {
+        ...state,
+        authorizationQueue,
+        records: Object.keys(pendingByScope).length === 0
+          ? rebaseAuthorizationFencesAfterProof(state.records, authorizationQueue)
+          : state.records,
+      },
       result: authorizationQueueResult(authorizationQueue, {
         status: 'resolved',
         ackToken: resolution.ackToken,
       }),
     };
   },
-  acknowledgeAuthorizationResolution(state, resolutionValue) {
+  acknowledgeAuthorizationResolution(
+    state,
+    resolutionValue,
+    expectedAuthorityGeneration = null,
+  ) {
     const resolution = validateResolutionTicket(resolutionValue);
-    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    const current = requireAuthorizationAuthorityGeneration(
+      state,
+      expectedAuthorityGeneration,
+    );
     const recorded = current.resolvedByToken?.[resolution.ackToken] ?? null;
     if (
       recorded === null
@@ -792,7 +974,11 @@ export const outboxOps = {
     const authorizationQueue = { ...current, resolvedByToken };
     return { state: { ...state, authorizationQueue }, result: true };
   },
-  retireAuthorizationScopes(state, scopeValues) {
+  retireAuthorizationScopes(
+    state,
+    scopeValues,
+    expectedAuthorityGeneration = null,
+  ) {
     if (!Array.isArray(scopeValues)) {
       throw new TypeError('retireAuthorizationScopes requires exact scope ids');
     }
@@ -806,7 +992,10 @@ export const outboxOps = {
       }
       return scopeKey(scope);
     }));
-    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    const current = requireAuthorizationAuthorityGeneration(
+      state,
+      expectedAuthorityGeneration,
+    );
     const pendingByScope = { ...current.pendingByScope };
     let retired = 0;
     for (const key of keys) {
@@ -818,17 +1007,145 @@ export const outboxOps = {
       return { state, result: authorizationQueueResult(current, { retired }) };
     }
     const authorizationQueue = {
+      ...current,
       generation: advanceAuthorizationQueueGeneration(current),
       pendingByScope,
       resolvedByToken: current.resolvedByToken ?? {},
     };
     return {
-      state: { ...state, authorizationQueue },
+      state: {
+        ...state,
+        authorizationQueue,
+        records: Object.keys(pendingByScope).length === 0
+          ? rebaseAuthorizationFencesAfterProof(state.records, authorizationQueue)
+          : state.records,
+      },
       result: authorizationQueueResult(authorizationQueue, { retired }),
     };
   },
-  enqueue(state, input, now) {
+  authorizationTransitionVisible(
+    state,
+    kind,
+    payload,
+    expectedAuthorityGeneration = null,
+  ) {
+    let transition;
+    try {
+      if (kind === 'apply') {
+        transition = outboxOps.applyAuthorizationObligation(
+          state,
+          payload,
+          expectedAuthorityGeneration,
+        );
+      } else if (kind === 'resolve') {
+        transition = outboxOps.resolveAuthorizationObligation(
+          state,
+          payload,
+          expectedAuthorityGeneration,
+        );
+      } else if (kind === 'retire') {
+        transition = outboxOps.retireAuthorizationScopes(
+          state,
+          payload,
+          expectedAuthorityGeneration,
+        );
+      } else {
+        throw new TypeError('authorizationTransitionVisible kind is invalid');
+      }
+    } catch (error) {
+      if ([
+        'SNAPBACK_CLIENT_QUEUE_RESOLUTION_STALE',
+        'SNAPBACK_OUTBOX_AUTHORIZATION_STALE',
+        'SNAPBACK_OUTBOX_AUTHORITY_GENERATION_STALE',
+      ].includes(error?.code)) return { state, result: false };
+      throw error;
+    }
+    // Exact visibility means replaying this root/proof/retirement is a no-op.
+    // A generic suspended bit cannot prove which scope another context wrote.
+    return { state, result: transition.state === state };
+  },
+  /// Atomically retire every predecessor authorization root/token before a
+  /// successor authority can inspect queue state. Records keep their old
+  /// authority fence until reconcileCustody strands, deletes, or explicitly
+  /// re-adopts them under the settled successor.
+  ///
+  /// @ref LLP 0059#transition-barrier — durable predecessor custody is
+  ///   retired in the same cut that advances successor authority state.
+  advanceAuthorizationAuthority(
+    state,
+    authorityTransitionKey = null,
+    authorityTransitionEpoch = null,
+  ) {
+    const current = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    if (
+      authorityTransitionKey !== null
+      && (
+        typeof authorityTransitionKey !== 'string'
+        || authorityTransitionKey.length === 0
+        || authorityTransitionKey.length > 2_048
+      )
+    ) {
+      throw outboxError(
+        'SNAPBACK_OUTBOX_AUTHORITY_TRANSITION_KEY_INVALID',
+        'queue authority transition key must be a non-empty bounded string',
+      );
+    }
+    if (
+      authorityTransitionKey !== null
+      && (
+        !Number.isSafeInteger(authorityTransitionEpoch)
+        || authorityTransitionEpoch < 0
+      )
+    ) {
+      throw outboxError(
+        'SNAPBACK_OUTBOX_AUTHORITY_TRANSITION_EPOCH_INVALID',
+        'keyed queue authority transitions require a non-negative successor epoch',
+      );
+    }
+    if (
+      authorityTransitionKey !== null
+      && current.authorityTransitionKey === authorityTransitionKey
+      && current.authorityTransitionEpoch === authorityTransitionEpoch
+    ) {
+      return {
+        state,
+        result: authorizationQueueResult(current, { status: 'authority-current' }),
+      };
+    }
+    if (
+      authorityTransitionKey !== null
+      && current.authorityTransitionEpoch !== null
+      && authorityTransitionEpoch <= current.authorityTransitionEpoch
+    ) {
+      throw outboxError(
+        'SNAPBACK_OUTBOX_AUTHORITY_TRANSITION_STALE',
+        'queue authority transition is older than the installed durable successor',
+        {
+          expectedAfterEpoch: current.authorityTransitionEpoch,
+          actualEpoch: authorityTransitionEpoch,
+        },
+      );
+    }
+    const authorizationQueue = {
+      authorityGeneration: advanceAuthorizationAuthorityGeneration(current),
+      generation: advanceAuthorizationQueueGeneration(current),
+      authorityTransitionKey,
+      authorityTransitionEpoch,
+      pendingByScope: {},
+      resolvedByToken: {},
+    };
+    return {
+      state: { ...state, authorizationQueue },
+      result: authorizationQueueResult(authorizationQueue, { status: 'authority-advanced' }),
+    };
+  },
+  enqueue(state, input, now, expectedAuthorizationFence = null) {
     const normalized = normalizeOutboxRecordInput(input);
+    const authorizationQueue = requireCurrentAuthorizationFence(
+      state,
+      expectedAuthorizationFence,
+      { allowSuspended: true },
+    );
     if (state.records[normalized.id]) {
       // Idempotence is the complete replay identity, never the opaque id
       // alone. Rebinding one id to another function/input/auth cohort would
@@ -854,23 +1171,35 @@ export const outboxOps = {
       enqueuedAt: now,
       status: 'pending',
       failure: null,
+      authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+      authorizationQueueGeneration: authorizationQueue.generation,
     };
-    const bytes = outboxRecordBytes(stored);
+    const admitted = authorizationQueueResult(authorizationQueue).effectiveDisposition === 'delete'
+      ? redactOutboxForAuthorizationDelete({ [stored.id]: stored }, authorizationQueue)[stored.id]
+      : stored;
+    const bytes = outboxRecordBytes(admitted);
     if (bytes > OUTBOX_MAX_RECORD_BYTES) throw outboxOversizeError(bytes);
     return {
       state: {
         ...state,
-        sequence: stored.sequence,
-        records: { ...state.records, [stored.id]: stored },
+        sequence: admitted.sequence,
+        records: { ...state.records, [admitted.id]: admitted },
       },
-      result: stored,
+      result: admitted,
     };
   },
   /// Atomically install a server response (when present), consume one finite
   /// counter, and persist the queued intent. With no available counter the
   /// intent is retained explicitly uncovered and MUST be assigned before
   /// transport admission.
-  enqueueWithOperationIdentity(state, input, now, authorityCohortKey, range = null) {
+  enqueueWithOperationIdentity(
+    state,
+    input,
+    now,
+    authorityCohortKey,
+    range = null,
+    expectedAuthorizationFence = null,
+  ) {
     const key = custodyKey(authorityCohortKey);
     const existing = state.records[input?.id];
     if (existing) {
@@ -879,7 +1208,7 @@ export const outboxOps = {
         operationIssuance: input.operationIssuance ?? existing.operationIssuance,
         operationCoverageDisposition:
           input.operationCoverageDisposition ?? existing.operationCoverageDisposition,
-      }, now);
+      }, now, expectedAuthorizationFence);
     }
     let working = range === null ? state : installRange(state, key, range);
     const allocated = allocateIdentity(working, key, now);
@@ -888,7 +1217,7 @@ export const outboxOps = {
       ...input,
       operationIssuance: allocated.issuance,
       operationCoverageDisposition: allocated.disposition,
-    }, now);
+    }, now, expectedAuthorizationFence);
   },
   /// Bind an uncovered pending intent at reconnect in the same durable cut
   /// that installs/advances the range. A crash leaves either the original
@@ -901,13 +1230,15 @@ export const outboxOps = {
     range = null,
     authorityDescriptor = undefined,
     authorityPrincipalId = undefined,
+    expectedAuthorizationFence = null,
   ) {
     const key = custodyKey(authorityCohortKey);
-    let working = range === null ? state : installRange(state, key, range);
-    const existing = working.records[id];
+    const existing = state.records[id];
     if (!existing || existing.status !== 'pending') {
-      return { state: working, result: existing ?? null };
+      return { state, result: existing ?? null };
     }
+    requireAuthorizationFence(state, existing, expectedAuthorizationFence);
+    let working = range === null ? state : installRange(state, key, range);
     if (existing.operationIssuance !== null) return { state: working, result: existing };
     const allocated = allocateIdentity(working, key, now);
     const stored = {
@@ -934,15 +1265,18 @@ export const outboxOps = {
     const current = state.operationIdentityRanges?.[custodyKey(authorityCohortKey)] ?? null;
     return { state, result: current?.range ?? null };
   },
-  settle(state, id) {
-    if (!state.records[id]) return { state, result: false };
+  settle(state, id, expectedAuthorizationFence = null) {
+    const existing = state.records[id];
+    if (!existing) return { state, result: false };
+    requireAuthorizationFence(state, existing, expectedAuthorizationFence);
     const records = { ...state.records };
     delete records[id];
     return { state: { ...state, records }, result: true };
   },
-  markFailed(state, id, failure) {
+  markFailed(state, id, failure, expectedAuthorizationFence = null) {
     const existing = state.records[id];
     if (!existing || existing.status !== 'pending') return { state, result: false };
+    requireAuthorizationFence(state, existing, expectedAuthorizationFence);
     const stored = {
       ...existing,
       status: 'failed',
@@ -964,12 +1298,26 @@ export const outboxOps = {
     );
     return { state: cascaded.state, result: true };
   },
-  markStranded(state, id, reason, now, predecessorPrincipalScope = null) {
+  markStranded(
+    state,
+    id,
+    reason,
+    now,
+    predecessorPrincipalScope = null,
+    expectedAuthorizationFence = null,
+  ) {
     const existing = state.records[id];
     if (!existing) return { state, result: false };
     if (existing.status === 'stranded') return { state, result: existing };
-    if (existing.status !== 'pending' && existing.status !== 'failed') {
+    if (
+      existing.status !== 'pending'
+      && existing.status !== 'failed'
+      && existing.status !== 'quarantined'
+    ) {
       return { state, result: false };
+    }
+    if (expectedAuthorizationFence !== false) {
+      requireAuthorizationFence(state, existing, expectedAuthorizationFence);
     }
     const scope = normalizePrincipalScope(
       predecessorPrincipalScope ?? existing.principalScope,
@@ -999,7 +1347,14 @@ export const outboxOps = {
   ///
   /// @ref LLP 0043#js-arm-sessions-custody-queue--recorded-design-2026-08-03-commissioned-at-author-sitting-2--ratified-2026-08-04-author-sitting-3-implementation-authorized-as-a-lane — strand-on-instance-change;
   ///   delete-with-diagnostic-count at a cross-principal boundary.
-  reconcileCustody(state, principalScope, authorityDescriptor, custody, now) {
+  reconcileCustody(
+    state,
+    principalScope,
+    authorityDescriptor,
+    custody,
+    now,
+    expectedAuthorityGeneration = null,
+  ) {
     const currentScope = normalizePrincipalScope(principalScope);
     const currentCustody = normalizeCustody(custody);
     const currentInstance = authorityInstanceId(authorityDescriptor);
@@ -1007,10 +1362,21 @@ export const outboxOps = {
       throw invalidOutboxRecord('queue custody reconciliation requires a settled authority');
     }
     let working = state;
+    const authorizationQueue = requireAuthorizationAuthorityGeneration(
+      working,
+      expectedAuthorityGeneration,
+    );
     const deletedIds = [];
     const strandedIds = [];
     for (const record of Object.values(state.records).sort(outboxOrder)) {
       if (!isFencedRecord(record)) {
+        const currentDeleteTombstone = record.status === 'stranded'
+          && record.disposition === 'delete'
+          && record.discardOnly === true
+          && record.rerecordable === false
+          && record.authorizationAuthorityGeneration
+            === authorizationQueue.authorityGeneration;
+        if (currentDeleteTombstone) continue;
         // An unattributable record carries no captured principal or custody
         // proof, so a fenced observer can neither attribute it to the current
         // principal nor ever transmit it under a captured authority ("intent
@@ -1038,7 +1404,11 @@ export const outboxOps = {
       }
       if (
         authorityInstanceId(record.authorityDescriptor) !== currentInstance
-        && (record.status === 'pending' || record.status === 'failed')
+        && (
+          record.status === 'pending'
+          || record.status === 'failed'
+          || record.status === 'quarantined'
+        )
       ) {
         const applied = outboxOps.markStranded(
           working,
@@ -1046,9 +1416,47 @@ export const outboxOps = {
           'authority_instance_changed',
           now,
           record.principalScope,
+          false,
         );
         working = applied.state;
         if (applied.result) strandedIds.push(record.id);
+      }
+      if (
+        authorityInstanceId(record.authorityDescriptor) === currentInstance
+        && (
+          record.status === 'pending'
+          || record.status === 'failed'
+          || record.status === 'quarantined'
+        )
+      ) {
+        working = {
+          ...working,
+          records: {
+            ...working.records,
+            [record.id]: {
+              ...working.records[record.id],
+              authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+              authorizationQueueGeneration: authorizationQueue.generation,
+            },
+          },
+        };
+      }
+      if (record.status === 'result-gone') {
+        // The server outcome is already terminal, so a same-principal
+        // successor can explicitly discard the retained dependency without
+        // ever replaying it. Rebase only its queue fence; cross-principal
+        // custody was privacy-deleted above.
+        working = {
+          ...working,
+          records: {
+            ...working.records,
+            [record.id]: {
+              ...working.records[record.id],
+              authorizationAuthorityGeneration: authorizationQueue.authorityGeneration,
+              authorizationQueueGeneration: authorizationQueue.generation,
+            },
+          },
+        };
       }
     }
     if (deletedIds.length > 0) {
@@ -1071,20 +1479,29 @@ export const outboxOps = {
       },
     };
   },
-  discardStranded(state, ids, principalScope) {
+  discardStranded(state, ids, principalScope, expectedAuthorizationFence = null) {
     const currentScope = normalizePrincipalScope(principalScope);
     if (currentScope === null) {
       throw invalidOutboxRecord('stranded discard requires a settled principal scope');
     }
     const selected = new Set(Array.isArray(ids) ? ids : []);
+    requireCurrentAuthorizationFence(state, expectedAuthorizationFence);
     const records = { ...state.records };
     const discardedIds = [];
     for (const record of Object.values(records).sort(outboxOrder)) {
+      const deleteTombstone = record.status === 'stranded'
+        && record.disposition === 'delete'
+        && record.discardOnly === true
+        && record.rerecordable === false
+        && record.authorizationAuthorityGeneration
+          === state.authorizationQueue.authorityGeneration;
       if (
         record.status !== 'stranded'
         || !selected.has(record.id)
-        || record.rerecordable !== true
-        || !samePrincipalScope(record.predecessorPrincipalScope, currentScope)
+        || (!deleteTombstone && (
+          record.rerecordable !== true
+          || !samePrincipalScope(record.predecessorPrincipalScope, currentScope)
+        ))
       ) continue;
       delete records[record.id];
       discardedIds.push(record.id);
@@ -1101,9 +1518,10 @@ export const outboxOps = {
   /// intent. Exact-leaf dependents retain an explicit dependent disposition;
   /// other pending records are held as compatibility-unclassified. No intent
   /// is dropped and no quarantined intent is selected by pendingOutboxRecords.
-  markQuarantined(state, id, refusal, now) {
+  markQuarantined(state, id, refusal, now, expectedAuthorizationFence = null) {
     const trigger = state.records[id];
     if (!trigger || trigger.status !== 'pending') return { state, result: false };
+    requireAuthorizationFence(state, trigger, expectedAuthorizationFence);
     const refusalCode = typeof refusal?.code === 'string' && refusal.code.length > 0
       ? refusal.code
       : 'SNAPBACK_UPGRADE_REQUIRED';
@@ -1143,7 +1561,8 @@ export const outboxOps = {
   /// unchanged; only quarantined records re-enter the ordered pending lane.
   /// Compatibility classification/transformation is a generated-facts
   /// follow-on, so this first cut deliberately re-enters the whole quarantine.
-  reenterQuarantined(state) {
+  reenterQuarantined(state, expectedAuthorizationFence = null) {
+    requireCurrentAuthorizationFence(state, expectedAuthorizationFence);
     const records = { ...state.records };
     const ids = [];
     for (const existing of Object.values(records).sort(outboxOrder)) {
@@ -1169,7 +1588,7 @@ export const outboxOps = {
   /// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 —
   ///   result-expired is outcome-known and distinct from both settled and
   ///   identity-horizon-passed state.
-  markResultGone(state, id, resultGone) {
+  markResultGone(state, id, resultGone, expectedAuthorizationFence = null) {
     const existing = state.records[id];
     if (!existing) return { state, result: false };
     const outcome = resultGone?.outcome;
@@ -1199,6 +1618,7 @@ export const outboxOps = {
       return { state, result: existing };
     }
     if (existing.status !== 'pending') return { state, result: false };
+    requireAuthorizationFence(state, existing, expectedAuthorizationFence);
     const stored = {
       ...existing,
       status: 'result-gone',
@@ -1217,8 +1637,8 @@ export const outboxOps = {
       result: stored,
     };
   },
-  discard(state, id) {
-    return outboxOps.settle(state, id);
+  discard(state, id, expectedAuthorizationFence = null) {
+    return outboxOps.settle(state, id, expectedAuthorizationFence);
   },
   recordAck(state, id, userId, authorityDescriptor = null, ready = true) {
     if (state.acks.some((ack) => ack.id === id)) return { state, result: false };
@@ -1238,13 +1658,23 @@ export const outboxOps = {
   /// Atomically cross the durable-consumption boundary: retain the complete
   /// settlement for recovery and create its server-GC obligation in the same
   /// store transaction. Publication may happen only after this transition.
-  durablyConsume(state, id, settlement, userId, now, confirmedAcknowledgements = []) {
+  durablyConsume(
+    state,
+    id,
+    settlement,
+    userId,
+    now,
+    confirmedAcknowledgements = [],
+    expectedAuthorizationFence = null,
+  ) {
+    const beforeConfirmed = state.records[id];
+    if (!beforeConfirmed) return { state, result: false };
+    requireAuthorizationFence(state, beforeConfirmed, expectedAuthorizationFence);
     // A successful mutation response proves its piggyback ACK stage too.
     // Retire those obligations in this same transaction so an ACK-full store
     // can make room without a crash gap before retaining the new settlement.
     const afterConfirmed = outboxOps.confirmAcks(state, confirmedAcknowledgements).state;
     const existing = afterConfirmed.records[id];
-    if (!existing) return { state, result: false };
     if (existing.status === 'settled') return { state: afterConfirmed, result: existing };
     if (existing.status !== 'pending') return { state, result: false };
     // Rewrite every not-yet-submitted successor in the same durable
@@ -1280,11 +1710,16 @@ export const outboxOps = {
     );
     return { state: acknowledged.state, result: stored };
   },
-  prepareSubmission(state, id) {
-    if (outboxAuthorizationStatus(state).suspended) {
+  prepareSubmission(state, id, { authorizationOnly = false } = {}) {
+    const authorizationQueue = state.authorizationQueue ?? emptyOutboxState().authorizationQueue;
+    if (authorizationQueueResult(authorizationQueue).suspended) {
       return {
         state,
-        result: { status: 'authorization-suspended', record: null },
+        result: {
+          status: 'authorization-suspended',
+          record: null,
+          fence: authorizationFence(authorizationQueue),
+        },
       };
     }
     let working = state;
@@ -1293,6 +1728,28 @@ export const outboxOps = {
       return {
         state: working,
         result: { status: target?.status ?? 'missing', record: target ?? null },
+      };
+    }
+    if (!sameAuthorizationFence(recordAuthorizationFence(target), authorizationFence(
+      working.authorizationQueue ?? authorizationQueue,
+    ))) {
+      return {
+        state: working,
+        result: {
+          status: 'authorization-stale',
+          record: null,
+          fence: authorizationFence(working.authorizationQueue ?? authorizationQueue),
+        },
+      };
+    }
+    if (authorizationOnly) {
+      return {
+        state: working,
+        result: {
+          status: 'ready',
+          record: target,
+          fence: authorizationFence(working.authorizationQueue ?? authorizationQueue),
+        },
       };
     }
     for (const predecessor of Object.values(working.records).sort(outboxOrder)) {
@@ -1325,7 +1782,14 @@ export const outboxOps = {
         };
       }
     }
-    return { state: working, result: { status: 'ready', record: target } };
+    return {
+      state: working,
+      result: {
+        status: 'ready',
+        record: target,
+        fence: authorizationFence(working.authorizationQueue ?? authorizationQueue),
+      },
+    };
   },
   markAcksReady(state, ids, userId = undefined, authorityDescriptor = undefined) {
     const selected = new Set(ids);
@@ -1343,7 +1807,14 @@ export const outboxOps = {
       ? { state, result: 0 }
       : { state: { ...state, acks }, result: changed };
   },
-  confirmAcks(state, ids, userId = undefined, authorityDescriptor = undefined) {
+  confirmAcks(
+    state,
+    ids,
+    userId = undefined,
+    authorityDescriptor = undefined,
+    expectedAuthorizationFence = null,
+  ) {
+    requireCurrentAuthorizationFence(state, expectedAuthorizationFence);
     const requested = new Set(ids);
     const confirmed = new Set(state.acks
       .filter((ack) => (

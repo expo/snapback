@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 
 import { SnapbackClient } from './index.mjs';
 import { SnapbackAssetClient } from './assets.mjs';
+import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
 
 const originalFetch = globalThis.fetch;
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
@@ -127,6 +128,8 @@ const runWatcher = async ({ failAvailability = null } = {}) => {
   let namespace = null;
   let scopeId = null;
   let store = null;
+  const queueStore = createMemoryRqsResumeStore();
+  queueStore.durability = () => ({ implementation: 'asset-watch-test', durable: true });
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     if (path === '/auth/session') return response(handshake);
@@ -194,6 +197,7 @@ const runWatcher = async ({ failAvailability = null } = {}) => {
     bearerToken: 'session-asset-watch',
     authInvalidationProtocol: 1,
     clientStoreId: 'store_asset_watch',
+    rqsStore: queueStore,
   });
   const manager = {
     onState: () => () => {},
@@ -235,6 +239,7 @@ const runWatcher = async ({ failAvailability = null } = {}) => {
     namespace,
     outbox,
     publications,
+    queueStore,
     scopeId,
     store,
   };
@@ -279,6 +284,8 @@ try {
       'delayed exact redelivery reapplied an already committed asset snapshot',
     );
     harness.store.dispose();
+    await harness.client.closeAuth();
+    await harness.queueStore.close();
   }
 
   // The synchronous authorization boundary is fallible. If its external-store
@@ -302,6 +309,8 @@ try {
       'failed asset publication discharged its obligation prematurely',
     );
     harness.store.dispose();
+    await harness.client.closeAuth();
+    await harness.queueStore.close();
   }
 
   console.log('assets-watch-authorization.test.mjs passed');

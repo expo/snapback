@@ -168,6 +168,79 @@ test('chmod refusal on an exotic files adapter is best-effort, not an availabili
   await store.close();
 });
 
+test('same-process reader defers an authority transition to the file writer', async (t) => {
+  const directory = await makeDirectory(t);
+  const writer = createFileRqsResumeStore({ directory, identity: 'shared-authority' });
+  await writer.whenLockSettled();
+  const reader = createFileRqsResumeStore({ directory, identity: 'shared-authority' });
+  await reader.whenLockSettled();
+  assert.equal(writer.isWriter(), true);
+  assert.equal(reader.isWriter(), false);
+  const before = await writer.outboxAuthorizationStatus();
+  assert.equal(await reader.wipeForAuthorityTransition('transition:shared', 2), true);
+  const after = await writer.outboxAuthorizationStatus();
+  assert.equal(after.authorityGeneration, before.authorityGeneration + 1);
+  assert.equal(await writer.wipeForAuthorityTransition('transition:shared', 2), true);
+  assert.equal(
+    (await reader.outboxAuthorizationStatus()).authorityGeneration,
+    after.authorityGeneration,
+    'writer replay of the reader-deferred transition is idempotent',
+  );
+  await reader.close();
+  await writer.close();
+});
+
+test('file reader and writer share one authorization dispatch order', async (t) => {
+  const directory = await makeDirectory(t);
+  const writer = createFileRqsResumeStore({ directory, identity: 'shared-dispatch' });
+  await writer.whenLockSettled();
+  const reader = createFileRqsResumeStore({ directory, identity: 'shared-dispatch' });
+  await reader.whenLockSettled();
+  const root = {
+    protocolVersion: 1,
+    scopeId: {
+      kind: 'clientQuery',
+      namespace: {
+        clientStoreId: 'file-shared-dispatch',
+        queryKey: 'cards:{}',
+        queryInstanceId: 1,
+      },
+    },
+    revision: 1,
+    maxDisposition: 'quarantine',
+    witness: {
+      authorization: {
+        incarnation: '018f0d90-7b11-7a22-8c33-445566778899',
+        epoch: 1,
+      },
+      data: null,
+    },
+    retryEpisodeId: null,
+  };
+  let releaseRoot;
+  const rootHeld = new Promise((resolve) => { releaseRoot = resolve; });
+  let rootEntered;
+  const rootStarted = new Promise((resolve) => { rootEntered = resolve; });
+  const rootCommit = writer.withOutboxAuthorizationDispatch(async () => {
+    rootEntered();
+    await rootHeld;
+    return writer.outboxApplyAuthorizationObligation(root);
+  });
+  await rootStarted;
+  let readerEntered = false;
+  const readerDispatch = reader.withOutboxAuthorizationDispatch(async () => {
+    readerEntered = true;
+    return reader.outboxAuthorizationStatus();
+  });
+  await Promise.resolve();
+  assert.equal(readerEntered, false, 'reader transport cannot split the writer root commit');
+  releaseRoot();
+  await rootCommit;
+  assert.equal((await readerDispatch).suspended, true);
+  await reader.close();
+  await writer.close();
+});
+
 test('operation identity range counter and queued intent survive file-store reopen atomically', async (t) => {
   const directory = await makeDirectory(t);
   const range = {

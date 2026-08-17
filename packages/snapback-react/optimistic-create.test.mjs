@@ -78,7 +78,7 @@ const canonical = (id, title, column = 'todo', version = 1) => Object.freeze({
   column,
 });
 
-function fakeClient(initialRows) {
+function fakeClient(initialRows, { deferViewOpen = false } = {}) {
   const handles = new Set();
   const views = new Set();
   const attempts = [];
@@ -89,6 +89,10 @@ function fakeClient(initialRows) {
   let authorityEpoch = 1;
   let barrier = null;
   let viewCreates = 0;
+  let releaseViewOpen = null;
+  const viewOpen = deferViewOpen
+    ? new Promise((resolve) => { releaseViewOpen = resolve; })
+    : Promise.resolve();
 
   const rebuildView = (entry) => {
     const retired = entry.retired;
@@ -153,10 +157,10 @@ function fakeClient(initialRows) {
         started: async () => {},
         settled: async () => {},
         dispose() { handles.delete(handle); },
-        emit(next) {
+        emit(next, detail = undefined) {
           rows = next;
           handle.current.rows = next;
-          options.onUpdate(next);
+          options.onUpdate(next, detail);
         },
       };
       handles.add(handle);
@@ -165,6 +169,7 @@ function fakeClient(initialRows) {
     },
     async createOptimisticMutationView({ authoritativeRows }) {
       viewCreates += 1;
+      await viewOpen;
       const entry = {
         authoritativeRows: authoritativeRows.cards,
         retired: new Set(),
@@ -265,7 +270,9 @@ function fakeClient(initialRows) {
       return promise;
     },
     settledMutations: async () => settled,
-    emit(next) { for (const handle of handles) handle.emit(next); },
+    emit(next, detail = undefined) {
+      for (const handle of handles) handle.emit(next, detail);
+    },
     async cutAuthority() {
       await barrier.quiesce();
       authorityEpoch += 1;
@@ -273,6 +280,7 @@ function fakeClient(initialRows) {
       barrier.clearMemory();
       await barrier.resume();
     },
+    releaseViewOpen() { releaseViewOpen?.(); },
     inspection: () => ({
       attempts,
       handles: handles.size,
@@ -398,12 +406,109 @@ assert.equal(
   'canonical',
 );
 
+// Quarantine hides optimistic-create custody without destroying it. Neither
+// a predecessor live frame nor a local view notification can republish the
+// provisional row; a proof-bearing snapshot rebases and releases it.
+const quarantined = observer.create({ title: 'Foxtrot', column: 'todo' });
+await flush();
+client.inspection().attempts[5].queue();
+assert.equal((await quarantined).status, 'queued');
+assert.equal(observer.snapshot().data.some((entry) => entry.fields.title === 'Foxtrot'), true);
+client.emit([], { kind: 'authorization_quarantine' });
+assert.deepEqual(observer.snapshot().data, []);
+client.emit(
+  [canonical('card_predecessor', 'Predecessor', 'todo', 6)],
+  { kind: 'live_replace' },
+);
+await flush();
+assert.deepEqual(observer.snapshot().data, []);
+client.emit([
+  canonical('card_5', 'Echo', 'todo', 5),
+  canonical('card_2', 'Alpha', 'todo', 3),
+  canonical('card_1', 'Bravo', 'todo', 2),
+  canonical('card_4', 'Charlie', 'todo', 4),
+  canonical('card_0', 'Existing', 'todo'),
+], { kind: 'authorization_snapshot' });
+assert.deepEqual(
+  observer.snapshot().data,
+  [],
+  'proof keeps optimistic-create blank until its asynchronous rebase completes',
+);
+await flush();
+assert.equal(
+  observer.snapshot().data.some((entry) => (
+    entry.identity.kind === 'provisional' && entry.fields.title === 'Foxtrot'
+  )),
+  true,
+  'continued-authority proof releases and rebases the suspended provisional create',
+);
+client.inspection().attempts[5].replay('card_6');
+client.emit([
+  canonical('card_6', 'Foxtrot', 'todo', 6),
+  canonical('card_5', 'Echo', 'todo', 5),
+  canonical('card_2', 'Alpha', 'todo', 3),
+  canonical('card_1', 'Bravo', 'todo', 2),
+  canonical('card_4', 'Charlie', 'todo', 4),
+  canonical('card_0', 'Existing', 'todo'),
+]);
+await flush();
+
+// Authorization errors use the same proof-required suspension as quarantine:
+// hide without destroying the provisional create, then rebase after proof.
+const errored = observer.create({ title: 'Hotel', column: 'todo' });
+await flush();
+client.inspection().attempts[6].queue();
+assert.equal((await errored).status, 'queued');
+client.emit([], { kind: 'authorization_error', error: new Error('proof unavailable') });
+assert.deepEqual(observer.snapshot().data, []);
+client.emit(
+  [canonical('card_error_predecessor', 'Error predecessor', 'todo', 7)],
+  { kind: 'live_replace' },
+);
+await flush();
+assert.deepEqual(observer.snapshot().data, []);
+client.emit([
+  canonical('card_6', 'Foxtrot', 'todo', 6),
+  canonical('card_5', 'Echo', 'todo', 5),
+], { kind: 'authorization_snapshot' });
+assert.deepEqual(observer.snapshot().data, [], 'error proof also releases only after rebase');
+await flush();
+assert.equal(
+  observer.snapshot().data.some((entry) => (
+    entry.identity.kind === 'provisional' && entry.fields.title === 'Hotel'
+  )),
+  true,
+);
+client.inspection().attempts[6].replay('card_7');
+client.emit([
+  canonical('card_7', 'Hotel', 'todo', 7),
+  canonical('card_6', 'Foxtrot', 'todo', 6),
+  canonical('card_5', 'Echo', 'todo', 5),
+]);
+await flush();
+
+// Delete is terminal custody loss: it force-closes instead of retaining a
+// proof-releasable provisional create.
+const deleted = observer.create({ title: 'India', column: 'todo' });
+await flush();
+client.inspection().attempts[7].queue();
+assert.equal((await deleted).status, 'queued');
+client.emit([], { kind: 'authorization_delete' });
+await flush();
+assert.deepEqual(observer.snapshot().data, []);
+assert.equal(provider.inspection().provisionalCreates, 0);
+client.emit([
+  canonical('card_7', 'Hotel', 'todo', 7),
+  canonical('card_6', 'Foxtrot', 'todo', 6),
+], { kind: 'authorization_snapshot' });
+await flush();
+
 // Authority replacement closes predecessor projection ownership. A late
 // response cannot republish it into the successor partition.
-const stale = observer.create({ title: 'Foxtrot', column: 'todo' });
+const stale = observer.create({ title: 'Golf', column: 'todo' });
 await flush();
 await client.cutAuthority();
-client.inspection().attempts[5].resolve('card_6');
+client.inspection().attempts[8].resolve('card_8');
 await assert.rejects(stale, (error) => error.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE');
 assert.equal(provider.inspection().provisionalCreates, 0);
 
@@ -420,6 +525,45 @@ assert.equal(
   false,
   'the paved optimistic-create path must not emit the generic append-reducer advisory',
 );
+
+// Proof arriving while the optimistic-create view is still opening must be
+// replayed against that view once it exists. Otherwise no later frame remains
+// to release the proof-suspended projection.
+{
+  const delayedClient = fakeClient(
+    [canonical('card_delayed_predecessor', 'Delayed predecessor')],
+    { deferViewOpen: true },
+  );
+  const delayedBinding = await prepareReactBindingForClient(delayedClient, {
+    generatedManifest: functions,
+  });
+  const delayedProvider = createSnapbackReactProvider(delayedBinding, {
+    connectionId: 'optimistic-create-delayed-open-test',
+  });
+  const delayedObserver = observeSnapbackOptimisticCreate(
+    delayedProvider,
+    createCard,
+    { query: cards, args: {}, select },
+    () => {},
+  );
+  await flush();
+  assert.equal(delayedClient.inspection().viewCreates, 1);
+  delayedClient.emit([], { kind: 'authorization_quarantine' });
+  delayedClient.emit(
+    [canonical('card_delayed_proof', 'Delayed proof', 'todo', 2)],
+    { kind: 'authorization_snapshot' },
+  );
+  assert.deepEqual(delayedObserver.snapshot().data, []);
+  delayedClient.releaseViewOpen();
+  await flush();
+  await flush();
+  assert.deepEqual(
+    delayedObserver.snapshot().data.map((entry) => entry.fields.title),
+    ['Delayed proof'],
+  );
+  delayedObserver.dispose();
+  await delayedProvider.dispose();
+}
 console.warn = originalWarn;
 
 console.log('optimistic-create.test.mjs: typed provider projection, ordering, settlement, replay, authority, Strict Mode, and cleanup pass');

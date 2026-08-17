@@ -87,6 +87,27 @@ impl From<SnapbackError> for ApiError {
     }
 }
 
+// Authoritative registry consumed by the JS client's exhaustive classifier
+// test. These request-shape/protocol refusals cannot become successful under
+// an unchanged live-subscribe retry.
+// TERMINAL_LIVE_PROTOCOL_REFUSAL_CODES_BEGIN
+pub(super) const TERMINAL_LIVE_PROTOCOL_REFUSAL_CODES: &[&str] = &[
+    "SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED",
+    "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED",
+    "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED",
+    "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED",
+    "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED",
+    "SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED",
+    "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
+    "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
+    "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH",
+    "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED",
+    "SNAPBACK_WIRE_VERSION_MISMATCH",
+    "SNAPBACK_WIRE_VERSION_REQUIRED",
+    "SNAPBACK_WIRE_VERSION_UNSUPPORTED",
+];
+// TERMINAL_LIVE_PROTOCOL_REFUSAL_CODES_END
+
 /// Map a diagnostic code to an HTTP status.
 ///
 /// @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D10: an
@@ -95,6 +116,9 @@ impl From<SnapbackError> for ApiError {
 /// unrecognized code fails conservatively as 500 so a runtime/storage failure
 /// can never silently masquerade as bad input (ENG-24357).
 pub(super) fn status_for_diagnostic_code(code: &str) -> StatusCode {
+    if TERMINAL_LIVE_PROTOCOL_REFUSAL_CODES.contains(&code) {
+        return StatusCode::BAD_REQUEST;
+    }
     // @ref LLP 0092#0d1-route-and-schemas-finalizing-0090-d12s-provisional-shape —
     //   the SNAPBACK_BUNDLE_* HTTP status mapping (codes authoritative,
     //   statuses advisory).
@@ -742,20 +766,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_ERROR_TRANSITION_INVALID"
         | "SNAPBACK_AUTH_IMPERSONATION_FILE_INVALID"
         | "SNAPBACK_AUTH_REHEARSAL_REQUEST_INVALID"
-        | "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
-        | "SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED"
-        | "SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED"
         // @ref LLP 0094#0e--refusal-code-registry-negotiation — the wire-version
         // negotiation refusals are HTTP 400 in the standard error envelope.
-        | "SNAPBACK_WIRE_VERSION_UNSUPPORTED"
-        | "SNAPBACK_WIRE_VERSION_MISMATCH"
-        | "SNAPBACK_WIRE_VERSION_REQUIRED"
-        | "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH"
-        | "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED"
-        | "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH"
-        | "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED"
-        | "SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED"
         | "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ACTION_TIMEOUT"
         | "SNAPBACK_ACTION_STREAM_TIMEOUT"

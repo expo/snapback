@@ -360,7 +360,7 @@ test('public authLogout runs the v3 client-wide wipe on memory, IndexedDB, and f
   });
 });
 
-test('logout keeps the documented availability-only posture when the v3 wipe fails', async () => {
+test('logout fails closed when the v3 wipe cannot advance queue authority', async () => {
   const backing = createMemoryRqsStoreBacking({ clientStoreId: 'logout-v3-availability' });
   const store = createMemoryRqsResumeStore({ backing });
   await store.whenLockSettled();
@@ -399,11 +399,18 @@ test('logout keeps the documented availability-only posture when the v3 wipe fai
     await client.authExchange({ challengeId: 'logout-v3-challenge', code: '123456' });
     await seedPredecessorState(store);
     failWipe = true;
-    assert.equal(await client.authLogout(), null);
-    assert.equal(coordinator.authority.kind, 'anonymous');
+    await assert.rejects(
+      () => client.authLogout(),
+      (error) => error.code === 'SNAPBACK_AUTH_TRANSITION_FAILED',
+    );
+    assert.equal(coordinator.authority, null, 'failed durable transition remains fail-closed');
     const retained = await residentSnapshot(store);
     assert.notEqual(retained.entry, null);
-    assert.deepEqual(retained.pendingOutbox, []);
+    assert.deepEqual(
+      retained.pendingOutbox.map((record) => record.id),
+      ['logout-v3-pending'],
+      'predecessor intent remains hidden in the store when the transition cannot disposition it',
+    );
     assert.notEqual(retained.receipt, null);
     assert.deepEqual(retained.sections, { materializations: 1, pageSets: 1, memberships: 1 });
   } finally {

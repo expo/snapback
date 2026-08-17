@@ -434,8 +434,11 @@ export function createIndexedDbRqsResumeStore({
     return reader(state);
   };
 
-  const outboxWrite = async (transition, { throwWhenNotWriter = false } = {}) => {
-    if (!writer || closed) {
+  const outboxWrite = async (
+    transition,
+    { throwWhenNotWriter = false, authorizationWriter = false } = {},
+  ) => {
+    if ((!writer && !authorizationWriter) || closed) {
       if (throwWhenNotWriter) throw outboxNotWriterError();
       return false;
     }
@@ -467,6 +470,20 @@ export function createIndexedDbRqsResumeStore({
     /// granted writer's Web Locks request promise resolves only at close).
     whenLockSettled() {
       return lockAdjudicated;
+    },
+
+    /// A short, cross-tab gate shared by authorization-root installation,
+    /// authority advance/reconciliation, and mutation transport. IndexedDB
+    /// serializes each state commit; this lock extends the cut across prepare
+    /// -> fetch -> settlement so a reader tab's root or transition cannot race
+    /// between those stages.
+    async withOutboxAuthorizationDispatch(operation) {
+      if (closed) throw storeError('SNAPBACK_RQS_STORE_CLOSED', 'RQS resume store is closed');
+      return lockManager.request(
+        `${lockName}:authorization-dispatch`,
+        { mode: 'exclusive' },
+        operation,
+      );
     },
 
     // @ref LLP 0218#43-the-platform-owned-drain — a queued Web Lock grant
@@ -507,9 +524,9 @@ export function createIndexedDbRqsResumeStore({
 
     // ---- LLP 0043 M2 outbox (LLP 0129 Phase 0, web arm) ----
 
-    async outboxEnqueue(record) {
+    async outboxEnqueue(record, expectedAuthorizationFence = null) {
       return outboxWrite(
-        (state) => outboxOps.enqueue(state, record, now()),
+        (state) => outboxOps.enqueue(state, record, now(), expectedAuthorizationFence),
         { throwWhenNotWriter: true },
       );
     },
@@ -518,35 +535,72 @@ export function createIndexedDbRqsResumeStore({
       return outboxRead((state) => outboxAuthorizationStatus(state));
     },
 
-    async outboxApplyAuthorizationObligation(obligation) {
+    async outboxAuthorizationTransitionVisible(
+      kind,
+      payload,
+      expectedAuthorityGeneration = null,
+    ) {
+      return outboxRead((state) => outboxOps.authorizationTransitionVisible(
+        state,
+        kind,
+        payload,
+        expectedAuthorityGeneration,
+      ).result);
+    },
+
+    async outboxApplyAuthorizationObligation(obligation, expectedAuthorityGeneration = null) {
       return outboxWrite(
-        (state) => outboxOps.applyAuthorizationObligation(state, obligation),
-        { throwWhenNotWriter: true },
+        (state) => outboxOps.applyAuthorizationObligation(
+          state,
+          obligation,
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, authorizationWriter: true },
       );
     },
 
-    async outboxResolveAuthorizationObligation(resolution) {
+    async outboxResolveAuthorizationObligation(resolution, expectedAuthorityGeneration = null) {
       return outboxWrite(
-        (state) => outboxOps.resolveAuthorizationObligation(state, resolution),
-        { throwWhenNotWriter: true },
+        (state) => outboxOps.resolveAuthorizationObligation(
+          state,
+          resolution,
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, authorizationWriter: true },
       );
     },
 
-    async outboxAcknowledgeAuthorizationResolution(resolution) {
+    async outboxAcknowledgeAuthorizationResolution(
+      resolution,
+      expectedAuthorityGeneration = null,
+    ) {
       return outboxWrite(
-        (state) => outboxOps.acknowledgeAuthorizationResolution(state, resolution),
-        { throwWhenNotWriter: true },
+        (state) => outboxOps.acknowledgeAuthorizationResolution(
+          state,
+          resolution,
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, authorizationWriter: true },
       );
     },
 
-    async outboxRetireAuthorizationScopes(scopes) {
+    async outboxRetireAuthorizationScopes(scopes, expectedAuthorityGeneration = null) {
       return outboxWrite(
-        (state) => outboxOps.retireAuthorizationScopes(state, scopes),
-        { throwWhenNotWriter: true },
+        (state) => outboxOps.retireAuthorizationScopes(
+          state,
+          scopes,
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, authorizationWriter: true },
       );
     },
 
-    async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
+    async outboxEnqueueWithOperationIdentity(
+      record,
+      authorityCohortKey,
+      range = null,
+      expectedAuthorizationFence = null,
+    ) {
       return outboxWrite(
         (state) => outboxOps.enqueueWithOperationIdentity(
           state,
@@ -554,6 +608,7 @@ export function createIndexedDbRqsResumeStore({
           now(),
           authorityCohortKey,
           range,
+          expectedAuthorizationFence,
         ),
         { throwWhenNotWriter: true },
       );
@@ -565,6 +620,7 @@ export function createIndexedDbRqsResumeStore({
       range = null,
       authorityDescriptor = undefined,
       authorityPrincipalId = undefined,
+      expectedAuthorizationFence = null,
     ) {
       return outboxWrite((state) => outboxOps.assignOperationIdentity(
         state,
@@ -574,6 +630,7 @@ export function createIndexedDbRqsResumeStore({
         range,
         authorityDescriptor,
         authorityPrincipalId,
+        expectedAuthorizationFence,
       ));
     },
 
@@ -588,19 +645,25 @@ export function createIndexedDbRqsResumeStore({
       return outboxRead((state) => pendingOutboxRecords(state));
     },
 
-    async outboxPrepareSubmission(id) {
-      return outboxWrite((state) => outboxOps.prepareSubmission(state, id));
+    async outboxPrepareSubmission(id, options = undefined) {
+      return outboxWrite((state) => outboxOps.prepareSubmission(state, id, options));
     },
 
     async outboxRecords() {
       return outboxRead((state) => allOutboxRecords(state));
     },
 
-    async outboxSettle(id) {
-      return outboxWrite((state) => outboxOps.settle(state, id));
+    async outboxSettle(id, expectedAuthorizationFence = null) {
+      return outboxWrite((state) => outboxOps.settle(state, id, expectedAuthorizationFence));
     },
 
-    async outboxDurablyConsume(id, settlement, userId = null, confirmedAcknowledgements = []) {
+    async outboxDurablyConsume(
+      id,
+      settlement,
+      userId = null,
+      confirmedAcknowledgements = [],
+      expectedAuthorizationFence = null,
+    ) {
       return outboxWrite(
         (state) => outboxOps.durablyConsume(
           state,
@@ -609,56 +672,92 @@ export function createIndexedDbRqsResumeStore({
           userId,
           now(),
           confirmedAcknowledgements,
+          expectedAuthorizationFence,
         ),
       );
     },
 
-    async outboxMarkFailed(id, failure) {
-      return outboxWrite((state) => outboxOps.markFailed(state, id, failure));
+    async outboxMarkFailed(id, failure, expectedAuthorizationFence = null) {
+      return outboxWrite((state) => outboxOps.markFailed(
+        state,
+        id,
+        failure,
+        expectedAuthorizationFence,
+      ));
     },
 
-    async outboxMarkStranded(id, reason, predecessorPrincipalScope = null) {
+    async outboxMarkStranded(
+      id,
+      reason,
+      predecessorPrincipalScope = null,
+      expectedAuthorizationFence = null,
+    ) {
       return outboxWrite((state) => outboxOps.markStranded(
         state,
         id,
         reason,
         now(),
         predecessorPrincipalScope,
+        expectedAuthorizationFence,
       ));
     },
 
-    async outboxReconcileCustody(principalScope, authorityDescriptor, custody) {
-      return outboxWrite((state) => outboxOps.reconcileCustody(
-        state,
-        principalScope,
-        authorityDescriptor,
-        custody,
-        now(),
-      ));
+    async outboxReconcileCustody(
+      principalScope,
+      authorityDescriptor,
+      custody,
+      expectedAuthorityGeneration = null,
+    ) {
+      return outboxWrite(
+        (state) => outboxOps.reconcileCustody(
+          state,
+          principalScope,
+          authorityDescriptor,
+          custody,
+          now(),
+          expectedAuthorityGeneration,
+        ),
+        { throwWhenNotWriter: true, authorizationWriter: true },
+      );
     },
 
-    async outboxDiscardStranded(ids, principalScope) {
+    async outboxDiscardStranded(ids, principalScope, expectedAuthorizationFence = null) {
       return outboxWrite((state) => outboxOps.discardStranded(
         state,
         ids,
         principalScope,
+        expectedAuthorizationFence,
       ));
     },
 
-    async outboxMarkQuarantined(id, refusal) {
-      return outboxWrite((state) => outboxOps.markQuarantined(state, id, refusal, now()));
+    async outboxMarkQuarantined(id, refusal, expectedAuthorizationFence = null) {
+      return outboxWrite((state) => outboxOps.markQuarantined(
+        state,
+        id,
+        refusal,
+        now(),
+        expectedAuthorizationFence,
+      ));
     },
 
-    async outboxReenterQuarantined() {
-      return outboxWrite((state) => outboxOps.reenterQuarantined(state));
+    async outboxReenterQuarantined(expectedAuthorizationFence = null) {
+      return outboxWrite((state) => outboxOps.reenterQuarantined(
+        state,
+        expectedAuthorizationFence,
+      ));
     },
 
-    async outboxMarkResultGone(id, resultGone) {
-      return outboxWrite((state) => outboxOps.markResultGone(state, id, resultGone));
+    async outboxMarkResultGone(id, resultGone, expectedAuthorizationFence = null) {
+      return outboxWrite((state) => outboxOps.markResultGone(
+        state,
+        id,
+        resultGone,
+        expectedAuthorizationFence,
+      ));
     },
 
-    async outboxDiscard(id) {
-      return outboxWrite((state) => outboxOps.discard(state, id));
+    async outboxDiscard(id, expectedAuthorizationFence = null) {
+      return outboxWrite((state) => outboxOps.discard(state, id, expectedAuthorizationFence));
     },
 
     async outboxRecordAcknowledgement(id, userId = null, authorityDescriptor = null) {
@@ -679,9 +778,20 @@ export function createIndexedDbRqsResumeStore({
       );
     },
 
-    async outboxConfirmAcknowledgements(ids, userId = undefined, authorityDescriptor = undefined) {
+    async outboxConfirmAcknowledgements(
+      ids,
+      userId = undefined,
+      authorityDescriptor = undefined,
+      expectedAuthorizationFence = null,
+    ) {
       return outboxWrite(
-        (state) => outboxOps.confirmAcks(state, ids, userId, authorityDescriptor),
+        (state) => outboxOps.confirmAcks(
+          state,
+          ids,
+          userId,
+          authorityDescriptor,
+          expectedAuthorizationFence,
+        ),
       );
     },
 
@@ -889,11 +999,24 @@ export function createIndexedDbRqsResumeStore({
       return true;
     },
 
-    async wipeForAuthorityTransition() {
-      pendingReactBindingReceipt = null;
-      if (!this.isWriter()) return false;
+    async wipeForAuthorityTransition(
+      authorityTransitionKey = null,
+      authorityTransitionEpoch = null,
+    ) {
       const db = await database();
       const tx = db.transaction(ALL_STORES, 'readwrite');
+      const outboxStore = tx.objectStore(OUTBOX);
+      const predecessorOutbox = await readOutboxState(outboxStore);
+      const advanced = outboxOps.advanceAuthorizationAuthority(
+        predecessorOutbox,
+        authorityTransitionKey,
+        authorityTransitionEpoch,
+      );
+      if (advanced.result.status === 'authority-current') {
+        await transactionDone(tx);
+        return true;
+      }
+      pendingReactBindingReceipt = null;
       const nextMeta = wipeStoreMeta(
         await readMetaFromStore(tx.objectStore(STORE_META)),
         { randomBytes },
@@ -905,7 +1028,8 @@ export function createIndexedDbRqsResumeStore({
       for (const storeName of RESIDENT_STORES) {
         if (storeName !== OUTBOX) tx.objectStore(storeName).clear();
       }
-      tx.objectStore(OUTBOX).delete(REACT_BINDING_RECEIPT_KEY);
+      outboxStore.put(advanced.state, OUTBOX_STATE_KEY);
+      outboxStore.delete(REACT_BINDING_RECEIPT_KEY);
       tx.objectStore(STORE_META).put(nextMeta, RQS_STORE_META_KEY);
       await transactionDone(tx);
       return true;

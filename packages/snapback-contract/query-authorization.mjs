@@ -922,6 +922,23 @@ export function createLiveQueryAuthorizationFence({
     }
   };
 
+  const previewRetirement = (operation) => {
+    const before = clone(state);
+    try {
+      return operation();
+    } finally {
+      Object.assign(state, before);
+    }
+  };
+
+  const previewRetireScopes = ({ retirement, freshSnapshot = null }) => (
+    previewRetirement(() => retireScopes({ retirement, freshSnapshot }))
+  );
+
+  const previewRetireIssuer = ({ retirement, freshSnapshot = null }) => (
+    previewRetirement(() => retireIssuer({ retirement, freshSnapshot }))
+  );
+
   const beginRetirement = ({ fence, commit = null }) => {
     assertFence(state, fence, 'query instance retirement');
     const before = clone(state);
@@ -979,6 +996,8 @@ export function createLiveQueryAuthorizationFence({
     rejectAcknowledgement,
     applyLiveSnapshot,
     replaceAuthenticatedExpectation,
+    previewRetireScopes,
+    previewRetireIssuer,
     retireScopes,
     retireIssuer,
     beginRetirement,

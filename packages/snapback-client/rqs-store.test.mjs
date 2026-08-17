@@ -377,6 +377,79 @@ test('two tabs: single writer under the Web Lock; the reader adopts but cannot w
   await readerTab.close();
 });
 
+test('reader tab can advance and reconcile queue authority while writer holds the drain lock', async () => {
+  const indexedDB = new IDBFactory();
+  const lockManager = createLockManagerDouble();
+  const databaseName = `snapback-rqs-reader-authority-${Math.random()}`;
+  const { store: writerTab } = await makeStore({ indexedDB, lockManager, databaseName });
+  const { store: readerTab } = await makeStore({ indexedDB, lockManager, databaseName });
+  assert.equal(writerTab.isWriter(), true);
+  assert.equal(readerTab.isWriter(), false);
+
+  const predecessorDescriptor = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b24-7a22-8c33-445566778899',
+    sessionGeneration: 1,
+  };
+  const principalScope = {
+    authMode: 'sessions',
+    authorizationStreamIncarnation: '018f0d90-7b25-7a22-8c33-445566778899',
+    userId: '018f0d90-7b26-7a22-8c33-445566778899',
+  };
+  await writerTab.outboxEnqueue({
+    id: 'cm-reader-transition-predecessor',
+    function: 'createThing',
+    args: { secret: 'predecessor' },
+    authorityDescriptor: predecessorDescriptor,
+    principalScope,
+    custody: { authorityEpoch: 1, authorityKey: 'reader-transition-predecessor' },
+  });
+  const predecessor = await writerTab.outboxAuthorizationStatus();
+  const sharedTransitionKey = 'sessions:reader-transition:1->2';
+  let transitionGeneration;
+  await readerTab.withOutboxAuthorizationDispatch(async () => {
+    assert.equal(await readerTab.wipeForAuthorityTransition(sharedTransitionKey, 2), true);
+    transitionGeneration = (await readerTab.outboxAuthorizationStatus()).authorityGeneration;
+  });
+  const successorEntryKey = rqsEntryKey('successorAfterTransition', {});
+  assert.equal(
+    (await writerTab.commit(successorEntryKey, makeEntry({ version: 10 }))).persisted,
+    true,
+  );
+  await writerTab.withOutboxAuthorizationDispatch(async () => {
+    assert.equal(await writerTab.wipeForAuthorityTransition(sharedTransitionKey, 2), true);
+    assert.equal(
+      (await writerTab.outboxAuthorizationStatus()).authorityGeneration,
+      transitionGeneration,
+      'a peer replay of the same durable transition reuses one authority generation',
+    );
+  });
+  assert.notEqual(
+    await writerTab.load(successorEntryKey),
+    null,
+    'same-transition peer replay does not wipe successor resident state again',
+  );
+  await readerTab.withOutboxAuthorizationDispatch(async () => {
+    const disposition = await readerTab.outboxReconcileCustody(
+      principalScope,
+      {
+        ...predecessorDescriptor,
+        authorityInstanceId: '018f0d90-7b27-7a22-8c33-445566778899',
+        sessionGeneration: 2,
+      },
+      { authorityEpoch: 2, authorityKey: 'reader-transition-successor' },
+      transitionGeneration,
+    );
+    assert.deepEqual(disposition.strandedIds, ['cm-reader-transition-predecessor']);
+  });
+  const successor = await writerTab.outboxAuthorizationStatus();
+  assert.equal(successor.authorityGeneration, predecessor.authorityGeneration + 1);
+  assert.equal((await writerTab.outboxRecords())[0].status, 'stranded');
+
+  await readerTab.close();
+  await writerTab.close();
+});
+
 test('reader close aborts its queued lock request without waiting for the writer', async () => {
   const indexedDB = new IDBFactory();
   const lockManager = createLockManagerDouble();

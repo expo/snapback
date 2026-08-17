@@ -315,9 +315,19 @@ const createFence = (overrides = {}) => createLiveQueryAuthorizationFence({
   assert.equal(fence.isRenderable(), false);
   assert.equal(fence.receiveObligation(pending).status, 'retired');
   const events = [];
+  const freshSnapshot = snapshot({ version: 20, rows: [{ id: 20 }] });
+  const beforePreview = fence.snapshot();
+  const preview = fence.previewRetireScopes({ retirement, freshSnapshot });
+  assert.equal(preview.status, 'retired');
+  assert.deepEqual(
+    fence.snapshot(),
+    beforePreview,
+    'retirement preview cannot publish or advance the local fence',
+  );
+  assert.equal(fence.isRenderable(), false);
   const retired = fence.retireScopes({
     retirement,
-    freshSnapshot: snapshot({ version: 20, rows: [{ id: 20 }] }),
+    freshSnapshot,
     commit: (event) => events.push(event),
   });
   assert.equal(retired.status, 'retired');

@@ -380,7 +380,7 @@ test('default lifecycle does not replay a durable record while foreground owns i
   assert.equal(mutationRequests, 1, 'foreground settlement produces exactly one mutation request');
 });
 
-test('enqueue during replay re-arms the default lifecycle after the replay snapshot', async (t) => {
+test('enqueue during replay waits for the dispatch cut and re-arms the default lifecycle', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   await enqueue(store, 'cm-replay-snapshot');
@@ -412,12 +412,19 @@ test('enqueue during replay re-arms the default lifecycle after the replay snaps
   const client = new SnapbackClient('https://drain-level-wake.test', { rqsStore: store });
   t.after(() => client.close());
   await replayStarted;
-  const queued = await client.mutate('createThing', {
+  const queuedTask = client.mutate('createThing', {
     args: { id: 'cm-during-replay' },
     clientMutationId: 'cm-during-replay',
   });
-  assert.equal(queued.status, 'queued');
+  await tick();
+  assert.equal(
+    attempts.has('cm-during-replay'),
+    false,
+    'foreground dispatch cannot split replay prepare from settlement',
+  );
   releaseReplay();
+  const queued = await queuedTask;
+  assert.equal(queued.status, 'queued');
 
   await waitFor(
     async () => (
@@ -434,6 +441,17 @@ test('replay-latched enqueue survives terminal pause without an external wake', 
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   await enqueue(store, 'cm-terminal-replay-head');
+  const originalMarkFailed = store.outboxMarkFailed.bind(store);
+  let signalFailureMarkStarted;
+  const failureMarkStarted = new Promise((resolve) => { signalFailureMarkStarted = resolve; });
+  let releaseFailureMark;
+  const heldFailureMark = new Promise((resolve) => { releaseFailureMark = resolve; });
+  t.after(() => releaseFailureMark());
+  store.outboxMarkFailed = async (...args) => {
+    signalFailureMarkStarted();
+    await heldFailureMark;
+    return originalMarkFailed(...args);
+  };
   let signalReplayStarted;
   const replayStarted = new Promise((resolve) => { signalReplayStarted = resolve; });
   let releaseReplay;
@@ -473,12 +491,27 @@ test('replay-latched enqueue survives terminal pause without an external wake', 
   const unsubscribe = client.subscribeOutbox(() => phases.push(controller.status().drainPhase));
   t.after(unsubscribe);
   await replayStarted;
-  const queued = await client.mutate('createThing', {
+  const queuedTask = client.mutate('createThing', {
     args: { id: 'cm-terminal-replay-successor' },
     clientMutationId: 'cm-terminal-replay-successor',
   });
-  assert.equal(queued.status, 'queued');
+  await tick();
+  assert.equal(
+    attempts.has('cm-terminal-replay-successor'),
+    false,
+    'successor foreground dispatch waits for the replay terminal commit',
+  );
   releaseReplay();
+  await failureMarkStarted;
+  await tick();
+  assert.equal(
+    attempts.has('cm-terminal-replay-successor'),
+    false,
+    'an answered replay refusal retains dispatch custody through its durable failure mark',
+  );
+  releaseFailureMark();
+  const queued = await queuedTask;
+  assert.equal(queued.status, 'queued');
 
   await waitFor(
     async () => (

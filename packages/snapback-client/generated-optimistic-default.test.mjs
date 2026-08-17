@@ -1193,12 +1193,17 @@ test('settlement preserves an ordinary string equal to a sibling speculative id 
   const sibling = host.client.mutate(CREATE, {
     clientMutationId: 'string-sibling', args: { title: speculativeId, position: 2 },
   });
-  await waitUntil(() => requests.has('string-sibling'), 'string sibling dispatch');
   await waitUntil(() => host.handle.rows.length === 2, 'string sibling speculative paint');
-  assert.equal(requests.get('string-sibling').args.title, speculativeId);
+  assert.equal(
+    requests.has('string-sibling'),
+    false,
+    'the sibling paints while its predecessor retains ordered dispatch custody',
+  );
 
   releaseFirst();
   await first;
+  await waitUntil(() => requests.has('string-sibling'), 'string sibling dispatch');
+  assert.equal(requests.get('string-sibling').args.title, speculativeId);
   canonicalRows = [{
     _id: 'card-string-source-authoritative',
     title: 'Source', position: 1, archived: false, locked: false,
@@ -1513,6 +1518,12 @@ const exerciseAuthorityBoundary = async ({ boundaryCallbackThrows }) => {
   let scopeId = null;
   let releaseMutation;
   const mutationGate = new Promise((resolve) => { releaseMutation = resolve; });
+  let releaseTransportAdmission;
+  const transportAdmissionGate = new Promise((resolve) => { releaseTransportAdmission = resolve; });
+  let signalTransportAdmissionStarted;
+  const transportAdmissionStarted = new Promise(
+    (resolve) => { signalTransportAdmissionStarted = resolve; },
+  );
   const client = new SnapbackClient('http://generated-optimistic-authority.test', {
     bearerToken: 'generated-optimistic-session',
     authInvalidationProtocol: 1,
@@ -1563,6 +1574,7 @@ const exerciseAuthorityBoundary = async ({ boundaryCallbackThrows }) => {
       });
     }
     if (path === '/mutation/createCard') {
+      if (boundaryCallbackThrows) throw new TypeError('queue before authorization adapter error');
       await mutationGate;
       return Response.json({ result: true, version: 2 });
     }
@@ -1585,8 +1597,14 @@ const exerciseAuthorityBoundary = async ({ boundaryCallbackThrows }) => {
     const pending = client.mutate(CREATE, {
       clientMutationId: `authority-${boundaryCallbackThrows ? 'error' : 'quarantine'}-create`,
       args: { title: 'Protected prediction', position: 1 },
+      ...(boundaryCallbackThrows ? {} : { __beforeTransportDispatch: async () => {
+        signalTransportAdmissionStarted();
+        await transportAdmissionGate;
+      } }),
     });
+    if (!boundaryCallbackThrows) await transportAdmissionStarted;
     await waitUntil(() => handle.rows.length === 1, 'protected generated insert paint');
+    if (boundaryCallbackThrows) assert.equal((await pending).status, 'queued');
     outbox.push([authBoundaryEnvelope(scopeId)]);
     await handle.poll();
     await waitUntil(
@@ -1605,10 +1623,19 @@ const exerciseAuthorityBoundary = async ({ boundaryCallbackThrows }) => {
     assert.equal(errors.length, boundaryCallbackThrows ? 1 : 0);
     await new Promise((resolve) => setTimeout(resolve, 10));
     assert.deepEqual(handle.rows, [], 'pending read-free insert cannot repaint after authority loss');
+    releaseTransportAdmission();
     releaseMutation();
-    await pending;
+    if (boundaryCallbackThrows) {
+      // The adapter fault closes the live scope and retires its queue root;
+      // the closed handle still cannot repaint from the later settlement.
+    } else {
+      const deferred = await pending;
+      assert.equal(deferred.status, 'queued');
+      assert.equal(deferred.authorizationDisposition, 'authorization-suspended');
+    }
     await handle.dispose();
   } finally {
+    releaseTransportAdmission();
     releaseMutation();
     globalThis.fetch = originalFetch;
     await store.close();

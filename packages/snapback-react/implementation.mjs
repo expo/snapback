@@ -1060,7 +1060,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     store.freshness = 'unknown';
     store.retention = null;
     if (store.optimisticCreate !== null) {
-      closeOptimisticCreate(store, store.optimisticCreate, { force: true });
+      if (detail?.kind === 'authorization_delete') {
+        closeOptimisticCreate(store, store.optimisticCreate, { force: true });
+      } else {
+        store.optimisticCreate.authorizationGeneration += 1;
+        store.optimisticCreate.proofReleaseGeneration = null;
+        store.optimisticCreate.suspended = true;
+        store.optimisticCreate.deferred = true;
+        store.optimisticCreate.cache = null;
+      }
     }
     if (detail?.kind === 'authorization_delete') {
       for (const layer of store.optimisticLayers) {
@@ -1221,6 +1229,16 @@ function createRegistry(binding, providerInstanceId, options = {}) {
           || detail?.kind === 'authorization_denied'
         ) {
           store.authorizationProjectionSuspended = false;
+          if (store.optimisticCreate !== null) {
+            if (detail?.kind === 'authorization_denied') {
+              closeOptimisticCreate(store, store.optimisticCreate, { force: true });
+            } else if (store.optimisticCreate.suspended) {
+              store.optimisticCreate.authorizationGeneration += 1;
+              store.optimisticCreate.proofReleaseGeneration =
+                store.optimisticCreate.authorizationGeneration;
+              store.optimisticCreate.cache = null;
+            }
+          }
         } else if (store.authorizationProjectionSuspended) {
           publishAuthorizationBoundary(store, detail, generation);
           return;
@@ -1592,10 +1610,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   );
 
   const applyOptimisticCreateAuthority = async (store, state, cause) => {
+    const proofReleaseGeneration = state.proofReleaseGeneration;
+    const releaseAfterProof = state.suspended
+      && Number.isSafeInteger(proofReleaseGeneration);
     if (
       store.optimisticCreate !== state
       || state.view === null
       || state.unresolved > 0
+      || (state.suspended && !releaseAfterProof)
       || runtimePaused()
     ) {
       if (state.unresolved > 0) state.deferred = true;
@@ -1612,7 +1634,20 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       cause,
     });
     if (store.optimisticCreate !== state) return;
+    if (
+      releaseAfterProof
+      && (
+        state.proofReleaseGeneration !== proofReleaseGeneration
+        || state.authorizationGeneration !== proofReleaseGeneration
+        || store.authorizationProjectionSuspended
+      )
+    ) return;
     for (const identity of retiredSettlementIdentities) state.confirmed.delete(identity);
+    if (releaseAfterProof) {
+      state.proofReleaseGeneration = null;
+      state.suspended = false;
+      state.cache = null;
+    }
     notifyOptimisticCreate(store, state);
   };
 
@@ -1649,6 +1684,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (
       terminal
       || runtimePaused()
+      || state.suspended
       || store.authoritativeRevision === 0
       || store.freshness !== 'current'
     ) {
@@ -1668,7 +1704,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     state.opening = client.createOptimisticMutationView({
       authoritativeRows: { [state.table]: store.authoritativeData },
       connected: connectedForOptimisticCreate(store),
-    }).then((view) => {
+    }).then(async (view) => {
       if (
         terminal
         || runtimePaused()
@@ -1684,6 +1720,10 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       state.view = view;
       state.unsubscribe = view.subscribe(() => notifyOptimisticCreate(store, state));
       notifyOptimisticCreate(store, state);
+      // A quarantine proof can arrive while the view promise is still open.
+      // Re-run the proof release after installation so that opening latency
+      // cannot strand suspended optimistic-create custody indefinitely.
+      await applyOptimisticCreateAuthority(store, state, 'react-provider-view-opened');
       return view;
     }).catch((error) => {
       if (store.optimisticCreate === state && state.generation === generation) {
@@ -1718,6 +1758,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       unresolved: 0,
       confirmed: new Map(),
       deferred: false,
+      suspended: false,
+      authorizationGeneration: 0,
+      proofReleaseGeneration: null,
       pinReleased: true,
       settlementDiscovery: null,
     };
@@ -3484,6 +3527,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const optimisticCreateEntities = (store, state) => {
+    if (state?.suspended === true) return Object.freeze([]);
     const authoritative = Array.isArray(store.authoritativeData)
       ? store.authoritativeData
       : [];
@@ -3540,12 +3584,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     if (
       state?.cache?.base === base
       && state.cache.view === state.snapshot
+      && state.cache.suspended === state.suspended
     ) return state.cache.value;
     const value = Object.freeze({
       ...base,
       data: optimisticCreateEntities(store, state),
     });
-    if (state !== null) state.cache = { base, view: state.snapshot, value };
+    if (state !== null) {
+      state.cache = { base, view: state.snapshot, suspended: state.suspended, value };
+    }
     return value;
   };
 

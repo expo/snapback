@@ -529,7 +529,10 @@ await queuedDispatchResolvesGenericRollbackCannotErasePendingLayer();
     [],
     'quarantine publishes the exact blank projection',
   );
-  harness.queuedClient.emit([], { kind: 'live_replace' });
+  harness.queuedClient.emit(
+    [{ id: 'counter', count: 0 }],
+    { kind: 'live_replace' },
+  );
   harness.attempt.disposition('unknown');
   await flush();
   assert.equal(

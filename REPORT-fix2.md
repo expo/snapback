@@ -1,189 +1,100 @@
-# Integration fix 2 report
+# Auth-invalidation default lane — round 2 fix report
 
-## Root cause
+Date: 2026-08-16
 
-The failing `validCase` generates the `probe` Action as a module-form
-`IbexModule`. The authoring path correctly recognizes `handler.ts` as an
-admitted TypeScript handler and validates it with the pinned TypeScript parser,
-but it preserves that admitted source on `runtime.IbexModule.source`.
+## Outcome
 
-The semantic-generation lane then sent every `IbexModule.source` through Acorn
-with `sourceType: 'module'`. Acorn only accepts ECMAScript, so it rejected the
-first TypeScript-only construct—the `type Result` alias—at line 2, column 5.
-This was a canonicalizer coverage mismatch, not an invalid fixture or a
-module-versus-script error.
+All accepted Review 1 and Review 2 findings were implemented in the library-level default lane.
 
-## Source form
+- The outbox persists distinct authority and queue generations. Enqueue, operation-identity preparation, foreground dispatch, replay, settlement, ACK collection, and discard are compare-and-commit fenced; transport and terminal local disposition share the root-installation dispatch order.
+- Quarantine/error roots suspend late admissions and release them only after exact proof. Delete roots immediately redact existing and late-admitted replay/rerecord payloads into explicit discard-only tombstones.
+- Authority transitions atomically advance an idempotently keyed authority generation, retire predecessor roots/tokens, and reconcile every predecessor record state before successor publication. Same-transition peer replay reuses one generation; older and interleaved transitions cannot overwrite newer custody.
+- Reader contexts use exact-root/proof visibility, not a generic suspended bit. IndexedDB readers have a narrow authorization writer path; same-process file readers defer through the lock holder. Reader and writer transport/root work shares one dispatch gate, including transition and reconciliation work.
+- Optimistic-create custody is hidden and suspended for quarantine/error, remains hidden through asynchronous proof rebase (including proof arriving while the view opens), and releases only after that rebase. Delete, denial, and authority replacement force-close it.
+- The terminal-live-refusal classifier includes `SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED` and `SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED`; its exhaustive JS test reads the authoritative Rust registry in `src/server/api_error.rs`.
+- LLP 0043 records the 2026-08-16 author ruling and the two-generation, exact-dispatch, delete-redaction, ACK, and authority-transition obligations.
 
-The exact legitimate emitted source form was a closed-script TypeScript handler:
+## Finding disposition
 
-```ts
-type Result = { ok: boolean };
-const initial: Result = { ok: true };
-globalThis.__snapbackHandlers = {
-  async probe(): Promise<Result> { return initial; },
-};
-```
+1. Review 1 / queue suspension across enqueue, foreground, replay, settlement, and discard: fixed with two-generation CAS fences, shared dispatch serialization, active-root refusal, late-enqueue suspension, exact terminal disposition, and immediate delete redaction. Foreground, late-enqueue, preparation, transport, settlement, ACK, and discard races are covered.
+2. Review 1 / roots crossing authority transitions: fixed with atomic authority-generation advance in memory, IndexedDB, and file carriers; transition key/epoch idempotency; predecessor root/token retirement; and generation-bound custody reconciliation before successor observation.
+3. Review 1 / optimistic-create quarantine destruction: fixed. Quarantine/error suspends; exact proof asynchronously rebases then releases; delete/denial/authority loss closes. Tests cover predecessor frames, immediate post-proof blanking, delayed view opening, and final rebased release.
+4. Review 1 / incomplete terminal classifier and mirrored test: fixed with both ephemeral unsupported codes and registry-driven exhaustive coverage while instance-change/409/503/transport neighbors remain retryable.
+5. Review 2 / non-writer root loss and no-ACK fault: fixed. Readers write through or defer to the writer, accept only the exact visible root/proof/retirement, blank without a store fault while deferred, and never ACK before exact shared persistence. Multi-context tests place the live query in the reader and the drain lock in the writer.
+6. Review 2 minor / ineffective quarantine rematerialization lock: fixed with a non-empty predecessor `live_replace` and an assertion that the exact blank remains.
 
-The operation facts were:
+The independent follow-up loop also closed generation-CAS gaps in operation identity and discard, active-root ACK/discard collection, delete tombstone custody, queue-disabled and capability-degraded foreground dispatch, same-transition peer replay, file-reader dispatch ordering, post-dispatch authority reconciliation, and optimistic-create proof/open ordering.
 
-- operation: `probe`
-- kind: `Action`
-- handler form: `module`
-- runtime kind: `IbexModule`
-- authored source: `handler.ts`
+No requested fix was rejected or materially deviated from.
 
-## Fix
+## VERIFY (verbatim)
 
-`canonicalExecutableSource` still parses JavaScript directly with Acorn first.
-If that parser rejects the source, the canonicalizer now tries the pinned
-TypeScript compiler, refuses any TypeScript error diagnostic, erases
-non-executable type/comment syntax, and parses the emitted JavaScript with
-Acorn into the same canonical AST representation.
+- snapback-client package.test.mjs
+- authorization-invalidation
+- outbox-* suites
+- subscribe-retry
+- rqs-store suites (memory/file/default)
+- tsc fixtures
+- snapback-react full suite incl. optimistic
+- node --check on changed files
 
-This preserves the evidence-versus-executable split: the raw TypeScript bytes
-remain evidence inputs, while its executable meaning canonicalizes identically
-to the type-erased JavaScript. It does not catch-and-skip failures; malformed
-TypeScript and invalid emitted JavaScript still produce `CODEGEN_WRITE_FAILED`.
+## Verification results
 
-The regression test uses the exact `Result`/`initial`/`probe(): Promise<Result>`
-form, asserts equality with its emitted JavaScript form, and separately asserts
-that malformed TypeScript refuses.
-
-## Verification
-
-All required commands passed:
-
-- `env -u FORCE_COLOR node packages/snapback-codegen/authoring-validation.test.mjs`
-- `env -u FORCE_COLOR node packages/snapback-codegen/semantic-generation-golden.test.mjs`
-- `env -u FORCE_COLOR node packages/snapback-codegen/semantic-generation-rotation.test.mjs`
-- `env -u FORCE_COLOR npm test --workspace @expo/snapback-codegen`
-- `./ref-check --verbose`
-- `git diff --check`
-
-Complete codegen package-chain result, verbatim tail:
+All requested checks passed.
 
 ```text
-protected query profile tests passed
-retainability profile tests passed
-dependency-graph.test.mjs: all cases passed
-contract-output-mode.test.mjs: all cases passed
-contract-binding-reads.test.mjs: all cases passed
-receipt-capability.test.mjs: all cases passed
-jobs-authoring.test.mjs: all cases passed
-sequence-authoring.test.mjs: declaration, v3 identity, and capability checks passed
-provider introspection tests passed
-operation-schemas.test.mjs: all cases passed
-app-descriptor.test.mjs: all cases passed
-app-inspection.test.mjs: all cases passed
-remote-service-publication.test.mjs: all cases passed
-data-tier-corpus.test.mjs: 37 cases verified; builder-parity assertions passed
-✔ auth v1 cross-language crypto vectors remain exact (1.571792ms)
-ℹ tests 1
-ℹ suites 0
-ℹ pass 1
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
-ℹ todo 0
-ℹ duration_ms 6.198542
-codegen review surface: cold cache, tamper, legacy, custody, failure atomicity, and summaries verified
+cd packages/snapback-client && SNAPBACK_CLIENT_RQS_DIR=<writable-temp> npm test
+PASS — complete package pretest/test command, including package.test.mjs, authorization invalidation, every outbox/RQS suite, subscribe retry, and client TypeScript fixtures
+
+cd packages/snapback-client && node authorization-invalidation.test.mjs
+PASS — 6 tests
+
+cd packages/snapback-client && node outbox-custody.test.mjs && node outbox-drain.test.mjs && node outbox-quarantine.test.mjs && node outbox-store.test.mjs
+PASS — 17 + 20 + 4 + 77 tests
+
+cd packages/snapback-client && node subscribe-retry.test.mjs
+PASS — 3 tests; classifier exhausts the authoritative server registry
+
+cd packages/snapback-client && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-store-v3.test.mjs && node rqs-resume-memory.test.mjs
+PASS — 16 + 19 + 9 + 20 tests across default IndexedDB, file, v3, and memory
+
+cd packages/snapback-client && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts push-registry-types.fixture.ts auth-identity-types.fixture.ts app-client-types.fixture.ts
+PASS — exit 0 (also included in full package test)
+
+cd packages/snapback-react && npm test
+PASS — complete package pretest/test command, including optimistic.test.mjs, optimistic-create.test.mjs, and React TypeScript fixtures
+
+git diff --name-only -- '*.mjs' | while IFS= read -r changed_file; do node --check "$changed_file" || exit; done
+PASS — exit 0 for every changed JavaScript module/test
 ```
 
-## Golden changes
-
-No golden vector changed and no regeneration was needed. The committed semantic
-generation vectors and the full rotation matrix passed unchanged; only the new
-exact-form regression test was added.
-
----
-
-# LLP 0262 Stage 1 Lane B second review-fix verification
-
-## Full snapback-vite package suite
-
-Command:
-
-```sh
-SNAPBACK_CLIENT_RQS_DIR=/private/tmp/snapback-vite-rqs-review-fix2-impl0262-b bun run --cwd packages/snapback-vite test
-```
-
-Exit status: 0
-
-Verbatim output:
+Additional affected checks:
 
 ```text
-$ node dev-identity-relay.test.mjs && node package.test.mjs && node channel-a.test.mjs && node rqs-serializer.test.mjs && bun bun-relay.test.mjs
-dev identity relay: HTTP /connection/open + request re-read + WS upgrade stamp and overwrite pass
-dev identity relay: Vite defaults and exact carriers stay denied; fs.strict=false refuses stamping
-dev identity relay: managed descriptor + owner-only sidecar stamp; unsafe carriers refuse harvest
-dev identity relay: absent handoff warns once and strips a client-supplied capability
-allowlist matrix: app-data forwards, system/admin refused
-virtual module sanitized; factory validation refuses bad config
-managed spawn + ready handshake + host-ops bring-up pass
-proxy allowlist: refusals structured, app-data ephemeral routes forward
-WebSocket live stream relays through /__snapback
-virtual:snapback/dev is sanitized
-attach/external validation: mismatch, destructive opt-in, and ready-file fencing refuse correctly
-auto attach: non-destructive, and teardown spares the attached server
-closing Vite tears down only the plugin-spawned managed child
-package.test.mjs: allowlist, managed lifecycle, proxy + WS relay, attach fencing, and sanitization pass
-✔ matches exact patterns and binds percent-decoded params (1.724167ms)
-✔ normalizes the fallback document and the configured base (0.127833ms)
-✔ publicInline eligibility reads the codegen-compiled function fact (0.144042ms)
-✔ injects the boot payload as a non-executable data block before </head> (0.259583ms)
-ℹ tests 4
-ℹ suites 0
-ℹ pass 4
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
-ℹ todo 0
-ℹ duration_ms 6.90075
-✔ fixture corpus is present and complete (1.182583ms)
-✔ fixture 001-script-close-value serializes byte-exactly (literal </script> and <script> inside a string value) (1.149625ms)
-✔ fixture 002-script-close-key serializes byte-exactly (literal </script><script> as an object property name) (0.326542ms)
-✔ fixture 003-mixed-case serializes byte-exactly (mixed-case script terminators (HTML tag names are case-insensitive)) (0.357958ms)
-✔ fixture 004-escaped-slash serializes byte-exactly (backslash before the slash: the < must still be escaped and the backslash preserved) (0.350459ms)
-✔ fixture 005-comment-open serializes byte-exactly (comment-opening sequence <!-- in string values) (0.407667ms)
-✔ fixture 006-comment-close serializes byte-exactly (comment-closing sequence --> in a string value) (0.302292ms)
-✔ fixture 007-nested serializes byte-exactly (dangerous keys and values at depth in nested objects and arrays) (0.635875ms)
-✔ fixture 008-unicode-separators serializes byte-exactly (raw U+2028/U+2029 in a value and in a property name) (0.326916ms)
-✔ fixture 009-kitchen-sink serializes byte-exactly (composite: terminators, comments, escaped-slash, separators, quotes, backslashes, controls, raw UTF-8 passthrough) (0.336ms)
-✔ whole-output byte property rejects reintroduced literals (0.216083ms)
-✔ escapes apply to property names, not only values (0.044084ms)
-ℹ tests 12
-ℹ suites 0
-ℹ pass 12
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
-ℹ todo 0
-ℹ duration_ms 10.253167
-bun-relay: Bun 1.3.12 runtime confirmed
-bun-relay: temporary app generated by the Node 24 child
-bun-relay: managed backend and real Bun-backed Vite server ready
-[bun] Warning: ws.WebSocket 'unexpected-response' event is not implemented in bun
-bun-relay: durable live_replace arrived after a proxied mutation
-bun-relay: websocket upgrade to a refused system route failed closed
-bun-relay.test.mjs: Bun Vite websocket relay + 403 upgrade refusal pass
+cd packages/snapback-contract && node query-authorization.test.mjs
+PASS — authorization-fence conformance, including side-effect-free retirement preview
+
+cd packages/snapback-contract && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler query-authorization.d.mts
+PASS — runtime/declaration retirement-preview surface compiles
+
+./ref-check --verbose
+PASS — 275 LLP docs, 6344 refs in 13910 files, 0 errors, 0 unchecked
+
+rustfmt --edition 2024 --check src/server/api_error.rs
+PASS — exit 0
+
+git diff --check
+PASS — exit 0
 ```
 
-## Dev-identity relay tests
+## Review closure
 
-Command:
-
-```sh
-node packages/snapback-vite/dev-identity-relay.test.mjs
-```
-
-Exit status: 0
-
-Verbatim output:
-
-```text
-dev identity relay: HTTP /connection/open + request re-read + WS upgrade stamp and overwrite pass
-dev identity relay: Vite defaults and exact carriers stay denied; fs.strict=false refuses stamping
-dev identity relay: managed descriptor + owner-only sidecar stamp; unsafe carriers refuse harvest
-dev identity relay: absent handoff warns once and strips a client-supplied capability
-```
+Two independent reviewers iterated over the exact fix delta until their review
+queues ran dry. The queue/custody reviewer returned `VERDICT: READY` after a
+171-test focused pass plus a final 25-test auth/file/sender rerun, syntax checks,
+and diff validation. The client/React surface reviewer found the final code and
+tests dry after the two-phase authenticated-retirement correction and its
+reader-tab regression, then identified one declaration-parity omission for the
+new preview methods. That declaration was added and compiled; this report's
+count and closure bookkeeping were also corrected before the final exact-diff
+recheck.
