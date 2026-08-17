@@ -30,3 +30,14 @@ upload or application write.
 Absorb this as a guide recipe page (sessions-mode fixture install:
 accounts + profiles + typed media as one composition) or an explicit GAP
 row in `guide/capabilities.md` per LLP 0061 §5.
+
+## Resolution (2026-08-17)
+
+Resolved by `guide/recipes/sessions-fixture-install.md`, linked from the Guide
+index, versioned-seed page, and asset page. The recipe transcludes Coterie's
+ordinary-session installer and teaches signup on first install, server-derived
+profile ownership, ordinary upload plus typed attachment, the
+`SNAPBACK_AUTH_PASSWORD_EXISTS` sign-in/match branch, fixture-source-digest and
+asset-readiness verification, and the no-upload/no-application-write matched
+repeat. Retrieval-eval case 57 and compressed capability aliases preserve the
+discovery path.

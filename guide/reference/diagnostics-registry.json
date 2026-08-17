@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:f40854038976c359f0c359bf5f72a4db973123a27bf988fba7c30a697928f3b3"
+    "sourceDigest": "sha256:761e75c5857ab140942996df86ecb45bd7244ee478df0e0403646cf069518bf9"
   },
   "limits": {
     "lookupBytes": 16384
@@ -12,7 +12,7 @@
     "sourceFiles": 473,
     "emittingSites": 11701,
     "httpClassified": 1029,
-    "guideAnchored": 414
+    "guideAnchored": 415
   },
   "diagnostics": {
     "SNAPBACK_ACTION_CAPACITY_EXCEEDED": {
@@ -17553,7 +17553,8 @@
       "httpStatusClass": "4xx",
       "guideAnchor": "/_snapback/guide/auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing",
       "guideAnchors": [
-        "/_snapback/guide/auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing"
+        "/_snapback/guide/auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing",
+        "/_snapback/guide/clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately"
       ]
     },
     "SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID": {
@@ -22302,8 +22303,13 @@
       ],
       "httpStatus": 409,
       "httpStatusClass": "4xx",
-      "guideAnchor": null,
-      "guideAnchors": []
+      "guideAnchor": "/_snapback/guide/clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately",
+      "guideAnchors": [
+        "/_snapback/guide/clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately",
+        "/_snapback/guide/recipes/sessions-fixture-install.md#anti-patterns",
+        "/_snapback/guide/recipes/sessions-fixture-install.md#sign-up-first-on-existence-sign-in-and-prove-the-whole-fixture",
+        "/_snapback/guide/retrieval-eval.md#seed-intents"
+      ]
     },
     "SNAPBACK_AUTH_PASSWORD_HASH_UNAVAILABLE": {
       "code": "SNAPBACK_AUTH_PASSWORD_HASH_UNAVAILABLE",

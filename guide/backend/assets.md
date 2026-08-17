@@ -218,6 +218,13 @@ the bearer. A dynamic development port must come from the target's ready
 descriptor or this kind of stack-owned carrier, never an app-owned fixed
 fallback.
 
+Separately, for a deterministic fixture that composes password accounts,
+application-owned profiles, and typed avatars without admin impersonation,
+follow the [sessions fixture installer](../recipes/sessions-fixture-install.md).
+It reports `{ ok, accounts, profiles }`; its matched-repeat branch signs in and
+verifies the fixture source digest, then skips asset uploads and
+application-data writes.
+
 The client flow is: create an attempt (the generated reference plus the
 declared byte length — deferred length refuses), transfer bytes over TUS
 1.0.0 (`PATCH /assets/tus/{id}`, checksum every chunk), then finalize.

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:c68bc883c165f182e490b2fea39ad815061fad209927c4337fe6f51e3efe5fd5"
+    "sourceDigest": "sha256:e148cef0cae76bdd3fc2697ae80373347fdea93afe1e6735a0f2d448c732e112"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -407,6 +407,11 @@
         "id": "recipes.view-once-media",
         "order": 8,
         "title": "Recipe: view-once media with per-recipient access"
+      },
+      {
+        "id": "recipes.sessions-fixture-install",
+        "order": 9,
+        "title": "Recipe: install sessions fixtures with profiles and avatars"
       }
     ],
     "reference": [
@@ -1491,7 +1496,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:ac2cd7a89de0a56f4add93da19c9e943c1fd38470c9d223c21fa404259320788",
-      "sha256": "ec00d584b622dbdfcd34479bf818b4b795ee42f71d863f673b24acb0d3e772ab",
+      "sha256": "5f30eab8758c96b779d045554e530e4159d7e0f526153690650f8021be537254",
       "snippets": [
         {
           "lang": "js",
@@ -2771,7 +2776,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedAuthoritiesDigest": "sha256:d7472d809b09c8d3009cae85e794bb85f54db6098441f82a8b50424cf0f2459f",
-      "sha256": "136e9816ae7b52a1cdfa369c44e50368c87937c1d4df1c6d7a4b389989b35bbf",
+      "sha256": "c81433ee026f55999f4e25a8c3bde9305eeee07f026531978d798d99c53d41e8",
       "snippets": []
     },
     "meta.capabilities": {
@@ -2818,7 +2823,7 @@
       "examples": [],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:41a71ce40674c88e9cff5ba210c8ea81fb61bc41e28505d587ad9d6bdff8e2fa",
-      "sha256": "d8b9ba5eb78e8ddf6afcd563762154a588fc3ac8aa89f25f9ac6e908a134bc4b",
+      "sha256": "8f95cf7c53f1b83ed90ba256693a895288965699b822fab0ee9868c1d5d47097",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2893,10 +2898,15 @@
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "llp/0063-partitime-platform-roadmap.plan.md",
+        "llp/0266-coterie-exact-contract-benchmark.plan.md",
         "packages/snapback-codegen/codegen-policy.schema.json",
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/keyed-provider.mjs",
-        "packages/snapback-contract/online-surface.mjs"
+        "packages/snapback-contract/online-surface.mjs",
+        "demos/coterie/src/data/provider-factory.ts",
+        "demos/coterie/src/data/snapback-provider.ts",
+        "demos/coterie/src/data/generated/coterie.bindings.ts",
+        "demos/coterie/tests/snapback-provider.integration.test.ts"
       ],
       "examples": [
         "demos/todo-v2/snapback/codegen.policy.json",
@@ -2904,13 +2914,14 @@
         "demos/all-aboard/surfaces/contract",
         "demos/team-chat/surfaces/contract",
         "demos/pointing-room",
+        "demos/coterie",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs",
         "demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs"
       ],
-      "reviewed": "2026-08-11",
-      "reviewedAuthoritiesDigest": "sha256:3b0befc7c75710f4371fd0a0fb62af039db64b8c78ffdd26cb5e0b9f49bbaa4b",
-      "sha256": "5cbd4f94ca6c753a6944de3d5be91dac69714ef3d486306ddb1724bd2a95a769",
+      "reviewed": "2026-08-17",
+      "reviewedAuthoritiesDigest": "sha256:a8834849a995ffffe9f52a2bb0958b1127b7c4f93aa5f1c5fb2b2c95261baa3f",
+      "sha256": "1805789f50576a06ceede97fc19c31806669231c5cfcf87d4d6a787f79640a3b",
       "snippets": [
         {
           "lang": "json",
@@ -2945,6 +2956,36 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/partiful-matrix/scripts/generate-contract-provider.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/coterie/src/data/generated/coterie.bindings.ts"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/coterie/src/data/snapback-provider.ts"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/coterie/src/data/snapback-provider.ts"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/coterie/src/data/snapback-provider.ts"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/coterie/src/data/snapback-provider.ts"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/coterie/tests/snapback-provider.integration.test.ts"
         },
         {
           "lang": "ts",
@@ -3883,7 +3924,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:9bc993498cacf9c06be9392fb007475a1329f498346ece1f2edc4832683f66b3",
-      "sha256": "dd92f7e9e24c8c9fb833212f9dc03cd6dd4f5f2400074b4077285e3703ca538b",
+      "sha256": "f88cf91f3b01ddd2789956df35c71381909a4a0e439476bc693ae4da27509a2b",
       "snippets": [
         {
           "lang": "json",
@@ -5067,6 +5108,57 @@
         }
       ]
     },
+    "recipes.sessions-fixture-install": {
+      "path": "guide/recipes/sessions-fixture-install.md",
+      "title": "Recipe: install sessions fixtures with profiles and avatars",
+      "order": 9,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "auth.passwords",
+        "backend.assets"
+      ],
+      "authorities": [
+        "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
+        "llp/0061-agent-first-snapback-guide.rfc.md",
+        "llp/0266-coterie-exact-contract-benchmark.plan.md",
+        "demos/coterie/snapback/schema.mjs",
+        "demos/coterie/snapback/functions.mjs",
+        "demos/coterie/snapback/seed-m1.mjs"
+      ],
+      "examples": [
+        "demos/coterie"
+      ],
+      "reviewed": "2026-08-17",
+      "reviewedAuthoritiesDigest": "sha256:31512f6cc26158c28004237b72dafe2261f13253628e5a1675164ebfb29caae7",
+      "sha256": "37b550a909d4209c9191d80e690b15bba5d089e722041878f4f7728c8d754c6a",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/coterie/snapback/seed-m1.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/coterie/snapback/seed-m1.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/coterie/snapback/seed-m1.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/coterie/snapback/seed-m1.mjs"
+        }
+      ]
+    },
     "recipes.view-once-media": {
       "path": "guide/recipes/view-once-media.md",
       "title": "Recipe: view-once media with per-recipient access",
@@ -5146,7 +5238,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:aabeb0f1ea06c35344be6186100fde8aa7aeb3e8aeed2e08557ee337114dc26a",
-      "sha256": "8c02e737140172478be66789871fc6a2985645fc285d934a878bf4fb3b41897a",
+      "sha256": "3f334c8ae982c9f51d872913abaa36acac165f31dcad2027490d2f5b38517b62",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -11582,7 +11674,7 @@
       "examples": [],
       "reviewed": "2026-08-12",
       "reviewedAuthoritiesDigest": "sha256:622ed35a0850ae6e4bec99ff59db20df0c12e2820962f76c97cfcc2d05d9a58a",
-      "sha256": "99f96e231e1c28b5d727a42feb1daeb9817a987bbdf197c07b17259bef164e85",
+      "sha256": "6d1b0a5525c682011baf60cc3fbcc1ea8b9728a4fb71af3ab5449e9349ead0ec",
       "snippets": []
     },
     "start.crud-dashboard": {
@@ -12100,8 +12192,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2388321,
-      "sha256": "cd4072c8ea93f733bbd09a2d132ef94257f4ab7f9111ba35b39a85ba0b322e67",
+      "bytes": 2388937,
+      "sha256": "50d6e53b88b4f10429295cbd7abcde2d6d06ceb857d334034187c6aec0912fdd",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12110,7 +12202,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:f40854038976c359f0c359bf5f72a4db973123a27bf988fba7c30a697928f3b3",
+      "sourceDigest": "sha256:761e75c5857ab140942996df86ecb45bd7244ee478df0e0403646cf069518bf9",
       "codes": 3413,
       "emittingSites": 11701
     }
@@ -12246,16 +12338,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3466680,
-      "sha256": "2b3c1ff635d0e3051094961216d1a2f668a6d73ddfc6d0b93f20f53d3ddf9f17"
+      "bytes": 3488873,
+      "sha256": "bb23a2aa94b813192ca90167290fdc79094ffeca9478aea88f9120243f14caa7"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 146521,
-        "sha256": "d2923c54de3c7d7d5b57eba3506fd06ab21627a47abe569a49bfc9667582de83"
+        "bytes": 148411,
+        "sha256": "a3af5b7e857d3c2cfbacdef7481ffdfa74f67f53528246efc6ccb2d613d990b5"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -12268,15 +12360,15 @@
         "path": "guide/guide-flat.backend.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.backend.generated.md",
         "uri": "snapback-guide://flat/backend",
-        "bytes": 359134,
-        "sha256": "056e90463c7fb42871c72d7df17ab799b111aa5756b38df7b9edf1180c862fa6"
+        "bytes": 359886,
+        "sha256": "17f3e2404c92f51a21e4a76b26206b1a65bea3fab341300516e126ae3756444a"
       },
       "clients": {
         "path": "guide/guide-flat.clients.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.clients.generated.md",
         "uri": "snapback-guide://flat/clients",
-        "bytes": 245154,
-        "sha256": "890a5ce7bde79929c84fbfd914a1ff9b2f107424b9fd6e6f0adc67a4ee866102"
+        "bytes": 255249,
+        "sha256": "4b53445b14ce206f745442e1923bbe34dcee461a09320e62bdd55aa6d4baf4f6"
       },
       "deploying": {
         "path": "guide/guide-flat.deploying.generated.md",
@@ -12317,15 +12409,15 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 106985,
-        "sha256": "f69a6aa26069035bb51278e5809657a9f303bd72ca00028fec13582f161ce311"
+        "bytes": 116341,
+        "sha256": "58715e306fcaaef6f08c5aa9494237e5b5893ebcdf6c82c11e223d210368190f"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 1988177,
-        "sha256": "68a0cb35371e7bda7317894c07b3cf681e43f6e94c5578660c53bbd105e1aea1"
+        "bytes": 1988277,
+        "sha256": "554eaf31392cf44fcb8d9d24c1a04dfc7e1e0148198435d58350167750c9503e"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -12350,5 +12442,5 @@
       }
     }
   },
-  "contentHash": "c68bc883c165f182e490b2fea39ad815061fad209927c4337fe6f51e3efe5fd5"
+  "contentHash": "e148cef0cae76bdd3fc2697ae80373347fdea93afe1e6735a0f2d448c732e112"
 }

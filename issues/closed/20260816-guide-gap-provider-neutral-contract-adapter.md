@@ -1,6 +1,6 @@
 # Guide gap: adapting Snapback to an existing provider-neutral Contract surface
 
-**Filed:** 2026-08-16 · **Status:** Open · **Systems:** Snapback Guide,
+**Filed:** 2026-08-16 · **Status:** Resolved 2026-08-17 · **Systems:** Snapback Guide,
 Contract adapters, Exact, Coterie
 
 **Related:** LLP 0266 D4/D7/D8; `demos/coterie/src/data/snapback-provider.ts`;
@@ -46,3 +46,16 @@ Snapback. It should cover:
 The recipe should point out that a generic conformance runner may probe one
 primary query/mutation while still validating the entire shared manifest, so
 the reported operation scope must remain explicit.
+
+## Resolution (2026-08-17)
+
+Resolved on `guide/clients/contract-adapter.md` in “Adapt an already-frozen
+provider-neutral declaration.” The bounded inverse-adapter recipe preserves the
+foreign manifest digest, separates provider qualification evidence, composes
+Snapback auth/live-query/asset surfaces behind `ContractDataProvider`, refuses
+unqualified milestone operations, maps platform diagnostics and application
+refusals to foreign serialized error names, and proves delivery with two
+event-driven clients and no polling above or below the seam. It explicitly
+separates whole-manifest validation from the primary operations a generic
+runner behaviorally probes. Retrieval-eval case 58 and the compressed
+capability row preserve discovery.

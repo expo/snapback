@@ -381,6 +381,10 @@ proof command, and honest nonclaims without opening every demo.
   disappearing photos and ephemeral media with one pending grant per
   recipient, a unique consumption row, close versus delete-for-everyone, and
   next-request denial (messaging-snapback, distilled; local-only).
+- [Install sessions fixtures with profiles and avatars](./recipes/sessions-fixture-install.md)
+  — one restart-safe installer for password accounts, principal-owned profile
+  rows, ordinary avatar uploads, typed attachment, and matched repeats that
+  sign in but skip asset uploads and application-data writes.
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).

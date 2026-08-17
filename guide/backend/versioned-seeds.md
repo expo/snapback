@@ -161,6 +161,12 @@ it — mint personas *after* the install, and never seed captured principal ids
 (see
 [reset invalidates sessions](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals)).
 
+When the fixture itself needs password-backed accounts, application profile
+rows, and typed avatar assets, use the app-owned
+[sessions fixture installer](../recipes/sessions-fixture-install.md). It signs
+up or verifies each real principal after the administrative seed lifecycle;
+it does not smuggle principal ids or asset records into this protocol.
+
 ## Interpret refusals
 
 - `SNAPBACK_SEED_MIGRATION_REQUIRED`: migrate, or explicitly reset-install.

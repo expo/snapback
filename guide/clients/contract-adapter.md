@@ -4,13 +4,13 @@ id: clients.contract-adapter
 order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
-examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0266-coterie-exact-contract-benchmark.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs, demos/coterie/src/data/provider-factory.ts, demos/coterie/src/data/snapback-provider.ts, demos/coterie/src/data/generated/coterie.bindings.ts, demos/coterie/tests/snapback-provider.integration.test.ts]
+examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, demos/coterie, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-11
-reviewed-authorities-digest: sha256:3b0befc7c75710f4371fd0a0fb62af039db64b8c78ffdd26cb5e0b9f49bbaa4b
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:a8834849a995ffffe9f52a2bb0958b1127b7c4f93aa5f1c5fb2b2c95261baa3f
 ---
 
 # The Contract adapter
@@ -164,6 +164,199 @@ stable registry-published `@expo/snapback-contract` package path. Use it to add 
 verify a provider producer; do not copy Partitime's generated files into
 another app or hand-maintain the generated `.contract-meta.ts` mirror. Stable
 external publication remains a later packaged-loop gate in LLP 0063.
+
+## Adapt an already-frozen provider-neutral declaration
+
+Sometimes the declaration, generated bindings, and declaration digest already
+belong to an application that supports several providers. In that inverse
+case, implement the existing `ContractDataProvider` over Snapback; do not feed
+Snapback identity or capability extensions into a second declaration.
+Coterie's adapter is the bounded reference shape.
+
+### Preserve the foreign digest; qualify the provider beside it
+
+Return the exact foreign manifest from `provider.manifest`, then configure the
+already-generated bindings through their digest handshake. The generated
+module compares `provider.manifest.inputsHash` with the declaration digest on
+every configure, including HMR reconfiguration:
+
+```ts source=demos/coterie/src/data/generated/coterie.bindings.ts
+export function configureFromProvider(provider: ContractDataProvider): { dispose(): void } {
+  const providerInputsHash = provider.manifest.inputsHash;
+  if (providerInputsHash !== bindings.inputsHash) {
+    throw new Error(
+      `configureFromProvider(coterie): declaration digest mismatch — generated bindings expect inputsHash "${bindings.inputsHash}" but provider.manifest carries "${String(providerInputsHash)}". Regenerate the generated bindings from the current declaration (fail-closed on every configure, including HMR reconfigure).`,
+    );
+  }
+  const projection = createProviderLinks(provider);
+  // The one sanctioned boundary cast (LLP 0391 §4.2): createProviderLinks
+  // builds one link per manifest descriptor, and the digest check above
+  // pinned provider.manifest to this generated surface.
+  configureGeneratedProviderLinks(projection.links as unknown as GeneratedProviderLinks);
+  return { dispose: () => projection.dispose() };
+}
+```
+
+Keep provider-specific facts as **qualification evidence**, not declaration
+inputs. Coterie exposes the shared manifest verbatim, a separate milestone
+label, and a provider-neutral `listProviderClaims` allow-list. A benchmark or
+release receipt records the foreign `inputsHash`, the provider lane, the exact
+claimed operations and compatibility tokens, and the conformance probes that
+actually ran. Changing Snapback's claim set must not change the declaration
+digest.
+
+### Compose Snapback mechanisms behind the provider seam
+
+The adapter, not Contract views, owns three different Snapback surfaces:
+
+- `AuthCoordinator` custody plus `subscribeCurrentPrincipal` and
+  `subscribeAuthTerminal` project the foreign `listSession` cell. A principal
+  transition republishes or blanks that cell and starts/stops protected query
+  subscriptions.
+- Generated Snapback live-query references back foreign query observers.
+  A transport-proof adapter sets `transport: 'stream'` and
+  `fallbackToPoll: false`; it maps initial rows, updates, connection changes,
+  disposal, and structured errors into the foreign cell contract.
+- `createAssetClient(client).upload(...)` performs ordinary session-owned
+  upload and finalization; the adapter then calls an owner-authorized Snapback
+  mutation that attaches the typed asset reference. Only the foreign avatar
+  reference and result cross back above the seam.
+
+Coterie's profile subscription disables the lower transport's polling fallback
+so a delivered update proves stream push:
+
+```ts source=demos/coterie/src/data/snapback-provider.ts
+        const handle = await this.#client.liveQuery(api.listProfiles, {
+          args: {},
+          connectionId: `${this.#instanceId}-profiles-${++this.#profileConnectionSequence}`,
+          transport: 'stream',
+          fallbackToPoll: false,
+          onUpdate: (rows) => {
+            if (!subscription.active || subscription.generation !== generation) return;
+            if (this.#testHooks.suppressProfileUpdate?.(
+              rows as readonly BackendProfileRow[],
+            )) return;
+            this.#rememberProfileIdentities(rows as readonly BackendProfileRow[]);
+            if (!established) return;
+            const nextRows = rows as readonly BackendProfileRow[];
+```
+
+Its avatar path keeps byte acquisition and digesting app-owned, then uses the
+ordinary Snapback asset and typed-attach surfaces behind the provider:
+
+```ts source=demos/coterie/src/data/snapback-provider.ts
+    const sourceDigest = await sha256Hex(bytes);
+    const assetCacheKey = `${current.ownerId}:${sourceDigest}`;
+    let assetId = this.#uploadedAvatarAssets.get(assetCacheKey);
+    const reused = assetId !== undefined;
+    if (!assetId) {
+      const assetClient = createAssetClient(
+        this.#client as unknown as Parameters<typeof createAssetClient>[0],
+      );
+      assetId = await assetClient.upload(
+        api.avatarUpload,
+        new Blob([bytes], { type: mediaType }),
+      );
+      this.#rememberAvatarAsset(assetCacheKey, assetId);
+    }
+```
+
+Do not add polling, another offline queue, raw asset routes, or client-asserted
+identity above `ContractDataProvider`. Those are provider responsibilities.
+
+### Refuse unqualified milestones and translate errors deliberately
+
+The foreign manifest may already contain future operations. Maintain explicit
+qualified query and mutation sets. A call named by the manifest but outside
+the qualified set returns the adapter's serialized, named milestone refusal;
+it must not return empty data, succeed as a no-op, or fall through to an
+unknown-operation error. Names such as `SnapbackMilestoneUnsupportedError`
+belong to the adapter. Only mapped errors declared by the foreign contract,
+such as `DuplicateHandleError`, carry declaration-owned names:
+
+```ts source=demos/coterie/src/data/snapback-provider.ts
+function milestoneRefusal(name: string): NamedProviderError {
+  const milestone = milestoneForOperation(name) ?? 'M2/M3/M4/M5/M8';
+  return new NamedProviderError(
+    'SnapbackMilestoneUnsupportedError',
+    `snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
+  );
+}
+```
+
+Centralize the error translation before serializing. Read both Snapback's
+platform diagnostic code and `diagnostic.details.appCode`: map the former to
+the foreign declaration's auth/asset error names and the latter to its domain
+refusal names. Preserve a generic `SnapbackProviderError` only for unmapped
+failures, rather than leaking `SNAPBACK_*` or application codes as accidental
+foreign API names. Coterie's mapping, for example, turns an app
+`DUPLICATE_HANDLE` refusal into `DuplicateHandleError` and platform password
+diagnostics into the declaration's auth errors:
+
+```ts source=demos/coterie/src/data/snapback-provider.ts
+  const applicationMapping = appCode
+    ? applicationMappings[operation]?.[appCode]
+    : undefined;
+  if (applicationMapping) {
+    return new NamedProviderError(applicationMapping[0], applicationMapping[1], { cause: error });
+  }
+
+  if (operation === 'login' && code === 'SNAPBACK_AUTH_CREDENTIAL_INVALID') {
+    return new NamedProviderError(
+      'InvalidCredentialsError',
+      'Email or password is incorrect.',
+      { cause: error },
+    );
+  }
+  if (operation === 'signup' && code === 'SNAPBACK_AUTH_PASSWORD_EXISTS') {
+    return new NamedProviderError(
+      'DuplicateEmailError',
+      'An account already uses that email.',
+      { cause: error },
+    );
+  }
+```
+
+### Prove it with two event-driven clients
+
+Run two independent provider instances against the same backend. Subscribe
+client B, register a promise for a future matching delivery, mutate through
+client A, and await that delivery. Client B performs no query, mutation,
+timer-based refetch, or polling after the waiter is armed:
+
+```ts source=demos/coterie/tests/snapback-provider.integration.test.ts
+          async applySubscriptionUpdate() {
+            updateSequence += 1;
+            const displayName = `Alice Conformance ${updateSequence}`;
+            const delivery = clientBProfiles.next((rows) => (
+              rows.some((row) => row.id === 'alice' && row.displayName === displayName)
+            ));
+            mutationValue(
+              await clientA.mutate('editProfile', {
+                displayName,
+                bio: `Conformance live update ${updateSequence}`,
+                handle: null,
+                location: null,
+                link: null,
+              }),
+              'conformance subscription update',
+            );
+            await delivery;
+          },
+```
+
+Keep “no polling” true both below and above the seam: disable the Snapback
+live-query fallback for the proof, and do not compensate with a provider-level
+poller. Exercise disposal and connection/error projection as part of the same
+probe.
+
+A generic `DataProvider` conformance runner may validate the **entire shared
+manifest and capability declaration** while behaviorally probing only one
+primary query and mutation. That is useful, but it is not evidence that every
+declared operation ran. Report both scopes explicitly: the qualified
+operation/token allow-list, and the exact primary query/mutation pairs (plus
+any separate two-client probes) actually exercised. Never summarize the
+runner's whole-manifest validation as whole-manifest behavioral conformance.
 
 ## Boot: one surface, one idempotent ensure
 
@@ -515,9 +708,18 @@ function props for legacy capability glue until Exact promotes that spelling.
 
 ## Anti-patterns
 
-- **Do not hand-wire `client.mutate` inside a Contract app.** The generated
-  bindings + surface links are the product path; hand-wiring bypasses
-  optimistic overlays, receipts, and reconciliation.
+- **Do not hand-wire `client.mutate` in Contract presentation or application
+  code.** Generated bindings + surface links are the product path there. An
+  inverse adapter may hand-wire generated live queries, `client.mutate`, and
+  `createAssetClient` only behind the `ContractDataProvider` provider seam.
+- **Allow no polling above the seam.** The adapter owns subscriptions and may
+  disable a lower transport fallback for a stream-only proof; Contract code
+  must not add a provider-level poller.
+- **Do not create a second declaration or provider-specific identity.** Adapt
+  the frozen declaration and keep provider claims as qualification evidence.
+- **Do not leak `SNAPBACK_*` or application refusal codes above the seam.** Map
+  declared errors to declaration-owned names and use adapter-owned names for
+  milestone and unmapped-provider refusals.
 - **Do not write optimistic reducers for declarative mutations.** They are
   derived; hand-written ones drift.
 - **Do not hand-author provider binding sidecars.** Generate them from the

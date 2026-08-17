@@ -611,6 +611,32 @@ sessions-evolution, and familiar-profile discovery misses.
     Route terms: "Familiar TypeScript", "Expo Router familiar",
     "SecureStore custody".
 
+Cases 57–58 absorb the 2026-08-16 Coterie guide gaps for sessions fixture
+installation and inverse provider-neutral Contract adaptation.
+
+57. **Sessions fixture install:** "Install deterministic password accounts,
+    principal-owned profile rows, and typed avatar media in a sessions-mode
+    app; rerunning must sign in and report a match without an asset upload or
+    application-data write." The run
+    fails if it seeds captured principal ids, treats
+    `SNAPBACK_AUTH_PASSWORD_EXISTS` alone as a match, skips the fixture-source
+    digest check, or uploads before the matched-repeat branch exits.
+    Expected pages: `recipes/sessions-fixture-install.md`.
+    Route terms: "install sessions fixtures", "fixture-source digest",
+    "SNAPBACK_AUTH_PASSWORD_EXISTS", "matched repeat".
+
+58. **Frozen provider-neutral Contract adapter:** "Implement an already-frozen
+    provider-neutral `ContractDataProvider` over Snapback without changing the
+    foreign declaration digest." The run fails if it generates a
+    provider-specific manifest, reports an unprobed whole-manifest behavioral
+    claim, polls above the seam, silently accepts future operations, or leaks
+    Snapback diagnostic/app refusal codes instead of declared serialized error
+    names.
+    Expected pages: `clients/contract-adapter.md`.
+    Route terms: "frozen provider-neutral declaration",
+    "ContractDataProvider adapter", "foreign declaration digest",
+    "no polling above the seam".
+
 ## Static routing check
 
 The deterministic half of this corpus is executable:

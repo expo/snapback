@@ -49,7 +49,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
-| backend.versioned-seed | Experimental local stream-scoped seed identity, pure matched observation, idempotent install/reset receipts, read-only preview, and explicit clear without legacy fallback. Hosted compiled-seed custody remains a GAP. | seed version, seed identity, reset-install, fixture drift | local | partial | tests/conformance/versioned-seed-v1.manifest.json | llp/0103 | backend/versioned-seeds.md |
+| backend.versioned-seed | Experimental local seed identity: pure match, idempotent install/reset, preview/clear; hosted custody GAP. Principal/media fixtures use the linked app recipe. | seed version, seed identity, reset-install, fixture drift, sessions fixture install | local | partial | tests/conformance/versioned-seed-v1.manifest.json | llp/0103 | backend/versioned-seeds.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate one digest-verified `snapback/generated/` graph for both profiles; `_generated/` refuses | codegen, artifacts, custody, _generated, contractMetadata, npm-only typecheck | all | shipped | packages/snapback-cli/familiar-dev-loop.test.mjs | llp/0010, llp/0012, llp/0253 | getting-started/generated-artifacts.md |
 | backend.handler-runtime-profile | Current-rule handler admission profile + complete non-replacing generation preflight: operation selection, build-bound diagnostics, exact definition paths, separate executable/raw-evidence digests | handler runtime profile, generate --check, Can I import a helper?, Can I use Node crypto?, BUNDLE_UNSUPPORTED_IMPORT, SNAPBACK_INLINE_HELPER_INADMISSIBLE, SNAPBACK_CODEGEN_DEFINITION_NOT_EXPORTED, SNAPBACK_CODEGEN_DEFINITION_VALUE_UNSERIALIZABLE | all | shipped | packages/snapback-codegen/handler-runtime-profile.test.mjs + packages/snapback-cli/generate-check.test.mjs | llp/0237, llp/0108 | backend/handler-runtime.md |
@@ -60,7 +60,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense `ctx.sequence.allocate` with replay/contention/exhaustion evidence; contributor-source local only | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public/hosted qualification; owner: Charlie, review: 2026-09-30; issue: issues/20260808-main-drift-sequence-allocation-publication.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Local assets: derived/explicit Familiar dotted intents; resumable upload; trusted image/video finalization; typed attachment; strict/signed/public delivery; GC, callbacks, cuts, key rotation, atomic grants. `via-references` remains; no byte backup, transcoding, or hosted claim. | files, images, video, familiar video upload, defineAssetUpload, asset grant, grants: true, ctx.assets.grant, ctx.assets.activate, ctx.assets.revoke, pending grant, view once, object storage, browser upload, native upload, SVG, Expo ImagePicker, asset export, signing key rotation, Supabase Storage, Convex generateUploadUrl | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json + src/local/tests.rs (grant lifecycle/cut) + tests/acceptance/asset-conformance-v1.mjs + tests/acceptance/familiar-video-asset-v1.mjs + demos/file-drop/tests/acceptance/browser-relay.mjs + demos/messaging-snapback/tests/acceptance/headless.mjs | llp/0044, llp/0210, llp/0220, llp/0253 | backend/assets.md |
+| backend.assets | Local assets: generated intents, resumable upload, trusted image/video finalization, typed attach, strict/signed/public delivery, grants, GC, cuts, key rotation. `via-references` remains; no byte backup, transcoding, or hosted claim. | files, images, video, familiar video upload, defineAssetUpload, asset grant, grants: true, ctx.assets.grant, ctx.assets.activate, ctx.assets.revoke, pending grant, view once, browser/native upload, SVG, ImagePicker, asset export, signing key rotation, Supabase Storage, Convex generateUploadUrl, sessions fixture avatar | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json + src/local/tests.rs (grant lifecycle/cut) + tests/acceptance/asset-conformance-v1.mjs + tests/acceptance/familiar-video-asset-v1.mjs + demos/file-drop/tests/acceptance/browser-relay.mjs + demos/messaging-snapback/tests/acceptance/headless.mjs | llp/0044, llp/0210, llp/0220, llp/0253 | backend/assets.md |
 | assets.media-field.v1 | Finalized-only top-level `v.media()` with same-snapshot `MediaRef`, exact mutation settlement, and empty-safe delivery controller; no collection, command, class-M activation, or playable-video claim. | v.media, MediaRef, useSnapbackMedia, profile image | local | shipped | packages/snapback-codegen/media-field-authoring.test.mjs + tests/acceptance/fixtures/media-profile/snapback/schema.mjs + packages/snapback-react/assets.test.mjs + src/storage/tests.rs | llp/0239; llp/0244 | backend/media-happy-paths.md |
 | assets.media-collection.v1 | Bounded ordered `assetCollection`: generated ops, stable item ids, finalized-only admission, sharing ceiling, GC/quota/cut custody, `useSnapbackMediaCollection` with sibling isolation. | assetCollection, media array, useSnapbackMediaCollection | local | experimental | packages/snapback-codegen/media-collection-authoring.test.mjs + src/storage/tests.rs + packages/snapback-react/assets.test.mjs | llp/0239 | GAP (physical-device Expo + published-package rerun; owner: LLP 0239 R3, review: 2026-08-26; issue: issues/20260815-finish-media-happy-path.md); backend/media-happy-paths.md |
 | assets.media-command.v1 | Closed `defineMediaCommand`: bounded multi-upload task, command-only mutation, atomic parent/collection/grant staging, ambiguity/retry/residue per LLP 0180, projected through `app.commands` on every client arm. | defineMediaCommand, mediaCommand | local | experimental | packages/snapback-codegen/media-command-authoring.test.mjs + packages/snapback-client/commands.test.mjs + src/storage/tests.rs | llp/0239 | GAP (physical-device Expo + published-package rerun; owner: LLP 0239 R4, review: 2026-09-02; issue: issues/20260815-finish-media-happy-path.md); backend/media-happy-paths.md |
@@ -111,7 +111,7 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
 | clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, stable two-section `agentDigest.v1` introspection, and an experimental app-bound Ibex one-file build qualified on macOS arm64 and Linux x86_64 GLIBC 2.35. Public inspection still lacks row-count magnitudes and D1 verdicts; hosted targets remain a GAP. | app cli, code mode, introspect, agent digest, changed since, digest cursor, one-file executable | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs + scripts/build-app-bound-executable + packages/snapback-app-cli/code-mode-ibex.test.mjs + GitHub Actions run 30999145126 | llp/0062, llp/0146 | clients/app-cli.md |
 | clients.contract | Contract adapter; metadata opt-in; bindings; boot | contract, exact, ui bindings, contractMetadata exact | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0021, llp/0034 | clients/contract-adapter.md |
-| clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
+| clients.contract-provider-generation | Generate provider-neutral artifacts or adapt a frozen foreign declaration over Snapback | provider declaration, contract sidecar generator, convex bindings, ContractDataProvider adapter, foreign declaration digest | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs + `createCoterieSnapbackProvider` in demos/coterie/src/data/snapback-provider.ts + demos/coterie/tests/snapback-provider.integration.test.ts | llp/0063, llp/0266 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Settlements; settled/queued union; Exact three-fact projection; non-consuming `mutationStatus`/`subscribeMutation` observation | mutation state, timeout, retry, receipt, ambiguity, queued mutation union, mutation disposition, subscribeMutation, dispatch outcome | local | shipped | packages/snapback-client/outbox-store.test.mjs | llp/0043, llp/0063, llp/0218 | clients/contract-adapter.md |
 | clients.outbox-drain | Outbox drain: headless/React auto lifecycle; manual escape; barrier/custody/backoff gates; earliest-auto shared-store owner with close transfer; writer-lock serialization across handles | outbox drain, auto drain, OutboxFlusher, offline replay automatic, drainNow, outboxDrain | local | shipped | packages/snapback-client/outbox-drain.test.mjs + packages/snapback-react/offline.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs (offline→online drain) | llp/0043, llp/0218, llp/0270 | sync/offline-and-retention.md |
@@ -538,6 +538,10 @@ proof command, and honest nonclaims without opening every demo.
   disappearing photos and ephemeral media with one pending grant per
   recipient, a unique consumption row, close versus delete-for-everyone, and
   next-request denial (messaging-snapback, distilled; local-only).
+- [Install sessions fixtures with profiles and avatars](./recipes/sessions-fixture-install.md)
+  — one restart-safe installer for password accounts, principal-owned profile
+  rows, ordinary avatar uploads, typed attachment, and matched repeats that
+  sign in but skip asset uploads and application-data writes.
 - [Coming from Convex/Supabase?](./recipes/coming-from-convex-and-supabase.md)
   — worked-example translations of common Convex/Supabase journeys into
   Snapback, CI-verified against real demo sources (LLP 0186 W2).
@@ -1702,6 +1706,32 @@ sessions-evolution, and familiar-profile discovery misses.
     Expected pages: `backend/familiar-profile.md`.
     Route terms: "Familiar TypeScript", "Expo Router familiar",
     "SecureStore custody".
+
+Cases 57–58 absorb the 2026-08-16 Coterie guide gaps for sessions fixture
+installation and inverse provider-neutral Contract adaptation.
+
+57. **Sessions fixture install:** "Install deterministic password accounts,
+    principal-owned profile rows, and typed avatar media in a sessions-mode
+    app; rerunning must sign in and report a match without an asset upload or
+    application-data write." The run
+    fails if it seeds captured principal ids, treats
+    `SNAPBACK_AUTH_PASSWORD_EXISTS` alone as a match, skips the fixture-source
+    digest check, or uploads before the matched-repeat branch exits.
+    Expected pages: `recipes/sessions-fixture-install.md`.
+    Route terms: "install sessions fixtures", "fixture-source digest",
+    "SNAPBACK_AUTH_PASSWORD_EXISTS", "matched repeat".
+
+58. **Frozen provider-neutral Contract adapter:** "Implement an already-frozen
+    provider-neutral `ContractDataProvider` over Snapback without changing the
+    foreign declaration digest." The run fails if it generates a
+    provider-specific manifest, reports an unprobed whole-manifest behavioral
+    claim, polls above the seam, silently accepts future operations, or leaks
+    Snapback diagnostic/app refusal codes instead of declared serialized error
+    names.
+    Expected pages: `clients/contract-adapter.md`.
+    Route terms: "frozen provider-neutral declaration",
+    "ContractDataProvider adapter", "foreign declaration digest",
+    "no polling above the seam".
 
 ## Static routing check
 
@@ -7829,6 +7859,12 @@ it — mint personas *after* the install, and never seed captured principal ids
 (see
 [reset invalidates sessions](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals)).
 
+When the fixture itself needs password-backed accounts, application profile
+rows, and typed avatar assets, use the app-owned
+[sessions fixture installer](../recipes/sessions-fixture-install.md). It signs
+up or verifies each real principal after the administrative seed lifecycle;
+it does not smuggle principal ids or asset records into this protocol.
+
 ## Interpret refusals
 
 - `SNAPBACK_SEED_MIGRATION_REQUIRED`: migrate, or explicitly reset-install.
@@ -8079,6 +8115,13 @@ That broker response carries the stack-selected public backend origin beside
 the bearer. A dynamic development port must come from the target's ready
 descriptor or this kind of stack-owned carrier, never an app-owned fixed
 fallback.
+
+Separately, for a deterministic fixture that composes password accounts,
+application-owned profiles, and typed avatars without admin impersonation,
+follow the [sessions fixture installer](../recipes/sessions-fixture-install.md).
+It reports `{ ok, accounts, profiles }`; its matched-repeat branch signs in and
+verifies the fixture source digest, then skips asset uploads and
+application-data writes.
 
 The client flow is: create an attempt (the generated reference plus the
 declared byte length — deferred length refuses), transfer bytes over TUS
@@ -12241,13 +12284,13 @@ id: clients.contract-adapter
 order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
-examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0021-contract-exact-integration-hardening.plan.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, llp/0266-coterie-exact-contract-benchmark.plan.md, packages/snapback-codegen/codegen-policy.schema.json, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs, demos/coterie/src/data/provider-factory.ts, demos/coterie/src/data/snapback-provider.ts, demos/coterie/src/data/generated/coterie.bindings.ts, demos/coterie/tests/snapback-provider.integration.test.ts]
+examples: [demos/todo-v2/snapback/codegen.policy.json, demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, demos/pointing-room, demos/coterie, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-11
-reviewed-authorities-digest: sha256:3b0befc7c75710f4371fd0a0fb62af039db64b8c78ffdd26cb5e0b9f49bbaa4b
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:a8834849a995ffffe9f52a2bb0958b1127b7c4f93aa5f1c5fb2b2c95261baa3f
 ---
 
 # The Contract adapter
@@ -12401,6 +12444,199 @@ stable registry-published `@expo/snapback-contract` package path. Use it to add 
 verify a provider producer; do not copy Partitime's generated files into
 another app or hand-maintain the generated `.contract-meta.ts` mirror. Stable
 external publication remains a later packaged-loop gate in LLP 0063.
+
+## Adapt an already-frozen provider-neutral declaration
+
+Sometimes the declaration, generated bindings, and declaration digest already
+belong to an application that supports several providers. In that inverse
+case, implement the existing `ContractDataProvider` over Snapback; do not feed
+Snapback identity or capability extensions into a second declaration.
+Coterie's adapter is the bounded reference shape.
+
+### Preserve the foreign digest; qualify the provider beside it
+
+Return the exact foreign manifest from `provider.manifest`, then configure the
+already-generated bindings through their digest handshake. The generated
+module compares `provider.manifest.inputsHash` with the declaration digest on
+every configure, including HMR reconfiguration:
+
+```ts source=demos/coterie/src/data/generated/coterie.bindings.ts
+export function configureFromProvider(provider: ContractDataProvider): { dispose(): void } {
+  const providerInputsHash = provider.manifest.inputsHash;
+  if (providerInputsHash !== bindings.inputsHash) {
+    throw new Error(
+      `configureFromProvider(coterie): declaration digest mismatch — generated bindings expect inputsHash "${bindings.inputsHash}" but provider.manifest carries "${String(providerInputsHash)}". Regenerate the generated bindings from the current declaration (fail-closed on every configure, including HMR reconfigure).`,
+    );
+  }
+  const projection = createProviderLinks(provider);
+  // The one sanctioned boundary cast (LLP 0391 §4.2): createProviderLinks
+  // builds one link per manifest descriptor, and the digest check above
+  // pinned provider.manifest to this generated surface.
+  configureGeneratedProviderLinks(projection.links as unknown as GeneratedProviderLinks);
+  return { dispose: () => projection.dispose() };
+}
+```
+
+Keep provider-specific facts as **qualification evidence**, not declaration
+inputs. Coterie exposes the shared manifest verbatim, a separate milestone
+label, and a provider-neutral `listProviderClaims` allow-list. A benchmark or
+release receipt records the foreign `inputsHash`, the provider lane, the exact
+claimed operations and compatibility tokens, and the conformance probes that
+actually ran. Changing Snapback's claim set must not change the declaration
+digest.
+
+### Compose Snapback mechanisms behind the provider seam
+
+The adapter, not Contract views, owns three different Snapback surfaces:
+
+- `AuthCoordinator` custody plus `subscribeCurrentPrincipal` and
+  `subscribeAuthTerminal` project the foreign `listSession` cell. A principal
+  transition republishes or blanks that cell and starts/stops protected query
+  subscriptions.
+- Generated Snapback live-query references back foreign query observers.
+  A transport-proof adapter sets `transport: 'stream'` and
+  `fallbackToPoll: false`; it maps initial rows, updates, connection changes,
+  disposal, and structured errors into the foreign cell contract.
+- `createAssetClient(client).upload(...)` performs ordinary session-owned
+  upload and finalization; the adapter then calls an owner-authorized Snapback
+  mutation that attaches the typed asset reference. Only the foreign avatar
+  reference and result cross back above the seam.
+
+Coterie's profile subscription disables the lower transport's polling fallback
+so a delivered update proves stream push:
+
+```ts source=demos/coterie/src/data/snapback-provider.ts
+        const handle = await this.#client.liveQuery(api.listProfiles, {
+          args: {},
+          connectionId: `${this.#instanceId}-profiles-${++this.#profileConnectionSequence}`,
+          transport: 'stream',
+          fallbackToPoll: false,
+          onUpdate: (rows) => {
+            if (!subscription.active || subscription.generation !== generation) return;
+            if (this.#testHooks.suppressProfileUpdate?.(
+              rows as readonly BackendProfileRow[],
+            )) return;
+            this.#rememberProfileIdentities(rows as readonly BackendProfileRow[]);
+            if (!established) return;
+            const nextRows = rows as readonly BackendProfileRow[];
+```
+
+Its avatar path keeps byte acquisition and digesting app-owned, then uses the
+ordinary Snapback asset and typed-attach surfaces behind the provider:
+
+```ts source=demos/coterie/src/data/snapback-provider.ts
+    const sourceDigest = await sha256Hex(bytes);
+    const assetCacheKey = `${current.ownerId}:${sourceDigest}`;
+    let assetId = this.#uploadedAvatarAssets.get(assetCacheKey);
+    const reused = assetId !== undefined;
+    if (!assetId) {
+      const assetClient = createAssetClient(
+        this.#client as unknown as Parameters<typeof createAssetClient>[0],
+      );
+      assetId = await assetClient.upload(
+        api.avatarUpload,
+        new Blob([bytes], { type: mediaType }),
+      );
+      this.#rememberAvatarAsset(assetCacheKey, assetId);
+    }
+```
+
+Do not add polling, another offline queue, raw asset routes, or client-asserted
+identity above `ContractDataProvider`. Those are provider responsibilities.
+
+### Refuse unqualified milestones and translate errors deliberately
+
+The foreign manifest may already contain future operations. Maintain explicit
+qualified query and mutation sets. A call named by the manifest but outside
+the qualified set returns the adapter's serialized, named milestone refusal;
+it must not return empty data, succeed as a no-op, or fall through to an
+unknown-operation error. Names such as `SnapbackMilestoneUnsupportedError`
+belong to the adapter. Only mapped errors declared by the foreign contract,
+such as `DuplicateHandleError`, carry declaration-owned names:
+
+```ts source=demos/coterie/src/data/snapback-provider.ts
+function milestoneRefusal(name: string): NamedProviderError {
+  const milestone = milestoneForOperation(name) ?? 'M2/M3/M4/M5/M8';
+  return new NamedProviderError(
+    'SnapbackMilestoneUnsupportedError',
+    `snapback provider claims M1+M2+M3-minus-typing plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
+  );
+}
+```
+
+Centralize the error translation before serializing. Read both Snapback's
+platform diagnostic code and `diagnostic.details.appCode`: map the former to
+the foreign declaration's auth/asset error names and the latter to its domain
+refusal names. Preserve a generic `SnapbackProviderError` only for unmapped
+failures, rather than leaking `SNAPBACK_*` or application codes as accidental
+foreign API names. Coterie's mapping, for example, turns an app
+`DUPLICATE_HANDLE` refusal into `DuplicateHandleError` and platform password
+diagnostics into the declaration's auth errors:
+
+```ts source=demos/coterie/src/data/snapback-provider.ts
+  const applicationMapping = appCode
+    ? applicationMappings[operation]?.[appCode]
+    : undefined;
+  if (applicationMapping) {
+    return new NamedProviderError(applicationMapping[0], applicationMapping[1], { cause: error });
+  }
+
+  if (operation === 'login' && code === 'SNAPBACK_AUTH_CREDENTIAL_INVALID') {
+    return new NamedProviderError(
+      'InvalidCredentialsError',
+      'Email or password is incorrect.',
+      { cause: error },
+    );
+  }
+  if (operation === 'signup' && code === 'SNAPBACK_AUTH_PASSWORD_EXISTS') {
+    return new NamedProviderError(
+      'DuplicateEmailError',
+      'An account already uses that email.',
+      { cause: error },
+    );
+  }
+```
+
+### Prove it with two event-driven clients
+
+Run two independent provider instances against the same backend. Subscribe
+client B, register a promise for a future matching delivery, mutate through
+client A, and await that delivery. Client B performs no query, mutation,
+timer-based refetch, or polling after the waiter is armed:
+
+```ts source=demos/coterie/tests/snapback-provider.integration.test.ts
+          async applySubscriptionUpdate() {
+            updateSequence += 1;
+            const displayName = `Alice Conformance ${updateSequence}`;
+            const delivery = clientBProfiles.next((rows) => (
+              rows.some((row) => row.id === 'alice' && row.displayName === displayName)
+            ));
+            mutationValue(
+              await clientA.mutate('editProfile', {
+                displayName,
+                bio: `Conformance live update ${updateSequence}`,
+                handle: null,
+                location: null,
+                link: null,
+              }),
+              'conformance subscription update',
+            );
+            await delivery;
+          },
+```
+
+Keep “no polling” true both below and above the seam: disable the Snapback
+live-query fallback for the proof, and do not compensate with a provider-level
+poller. Exercise disposal and connection/error projection as part of the same
+probe.
+
+A generic `DataProvider` conformance runner may validate the **entire shared
+manifest and capability declaration** while behaviorally probing only one
+primary query and mutation. That is useful, but it is not evidence that every
+declared operation ran. Report both scopes explicitly: the qualified
+operation/token allow-list, and the exact primary query/mutation pairs (plus
+any separate two-client probes) actually exercised. Never summarize the
+runner's whole-manifest validation as whole-manifest behavioral conformance.
 
 ## Boot: one surface, one idempotent ensure
 
@@ -12752,9 +12988,18 @@ function props for legacy capability glue until Exact promotes that spelling.
 
 ## Anti-patterns
 
-- **Do not hand-wire `client.mutate` inside a Contract app.** The generated
-  bindings + surface links are the product path; hand-wiring bypasses
-  optimistic overlays, receipts, and reconciliation.
+- **Do not hand-wire `client.mutate` in Contract presentation or application
+  code.** Generated bindings + surface links are the product path there. An
+  inverse adapter may hand-wire generated live queries, `client.mutate`, and
+  `createAssetClient` only behind the `ContractDataProvider` provider seam.
+- **Allow no polling above the seam.** The adapter owns subscriptions and may
+  disable a lower transport fallback for a stream-only proof; Contract code
+  must not add a provider-level poller.
+- **Do not create a second declaration or provider-specific identity.** Adapt
+  the frozen declaration and keep provider claims as qualification evidence.
+- **Do not leak `SNAPBACK_*` or application refusal codes above the seam.** Map
+  declared errors to declaration-owned names and use adapter-owned names for
+  milestone and unmapped-provider refusals.
 - **Do not write optimistic reducers for declarative mutations.** They are
   derived; hand-written ones drift.
 - **Do not hand-author provider binding sidecars.** Generate them from the
@@ -25585,6 +25830,216 @@ client, image, filesystem, service-worker, or application cache.
 
 ---
 
+<!-- snapback-guide-source: guide/recipes/sessions-fixture-install.md -->
+---
+title: "Recipe: install sessions fixtures with profiles and avatars"
+id: recipes.sessions-fixture-install
+order: 9
+audience: agent-first
+capabilities: [auth.passwords, backend.assets]
+authorities: [llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0266-coterie-exact-contract-benchmark.plan.md, demos/coterie/snapback/schema.mjs, demos/coterie/snapback/functions.mjs, demos/coterie/snapback/seed-m1.mjs]
+examples: [demos/coterie]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-17
+reviewed-authorities-digest: sha256:31512f6cc26158c28004237b72dafe2261f13253628e5a1675164ebfb29caae7
+---
+
+# Recipe: install sessions fixtures with profiles and avatars
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use this recipe when one deterministic fixture in a sessions-mode app must
+include a real password account, a principal-owned application profile, and
+typed media. A [versioned seed](../backend/versioned-seeds.md) cannot contain
+captured principal ids, and a raw seed asset id would bypass the ordinary
+asset lifecycle. The paved composition is therefore one app-owned,
+idempotent installer that uses an ordinary session for every fixture identity.
+
+This is one **logical install**, not one database transaction. Account signup,
+profile mutation, upload finalization, and typed attachment settle at their
+ordinary boundaries. If a run stops midway, the same installer resumes through
+its match-or-repair checks.
+
+## Give each fixture its own ordinary session
+
+Read personas and media digests from committed fixture inputs. For each
+persona, create a client with its own custody partition, then close that auth
+context before advancing. Coterie uses the same `AuthCoordinator` and
+`SnapbackClient` path as application auth; no admin impersonation or seeded
+principal id enters the flow:
+
+```js source=demos/coterie/snapback/seed-m1.mjs
+function createPasswordClient(baseUrl, clientStoreId) {
+  const coordinator = new AuthCoordinator({
+    appId: schemaManifest.appId,
+    storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const client = new SnapbackClient(baseUrl, {
+    authCoordinator: coordinator,
+    authInvalidationProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    authorizedLeaseProtocol: 1,
+    clientStoreId,
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  return { client, coordinator };
+}
+```
+
+The backend profile shape must bind ownership to `ctx.auth.userId`, expose an
+owner-scoped lookup with no caller-supplied owner argument, and attach avatars
+through a restricted `v.assetRef`. Coterie's `ensureMyProfile` derives
+`ownerId` from server authority, while `attachMyAvatar` rechecks profile
+ownership and calls `ctx.assets.attach(..., { upload: 'avatarUpload' })`.
+
+## Verify fixture media before reporting a match
+
+Pin a fixture-source digest independently of Snapback's asset record. Coterie
+loads the expected SHA-256 from the committed media manifest, hashes the local
+bytes before any request, and later requires the profile's
+`avatarSourceDigest` to equal that value:
+
+```js source=demos/coterie/snapback/seed-m1.mjs
+function expectedAvatarDigest(persona) {
+  const filename = basename(persona.profile.avatar);
+  const digest = mediaManifest.artifacts?.[filename]?.sha256;
+  if (typeof digest !== 'string' || !/^[0-9a-f]{64}$/u.test(digest)) {
+    throw new Error(`fixture ${persona.id} has no expected avatar digest for ${filename}`);
+  }
+  const bytes = readFileSync(join(fixtureRoot, persona.profile.avatar));
+  const observed = createHash('sha256').update(bytes).digest('hex');
+  if (observed !== digest) {
+    throw new Error(`fixture ${persona.id} avatar bytes do not match ${digest}`);
+  }
+  return digest;
+}
+```
+
+A match also requires a ready, end-to-end-verified asset record. Do not call an
+account a match merely because its email already exists, or because the
+profile carries some nonempty asset id.
+
+## Sign up first; on existence, sign in and prove the whole fixture
+
+Attempt password signup on the first install. If it succeeds, the client owns
+the new ordinary session and proceeds to application writes. The only
+duplicate-account branch accepted is `SNAPBACK_AUTH_PASSWORD_EXISTS`; on that
+code, sign in with the fixture password and inspect the owner-scoped profile:
+
+```js source=demos/coterie/snapback/seed-m1.mjs
+      let accountDisposition = 'created';
+      let rows = [];
+      try {
+        await fixture.client.authPasswordSignup({
+          email: persona.email,
+          password: persona.password,
+        });
+      } catch (error) {
+        if (diagnosticCode(error) !== 'SNAPBACK_AUTH_PASSWORD_EXISTS') throw error;
+        const signin = await fixture.client.authPasswordSignIn({
+          email: persona.email,
+          password: persona.password,
+        });
+        rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+        const current = rows[0];
+        const fixtureMatches = rows.length === 1
+          && current
+          && current.ownerId === signin.session.userId
+          && current.fixtureId === persona.id
+          && current.handle === persona.profile.handle
+          && current.displayName === persona.profile.displayName
+          && current.bio === persona.profile.bio
+          && current.location === persona.profile.location
+          && current.link === persona.profile.link
+          && await avatarMatchesFixture(fixture.client, current, avatarDigest);
+        if (fixtureMatches) {
+          accounts.push({ id: persona.id, email: persona.email, disposition: 'matched' });
+          profiles.push(profileSnapshot(current));
+          continue;
+        }
+        accountDisposition = 'repaired';
+      }
+```
+
+The `continue` is the idempotence boundary: a matched repeat performs the
+password sign-in and read-only verification, then performs **no asset upload
+and no application write**. Wrong passwords, multiple owner rows, owner
+mismatch, fixture-field drift, missing media, or digest drift never report
+`matched`; they fail or enter the explicit repair path.
+
+## Create or repair the profile, then upload and attach ordinarily
+
+Use one server-authorized ensure mutation for the application row. Re-read the
+owner-scoped profile and confirm the returned id. Upload only when the current
+typed avatar does not already match the fixture digest; require the upload task
+to reach `ready`, then attach the asset through the application mutation:
+
+```js source=demos/coterie/snapback/seed-m1.mjs
+      const profileId = (await fixture.client.mutate(api.ensureMyProfile, {
+        args: {
+          fixtureId: persona.id,
+          handle: persona.profile.handle,
+          displayName: persona.profile.displayName,
+          bio: persona.profile.bio,
+          location: persona.profile.location,
+          link: persona.profile.link,
+        },
+      })).result;
+
+      rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+      if (rows.length !== 1 || rows[0]._id !== profileId) {
+        throw new Error(`fixture ${persona.id} did not resolve its own profile`);
+      }
+      if (!await avatarMatchesFixture(fixture.client, rows[0], avatarDigest)) {
+        const bytes = readFileSync(join(fixtureRoot, persona.profile.avatar));
+        const assets = createAssetClient(fixture.client);
+        const upload = assets.start({
+          upload: api.avatarUpload,
+          file: new Blob([bytes], { type: 'image/png' }),
+          declaredFilename: `${persona.id}-avatar.png`,
+          declaredContentType: 'image/png',
+        });
+        const terminal = await upload.done;
+        if (terminal.status !== 'ready') {
+          throw new Error(`fixture ${persona.id} avatar failed: ${JSON.stringify(terminal.diagnostic ?? terminal)}`);
+        }
+        await fixture.client.mutate(api.attachMyAvatar, {
+          args: {
+            profileId,
+            assetId: terminal.assetId,
+            sourceDigest: avatarDigest,
+          },
+        });
+        rows = (await fixture.client.query(api.getMyProfile, { args: {} })).rows;
+      }
+```
+
+Finish by repeating the whole avatar match predicate before emitting the
+report. Use `created`, `repaired`, and `matched` as distinct dispositions;
+only `matched` promises the no-write repeat path.
+
+## Anti-patterns
+
+- **Do not seed captured principal ids.** Install real accounts through
+  password signup and let server-derived session authority own the profile.
+- **Do not treat `SNAPBACK_AUTH_PASSWORD_EXISTS` as success by itself.** Sign
+  in and verify owner, fixture fields, source digest, and asset readiness.
+- **Do not upload before the match check.** A matched repeat must perform no
+  upload and no application mutation after sign-in.
+- **Do not store a raw asset id in the profile.** Finalize through the ordinary
+  asset client and attach through the typed, owner-authorized mutation.
+- **Do not call this atomic.** It is restart-safe application installation;
+  each account, mutation, upload, and attach keeps its own settlement boundary.
+
+---
+
 <!-- snapback-guide-source: guide/reference/diagnostics.md -->
 ---
 title: Diagnostic code registry
@@ -26332,7 +26787,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-participant-async-sync-phase"></a>`SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:3382` | 1 |
 | <a id="diagnostic-snapback-auth-password-already-set"></a>`SNAPBACK_AUTH_PASSWORD_ALREADY_SET` | auth | 409 | — | `src/server/api_error.rs:380` | 2 |
 | <a id="diagnostic-snapback-auth-password-carrier-invalid"></a>`SNAPBACK_AUTH_PASSWORD_CARRIER_INVALID` | auth | — | — | `src/cli.rs:4412` | 6 |
-| <a id="diagnostic-snapback-auth-password-exists"></a>`SNAPBACK_AUTH_PASSWORD_EXISTS` | auth | 409 | — | `src/server.rs:16433` | 2 |
+| <a id="diagnostic-snapback-auth-password-exists"></a>`SNAPBACK_AUTH_PASSWORD_EXISTS` | auth | 409 | [guide](../clients/contract-adapter.md#refuse-unqualified-milestones-and-translate-errors-deliberately) | `src/server.rs:16433` | 2 |
 | <a id="diagnostic-snapback-auth-password-hash-unavailable"></a>`SNAPBACK_AUTH_PASSWORD_HASH_UNAVAILABLE` | auth | — | — | `src/server/api_error.rs:387` | 2 |
 | <a id="diagnostic-snapback-auth-password-identifier-invalid"></a>`SNAPBACK_AUTH_PASSWORD_IDENTIFIER_INVALID` | auth | 400 | — | `src/auth/provider.rs:1445` | 11 |
 | <a id="diagnostic-snapback-auth-password-identifier-mode-conflict"></a>`SNAPBACK_AUTH_PASSWORD_IDENTIFIER_MODE_CONFLICT` | auth | — | — | `packages/snapback-codegen/define.mjs:1846` | 1 |
