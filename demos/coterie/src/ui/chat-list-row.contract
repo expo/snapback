@@ -9,7 +9,12 @@ component CoterieChatListRow
     unreadCount: number = 0
     avatarUrl: string = null
     accentColor: string = "#4F46E5"
+    typingHint: string = null
+    receiptStatus: string = null
     press: (chatId) => void
+
+  derive summary = typingHint ? typingHint : preview
+  derive receiptMark = receiptStatus == "read" ? "✓✓" : receiptStatus == "delivered" ? "✓✓" : receiptStatus == "sent" ? "✓" : null
 
   contract
     has node testId="sm-chats-item"
@@ -25,7 +30,10 @@ component CoterieChatListRow
               text title size=17 weight=unreadCount > 0 ? 700 : 600 color="#17191C"
               text timestamp size=12 color="#6B7280"
             row width="100%" align="center" justify="space-between" gap=8
-              text preview size=13 color=unreadCount > 0 ? "#17191C" : "#6B7280" numberOfLines=1 flex=1
+              row flex=1 minWidth=0 gap=5 align="center"
+                when receiptMark
+                  text receiptMark size=12 color=receiptStatus == "read" ? "#2F80ED" : "#6B7280"
+                text summary size=13 color=typingHint ? accentColor : unreadCount > 0 ? "#17191C" : "#6B7280" numberOfLines=1 flex=1
               when unreadCount > 0
                 column minWidth=22 height=22 paddingLeft=6 paddingRight=6 radius=11 background="#4F46E5" align="center" justify="center" testId="sm-chats-unread"
                   text `${unreadCount}` size=12 weight=700 color="#FFFFFF"

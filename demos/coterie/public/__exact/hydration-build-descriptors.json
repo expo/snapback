@@ -15,8 +15,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chat/[id].contract",
-      "routeGraphDigest": "sha256:54816b21358d45b9f35cb8d2675e929d923f5728543746761df2154eb6d452eb",
-      "sourceVersion": "sha256:54816b21358d45b9f35cb8d2675e929d923f5728543746761df2154eb6d452eb",
+      "routeGraphDigest": "sha256:200bba4d9d894f76e697d63480b00c3a2ef3920a8dfffd1c59d126a5ad4c54ca",
+      "sourceVersion": "sha256:200bba4d9d894f76e697d63480b00c3a2ef3920a8dfffd1c59d126a5ad4c54ca",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -24,8 +24,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chat/[id]/settings.contract",
-      "routeGraphDigest": "sha256:f2d5d744015708ecf245873a674cdee158ed5881d19871ffcda768038e25cfbe",
-      "sourceVersion": "sha256:f2d5d744015708ecf245873a674cdee158ed5881d19871ffcda768038e25cfbe",
+      "routeGraphDigest": "sha256:a7373165e23202eba14bc45f1501176a57850dcf0afe3069631274c80303bc06",
+      "sourceVersion": "sha256:a7373165e23202eba14bc45f1501176a57850dcf0afe3069631274c80303bc06",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },
@@ -33,8 +33,8 @@
       "version": 1,
       "schemaVersion": 1,
       "routeId": "app/chats.contract",
-      "routeGraphDigest": "sha256:f3df09847f2db2faf5d360f7cde197945791c1c30bdc06521fbe0e5c397a147b",
-      "sourceVersion": "sha256:f3df09847f2db2faf5d360f7cde197945791c1c30bdc06521fbe0e5c397a147b",
+      "routeGraphDigest": "sha256:7a3d8b53e35283e2a1eb3679a6069ebebd9b55b289032e115b58bc592a2fd9dd",
+      "sourceVersion": "sha256:7a3d8b53e35283e2a1eb3679a6069ebebd9b55b289032e115b58bc592a2fd9dd",
       "buildFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
       "generatedAdapterVersion": "exact-contract-router-chain-v1"
     },

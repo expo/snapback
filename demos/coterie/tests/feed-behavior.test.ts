@@ -15,6 +15,10 @@ import {
 import type { ElementNode, RootNode, TextNode } from '@exact/renderer/host-ops';
 
 import {
+  createCoterieChatState,
+  reduceCoterieChatState,
+} from '../src/data/chat-state.ts';
+import {
   createCoterieFeedState,
   feedNextCursor,
   reduceCoterieFeedState,
@@ -33,6 +37,21 @@ type ProbeLinks = {
   setLike?: () => Promise<MutationResult> | MutationResult;
   setRepost?: () => Promise<MutationResult> | MutationResult;
 };
+type ChatMutationResult =
+  | { ok: true; value?: Record<string, unknown> }
+  | { ok: false; error: { message: string } };
+type ChatProbeLinks = {
+  navigate?: (target: unknown) => unknown;
+  openDm?: (args: Record<string, unknown>) => Promise<ChatMutationResult> | ChatMutationResult;
+  createGroup?: (args: Record<string, unknown>) => Promise<ChatMutationResult> | ChatMutationResult;
+  sendMessage?: (args: Record<string, unknown>) => Promise<ChatMutationResult> | ChatMutationResult;
+  setTyping?: (args: Record<string, unknown>) => Promise<ChatMutationResult> | ChatMutationResult;
+};
+type DeferredTypingCall = {
+  args: Record<string, unknown>;
+  settled: boolean;
+  settle: () => Promise<void>;
+};
 
 const routeSource = readFileSync(
   new URL('../src/app/routes/index.contract', import.meta.url),
@@ -48,6 +67,14 @@ const messageBubbleSource = readFileSync(
 );
 const conversationRouteSource = readFileSync(
   new URL('../src/app/routes/chat/[id].contract', import.meta.url),
+  'utf8',
+);
+const chatsRouteSource = readFileSync(
+  new URL('../src/app/routes/chats.contract', import.meta.url),
+  'utf8',
+);
+const chatStateMetaSource = readFileSync(
+  new URL('../src/data/chat-state.contract-meta.ts', import.meta.url),
   'utf8',
 );
 const choreographySource = readFileSync(
@@ -119,12 +146,16 @@ function findByTestId(node: { children?: AnyNode[] }, testId: string): ElementNo
   return null;
 }
 
-function routeActionSource(actionName: string): string {
-  const action = routeSource.match(
+function contractActionSource(source: string, actionName: string): string {
+  const action = source.match(
     new RegExp(String.raw`\n  action ${actionName}[\s\S]*?(?=\n  action |\n  task |\n  contract)`),
   )?.[0];
   if (!action) throw new Error(`missing route action ${actionName}`);
   return action.trimEnd();
+}
+
+function routeActionSource(actionName: string): string {
+  return contractActionSource(routeSource, actionName);
 }
 
 function routeTaskSource(taskName: string): string {
@@ -235,6 +266,115 @@ ${actionNames.map((name) => routeActionSource(name)).join('\n')}
 
 function stateOf(instance: ComponentInstance): CoterieFeedState {
   return readState<CoterieFeedState>(instance, 'feedState');
+}
+
+function createChatProbe(
+  source: string,
+  actionNames: readonly string[],
+  links: ChatProbeLinks = {},
+) {
+  const probeActionNames = source.includes('\n  action publishTypingIntent') &&
+    !actionNames.includes('publishTypingIntent')
+    ? ['publishTypingIntent', ...actionNames]
+    : actionNames;
+  const probeSource = `
+use navigate from "@exact/router/contract"
+use createCoterieChatState from "./chat-state.ts"
+use reduceCoterieChatState from "./chat-state.ts"
+use openDm from "./probe-provider.ts"
+use createGroup from "./probe-provider.ts"
+use sendMessage from "./probe-provider.ts"
+use setTyping from "./probe-provider.ts"
+
+component ChatStateProbe
+  state chatState = createCoterieChatState()
+  derive chatId = "g-starter"
+  derive canSetTyping = true
+  mutation openDmMutation = openDm
+  mutation createGroupMutation = createGroup
+  mutation sendMessageMutation = sendMessage
+  mutation setTypingMutation = setTyping
+${probeActionNames.map((name) => contractActionSource(source, name)).join('\n')}
+
+  view
+    text chatState.messageText
+`;
+  const { file, diagnostics } = compileContractSource(
+    probeSource,
+    'src/app/chat-state-probe.contract',
+    {
+      importSemantics: {
+        navigate: {
+          kind: 'capability',
+          params: ['target'],
+          effects: ['navigation.location.write'],
+        },
+        createCoterieChatState: {
+          kind: 'pure',
+          params: ['viewerId'],
+          result: 'unknown',
+          depends: 'args',
+        },
+        reduceCoterieChatState: {
+          kind: 'pure',
+          params: ['state', 'transition'],
+          result: 'unknown',
+          depends: 'args',
+        },
+        openDm: { kind: 'mutation', effects: ['chats.write'] },
+        createGroup: { kind: 'mutation', effects: ['chats.write'] },
+        sendMessage: { kind: 'mutation', effects: ['messages.write'] },
+        setTyping: { kind: 'mutation', effects: ['ephemeralTyping.write'] },
+      } as never,
+    },
+  );
+  expect(diagnostics.filter((diagnostic) => diagnostic.severity === 'error')).toEqual([]);
+
+  const success = () => ({ ok: true as const });
+  const component = defineComponent(file, {
+    navigate: links.navigate ?? (() => undefined),
+    createCoterieChatState,
+    reduceCoterieChatState,
+    openDm: links.openDm ?? success,
+    createGroup: links.createGroup ?? success,
+    sendMessage: links.sendMessage ?? success,
+    setTyping: links.setTyping ?? success,
+  });
+  const owner = createOwner();
+  const instance = instantiateComponent(
+    component,
+    {},
+    createRuntimeContext(owner, { rootId: 8002 }),
+  );
+  return { instance, dispose: () => owner.dispose() };
+}
+
+function chatStateOf(instance: ComponentInstance) {
+  return readState<ReturnType<typeof createCoterieChatState>>(instance, 'chatState');
+}
+
+function createDeferredTypingProvider() {
+  const calls: DeferredTypingCall[] = [];
+  let active = false;
+  const setTyping = (args: Record<string, unknown>) => new Promise<ChatMutationResult>((resolve) => {
+    const call: DeferredTypingCall = {
+      args,
+      settled: false,
+      settle: async () => {
+        if (call.settled) throw new Error('typing call already settled');
+        call.settled = true;
+        active = args.active === true;
+        resolve({ ok: true });
+        for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
+      },
+    };
+    calls.push(call);
+  });
+  return {
+    calls,
+    setTyping,
+    active: () => active,
+  };
 }
 
 function createLiveMutationProbe(
@@ -553,11 +693,13 @@ describe('Coterie feed behavior', () => {
     expect(bubbleBlock).toContain('testId="sm-convo-reaction"');
     expect(bubbleBlock).toContain('testId="sm-convo-reaction-chip"');
     expect(bubbleBlock).toContain('href=`#sm-message-${quotedMessageId}`');
-    expect(conversationRouteSource).toContain('state highlightedMessageId = null');
+    expect(conversationRouteSource).toContain('state chatState = createCoterieChatState()');
     expect(conversationRouteSource).toContain(
-      'action revealQuotedMessage(messageId) writes highlightedMessageId',
+      'action revealQuotedMessage(messageId) writes chatState',
     );
-    expect(conversationRouteSource).toContain('highlighted=highlightedMessageId == message.id');
+    expect(conversationRouteSource).toContain(
+      'highlighted=chatState.highlightedMessageId == message.id',
+    );
     expect(choreographySource).toContain(
       'const quotePreview = testId(aliceReply, "sm-convo-quote-preview");',
     );
@@ -1035,6 +1177,354 @@ ${routeTaskSource('feedHeadInitial')}
       expect(continuation).toContain('reduceCoterieFeedState(');
     }
     expect(routeActionSource('signIn').match(/kind: "sign-in-settled"/g)).toHaveLength(2);
+  });
+
+  it('generation-gates conversation and group-draft async settlements', () => {
+    let conversation = createCoterieChatState('alice');
+    conversation = reduceCoterieChatState(conversation, {
+      kind: 'set-message-text',
+      generation: 0,
+      value: 'first draft',
+    });
+    conversation = reduceCoterieChatState(conversation, { kind: 'send-began', generation: 1 });
+    expect(conversation.generation).toBe(2);
+    expect(conversation.messageText).toBe('');
+
+    const successor = reduceCoterieChatState(conversation, {
+      kind: 'set-message-text',
+      generation: 2,
+      value: 'successor draft',
+    });
+    expect(reduceCoterieChatState(successor, {
+      kind: 'send-settled',
+      generation: 2,
+      ok: true,
+      messageText: 'first draft',
+      quotedMessageId: null,
+      quotedSenderName: null,
+      quotedBodySnippet: null,
+    })).toEqual(successor);
+
+    let group = reduceCoterieChatState(createCoterieChatState('alice'), {
+      kind: 'toggle-group-member',
+      generation: 0,
+      userId: 'bob',
+    });
+    group = reduceCoterieChatState(group, {
+      kind: 'set-group-name',
+      generation: 1,
+      value: 'Launch crew',
+    });
+    group = reduceCoterieChatState(group, {
+      kind: 'group-create-began',
+      generation: 2,
+      creatorId: 'alice',
+    });
+    expect(group).toMatchObject({
+      generation: 3,
+      groupName: '',
+      selectedMemberIds: ['alice'],
+    });
+  });
+
+  it('does not navigate for a late direct-message completion after a newer intent', async () => {
+    const settlements: Array<(result: ChatMutationResult) => void> = [];
+    const navigations: unknown[] = [];
+    const { instance, dispose } = createChatProbe(
+      chatsRouteSource,
+      ['openDirectMessage'],
+      {
+        openDm: () => new Promise((resolve) => settlements.push(resolve)),
+        navigate: (target) => navigations.push(target),
+      },
+    );
+
+    try {
+      const older = invokeAction(instance, 'openDirectMessage', 'bob') as Promise<unknown>;
+      const newer = invokeAction(instance, 'openDirectMessage', 'carol') as Promise<unknown>;
+      settlements[1]!({ ok: true, value: { chatId: 'd-alice-carol' } });
+      await newer;
+      settlements[0]!({ ok: true, value: { chatId: 'd-alice-bob' } });
+      await older;
+      expect(navigations).toEqual([
+        { to: '/chat/[id]', params: { id: 'd-alice-carol' } },
+      ]);
+    } finally {
+      dispose();
+    }
+  });
+
+  it('does not clear a successor draft or typing intent after an older send completes', async () => {
+    let settleSend: ((result: ChatMutationResult) => void) | null = null;
+    const typingIntents: Array<Record<string, unknown>> = [];
+    const { instance, dispose } = createChatProbe(
+      conversationRouteSource,
+      ['setMessageText', 'sendCurrentMessage'],
+      {
+        sendMessage: () => new Promise((resolve) => { settleSend = resolve; }),
+        setTyping: (args) => {
+          typingIntents.push(args);
+          return { ok: true };
+        },
+      },
+    );
+
+    try {
+      await invokeAction(instance, 'setMessageText', 'older draft');
+      const olderSend = invokeAction(instance, 'sendCurrentMessage') as Promise<unknown>;
+      await invokeAction(instance, 'setMessageText', 'successor draft');
+      settleSend!({ ok: true, value: { id: 'm-new' } });
+      await olderSend;
+
+      expect(chatStateOf(instance).messageText).toBe('successor draft');
+      expect(typingIntents).toEqual([
+        { chatId: 'g-starter', active: true },
+        { chatId: 'g-starter', active: true },
+      ]);
+    } finally {
+      dispose();
+    }
+  });
+
+  it('reconciles an older typing publish that completes after a newer clear', async () => {
+    const typing = createDeferredTypingProvider();
+    const { instance, dispose } = createChatProbe(
+      conversationRouteSource,
+      ['setMessageText'],
+      { setTyping: typing.setTyping },
+    );
+
+    try {
+      invokeAction(instance, 'setMessageText', 'typing');
+      invokeAction(instance, 'setMessageText', '');
+      expect(typing.calls.map((call) => call.args)).toEqual([
+        { chatId: 'g-starter', active: true },
+        { chatId: 'g-starter', active: false },
+      ]);
+
+      await typing.calls[1]!.settle();
+      expect(chatStateOf(instance)).toMatchObject({
+        typingIntentSequence: 2,
+        typingIntentActive: false,
+        typingSettledSequence: 2,
+        typingSettledActive: false,
+      });
+      expect(typing.active()).toBe(false);
+
+      await typing.calls[0]!.settle();
+      expect(chatStateOf(instance)).toMatchObject({
+        typingIntentSequence: 2,
+        typingIntentActive: false,
+        typingSettledSequence: 2,
+        typingSettledActive: false,
+      });
+      expect(typing.calls[2]!.args).toEqual({ chatId: 'g-starter', active: false });
+      await typing.calls[2]!.settle();
+      expect(typing.active()).toBe(false);
+    } finally {
+      dispose();
+    }
+  });
+
+  it('reconciles a late send-time clear to a successor draft typing intent', async () => {
+    const typing = createDeferredTypingProvider();
+    let settleSend: ((result: ChatMutationResult) => void) | null = null;
+    const { instance, dispose } = createChatProbe(
+      conversationRouteSource,
+      ['setMessageText', 'sendCurrentMessage'],
+      {
+        sendMessage: () => new Promise((resolve) => { settleSend = resolve; }),
+        setTyping: typing.setTyping,
+      },
+    );
+
+    try {
+      invokeAction(instance, 'setMessageText', 'older draft');
+      await typing.calls[0]!.settle();
+
+      const send = invokeAction(instance, 'sendCurrentMessage') as Promise<unknown>;
+      settleSend!({ ok: true, value: { id: 'm-new' } });
+      for (let turn = 0; turn < 4; turn += 1) await Promise.resolve();
+      expect(typing.calls[1]!.args).toEqual({ chatId: 'g-starter', active: false });
+
+      invokeAction(instance, 'setMessageText', 'successor draft');
+      expect(typing.calls[2]!.args).toEqual({ chatId: 'g-starter', active: true });
+      await typing.calls[2]!.settle();
+      expect(typing.active()).toBe(true);
+
+      await typing.calls[1]!.settle();
+      expect(chatStateOf(instance)).toMatchObject({
+        messageText: 'successor draft',
+        typingIntentSequence: 3,
+        typingIntentActive: true,
+        typingSettledSequence: 3,
+        typingSettledActive: true,
+      });
+      expect(typing.calls[3]!.args).toEqual({ chatId: 'g-starter', active: true });
+      await typing.calls[3]!.settle();
+      await send;
+      expect(typing.active()).toBe(true);
+    } finally {
+      dispose();
+    }
+  });
+
+  it('settles rapid typing toggles to the latest reducer-issued intent', async () => {
+    const typing = createDeferredTypingProvider();
+    const { instance, dispose } = createChatProbe(
+      conversationRouteSource,
+      ['setMessageText'],
+      { setTyping: typing.setTyping },
+    );
+
+    try {
+      invokeAction(instance, 'setMessageText', 'one');
+      invokeAction(instance, 'setMessageText', '');
+      invokeAction(instance, 'setMessageText', 'three');
+      expect(typing.calls.map((call) => call.args.active)).toEqual([true, false, true]);
+
+      await typing.calls[1]!.settle();
+      await typing.calls[0]!.settle();
+      await typing.calls[2]!.settle();
+      while (typing.calls.some((call) => !call.settled)) {
+        await typing.calls.find((call) => !call.settled)!.settle();
+      }
+
+      expect(typing.calls.slice(3).every((call) => call.args.active === true)).toBe(true);
+      expect(typing.active()).toBe(true);
+      expect(chatStateOf(instance)).toMatchObject({
+        messageText: 'three',
+        typingIntentSequence: 3,
+        typingIntentActive: true,
+        typingSettledSequence: 3,
+        typingSettledActive: true,
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it('does not navigate for a late group completion after a successor draft begins', async () => {
+    let settleGroup: ((result: ChatMutationResult) => void) | null = null;
+    const navigations: unknown[] = [];
+    const { instance, dispose } = createChatProbe(
+      chatsRouteSource,
+      ['seedGroupCreator', 'setGroupName', 'toggleGroupMember', 'submitGroup'],
+      {
+        createGroup: () => new Promise((resolve) => { settleGroup = resolve; }),
+        navigate: (target) => navigations.push(target),
+      },
+    );
+
+    try {
+      invokeAction(instance, 'seedGroupCreator', 'bob');
+      invokeAction(instance, 'toggleGroupMember', 'alice');
+      invokeAction(instance, 'setGroupName', 'Older group');
+      const olderCreate = invokeAction(instance, 'submitGroup', 'bob') as Promise<unknown>;
+      invokeAction(instance, 'setGroupName', 'Successor group');
+      settleGroup!({ ok: true, value: { chatId: 'g-older' } });
+      await olderCreate;
+
+      expect(chatStateOf(instance).groupName).toBe('Successor group');
+      expect(navigations).toEqual([]);
+    } finally {
+      dispose();
+    }
+  });
+
+  it('restores failed message and group drafts without reviving them over successors', async () => {
+    let settleSend: ((result: ChatMutationResult) => void) | null = null;
+    const conversation = createChatProbe(
+      conversationRouteSource,
+      ['setMessageText', 'beginReply', 'sendCurrentMessage'],
+      { sendMessage: () => new Promise((resolve) => { settleSend = resolve; }) },
+    );
+    let settleGroup: ((result: ChatMutationResult) => void) | null = null;
+    const group = createChatProbe(
+      chatsRouteSource,
+      ['seedGroupCreator', 'setGroupName', 'setGroupDescription', 'toggleGroupMember', 'submitGroup'],
+      { createGroup: () => new Promise((resolve) => { settleGroup = resolve; }) },
+    );
+
+    try {
+      await invokeAction(conversation.instance, 'setMessageText', 'restore me');
+      invokeAction(conversation.instance, 'beginReply', 'sm0001', 'Alice', 'Original body');
+      const failedSend = invokeAction(
+        conversation.instance,
+        'sendCurrentMessage',
+      ) as Promise<unknown>;
+      settleSend!({ ok: false, error: { message: 'offline' } });
+      await failedSend;
+      expect(chatStateOf(conversation.instance)).toMatchObject({
+        messageText: 'restore me',
+        quotedMessageId: 'sm0001',
+        quotedSenderName: 'Alice',
+        quotedBodySnippet: 'Original body',
+      });
+
+      invokeAction(group.instance, 'seedGroupCreator', 'bob');
+      invokeAction(group.instance, 'toggleGroupMember', 'alice');
+      invokeAction(group.instance, 'setGroupName', 'Bob crew');
+      invokeAction(group.instance, 'setGroupDescription', 'Created by Bob');
+      const failedGroup = invokeAction(group.instance, 'submitGroup', 'bob') as Promise<unknown>;
+      settleGroup!({ ok: false, error: { message: 'offline' } });
+      await failedGroup;
+      expect(chatStateOf(group.instance)).toMatchObject({
+        groupName: 'Bob crew',
+        groupDescription: 'Created by Bob',
+        selectedMemberIds: ['bob', 'alice'],
+      });
+    } finally {
+      conversation.dispose();
+      group.dispose();
+    }
+  });
+
+  it('routes all chat and group local-state assignments through the chat reducer', () => {
+    for (const source of [conversationRouteSource, chatsRouteSource]) {
+      const assignments = [...source.matchAll(/^    chatState = (.+)$/gm)].map((match) => match[1]);
+      expect(assignments.length).toBeGreaterThan(0);
+      expect(assignments.every((assignment) => assignment.startsWith('reduceCoterieChatState(')))
+        .toBe(true);
+    }
+    for (const actionName of ['chooseMessageReaction', 'sendCurrentMessage']) {
+      const action = indentedBlock(conversationRouteSource, `action ${actionName}`);
+      expect(action.slice(action.indexOf('await '))).toContain('reduceCoterieChatState(');
+    }
+    const groupCreate = indentedBlock(chatsRouteSource, 'action submitGroup');
+    expect(groupCreate.slice(groupCreate.indexOf('await '))).toContain('reduceCoterieChatState(');
+    expect(createCoterieChatState().selectedMemberIds).toEqual([]);
+    expect(createCoterieChatState('bob').selectedMemberIds).toEqual(['bob']);
+    expect(chatsRouteSource).toContain('seedGroupCreator(session.value[0].userId)');
+    expect(groupCreate).toContain(
+      'draftMemberIds.includes(viewerId) ? draftMemberIds : [...draftMemberIds, viewerId]',
+    );
+    expect(chatsRouteSource).toContain('press=submitGroup(activeSessions[0].userId)');
+    expect(chatsRouteSource).toContain(
+      'accessibilitySelected=profile.isMe || chatState.selectedMemberIds.includes(profile.id)',
+    );
+  });
+
+  it('keeps inactive-member history rendering separate from live compose and typing state', () => {
+    expect(conversationRouteSource).toContain('async messages');
+    expect(conversationRouteSource).toContain('ready messageRows');
+    expect(conversationRouteSource).toContain('async typingParticipants');
+    expect(conversationRouteSource).toContain('when canComposeInChat');
+    expect(conversationRouteSource).not.toContain(
+      'when currentChatIsMember then async messages',
+    );
+  });
+
+  it('declares all five nullable chat-state fields as nullable at the Contract boundary', () => {
+    for (const field of [
+      'quotedMessageId',
+      'quotedSenderName',
+      'quotedBodySnippet',
+      'reactionPickerMessageId',
+      'highlightedMessageId',
+    ]) {
+      expect(chatStateMetaSource).toContain(`${field}: 'string | null'`);
+    }
   });
 
   it('keeps cursor helpers stable for generated row envelopes', () => {

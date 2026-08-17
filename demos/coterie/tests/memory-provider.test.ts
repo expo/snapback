@@ -212,6 +212,7 @@ describe('Coterie backendless provider', () => {
       location: '',
       link: '',
       avatarUrl: null,
+      avatarRef: null,
       followers: 0,
       following: 0,
       followedByMe: false,
@@ -344,7 +345,7 @@ describe('Coterie backendless provider', () => {
       value: { avatarUrl: '/assets/fixtures/avatar-grace.png' },
     });
     expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'd-alice-bob')?.avatarUrl).toBe(
-      '/assets/fixtures/avatar-grace.png',
+      '/assets/fixtures/avatar-henry.png',
     );
     expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'g-starter')?.avatarUrl).toBeNull();
 
@@ -375,7 +376,12 @@ describe('Coterie backendless provider', () => {
   it('delivers declared send-message body errors through the generated mutation', async () => {
     const { provider } = createCoterieMemoryHarness();
     const projection = configureFromProvider(provider);
-    for (const body of ['', 'x'.repeat(2001)]) {
+    expect((await sendMessage({
+      chatId: 'g-starter',
+      body: '😀'.repeat(2000),
+      quotedMessageId: null,
+    }) as DataMutationResult).ok).toBe(true);
+    for (const body of ['', 'x'.repeat(2001), '😀'.repeat(2001)]) {
       const result = (await sendMessage({
         chatId: 'g-starter',
         body,
@@ -389,6 +395,10 @@ describe('Coterie backendless provider', () => {
   it('rejects every session-required mutation after logout', async () => {
     const { provider } = createCoterieMemoryHarness();
     expect((await provider.mutate('logout', {})).ok).toBe(true);
+    for (const query of ['listChats', 'listMessages', 'observeTyping']) {
+      expect(readCell(provider, query, query === 'listChats' ? {} : { chatId: 'g-starter' }))
+        .toMatchObject({ status: 'ready', value: [] });
+    }
 
     const cases = [
       ['createPost', { body: 'Signed-out post', imageRefs: [], videoRefs: [], parentId: null }],
@@ -752,40 +762,93 @@ describe('Coterie backendless provider', () => {
     group.dispose();
   });
 
-  it('retains the complete M2 operation/token set in v7 without changing the M1 profile token', () => {
-    expect(declarationJson.declarationVersion).toBe('7');
+  it('shows an outgoing receipt only when the actual latest preview is mine', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    type ChatPreview = {
+      id: string;
+      preview: string;
+      latestReceiptStatus: string | null;
+    };
+    const chats = collectReady<ChatPreview[]>(provider, 'listChats', {});
+    expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'd-alice-bob')).toMatchObject({
+      preview: 'On my way.',
+      latestReceiptStatus: null,
+    });
+
+    expect((await provider.mutate('sendMessage', {
+      chatId: 'd-alice-bob',
+      body: 'Alice owns the latest preview now.',
+      quotedMessageId: null,
+    })).ok).toBe(true);
+    expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'd-alice-bob')).toMatchObject({
+      preview: 'Alice owns the latest preview now.',
+      latestReceiptStatus: 'sent',
+    });
+    chats.dispose();
+  });
+
+  it('retains M1/M2 tokens while freezing the complete v8 M3 surface', () => {
+    expect(declarationJson.declarationVersion).toBe('8');
     expect(coterieSurfaceManifest.queries.listFeed?.compatibilityToken).toBe('3');
     expect(coterieSurfaceManifest.queries.listThread?.compatibilityToken).toBe('1');
     expect(coterieSurfaceManifest.queries.listProfilePosts?.compatibilityToken).toBe('1');
-    expect(coterieSurfaceManifest.queries.listProfiles?.compatibilityToken).toBe('2');
+    expect(coterieSurfaceManifest.queries.listProfiles?.compatibilityToken).toBe('3');
     expect(
       declarationJson.extensions['coterie.m2CompatibilityTokens'],
     ).toEqual({
       listFeed: '3',
       listThread: '1',
       listProfilePosts: '1',
-      listProfiles: '2',
+      listProfiles: '3',
       createPost: '1',
       setFollow: '1',
       setLike: '1',
       setRepost: '2',
     });
     expect(declarationJson.extensions['coterie.m1CompatibilityTokens']).toMatchObject({
+      listProfiles: '3',
       setAvatar: '2',
     });
     expect(declarationJson.extensions['coterie.m3CompatibilityTokens']).toEqual({
-      listChats: '2',
-      listMessages: '3',
-      sendMessage: '3',
+      listChats: '3',
+      listMessages: '4',
+      observeTyping: '1',
+      openDm: '1',
+      createGroup: '1',
+      addMember: '1',
+      removeMember: '1',
+      promoteAdmin: '1',
+      leaveChat: '1',
+      sendMessage: '4',
+      setTyping: '1',
+      markReceipt: '1',
+    });
+    expect(declarationJson.extensions['coterie.receiptSemantics']).toMatchObject({
+      mark: 'markReceipt',
+      states: ['sent', 'delivered', 'read'],
+      transition: 'monotonic-only',
     });
     expect(declarationJson.extensions['coterie.m4CompatibilityTokens']).toEqual({
-      setMessageReaction: '1',
+      setMessageReaction: '2',
     });
     expect(declarationJson.extensions['coterie.m5CompatibilityTokens']).toEqual({
       searchSocial: '2',
       setChatAccent: '1',
       setDisappearing: '1',
     });
+    const removeMemberDeclaration = declarationJson.mutations.find(
+      (mutation) => mutation.name === 'removeMember',
+    );
+    const leaveChatDeclaration = declarationJson.mutations.find(
+      (mutation) => mutation.name === 'leaveChat',
+    );
+    expect(removeMemberDeclaration?.writes).toContain('messages');
+    expect(leaveChatDeclaration?.writes).toContain('messages');
+    expect(
+      declarationJson.mutations
+        .find((mutation) => mutation.name === 'setMessageReaction')
+        ?.errors.map((error) => error.name),
+    ).toContain('ChatMembershipRequiredError');
   });
 
   it('creates text, image, video, and reply posts from committed fixture references', async () => {
@@ -1495,6 +1558,312 @@ describe('Coterie backendless provider', () => {
     group.dispose();
   });
 
+  it('deduplicates DMs and keeps same-membership groups distinct with admin authorization', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const firstDm = await provider.mutate<{ chatId: string; reused: boolean }>('openDm', {
+      userId: 'bob',
+    });
+    const secondDm = await provider.mutate<{ chatId: string; reused: boolean }>('openDm', {
+      userId: 'bob',
+    });
+    expect(firstDm).toEqual({ ok: true, value: { chatId: 'd-alice-bob', reused: true } });
+    expect(secondDm).toEqual(firstDm);
+
+    const firstGroup = await provider.mutate<{ chatId: string }>('createGroup', {
+      name: 'M3 Test Group',
+      description: 'First identity',
+      memberIds: ['alice', 'bob', 'carol'],
+    });
+    const secondGroup = await provider.mutate<{ chatId: string }>('createGroup', {
+      name: 'M3 Test Group',
+      description: 'Second identity',
+      memberIds: ['alice', 'bob', 'carol'],
+    });
+    expect(firstGroup.ok).toBe(true);
+    expect(secondGroup.ok).toBe(true);
+    expect(firstGroup.value?.chatId).not.toBe(secondGroup.value?.chatId);
+
+    expectMutationError(
+      await provider.mutate('createGroup', {
+        name: 'x'.repeat(51),
+        description: null,
+        memberIds: ['alice', 'bob'],
+      }),
+      'GroupNameInvalidError',
+    );
+    expectMutationError(
+      await provider.mutate('createGroup', {
+        name: 'Missing creator',
+        description: null,
+        memberIds: ['bob', 'carol'],
+      }),
+      'GroupMembersInvalidError',
+    );
+
+    const firstGroupId = firstGroup.value!.chatId;
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    const bobGroup = await provider.mutate<{ chatId: string }>('createGroup', {
+      name: 'Bob-created group',
+      description: 'The active creator is not Alice.',
+      memberIds: ['alice', 'bob'],
+    });
+    expect(bobGroup.ok).toBe(true);
+    expect(
+      readRows<{
+        id: string;
+        currentUserIsAdmin: boolean;
+        currentUserIsMember: boolean;
+        memberIds: string[];
+      }>(provider, 'listChats', {}).find((chat) => chat.id === bobGroup.value?.chatId),
+    ).toMatchObject({
+      currentUserIsAdmin: true,
+      currentUserIsMember: true,
+      memberIds: expect.arrayContaining(['alice', 'bob']),
+    });
+    expectMutationError(
+      await provider.mutate('removeMember', { chatId: firstGroupId, userId: 'carol' }),
+      'ChatAdminRequiredError',
+    );
+    await provider.mutate('login', { email: 'alice@example.com', password: 'Alice!Clique2026' });
+    expect(await provider.mutate('promoteAdmin', { chatId: firstGroupId, userId: 'bob' }))
+      .toEqual({ ok: true });
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    expect(await provider.mutate('removeMember', { chatId: firstGroupId, userId: 'carol' }))
+      .toEqual({ ok: true });
+  });
+
+  it('publishes typing immediately, refreshes its lease, and expires through the deterministic clock', async () => {
+    const { provider, advanceClock } = createCoterieMemoryHarness();
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    expect(await provider.mutate('setTyping', { chatId: 'g-starter', active: true }))
+      .toEqual({ ok: true });
+    advanceClock(4000);
+    expect(await provider.mutate('setTyping', { chatId: 'g-starter', active: true }))
+      .toEqual({ ok: true });
+
+    await provider.mutate('login', { email: 'alice@example.com', password: 'Alice!Clique2026' });
+    const typing = collectReady<Array<{ userId: string; displayName: string }>>(
+      provider,
+      'observeTyping',
+      { chatId: 'g-starter' },
+    );
+    const chats = collectReady<Array<{ id: string; typingHint: string | null }>>(
+      provider,
+      'listChats',
+      {},
+    );
+    expect(typing.snapshots.at(-1)).toContainEqual({
+      id: 'g-starter:bob',
+      chatId: 'g-starter',
+      userId: 'bob',
+      displayName: 'Bob Bennett',
+      expiresAt: '2026-01-01T00:01:39.000Z',
+    });
+    expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'g-starter')?.typingHint)
+      .toBe('Bob Bennett typing...');
+    advanceClock(1000);
+    expect(typing.snapshots.at(-1)?.some((entry) => entry.userId === 'bob')).toBe(true);
+    advanceClock(4000);
+    expect(typing.snapshots.at(-1)).toEqual([]);
+    expect(chats.snapshots.at(-1)?.find((chat) => chat.id === 'g-starter')?.typingHint)
+      .toBeNull();
+    typing.dispose();
+    chats.dispose();
+  });
+
+  it('aggregates monotonic receipts over send-time recipients and preserves removal/join history', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const created = await provider.mutate<{ chatId: string }>('createGroup', {
+      name: 'Receipt Group',
+      description: null,
+      memberIds: ['alice', 'bob', 'carol'],
+    });
+    const chatId = created.value!.chatId;
+    const sent = await provider.mutate<{ id: string }>('sendMessage', {
+      chatId,
+      body: 'Receipt one',
+      quotedMessageId: null,
+    });
+    const firstMessageId = sent.value!.id;
+    const messages = collectReady<Array<{
+      id: string;
+      status: string;
+      recipientCount: number;
+      deliveredCount: number;
+      readCount: number;
+    }>>(provider, 'listMessages', { chatId });
+    expect(messages.snapshots.at(-1)?.find((message) => message.id === firstMessageId))
+      .toMatchObject({ status: 'sent', recipientCount: 2, deliveredCount: 0, readCount: 0 });
+
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    await provider.mutate('markReceipt', { chatId, state: 'delivered' });
+    await provider.mutate('login', { email: 'carol@example.com', password: 'Carol!Clique2026' });
+    await provider.mutate('markReceipt', { chatId, state: 'delivered' });
+    expect(messages.snapshots.at(-1)?.find((message) => message.id === firstMessageId))
+      .toMatchObject({ status: 'delivered', deliveredCount: 2, readCount: 0 });
+
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    await provider.mutate('markReceipt', { chatId, state: 'read' });
+    expect(messages.snapshots.at(-1)?.find((message) => message.id === firstMessageId)?.status)
+      .toBe('delivered');
+    await provider.mutate('login', { email: 'carol@example.com', password: 'Carol!Clique2026' });
+    await provider.mutate('markReceipt', { chatId, state: 'read' });
+    expect(messages.snapshots.at(-1)?.find((message) => message.id === firstMessageId))
+      .toMatchObject({ status: 'read', readCount: 2 });
+
+    await provider.mutate('login', { email: 'alice@example.com', password: 'Alice!Clique2026' });
+    const second = await provider.mutate<{ id: string }>('sendMessage', {
+      chatId,
+      body: 'Receipt two',
+      quotedMessageId: firstMessageId,
+    });
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    await provider.mutate('markReceipt', { chatId, state: 'read' });
+    await provider.mutate('login', { email: 'alice@example.com', password: 'Alice!Clique2026' });
+    await provider.mutate('removeMember', { chatId, userId: 'carol' });
+    expect(messages.snapshots.at(-1)?.find((message) => message.id === second.value!.id))
+      .toMatchObject({ status: 'read', recipientCount: 1, readCount: 1 });
+
+    const third = await provider.mutate<{ id: string }>('sendMessage', {
+      chatId,
+      body: 'After Carol left',
+      quotedMessageId: null,
+    });
+    await provider.mutate('addMember', { chatId, userId: 'dave' });
+    await provider.mutate('login', { email: 'carol@example.com', password: 'Carol!Clique2026' });
+    const carolHistory = collectReady<Array<{ id: string }>>(provider, 'listMessages', { chatId });
+    expect(carolHistory.snapshots.at(-1)?.some((message) => message.id === second.value!.id)).toBe(true);
+    expect(carolHistory.snapshots.at(-1)?.some((message) => message.id === third.value!.id)).toBe(false);
+    carolHistory.dispose();
+
+    await provider.mutate('login', { email: 'dave@example.com', password: 'Dave!Clique2026' });
+    const daveHistory = collectReady<Array<{ id: string }>>(provider, 'listMessages', { chatId });
+    expect(daveHistory.snapshots.at(-1)?.some((message) => message.id === firstMessageId)).toBe(true);
+    expect(daveHistory.snapshots.at(-1)?.some((message) => message.id === third.value!.id)).toBe(true);
+    expect(
+      readRows<{ id: string; unreadCount: number }>(provider, 'listChats', {})
+        .find((chat) => chat.id === chatId)?.unreadCount,
+    ).toBe(0);
+    daveHistory.dispose();
+    messages.dispose();
+  });
+
+  it('keeps removed-member history and typing route queries ready while refusing live writes', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const created = await provider.mutate<{ chatId: string }>('createGroup', {
+      name: 'Retained history',
+      description: null,
+      memberIds: ['alice', 'bob'],
+    });
+    if (!created.ok) throw new Error('expected retained-history group creation to succeed');
+    const chatId = created.value.chatId;
+    const sent = await provider.mutate<{ id: string }>('sendMessage', {
+      chatId,
+      body: 'Visible before removal',
+      quotedMessageId: null,
+    });
+    if (!sent.ok) throw new Error('expected retained-history message send to succeed');
+    expect((await provider.mutate('removeMember', { chatId, userId: 'bob' })).ok).toBe(true);
+
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    expect(readRows<{ id: string; currentUserIsMember: boolean }>(
+      provider,
+      'listChats',
+      {},
+    ).find((chat) => chat.id === chatId)).toMatchObject({ currentUserIsMember: false });
+    expect(readCell(provider, 'listMessages', { chatId })).toMatchObject({
+      status: 'ready',
+      value: expect.arrayContaining([expect.objectContaining({ id: sent.value.id })]),
+    });
+    expect(readCell(provider, 'observeTyping', { chatId })).toMatchObject({
+      status: 'ready',
+      value: [],
+    });
+    expectMutationError(
+      await provider.mutate('setMessageReaction', {
+        chatId,
+        messageId: sent.value.id,
+        emoji: '👍',
+        reacted: true,
+        mutationId: 'removed-bob-reaction',
+      }),
+      'ChatMembershipRequiredError',
+    );
+
+    await provider.mutate('login', { email: 'dave@example.com', password: 'Dave!Clique2026' });
+    expect(readCell(provider, 'observeTyping', { chatId })).toMatchObject({
+      status: 'error',
+      error: { name: 'ChatMembershipRequiredError' },
+    });
+  });
+
+  it('projects read when every send-time recipient has dropped from the requirement', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const created = await provider.mutate<{ chatId: string }>('createGroup', {
+      name: 'Empty receipt set',
+      description: null,
+      memberIds: ['alice', 'bob'],
+    });
+    if (!created.ok) throw new Error('expected empty-receipt group creation to succeed');
+    const sent = await provider.mutate<{ id: string }>('sendMessage', {
+      chatId: created.value.chatId,
+      body: 'No remaining required recipient',
+      quotedMessageId: null,
+    });
+    if (!sent.ok) throw new Error('expected empty-receipt message send to succeed');
+    expect((await provider.mutate('removeMember', {
+      chatId: created.value.chatId,
+      userId: 'bob',
+    })).ok).toBe(true);
+    expect(
+      readRows<{
+        id: string;
+        status: string;
+        recipientCount: number;
+        deliveredCount: number;
+        readCount: number;
+      }>(provider, 'listMessages', { chatId: created.value.chatId })
+        .find((message) => message.id === sent.value.id),
+    ).toMatchObject({
+      status: 'read',
+      recipientCount: 0,
+      deliveredCount: 0,
+      readCount: 0,
+    });
+  });
+
+  it('allows the last admin to leave and leaves admin-only operations refused', async () => {
+    const { provider } = createCoterieMemoryHarness();
+    const created = await provider.mutate<{ chatId: string }>('createGroup', {
+      name: 'Admin-less group',
+      description: null,
+      memberIds: ['alice', 'bob'],
+    });
+    if (!created.ok) throw new Error('expected admin-less group creation to succeed');
+    const chatId = created.value.chatId;
+    expect(await provider.mutate('leaveChat', { chatId })).toEqual({ ok: true });
+
+    await provider.mutate('login', { email: 'bob@example.com', password: 'Bob!Clique2026' });
+    expect(readRows<{
+      id: string;
+      currentUserIsAdmin: boolean;
+      currentUserIsMember: boolean;
+    }>(provider, 'listChats', {}).find((chat) => chat.id === chatId)).toMatchObject({
+      currentUserIsAdmin: false,
+      currentUserIsMember: true,
+    });
+    for (const [operation, args] of [
+      ['addMember', { chatId, userId: 'carol' }],
+      ['removeMember', { chatId, userId: 'alice' }],
+      ['promoteAdmin', { chatId, userId: 'bob' }],
+    ] as const) {
+      expectMutationError(
+        await provider.mutate(operation, args),
+        'ChatAdminRequiredError',
+      );
+    }
+  });
+
   it('claims every operation implemented by the memory provider with declared tokens', () => {
     const { provider } = createCoterieMemoryHarness();
     const claims = collectReady<Array<{ name: string; kind: string; token: string }>>(
@@ -1507,12 +1876,12 @@ describe('Coterie backendless provider', () => {
       ...Object.keys(coterieSurfaceManifest.mutations),
     ].sort();
     expect(claims.snapshots[0]?.map((claim) => claim.name)).toEqual(expectedNames);
-    expect(claims.snapshots[0]).toContainEqual({ name: 'listMessages', kind: 'query', token: '3' });
-    expect(claims.snapshots[0]).toContainEqual({ name: 'sendMessage', kind: 'mutation', token: '3' });
+    expect(claims.snapshots[0]).toContainEqual({ name: 'listMessages', kind: 'query', token: '4' });
+    expect(claims.snapshots[0]).toContainEqual({ name: 'sendMessage', kind: 'mutation', token: '4' });
     expect(claims.snapshots[0]).toContainEqual({
       name: 'setMessageReaction',
       kind: 'mutation',
-      token: '1',
+      token: '2',
     });
     claims.dispose();
   });

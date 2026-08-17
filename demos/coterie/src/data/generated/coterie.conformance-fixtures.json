@@ -1,5 +1,28 @@
 {
   "mutations": {
+    "addMember": {
+      "args": {
+        "chatId": "chatId-example",
+        "userId": "userId-example"
+      },
+      "writes": [
+        "chatMemberships",
+        "chats"
+      ]
+    },
+    "createGroup": {
+      "args": {
+        "description": "description-example",
+        "memberIds": [
+          "memberIds-example"
+        ],
+        "name": "name-example"
+      },
+      "writes": [
+        "chatMemberships",
+        "chats"
+      ]
+    },
     "createPost": {
       "args": {
         "body": "body-example",
@@ -30,6 +53,18 @@
         "search"
       ]
     },
+    "leaveChat": {
+      "args": {
+        "chatId": "chatId-example"
+      },
+      "writes": [
+        "chatMemberships",
+        "chats",
+        "ephemeralTyping",
+        "messageReceipts",
+        "messages"
+      ]
+    },
     "login": {
       "args": {
         "email": "email-example",
@@ -49,6 +84,48 @@
         "sessions"
       ]
     },
+    "markReceipt": {
+      "args": {
+        "chatId": "chatId-example",
+        "state": "state-example"
+      },
+      "writes": [
+        "chats",
+        "messageReceipts"
+      ]
+    },
+    "openDm": {
+      "args": {
+        "userId": "userId-example"
+      },
+      "writes": [
+        "chatMemberships",
+        "chats"
+      ]
+    },
+    "promoteAdmin": {
+      "args": {
+        "chatId": "chatId-example",
+        "userId": "userId-example"
+      },
+      "writes": [
+        "chatMemberships",
+        "chats"
+      ]
+    },
+    "removeMember": {
+      "args": {
+        "chatId": "chatId-example",
+        "userId": "userId-example"
+      },
+      "writes": [
+        "chatMemberships",
+        "chats",
+        "ephemeralTyping",
+        "messageReceipts",
+        "messages"
+      ]
+    },
     "sendMessage": {
       "args": {
         "body": "body-example",
@@ -57,6 +134,8 @@
       },
       "writes": [
         "chats",
+        "ephemeralTyping",
+        "messageReceipts",
         "messages"
       ]
     },
@@ -133,6 +212,15 @@
         "reposts"
       ]
     },
+    "setTyping": {
+      "args": {
+        "active": true,
+        "chatId": "chatId-example"
+      },
+      "writes": [
+        "ephemeralTyping"
+      ]
+    },
     "signup": {
       "args": {
         "displayName": "displayName-example",
@@ -158,11 +246,29 @@
         {
           "accentColor": "accentColor-example",
           "avatarUrl": "avatarUrl-example",
+          "currentUserIsAdmin": true,
+          "currentUserIsMember": true,
+          "description": "description-example",
           "disappearing": "disappearing-example",
           "id": "id-example",
           "isGroup": true,
+          "kind": "kind-example",
+          "latestReceiptStatus": "latestReceiptStatus-example",
+          "memberIds": [
+            "memberIds-example"
+          ],
+          "members": [
+            {
+              "avatarUrl": "avatarUrl-example",
+              "displayName": "displayName-example",
+              "id": "id-example",
+              "isAdmin": true,
+              "isMe": true
+            }
+          ],
           "preview": "preview-example",
           "title": "title-example",
+          "typingHint": "typingHint-example",
           "unreadCount": 1,
           "updatedAt": "updatedAt-example"
         }
@@ -227,6 +333,7 @@
           "chatId": "chatId-example",
           "createdAt": "createdAt-example",
           "deleted": true,
+          "deliveredCount": 1,
           "edited": true,
           "id": "id-example",
           "mine": true,
@@ -241,6 +348,9 @@
               "reactedByMe": true
             }
           ],
+          "readCount": 1,
+          "recipientCount": 1,
+          "senderAvatarUrl": "senderAvatarUrl-example",
           "senderId": "senderId-example",
           "senderName": "senderName-example",
           "status": "status-example"
@@ -277,6 +387,7 @@
       "args": {},
       "exampleResult": [
         {
+          "avatarRef": "avatarRef-example",
           "avatarUrl": "avatarUrl-example",
           "bio": "bio-example",
           "displayName": "displayName-example",
@@ -339,6 +450,20 @@
           "repostCount": 1,
           "repostedByMe": true,
           "threadRole": "threadRole-example"
+        }
+      ]
+    },
+    "observeTyping": {
+      "args": {
+        "chatId": "chatId-example"
+      },
+      "exampleResult": [
+        {
+          "chatId": "chatId-example",
+          "displayName": "displayName-example",
+          "expiresAt": "expiresAt-example",
+          "id": "id-example",
+          "userId": "userId-example"
         }
       ]
     },

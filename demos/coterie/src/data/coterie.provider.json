@@ -1,7 +1,7 @@
 {
   "schemaVersion": "provider-declaration.v1",
   "provider": "coterie",
-  "declarationVersion": "7",
+  "declarationVersion": "8",
   "capabilities": {
     "push": true,
     "pollingCadenceMs": null,
@@ -177,7 +177,7 @@
     {
       "name": "listProfiles",
       "descriptorId": "listProfiles",
-      "compatibilityToken": "2",
+      "compatibilityToken": "3",
       "reads": ["profiles"],
       "params": [],
       "result": {
@@ -194,6 +194,7 @@
             { "name": "location", "type": { "kind": "string" }, "nullable": false },
             { "name": "link", "type": { "kind": "string" }, "nullable": false },
             { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true },
+            { "name": "avatarRef", "type": { "kind": "string" }, "nullable": true },
             { "name": "followers", "type": { "kind": "number" }, "nullable": false },
             { "name": "following", "type": { "kind": "number" }, "nullable": false },
             { "name": "followedByMe", "type": { "kind": "boolean" }, "nullable": false },
@@ -208,8 +209,8 @@
     {
       "name": "listChats",
       "descriptorId": "listChats",
-      "compatibilityToken": "2",
-      "reads": ["chats"],
+      "compatibilityToken": "3",
+      "reads": ["chats", "chatMemberships", "messages", "messageReceipts", "ephemeralTyping", "profiles", "sessions"],
       "params": [],
       "result": {
         "kind": "list",
@@ -220,10 +221,34 @@
           "fields": [
             { "name": "id", "type": { "kind": "string" }, "nullable": false },
             { "name": "title", "type": { "kind": "string" }, "nullable": false },
+            { "name": "description", "type": { "kind": "string" }, "nullable": true },
             { "name": "preview", "type": { "kind": "string" }, "nullable": false },
             { "name": "updatedAt", "type": { "kind": "string" }, "nullable": false },
             { "name": "unreadCount", "type": { "kind": "number" }, "nullable": false },
             { "name": "isGroup", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "kind", "type": { "kind": "string" }, "nullable": false },
+            { "name": "memberIds", "type": { "kind": "array", "element": { "kind": "string" } }, "nullable": false },
+            {
+              "name": "members",
+              "type": {
+                "kind": "array",
+                "element": {
+                  "kind": "object",
+                  "fields": [
+                    { "name": "id", "type": { "kind": "string" }, "nullable": false },
+                    { "name": "displayName", "type": { "kind": "string" }, "nullable": false },
+                    { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true },
+                    { "name": "isAdmin", "type": { "kind": "boolean" }, "nullable": false },
+                    { "name": "isMe", "type": { "kind": "boolean" }, "nullable": false }
+                  ]
+                }
+              },
+              "nullable": false
+            },
+            { "name": "currentUserIsAdmin", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "currentUserIsMember", "type": { "kind": "boolean" }, "nullable": false },
+            { "name": "typingHint", "type": { "kind": "string" }, "nullable": true },
+            { "name": "latestReceiptStatus", "type": { "kind": "string" }, "nullable": true },
             { "name": "accentColor", "type": { "kind": "string" }, "nullable": false },
             { "name": "disappearing", "type": { "kind": "string" }, "nullable": false },
             { "name": "avatarUrl", "type": { "kind": "string" }, "nullable": true }
@@ -237,8 +262,8 @@
     {
       "name": "listMessages",
       "descriptorId": "listMessages",
-      "compatibilityToken": "3",
-      "reads": ["messages"],
+      "compatibilityToken": "4",
+      "reads": ["chats", "messages", "messageReceipts", "chatMemberships", "profiles", "sessions"],
       "params": [
         { "name": "chatId", "type": { "kind": "string" }, "nullable": false }
       ],
@@ -253,10 +278,14 @@
             { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
             { "name": "senderId", "type": { "kind": "string" }, "nullable": false },
             { "name": "senderName", "type": { "kind": "string" }, "nullable": false },
+            { "name": "senderAvatarUrl", "type": { "kind": "string" }, "nullable": true },
             { "name": "body", "type": { "kind": "string" }, "nullable": false },
             { "name": "createdAt", "type": { "kind": "string" }, "nullable": false },
             { "name": "mine", "type": { "kind": "boolean" }, "nullable": false },
             { "name": "status", "type": { "kind": "string" }, "nullable": false },
+            { "name": "recipientCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "deliveredCount", "type": { "kind": "number" }, "nullable": false },
+            { "name": "readCount", "type": { "kind": "number" }, "nullable": false },
             { "name": "quotedMessageId", "type": { "kind": "string" }, "nullable": true },
             { "name": "quotedSenderName", "type": { "kind": "string" }, "nullable": true },
             { "name": "quotedBodySnippet", "type": { "kind": "string" }, "nullable": true },
@@ -282,7 +311,40 @@
         }
       },
       "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true },
-      "errors": [],
+      "errors": [
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "ChatMembershipRequiredError", "code": "chat_membership_required", "message": "Conversation membership is required." }
+      ],
+      "receipts": "none"
+    },
+    {
+      "name": "observeTyping",
+      "descriptorId": "observeTyping",
+      "compatibilityToken": "1",
+      "reads": ["ephemeralTyping", "chatMemberships", "profiles", "sessions"],
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "TypingParticipant",
+          "excessFields": "project",
+          "fields": [
+            { "name": "id", "type": { "kind": "string" }, "nullable": false },
+            { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "userId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "displayName", "type": { "kind": "string" }, "nullable": false },
+            { "name": "expiresAt", "type": { "kind": "string" }, "nullable": false }
+          ]
+        }
+      },
+      "liveness": { "mode": "live", "livePush": true, "initialSnapshot": true, "maxDeltaRateHz": 20, "coalesce": true },
+      "errors": [
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "ChatMembershipRequiredError", "code": "chat_membership_required", "message": "Conversation membership is required." }
+      ],
       "receipts": "none"
     },
     {
@@ -570,19 +632,175 @@
       }
     },
     {
+      "name": "openDm",
+      "params": [
+        { "name": "userId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["chats", "chatMemberships"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "DirectMessageSelfError", "code": "direct_message_self", "message": "A direct conversation requires another user." },
+        { "name": "ProfileNotFoundError", "code": "profile_not_found", "message": "The profile does not exist." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ],
+      "result": {
+        "kind": "single",
+        "row": {
+          "kind": "shape",
+          "name": "OpenedChat",
+          "excessFields": "project",
+          "fields": [
+            { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+            { "name": "reused", "type": { "kind": "boolean" }, "nullable": false }
+          ]
+        }
+      }
+    },
+    {
+      "name": "createGroup",
+      "params": [
+        { "name": "name", "type": { "kind": "string" }, "nullable": false },
+        { "name": "description", "type": { "kind": "string" }, "nullable": true },
+        { "name": "memberIds", "type": { "kind": "array", "element": { "kind": "string" } }, "nullable": false }
+      ],
+      "writes": ["chats", "chatMemberships"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "GroupDescriptionInvalidError", "code": "group_description_invalid", "message": "Group description must contain at most 200 characters." },
+        { "name": "GroupMembersInvalidError", "code": "group_members_invalid", "message": "A group requires 2-50 unique members including its creator." },
+        { "name": "GroupNameInvalidError", "code": "group_name_invalid", "message": "Group name must contain 1-50 characters." },
+        { "name": "ProfileNotFoundError", "code": "profile_not_found", "message": "The profile does not exist." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ],
+      "result": {
+        "kind": "single",
+        "row": {
+          "kind": "shape",
+          "name": "CreatedGroup",
+          "excessFields": "project",
+          "fields": [
+            { "name": "chatId", "type": { "kind": "string" }, "nullable": false }
+          ]
+        }
+      }
+    },
+    {
+      "name": "addMember",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "userId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["chatMemberships", "chats"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "ChatAdminRequiredError", "code": "chat_admin_required", "message": "A group admin is required." },
+        { "name": "ChatMemberAlreadyExistsError", "code": "chat_member_already_exists", "message": "That profile is already a group member." },
+        { "name": "ChatMemberLimitError", "code": "chat_member_limit", "message": "A group may contain at most 50 members." },
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "GroupRequiredError", "code": "group_required", "message": "This operation requires a group conversation." },
+        { "name": "ProfileNotFoundError", "code": "profile_not_found", "message": "The profile does not exist." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
+      "name": "removeMember",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "userId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["chatMemberships", "messages", "messageReceipts", "ephemeralTyping", "chats"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "ChatAdminRequiredError", "code": "chat_admin_required", "message": "A group admin is required." },
+        { "name": "ChatMemberNotFoundError", "code": "chat_member_not_found", "message": "That profile is not a current group member." },
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "GroupRequiredError", "code": "group_required", "message": "This operation requires a group conversation." },
+        { "name": "RemoveSelfInvalidError", "code": "remove_self_invalid", "message": "Use leave chat to remove yourself." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
+      "name": "promoteAdmin",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "userId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["chatMemberships", "chats"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "ChatAdminRequiredError", "code": "chat_admin_required", "message": "A group admin is required." },
+        { "name": "ChatMemberNotFoundError", "code": "chat_member_not_found", "message": "That profile is not a current group member." },
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "GroupRequiredError", "code": "group_required", "message": "This operation requires a group conversation." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
+      "name": "leaveChat",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["chatMemberships", "messages", "messageReceipts", "ephemeralTyping", "chats"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "ChatMembershipRequiredError", "code": "chat_membership_required", "message": "Conversation membership is required." },
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "GroupRequiredError", "code": "group_required", "message": "This operation requires a group conversation." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
       "name": "sendMessage",
       "params": [
         { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
         { "name": "body", "type": { "kind": "string" }, "nullable": false },
         { "name": "quotedMessageId", "type": { "kind": "string" }, "nullable": true }
       ],
-      "writes": ["messages", "chats"],
+      "writes": ["messages", "messageReceipts", "chats", "ephemeralTyping"],
       "optimistic": false,
       "receipts": "none",
       "errors": [
         { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "ChatMembershipRequiredError", "code": "chat_membership_required", "message": "Conversation membership is required." },
         { "name": "MessageBodyInvalidError", "code": "message_body_invalid", "message": "Message text must contain 1-2000 characters." },
         { "name": "QuotedMessageInvalidError", "code": "quoted_message_invalid", "message": "Quoted message must exist in this conversation." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
+      "name": "setTyping",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "active", "type": { "kind": "boolean" }, "nullable": false }
+      ],
+      "writes": ["ephemeralTyping"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "ChatMembershipRequiredError", "code": "chat_membership_required", "message": "Conversation membership is required." },
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
+      ]
+    },
+    {
+      "name": "markReceipt",
+      "params": [
+        { "name": "chatId", "type": { "kind": "string" }, "nullable": false },
+        { "name": "state", "type": { "kind": "string" }, "nullable": false }
+      ],
+      "writes": ["messageReceipts", "chats"],
+      "optimistic": false,
+      "receipts": "none",
+      "errors": [
+        { "name": "ChatMembershipRequiredError", "code": "chat_membership_required", "message": "Conversation membership is required." },
+        { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "ReceiptStateInvalidError", "code": "receipt_state_invalid", "message": "Receipt state must be delivered or read." },
         { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
       ]
     },
@@ -600,6 +818,7 @@
       "receipts": "none",
       "errors": [
         { "name": "ChatNotFoundError", "code": "chat_not_found", "message": "Conversation was not found." },
+        { "name": "ChatMembershipRequiredError", "code": "chat_membership_required", "message": "Conversation membership is required." },
         { "name": "EmojiInvalidError", "code": "emoji_invalid", "message": "Reaction must be one emoji grapheme." },
         { "name": "MessageNotFoundError", "code": "message_not_found", "message": "Message was not found in this conversation." },
         { "name": "SessionRequiredError", "code": "session_required", "message": "An active session is required." }
@@ -634,9 +853,30 @@
     "coterie.fixtureProfile": "social-messenger-starter-pack",
     "coterie.fixtureClock": "2026-01-01T00:01:30Z",
     "coterie.surface": "shared Contract binding surface; provider lanes implement this declaration and report additional capabilities separately",
+    "coterie.ephemeralOperations": {
+      "typing": {
+        "observe": "observeTyping",
+        "set": "setTyping",
+        "collection": "ephemeralTyping",
+        "durability": "ephemeral",
+        "offlineRetention": false,
+        "history": false,
+        "visibilityTargetMs": 2000,
+        "ttlMs": 5000,
+        "exactBinding": "live-query-plus-mutation bridge until ProviderNativeDeclaration generates first-class ephemeral descriptors"
+      }
+    },
+    "coterie.receiptSemantics": {
+      "mark": "markReceipt",
+      "states": ["sent", "delivered", "read"],
+      "transition": "monotonic-only",
+      "scope": "all send-time recipient rows for the active viewer in the chat",
+      "groupAggregate": "slowest state among required send-time recipients",
+      "departure": "leavers and removed members drop from the aggregate requirement"
+    },
     "coterie.m1CompatibilityTokens": {
       "listSession": "2",
-      "listProfiles": "2",
+      "listProfiles": "3",
       "signup": "2",
       "login": "1",
       "logout": "1",
@@ -647,19 +887,28 @@
       "listFeed": "3",
       "listThread": "1",
       "listProfilePosts": "1",
-      "listProfiles": "2",
+      "listProfiles": "3",
       "createPost": "1",
       "setFollow": "1",
       "setLike": "1",
       "setRepost": "2"
     },
     "coterie.m3CompatibilityTokens": {
-      "listChats": "2",
-      "listMessages": "3",
-      "sendMessage": "3"
+      "listChats": "3",
+      "listMessages": "4",
+      "observeTyping": "1",
+      "openDm": "1",
+      "createGroup": "1",
+      "addMember": "1",
+      "removeMember": "1",
+      "promoteAdmin": "1",
+      "leaveChat": "1",
+      "sendMessage": "4",
+      "setTyping": "1",
+      "markReceipt": "1"
     },
     "coterie.m4CompatibilityTokens": {
-      "setMessageReaction": "1"
+      "setMessageReaction": "2"
     },
     "coterie.m5CompatibilityTokens": {
       "searchSocial": "2",

@@ -1,9 +1,11 @@
 use FacetButton from "@exact/facet-contract/components/button.contract"
+use CoterieAvatar from "./avatar.contract"
 
 component CoterieMessageBubble
   props
     id: string
     senderName: string
+    senderAvatarUrl: string = null
     body: string
     timestamp: string
     mine: boolean = false
@@ -27,6 +29,7 @@ component CoterieMessageBubble
   derive bubbleColor = highlighted ? "#FFF7D6" : mine ? "#DDE7FF" : "#F1F2F4"
   derive reactionChoices = ["👍", "❤️", "😂", "😮", "😢", "🙏"]
   derive replyBody = deleted ? "This message was deleted" : body
+  derive receiptMark = status == "read" ? "✓✓" : status == "delivered" ? "✓✓" : "✓"
 
   contract
     has node testId="sm-convo-bubble"
@@ -38,6 +41,8 @@ component CoterieMessageBubble
 
   view
     row width="100%" justify=mine ? "flex-end" : "flex-start" paddingLeft=12 paddingRight=12 paddingTop=3 paddingBottom=3
+      when !mine
+        CoterieAvatar(name=senderName, src=senderAvatarUrl, size=28, accent=accentColor)
       column maxWidth="78%" align=mine ? "flex-end" : "flex-start" gap=5
         column label=deleted ? "Deleted message" : highlighted ? `Quoted message from ${senderName}` : `Message from ${senderName}` background=bubbleColor radius=18 padding=10 gap=5 borderWidth=highlighted ? 2 : 0 borderColor=accentColor nativeId=`sm-message-${id}` testId="sm-convo-bubble"
           column gap=4
@@ -58,7 +63,7 @@ component CoterieMessageBubble
                 text "edited" size=12 color="#6B7280"
               text timestamp size=12 color="#6B7280"
               when mine && !deleted
-                text status == "read" ? "Read" : status == "delivered" ? "Delivered" : "Sent" size=11 color=status == "read" ? "#2F80ED" : "#6B7280" testId="sm-convo-receipt"
+                text receiptMark size=13 weight=700 color=status == "read" ? "#2F80ED" : "#6B7280" testId="sm-convo-receipt"
           when canReact && reactions.length > 0
             row gap=4 wrap="wrap" justify=mine ? "flex-end" : "flex-start"
               each reaction in reactions key=reaction.emoji

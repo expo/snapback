@@ -4,39 +4,45 @@ use FacetButton from "@exact/facet-contract/components/button.contract"
 use CoterieAppHeader from "../../../ui/app-header.contract"
 use CoterieComposer from "../../../ui/composer.contract"
 use CoterieMessageBubble from "../../../ui/message-bubble.contract"
+use createCoterieChatState from "../../../data/chat-state.ts"
+use reduceCoterieChatState from "../../../data/chat-state.ts"
 use listChats from "../../../data/generated/coterie.bindings.ts"
 use listMessages from "../../../data/generated/coterie.bindings.ts"
 use listProviderClaims from "../../../data/generated/coterie.bindings.ts"
 use listSession from "../../../data/generated/coterie.bindings.ts"
 use logout from "../../../data/generated/coterie.bindings.ts"
+use markReceipt from "../../../data/generated/coterie.bindings.ts"
+use observeTyping from "../../../data/generated/coterie.bindings.ts"
 use sendMessage from "../../../data/generated/coterie.bindings.ts"
 use setMessageReaction from "../../../data/generated/coterie.bindings.ts"
+use setTyping from "../../../data/generated/coterie.bindings.ts"
 
 component CoterieConversationRoute
   props
     route: object
 
   derive chatId = route.params.id
-  state messageText = ""
-  state messageResetFlip = false
-  state quotedMessageId = null
-  state quotedSenderName = null
-  state quotedBodySnippet = null
-  state reactionPickerMessageId = null
-  state highlightedMessageId = null
+  state chatState = createCoterieChatState()
 
   query session = listSession({})
   query chats = listChats({})
   query messages = listMessages({ chatId: chatId })
+  query typingParticipants = observeTyping({ chatId: chatId })
   query providerClaims = listProviderClaims({})
   mutation logoutMutation = logout
+  mutation markReceiptMutation = markReceipt
   mutation sendMessageMutation = sendMessage
   mutation setMessageReactionMutation = setMessageReaction
+  mutation setTypingMutation = setTyping
 
   derive canSendMessages = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "sendMessage")
   derive canQuoteMessages = canSendMessages
   derive canReactToMessages = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "setMessageReaction")
+  derive canMarkReceipts = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "markReceipt")
+  derive canSetTyping = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "setTyping")
   derive canLogout = providerClaims.ready && providerClaims.value.some((claim) => claim.name == "logout")
+  derive currentChatIsMember = chats.ready && chats.value.some((chat) => chat.id == chatId && chat.currentUserIsMember)
+  derive canComposeInChat = canSendMessages && currentChatIsMember
 
   action choosePrimary(next)
     if next == "feed"
@@ -54,46 +60,77 @@ component CoterieConversationRoute
   action showSettings
     navigate({ to: "/chat/[id]/settings", params: { id: chatId } })
 
-  action setMessageText(value) writes messageText
-    messageText = value
+  action publishTypingIntent(intentChatId, sequence, active) writes chatState mutates setTypingMutation
+    let result = await setTypingMutation({ chatId: intentChatId, active: active })
+    chatState = reduceCoterieChatState(chatState, { kind: "typing-intent-settled", sequence: sequence, active: active, ok: result.ok })
+    if chatState.typingIntentSequence != sequence
+      publishTypingIntent(intentChatId, chatState.typingIntentSequence, chatState.typingIntentActive)
 
-  action beginReply(messageId, senderName, body) writes quotedMessageId, quotedSenderName, quotedBodySnippet
-    quotedMessageId = messageId
-    quotedSenderName = senderName
-    quotedBodySnippet = body.length > 96 ? `${body.slice(0, 95)}…` : body
+  action setMessageText(value) writes chatState
+    let draftGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "set-message-text", generation: draftGeneration, value: value })
+    if canSetTyping
+      let typingActive = value.trim() != ""
+      chatState = reduceCoterieChatState(chatState, { kind: "typing-intent-issued", generation: chatState.generation, active: typingActive })
+      publishTypingIntent(chatId, chatState.typingIntentSequence, typingActive)
 
-  action cancelReply writes quotedMessageId, quotedSenderName, quotedBodySnippet
-    quotedMessageId = null
-    quotedSenderName = null
-    quotedBodySnippet = null
+  action beginReply(messageId, senderName, body) writes chatState
+    let startedGeneration = chatState.generation
+    let snippet = body.length > 96 ? `${body.slice(0, 95)}…` : body
+    chatState = reduceCoterieChatState(chatState, { kind: "begin-reply", generation: startedGeneration, messageId: messageId, senderName: senderName, bodySnippet: snippet })
 
-  action revealQuotedMessage(messageId) writes highlightedMessageId
-    highlightedMessageId = messageId
+  action cancelReply writes chatState
+    let startedGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "cancel-reply", generation: startedGeneration })
 
-  action toggleReactionPicker(messageId) writes reactionPickerMessageId
-    reactionPickerMessageId = reactionPickerMessageId == messageId ? null : messageId
+  action revealQuotedMessage(messageId) writes chatState
+    let startedGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "highlight-message", generation: startedGeneration, messageId: messageId })
 
-  action chooseMessageReaction(messageId, emoji, reactedByMe) writes reactionPickerMessageId mutates setMessageReactionMutation
+  action toggleReactionPicker(messageId) writes chatState
+    let startedGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "toggle-reaction-picker", generation: startedGeneration, messageId: messageId })
+
+  action chooseMessageReaction(messageId, emoji, reactedByMe) writes chatState mutates setMessageReactionMutation
+    let startedGeneration = chatState.generation
     let result = await setMessageReactionMutation({ chatId: chatId, messageId: messageId, emoji: emoji, reacted: !reactedByMe, mutationId: `coterie-reaction-${messageId}-${now()}` })
-    if result.ok
-      reactionPickerMessageId = null
+    chatState = reduceCoterieChatState(chatState, { kind: "reaction-settled", generation: startedGeneration, ok: result.ok })
 
-  action sendCurrentMessage writes messageText, messageResetFlip, quotedMessageId, quotedSenderName, quotedBodySnippet mutates sendMessageMutation
-    let result = await sendMessageMutation({ chatId: chatId, body: messageText.trim(), quotedMessageId: quotedMessageId })
-    if result.ok
-      messageText = ""
-      messageResetFlip = !messageResetFlip
-      quotedMessageId = null
-      quotedSenderName = null
-      quotedBodySnippet = null
+  action sendCurrentMessage writes chatState mutates sendMessageMutation
+    let draftMessageText = chatState.messageText
+    let draftQuotedMessageId = chatState.quotedMessageId
+    let draftQuotedSenderName = chatState.quotedSenderName
+    let draftQuotedBodySnippet = chatState.quotedBodySnippet
+    let body = draftMessageText.trim()
+    let draftGeneration = chatState.generation
+    chatState = reduceCoterieChatState(chatState, { kind: "send-began", generation: draftGeneration })
+    let startedGeneration = chatState.generation
+    let result = await sendMessageMutation({ chatId: chatId, body: body, quotedMessageId: draftQuotedMessageId })
+    if result.ok && canSetTyping && chatState.generation == startedGeneration
+      chatState = reduceCoterieChatState(chatState, { kind: "typing-intent-issued", generation: startedGeneration, active: false })
+      publishTypingIntent(chatId, chatState.typingIntentSequence, false)
+    chatState = reduceCoterieChatState(chatState, { kind: "send-settled", generation: startedGeneration, ok: result.ok, messageText: draftMessageText, quotedMessageId: draftQuotedMessageId, quotedSenderName: draftQuotedSenderName, quotedBodySnippet: draftQuotedBodySnippet })
+
+  action acknowledgeVisibleMessages mutates markReceiptMutation
+    if canMarkReceipts && currentChatIsMember
+      await markReceiptMutation({ chatId: chatId, state: "delivered" })
+      await markReceiptMutation({ chatId: chatId, state: "read" })
 
   action signOut mutates logoutMutation
     await logoutMutation({})
 
+  task receiptDelivery when [messages]
+    if messages.status == "ready"
+      acknowledgeVisibleMessages()
+
+  task receiptInitial mount
+    if messages.status == "ready"
+      acknowledgeVisibleMessages()
+
   contract
     has node testId="coterie-root"
-    when canSendMessages then has node testId="sm-convo-input"
-    when canSendMessages then has node testId="sm-convo-send"
+    when canComposeInChat then has node testId="sm-convo-input"
+    when canComposeInChat then has node testId="sm-convo-send"
 
   view
     main width="100%" minHeight="100%" background="#F4F5F7" testId="coterie-root"
@@ -137,9 +174,13 @@ component CoterieConversationRoute
                             ready messageRows
                               list width="100%" label=`Messages in ${chat.title}`
                                 each message in messageRows key=message.id
-                                  CoterieMessageBubble(id=message.id, senderName=message.senderName, body=message.body, timestamp=message.createdAt, mine=message.mine, status=message.status, quotedMessageId=message.quotedMessageId, quotedSenderName=message.quotedSenderName, quotedBodySnippet=message.quotedBodySnippet, reactions=message.reactions, edited=message.edited, deleted=message.deleted, accentColor=chat.accentColor, canQuote=canQuoteMessages, canReact=canReactToMessages, reactionPickerOpen=reactionPickerMessageId == message.id, highlighted=highlightedMessageId == message.id, reply=beginReply, revealQuoteSource=revealQuotedMessage, toggleReactions=toggleReactionPicker, chooseReaction=chooseMessageReaction)
-                        when canSendMessages
-                          CoterieComposer(variant="message", value=messageText, resetFlip=messageResetFlip, quotedSenderName=quotedSenderName, quotedBodySnippet=quotedBodySnippet, change=setMessageText, send=sendCurrentMessage, cancelQuote=cancelReply)
+                                  CoterieMessageBubble(id=message.id, senderName=message.senderName, senderAvatarUrl=message.senderAvatarUrl, body=message.body, timestamp=message.createdAt, mine=message.mine, status=message.status, quotedMessageId=message.quotedMessageId, quotedSenderName=message.quotedSenderName, quotedBodySnippet=message.quotedBodySnippet, reactions=message.reactions, edited=message.edited, deleted=message.deleted, accentColor=chat.accentColor, canQuote=canQuoteMessages && chat.currentUserIsMember, canReact=canReactToMessages && chat.currentUserIsMember, reactionPickerOpen=chatState.reactionPickerMessageId == message.id, highlighted=chatState.highlightedMessageId == message.id, reply=beginReply, revealQuoteSource=revealQuotedMessage, toggleReactions=toggleReactionPicker, chooseReaction=chooseMessageReaction)
+                        async typingParticipants
+                          ready typingRows
+                            when typingRows.length > 0
+                              text `${typingRows.map((participant) => participant.displayName).join(", ")} ${typingRows.length == 1 ? "is" : "are"} typing...` size=12 color=chat.accentColor paddingLeft=14 paddingRight=14 paddingTop=5 paddingBottom=5 testId="sm-convo-typing"
+                        when canComposeInChat
+                          CoterieComposer(variant="message", value=chatState.messageText, resetFlip=chatState.messageResetFlip, quotedSenderName=chatState.quotedSenderName, quotedBodySnippet=chatState.quotedBodySnippet, change=setMessageText, send=sendCurrentMessage, cancelQuote=cancelReply)
                 else
                   column gap=12 padding=18
                     text "This conversation isn't available" size=15 weight=600 color="#17191C"

@@ -10,9 +10,63 @@
     "serverRunnableQueries": false,
     "subscriptions": true
   },
-  "inputsHash": "61fcaaa7b60092b4",
+  "inputsHash": "e0be7bf6f9f5bc27",
   "manifestVersion": 2,
   "mutations": {
+    "addMember": {
+      "argOrder": [
+        "chatId",
+        "userId"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "addMember",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chatMemberships",
+        "chats"
+      ]
+    },
+    "createGroup": {
+      "argOrder": [
+        "name",
+        "description",
+        "memberIds"
+      ],
+      "args": {
+        "description": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "memberIds": {
+          "element": {
+            "name": "string",
+            "shape": "primitive"
+          },
+          "shape": "array"
+        },
+        "name": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "createGroup",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chatMemberships",
+        "chats"
+      ]
+    },
     "createPost": {
       "argOrder": [
         "body",
@@ -91,6 +145,27 @@
         "search"
       ]
     },
+    "leaveChat": {
+      "argOrder": [
+        "chatId"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "leaveChat",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chatMemberships",
+        "chats",
+        "ephemeralTyping",
+        "messageReceipts",
+        "messages"
+      ]
+    },
     "login": {
       "argOrder": [
         "email",
@@ -127,6 +202,96 @@
         "sessions"
       ]
     },
+    "markReceipt": {
+      "argOrder": [
+        "chatId",
+        "state"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "state": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "markReceipt",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chats",
+        "messageReceipts"
+      ]
+    },
+    "openDm": {
+      "argOrder": [
+        "userId"
+      ],
+      "args": {
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "openDm",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chatMemberships",
+        "chats"
+      ]
+    },
+    "promoteAdmin": {
+      "argOrder": [
+        "chatId",
+        "userId"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "promoteAdmin",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chatMemberships",
+        "chats"
+      ]
+    },
+    "removeMember": {
+      "argOrder": [
+        "chatId",
+        "userId"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "removeMember",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "chatMemberships",
+        "chats",
+        "ephemeralTyping",
+        "messageReceipts",
+        "messages"
+      ]
+    },
     "sendMessage": {
       "argOrder": [
         "chatId",
@@ -152,6 +317,8 @@
       "serverRunnable": false,
       "writes": [
         "chats",
+        "ephemeralTyping",
+        "messageReceipts",
         "messages"
       ]
     },
@@ -347,6 +514,28 @@
         "reposts"
       ]
     },
+    "setTyping": {
+      "argOrder": [
+        "chatId",
+        "active"
+      ],
+      "args": {
+        "active": {
+          "name": "boolean",
+          "shape": "primitive"
+        },
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "setTyping",
+      "optimistic": false,
+      "serverRunnable": false,
+      "writes": [
+        "ephemeralTyping"
+      ]
+    },
     "signup": {
       "argOrder": [
         "email",
@@ -390,14 +579,20 @@
     "listChats": {
       "argOrder": [],
       "args": {},
-      "compatibilityToken": "2",
+      "compatibilityToken": "3",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
       "mode": "live",
       "name": "listChats",
       "reads": [
-        "chats"
+        "chatMemberships",
+        "chats",
+        "ephemeralTyping",
+        "messageReceipts",
+        "messages",
+        "profiles",
+        "sessions"
       ],
       "receipts": "none",
       "result": {
@@ -409,6 +604,18 @@
               "shape": "primitive"
             },
             "avatarUrl": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "currentUserIsAdmin": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "currentUserIsMember": {
+              "name": "boolean",
+              "shape": "primitive"
+            },
+            "description": {
               "name": "string",
               "shape": "primitive"
             },
@@ -424,11 +631,58 @@
               "name": "boolean",
               "shape": "primitive"
             },
+            "kind": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "latestReceiptStatus": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "memberIds": {
+              "element": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "shape": "array"
+            },
+            "members": {
+              "element": {
+                "fields": {
+                  "avatarUrl": {
+                    "name": "string",
+                    "shape": "primitive"
+                  },
+                  "displayName": {
+                    "name": "string",
+                    "shape": "primitive"
+                  },
+                  "id": {
+                    "name": "string",
+                    "shape": "primitive"
+                  },
+                  "isAdmin": {
+                    "name": "boolean",
+                    "shape": "primitive"
+                  },
+                  "isMe": {
+                    "name": "boolean",
+                    "shape": "primitive"
+                  }
+                },
+                "shape": "object"
+              },
+              "shape": "array"
+            },
             "preview": {
               "name": "string",
               "shape": "primitive"
             },
             "title": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "typingHint": {
               "name": "string",
               "shape": "primitive"
             },
@@ -647,14 +901,19 @@
           "shape": "primitive"
         }
       },
-      "compatibilityToken": "3",
+      "compatibilityToken": "4",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
       "mode": "live",
       "name": "listMessages",
       "reads": [
-        "messages"
+        "chatMemberships",
+        "chats",
+        "messageReceipts",
+        "messages",
+        "profiles",
+        "sessions"
       ],
       "receipts": "none",
       "result": {
@@ -675,6 +934,10 @@
             },
             "deleted": {
               "name": "boolean",
+              "shape": "primitive"
+            },
+            "deliveredCount": {
+              "name": "number",
               "shape": "primitive"
             },
             "edited": {
@@ -724,6 +987,18 @@
                 "shape": "object"
               },
               "shape": "array"
+            },
+            "readCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "recipientCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "senderAvatarUrl": {
+              "name": "string",
+              "shape": "primitive"
             },
             "senderId": {
               "name": "string",
@@ -844,7 +1119,7 @@
     "listProfiles": {
       "argOrder": [],
       "args": {},
-      "compatibilityToken": "2",
+      "compatibilityToken": "3",
       "initialSnapshot": true,
       "livePush": true,
       "localRunnable": false,
@@ -858,6 +1133,10 @@
         "kind": "list",
         "row": {
           "fields": {
+            "avatarRef": {
+              "name": "string",
+              "shape": "primitive"
+            },
             "avatarUrl": {
               "name": "string",
               "shape": "primitive"
@@ -1088,6 +1367,62 @@
               "shape": "primitive"
             },
             "threadRole": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": false,
+      "subscription": "initial-snapshot"
+    },
+    "observeTyping": {
+      "argOrder": [
+        "chatId"
+      ],
+      "args": {
+        "chatId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "coalesce": true,
+      "compatibilityToken": "1",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "maxDeltaRateHz": 20,
+      "mode": "live",
+      "name": "observeTyping",
+      "reads": [
+        "chatMemberships",
+        "ephemeralTyping",
+        "profiles",
+        "sessions"
+      ],
+      "receipts": "none",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "chatId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "displayName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "expiresAt": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
               "name": "string",
               "shape": "primitive"
             }

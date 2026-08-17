@@ -68,9 +68,19 @@ export const COTERIE_SNAPBACK_CLAIMED_OPERATIONS = Object.freeze({
 const CLAIMED_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.queries);
 const CLAIMED_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.mutations);
 const M2_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_M2_OPERATIONS.queries);
-const M3_QUERY_NAMES = new Set(['listChats', 'listMessages']);
+const M3_QUERY_NAMES = new Set(['listChats', 'listMessages', 'observeTyping']);
 const M2_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_M2_OPERATIONS.mutations);
-const M3_MUTATION_NAMES = new Set(['sendMessage']);
+const M3_MUTATION_NAMES = new Set([
+  'openDm',
+  'createGroup',
+  'addMember',
+  'removeMember',
+  'promoteAdmin',
+  'leaveChat',
+  'sendMessage',
+  'setTyping',
+  'markReceipt',
+]);
 const M4_MUTATION_NAMES = new Set(['setMessageReaction']);
 const M5_QUERY_NAMES = new Set(['searchSocial']);
 const M5_MUTATION_NAMES = new Set(['setChatAccent', 'setDisappearing']);
@@ -1419,6 +1429,11 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       location: row.location,
       link: row.link,
       avatarUrl: row.avatar ? this.#assetUrl(row.avatar) : null,
+      // listProfiles@3 carries the provider's selected fixture ref when one
+      // is available. The current Snapback M1/M2 backend stores only the
+      // uploaded asset/digest, so this partial adapter projects null until
+      // its backend lane qualifies that provenance field.
+      avatarRef: null,
       followers: stats.get(row._id)?.followerCount ?? 0,
       following: stats.get(row._id)?.followingCount ?? 0,
       followedByMe: stats.get(row._id)?.viewerFollows ?? false,

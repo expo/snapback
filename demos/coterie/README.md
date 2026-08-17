@@ -5,11 +5,11 @@ social-messenger workload and stable `sm-*` automation vocabulary while using
 one Contract source tree for web, macOS, and iOS.
 
 The checked-in default remains backendless: the `memory` lane is a deterministic
-process-memory implementation of Coterie's frozen M1, M2, and v7 overlay
+process-memory implementation of Coterie's frozen M1, M2, and v8 messaging
 `ContractDataProvider` surface. The optional `snapback` lane supplies the
 frozen M1 account/session/profile/avatar set plus the frozen M2 post, feed,
 follow, like, repost, reply, pagination, media, and multi-client-live behavior
-from the application-owned backend. It refuses the v7 chat/reaction and later
+from the application-owned backend. It refuses the unqualified chat/reaction and later
 operations it has not qualified. The memory lane implements the wider
 declaration for client evidence, while the partial Snapback lane advertises
 only its qualified M1+M2 operations.
@@ -21,8 +21,9 @@ claim.
 The checked-in routes cover sign-in; Following/Global feed and text/image/video compose;
 likes and attributed repost toggles; parent-plus-direct-reply threads; people
 profiles with reverse-chronological post lists and live follow counts;
-fixture-derived Insights; people/chat search; chats; conversation text send
-with quoted replies and emoji reactions; own-profile avatar selection; chat
+fixture-derived Insights; people/chat search; deduplicated direct messages;
+named groups with member/admin controls; conversation text send with quoted
+replies, typing leases, monotonic receipt checks, sender avatars, and emoji reactions; own-profile avatar selection; chat
 accent/disappearing options; and image/video viewing.
 Navigation carries canonical fixture identities such as `alice`,
 `d-alice-bob`, `g-starter`, and `sp0002`; the viewer returns through the real
@@ -30,8 +31,8 @@ router back stack.
 
 Surfaces staged by LLP 0266 D6 are deliberately absent rather than presented
 as inert controls: sign-up UI and durable sessions; Trending; message
-attachments; reactions and live receipts on posts; typing and live receipts in
-chat; chat-background upload; new chat/group; account settings; profile
+attachments; reactions and live receipts on posts; chat-background upload;
+invitations; account settings; profile
 handle/location/link editing UI; offline,
 multi-client, and server-authoritative behavior. Search is the backendless
 people/chat word-prefix slice, not the brief's complete message/offline search.
@@ -41,20 +42,19 @@ operation.
 
 ## Inherited frozen M2 provider surface
 
-Declaration version 7 inherits the v6-frozen M2 set while retaining the
-already-frozen M1 set and adding the later chat/reaction overlay.
+Declaration version 8 inherits the v6-frozen M2 set while retaining the
+already-frozen M1 set and adding the later chat/reaction/messaging overlays.
 Query tokens remain in Exact's core `compatibilityToken` field. Exact's
 mutation declaration still has no first-class compatibility-token field, so
 mutation tokens live in the namespaced `coterie.m1CompatibilityTokens` and
-`coterie.m2CompatibilityTokens` extensions. `listProfiles@2` is intentionally
-reused: its already-frozen row contains `followers`, `following`,
-`followedByMe`, and `isMe`, so M2 adds live semantics without changing its
-shape or breaking the M1 token.
+`coterie.m2CompatibilityTokens` extensions. `listProfiles@3` adds nullable
+`avatarRef` for the selected fixture identity while retaining the M2 live
+follower/following semantics.
 
 | Milestone | Operation | Kind | Token |
 | --- | --- | --- | --- |
 | M1 | `listSession` | query | `2` |
-| M1/M2 | `listProfiles` | query | `2` |
+| M1/M2/M3 | `listProfiles` | query | `3` |
 | M1 | `signup` | mutation | `2` |
 | M1 | `login` | mutation | `1` |
 | M1 | `logout` | mutation | `1` |
@@ -121,6 +121,60 @@ resets this state and every local mutation. `listInsights` declares and
 subscribes to all four tables it derives from: posts, follows, likes, and
 reposts.
 
+## Frozen M3 messaging surface
+
+Declaration v8 freezes the following M3 operation/token table. Revised
+operations increment their v7 token; every new operation starts at `1`.
+Query tokens are core declaration fields, while the complete record is also
+kept in `coterie.m3CompatibilityTokens` because Exact's closed mutation shape
+has no compatibility-token field.
+
+| Operation | Kind | Token |
+| --- | --- | --- |
+| `listProfiles` | query | `3` |
+| `listChats` | query | `3` |
+| `listMessages` | query | `4` |
+| `observeTyping` | query | `1` |
+| `openDm` | mutation | `1` |
+| `createGroup` | mutation | `1` |
+| `addMember` | mutation | `1` |
+| `removeMember` | mutation | `1` |
+| `promoteAdmin` | mutation | `1` |
+| `leaveChat` | mutation | `1` |
+| `sendMessage` | mutation | `4` |
+| `setTyping` | mutation | `1` |
+| `markReceipt` | mutation | `1` |
+
+`openDm` canonicalizes the unordered pair and reuses its sole channel.
+Groups are independent entities, so two calls with identical membership still
+create distinct groups. A group has a 1–50-code-point name, optional
+description of at most 200 code points, and 2–50 unique initial members
+including its creator. The creator is an admin; only admins add, remove, or
+promote, while any current member can leave. A new or returning member sees
+the full group history. Removal or leave records a history cutoff: the former
+member keeps the messages already visible locally but cannot see later sends.
+The last admin may leave; the group then remains admin-less, and later add,
+remove, or promote attempts refuse with `ChatAdminRequiredError`.
+
+`sendMessage@4` accepts 1–2,000 Unicode code points, requires current
+membership, preserves the v7 quote pointer/excerpt/jump and reaction aggregate,
+and snapshots the active recipients other than the sender. Receipt rows move
+only `sent → delivered → read`; a lower subsequent intent is a no-op. The
+sender's group status is the slowest state across that immutable send-time
+recipient set. If a recipient later leaves or is removed, that recipient is
+dropped from the requirement without rewriting the original recipient set; an
+empty remaining required set projects `read`, never an undelivered single tick.
+
+Typing is intentionally not represented as durable message data. The current
+provider-native declaration generator cannot emit first-class ephemeral
+descriptors, so v8 uses an explicit bridge: live/coalesced
+`observeTyping@1` plus `setTyping@1`, with the namespaced
+`coterie.ephemeralOperations` extension declaring `durability: ephemeral`, no
+offline retention, no history, a 2,000 ms appearance target, and a 5,000 ms
+lease. Reasserting typing refreshes the lease; clearing, sending, leaving, or
+removal clears it. The memory provider exposes a logical-clock advance hook so
+tests and acceptance prove expiry without sleeping.
+
 ## Quoted replies and message reactions
 
 Each message exposes `sm-convo-quote` inside its `sm-convo-bubble` when
@@ -152,9 +206,11 @@ admission; changing the vocabulary is one table edit. This picker is a
 deliberate interim seam: Contract does not yet expose a portable file-input
 primitive, so the UI cannot drive the Snapback adapter's arbitrary local-file
 upload path directly.
-In the Snapback lane the picker cannot mark the current avatar selected because
-`listProfiles@2` exposes only the server asset `avatarUrl`, not its originating
-`avatarRef`; that shape change is deferred to the next `listProfiles` token.
+`listProfiles@3` now carries the nullable originating `avatarRef` alongside
+`avatarUrl`. This lane freezes and implements that declaration/provider field
+only; the existing picker-selection UI remains unchanged, as required by the
+M3 lane split. The M1+M2 Snapback adapter projects `null` until its provenance
+path is separately qualified.
 
 ## Composer media picker
 
@@ -191,21 +247,22 @@ Snapback adapter derives its claim rows from the same M1+M2 allow-list used by i
 loud `SnapbackMilestoneUnsupportedError` refusal path, and tests require those
 two views to agree.
 
-## Provider surface and v7 overlay
+## Provider surface and v8 overlay
 
-Declaration v7 is the landed v6 M2 declaration plus the additive
-recipe in [`scripts/v7-declaration-delta.md`](./scripts/v7-declaration-delta.md).
+Declaration v8 extends the landed v7 quote/reaction surface recorded in
+[`scripts/v7-declaration-delta.md`](./scripts/v7-declaration-delta.md) with the
+frozen M3 messaging table above.
 It inherits the frozen M1 account/session/profile/avatar seam:
 
-- `listSession@2` and `listProfiles@2`
+- `listSession@2` and revised `listProfiles@3`
 - `signup@2`, `login@1`, `logout@1`, `editProfile@1`, and `setAvatar@2`
 
-Because v6 already declared `listMessages@2` and `sendMessage@2`, v7 bumps both
-to `@3` for their changed quote/error shapes. It introduces
-`listProviderClaims@1` plus `setMessageReaction@1`; the reaction mutation has a
-required mutation ID, and `sendMessage@3` declares empty/over-2,000-character
-body errors. Query tokens live in the core query objects; mutation tokens live
-in the namespaced milestone compatibility-token extensions. The brief's M5
+V7 bumped `listMessages` and `sendMessage` to `@3` for their changed
+quote/error shapes. V8 bumps both to `@4` for receipt/membership semantics and
+bumps `listChats` to `@3`; it preserves `listProviderClaims@1` and extends the
+M4 reaction shape to `setMessageReaction@2` because current membership is now
+a declared precondition. Query tokens live in the core query objects; mutation
+tokens live in the namespaced milestone compatibility-token extensions. The brief's M5
 `searchSocial`, `setChatAccent`, and `setDisappearing` tokens live under
 `coterie.m5CompatibilityTokens`, not the M3 namespace.
 
@@ -247,7 +304,8 @@ not durable or server-authoritative auth evidence.
 The pre-M2 declaration v5 digest was `df0562a779095d79`; the first M2 v6
 generation was `0614938f8ff02c4e`. The corrected v6 surface in this tree is
 `2b035e0c69068f02`. Replaying the v7 overlay produces the merged declaration
-digest `61fcaaa7b60092b4`.
+digest `61fcaaa7b60092b4`; the v8 messaging surface generates
+`69a5aa9950796671`.
 The Snapback adapter implements the frozen M1+M2 token sets without changing
 the shared declaration digest. Password signup/sign-in/logout use
 Snapback's built-in password provider and `AuthCoordinator`; the session query
@@ -264,7 +322,7 @@ The operation map is deliberately app-owned and contains no seed machinery:
 | Declaration operation | Snapback operation(s) |
 | --- | --- |
 | `listSession@2` | `AuthCoordinator` principal + `getMyProfile` |
-| `listProfiles@2` | streaming `listProfiles` + one retained streaming `profileStats` per profile |
+| `listProfiles@3` | streaming `listProfiles` + one retained streaming `profileStats` per profile; `avatarRef` currently projects `null` |
 | `listProviderClaims@1` | adapter-local frozen M1+M2 claim projection |
 | `signup@2` | password signup + `ensureMyProfile` |
 | `login@1` / `logout@1` | password sign-in / auth logout through `AuthCoordinator` |
@@ -293,7 +351,7 @@ Malformed, non-canonical, or cross-mode tokens become
 row in a full 20-row page carries the same next cursor.
 
 This adapter claims **M1+M2 plus provider discovery only**. Calls to
-unqualified v7 chat/reaction or later queries and mutations return a
+unqualified v8 chat/reaction or later queries and mutations return a
 `SnapbackMilestoneUnsupportedError` whose message names the operation and LLP
 0266 D7; they never synthesize rows or acknowledge a fake mutation. Snapback's
 error translation is an exact allow-list; prefix families are deliberately not
@@ -405,9 +463,10 @@ cd demos/coterie
 COTERIE_PROVIDER=snapback bun run dev
 ```
 
-The shared acceptance runner is M2. The Snapback lane runs its unchanged
-18-step choreography over both `provider-boot` and `injected-signed-out` boot
-states.
+The shared headless provider-proof runner selects steps from
+`listProviderClaims@1`. The Snapback lane runs its unchanged 18 M1+M2 binding
+steps across `provider-boot` and `injected-signed-out`; unclaimed M3 steps are
+recorded as `skipped-by-claim`, not attempted or counted as proof.
 
 Native hosts use the same source:
 
@@ -448,31 +507,43 @@ entry), provider conformance and invalidation tests, platform splits, and the
 production web bundle. Native runtime evidence is the separate recorded iOS
 simulator run; this command does not perform a native production build.
 
-`accept:coterie` is the parameterized M2 runner. It boots the selected provider
-through the same generated bindings as the app, loads Alice from the shared
-persona fixture, validates every step's `sm-*` selector against the shared
-`benchmarks/tools/social-messenger/CONTRACT.md` authority, and accepts either a
-boot session that it revokes or an already-empty session list as the same
-signed-out precondition. It then proves login
+`accept:coterie` is the parameterized headless binding-level provider proof. It
+boots the selected provider through the same generated bindings as the app,
+loads Alice from the shared persona fixture, and checks that every step's
+declared `sm-*` identifier belongs to the frozen
+`benchmarks/tools/social-messenger/CONTRACT.md` vocabulary. It does not mount or
+drive those controls. Provider claims select the steps: unclaimed milestone
+operations are written to the artifact as `skipped-by-claim`. The runner
+accepts either a boot session that it revokes or an already-empty session list
+as the same signed-out precondition. It then proves login
 returns and delivers a new session token, runs profile edit → observable
 generated-query invalidation, creates a text post and observes it in Global,
 follows Dave and observes his existing originals enter Following, toggles a
-like on then off with both states observable, and proves logout revokes that
-exact new token.
+like on then off with both states observable, then runs the M3 chain: reopen a
+deduplicated DM, send text, send and resolve a quoted reply, observe
+`sent → delivered → read` without regression, observe and expire a typing
+lease, and create a group where a non-admin removal is refused before the
+creator removes the member. Memory uses its optional clock-advance capability;
+other qualifying providers are observed through the same public expiry
+projection. It finally proves logout revokes the exact last Alice token.
 Tokens stay local to the runner for comparison; the JSON artifact records only
 boolean token receipts, and a partial failure triggers best-effort session
 revocation before provider disposal. Both providers run the `provider-boot`
 and `injected-signed-out` scenarios. The Snapback M1+M2 lane requires its
 configured server and streaming socket and installs fixtures through
-`seed-m2.mjs`. The runner reuses the shared choreography aggregator and writes
+`seed-m2.mjs`. The runner reuses the shared assertion aggregator and writes
 the artifact under the ignored `.data/acceptance/` directory, printing the
-absolute path. This is headless provider/binding acceptance; it does not claim
-a mounted Contract semantic tree, two browser contexts, or native host
-evidence.
+absolute path. The artifact mechanism is
+`headless-generated-binding-provider-proof`: it proves only the claimed
+provider operations exercised through generated bindings over the frozen
+selector vocabulary. Mounted Contract semantics, two-client choreography,
+sender-avatar and quote-jump UI behavior, group dropout choreography, and
+removed-member route rendering live in the integration tests and the separate
+post-landing choreography program; this artifact makes none of those claims.
 
 `test:snapback-provider` starts and tears down an isolated Snapback server and
 runs Exact provider conformance with formal probes for M1
-`listProfiles@2`+`editProfile@1` and M2 `listFeed@3`+`createPost@1`. The suite
+`listProfiles@3`+`editProfile@1` and M2 `listFeed@3`+`createPost@1`. The suite
 has no milestone selector, so those are the exact formal pairs rather than a
 claim that it individually invokes the whole allow-list. Adapter-specific
 probes additionally cover: two-client pushed profile edits; client B observing

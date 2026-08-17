@@ -1,5 +1,5 @@
 // GENERATED binding module — do not hand-edit (LLP 0373 phase 2; LLP 0179 §8.1).
-// Source authority: provider-native declaration "coterie" 7 (inputsHash 61fcaaa7b60092b4).
+// Source authority: provider-native declaration "coterie" 8 (inputsHash e0be7bf6f9f5bc27).
 // Generator: generateFromDeclaration (@exact/contract). generatedAt: DETERMINISTIC.
 
 import { createProviderLinks, type ContractDataProvider } from '@exact/contract/runtime';
@@ -19,13 +19,32 @@ export interface AvatarResult {
 export interface Chat {
   accentColor: string;
   avatarUrl: string | null;
+  currentUserIsAdmin: boolean;
+  currentUserIsMember: boolean;
+  description: string | null;
   disappearing: string;
   id: string;
   isGroup: boolean;
+  kind: string;
+  latestReceiptStatus: string | null;
+  memberIds: Array<string>;
+  members: Array<{
+    avatarUrl: string | null;
+    displayName: string;
+    id: string;
+    isAdmin: boolean;
+    isMe: boolean;
+  }>;
   preview: string;
   title: string;
+  typingHint: string | null;
   unreadCount: number;
   updatedAt: string;
+}
+
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface CreatedGroup {
+  chatId: string;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
@@ -82,6 +101,7 @@ export interface Message {
   chatId: string;
   createdAt: string;
   deleted: boolean;
+  deliveredCount: number;
   edited: boolean;
   id: string;
   mine: boolean;
@@ -94,13 +114,23 @@ export interface Message {
     emoji: string;
     reactedByMe: boolean;
   }>;
+  readCount: number;
+  recipientCount: number;
+  senderAvatarUrl: string | null;
   senderId: string;
   senderName: string;
   status: string;
 }
 
 /** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface OpenedChat {
+  chatId: string;
+  reused: boolean;
+}
+
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
 export interface Profile {
+  avatarRef: string | null;
   avatarUrl: string | null;
   bio: string;
   displayName: string;
@@ -180,6 +210,15 @@ export interface ThreadPost {
   threadRole: string;
 }
 
+/** OQ8: excess provider result fields are structurally permitted at the wire and projected away by this row type. */
+export interface TypingParticipant {
+  chatId: string;
+  displayName: string;
+  expiresAt: string;
+  id: string;
+  userId: string;
+}
+
 export type ListChatsParams = Record<string, never>;
 export type ListChatsResult = Array<Chat>;
 export type ListChatsError = never;
@@ -212,7 +251,17 @@ export interface ListMessagesParams {
   chatId: string;
 }
 export type ListMessagesResult = Array<Message>;
-export type ListMessagesError = never;
+export interface ListMessagesChatMembershipRequiredError {
+  name: 'ChatMembershipRequiredError';
+  code: 'chat_membership_required';
+  message: string;
+}
+export interface ListMessagesChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export type ListMessagesError = ListMessagesChatMembershipRequiredError | ListMessagesChatNotFoundError;
 export type ListMessagesReceiptsPosture = 'none';
 
 export interface ListProfilePostsParams {
@@ -254,12 +303,105 @@ export interface ListThreadParentPostNotFoundError {
 export type ListThreadError = ListThreadParentPostNotFoundError;
 export type ListThreadReceiptsPosture = 'none';
 
+export interface ObserveTypingParams {
+  chatId: string;
+}
+export type ObserveTypingResult = Array<TypingParticipant>;
+export interface ObserveTypingChatMembershipRequiredError {
+  name: 'ChatMembershipRequiredError';
+  code: 'chat_membership_required';
+  message: string;
+}
+export interface ObserveTypingChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export type ObserveTypingError = ObserveTypingChatMembershipRequiredError | ObserveTypingChatNotFoundError;
+export type ObserveTypingReceiptsPosture = 'none';
+
 export interface SearchSocialParams {
   query: string;
 }
 export type SearchSocialResult = Array<SearchResult>;
 export type SearchSocialError = never;
 export type SearchSocialReceiptsPosture = 'none';
+
+export interface AddMemberParams {
+  chatId: string;
+  userId: string;
+}
+export interface AddMemberChatAdminRequiredError {
+  name: 'ChatAdminRequiredError';
+  code: 'chat_admin_required';
+  message: string;
+}
+export interface AddMemberChatMemberAlreadyExistsError {
+  name: 'ChatMemberAlreadyExistsError';
+  code: 'chat_member_already_exists';
+  message: string;
+}
+export interface AddMemberChatMemberLimitError {
+  name: 'ChatMemberLimitError';
+  code: 'chat_member_limit';
+  message: string;
+}
+export interface AddMemberChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export interface AddMemberGroupRequiredError {
+  name: 'GroupRequiredError';
+  code: 'group_required';
+  message: string;
+}
+export interface AddMemberProfileNotFoundError {
+  name: 'ProfileNotFoundError';
+  code: 'profile_not_found';
+  message: string;
+}
+export interface AddMemberSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type AddMemberError = AddMemberChatAdminRequiredError | AddMemberChatMemberAlreadyExistsError | AddMemberChatMemberLimitError | AddMemberChatNotFoundError | AddMemberGroupRequiredError | AddMemberProfileNotFoundError | AddMemberSessionRequiredError;
+export type AddMemberReceiptsPosture = 'none';
+
+export interface CreateGroupParams {
+  name: string;
+  description: string | null;
+  memberIds: Array<string>;
+}
+export type CreateGroupResult = CreatedGroup;
+export interface CreateGroupGroupDescriptionInvalidError {
+  name: 'GroupDescriptionInvalidError';
+  code: 'group_description_invalid';
+  message: string;
+}
+export interface CreateGroupGroupMembersInvalidError {
+  name: 'GroupMembersInvalidError';
+  code: 'group_members_invalid';
+  message: string;
+}
+export interface CreateGroupGroupNameInvalidError {
+  name: 'GroupNameInvalidError';
+  code: 'group_name_invalid';
+  message: string;
+}
+export interface CreateGroupProfileNotFoundError {
+  name: 'ProfileNotFoundError';
+  code: 'profile_not_found';
+  message: string;
+}
+export interface CreateGroupSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type CreateGroupError = CreateGroupGroupDescriptionInvalidError | CreateGroupGroupMembersInvalidError | CreateGroupGroupNameInvalidError | CreateGroupProfileNotFoundError | CreateGroupSessionRequiredError;
+export type CreateGroupReceiptsPosture = 'none';
 
 export interface CreatePostParams {
   body: string;
@@ -351,6 +493,32 @@ export interface EditProfileSessionRequiredError {
 export type EditProfileError = EditProfileBioInvalidError | EditProfileDisplayNameInvalidError | EditProfileDuplicateHandleError | EditProfileHandleInvalidError | EditProfileLinkInvalidError | EditProfileLocationInvalidError | EditProfileSessionRequiredError;
 export type EditProfileReceiptsPosture = 'none';
 
+export interface LeaveChatParams {
+  chatId: string;
+}
+export interface LeaveChatChatMembershipRequiredError {
+  name: 'ChatMembershipRequiredError';
+  code: 'chat_membership_required';
+  message: string;
+}
+export interface LeaveChatChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export interface LeaveChatGroupRequiredError {
+  name: 'GroupRequiredError';
+  code: 'group_required';
+  message: string;
+}
+export interface LeaveChatSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type LeaveChatError = LeaveChatChatMembershipRequiredError | LeaveChatChatNotFoundError | LeaveChatGroupRequiredError | LeaveChatSessionRequiredError;
+export type LeaveChatReceiptsPosture = 'none';
+
 export interface LoginParams {
   email: string;
   password: string;
@@ -369,10 +537,133 @@ export type LogoutResult = LogoutMutationResult;
 export type LogoutError = never;
 export type LogoutReceiptsPosture = 'none';
 
+export interface MarkReceiptParams {
+  chatId: string;
+  state: string;
+}
+export interface MarkReceiptChatMembershipRequiredError {
+  name: 'ChatMembershipRequiredError';
+  code: 'chat_membership_required';
+  message: string;
+}
+export interface MarkReceiptChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export interface MarkReceiptReceiptStateInvalidError {
+  name: 'ReceiptStateInvalidError';
+  code: 'receipt_state_invalid';
+  message: string;
+}
+export interface MarkReceiptSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type MarkReceiptError = MarkReceiptChatMembershipRequiredError | MarkReceiptChatNotFoundError | MarkReceiptReceiptStateInvalidError | MarkReceiptSessionRequiredError;
+export type MarkReceiptReceiptsPosture = 'none';
+
+export interface OpenDmParams {
+  userId: string;
+}
+export type OpenDmResult = OpenedChat;
+export interface OpenDmDirectMessageSelfError {
+  name: 'DirectMessageSelfError';
+  code: 'direct_message_self';
+  message: string;
+}
+export interface OpenDmProfileNotFoundError {
+  name: 'ProfileNotFoundError';
+  code: 'profile_not_found';
+  message: string;
+}
+export interface OpenDmSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type OpenDmError = OpenDmDirectMessageSelfError | OpenDmProfileNotFoundError | OpenDmSessionRequiredError;
+export type OpenDmReceiptsPosture = 'none';
+
+export interface PromoteAdminParams {
+  chatId: string;
+  userId: string;
+}
+export interface PromoteAdminChatAdminRequiredError {
+  name: 'ChatAdminRequiredError';
+  code: 'chat_admin_required';
+  message: string;
+}
+export interface PromoteAdminChatMemberNotFoundError {
+  name: 'ChatMemberNotFoundError';
+  code: 'chat_member_not_found';
+  message: string;
+}
+export interface PromoteAdminChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export interface PromoteAdminGroupRequiredError {
+  name: 'GroupRequiredError';
+  code: 'group_required';
+  message: string;
+}
+export interface PromoteAdminSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type PromoteAdminError = PromoteAdminChatAdminRequiredError | PromoteAdminChatMemberNotFoundError | PromoteAdminChatNotFoundError | PromoteAdminGroupRequiredError | PromoteAdminSessionRequiredError;
+export type PromoteAdminReceiptsPosture = 'none';
+
+export interface RemoveMemberParams {
+  chatId: string;
+  userId: string;
+}
+export interface RemoveMemberChatAdminRequiredError {
+  name: 'ChatAdminRequiredError';
+  code: 'chat_admin_required';
+  message: string;
+}
+export interface RemoveMemberChatMemberNotFoundError {
+  name: 'ChatMemberNotFoundError';
+  code: 'chat_member_not_found';
+  message: string;
+}
+export interface RemoveMemberChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export interface RemoveMemberGroupRequiredError {
+  name: 'GroupRequiredError';
+  code: 'group_required';
+  message: string;
+}
+export interface RemoveMemberRemoveSelfInvalidError {
+  name: 'RemoveSelfInvalidError';
+  code: 'remove_self_invalid';
+  message: string;
+}
+export interface RemoveMemberSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type RemoveMemberError = RemoveMemberChatAdminRequiredError | RemoveMemberChatMemberNotFoundError | RemoveMemberChatNotFoundError | RemoveMemberGroupRequiredError | RemoveMemberRemoveSelfInvalidError | RemoveMemberSessionRequiredError;
+export type RemoveMemberReceiptsPosture = 'none';
+
 export interface SendMessageParams {
   chatId: string;
   body: string;
   quotedMessageId: string | null;
+}
+export interface SendMessageChatMembershipRequiredError {
+  name: 'ChatMembershipRequiredError';
+  code: 'chat_membership_required';
+  message: string;
 }
 export interface SendMessageChatNotFoundError {
   name: 'ChatNotFoundError';
@@ -394,7 +685,7 @@ export interface SendMessageSessionRequiredError {
   code: 'session_required';
   message: string;
 }
-export type SendMessageError = SendMessageChatNotFoundError | SendMessageMessageBodyInvalidError | SendMessageQuotedMessageInvalidError | SendMessageSessionRequiredError;
+export type SendMessageError = SendMessageChatMembershipRequiredError | SendMessageChatNotFoundError | SendMessageMessageBodyInvalidError | SendMessageQuotedMessageInvalidError | SendMessageSessionRequiredError;
 export type SendMessageReceiptsPosture = 'none';
 
 export interface SetAvatarParams {
@@ -478,6 +769,11 @@ export interface SetMessageReactionParams {
   reacted: boolean;
   mutationId: string;
 }
+export interface SetMessageReactionChatMembershipRequiredError {
+  name: 'ChatMembershipRequiredError';
+  code: 'chat_membership_required';
+  message: string;
+}
 export interface SetMessageReactionChatNotFoundError {
   name: 'ChatNotFoundError';
   code: 'chat_not_found';
@@ -498,7 +794,7 @@ export interface SetMessageReactionSessionRequiredError {
   code: 'session_required';
   message: string;
 }
-export type SetMessageReactionError = SetMessageReactionChatNotFoundError | SetMessageReactionEmojiInvalidError | SetMessageReactionMessageNotFoundError | SetMessageReactionSessionRequiredError;
+export type SetMessageReactionError = SetMessageReactionChatMembershipRequiredError | SetMessageReactionChatNotFoundError | SetMessageReactionEmojiInvalidError | SetMessageReactionMessageNotFoundError | SetMessageReactionSessionRequiredError;
 export type SetMessageReactionReceiptsPosture = 'none';
 
 export interface SetRepostParams {
@@ -523,6 +819,28 @@ export interface SetRepostSessionRequiredError {
 }
 export type SetRepostError = SetRepostPostNotFoundError | SetRepostReplyRepostForbiddenError | SetRepostSessionRequiredError;
 export type SetRepostReceiptsPosture = 'none';
+
+export interface SetTypingParams {
+  chatId: string;
+  active: boolean;
+}
+export interface SetTypingChatMembershipRequiredError {
+  name: 'ChatMembershipRequiredError';
+  code: 'chat_membership_required';
+  message: string;
+}
+export interface SetTypingChatNotFoundError {
+  name: 'ChatNotFoundError';
+  code: 'chat_not_found';
+  message: string;
+}
+export interface SetTypingSessionRequiredError {
+  name: 'SessionRequiredError';
+  code: 'session_required';
+  message: string;
+}
+export type SetTypingError = SetTypingChatMembershipRequiredError | SetTypingChatNotFoundError | SetTypingSessionRequiredError;
+export type SetTypingReceiptsPosture = 'none';
 
 export interface SignupParams {
   email: string;
@@ -595,11 +913,19 @@ export interface GeneratedProviderLinks {
   listProviderClaims(args: ListProviderClaimsParams): unknown;
   listSession(args: ListSessionParams): unknown;
   listThread(args: ListThreadParams): unknown;
+  observeTyping(args: ObserveTypingParams): unknown;
   searchSocial(args: SearchSocialParams): unknown;
+  addMember(args: AddMemberParams): unknown;
+  createGroup(args: CreateGroupParams): unknown;
   createPost(args: CreatePostParams): unknown;
   editProfile(args: EditProfileParams): unknown;
+  leaveChat(args: LeaveChatParams): unknown;
   login(args: LoginParams): unknown;
   logout(args: LogoutParams): unknown;
+  markReceipt(args: MarkReceiptParams): unknown;
+  openDm(args: OpenDmParams): unknown;
+  promoteAdmin(args: PromoteAdminParams): unknown;
+  removeMember(args: RemoveMemberParams): unknown;
   sendMessage(args: SendMessageParams): unknown;
   setAvatar(args: SetAvatarParams): unknown;
   setChatAccent(args: SetChatAccentParams): unknown;
@@ -608,6 +934,7 @@ export interface GeneratedProviderLinks {
   setLike(args: SetLikeParams): unknown;
   setMessageReaction(args: SetMessageReactionParams): unknown;
   setRepost(args: SetRepostParams): unknown;
+  setTyping(args: SetTypingParams): unknown;
   signup(args: SignupParams): unknown;
 }
 
@@ -634,7 +961,7 @@ export const listChats = (() => {
     kind: { value: 'query' },
     name: { value: 'listChats' },
     descriptorId: { value: 'listChats' },
-    compatibilityToken: { value: '2' },
+    compatibilityToken: { value: '3' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -670,7 +997,7 @@ export const listMessages = (() => {
     kind: { value: 'query' },
     name: { value: 'listMessages' },
     descriptorId: { value: 'listMessages' },
-    compatibilityToken: { value: '3' },
+    compatibilityToken: { value: '4' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -694,7 +1021,7 @@ export const listProfiles = (() => {
     kind: { value: 'query' },
     name: { value: 'listProfiles' },
     descriptorId: { value: 'listProfiles' },
-    compatibilityToken: { value: '2' },
+    compatibilityToken: { value: '3' },
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
@@ -736,6 +1063,18 @@ export const listThread = (() => {
   return callable as typeof callable & GeneratedQueryBinding;
 })();
 
+export const observeTyping = (() => {
+  const callable = (args: ObserveTypingParams): unknown => requireGeneratedProviderLinks().observeTyping(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'query' },
+    name: { value: 'observeTyping' },
+    descriptorId: { value: 'observeTyping' },
+    compatibilityToken: { value: '1' },
+    resultKind: { value: 'list' },
+  });
+  return callable as typeof callable & GeneratedQueryBinding;
+})();
+
 export const searchSocial = (() => {
   const callable = (args: SearchSocialParams): unknown => requireGeneratedProviderLinks().searchSocial(args);
   Object.defineProperties(callable, {
@@ -746,6 +1085,28 @@ export const searchSocial = (() => {
     resultKind: { value: 'list' },
   });
   return callable as typeof callable & GeneratedQueryBinding;
+})();
+
+export const addMember = (() => {
+  const callable = (args: AddMemberParams): unknown => requireGeneratedProviderLinks().addMember(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'addMember' },
+    writes: { value: ['chatMemberships', 'chats'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const createGroup = (() => {
+  const callable = (args: CreateGroupParams): unknown => requireGeneratedProviderLinks().createGroup(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'createGroup' },
+    writes: { value: ['chatMemberships', 'chats'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
 })();
 
 export const createPost = (() => {
@@ -765,6 +1126,17 @@ export const editProfile = (() => {
     kind: { value: 'mutation' },
     name: { value: 'editProfile' },
     writes: { value: ['accounts', 'messages', 'profiles', 'search'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const leaveChat = (() => {
+  const callable = (args: LeaveChatParams): unknown => requireGeneratedProviderLinks().leaveChat(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'leaveChat' },
+    writes: { value: ['chatMemberships', 'chats', 'ephemeralTyping', 'messageReceipts', 'messages'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -792,12 +1164,56 @@ export const logout = (() => {
   return callable as typeof callable & GeneratedMutationBinding;
 })();
 
+export const markReceipt = (() => {
+  const callable = (args: MarkReceiptParams): unknown => requireGeneratedProviderLinks().markReceipt(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'markReceipt' },
+    writes: { value: ['chats', 'messageReceipts'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const openDm = (() => {
+  const callable = (args: OpenDmParams): unknown => requireGeneratedProviderLinks().openDm(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'openDm' },
+    writes: { value: ['chatMemberships', 'chats'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const promoteAdmin = (() => {
+  const callable = (args: PromoteAdminParams): unknown => requireGeneratedProviderLinks().promoteAdmin(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'promoteAdmin' },
+    writes: { value: ['chatMemberships', 'chats'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
+export const removeMember = (() => {
+  const callable = (args: RemoveMemberParams): unknown => requireGeneratedProviderLinks().removeMember(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'removeMember' },
+    writes: { value: ['chatMemberships', 'chats', 'ephemeralTyping', 'messageReceipts', 'messages'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
 export const sendMessage = (() => {
   const callable = (args: SendMessageParams): unknown => requireGeneratedProviderLinks().sendMessage(args);
   Object.defineProperties(callable, {
     kind: { value: 'mutation' },
     name: { value: 'sendMessage' },
-    writes: { value: ['chats', 'messages'] },
+    writes: { value: ['chats', 'ephemeralTyping', 'messageReceipts', 'messages'] },
     optimistic: { value: false },
   });
   return callable as typeof callable & GeneratedMutationBinding;
@@ -880,6 +1296,17 @@ export const setRepost = (() => {
   return callable as typeof callable & GeneratedMutationBinding;
 })();
 
+export const setTyping = (() => {
+  const callable = (args: SetTypingParams): unknown => requireGeneratedProviderLinks().setTyping(args);
+  Object.defineProperties(callable, {
+    kind: { value: 'mutation' },
+    name: { value: 'setTyping' },
+    writes: { value: ['ephemeralTyping'] },
+    optimistic: { value: false },
+  });
+  return callable as typeof callable & GeneratedMutationBinding;
+})();
+
 export const signup = (() => {
   const callable = (args: SignupParams): unknown => requireGeneratedProviderLinks().signup(args);
   Object.defineProperties(callable, {
@@ -893,11 +1320,11 @@ export const signup = (() => {
 
 export const bindings = {
   provider: 'coterie',
-  declarationVersion: '7',
+  declarationVersion: '8',
   /** Declaration digest as a runtime value (LLP 0391 §4.2 — the fail-closed configure handshake input). */
-  inputsHash: '61fcaaa7b60092b4',
-  queries: { listChats, listFeed, listInsights, listMessages, listProfilePosts, listProfiles, listProviderClaims, listSession, listThread, searchSocial },
-  mutations: { createPost, editProfile, login, logout, sendMessage, setAvatar, setChatAccent, setDisappearing, setFollow, setLike, setMessageReaction, setRepost, signup },
+  inputsHash: 'e0be7bf6f9f5bc27',
+  queries: { listChats, listFeed, listInsights, listMessages, listProfilePosts, listProfiles, listProviderClaims, listSession, listThread, observeTyping, searchSocial },
+  mutations: { addMember, createGroup, createPost, editProfile, leaveChat, login, logout, markReceipt, openDm, promoteAdmin, removeMember, sendMessage, setAvatar, setChatAccent, setDisappearing, setFollow, setLike, setMessageReaction, setRepost, setTyping, signup },
 } as const;
 
 /**
