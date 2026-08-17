@@ -14,18 +14,26 @@ capability honesty
 
 The committed iOS receipt at
 `demos/native-custody-probes/evidence/20260816T214117Z-dfaa64ff-phase2-ios`
-passes its exercised arms but marks P4 extension refusal INCOMPLETE because
-the v1 probe app has no extension target. The ordinary Expo resolver must keep
-iOS on `expo-native-phase-2-evidence-required` until this blocker closes.
+passes its exercised arms but marks P4 extension refusal INCOMPLETE. The
+worktree now contains a Share Extension plus an XCUITest share-sheet trigger,
+but no new probe-host receipt has exercised that path yet. The ordinary Expo
+resolver must keep iOS on `expo-native-phase-2-evidence-required` until this
+blocker closes.
 
-Add a real share or notification extension target to the probe app. From that
-extension process, attempt custody I/O against the same application custody
-domain and prove `SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED` occurs before
-any custody read, ownership, or replacement operation. Retain distinct process
-identity and zero-I/O counters in the committed receipt. Re-run the ordinary
-boundary witness, then flip iOS by adding it to the same evidence-gated OS set
-used for Android in `packages/snapback-expo/provider.mjs`; mirror the Android
-provider admission/refusal tests and capability-row wording.
+Run the new `NativeCustodyProbesShare` path on the probe host. From that
+extension process, prove `SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED` occurs
+before any custody read, ownership, or replacement operation. Retain distinct
+process identity, zero-I/O counters, and the XCUITest exit status in the
+committed receipt. Re-run the ordinary boundary witness, then flip iOS by
+adding it to the same evidence-gated OS set used for Android in
+`packages/snapback-expo/provider.mjs`; mirror the Android provider
+admission/refusal tests and capability-row wording.
+
+The existing Notification Service Extension remains built, embedded, signed,
+and linked to the same Core gate, but it is not the trigger: on iOS 26.x
+simulators `simctl push` injects through CoreSimulatorBridge directly into
+SpringBoard's notification presentation pipeline and does not traverse the
+notification-service-extension stage.
 
 ## Recorded nonclaims
 

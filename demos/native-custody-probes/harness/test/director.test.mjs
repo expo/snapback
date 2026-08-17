@@ -33,6 +33,45 @@ test('director records app events', async (t) => {
   assert.equal(event.launchId, 'launch-1');
 });
 
+test('director frames extension results as strict in-memory events', async (t) => {
+  const director = createDirector({ port: 0 });
+  const address = await director.listen();
+  t.after(() => director.close());
+  const origin = `http://127.0.0.1:${address.port}`;
+  const result = {
+    schemaVersion: 'snapback.native-custody-extension.v1',
+    bundleIdentifier: 'dev.snapback.custodyprobes.share',
+    extensionPointIdentifier: 'com.apple.share-services',
+    pid: 4242,
+    code: 'SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED',
+    reason: 'app-extension',
+    ioOccurred: false,
+    atMs: 1_787_000_000_000,
+  };
+  const posted = await fetch(`${origin}/extension-result`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(result),
+  });
+  assert.equal(posted.status, 200);
+  const event = await director.waitEvent(
+    (entry) => entry.schemaVersion === 'snapback.native-custody-extension.v1',
+  );
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(event).filter(([key]) => key !== 'receivedAtMs')),
+    result,
+  );
+  assert.equal(Number.isSafeInteger(event.receivedAtMs), true);
+
+  const secretBearing = await fetch(`${origin}/extension-result`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...result, bearer: 'must-not-enter-extension-events' }),
+  });
+  assert.equal(secretBearing.status, 400);
+  assert.equal(director.events.length, 1);
+});
+
 test('director retains scanner secrets only in memory and never in event or request logs', async (t) => {
   const director = createDirector({ port: 0 });
   const address = await director.listen();

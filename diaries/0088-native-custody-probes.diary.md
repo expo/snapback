@@ -211,3 +211,60 @@ PASS with its extension-refusal arm explicitly INCOMPLETE — the committed v1
 app has no extension target, and the harness refuses to launder native-unit
 evidence into an on-device claim. Compared to a Convex or Supabase app, none
 of this work would exist — but none of the claims would exist either.
+
+## Notification-extension probe entry — 2026-08-16
+
+The iOS gap now has an executable arm rather than a documentary fallback. A
+minimal committed Notification Service Extension is embedded in the probe app;
+the arm triggers it on a headless simulator with `simctl push` plus
+`mutable-content: 1`, avoiding share-sheet UI automation that the probe host
+cannot supply. The extension posts only a typed code/reason, zero-I/O bit,
+extension identity, PID, and timestamp to the existing director, while the
+harness independently records the main-app PID and requires them to differ.
+
+The important product detail was keeping the probe on the production seam.
+Moving the existing iOS gate and Keychain implementation into one
+Foundation/Security-only custody core let both the Expo module and a tiny
+extension entry call the same read operation. The I/O tracker flips at the
+actual `SecItemCopyMatching` boundary, so the extension cannot pass merely by
+recognizing its process name in parallel test code. CocoaPods could link the
+custody pod into the extension target directly; the committed podspec now
+names the shared core file explicitly, and the package's existing `ios/`
+files inclusion means npm packing gains that source without another files-list
+exception.
+
+Direct Xcode-project surgery and a second CocoaPods target were the main
+friction. They are more ceremony than a normal React Native auth integration,
+but the resulting arm is deterministic, headless, and records the exact
+process boundary LLP 0258 needs. A construction-time smoke on iOS 26.2 and
+26.5 accepted and displayed the simulator push but did not produce the NSE
+callback; the arm deliberately times out as FAIL in that condition, so the
+evidence host still has to establish the real extension result before any
+admission flip. The result still says nothing about
+share-sheet/UI extension kinds, physical-device lock/protection behavior,
+securityd kill safety, extension/app interleaving, backup/migration, hardware
+custody, or sender-constrained auth. No Guide gap ticket was filed: this is
+qualification-harness engineering, not an ordinary supported author journey.
+
+## Share-extension pivot — 2026-08-16
+
+The live iOS 26.x result made the notification-service trigger a structural
+dead end rather than a flaky implementation. `simctl push` delivered the
+mutable notification into SpringBoard's presentation pipeline while the NSE
+remained installed and never received a service-stage callback. The project
+keeps that target, CocoaPods linkage, embedding, and signing as honest
+built-but-not-invokable evidence, but P4 now drives a Share Extension through
+the real system activity sheet.
+
+The app gained one small, always-present React Native `Share.share` button and
+the shared Xcode scheme gained a UI-test Test action without adding the test
+bundle to ordinary Build actions. `xcodebuild test` reuses the harness
+DerivedData, launches the milestone UI, finds `Custody Probe` by exact label,
+scrolls the activity sheet when necessary, and taps the extension. The share
+controller calls the same production Core entry as the NSE and Expo module,
+posts the existing redacted extension-result frame, and completes immediately.
+
+This was more moving parts than the NSE push path, but it crosses a real iOS
+extension process boundary instead of relying on a simulator injection API
+whose implementation omits that boundary. It remains probe-host-only
+verification, not a supported app-authoring recipe or physical-device claim.

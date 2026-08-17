@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
@@ -607,4 +608,27 @@ test('Android ciphertext corruption hook is development-only and yields typed co
     'SNAPBACK_AUTH_CUSTODY_CORRUPT',
     () => storage.withOwnership(APP, (owner) => owner.read()),
   );
+});
+
+test('iOS Expo and extension entries share the production pre-I/O read gate', async () => {
+  const [core, module, podspec] = await Promise.all([
+    readFile(new URL('./ios/SnapbackExpoCustodyCore.swift', import.meta.url), 'utf8'),
+    readFile(new URL('./ios/SnapbackExpoCustodyModule.swift', import.meta.url), 'utf8'),
+    readFile(new URL('./ios/SnapbackExpoCustody.podspec', import.meta.url), 'utf8'),
+  ]);
+  assert.match(
+    module,
+    /snapbackExpoCustodyCore\.read\(appId: appId, storageKey: storageKey\)\.value/u,
+  );
+  assert.match(
+    core,
+    /public enum SnapbackExpoCustodyExtensionProbe[\s\S]*snapbackExpoCustodyCore\.read\(appId: appId, storageKey: storageKey\)/u,
+  );
+  const operation = core.slice(
+    core.indexOf('  func read('),
+    core.indexOf('  func compareAndReplace('),
+  );
+  assert.ok(operation.indexOf('singleRuntimeRefusal') < operation.indexOf('CustodyIOTracker()'));
+  assert.match(core, /tracker\.occurred = true\s+let status = SecItemCopyMatching/u);
+  assert.match(podspec, /'SnapbackExpoCustodyCore\.swift'/u);
 });

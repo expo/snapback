@@ -108,7 +108,6 @@ export async function runNativeCustodyHarness({
   let failureProbe = null;
   let overallVerdict = 'FAIL';
   let terminalError = null;
-  let p4IosIncomplete = false;
   let p2MissingClasses = [];
   let successfulProbeFlow = false;
   const email = options.email ?? `custody-${Date.now()}@example.test`;
@@ -275,14 +274,33 @@ export async function runNativeCustodyHarness({
       bundleId: artifactBundleId,
       claims: platform === 'android'
         ? ['P2 classified SIGKILL old-or-new restoration (coverage gated)', 'uninstall-clears-data']
-        : ['P2 classified SIGKILL old-or-new restoration (coverage gated)', 'keychain uninstall residue handling'],
+        : [
+            'P2 classified SIGKILL old-or-new restoration (coverage gated)',
+            'keychain uninstall residue handling',
+            'Share Extension single-runtime refusal before custody I/O',
+          ],
       notClaimed: platform === 'android'
         ? [
             'force-stop-mid-write (LLP 0263 A-3)',
             'backup/restore via bmgr (LLP 0263 A-9)',
             'device-to-device transfer',
           ]
-        : ['physical-device lock state', 'backup/restore', 'device-to-device transfer'],
+        : [
+            'simctl push cannot traverse Notification Service Extensions on iOS 26 simulators; the NSE remains built and embedded as built-but-not-invokable evidence',
+            'physical-device lock-state and file-protection windows',
+            'real securityd kill safety',
+            'extension/app interleaving and writer kill/suspension',
+            'encrypted backup restore and device-to-device migration',
+            'cross-process fencing, hardware custody, backup continuity, and sender-constrained auth',
+          ],
+      ...(platform === 'ios' ? {
+        extensionProbe: Object.freeze({
+          kind: 'Share Extension',
+          extensionPointIdentifier: 'com.apple.share-services',
+          trigger: 'XCUITest-driven share sheet',
+          notificationServiceExtension: 'built and embedded; simctl push cannot invoke its service stage on iOS 26 simulators',
+        }),
+      } : {}),
     });
     director.setConfig(Object.freeze({
       binding: backend.binding({
@@ -774,15 +792,81 @@ export async function runNativeCustodyHarness({
       );
       writer.setMetadata({ iosExtensionEvidence: extensionResult.external });
     } else {
-      p4IosIncomplete = true;
       await step(
-        'P4', 'extension refusal not exercised',
-        { nativeExtensionEvidence: 'required for PASS' },
-        () => command('refusalProbe'),
-        (value) => value.attempted === false
-          && value.diagnostic?.code
-            === 'SNAPBACK_AUTH_CUSTODY_EXTENSION_NATIVE_UNIT_FALLBACK_REQUIRED',
-        'INCOMPLETE',
+        'P4', 'share extension refusal',
+        {
+          schemaVersion: 'snapback.native-custody-extension.v1',
+          code: SINGLE_RUNTIME_REFUSAL,
+          ioOccurred: false,
+          extensionPointIdentifier: 'com.apple.share-services',
+          bundleIdentifier: `${artifactBundleId}.share`,
+          distinctMainAndExtensionPids: true,
+          triggerMechanism: 'XCUITest-driven share sheet',
+          uiTestExitStatus: 0,
+        },
+        async () => {
+          const eventStart = director.events.length;
+          // The XCUITest owns the app lifecycle: it relaunches the app to
+          // drive the sheet and terminates it when the test completes, so the
+          // distinct-PID witness must be sampled WHILE the drive is running,
+          // and the extension event must be awaited concurrently with the
+          // (multi-minute, test-bundle-building) xcodebuild run.
+          const triggerPromise = device.triggerShareExtensionViaXcuiTest();
+          let mainDuringDrive = null;
+          let sampling = true;
+          const sampler = (async () => {
+            while (sampling) {
+              const row = await device.locate().catch(() => null);
+              if (row !== null && Number.isSafeInteger(row.pid)) {
+                mainDuringDrive = row;
+              }
+              await delay(2_000);
+            }
+          })();
+          let extension = null;
+          let extensionError = null;
+          try {
+            extension = await director.waitEvent(
+              (event) => event.schemaVersion === 'snapback.native-custody-extension.v1',
+              eventStart,
+              10 * 60_000,
+            );
+          } catch (error) {
+            extensionError = error;
+          }
+          sampling = false;
+          const trigger = await triggerPromise;
+          await sampler;
+          if (extensionError !== null) {
+            throw Object.assign(extensionError, { observed: { trigger } });
+          }
+          assertProbe(
+            mainDuringDrive !== null && Number.isSafeInteger(mainDuringDrive.pid),
+            'P4',
+            'main app PID was never observed while the XCUITest drive ran',
+            { trigger },
+          );
+          return Object.freeze({
+            trigger,
+            mainApp: Object.freeze({
+              pid: mainDuringDrive.pid,
+              launchLabel: mainDuringDrive.marker,
+              sampledDuringDrive: true,
+            }),
+            extension,
+          });
+        },
+        (value) => value.extension?.code === SINGLE_RUNTIME_REFUSAL
+          && value.extension?.ioOccurred === false
+          && value.extension?.extensionPointIdentifier
+            === 'com.apple.share-services'
+          && value.extension?.bundleIdentifier === `${artifactBundleId}.share`
+          && Number.isSafeInteger(value.extension?.pid)
+          && value.extension.pid !== value.mainApp?.pid
+          && value.trigger?.mechanism === 'XCUITest-driven share sheet'
+          && value.trigger?.testTarget === 'NativeCustodyProbesUITests'
+          && value.trigger?.exitStatus === 0
+          && value.trigger?.timedOut === false,
       );
     }
 
@@ -829,6 +913,16 @@ export async function runNativeCustodyHarness({
       });
     } else {
       const priorPrincipal = signIn.principal.userId;
+      // The XCUITest share-sheet drive owns and then terminates the app, so
+      // the witness must be relaunched before P5 issues commands.
+      await step(
+        'P5', 'relaunch after the share-extension drive',
+        { status: 'ready', principal: 'authenticated' },
+        relaunchAndBootstrap,
+        (value) => value.boot.status === 'ready'
+          && value.boot.principal?.status === 'authenticated'
+          && value.boot.principal.userId === priorPrincipal,
+      );
       const factsBeforeReinstall = await step(
         'P5', 'custody facts before keychain reinstall probe',
         { revision: 'integer', bearerSha256: 'sha256', phase: 'settled' },
@@ -954,9 +1048,7 @@ export async function runNativeCustodyHarness({
       ? 'FAIL'
       : p2MissingClasses.length > 0
         ? `INCOMPLETE (P2 missing ${p2MissingClasses.join(', ')})`
-        : p4IosIncomplete
-          ? 'PASS (P4-iOS INCOMPLETE: extension refusal not exercised)'
-          : 'PASS';
+        : 'PASS';
     let rendered = writer.renderFinal({ overallVerdict, failure: failureProbe });
     const receiptScan = scanEvidenceForLeaks(writer.directory, {
       forbiddenLiterals,

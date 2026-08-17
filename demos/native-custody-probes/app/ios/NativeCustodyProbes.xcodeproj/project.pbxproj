@@ -8,28 +8,88 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		2072ECC352845AD1F0D1C0BB /* libPods-NativeCustodyProbesShare.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 754575D811BFA781ECB9D483 /* libPods-NativeCustodyProbesShare.a */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		4F55DCF8AD837FFD7BD2858B /* libPods-NativeCustodyProbesNSE.a in Frameworks */ = {isa = PBXBuildFile; fileRef = DC152CB427BF8E0EC5C619B3 /* libPods-NativeCustodyProbesNSE.a */; };
+		A10000000000000000000004 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* NotificationService.swift */; };
+		A10000000000000000000005 /* NativeCustodyProbesNSE.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* NativeCustodyProbesNSE.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B10000000000000000000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* ShareViewController.swift */; };
+		B10000000000000000000002 /* NativeCustodyProbesShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* NativeCustodyProbesShare.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		B181677CB7BBEC2E788C71B5 /* libPods-NativeCustodyProbes.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B7BA895A49B2987FFB1161B4 /* libPods-NativeCustodyProbes.a */; };
+		B20000000000000000000001 /* NativeCustodyProbesUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* NativeCustodyProbesUITests.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		C9A25CAF5767F9CC00E167C6 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0BF5A7A612E449FA05D584B /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 		FBABF0A95FE9E08B6D4362E9 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A0DF82148C2294EEA8A5511E /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		A1000000000000000000000F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000009;
+			remoteInfo = NativeCustodyProbesNSE;
+		};
+		B1000000000000000000000E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B1000000000000000000000A;
+			remoteInfo = NativeCustodyProbesShare;
+		};
+		B2000000000000000000000C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 13B07F861A680F5B00A75B9A;
+			remoteInfo = NativeCustodyProbes;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A1000000000000000000000E /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000000000000000000005 /* NativeCustodyProbesNSE.appex in Embed App Extensions */,
+				B10000000000000000000002 /* NativeCustodyProbesShare.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		0349A34ED75AF74FDFF63FF9 /* Pods-NativeCustodyProbesNSE.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NativeCustodyProbesNSE.release.xcconfig"; path = "Target Support Files/Pods-NativeCustodyProbesNSE/Pods-NativeCustodyProbesNSE.release.xcconfig"; sourceTree = "<group>"; };
+		125F88AFF41BE7467A86625E /* Pods-NativeCustodyProbesShare.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NativeCustodyProbesShare.debug.xcconfig"; path = "Target Support Files/Pods-NativeCustodyProbesShare/Pods-NativeCustodyProbesShare.debug.xcconfig"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* NativeCustodyProbes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NativeCustodyProbes.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = NativeCustodyProbes/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = NativeCustodyProbes/Info.plist; sourceTree = "<group>"; };
 		1A09D7E2B068FCFD6C461696 /* Pods-NativeCustodyProbes.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NativeCustodyProbes.debug.xcconfig"; path = "Target Support Files/Pods-NativeCustodyProbes/Pods-NativeCustodyProbes.debug.xcconfig"; sourceTree = "<group>"; };
 		22DBA523E578B3580E0B41B9 /* Pods-NativeCustodyProbes.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NativeCustodyProbes.release.xcconfig"; path = "Target Support Files/Pods-NativeCustodyProbes/Pods-NativeCustodyProbes.release.xcconfig"; sourceTree = "<group>"; };
+		5376DAD65563388A8216A3F9 /* Pods-NativeCustodyProbesNSE.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NativeCustodyProbesNSE.debug.xcconfig"; path = "Target Support Files/Pods-NativeCustodyProbesNSE/Pods-NativeCustodyProbesNSE.debug.xcconfig"; sourceTree = "<group>"; };
+		754575D811BFA781ECB9D483 /* libPods-NativeCustodyProbesShare.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-NativeCustodyProbesShare.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0BF5A7A612E449FA05D584B /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-NativeCustodyProbes/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		A0DF82148C2294EEA8A5511E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = NativeCustodyProbes/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A10000000000000000000001 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		A10000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000000000000000000003 /* NativeCustodyProbesNSE.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NativeCustodyProbesNSE.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = NativeCustodyProbes/SplashScreen.storyboard; sourceTree = "<group>"; };
+		B10000000000000000000003 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		B10000000000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000000000000000000005 /* NativeCustodyProbesShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NativeCustodyProbesShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000000002 /* NativeCustodyProbesUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCustodyProbesUITests.swift; sourceTree = "<group>"; };
+		B20000000000000000000003 /* NativeCustodyProbesUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativeCustodyProbesUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B7BA895A49B2987FFB1161B4 /* libPods-NativeCustodyProbes.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-NativeCustodyProbes.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		DC152CB427BF8E0EC5C619B3 /* libPods-NativeCustodyProbesNSE.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-NativeCustodyProbesNSE.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = NativeCustodyProbes/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* NativeCustodyProbes-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "NativeCustodyProbes-Bridging-Header.h"; path = "NativeCustodyProbes/NativeCustodyProbes-Bridging-Header.h"; sourceTree = "<group>"; };
+		FC25B0803562D6A531E9E4B9 /* Pods-NativeCustodyProbesShare.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-NativeCustodyProbesShare.release.xcconfig"; path = "Target Support Files/Pods-NativeCustodyProbesShare/Pods-NativeCustodyProbesShare.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +98,29 @@
 			buildActionMask = 2147483647;
 			files = (
 				B181677CB7BBEC2E788C71B5 /* libPods-NativeCustodyProbes.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000007 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F55DCF8AD837FFD7BD2858B /* libPods-NativeCustodyProbesNSE.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B10000000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2072ECC352845AD1F0D1C0BB /* libPods-NativeCustodyProbesShare.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -63,6 +146,8 @@
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				B7BA895A49B2987FFB1161B4 /* libPods-NativeCustodyProbes.a */,
+				DC152CB427BF8E0EC5C619B3 /* libPods-NativeCustodyProbesNSE.a */,
+				754575D811BFA781ECB9D483 /* libPods-NativeCustodyProbesShare.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -80,6 +165,10 @@
 			children = (
 				1A09D7E2B068FCFD6C461696 /* Pods-NativeCustodyProbes.debug.xcconfig */,
 				22DBA523E578B3580E0B41B9 /* Pods-NativeCustodyProbes.release.xcconfig */,
+				5376DAD65563388A8216A3F9 /* Pods-NativeCustodyProbesNSE.debug.xcconfig */,
+				0349A34ED75AF74FDFF63FF9 /* Pods-NativeCustodyProbesNSE.release.xcconfig */,
+				125F88AFF41BE7467A86625E /* Pods-NativeCustodyProbesShare.debug.xcconfig */,
+				FC25B0803562D6A531E9E4B9 /* Pods-NativeCustodyProbesShare.release.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
@@ -96,6 +185,9 @@
 			isa = PBXGroup;
 			children = (
 				13B07FAE1A68108700A75B9A /* NativeCustodyProbes */,
+				A1000000000000000000000D /* NativeCustodyProbesNSE */,
+				B10000000000000000000006 /* NativeCustodyProbesShare */,
+				B20000000000000000000004 /* NativeCustodyProbesUITests */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -111,6 +203,9 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* NativeCustodyProbes.app */,
+				A10000000000000000000003 /* NativeCustodyProbesNSE.appex */,
+				B10000000000000000000005 /* NativeCustodyProbesShare.appex */,
+				B20000000000000000000003 /* NativeCustodyProbesUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -121,6 +216,32 @@
 				A0BF5A7A612E449FA05D584B /* ExpoModulesProvider.swift */,
 			);
 			name = NativeCustodyProbes;
+			sourceTree = "<group>";
+		};
+		A1000000000000000000000D /* NativeCustodyProbesNSE */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000001 /* NotificationService.swift */,
+				A10000000000000000000002 /* Info.plist */,
+			);
+			path = NativeCustodyProbesNSE;
+			sourceTree = "<group>";
+		};
+		B10000000000000000000006 /* NativeCustodyProbesShare */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000003 /* ShareViewController.swift */,
+				B10000000000000000000004 /* Info.plist */,
+			);
+			path = NativeCustodyProbesShare;
+			sourceTree = "<group>";
+		};
+		B20000000000000000000004 /* NativeCustodyProbesUITests */ = {
+			isa = PBXGroup;
+			children = (
+				B20000000000000000000002 /* NativeCustodyProbesUITests.swift */,
+			);
+			path = NativeCustodyProbesUITests;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -144,6 +265,7 @@
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
+				A1000000000000000000000E /* Embed App Extensions */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				DA3DE48E517B5A065E92F1D0 /* [CP] Embed Pods Frameworks */,
@@ -151,11 +273,67 @@
 			buildRules = (
 			);
 			dependencies = (
+				A10000000000000000000010 /* PBXTargetDependency */,
+				B1000000000000000000000F /* PBXTargetDependency */,
 			);
 			name = NativeCustodyProbes;
 			productName = NativeCustodyProbes;
 			productReference = 13B07F961A680F5B00A75B9A /* NativeCustodyProbes.app */;
 			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000009 /* NativeCustodyProbesNSE */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000000000000000000000C /* Build configuration list for PBXNativeTarget "NativeCustodyProbesNSE" */;
+			buildPhases = (
+				62B20A6796B727F8BA48B795 /* [CP] Check Pods Manifest.lock */,
+				A10000000000000000000006 /* Sources */,
+				A10000000000000000000007 /* Frameworks */,
+				A10000000000000000000008 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NativeCustodyProbesNSE;
+			productName = NativeCustodyProbesNSE;
+			productReference = A10000000000000000000003 /* NativeCustodyProbesNSE.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		B1000000000000000000000A /* NativeCustodyProbesShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B1000000000000000000000D /* Build configuration list for PBXNativeTarget "NativeCustodyProbesShare" */;
+			buildPhases = (
+				73385B8C752EFAC185D5439C /* [CP] Check Pods Manifest.lock */,
+				B10000000000000000000007 /* Sources */,
+				B10000000000000000000008 /* Frameworks */,
+				B10000000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NativeCustodyProbesShare;
+			productName = NativeCustodyProbesShare;
+			productReference = B10000000000000000000005 /* NativeCustodyProbesShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		B20000000000000000000008 /* NativeCustodyProbesUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B2000000000000000000000B /* Build configuration list for PBXNativeTarget "NativeCustodyProbesUITests" */;
+			buildPhases = (
+				B20000000000000000000005 /* Sources */,
+				B20000000000000000000006 /* Frameworks */,
+				B20000000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B2000000000000000000000D /* PBXTargetDependency */,
+			);
+			name = NativeCustodyProbesUITests;
+			productName = NativeCustodyProbesUITests;
+			productReference = B20000000000000000000003 /* NativeCustodyProbesUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -167,6 +345,16 @@
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
+					};
+					A10000000000000000000009 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					B1000000000000000000000A = {
+						CreatedOnToolsVersion = 26.0;
+					};
+					B20000000000000000000008 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 13B07F861A680F5B00A75B9A;
 					};
 				};
 			};
@@ -184,6 +372,9 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* NativeCustodyProbes */,
+				A10000000000000000000009 /* NativeCustodyProbesNSE */,
+				B1000000000000000000000A /* NativeCustodyProbesShare */,
+				B20000000000000000000008 /* NativeCustodyProbesUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -197,6 +388,27 @@
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
 				FBABF0A95FE9E08B6D4362E9 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B10000000000000000000009 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000007 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -236,6 +448,50 @@
 			);
 			outputPaths = (
 				"$(DERIVED_FILE_DIR)/Pods-NativeCustodyProbes-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		62B20A6796B727F8BA48B795 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-NativeCustodyProbesNSE-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		73385B8C752EFAC185D5439C /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-NativeCustodyProbesShare-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -338,13 +594,56 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000004 /* NotificationService.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B10000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000000000000000000001 /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B20000000000000000000001 /* NativeCustodyProbesUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000000000000000000010 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000009 /* NativeCustodyProbesNSE */;
+			targetProxy = A1000000000000000000000F /* PBXContainerItemProxy */;
+		};
+		B1000000000000000000000F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B1000000000000000000000A /* NativeCustodyProbesShare */;
+			targetProxy = B1000000000000000000000E /* PBXContainerItemProxy */;
+		};
+		B2000000000000000000000D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 13B07F861A680F5B00A75B9A /* NativeCustodyProbes */;
+			targetProxy = B2000000000000000000000C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1A09D7E2B068FCFD6C461696 /* Pods-NativeCustodyProbes.debug.xcconfig */;
 			buildSettings = {
+				APP_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NativeCustodyProbes/NativeCustodyProbes.entitlements;
@@ -368,7 +667,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_PRODUCT_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = NativeCustodyProbes;
 				SWIFT_OBJC_BRIDGING_HEADER = "NativeCustodyProbes/NativeCustodyProbes-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -382,6 +681,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 22DBA523E578B3580E0B41B9 /* Pods-NativeCustodyProbes.release.xcconfig */;
 			buildSettings = {
+				APP_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NativeCustodyProbes/NativeCustodyProbes.entitlements;
@@ -400,7 +700,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_PRODUCT_BUNDLE_IDENTIFIER)";
 				PRODUCT_NAME = NativeCustodyProbes;
 				SWIFT_OBJC_BRIDGING_HEADER = "NativeCustodyProbes/NativeCustodyProbes-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -545,6 +845,174 @@
 			};
 			name = Release;
 		};
+		A1000000000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5376DAD65563388A8216A3F9 /* Pods-NativeCustodyProbesNSE.debug.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NativeCustodyProbesNSE/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				NSE_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.nse;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NSE_PRODUCT_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = iphonesimulator;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A1000000000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0349A34ED75AF74FDFF63FF9 /* Pods-NativeCustodyProbesNSE.release.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NativeCustodyProbesNSE/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				NSE_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.nse;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(NSE_PRODUCT_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = iphonesimulator;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		B1000000000000000000000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 125F88AFF41BE7467A86625E /* Pods-NativeCustodyProbesShare.debug.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NativeCustodyProbesShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SHARE_PRODUCT_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SHARE_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.share;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = iphonesimulator;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		B1000000000000000000000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = FC25B0803562D6A531E9E4B9 /* Pods-NativeCustodyProbesShare.release.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NativeCustodyProbesShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SHARE_PRODUCT_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SHARE_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.share;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = iphonesimulator;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		B20000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(UITEST_PRODUCT_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = iphonesimulator;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = NativeCustodyProbes;
+				UITEST_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.uitests;
+			};
+			name = Debug;
+		};
+		B2000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(UITEST_PRODUCT_BUNDLE_IDENTIFIER)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = iphonesimulator;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = NativeCustodyProbes;
+				UITEST_PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.custodyprobes.uitests;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -562,6 +1030,33 @@
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
 				83CBBA211A601CBA00E9B192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000000000000000000000C /* Build configuration list for PBXNativeTarget "NativeCustodyProbesNSE" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000000000000000000000A /* Debug */,
+				A1000000000000000000000B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B1000000000000000000000D /* Build configuration list for PBXNativeTarget "NativeCustodyProbesShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B1000000000000000000000B /* Debug */,
+				B1000000000000000000000C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B2000000000000000000000B /* Build configuration list for PBXNativeTarget "NativeCustodyProbesUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B20000000000000000000009 /* Debug */,
+				B2000000000000000000000A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

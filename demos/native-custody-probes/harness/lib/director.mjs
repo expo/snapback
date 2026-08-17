@@ -27,6 +27,39 @@ function readJson(request, limit = 256 * 1024) {
   });
 }
 
+const EXTENSION_RESULT_FIELDS = Object.freeze([
+  'schemaVersion',
+  'bundleIdentifier',
+  'extensionPointIdentifier',
+  'pid',
+  'code',
+  'reason',
+  'ioOccurred',
+  'atMs',
+]);
+
+function validExtensionResult(body) {
+  return body !== null
+    && typeof body === 'object'
+    && !Array.isArray(body)
+    && Object.keys(body).length === EXTENSION_RESULT_FIELDS.length
+    && EXTENSION_RESULT_FIELDS.every((field) => Object.hasOwn(body, field))
+    && body.schemaVersion === 'snapback.native-custody-extension.v1'
+    && typeof body.bundleIdentifier === 'string'
+    && body.bundleIdentifier.length > 0
+    && typeof body.extensionPointIdentifier === 'string'
+    && body.extensionPointIdentifier.length > 0
+    && Number.isSafeInteger(body.pid)
+    && body.pid > 0
+    && typeof body.code === 'string'
+    && body.code.length > 0
+    && typeof body.reason === 'string'
+    && body.reason.length > 0
+    && typeof body.ioOccurred === 'boolean'
+    && Number.isSafeInteger(body.atMs)
+    && body.atMs > 0;
+}
+
 export function createDirector({
   host = '127.0.0.1',
   port,
@@ -106,6 +139,18 @@ export function createDirector({
             waiter.resolve(body);
           }
         }
+        logRequest(request, url.pathname, 200);
+        reply(response, 200, { ok: true });
+        return;
+      }
+      if (request.method === 'POST' && url.pathname === '/extension-result') {
+        const body = await readJson(request, 64 * 1024);
+        if (!validExtensionResult(body)) {
+          logRequest(request, url.pathname, 400);
+          reply(response, 400, { ok: false });
+          return;
+        }
+        publishEvent(Object.freeze({ ...body, receivedAtMs: Date.now() }));
         logRequest(request, url.pathname, 200);
         reply(response, 200, { ok: true });
         return;
