@@ -35,6 +35,7 @@ import {
   expoAssetFetch,
 } from './asset-source.mjs';
 import { resolveSnapbackExpoLifecycleSource } from './lifecycle-source.mjs';
+import { acquireExpoSqliteDefaultRqsStore } from './expo-sqlite-carrier.mjs';
 
 const bootContext = createContext(null);
 const lifecycleContext = createContext(null);
@@ -120,6 +121,14 @@ async function resolveNativeOperatingSystem(environment) {
   } catch {
     return 'unknown';
   }
+}
+
+async function resolveExpoSqliteRuntimeKind(environment) {
+  if (typeof environment.resolveExpoSqliteRuntimeKind === 'function') {
+    const kind = await environment.resolveExpoSqliteRuntimeKind();
+    return typeof kind === 'string' && kind.length > 0 ? kind : 'unsupported-host';
+  }
+  return 'main-app';
 }
 
 function firstPartyBootstrapOptIn(app) {
@@ -261,11 +270,13 @@ export const defaultSnapbackExpoEnvironment = createSupervisedExpoEnvironment();
 export function createSnapbackExpoBoot({
   app,
   binding: bindingOverride = null,
+  rqsStore = undefined,
   environment = defaultSnapbackExpoEnvironment,
   createProvider = createSnapbackReactProvider,
   bindLifecycle = bindSnapbackAppLifecycle,
   createApplicationClient = createSnapbackAppClientWithBootstrapObserver,
   adoptSupervisedAuthority = adoptSupervisedBootstrapAuthority,
+  acquireDefaultRqsStore = acquireExpoSqliteDefaultRqsStore,
   now = () => Date.now(),
 } = {}) {
   const correlationId = `snapback-expo-boot-${++bootSequence}`;
@@ -287,6 +298,8 @@ export function createSnapbackExpoBoot({
   let cleanupPromise = null;
   let disposePromise = null;
   let admittedBindingAdmission = null;
+  let rqsStoreLease = null;
+  let resolvedRqsStore = rqsStore;
   const listeners = new Set();
   const controller = new AbortController();
 
@@ -360,6 +373,10 @@ export function createSnapbackExpoBoot({
       try { await applicationClient.dispose(); } catch { /* bootstrap owner retains diagnostics */ }
       applicationClient = null;
     }
+    if (rqsStoreLease) {
+      try { await rqsStoreLease.release(); } catch { /* store refusal is already reported */ }
+      rqsStoreLease = null;
+    }
   })();
 
   const projectApplicationBootstrap = () => {
@@ -412,6 +429,24 @@ export function createSnapbackExpoBoot({
       admittedBindingAdmission = admission;
       if (disposed) return state;
 
+      // Binding supplies the canonical origin. Acquire the provider default
+      // only after that point and before either client-construction branch;
+      // explicit stores (including null) bypass all native module loading.
+      if (rqsStore === undefined) {
+        const runtimeKind = await awaitBoundary(resolveExpoSqliteRuntimeKind(environment));
+        rqsStoreLease = await awaitBoundary(acquireDefaultRqsStore({
+          app,
+          binding: admittedBinding,
+          environment,
+          runtimeKind,
+        }), (lateLease) => lateLease?.release?.());
+        resolvedRqsStore = rqsStoreLease.resolution;
+      }
+      if (disposed) {
+        await cleanup();
+        return state;
+      }
+
       if (firstPartyBootstrapOptIn(app)) {
         const platform = await awaitBoundary(resolveAppClientPlatform(environment, app));
         applicationClient = await awaitBoundary(createApplicationClient(
@@ -421,6 +456,7 @@ export function createSnapbackExpoBoot({
             platform,
             now,
             signal: controller.signal,
+            rqsStore: resolvedRqsStore,
           },
           (snapshot) => {
             if (!disposed && snapshot.status !== 'ready') publish(snapshot);
@@ -514,6 +550,7 @@ export function createSnapbackExpoBoot({
           app,
           binding: admittedBinding,
           signal: controller.signal,
+          rqsStore: resolvedRqsStore,
         })), (lateAdoption) => lateAdoption?.dispose?.());
       } catch (error) {
         if (
@@ -786,6 +823,7 @@ export function SnapbackExpoProvider({
   app,
   binding = null,
   environment = defaultSnapbackExpoEnvironment,
+  rqsStore = undefined,
   fallback = null,
   children = null,
   outboxDrain = 'auto',
@@ -810,10 +848,10 @@ export function SnapbackExpoProvider({
         for (const listener of [...listeners]) listener();
       },
     });
-  }, [app, binding, environment]);
+  }, [app, binding, environment, rqsStore]);
   const active = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   useEffect(() => {
-    const boot = createSnapbackExpoBoot({ app, binding, environment });
+    const boot = createSnapbackExpoBoot({ app, binding, environment, rqsStore });
     let current = true;
     const sync = () => {
       if (!current) return;
@@ -832,7 +870,7 @@ export function SnapbackExpoProvider({
       unsubscribe();
       void boot.dispose();
     };
-  }, [app, binding, environment, store]);
+  }, [app, binding, environment, rqsStore, store]);
   const state = active.state;
   const lifecycleValue = useMemo(() => Object.freeze({
     environment,

@@ -100,6 +100,13 @@ fallback elsewhere, reporting the resolved implementation and durability on
 `client.rqsStoreInfo` (pass `rqsStore: null` or set
 `SNAPBACK_CLIENT_RQS_STORE=off` to opt out).
 
+The Expo provider resolves its platform default only after binding supplies
+the canonical origin. The SQLite carrier code is present, but the packaged
+target manifest is empty pending separate real-device iOS and Android
+qualification. Without a registered legacy file carrier, Expo therefore uses
+memory and reports `expo-sqlite-carrier-pending-qualification`; it does not
+queue or claim retained cold-boot facts at this stage.
+
 ### Branch on a persisted binding receipt at offline cold boot
 
 `prepareReactBinding` may return a ready binding with
@@ -608,7 +615,9 @@ query in that class requests and maintains durable retention automatically;
 the app does not set `persistResume`, `retainable`, or
 `authorityIndependent` for this purpose. A fresh client can therefore render
 the proof-verified facts with `freshness: 'retained'` while the server is
-unreachable. The current Expo memory carrier is not part of this claim.
+unreachable. The current Expo default is not part of this claim: SQLite
+remains behind an empty real-device publication manifest, and its fallback
+reports volatile.
 This no-declaration derivation is implemented on the local/Ibex host. The
 Cloudflare coordinator still requires a validated
 `authorityIndependent: true` flag alongside the same closed-plan proof;
@@ -941,10 +950,11 @@ proofs. An authority change therefore retains the predecessor proof rather
 than leaking its id into, or deleting it under, the successor. A volatile
 memory fallback reports `durable: false`, does not auto-queue, and refuses
 `queue: true` with `SNAPBACK_OFFLINE_QUEUE_DISABLED` before network
-dispatch. The current Expo file adapter makes the
-same conservative report because its File/Directory API exposes no fsync cut
-and has a non-atomic compatibility replacement; it can cache RQS rows but does
-not own durable settlement publication.
+dispatch. Expo makes the same conservative report at this landing: the legacy
+File/Directory adapter lacks an fsync/atomic-replace cut, while the new SQLite
+carrier has no published real-device target row yet. Either path may support
+Online operation, but neither owns durable settlement publication until the
+SQLite receipt and manifest row land for that exact target cell.
 
 Deploying a bundle that removes or renames the mutation does not strand an
 already committed result. Until ACK, the server can recover it through the

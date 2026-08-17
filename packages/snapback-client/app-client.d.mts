@@ -206,4 +206,6 @@ export function createSnapbackAppClient(input: Readonly<{
   /** Cancels in-flight bootstrap construction and disposes any partially
    * constructed custody/coordinator/client owners. */
   signal?: AbortSignal;
+  /** Provider-resolved RQS store/default-resolution. */
+  rqsStore?: unknown;
 }>): Promise<SnapbackAppClient>;

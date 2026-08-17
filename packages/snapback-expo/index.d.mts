@@ -8,6 +8,7 @@ import type {
   SnapbackApplicationDescriptorV1,
   SnapbackClient,
 } from '@expo/snapback-client';
+import type { RqsResumeStore as RqsStore } from '@expo/snapback-client/rqs-store';
 import type {
   SnapbackDiagnostic,
   SnapbackReactProvider,
@@ -247,6 +248,23 @@ export interface SnapbackExpoEnvironmentV1 {
   }>): SnapbackAppClientPlatform | Promise<SnapbackAppClientPlatform>;
   /** Narrow host-OS seam used before the evidence-gated native custody load. */
   resolveNativeAuthCustodyOperatingSystem?(): string | Promise<string>;
+  /** Test/host seams for exact Expo SQLite target-cell resolution. */
+  resolveExpoSqliteOperatingSystem?(): string | Promise<string>;
+  resolveExpoSqliteRuntimeKind?(): string | Promise<string>;
+  resolveExpoSqliteTarget?(): Readonly<Record<string, unknown>> | Promise<Readonly<Record<string, unknown>>>;
+  resolveExpoSqliteReactNativeModule?(): unknown | Promise<unknown>;
+  resolveExpoDeviceModule?(): unknown | Promise<unknown>;
+  resolveExpoSqliteModule?(): unknown | Promise<unknown>;
+  resolveExpoFileSystemModule?(): unknown | Promise<unknown>;
+  resolveExpoLegacyRqsFiles?(): Readonly<{
+    directory: string;
+    files: import('@expo/snapback-client/rqs-store-file').RqsFilesAdapter;
+    randomBytes?: (length: number) => Uint8Array;
+  }> | null | Promise<Readonly<{
+    directory: string;
+    files: import('@expo/snapback-client/rqs-store-file').RqsFilesAdapter;
+    randomBytes?: (length: number) => Uint8Array;
+  }> | null>;
   resolveBinding(input: Readonly<{
     app: AppDescriptorV1Like;
     bindingOverride: AppBindingV1 | null;
@@ -262,6 +280,7 @@ export interface SnapbackExpoEnvironmentV1 {
     app: AppDescriptorV1Like;
     binding: AppBindingV1;
     signal: AbortSignal;
+    rqsStore?: unknown;
   }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;
   /** Supervised carrier handoff used only by the first-party app owner. */
   resolveSupervisedAuthority?(input: Readonly<{
@@ -334,10 +353,30 @@ export interface SnapbackExpoBootController {
 
 export const defaultSnapbackExpoEnvironment: SnapbackExpoEnvironmentV1;
 
+export function resolveDefaultExpoSqliteOperatingSystem(options?: Readonly<{
+  resolveReactNativeModule?: () => unknown | Promise<unknown>;
+}>): Promise<string>;
+
+export function resolveDefaultExpoSqliteTarget(options?: Readonly<{
+  operatingSystem?: string | null;
+  resolveReactNativeModule?: () => unknown | Promise<unknown>;
+  resolveExpoDeviceModule?: () => unknown | Promise<unknown>;
+}>): Promise<Readonly<{
+  operatingSystem?: string;
+  osVersion?: string;
+  architecture?: string;
+  distribution: 'development' | 'release';
+  deviceClass?: 'real-device' | 'emulator' | 'simulator';
+}>>;
+
 export function createSnapbackExpoBoot(options: Readonly<{
   app: AppDescriptorV1Like;
   binding?: AppBindingV1 | null;
   environment?: SnapbackExpoEnvironmentV1;
+  /** Explicit store or null opt-out. Omission requests the evidence-gated
+   * default; pending/unqualified target rows resolve to the reported volatile
+   * fallback rather than a durable carrier. */
+  rqsStore?: RqsStore | null;
   createProvider?: (
     binding: PreparedReactBinding,
     options: Readonly<{ assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter }>,
@@ -353,6 +392,7 @@ export function createSnapbackExpoBoot(options: Readonly<{
     platform: SnapbackAppClientPlatform;
     now?: () => number;
     signal?: AbortSignal;
+    rqsStore?: unknown;
   }>, observer: (snapshot: AuthBootstrapSnapshot) => void) => Promise<SnapbackAppClient>;
   adoptSupervisedAuthority?: (
     appClient: SnapbackAppClient,
@@ -370,6 +410,10 @@ export function SnapbackExpoProvider(props: Readonly<{
   app: AppDescriptorV1Like;
   binding?: AppBindingV1 | null;
   environment?: SnapbackExpoEnvironmentV1;
+  /** Explicit store or null opt-out. Omission requests the evidence-gated
+   * default; pending/unqualified target rows resolve to the reported volatile
+   * fallback rather than a durable carrier. */
+  rqsStore?: RqsStore | null;
   fallback?: any | ((state: ExpoBootState) => any);
   children?: any;
   outboxDrain?: 'auto' | 'manual';

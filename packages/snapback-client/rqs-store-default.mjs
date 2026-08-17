@@ -32,6 +32,57 @@ const REQUIRED_NATIVE_FILES_METHODS = [
 
 let nativeRqsFiles = null;
 
+// Expo's provider-level default installer needs to inspect the already
+// registered legacy carrier before deciding whether SQLite may replace it.
+// The returned registration is immutable; callers cannot mutate the module
+// resolver's state through this seam.
+export function registeredNativeRqsFiles() {
+  return nativeRqsFiles;
+}
+
+// The Expo provider retains default resolutions in a realm-global registry.
+// A module-scoped WeakSet loses those brands when Metro replaces this module
+// during HMR, so put the versioned brand on the retained envelope itself.
+// Symbol.for keeps the identity stable across those module evaluations while
+// the non-enumerable property keeps the public resolution shape unchanged.
+export const DEFAULT_RQS_STORE_RESOLUTION_BRAND = Symbol.for(
+  '@expo/snapback-client/default-rqs-store-resolution.v1',
+);
+const DEFAULT_RQS_STORE_RESOLUTION_BRAND_VALUE = 'snapback.default-rqs-store-resolution.v1';
+
+// A provider may acquire a default store asynchronously before constructing
+// SnapbackClient. Branding preserves the public `source: "default"` fact
+// while keeping ordinary object-shaped injected stores unambiguous.
+export function brandDefaultRqsStoreResolution(resolution) {
+  if (
+    resolution === null
+    || typeof resolution !== 'object'
+    || !('store' in resolution)
+    || resolution.info?.source !== 'default'
+  ) {
+    throw new TypeError('default RQS store resolution requires a default-source info record');
+  }
+  const branded = resolution[DEFAULT_RQS_STORE_RESOLUTION_BRAND];
+  if (branded !== undefined && branded !== DEFAULT_RQS_STORE_RESOLUTION_BRAND_VALUE) {
+    throw new TypeError('default RQS store resolution has an incompatible brand');
+  }
+  if (branded === undefined) {
+    Object.defineProperty(resolution, DEFAULT_RQS_STORE_RESOLUTION_BRAND, {
+      configurable: false,
+      enumerable: false,
+      writable: false,
+      value: DEFAULT_RQS_STORE_RESOLUTION_BRAND_VALUE,
+    });
+  }
+  return resolution;
+}
+
+export function isDefaultRqsStoreResolution(value) {
+  return value !== null
+    && typeof value === 'object'
+    && value[DEFAULT_RQS_STORE_RESOLUTION_BRAND] === DEFAULT_RQS_STORE_RESOLUTION_BRAND_VALUE;
+}
+
 export function registerNativeRqsFiles(provider) {
   const { files, directory, implementation = null, randomBytes } = provider ?? {};
   if (typeof directory !== 'string' || directory.length === 0) {

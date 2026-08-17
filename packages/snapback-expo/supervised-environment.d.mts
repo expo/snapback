@@ -96,6 +96,9 @@ export function createSupervisedExpoEnvironment(options?: Readonly<{
   runtimePlatform?: 'native' | 'web';
   /** Protocol-test injection until the first-party native reader lands. */
   nativeLaunchEnvironment?: Readonly<Record<string, string | undefined>> | null;
+  /** Test/host dependency seams used by the framework-owned SQLite target resolver. */
+  resolveExpoSqliteReactNativeModule?: () => unknown | Promise<unknown>;
+  resolveExpoDeviceModule?: () => unknown | Promise<unknown>;
   bindingCache?: SupervisedBindingCache | null;
   onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
 }>): SupervisedSnapbackExpoEnvironmentV1;

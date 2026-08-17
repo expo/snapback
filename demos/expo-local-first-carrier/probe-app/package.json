@@ -1,0 +1,21 @@
+{
+  "name": "snapback-expo-sqlite-carrier-probe",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "prebuild": "expo prebuild"
+  },
+  "dependencies": {
+    "@expo/snapback-client": "file:../../../packages/snapback-client",
+    "@expo/snapback-expo": "file:../../../packages/snapback-expo",
+    "expo": "~57.0.7",
+    "expo-crypto": "~57.0.1",
+    "expo-device": "~57.0.1",
+    "expo-linking": "~57.0.1",
+    "expo-sqlite": "~57.0.1",
+    "react": "19.1.0",
+    "react-native": "0.86.2"
+  }
+}

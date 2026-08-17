@@ -553,10 +553,11 @@ function preflight(input) {
   if (Object.hasOwn(input, 'storagePartition')) expectedInputKeys.push('storagePartition');
   if (Object.hasOwn(input, 'now')) expectedInputKeys.push('now');
   if (Object.hasOwn(input, 'signal')) expectedInputKeys.push('signal');
+  if (Object.hasOwn(input, 'rqsStore')) expectedInputKeys.push('rqsStore');
   if (!exactKeys(input, expectedInputKeys)) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID',
-      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition, now, and signal.',
+      'createSnapbackAppClient accepts only app, binding, platform, and optional storagePartition, now, signal, and rqsStore.',
       { actualKeys: Object.keys(input).sort() },
     );
   }
@@ -603,7 +604,16 @@ function preflight(input) {
       );
     }
   }
-  return Object.freeze({ app, binding, platform, policy, storagePartition, signal });
+  return Object.freeze({
+    app,
+    binding,
+    platform,
+    policy,
+    storagePartition,
+    signal,
+    rqsStore: input.rqsStore,
+    rqsStoreIdentity: Object.hasOwn(input, 'rqsStore') ? input.rqsStore : undefined,
+  });
 }
 
 const ownerKey = (appId, storagePartition) => (
@@ -893,6 +903,7 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
     binding: preflighted.binding,
     platform: preflighted.platform,
     storagePartition: preflighted.storagePartition,
+    rqsStoreIdentity: preflighted.rqsStoreIdentity,
     policy: preflighted.policy,
     policyIdentity: policyIdentity(preflighted.policy),
     generationIdentity: generationIdentity(preflighted),
@@ -951,6 +962,7 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
       // will correctly refuse.
       authInvalidationProtocol: 1,
       authorityDescriptorProtocol: 1,
+      rqsStore: preflighted.rqsStore,
     });
     const restoredCapture = await awaitConstructionBoundary(
       owner.coordinator.synchronize(),
@@ -1008,6 +1020,19 @@ const serializeEntry = async (entry, operation) => {
 };
 
 function assertCompatibleRebind(owner, candidate) {
+  if (owner.rqsStoreIdentity !== candidate.rqsStoreIdentity) {
+    throw refusal(
+      'SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT',
+      'This live application owner is already bound to a different RQS store identity.',
+      { appId: candidate.app.identity.app },
+      [remediation(
+        'disposeAndReconstruct',
+        'Dispose every projection for this owner key before changing its RQS store.',
+        { appId: candidate.app.identity.app },
+        { authorityEffect: 'none' },
+      )],
+    );
+  }
   if (owner.conflictIdentity !== conflictIdentity(candidate.binding)) {
     throw refusal(
       'SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT',

@@ -24,6 +24,10 @@ export {
   resolveSupervisedExpoExchangeOrigin,
 } from './supervised-environment.mjs';
 export {
+  resolveDefaultExpoSqliteOperatingSystem,
+  resolveDefaultExpoSqliteTarget,
+} from './expo-sqlite-target.mjs';
+export {
   adaptExpoAssetSource,
   createExpoAssetSourceAdapter,
   expoAssetFetch,

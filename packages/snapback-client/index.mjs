@@ -187,7 +187,10 @@ export {
   readRqsPreloadRegistry,
   RQS_BOOT_ELEMENT_ID,
 } from './rqs-preload-core.mjs';
-import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
+import {
+  isDefaultRqsStoreResolution,
+  resolveDefaultRqsStore,
+} from './rqs-store-default.mjs';
 
 // Connectivity classification (transport provenance, 0137 A1-Expo f2) now
 // lives in outbox-shared.mjs so the binding-receipt path in react-binding.mjs
@@ -2668,7 +2671,14 @@ export class SnapbackClient {
     // is the opt-out. The resolved implementation and durability mode are
     // always reported (LLP 0008 DK-9).
     let registrationRandomBytes;
-    if (rqsStore === undefined) {
+    if (isDefaultRqsStoreResolution(rqsStore)) {
+      this.rqsStore = rqsStore.store;
+      this.rqsStoreInfo = rqsStore.info;
+      // Provider-level acquisition owns the shared registry refcount and is
+      // therefore the only layer allowed to close this default connection.
+      this.__ownsRqsStore = false;
+      registrationRandomBytes = rqsStore.randomBytes;
+    } else if (rqsStore === undefined) {
       const resolved = resolveDefaultRqsStore({ baseUrl: this.baseUrl });
       this.rqsStore = resolved.store;
       this.rqsStoreInfo = resolved.info;

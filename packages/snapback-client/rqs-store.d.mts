@@ -127,7 +127,10 @@ export function rqsEvictionOrder(
 
 export type RqsStoreCommitResult =
   | Readonly<{ persisted: true; reason: null; bytes: number; evicted: readonly string[] }>
-  | Readonly<{ persisted: false; reason: 'not_writer' | 'key' | 'oversize' | 'corrupt' }>;
+  | Readonly<{
+    persisted: false;
+    reason: 'not_writer' | 'key' | 'oversize' | 'corrupt' | 'capacity';
+  }>;
 
 export interface RqsStoreInspection {
   readonly writer: boolean;

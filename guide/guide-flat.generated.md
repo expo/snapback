@@ -78,9 +78,9 @@ Owner: `ccheever`; label gaps `guide-gap`.
 | realtime.ephemeral | Typed ephemeral rooms/React presence: typing, cursors, TTL, activity-idle and Expo background withdrawal; 1s delivery budget | presence, cursors, ephemeral, useSnapbackPresence, useSnapbackActivityPresence, typing indicator, Supabase Presence, Supabase Broadcast, presence withdrawal | local | shipped | route /ephemeral/publish + React/Expo activity hook tests | llp/0013, llp/0107, llp/0114, llp/0247, llp/0257 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | RQS bundles evaluate a served route's queries at one commit with resume tokens; register mode arms live owners. Structured args accept `routeParam()` at object-reachable leaves beside validated literal context (contributor-only after 0.1.15). Local Experimental mixed-route evaluates live and ordinary children at one snapshot, registering only live children. Legacy adoption remains prove-or-fresh; `publicInline` powers Channel A; Cloudflare read mode ships while register/mixed remain deferred. | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest, routeParam, nested routeParam, structured route arguments, route group args, query context | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) + packages/snapback-codegen/authoring-validation.test.mjs | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
-| sync.offline-js-arm | JS/React offline: IndexedDB/Web Locks, Node files, memory fallback; mounted owner-admitted public-exact queries retain by default on qualified durable stores; protected/opaque/memory behavior unchanged; durable M2 outbox; default generated-IR optimistic projection/restart rebase; platform drain. The real-Chrome witness uses generated `todosFeed` with no retention declaration, survives a process restart, rotates owner generation across custody modes, and refuses generated opaque `protectedTodosFeed`. Prediction is never authority; no blanket `Parity` or Expo retention claim | offline browser, cold boot, restart-safe queue, IndexedDB, default public retention, optimistic replay, pending intent render, queued dispatch union, platform drain | local | partial | packages/snapback-client/materialization-bridge.test.mjs + packages/snapback-client/generated-optimistic-default.test.mjs + packages/snapback-client/rqs-resume.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166, llp/0218, llp/0270 | sync/offline-and-retention.md |
+| sync.offline-js-arm | JS/React offline: IndexedDB/Web Locks, Node files, memory fallback; mounted owner-admitted public-exact queries retain by default on qualified durable stores; protected/opaque/memory behavior unchanged; durable M2 outbox; generated optimistic restart rebase; platform drain. Chrome proves generated public retention and opaque refusal. Expo SQLite is code-complete but pending real-device qualification; no blanket Expo retention/Parity claim. Prediction is never authority | offline browser, cold boot, restart-safe queue, IndexedDB, default public retention, optimistic replay, pending intent render, queued dispatch union, platform drain | local | partial | packages/snapback-client/materialization-bridge.test.mjs + packages/snapback-client/generated-optimistic-default.test.mjs + packages/snapback-client/rqs-resume.test.mjs + demos/browser-local-first/tests/acceptance/browser-public-witness.mjs | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166, llp/0218, llp/0270 | sync/offline-and-retention.md |
 | sync.offline-js-arm-sessions | JS browser-session/agent-custody queue: enqueue captures authority, principal scope, and custody lineage. Same-principal replacement strands rerecordable work for explicit read/discard/re-record with a new id; principal change privacy-deletes old bytes and reports a count before successor observation. Stale-auth replay strands; content refusal fails. Server-refusal-only v1: no LLP 0053 queue-obligation port (Contract asymmetry). | sessions custody, agent custody offline, strand, re-record, cross-principal delete, offline auth queue | local | shipped | demos/card-game/tests/acceptance/offline-sessions-custody.mjs + packages/snapback-client/outbox-custody.test.mjs | llp/0043, llp/0053, llp/0129 | sync/offline-and-retention.md |
-| sync.local-persistent-store | LLP 0166 v3 store/hydration per `clientStoreId`: trusted activation, completeness proof, programmatic/manifest preload, proof-checked relaunch. Mounted `single_table_v1@1` demand automatically requests durable retention but its registration lifecycle stays volatile; programmatic durable demand persists. Protected classes still require lease. D7 passes IndexedDB/Node-file; memory/Expo refuse durable. Contributor carrier: Experimental 17 PASS; Triage/Fleet 8/8. Remote/Cloudflare nonclaims. | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094, llp/0270 | sync/offline-and-retention.md |
+| sync.local-persistent-store | LLP 0166 v3 store/hydration per `clientStoreId`: trusted activation, completeness proof, preload, proof-checked relaunch, durable programmatic demand. Mounted `single_table_v1@1` demand requests durable retention; protected classes require lease. D7 passes IndexedDB/Node-file; memory refuses. Expo SQLite is pending real-device qualification and its packaged manifest is empty. Contributor carrier: Experimental 17 PASS; Triage/Fleet 8/8. Remote/Cloudflare nonclaims. | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json + tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0135, llp/0110, llp/0094, llp/0270 | sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention for generated JS/React live queries: exact namespace, atomic fresh-query/lease custody, equality expiry, and mismatch delete-before-render | offline auth browser, lease js, private chat offline | local | partial | packages/snapback-client/rqs-resume.test.mjs (custody matrix + fresh-client offline handoff) | llp/0043, llp/0053, llp/0129 | GAP (real-process restart witness; owner: orchestrator, review: 2026-08-26; issue: issues/20260801-js-arm-integrated-authenticated-restart-witness.md); sync/offline-and-retention.md |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-28; issue: issues/20260802-0133-receipt-wire-coordination.md) |
 | api.external-exposure | Opt-in `/api/v1` + CORS; local OAuth/PKCE and remote MCP; capability links, durable watches, and approval-gated mutation/action effects; read-only `ask` v1 with provider credentials, result schemas, durable token/result-volume budgets, and HMAC provenance receipts. Telemetry stays lossy; billing metering is a gap | external api, oauth, remote mcp, approval, effects, capability links, watches, ask, near-data ai, api budgets | local | partial | route /effects + src/storage/pending_effects.rs + route /api/v1/ask + src/storage/ask_spend.rs | llp/0204, llp/0031, llp/0055, llp/0150 | backend/external-api.md |
@@ -15435,7 +15435,7 @@ local-first behavior or Parity.
 
 Everything on the React page applies here — this page covers only what is
 different on the RN carrier: the boot path, the crypto prerequisites, the
-store consequence, the offline queue, and reconnect honesty. In particular,
+store consequence, queue refusal, and reconnect honesty. In particular,
 optimistic mutations work unchanged: for a like/favorite button backed by a
 live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
 rather than component state plus a local counter delta.
@@ -15492,8 +15492,8 @@ bin is correct only once `@expo/snapback-cli` is a dependency of the project
 you are standing in, as it is in the existing-app flow below.
 
 When adding Snapback to an **existing** standalone Expo 57 app, install the
-package roots that the app imports plus the native file, random, and picker
-modules used by the durable image path. Install the five Snapback roots
+package roots that the app imports plus the legacy file-store, random, and
+picker modules used by the template. Install the five Snapback roots
 together so the lock holds one coherent version vector — the newest
 published closure is the checked-in record in
 [`published-closure.json`](../published-closure.json):
@@ -16054,7 +16054,7 @@ constructing the client. Expo apps can hand `expo-crypto` directly to the
 store registration as shown below, without mutating `globalThis`; a global
 polyfill also works. Bare RN can use `react-native-get-random-values`.
 
-## The store: relaunch-durable on-device once the app registers its filesystem
+## The store: useful relaunch persistence, but no durable queue claim yet
 
 The client package never imports `expo-file-system` (Metro statically
 resolves every literal specifier reachable from the root, so a platform
@@ -16103,8 +16103,19 @@ release Hermes build — `demos/rn-durable-store-witness/`):
   `freshness: 'retained'` under an honest non-live connection fact.
   Protected (authority-scoped) queries are never cold-retained on this arm
   and their `handle.retention` names the refusal.
-- **A restart-durable offline queue:** queued mutations survive relaunch,
-  not just the process.
+- **No restart-safe queue claim:** the file adapter cannot publish mutation
+  settlement durably, so automatic queueing stays disabled. Explicit
+  `queue: true` refuses instead of weakening LLP 0043's custody cut.
+
+`SnapbackExpoProvider` now carries the no-ceremony Expo SQLite acquisition
+path and accepts `rqsStore` for explicit injection or `null` opt-out. At this
+code landing its packaged publication manifest is empty. On iOS and Android,
+an app without an already-registered legacy file carrier therefore reports
+`{ source: 'default', implementation: 'memory', durable: false, reason:
+'expo-sqlite-carrier-pending-qualification' }`. A registered legacy carrier
+remains unchanged. Real-device iOS and Android receipts must land before any
+target row can report `expo-sqlite`/`durable: true`; simulator and Node runs
+are supporting evidence only.
 
 Offline cold boot of the hook path follows the binding-receipt fallback on
 this carrier: a prior successful online preparation over the registered file
@@ -16210,15 +16221,16 @@ Two sharp edges, stated plainly:
   (`createExpoRqsResumeStore({ fileSystem })` is the packaged convenience
   for Expo modules).
 
-## The offline queue works on this carrier
+## The restart-safe offline queue is not yet available on this carrier
 
-With a store injected (or the default memory store) the LLP 0043 M2 queue
-engages on Expo: connectivity is classified by transport provenance — the
-fetch dispatch itself rejected, with no HTTP status, diagnostic, or receipt
-— independent of the rejection's constructor, so Expo's plain-`Error` fetch
-rejections queue exactly like undici's `TypeError` shape. Server-answered
-refusals and caller aborts never queue. With the registered file store
-above, the queue is also restart-durable. See
+The default memory store is volatile, and the registered Expo file store
+reports `durable: false`; neither one engages LLP 0043 M2 restart-safe queue
+custody. Explicit `queue: true` on either current fallback raises
+`SNAPBACK_OFFLINE_QUEUE_DURABILITY_REQUIRED` instead of accepting an intent it
+cannot publish durably. Transport failures are still classified by dispatch
+provenance (including Expo's plain-`Error` fetch rejection), but only an
+explicitly injected store whose durability contract is qualified can admit
+the queue; server-answered refusals and caller aborts never queue. See
 [offline and retention](../sync/offline-and-retention.md) for the mechanics
 and `useSnapbackOutbox()` for rendering the queued state.
 
@@ -25545,7 +25557,7 @@ reviewed-authorities-digest: sha256:c04b9e88bea00ec4171cba47d80e5a9b4e027073297b
 
 This build-bound registry is generated from production Rust, JavaScript, and Swift sources. Use `snapback guide SNAPBACK_*` for an exact, bounded lookup before searching prose.
 
-**3,384 stable codes** from 470 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
+**3,396 stable codes** from 473 production source files. The [machine-readable registry](./diagnostics-registry.json) carries every emitting site.
 
 | Code | Subsystem | HTTP | Guide | First emitting site | Sites |
 | --- | --- | ---: | --- | --- | ---: |
@@ -25557,8 +25569,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-action-metadata-serialize-failed"></a>`SNAPBACK_ACTION_METADATA_SERIALIZE_FAILED` | server | — | — | `src/runtime.rs:4810` | 1 |
 | <a id="diagnostic-snapback-action-mutation-reference-invalid"></a>`SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID` | server | 400 | — | `src/manifest.rs:3573` | 2 |
 | <a id="diagnostic-snapback-action-progress-rate-exceeded"></a>`SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` | harness | 429 | [guide](../backend/streamed-actions.md#design-for-the-v1-limits) | `packages/snapback-harness/envelope.mjs:69` | 7 |
-| <a id="diagnostic-snapback-action-raw-deprecated"></a>`SNAPBACK_ACTION_RAW_DEPRECATED` | client | — | — | `packages/snapback-client/index.mjs:7618` | 1 |
-| <a id="diagnostic-snapback-action-refused"></a>`SNAPBACK_ACTION_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:7632` | 1 |
+| <a id="diagnostic-snapback-action-raw-deprecated"></a>`SNAPBACK_ACTION_RAW_DEPRECATED` | client | — | — | `packages/snapback-client/index.mjs:7628` | 1 |
+| <a id="diagnostic-snapback-action-refused"></a>`SNAPBACK_ACTION_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:7642` | 1 |
 | <a id="diagnostic-snapback-action-replay-diverged"></a>`SNAPBACK_ACTION_REPLAY_DIVERGED` | harness | — | — | `packages/snapback-harness/envelope.mjs:83` | 1 |
 | <a id="diagnostic-snapback-action-secrets"></a>`SNAPBACK_ACTION_SECRETS` | server | — | — | `src/config.rs:591` | 6 |
 | <a id="diagnostic-snapback-action-secrets-deprecated"></a>`SNAPBACK_ACTION_SECRETS_DEPRECATED` | server | — | — | `src/local.rs:18619` | 1 |
@@ -25806,7 +25818,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-app-binding-source-unsupported"></a>`SNAPBACK_APP_BINDING_SOURCE_UNSUPPORTED` | application | — | — | `packages/snapback-expo/app-binding.mjs:159` | 2 |
 | <a id="diagnostic-snapback-app-binding-target-invalid"></a>`SNAPBACK_APP_BINDING_TARGET_INVALID` | application | — | — | `packages/snapback-client/app-client.mjs:405` | 8 |
 | <a id="diagnostic-snapback-app-binding-target-unadmitted"></a>`SNAPBACK_APP_BINDING_TARGET_UNADMITTED` | application | — | — | `packages/snapback-expo/app-binding.mjs:575` | 2 |
-| <a id="diagnostic-snapback-app-binding-unavailable"></a>`SNAPBACK_APP_BINDING_UNAVAILABLE` | application | — | [guide](../sync/offline-and-retention.md#branch-on-a-persisted-binding-receipt-at-offline-cold-boot) | `packages/snapback-expo/provider.mjs:395` | 2 |
+| <a id="diagnostic-snapback-app-binding-unavailable"></a>`SNAPBACK_APP_BINDING_UNAVAILABLE` | application | — | [guide](../sync/offline-and-retention.md#branch-on-a-persisted-binding-receipt-at-offline-cold-boot) | `packages/snapback-expo/provider.mjs:412` | 2 |
 | <a id="diagnostic-snapback-app-cli-aborted"></a>`SNAPBACK_APP_CLI_ABORTED` | application | — | — | `packages/snapback-app-cli/code-mode-ibex.mjs:311` | 2 |
 | <a id="diagnostic-snapback-app-cli-agent-admission-timeout"></a>`SNAPBACK_APP_CLI_AGENT_ADMISSION_TIMEOUT` | application | — | — | `packages/snapback-app-cli/auth.mjs:454` | 2 |
 | <a id="diagnostic-snapback-app-cli-agent-origin-unsafe"></a>`SNAPBACK_APP_CLI_AGENT_ORIGIN_UNSAFE` | application | — | — | `packages/snapback-app-cli/auth.mjs:307` | 5 |
@@ -25867,7 +25879,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-app-session-bearer"></a>`SNAPBACK_APP_SESSION_BEARER` | application | — | — | `packages/snapback-app-cli/auth.mjs:43` | 2 |
 | <a id="diagnostic-snapback-args--"></a>`SNAPBACK_ARGS__` | server | — | — | `src/runtime.rs:7878` | 1 |
 | <a id="diagnostic-snapback-argument-normalization-failed"></a>`SNAPBACK_ARGUMENT_NORMALIZATION_FAILED` | client | — | — | `packages/snapback-client/argument-normalization.mjs:13` | 3 |
-| <a id="diagnostic-snapback-argument-validation-failed"></a>`SNAPBACK_ARGUMENT_VALIDATION_FAILED` | client | — | [guide](../backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments) | `packages/snapback-client/index.mjs:17261` | 2 |
+| <a id="diagnostic-snapback-argument-validation-failed"></a>`SNAPBACK_ARGUMENT_VALIDATION_FAILED` | client | — | [guide](../backend/trusted-runtime-values.md#keep-generated-fields-out-of-operation-arguments) | `packages/snapback-client/index.mjs:17271` | 2 |
 | <a id="diagnostic-snapback-arg-missing"></a>`SNAPBACK_ARG_MISSING` | codegen | 400 | — | `packages/snapback-codegen/data-tier-corpus.mjs:555` | 8 |
 | <a id="diagnostic-snapback-artifact-encoding-unexpected"></a>`SNAPBACK_ARTIFACT_ENCODING_UNEXPECTED` | client | — | — | `packages/snapback-client/app-data.mjs:250` | 1 |
 | <a id="diagnostic-snapback-artifact-identity-mismatch"></a>`SNAPBACK_ARTIFACT_IDENTITY_MISMATCH` | app-cli | 409 | [guide](../clients/headless.md#call-ordinary-functions) | `packages/snapback-app-cli/result-core.mjs:50` | 11 |
@@ -26012,7 +26024,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-authoring-string-bound-unresolved"></a>`SNAPBACK_AUTHORING_STRING_BOUND_UNRESOLVED` | codegen | — | — | `packages/snapback-codegen/declaration-suggestion.mjs:1239` | 1 |
 | <a id="diagnostic-snapback-authoring-suggestion-input-invalid"></a>`SNAPBACK_AUTHORING_SUGGESTION_INPUT_INVALID` | codegen | — | — | `packages/snapback-cli/index.mjs:5336` | 3 |
 | <a id="diagnostic-snapback-authoring-union-unsupported"></a>`SNAPBACK_AUTHORING_UNION_UNSUPPORTED` | codegen | — | — | `packages/snapback-codegen/declaration-suggestion.mjs:1265` | 1 |
-| <a id="diagnostic-snapback-authority-descriptor-invalid"></a>`SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID` | client | — | — | `packages/snapback-client/index.mjs:5448` | 6 |
+| <a id="diagnostic-snapback-authority-descriptor-invalid"></a>`SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID` | client | — | — | `packages/snapback-client/index.mjs:5458` | 6 |
 | <a id="diagnostic-snapback-authority-descriptor-required"></a>`SNAPBACK_AUTHORITY_DESCRIPTOR_REQUIRED` | contract | — | — | `packages/snapback-contract/client-store.mjs:2967` | 1 |
 | <a id="diagnostic-snapback-authority-independent-invalid"></a>`SNAPBACK_AUTHORITY_INDEPENDENT_INVALID` | server | 400 | — | `src/local.rs:29136` | 3 |
 | <a id="diagnostic-snapback-authority-owner-count-invalid"></a>`SNAPBACK_AUTHORITY_OWNER_COUNT_INVALID` | server | 409 | — | `src/server/api_error.rs:560` | 2 |
@@ -26111,26 +26123,27 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-barrier-phase-closure-retry"></a>`SNAPBACK_AUTH_BARRIER_PHASE_CLOSURE_RETRY` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:27` | 1 |
 | <a id="diagnostic-snapback-auth-binding-table-invalid"></a>`SNAPBACK_AUTH_BINDING_TABLE_INVALID` | auth | — | — | `packages/snapback-codegen/index.mjs:3088` | 3 |
 | <a id="diagnostic-snapback-auth-binding-write-forbidden"></a>`SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN` | auth | 403 | [guide](../auth/app-identity-binding.md#claims-can-inform-behavior-they-cannot-populate-a-binding-yet) | `packages/snapback-codegen/index.mjs:19080` | 7 |
-| <a id="diagnostic-snapback-auth-body-auth-unsupported"></a>`SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` | auth | 400 | [guide](../auth/sessions-and-principals.md#queries-are-scoped-by-the-server-not-by-arguments) | `packages/snapback-client/index.mjs:5457` | 5 |
+| <a id="diagnostic-snapback-auth-body-auth-unsupported"></a>`SNAPBACK_AUTH_BODY_AUTH_UNSUPPORTED` | auth | 400 | [guide](../auth/sessions-and-principals.md#queries-are-scoped-by-the-server-not-by-arguments) | `packages/snapback-client/index.mjs:5467` | 5 |
 | <a id="diagnostic-snapback-auth-bootstrap-app-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_APP_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:286` | 2 |
-| <a id="diagnostic-snapback-auth-bootstrap-binding-conflict"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:1013` | 3 |
+| <a id="diagnostic-snapback-auth-bootstrap-binding-conflict"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:1038` | 3 |
 | <a id="diagnostic-snapback-auth-bootstrap-binding-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:348` | 5 |
-| <a id="diagnostic-snapback-auth-bootstrap-binding-stale"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE` | auth | — | — | `packages/snapback-client/app-client.mjs:1047` | 9 |
+| <a id="diagnostic-snapback-auth-bootstrap-binding-stale"></a>`SNAPBACK_AUTH_BOOTSTRAP_BINDING_STALE` | auth | — | — | `packages/snapback-client/app-client.mjs:1072` | 9 |
 | <a id="diagnostic-snapback-auth-bootstrap-capability-unavailable"></a>`SNAPBACK_AUTH_BOOTSTRAP_CAPABILITY_UNAVAILABLE` | auth | — | — | `packages/snapback-client/app-client.mjs:455` | 2 |
 | <a id="diagnostic-snapback-auth-bootstrap-completeness-unclassified"></a>`SNAPBACK_AUTH_BOOTSTRAP_COMPLETENESS_UNCLASSIFIED` | auth | — | — | `packages/snapback-codegen/client-lifecycle.mjs:12` | 2 |
-| <a id="diagnostic-snapback-auth-bootstrap-failed"></a>`SNAPBACK_AUTH_BOOTSTRAP_FAILED` | auth | — | — | `packages/snapback-client/app-client.mjs:776` | 3 |
-| <a id="diagnostic-snapback-auth-bootstrap-input-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:558` | 4 |
+| <a id="diagnostic-snapback-auth-bootstrap-failed"></a>`SNAPBACK_AUTH_BOOTSTRAP_FAILED` | auth | — | — | `packages/snapback-client/app-client.mjs:786` | 3 |
+| <a id="diagnostic-snapback-auth-bootstrap-input-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_INPUT_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:559` | 4 |
 | <a id="diagnostic-snapback-auth-bootstrap-mechanism-unavailable"></a>`SNAPBACK_AUTH_BOOTSTRAP_MECHANISM_UNAVAILABLE` | auth | — | — | `packages/snapback-client/app-client.mjs:470` | 3 |
 | <a id="diagnostic-snapback-auth-bootstrap-partition-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_PARTITION_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:490` | 2 |
 | <a id="diagnostic-snapback-auth-bootstrap-platform-unsupported"></a>`SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED` | auth | — | — | `packages/snapback-client/app-client.mjs:520` | 6 |
 | <a id="diagnostic-snapback-auth-bootstrap-policy-invalid"></a>`SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID` | auth | — | — | `packages/snapback-client/app-client.mjs:317` | 2 |
-| <a id="diagnostic-snapback-auth-bootstrap-policy-rotation"></a>`SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION` | auth | — | — | `packages/snapback-client/app-client.mjs:1029` | 2 |
+| <a id="diagnostic-snapback-auth-bootstrap-policy-rotation"></a>`SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION` | auth | — | — | `packages/snapback-client/app-client.mjs:1054` | 2 |
+| <a id="diagnostic-snapback-auth-bootstrap-rqs-store-conflict"></a>`SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:1025` | 1 |
 | <a id="diagnostic-snapback-auth-budget-authority-unavailable"></a>`SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE` | auth | — | — | `src/auth/throttle.rs:1167` | 2 |
 | <a id="diagnostic-snapback-auth-budget-policy-invalid"></a>`SNAPBACK_AUTH_BUDGET_POLICY_INVALID` | auth | — | — | `src/auth/throttle.rs:1169` | 2 |
 | <a id="diagnostic-snapback-auth-catalog-corrupt"></a>`SNAPBACK_AUTH_CATALOG_CORRUPT` | auth | — | — | `src/auth/lifecycle.rs:64` | 11 |
 | <a id="diagnostic-snapback-auth-catalog-object-collision"></a>`SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION` | auth | 409 | — | `src/auth/recovery.rs:1189` | 8 |
 | <a id="diagnostic-snapback-auth-catalog-version-unsupported"></a>`SNAPBACK_AUTH_CATALOG_VERSION_UNSUPPORTED` | auth | — | — | `src/server/api_error.rs:839` | 6 |
-| <a id="diagnostic-snapback-auth-change-password-requires-authenticated"></a>`SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1291` | 1 |
+| <a id="diagnostic-snapback-auth-change-password-requires-authenticated"></a>`SNAPBACK_AUTH_CHANGE_PASSWORD_REQUIRES_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1316` | 1 |
 | <a id="diagnostic-snapback-auth-claims-authority-invalid"></a>`SNAPBACK_AUTH_CLAIMS_AUTHORITY_INVALID` | auth | — | — | `src/auth/invocation.rs:758` | 3 |
 | <a id="diagnostic-snapback-auth-claims-corrupt"></a>`SNAPBACK_AUTH_CLAIMS_CORRUPT` | auth | — | — | `src/storage/auth_identity.rs:3484` | 5 |
 | <a id="diagnostic-snapback-auth-cli-failed"></a>`SNAPBACK_AUTH_CLI_FAILED` | auth | — | — | `src/cli.rs:4568` | 1 |
@@ -26138,23 +26151,23 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-cli-response-invalid"></a>`SNAPBACK_AUTH_CLI_RESPONSE_INVALID` | auth | — | — | `src/cli.rs:4611` | 5 |
 | <a id="diagnostic-snapback-auth-clock-dependent-visibility"></a>`SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY` | auth | 400 | — | `packages/snapback-codegen/index.mjs:11175` | 8 |
 | <a id="diagnostic-snapback-auth-clock-rollback"></a>`SNAPBACK_AUTH_CLOCK_ROLLBACK` | auth | — | — | `packages/snapback-contract/client-store.mjs:1472` | 13 |
-| <a id="diagnostic-snapback-auth-code-invalid"></a>`SNAPBACK_AUTH_CODE_INVALID` | auth | 401 | — | `packages/snapback-client/index.mjs:2157` | 12 |
-| <a id="diagnostic-snapback-auth-code-locked"></a>`SNAPBACK_AUTH_CODE_LOCKED` | auth | 403 | — | `packages/snapback-client/index.mjs:2161` | 8 |
+| <a id="diagnostic-snapback-auth-code-invalid"></a>`SNAPBACK_AUTH_CODE_INVALID` | auth | 401 | — | `packages/snapback-client/index.mjs:2160` | 12 |
+| <a id="diagnostic-snapback-auth-code-locked"></a>`SNAPBACK_AUTH_CODE_LOCKED` | auth | 403 | — | `packages/snapback-client/index.mjs:2164` | 8 |
 | <a id="diagnostic-snapback-auth-coordinator-closed"></a>`SNAPBACK_AUTH_COORDINATOR_CLOSED` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:3066` | 5 |
 | <a id="diagnostic-snapback-auth-credential-class-mismatch"></a>`SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH` | auth | 401 | — | `packages/snapback-react/familiar-error-classes.mjs:21` | 5 |
 | <a id="diagnostic-snapback-auth-credential-invalid"></a>`SNAPBACK_AUTH_CREDENTIAL_INVALID` | auth | 401 | [guide](../auth/passwords.md#what-a-failed-signin-tells-an-attacker-nothing) | `packages/snapback-react/familiar-error-classes.mjs:22` | 11 |
 | <a id="diagnostic-snapback-auth-credential-response-invalid"></a>`SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID` | auth | — | — | `packages/snapback-admin-client/index.mjs:861` | 16 |
-| <a id="diagnostic-snapback-auth-credential-superseded"></a>`SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED` | auth | 401 | — | `packages/snapback-client/index.mjs:1422` | 10 |
+| <a id="diagnostic-snapback-auth-credential-superseded"></a>`SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED` | auth | 401 | — | `packages/snapback-client/index.mjs:1425` | 10 |
 | <a id="diagnostic-snapback-auth-custody-ambiguous"></a>`SNAPBACK_AUTH_CUSTODY_AMBIGUOUS` | auth | — | — | `packages/snapback-client/agent-authority.mjs:4084` | 3 |
 | <a id="diagnostic-snapback-auth-custody-bootstrap-invalid"></a>`SNAPBACK_AUTH_CUSTODY_BOOTSTRAP_INVALID` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:1234` | 2 |
 | <a id="diagnostic-snapback-auth-custody-cas-stale"></a>`SNAPBACK_AUTH_CUSTODY_CAS_STALE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1210` | 10 |
 | <a id="diagnostic-snapback-auth-custody-corrupt"></a>`SNAPBACK_AUTH_CUSTODY_CORRUPT` | auth | — | — | `packages/snapback-client/agent-authority.mjs:108` | 14 |
 | <a id="diagnostic-snapback-auth-custody-counter-exhausted"></a>`SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED` | auth | — | — | `packages/snapback-client/agent-authority.mjs:117` | 5 |
-| <a id="diagnostic-snapback-auth-custody-durable-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` | auth | — | — | `packages/snapback-client/app-client.mjs:595` | 7 |
+| <a id="diagnostic-snapback-auth-custody-durable-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` | auth | — | — | `packages/snapback-client/app-client.mjs:596` | 7 |
 | <a id="diagnostic-snapback-auth-custody-format-version"></a>`SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION` | auth | — | — | `packages/snapback-client/app-client.mjs:3` | 15 |
 | <a id="diagnostic-snapback-auth-custody-lock-lost"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_LOST` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1104` | 10 |
 | <a id="diagnostic-snapback-auth-custody-lock-unavailable"></a>`SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1084` | 9 |
-| <a id="diagnostic-snapback-auth-custody-module-invalid"></a>`SNAPBACK_AUTH_CUSTODY_MODULE_INVALID` | auth | — | — | `packages/snapback-expo/provider.mjs:167` | 1 |
+| <a id="diagnostic-snapback-auth-custody-module-invalid"></a>`SNAPBACK_AUTH_CUSTODY_MODULE_INVALID` | auth | — | — | `packages/snapback-expo/provider.mjs:176` | 1 |
 | <a id="diagnostic-snapback-auth-custody-operation-overlap"></a>`SNAPBACK_AUTH_CUSTODY_OPERATION_OVERLAP` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1121` | 1 |
 | <a id="diagnostic-snapback-auth-custody-ownership-reentrant"></a>`SNAPBACK_AUTH_CUSTODY_OWNERSHIP_REENTRANT` | auth | — | — | `packages/snapback-client/agent-authority.mjs:1187` | 1 |
 | <a id="diagnostic-snapback-auth-custody-owner-key-unsupported"></a>`SNAPBACK_AUTH_CUSTODY_OWNER_KEY_UNSUPPORTED` | auth | — | — | `packages/snapback-codegen/client-lifecycle.mjs:265` | 2 |
@@ -26168,10 +26181,10 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-dev-origin-refused"></a>`SNAPBACK_AUTH_DEV_ORIGIN_REFUSED` | auth | 403 | [guide](../auth/sessions-and-principals.md#a-browser-app-under-sessions-today) | `packages/snapback-react/familiar-error-classes.mjs:24` | 3 |
 | <a id="diagnostic-snapback-auth-disposition-unsupported"></a>`SNAPBACK_AUTH_DISPOSITION_UNSUPPORTED` | auth | — | — | `packages/snapback-contract/client-store.mjs:1647` | 1 |
 | <a id="diagnostic-snapback-auth-effective-source-unavailable"></a>`SNAPBACK_AUTH_EFFECTIVE_SOURCE_UNAVAILABLE` | auth | — | — | `src/server.rs:12286` | 2 |
-| <a id="diagnostic-snapback-auth-entry-authenticated"></a>`SNAPBACK_AUTH_ENTRY_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1179` | 1 |
-| <a id="diagnostic-snapback-auth-entry-failed"></a>`SNAPBACK_AUTH_ENTRY_FAILED` | auth | — | — | `packages/snapback-client/app-client.mjs:1152` | 1 |
-| <a id="diagnostic-snapback-auth-entry-unsettled"></a>`SNAPBACK_AUTH_ENTRY_UNSETTLED` | auth | — | — | `packages/snapback-client/app-client.mjs:1115` | 2 |
-| <a id="diagnostic-snapback-auth-family-revoked"></a>`SNAPBACK_AUTH_FAMILY_REVOKED` | auth | — | — | `packages/snapback-client/index.mjs:1417` | 2 |
+| <a id="diagnostic-snapback-auth-entry-authenticated"></a>`SNAPBACK_AUTH_ENTRY_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1204` | 1 |
+| <a id="diagnostic-snapback-auth-entry-failed"></a>`SNAPBACK_AUTH_ENTRY_FAILED` | auth | — | — | `packages/snapback-client/app-client.mjs:1177` | 1 |
+| <a id="diagnostic-snapback-auth-entry-unsettled"></a>`SNAPBACK_AUTH_ENTRY_UNSETTLED` | auth | — | — | `packages/snapback-client/app-client.mjs:1140` | 2 |
+| <a id="diagnostic-snapback-auth-family-revoked"></a>`SNAPBACK_AUTH_FAMILY_REVOKED` | auth | — | — | `packages/snapback-client/index.mjs:1420` | 2 |
 | <a id="diagnostic-snapback-auth-grant-cap"></a>`SNAPBACK_AUTH_GRANT_CAP` | auth | 429 | — | `src/server/api_error.rs:697` | 3 |
 | <a id="diagnostic-snapback-auth-grant-commit-uncertain"></a>`SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN` | auth | — | — | `src/server/api_error.rs:874` | 6 |
 | <a id="diagnostic-snapback-auth-grant-expiry-invalid"></a>`SNAPBACK_AUTH_GRANT_EXPIRY_INVALID` | auth | 400 | — | `src/server/api_error.rs:1058` | 2 |
@@ -26186,8 +26199,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-guest-cleanup-unclassified"></a>`SNAPBACK_AUTH_GUEST_CLEANUP_UNCLASSIFIED` | auth | — | — | `packages/snapback-codegen/define.mjs:2179` | 1 |
 | <a id="diagnostic-snapback-auth-guest-session-invalid"></a>`SNAPBACK_AUTH_GUEST_SESSION_INVALID` | auth | 401 | — | `packages/snapback-react/familiar-error-classes.mjs:28` | 6 |
 | <a id="diagnostic-snapback-auth-handler-v1"></a>`SNAPBACK_AUTH_HANDLER_V1` | auth | — | — | `src/handler_wire.rs:27` | 1 |
-| <a id="diagnostic-snapback-auth-handshake-authority-mismatch"></a>`SNAPBACK_AUTH_HANDSHAKE_AUTHORITY_MISMATCH` | auth | — | — | `packages/snapback-client/index.mjs:3372` | 3 |
-| <a id="diagnostic-snapback-auth-handshake-invalid"></a>`SNAPBACK_AUTH_HANDSHAKE_INVALID` | auth | — | — | `packages/snapback-client/index.mjs:1070` | 15 |
+| <a id="diagnostic-snapback-auth-handshake-authority-mismatch"></a>`SNAPBACK_AUTH_HANDSHAKE_AUTHORITY_MISMATCH` | auth | — | — | `packages/snapback-client/index.mjs:3382` | 3 |
+| <a id="diagnostic-snapback-auth-handshake-invalid"></a>`SNAPBACK_AUTH_HANDSHAKE_INVALID` | auth | — | — | `packages/snapback-client/index.mjs:1073` | 15 |
 | <a id="diagnostic-snapback-auth-hosted-admission-expired"></a>`SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED` | auth | — | — | `src/auth/deployment.rs:882` | 3 |
 | <a id="diagnostic-snapback-auth-hosted-admission-foreign"></a>`SNAPBACK_AUTH_HOSTED_ADMISSION_FOREIGN` | auth | — | — | `src/auth/hosted_edge.rs:761` | 2 |
 | <a id="diagnostic-snapback-auth-hosted-admission-invalid"></a>`SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID` | auth | — | — | `src/admin.rs:3069` | 27 |
@@ -26215,7 +26228,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-invalidation-cause-exhausted"></a>`SNAPBACK_AUTH_INVALIDATION_CAUSE_EXHAUSTED` | auth | — | — | `src/local.rs:3069` | 2 |
 | <a id="diagnostic-snapback-auth-invalidation-client-unsupported"></a>`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` | auth | 400 | [guide](../auth/protecting-data.md#check-the-negotiated-capability-not-route-existence) | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1295` | 28 |
 | <a id="diagnostic-snapback-auth-invalidation-connection-generation-exhausted"></a>`SNAPBACK_AUTH_INVALIDATION_CONNECTION_GENERATION_EXHAUSTED` | auth | — | — | `src/auth/invalidation.rs:337` | 2 |
-| <a id="diagnostic-snapback-auth-invalidation-corrupt"></a>`SNAPBACK_AUTH_INVALIDATION_CORRUPT` | auth | — | — | `packages/snapback-client/index.mjs:13434` | 16 |
+| <a id="diagnostic-snapback-auth-invalidation-corrupt"></a>`SNAPBACK_AUTH_INVALIDATION_CORRUPT` | auth | — | — | `packages/snapback-client/index.mjs:13444` | 16 |
 | <a id="diagnostic-snapback-auth-invalidation-expectation-stale"></a>`SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE` | auth | 409 | — | `src/auth/invalidation.rs:280` | 13 |
 | <a id="diagnostic-snapback-auth-invalidation-generation-exhausted"></a>`SNAPBACK_AUTH_INVALIDATION_GENERATION_EXHAUSTED` | auth | — | — | `packages/snapback-contract/auth-invalidation.mjs:569` | 1 |
 | <a id="diagnostic-snapback-auth-invalidation-issuer-exhausted"></a>`SNAPBACK_AUTH_INVALIDATION_ISSUER_EXHAUSTED` | auth | — | — | `src/server/api_error.rs:854` | 2 |
@@ -26225,19 +26238,19 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-invalidation-pending"></a>`SNAPBACK_AUTH_INVALIDATION_PENDING` | auth | 409 | — | `packages/snapback-contract/client-store.mjs:2405` | 4 |
 | <a id="diagnostic-snapback-auth-invalidation-protocol-unsupported"></a>`SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED` | auth | 400 | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1294` | 6 |
 | <a id="diagnostic-snapback-auth-invalidation-protocol-version"></a>`SNAPBACK_AUTH_INVALIDATION_PROTOCOL_VERSION` | auth | — | — | `packages/snapback-contract/auth-invalidation.mjs:10` | 9 |
-| <a id="diagnostic-snapback-auth-invalidation-resolution-stale"></a>`SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE` | auth | 409 | — | `packages/snapback-client/index.mjs:13526` | 12 |
+| <a id="diagnostic-snapback-auth-invalidation-resolution-stale"></a>`SNAPBACK_AUTH_INVALIDATION_RESOLUTION_STALE` | auth | 409 | — | `packages/snapback-client/index.mjs:13536` | 12 |
 | <a id="diagnostic-snapback-auth-invalidation-retirement-invalid"></a>`SNAPBACK_AUTH_INVALIDATION_RETIREMENT_INVALID` | auth | — | — | `src/auth/invalidation.rs:719` | 1 |
-| <a id="diagnostic-snapback-auth-invalidation-retirement-stale"></a>`SNAPBACK_AUTH_INVALIDATION_RETIREMENT_STALE` | auth | — | — | `packages/snapback-client/index.mjs:13527` | 3 |
+| <a id="diagnostic-snapback-auth-invalidation-retirement-stale"></a>`SNAPBACK_AUTH_INVALIDATION_RETIREMENT_STALE` | auth | — | — | `packages/snapback-client/index.mjs:13537` | 3 |
 | <a id="diagnostic-snapback-auth-invalidation-revision-exhausted"></a>`SNAPBACK_AUTH_INVALIDATION_REVISION_EXHAUSTED` | auth | — | — | `src/auth/invalidation.rs:1240` | 3 |
-| <a id="diagnostic-snapback-auth-invalidation-scope-invalid"></a>`SNAPBACK_AUTH_INVALIDATION_SCOPE_INVALID` | auth | — | — | `packages/snapback-client/index.mjs:13531` | 4 |
+| <a id="diagnostic-snapback-auth-invalidation-scope-invalid"></a>`SNAPBACK_AUTH_INVALIDATION_SCOPE_INVALID` | auth | — | — | `packages/snapback-client/index.mjs:13541` | 4 |
 | <a id="diagnostic-snapback-auth-invalidation-scope-sequence-exhausted"></a>`SNAPBACK_AUTH_INVALIDATION_SCOPE_SEQUENCE_EXHAUSTED` | auth | — | — | `src/auth/invalidation.rs:345` | 2 |
 | <a id="diagnostic-snapback-auth-invalidation-serialize-failed"></a>`SNAPBACK_AUTH_INVALIDATION_SERIALIZE_FAILED` | auth | — | — | `src/local.rs:3130` | 3 |
 | <a id="diagnostic-snapback-auth-invalidation-snapshot-invalid"></a>`SNAPBACK_AUTH_INVALIDATION_SNAPSHOT_INVALID` | auth | — | — | `packages/snapback-contract/query-authorization.mjs:87` | 2 |
-| <a id="diagnostic-snapback-auth-invalidation-snapshot-stale"></a>`SNAPBACK_AUTH_INVALIDATION_SNAPSHOT_STALE` | auth | — | — | `packages/snapback-client/index.mjs:13528` | 2 |
+| <a id="diagnostic-snapback-auth-invalidation-snapshot-stale"></a>`SNAPBACK_AUTH_INVALIDATION_SNAPSHOT_STALE` | auth | — | — | `packages/snapback-client/index.mjs:13538` | 2 |
 | <a id="diagnostic-snapback-auth-invalidation-unavailable"></a>`SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` | auth | — | — | `src/auth/handshake.rs:560` | 29 |
 | <a id="diagnostic-snapback-auth-last-authenticator"></a>`SNAPBACK_AUTH_LAST_AUTHENTICATOR` | auth | 409 | — | `src/server/api_error.rs:354` | 3 |
 | <a id="diagnostic-snapback-auth-literal-secret-forbidden"></a>`SNAPBACK_AUTH_LITERAL_SECRET_FORBIDDEN` | auth | — | — | `packages/snapback-codegen/define.mjs:1768` | 1 |
-| <a id="diagnostic-snapback-auth-live-frame-invalid"></a>`SNAPBACK_AUTH_LIVE_FRAME_INVALID` | auth | — | — | `packages/snapback-client/index.mjs:1484` | 1 |
+| <a id="diagnostic-snapback-auth-live-frame-invalid"></a>`SNAPBACK_AUTH_LIVE_FRAME_INVALID` | auth | — | — | `packages/snapback-client/index.mjs:1487` | 1 |
 | <a id="diagnostic-snapback-auth-logical-export-invalid"></a>`SNAPBACK_AUTH_LOGICAL_EXPORT_INVALID` | auth | — | — | `src/auth/logical_transfer.rs:460` | 5 |
 | <a id="diagnostic-snapback-auth-logical-import-format-unsupported"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_FORMAT_UNSUPPORTED` | auth | 400 | — | `src/auth/logical_transfer.rs:492` | 3 |
 | <a id="diagnostic-snapback-auth-logical-import-identity-collision"></a>`SNAPBACK_AUTH_LOGICAL_IMPORT_IDENTITY_COLLISION` | auth | 409 | — | `src/auth/logical_transfer.rs:484` | 3 |
@@ -26278,7 +26291,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-password-policy"></a>`SNAPBACK_AUTH_PASSWORD_POLICY` | auth | 400 | [guide](../auth/passwords.md#declare-email-identifiers-before-activation) | `src/server/api_error.rs:322` | 4 |
 | <a id="diagnostic-snapback-auth-password-requires-v4"></a>`SNAPBACK_AUTH_PASSWORD_REQUIRES_V4` | auth | — | — | `src/auth/mode.rs:387` | 2 |
 | <a id="diagnostic-snapback-auth-password-reset-unavailable"></a>`SNAPBACK_AUTH_PASSWORD_RESET_UNAVAILABLE` | auth | — | [guide](../auth/sessions-and-principals.md#sign-in-email-password) | `src/server.rs:16451` | 2 |
-| <a id="diagnostic-snapback-auth-password-sender-constrained-unsupported"></a>`SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED` | auth | 501 | — | `packages/snapback-client/index.mjs:6448` | 7 |
+| <a id="diagnostic-snapback-auth-password-sender-constrained-unsupported"></a>`SNAPBACK_AUTH_PASSWORD_SENDER_CONSTRAINED_UNSUPPORTED` | auth | 501 | — | `packages/snapback-client/index.mjs:6458` | 7 |
 | <a id="diagnostic-snapback-auth-password-set-authority-invalid"></a>`SNAPBACK_AUTH_PASSWORD_SET_AUTHORITY_INVALID` | auth | 403 | — | `packages/snapback-react/familiar-error-classes.mjs:37` | 3 |
 | <a id="diagnostic-snapback-auth-password-signup-unavailable"></a>`SNAPBACK_AUTH_PASSWORD_SIGNUP_UNAVAILABLE` | auth | — | [guide](../auth/sessions-and-principals.md#sign-in-email-password) | `src/auth/mode.rs:389` | 3 |
 | <a id="diagnostic-snapback-auth-permission-denied"></a>`SNAPBACK_AUTH_PERMISSION_DENIED` | auth | 403 | [guide](../auth/native-apps.md#carry-the-adopted-bearer) | `packages/snapback-harness/envelope.mjs:208` | 33 |
@@ -26292,18 +26305,18 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-provisioning-invalid"></a>`SNAPBACK_AUTH_PROVISIONING_INVALID` | auth | 400 | — | `src/server/api_error.rs:323` | 2 |
 | <a id="diagnostic-snapback-auth-provisioning-replay-mismatch"></a>`SNAPBACK_AUTH_PROVISIONING_REPLAY_MISMATCH` | auth | 409 | — | `src/server/api_error.rs:358` | 3 |
 | <a id="diagnostic-snapback-auth-provisioning-write-forbidden"></a>`SNAPBACK_AUTH_PROVISIONING_WRITE_FORBIDDEN` | auth | 403 | — | `packages/snapback-react/familiar-error-classes.mjs:39` | 5 |
-| <a id="diagnostic-snapback-auth-query-fence-stale"></a>`SNAPBACK_AUTH_QUERY_FENCE_STALE` | auth | — | — | `packages/snapback-client/index.mjs:12947` | 15 |
+| <a id="diagnostic-snapback-auth-query-fence-stale"></a>`SNAPBACK_AUTH_QUERY_FENCE_STALE` | auth | — | — | `packages/snapback-client/index.mjs:12957` | 15 |
 | <a id="diagnostic-snapback-auth-query-instance-exhausted"></a>`SNAPBACK_AUTH_QUERY_INSTANCE_EXHAUSTED` | auth | — | — | `packages/snapback-contract/auth-invalidation.mjs:557` | 1 |
 | <a id="diagnostic-snapback-auth-query-quarantined"></a>`SNAPBACK_AUTH_QUERY_QUARANTINED` | auth | — | — | `packages/snapback-contract/index.mjs:2236` | 3 |
 | <a id="diagnostic-snapback-auth-query-retirement-pending"></a>`SNAPBACK_AUTH_QUERY_RETIREMENT_PENDING` | auth | — | — | `packages/snapback-contract/client-store.mjs:2898` | 3 |
-| <a id="diagnostic-snapback-auth-query-version-stale"></a>`SNAPBACK_AUTH_QUERY_VERSION_STALE` | auth | — | — | `packages/snapback-client/index.mjs:13525` | 2 |
+| <a id="diagnostic-snapback-auth-query-version-stale"></a>`SNAPBACK_AUTH_QUERY_VERSION_STALE` | auth | — | — | `packages/snapback-client/index.mjs:13535` | 2 |
 | <a id="diagnostic-snapback-auth-quota-budget"></a>`SNAPBACK_AUTH_QUOTA_BUDGET` | auth | 429 | — | `src/auth/throttle.rs:679` | 2 |
 | <a id="diagnostic-snapback-auth-random-unavailable"></a>`SNAPBACK_AUTH_RANDOM_UNAVAILABLE` | auth | — | — | `src/server/api_error.rs:366` | 6 |
 | <a id="diagnostic-snapback-auth-rate-budget"></a>`SNAPBACK_AUTH_RATE_BUDGET` | auth | 429 | — | `src/auth/throttle.rs:678` | 3 |
 | <a id="diagnostic-snapback-auth-recovery-code-invalid"></a>`SNAPBACK_AUTH_RECOVERY_CODE_INVALID` | auth | 401 | — | `packages/snapback-react/familiar-error-classes.mjs:40` | 6 |
 | <a id="diagnostic-snapback-auth-recovery-policy-unsupported"></a>`SNAPBACK_AUTH_RECOVERY_POLICY_UNSUPPORTED` | auth | — | — | `packages/snapback-codegen/define.mjs:1922` | 2 |
-| <a id="diagnostic-snapback-auth-recovery-rotate-requires-authenticated"></a>`SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1125` | 3 |
-| <a id="diagnostic-snapback-auth-refresh-superseded"></a>`SNAPBACK_AUTH_REFRESH_SUPERSEDED` | auth | 409 | — | `packages/snapback-client/index.mjs:1423` | 9 |
+| <a id="diagnostic-snapback-auth-recovery-rotate-requires-authenticated"></a>`SNAPBACK_AUTH_RECOVERY_ROTATE_REQUIRES_AUTHENTICATED` | auth | — | — | `packages/snapback-client/app-client.mjs:1150` | 3 |
+| <a id="diagnostic-snapback-auth-refresh-superseded"></a>`SNAPBACK_AUTH_REFRESH_SUPERSEDED` | auth | 409 | — | `packages/snapback-client/index.mjs:1426` | 9 |
 | <a id="diagnostic-snapback-auth-rehearsal-authority-ended"></a>`SNAPBACK_AUTH_REHEARSAL_AUTHORITY_ENDED` | auth | 403 | — | `packages/snapback-react/familiar-error-classes.mjs:42` | 9 |
 | <a id="diagnostic-snapback-auth-rehearsal-binding-mismatch"></a>`SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH` | auth | 403 | — | `packages/snapback-react/familiar-error-classes.mjs:43` | 11 |
 | <a id="diagnostic-snapback-auth-rehearsal-budget-exhausted"></a>`SNAPBACK_AUTH_REHEARSAL_BUDGET_EXHAUSTED` | auth | 429 | — | `src/auth/rehearsal.rs:2256` | 5 |
@@ -26327,15 +26340,15 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-rehearsal-selector-denied"></a>`SNAPBACK_AUTH_REHEARSAL_SELECTOR_DENIED` | auth | 403 | — | `packages/snapback-react/familiar-error-classes.mjs:51` | 5 |
 | <a id="diagnostic-snapback-auth-rehearsal-state-present"></a>`SNAPBACK_AUTH_REHEARSAL_STATE_PRESENT` | auth | 409 | — | `src/auth/rehearsal.rs:2315` | 4 |
 | <a id="diagnostic-snapback-auth-request-invalid"></a>`SNAPBACK_AUTH_REQUEST_INVALID` | auth | 400 | [guide](../operating/host-ops.md#mint-a-session-over-http) | `src/auth/provider.rs:4458` | 4 |
-| <a id="diagnostic-snapback-auth-required"></a>`SNAPBACK_AUTH_REQUIRED` | auth | 401 | [guide](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals) | `packages/snapback-client/index.mjs:507` | 28 |
+| <a id="diagnostic-snapback-auth-required"></a>`SNAPBACK_AUTH_REQUIRED` | auth | 401 | [guide](../auth/sessions-and-principals.md#reset-invalidates-sessions-and-reissues-principals) | `packages/snapback-client/index.mjs:510` | 28 |
 | <a id="diagnostic-snapback-auth-requirement-implicit"></a>`SNAPBACK_AUTH_REQUIREMENT_IMPLICIT` | auth | — | [guide](../auth/sessions-and-principals.md#choose-each-functions-auth-requirement) | `packages/snapback-codegen/codegen-summary.mjs:25` | 2 |
 | <a id="diagnostic-snapback-auth-rescue-invalid"></a>`SNAPBACK_AUTH_RESCUE_INVALID` | auth | 400 | — | `src/auth/rescue.rs:435` | 6 |
 | <a id="diagnostic-snapback-auth-rescue-managed-state-unsupported"></a>`SNAPBACK_AUTH_RESCUE_MANAGED_STATE_UNSUPPORTED` | auth | 400 | — | `src/server/api_error.rs:1061` | 3 |
 | <a id="diagnostic-snapback-auth-rescue-schema-unsupported"></a>`SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED` | auth | 400 | — | `src/auth/recovery.rs:1124` | 6 |
 | <a id="diagnostic-snapback-auth-reservation-cancelled"></a>`SNAPBACK_AUTH_RESERVATION_CANCELLED` | auth | — | — | `src/ephemeral.rs:4308` | 4 |
-| <a id="diagnostic-snapback-auth-reservation-retry-exhausted"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_EXHAUSTED` | auth | — | — | `packages/snapback-client/index.mjs:11078` | 1 |
-| <a id="diagnostic-snapback-auth-reservation-retry-scheduled"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_SCHEDULED` | auth | — | — | `packages/snapback-client/index.mjs:11088` | 1 |
-| <a id="diagnostic-snapback-auth-reservation-retry-settled"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_SETTLED` | auth | — | — | `packages/snapback-client/index.mjs:10861` | 1 |
+| <a id="diagnostic-snapback-auth-reservation-retry-exhausted"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_EXHAUSTED` | auth | — | — | `packages/snapback-client/index.mjs:11088` | 1 |
+| <a id="diagnostic-snapback-auth-reservation-retry-scheduled"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_SCHEDULED` | auth | — | — | `packages/snapback-client/index.mjs:11098` | 1 |
+| <a id="diagnostic-snapback-auth-reservation-retry-settled"></a>`SNAPBACK_AUTH_RESERVATION_RETRY_SETTLED` | auth | — | — | `packages/snapback-client/index.mjs:10871` | 1 |
 | <a id="diagnostic-snapback-auth-reservation-stale"></a>`SNAPBACK_AUTH_RESERVATION_STALE` | auth | 409 | [guide](../backend/jobs.md#budget-retries-for-expected-contention) | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:34` | 7 |
 | <a id="diagnostic-snapback-auth-resnapshot-required"></a>`SNAPBACK_AUTH_RESNAPSHOT_REQUIRED` | auth | 409 | — | `src/local.rs:33742` | 2 |
 | <a id="diagnostic-snapback-auth-retained-authority-invalid"></a>`SNAPBACK_AUTH_RETAINED_AUTHORITY_INVALID` | auth | — | — | `packages/snapback-contract/client-store.mjs:2255` | 1 |
@@ -26350,36 +26363,36 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-auth-scope-basis-corrupt"></a>`SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT` | auth | — | — | `src/server/api_error.rs:876` | 2 |
 | <a id="diagnostic-snapback-auth-scope-field-without-caller-predicate"></a>`SNAPBACK_AUTH_SCOPE_FIELD_WITHOUT_CALLER_PREDICATE` | auth | — | [guide](../auth/sessions-and-principals.md#queries-are-scoped-by-the-server-not-by-arguments) | `packages/snapback-codegen/index.mjs:4563` | 1 |
 | <a id="diagnostic-snapback-auth-sender-custody-format-version"></a>`SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:10` | 20 |
-| <a id="diagnostic-snapback-auth-sender-custody-generation-exhausted"></a>`SNAPBACK_AUTH_SENDER_CUSTODY_GENERATION_EXHAUSTED` | auth | — | — | `packages/snapback-client/index.mjs:862` | 2 |
+| <a id="diagnostic-snapback-auth-sender-custody-generation-exhausted"></a>`SNAPBACK_AUTH_SENDER_CUSTODY_GENERATION_EXHAUSTED` | auth | — | — | `packages/snapback-client/index.mjs:865` | 2 |
 | <a id="diagnostic-snapback-auth-sender-custody-required"></a>`SNAPBACK_AUTH_SENDER_CUSTODY_REQUIRED` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:1207` | 7 |
 | <a id="diagnostic-snapback-auth-sender-custody-stale"></a>`SNAPBACK_AUTH_SENDER_CUSTODY_STALE` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:2119` | 1 |
 | <a id="diagnostic-snapback-auth-sender-custody-upgrade-required"></a>`SNAPBACK_AUTH_SENDER_CUSTODY_UPGRADE_REQUIRED` | auth | — | — | `packages/snapback-contract/auth-coordinator.mjs:2170` | 1 |
 | <a id="diagnostic-snapback-auth-sender-issuance-signature-invalid"></a>`SNAPBACK_AUTH_SENDER_ISSUANCE_SIGNATURE_INVALID` | auth | — | — | `packages/snapback-client/sender-proof.mjs:200` | 1 |
 | <a id="diagnostic-snapback-auth-sender-key-generation-invalid"></a>`SNAPBACK_AUTH_SENDER_KEY_GENERATION_INVALID` | auth | — | — | `packages/snapback-client/sender-proof.mjs:94` | 1 |
-| <a id="diagnostic-snapback-auth-sender-outcome-indeterminate"></a>`SNAPBACK_AUTH_SENDER_OUTCOME_INDETERMINATE` | auth | — | — | `packages/snapback-client/index.mjs:869` | 2 |
+| <a id="diagnostic-snapback-auth-sender-outcome-indeterminate"></a>`SNAPBACK_AUTH_SENDER_OUTCOME_INDETERMINATE` | auth | — | — | `packages/snapback-client/index.mjs:872` | 2 |
 | <a id="diagnostic-snapback-auth-sender-proof-authority-unavailable"></a>`SNAPBACK_AUTH_SENDER_PROOF_AUTHORITY_UNAVAILABLE` | auth | — | — | `src/admin.rs:3077` | 4 |
-| <a id="diagnostic-snapback-auth-sender-proof-invalid"></a>`SNAPBACK_AUTH_SENDER_PROOF_INVALID` | auth | 401 | — | `packages/snapback-client/index.mjs:858` | 17 |
+| <a id="diagnostic-snapback-auth-sender-proof-invalid"></a>`SNAPBACK_AUTH_SENDER_PROOF_INVALID` | auth | 401 | — | `packages/snapback-client/index.mjs:861` | 17 |
 | <a id="diagnostic-snapback-auth-sender-proof-replayed"></a>`SNAPBACK_AUTH_SENDER_PROOF_REPLAYED` | auth | 401 | — | `packages/snapback-react/familiar-error-classes.mjs:55` | 3 |
-| <a id="diagnostic-snapback-auth-sender-proof-required"></a>`SNAPBACK_AUTH_SENDER_PROOF_REQUIRED` | auth | 401 | — | `packages/snapback-client/index.mjs:2169` | 8 |
+| <a id="diagnostic-snapback-auth-sender-proof-required"></a>`SNAPBACK_AUTH_SENDER_PROOF_REQUIRED` | auth | 401 | — | `packages/snapback-client/index.mjs:2172` | 8 |
 | <a id="diagnostic-snapback-auth-sender-proof-signature-invalid"></a>`SNAPBACK_AUTH_SENDER_PROOF_SIGNATURE_INVALID` | auth | — | — | `packages/snapback-client/sender-proof.mjs:150` | 1 |
 | <a id="diagnostic-snapback-auth-session-expired"></a>`SNAPBACK_AUTH_SESSION_EXPIRED` | auth | 401 | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:774` | 33 |
 | <a id="diagnostic-snapback-auth-session-invalid"></a>`SNAPBACK_AUTH_SESSION_INVALID` | auth | 401 | — | `packages/snapback-react/familiar-error-classes.mjs:58` | 5 |
-| <a id="diagnostic-snapback-auth-session-revoked"></a>`SNAPBACK_AUTH_SESSION_REVOKED` | auth | — | — | `packages/snapback-client/index.mjs:1416` | 3 |
+| <a id="diagnostic-snapback-auth-session-revoked"></a>`SNAPBACK_AUTH_SESSION_REVOKED` | auth | — | — | `packages/snapback-client/index.mjs:1419` | 3 |
 | <a id="diagnostic-snapback-auth-session-token-carrier-invalid"></a>`SNAPBACK_AUTH_SESSION_TOKEN_CARRIER_INVALID` | auth | — | — | `src/cli.rs:4474` | 6 |
 | <a id="diagnostic-snapback-auth-source-untrusted"></a>`SNAPBACK_AUTH_SOURCE_UNTRUSTED` | auth | — | — | `src/auth/effective_source.rs:29` | 7 |
-| <a id="diagnostic-snapback-auth-stale-result"></a>`SNAPBACK_AUTH_STALE_RESULT` | auth | 400 | [guide](../sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes) | `packages/snapback-client/index.mjs:447` | 14 |
+| <a id="diagnostic-snapback-auth-stale-result"></a>`SNAPBACK_AUTH_STALE_RESULT` | auth | 400 | [guide](../sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes) | `packages/snapback-client/index.mjs:450` | 14 |
 | <a id="diagnostic-snapback-auth-startup-artifact-mismatch"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_MISMATCH` | auth | — | [guide](../backend/schema-evolution.md#recover-from-snapbackauthstartupartifactmismatch) | `packages/snapback-cli/index.mjs:3559` | 17 |
 | <a id="diagnostic-snapback-auth-startup-artifact-required"></a>`SNAPBACK_AUTH_STARTUP_ARTIFACT_REQUIRED` | auth | — | [guide](../backend/schema-evolution.md#diagnose-the-four-boundary-codes) | `src/cli.rs:44` | 4 |
 | <a id="diagnostic-snapback-auth-step-up-delivery-unavailable"></a>`SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE` | auth | — | [guide](../auth/sessions-and-principals.md#mint-a-local-session-from-a-trusted-server) | `src/auth/provider.rs:4495` | 2 |
 | <a id="diagnostic-snapback-auth-step-up-required"></a>`SNAPBACK_AUTH_STEP_UP_REQUIRED` | auth | 401 | [guide](../auth/sessions-and-principals.md#mint-a-local-session-from-a-trusted-server) | `packages/snapback-react/familiar-error-classes.mjs:60` | 6 |
 | <a id="diagnostic-snapback-auth-stream-incarnation-corrupt"></a>`SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT` | auth | — | — | `src/auth/invocation.rs:2447` | 10 |
 | <a id="diagnostic-snapback-auth-stream-reset"></a>`SNAPBACK_AUTH_STREAM_RESET` | auth | 401 | [guide](../backend/versioned-seeds.md#expect-the-reset-blast-radius-on-connected-clients) | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1256` | 13 |
-| <a id="diagnostic-snapback-auth-supervised-principal-conflict"></a>`SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:815` | 6 |
+| <a id="diagnostic-snapback-auth-supervised-principal-conflict"></a>`SNAPBACK_AUTH_SUPERVISED_PRINCIPAL_CONFLICT` | auth | — | — | `packages/snapback-client/app-client.mjs:825` | 6 |
 | <a id="diagnostic-snapback-auth-table-collision"></a>`SNAPBACK_AUTH_TABLE_COLLISION` | auth | 409 | — | `src/admin.rs:2996` | 12 |
 | <a id="diagnostic-snapback-auth-table-visibility-implicit"></a>`SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT` | auth | — | [guide](../auth/protecting-data.md#declare-who-can-read-each-table) | `packages/snapback-codegen/index.mjs:2970` | 1 |
 | <a id="diagnostic-snapback-auth-throttled"></a>`SNAPBACK_AUTH_THROTTLED` | auth | 429 | — | `src/auth/mailbox.rs:172` | 22 |
 | <a id="diagnostic-snapback-auth-throttle-unavailable"></a>`SNAPBACK_AUTH_THROTTLE_UNAVAILABLE` | auth | — | — | `src/admin.rs:3090` | 3 |
-| <a id="diagnostic-snapback-auth-transition-failed"></a>`SNAPBACK_AUTH_TRANSITION_FAILED` | auth | — | — | `packages/snapback-client/index.mjs:2057` | 5 |
+| <a id="diagnostic-snapback-auth-transition-failed"></a>`SNAPBACK_AUTH_TRANSITION_FAILED` | auth | — | — | `packages/snapback-client/index.mjs:2060` | 5 |
 | <a id="diagnostic-snapback-auth-transport-insecure"></a>`SNAPBACK_AUTH_TRANSPORT_INSECURE` | auth | — | — | `src/admin.rs:132` | 3 |
 | <a id="diagnostic-snapback-auth-undeclarable-retention"></a>`SNAPBACK_AUTH_UNDECLARABLE_RETENTION` | auth | 400 | [guide](../backend/relational-queries.md#recognize-the-messaging-shape) | `packages/snapback-codegen/define.mjs:3568` | 5 |
 | <a id="diagnostic-snapback-auth-username-invalid"></a>`SNAPBACK_AUTH_USERNAME_INVALID` | auth | 400 | — | `src/server/api_error.rs:324` | 3 |
@@ -26504,7 +26517,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-bundle-pending-capacity"></a>`SNAPBACK_BUNDLE_PENDING_CAPACITY` | server | 429 | — | `src/bundle.rs:38` | 3 |
 | <a id="diagnostic-snapback-bundle-query-failed"></a>`SNAPBACK_BUNDLE_QUERY_FAILED` | server | — | — | `src/bundle.rs:29` | 2 |
 | <a id="diagnostic-snapback-bundle-rate-limited"></a>`SNAPBACK_BUNDLE_RATE_LIMITED` | server | 429 | — | `src/bundle.rs:34` | 3 |
-| <a id="diagnostic-snapback-bundle-register-requires-credential"></a>`SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL` | client | 403 | — | `packages/snapback-client/index.mjs:7394` | 3 |
+| <a id="diagnostic-snapback-bundle-register-requires-credential"></a>`SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL` | client | 403 | — | `packages/snapback-client/index.mjs:7404` | 3 |
 | <a id="diagnostic-snapback-bundle-route-unknown"></a>`SNAPBACK_BUNDLE_ROUTE_UNKNOWN` | server | 404 | [guide](../realtime/snapshot-bundles.md#fetch-one-consistent-page-snapshot) | `src/bundle.rs:23` | 2 |
 | <a id="diagnostic-snapback-capability-exact-admin-dist-missing"></a>`SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING` | capabilities | — | — | `src/admin.rs:95` | 2 |
 | <a id="diagnostic-snapback-capability-exact-basepath-invalid"></a>`SNAPBACK_CAPABILITY_EXACT_BASEPATH_INVALID` | capabilities | — | — | `packages/snapback-contract/build-preset.mjs:557` | 1 |
@@ -26570,20 +26583,20 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-cleanup-state-invalid"></a>`SNAPBACK_CLEANUP_STATE_INVALID` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/index.mjs:893` | 1 |
 | <a id="diagnostic-snapback-client-agent-credential-validation-required"></a>`SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED` | client | — | — | `packages/snapback-client/agent-authority.mjs:103` | 3 |
 | <a id="diagnostic-snapback-client-artifact-stale"></a>`SNAPBACK_CLIENT_ARTIFACT_STALE` | client | — | [guide](../sync/offline-and-retention.md#migration-boundaries-quarantine-dont-fail) | `packages/snapback-contract/client-store.mjs:2195` | 3 |
-| <a id="diagnostic-snapback-client-authority-clearing"></a>`SNAPBACK_CLIENT_AUTHORITY_CLEARING` | client | — | — | `packages/snapback-client/index.mjs:443` | 19 |
+| <a id="diagnostic-snapback-client-authority-clearing"></a>`SNAPBACK_CLIENT_AUTHORITY_CLEARING` | client | — | — | `packages/snapback-client/index.mjs:446` | 19 |
 | <a id="diagnostic-snapback-client-authority-stale"></a>`SNAPBACK_CLIENT_AUTHORITY_STALE` | client | — | [guide](../clients/headless.md#call-ordinary-functions) | `packages/snapback-client/agent-authority.mjs:99` | 62 |
-| <a id="diagnostic-snapback-client-authorization-task-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTHORIZATION_TASK_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:13397` | 1 |
+| <a id="diagnostic-snapback-client-authorization-task-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTHORIZATION_TASK_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:13407` | 1 |
 | <a id="diagnostic-snapback-client-auth-barrier-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTH_BARRIER_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/agent-authority.mjs:2643` | 1 |
 | <a id="diagnostic-snapback-client-auth-carrier-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/agent-authority.mjs:1609` | 4 |
 | <a id="diagnostic-snapback-client-auth-commit-async"></a>`SNAPBACK_CLIENT_AUTH_COMMIT_ASYNC` | client | — | — | `packages/snapback-contract/auth-coordinator.mjs:1605` | 3 |
 | <a id="diagnostic-snapback-client-auth-commit-reentrant"></a>`SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT` | client | — | — | `packages/snapback-client/agent-authority.mjs:2837` | 7 |
-| <a id="diagnostic-snapback-client-auth-session-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:3850` | 1 |
-| <a id="diagnostic-snapback-client-auth-transport-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:2947` | 1 |
-| <a id="diagnostic-snapback-client-closed"></a>`SNAPBACK_CLIENT_CLOSED` | client | — | — | `packages/snapback-client/index.mjs:8808` | 7 |
+| <a id="diagnostic-snapback-client-auth-session-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:3860` | 1 |
+| <a id="diagnostic-snapback-client-auth-transport-generation-exhausted"></a>`SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:2957` | 1 |
+| <a id="diagnostic-snapback-client-closed"></a>`SNAPBACK_CLIENT_CLOSED` | client | — | — | `packages/snapback-client/index.mjs:8818` | 7 |
 | <a id="diagnostic-snapback-client-id-header"></a>`SNAPBACK_CLIENT_ID_HEADER` | client | — | — | `src/server.rs:6969` | 3 |
-| <a id="diagnostic-snapback-client-id-invalid"></a>`SNAPBACK_CLIENT_ID_INVALID` | client | — | — | `packages/snapback-client/index.mjs:794` | 1 |
+| <a id="diagnostic-snapback-client-id-invalid"></a>`SNAPBACK_CLIENT_ID_INVALID` | client | — | — | `packages/snapback-client/index.mjs:797` | 1 |
 | <a id="diagnostic-snapback-client-id-status-header"></a>`SNAPBACK_CLIENT_ID_STATUS_HEADER` | client | — | — | `src/server.rs:6970` | 2 |
-| <a id="diagnostic-snapback-client-id-table-invalid"></a>`SNAPBACK_CLIENT_ID_TABLE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:790` | 1 |
+| <a id="diagnostic-snapback-client-id-table-invalid"></a>`SNAPBACK_CLIENT_ID_TABLE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:793` | 1 |
 | <a id="diagnostic-snapback-client-mutation-ack-deferred"></a>`SNAPBACK_CLIENT_MUTATION_ACK_DEFERRED` | client | — | — | `packages/snapback-contract/index.mjs:2341` | 1 |
 | <a id="diagnostic-snapback-client-mutation-ack-limit-exceeded"></a>`SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED` | client | 400 | — | `src/server/api_error.rs:1050` | 2 |
 | <a id="diagnostic-snapback-client-mutation-ack-overlap"></a>`SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP` | client | 400 | — | `src/server.rs:27000` | 2 |
@@ -26604,15 +26617,15 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-reference-kind-mismatch"></a>`SNAPBACK_CLIENT_REFERENCE_KIND_MISMATCH` | client | — | [guide](../clients/headless.md#generated-reference-kinds-and-legal-verbs) | `packages/snapback-client/reference-kinds.mjs:1` | 2 |
 | <a id="diagnostic-snapback-client-reference-profile-mismatch"></a>`SNAPBACK_CLIENT_REFERENCE_PROFILE_MISMATCH` | client | — | [guide](../getting-started/generated-artifacts.md#diagnose-familiar-profile-refusals) | `packages/snapback-client/reference-kinds.mjs:2` | 1 |
 | <a id="diagnostic-snapback-client-refused"></a>`SNAPBACK_CLIENT_REFUSED` | client | — | — | `packages/snapback-client/diagnostic-error.mjs:10` | 2 |
-| <a id="diagnostic-snapback-client-resubscribe-generation-exhausted"></a>`SNAPBACK_CLIENT_RESUBSCRIBE_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:14736` | 3 |
+| <a id="diagnostic-snapback-client-resubscribe-generation-exhausted"></a>`SNAPBACK_CLIENT_RESUBSCRIBE_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:14746` | 3 |
 | <a id="diagnostic-snapback-client-rqs-dir"></a>`SNAPBACK_CLIENT_RQS_DIR` | client | — | — | `packages/snapback-cli/expo-dev.mjs:42` | 3 |
-| <a id="diagnostic-snapback-client-rqs-gc"></a>`SNAPBACK_CLIENT_RQS_GC` | client | — | — | `packages/snapback-client/rqs-store-default.mjs:163` | 2 |
-| <a id="diagnostic-snapback-client-rqs-gc-max-age-ms"></a>`SNAPBACK_CLIENT_RQS_GC_MAX_AGE_MS` | client | — | — | `packages/snapback-client/rqs-store-default.mjs:164` | 2 |
-| <a id="diagnostic-snapback-client-rqs-store"></a>`SNAPBACK_CLIENT_RQS_STORE` | client | — | [guide](../sync/offline-and-retention.md#the-jsreact-arm-default-persistence-and-the-offline-queue) | `packages/snapback-client/index.mjs:2539` | 4 |
+| <a id="diagnostic-snapback-client-rqs-gc"></a>`SNAPBACK_CLIENT_RQS_GC` | client | — | — | `packages/snapback-client/rqs-store-default.mjs:214` | 2 |
+| <a id="diagnostic-snapback-client-rqs-gc-max-age-ms"></a>`SNAPBACK_CLIENT_RQS_GC_MAX_AGE_MS` | client | — | — | `packages/snapback-client/rqs-store-default.mjs:215` | 2 |
+| <a id="diagnostic-snapback-client-rqs-store"></a>`SNAPBACK_CLIENT_RQS_STORE` | client | — | [guide](../sync/offline-and-retention.md#the-jsreact-arm-default-persistence-and-the-offline-queue) | `packages/snapback-client/index.mjs:2542` | 4 |
 | <a id="diagnostic-snapback-client-seed-protocol-unsupported"></a>`SNAPBACK_CLIENT_SEED_PROTOCOL_UNSUPPORTED` | client | — | [guide](../backend/versioned-seeds.md#interpret-refusals) | `packages/snapback-cli/index.mjs:4005` | 3 |
-| <a id="diagnostic-snapback-client-socket-generation-exhausted"></a>`SNAPBACK_CLIENT_SOCKET_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:16076` | 1 |
-| <a id="diagnostic-snapback-client-socket-loss-generation-exhausted"></a>`SNAPBACK_CLIENT_SOCKET_LOSS_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:15076` | 1 |
-| <a id="diagnostic-snapback-client-socket-request-generation-exhausted"></a>`SNAPBACK_CLIENT_SOCKET_REQUEST_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:16330` | 2 |
+| <a id="diagnostic-snapback-client-socket-generation-exhausted"></a>`SNAPBACK_CLIENT_SOCKET_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:16086` | 1 |
+| <a id="diagnostic-snapback-client-socket-loss-generation-exhausted"></a>`SNAPBACK_CLIENT_SOCKET_LOSS_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:15086` | 1 |
+| <a id="diagnostic-snapback-client-socket-request-generation-exhausted"></a>`SNAPBACK_CLIENT_SOCKET_REQUEST_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:16340` | 2 |
 | <a id="diagnostic-snapback-client-store-authority-stale"></a>`SNAPBACK_CLIENT_STORE_AUTHORITY_STALE` | client | — | — | `packages/snapback-contract/client-store.mjs:1191` | 2 |
 | <a id="diagnostic-snapback-client-store-corrupt"></a>`SNAPBACK_CLIENT_STORE_CORRUPT` | client | — | — | `packages/snapback-contract/client-store.mjs:224` | 4 |
 | <a id="diagnostic-snapback-client-store-generation-exhausted"></a>`SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-contract/client-store.mjs:1199` | 1 |
@@ -26623,15 +26636,15 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-client-store-version"></a>`SNAPBACK_CLIENT_STORE_VERSION` | client | — | — | `packages/snapback-contract/client-store.mjs:29` | 9 |
 | <a id="diagnostic-snapback-client-store-version-unsupported"></a>`SNAPBACK_CLIENT_STORE_VERSION_UNSUPPORTED` | client | — | — | `packages/snapback-contract/client-store.mjs:705` | 1 |
 | <a id="diagnostic-snapback-client-store-write-failed"></a>`SNAPBACK_CLIENT_STORE_WRITE_FAILED` | client | — | — | `packages/snapback-contract/index.mjs:1894` | 3 |
-| <a id="diagnostic-snapback-client-subscription-generation-exhausted"></a>`SNAPBACK_CLIENT_SUBSCRIPTION_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:14121` | 2 |
-| <a id="diagnostic-snapback-client-upgrade-required"></a>`SNAPBACK_CLIENT_UPGRADE_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:238` | 2 |
-| <a id="diagnostic-snapback-client-webcrypto-rng-missing"></a>`SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` | client | — | [guide](../clients/react-expo.md#anti-patterns) | `packages/snapback-client/index.mjs:808` | 3 |
+| <a id="diagnostic-snapback-client-subscription-generation-exhausted"></a>`SNAPBACK_CLIENT_SUBSCRIPTION_GENERATION_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:14131` | 2 |
+| <a id="diagnostic-snapback-client-upgrade-required"></a>`SNAPBACK_CLIENT_UPGRADE_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:241` | 2 |
+| <a id="diagnostic-snapback-client-webcrypto-rng-missing"></a>`SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` | client | — | [guide](../clients/react-expo.md#anti-patterns) | `packages/snapback-client/index.mjs:811` | 3 |
 | <a id="diagnostic-snapback-client-wire-version-downgrade"></a>`SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADE` | client | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:288` | 1 |
-| <a id="diagnostic-snapback-client-wire-version-downgraded"></a>`SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED` | client | — | — | `packages/snapback-client/index.mjs:4968` | 1 |
-| <a id="diagnostic-snapback-client-wire-version-echo-invalid"></a>`SNAPBACK_CLIENT_WIRE_VERSION_ECHO_INVALID` | client | — | — | `packages/snapback-client/index.mjs:5033` | 1 |
-| <a id="diagnostic-snapback-client-wire-version-echo-missing"></a>`SNAPBACK_CLIENT_WIRE_VERSION_ECHO_MISSING` | client | — | — | `packages/snapback-client/index.mjs:5056` | 1 |
-| <a id="diagnostic-snapback-client-wire-version-legacy-cached"></a>`SNAPBACK_CLIENT_WIRE_VERSION_LEGACY_CACHED` | client | — | — | `packages/snapback-client/index.mjs:5068` | 1 |
-| <a id="diagnostic-snapback-client-wire-version-strict"></a>`SNAPBACK_CLIENT_WIRE_VERSION_STRICT` | client | — | — | `packages/snapback-client/index.mjs:4951` | 1 |
+| <a id="diagnostic-snapback-client-wire-version-downgraded"></a>`SNAPBACK_CLIENT_WIRE_VERSION_DOWNGRADED` | client | — | — | `packages/snapback-client/index.mjs:4978` | 1 |
+| <a id="diagnostic-snapback-client-wire-version-echo-invalid"></a>`SNAPBACK_CLIENT_WIRE_VERSION_ECHO_INVALID` | client | — | — | `packages/snapback-client/index.mjs:5043` | 1 |
+| <a id="diagnostic-snapback-client-wire-version-echo-missing"></a>`SNAPBACK_CLIENT_WIRE_VERSION_ECHO_MISSING` | client | — | — | `packages/snapback-client/index.mjs:5066` | 1 |
+| <a id="diagnostic-snapback-client-wire-version-legacy-cached"></a>`SNAPBACK_CLIENT_WIRE_VERSION_LEGACY_CACHED` | client | — | — | `packages/snapback-client/index.mjs:5078` | 1 |
+| <a id="diagnostic-snapback-client-wire-version-strict"></a>`SNAPBACK_CLIENT_WIRE_VERSION_STRICT` | client | — | — | `packages/snapback-client/index.mjs:4961` | 1 |
 | <a id="diagnostic-snapback-cli-argument-invalid"></a>`SNAPBACK_CLI_ARGUMENT_INVALID` | cli | — | — | `packages/snapback-cli/agent-setup.mjs:67` | 66 |
 | <a id="diagnostic-snapback-cli-failed"></a>`SNAPBACK_CLI_FAILED` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:99` | 3 |
 | <a id="diagnostic-snapback-codegen-"></a>`SNAPBACK_CODEGEN_` | codegen | — | — | `packages/snapback-codegen/index.mjs:18925` | 1 |
@@ -26791,8 +26804,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-connection-authority-mismatch"></a>`SNAPBACK_CONNECTION_AUTHORITY_MISMATCH` | realtime | 401 | — | `src/server.rs:5901` | 2 |
 | <a id="diagnostic-snapback-connection-cleanup-failed"></a>`SNAPBACK_CONNECTION_CLEANUP_FAILED` | realtime | — | — | `src/server.rs:4480` | 3 |
 | <a id="diagnostic-snapback-connection-grant-limit-exceeded"></a>`SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED` | realtime | 429 | — | `src/server.rs:4809` | 2 |
-| <a id="diagnostic-snapback-connection-id-required"></a>`SNAPBACK_CONNECTION_ID_REQUIRED` | realtime | — | — | `packages/snapback-client/index.mjs:4843` | 2 |
-| <a id="diagnostic-snapback-connection-session-replaced"></a>`SNAPBACK_CONNECTION_SESSION_REPLACED` | realtime | — | — | `packages/snapback-client/index.mjs:976` | 1 |
+| <a id="diagnostic-snapback-connection-id-required"></a>`SNAPBACK_CONNECTION_ID_REQUIRED` | realtime | — | — | `packages/snapback-client/index.mjs:4853` | 2 |
+| <a id="diagnostic-snapback-connection-session-replaced"></a>`SNAPBACK_CONNECTION_SESSION_REPLACED` | realtime | — | — | `packages/snapback-client/index.mjs:979` | 1 |
 | <a id="diagnostic-snapback-connection-socket-required"></a>`SNAPBACK_CONNECTION_SOCKET_REQUIRED` | realtime | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1298` | 4 |
 | <a id="diagnostic-snapback-connection-teardown-pending"></a>`SNAPBACK_CONNECTION_TEARDOWN_PENDING` | realtime | 409 | — | `src/ephemeral.rs:192` | 5 |
 | <a id="diagnostic-snapback-connection-token-invalid"></a>`SNAPBACK_CONNECTION_TOKEN_INVALID` | realtime | 403 | [guide](../clients/swift.md#bind-app-lifecycle) | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:1237` | 16 |
@@ -27006,19 +27019,19 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-embed-app-state-busy"></a>`SNAPBACK_EMBED_APP_STATE_BUSY` | server | — | — | `src/admin.rs:2748` | 3 |
 | <a id="diagnostic-snapback-embed-entropy-unavailable"></a>`SNAPBACK_EMBED_ENTROPY_UNAVAILABLE` | server | — | — | `src/admin.rs:3544` | 2 |
 | <a id="diagnostic-snapback-emission-test-failure"></a>`SNAPBACK_EMISSION_TEST_FAILURE` | server | — | — | `src/telemetry.rs:9567` | 2 |
-| <a id="diagnostic-snapback-envelope-decode-failed"></a>`SNAPBACK_ENVELOPE_DECODE_FAILED` | client | — | — | `packages/snapback-client/index.mjs:11934` | 2 |
+| <a id="diagnostic-snapback-envelope-decode-failed"></a>`SNAPBACK_ENVELOPE_DECODE_FAILED` | client | — | — | `packages/snapback-client/index.mjs:11944` | 2 |
 | <a id="diagnostic-snapback-ephemeral-authority-instance-changed"></a>`SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_CHANGED` | server | 409 | — | `src/server.rs:4187` | 4 |
-| <a id="diagnostic-snapback-ephemeral-authority-instance-required"></a>`SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED` | client | 400 | — | `packages/snapback-client/index.mjs:5003` | 6 |
+| <a id="diagnostic-snapback-ephemeral-authority-instance-required"></a>`SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED` | client | 400 | — | `packages/snapback-client/index.mjs:5013` | 6 |
 | <a id="diagnostic-snapback-ephemeral-authority-pending"></a>`SNAPBACK_EPHEMERAL_AUTHORITY_PENDING` | server | — | — | `src/ephemeral.rs:1303` | 4 |
 | <a id="diagnostic-snapback-ephemeral-authority-protocol-mismatch"></a>`SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH` | server | 400 | — | `src/server.rs:5971` | 3 |
-| <a id="diagnostic-snapback-ephemeral-authority-unsupported"></a>`SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED` | client | 400 | — | `packages/snapback-client/index.mjs:4986` | 8 |
+| <a id="diagnostic-snapback-ephemeral-authority-unsupported"></a>`SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED` | client | 400 | — | `packages/snapback-client/index.mjs:4996` | 8 |
 | <a id="diagnostic-snapback-ephemeral-cleanup-bound-invalid"></a>`SNAPBACK_EPHEMERAL_CLEANUP_BOUND_INVALID` | server | 400 | — | `src/admin.rs:5993` | 2 |
 | <a id="diagnostic-snapback-ephemeral-cleanup-cutoff-invalid"></a>`SNAPBACK_EPHEMERAL_CLEANUP_CUTOFF_INVALID` | server | 400 | — | `src/admin.rs:6014` | 2 |
 | <a id="diagnostic-snapback-ephemeral-cleanup-request-invalid"></a>`SNAPBACK_EPHEMERAL_CLEANUP_REQUEST_INVALID` | server | 400 | — | `src/admin.rs:5977` | 2 |
 | <a id="diagnostic-snapback-ephemeral-cleanup-startup-mismatch"></a>`SNAPBACK_EPHEMERAL_CLEANUP_STARTUP_MISMATCH` | server | 409 | — | `src/admin.rs:5984` | 2 |
 | <a id="diagnostic-snapback-ephemeral-entry-not-found"></a>`SNAPBACK_EPHEMERAL_ENTRY_NOT_FOUND` | server | 404 | — | `src/ephemeral.rs:1287` | 2 |
 | <a id="diagnostic-snapback-ephemeral-expiry-protocol-mismatch"></a>`SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH` | server | 400 | — | `src/server.rs:5994` | 3 |
-| <a id="diagnostic-snapback-ephemeral-expiry-unsupported"></a>`SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED` | client | 400 | — | `packages/snapback-client/index.mjs:5016` | 9 |
+| <a id="diagnostic-snapback-ephemeral-expiry-unsupported"></a>`SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED` | client | 400 | — | `packages/snapback-client/index.mjs:5026` | 9 |
 | <a id="diagnostic-snapback-ephemeral-generation-exhausted"></a>`SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED` | server | — | — | `src/ephemeral.rs:199` | 9 |
 | <a id="diagnostic-snapback-ephemeral-incompatible-collection-definition"></a>`SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION` | server | 409 | — | `src/ephemeral.rs:1299` | 2 |
 | <a id="diagnostic-snapback-ephemeral-invalid-scope"></a>`SNAPBACK_EPHEMERAL_INVALID_SCOPE` | server | 400 | — | `src/ephemeral.rs:1291` | 4 |
@@ -27032,27 +27045,27 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-ephemeral-operator-delete-stale-startup-nonce"></a>`SNAPBACK_EPHEMERAL_OPERATOR_DELETE_STALE_STARTUP_NONCE` | server | 409 | — | `src/server.rs:31631` | 2 |
 | <a id="diagnostic-snapback-ephemeral-operator-delete-target-refused-derived"></a>`SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_DERIVED` | server | 403 | — | `src/server.rs:31589` | 2 |
 | <a id="diagnostic-snapback-ephemeral-operator-delete-target-refused-hosted"></a>`SNAPBACK_EPHEMERAL_OPERATOR_DELETE_TARGET_REFUSED_HOSTED` | server | 403 | — | `src/server.rs:31597` | 2 |
-| <a id="diagnostic-snapback-ephemeral-publish-failed"></a>`SNAPBACK_EPHEMERAL_PUBLISH_FAILED` | client | — | — | `packages/snapback-client/index.mjs:11730` | 1 |
+| <a id="diagnostic-snapback-ephemeral-publish-failed"></a>`SNAPBACK_EPHEMERAL_PUBLISH_FAILED` | client | — | — | `packages/snapback-client/index.mjs:11740` | 1 |
 | <a id="diagnostic-snapback-ephemeral-publish-outcome-invalid"></a>`SNAPBACK_EPHEMERAL_PUBLISH_OUTCOME_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:2587` | 1 |
 | <a id="diagnostic-snapback-ephemeral-rate-limited"></a>`SNAPBACK_EPHEMERAL_RATE_LIMITED` | server | 429 | — | `src/ephemeral.rs:1297` | 3 |
 | <a id="diagnostic-snapback-ephemeral-reauthorization-incomplete"></a>`SNAPBACK_EPHEMERAL_REAUTHORIZATION_INCOMPLETE` | server | — | — | `src/local.rs:21342` | 1 |
 | <a id="diagnostic-snapback-ephemeral-republisher-limit"></a>`SNAPBACK_EPHEMERAL_REPUBLISHER_LIMIT` | swift-client | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:202` | 3 |
 | <a id="diagnostic-snapback-ephemeral-republisher-stale"></a>`SNAPBACK_EPHEMERAL_REPUBLISHER_STALE` | swift-client | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:230` | 4 |
-| <a id="diagnostic-snapback-ephemeral-republish-timeout"></a>`SNAPBACK_EPHEMERAL_REPUBLISH_TIMEOUT` | client | — | — | `packages/snapback-client/index.mjs:11675` | 2 |
-| <a id="diagnostic-snapback-ephemeral-republish-unacknowledged"></a>`SNAPBACK_EPHEMERAL_REPUBLISH_UNACKNOWLEDGED` | client | — | — | `packages/snapback-client/index.mjs:11666` | 2 |
-| <a id="diagnostic-snapback-ephemeral-room-failed"></a>`SNAPBACK_EPHEMERAL_ROOM_FAILED` | client | — | — | `packages/snapback-client/index.mjs:16618` | 1 |
+| <a id="diagnostic-snapback-ephemeral-republish-timeout"></a>`SNAPBACK_EPHEMERAL_REPUBLISH_TIMEOUT` | client | — | — | `packages/snapback-client/index.mjs:11685` | 2 |
+| <a id="diagnostic-snapback-ephemeral-republish-unacknowledged"></a>`SNAPBACK_EPHEMERAL_REPUBLISH_UNACKNOWLEDGED` | client | — | — | `packages/snapback-client/index.mjs:11676` | 2 |
+| <a id="diagnostic-snapback-ephemeral-room-failed"></a>`SNAPBACK_EPHEMERAL_ROOM_FAILED` | client | — | — | `packages/snapback-client/index.mjs:16628` | 1 |
 | <a id="diagnostic-snapback-ephemeral-room-limit-exceeded"></a>`SNAPBACK_EPHEMERAL_ROOM_LIMIT_EXCEEDED` | server | 400 | — | `src/ephemeral.rs:1301` | 2 |
 | <a id="diagnostic-snapback-ephemeral-room-not-found"></a>`SNAPBACK_EPHEMERAL_ROOM_NOT_FOUND` | server | 404 | — | `src/ephemeral.rs:1286` | 2 |
-| <a id="diagnostic-snapback-ephemeral-room-timeout"></a>`SNAPBACK_EPHEMERAL_ROOM_TIMEOUT` | client | — | — | `packages/snapback-client/index.mjs:11446` | 2 |
+| <a id="diagnostic-snapback-ephemeral-room-timeout"></a>`SNAPBACK_EPHEMERAL_ROOM_TIMEOUT` | client | — | — | `packages/snapback-client/index.mjs:11456` | 2 |
 | <a id="diagnostic-snapback-ephemeral-routing-unsafe"></a>`SNAPBACK_EPHEMERAL_ROUTING_UNSAFE` | cli | — | — | `packages/snapback-cli/adapters/fly-machines-vm-driver.mjs:159` | 5 |
 | <a id="diagnostic-snapback-ephemeral-stale-entry-generation"></a>`SNAPBACK_EPHEMERAL_STALE_ENTRY_GENERATION` | server | 409 | — | `src/ephemeral.rs:1289` | 2 |
 | <a id="diagnostic-snapback-ephemeral-stale-scope-epoch"></a>`SNAPBACK_EPHEMERAL_STALE_SCOPE_EPOCH` | server | 409 | — | `src/ephemeral.rs:1288` | 2 |
-| <a id="diagnostic-snapback-ephemeral-subscribe-buffer-overflow"></a>`SNAPBACK_EPHEMERAL_SUBSCRIBE_BUFFER_OVERFLOW` | client | — | — | `packages/snapback-client/index.mjs:16769` | 2 |
+| <a id="diagnostic-snapback-ephemeral-subscribe-buffer-overflow"></a>`SNAPBACK_EPHEMERAL_SUBSCRIBE_BUFFER_OVERFLOW` | client | — | — | `packages/snapback-client/index.mjs:16779` | 2 |
 | <a id="diagnostic-snapback-ephemeral-unauthorized"></a>`SNAPBACK_EPHEMERAL_UNAUTHORIZED` | server | 400 | — | `src/ephemeral.rs:1290` | 2 |
 | <a id="diagnostic-snapback-ephemeral-unknown-collection"></a>`SNAPBACK_EPHEMERAL_UNKNOWN_COLLECTION` | server | 400 | — | `src/ephemeral.rs:1285` | 5 |
-| <a id="diagnostic-snapback-ephemeral-unsubscribe-failed"></a>`SNAPBACK_EPHEMERAL_UNSUBSCRIBE_FAILED` | client | — | — | `packages/snapback-client/index.mjs:11767` | 1 |
+| <a id="diagnostic-snapback-ephemeral-unsubscribe-failed"></a>`SNAPBACK_EPHEMERAL_UNSUBSCRIBE_FAILED` | client | — | — | `packages/snapback-client/index.mjs:11777` | 1 |
 | <a id="diagnostic-snapback-ephemeral-value-too-large"></a>`SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE` | react | 413 | — | `packages/snapback-react/implementation.mjs:2506` | 3 |
-| <a id="diagnostic-snapback-ephemeral-withdrawal-fence-invalid"></a>`SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:11793` | 3 |
+| <a id="diagnostic-snapback-ephemeral-withdrawal-fence-invalid"></a>`SNAPBACK_EPHEMERAL_WITHDRAWAL_FENCE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:11803` | 3 |
 | <a id="diagnostic-snapback-epoch--"></a>`SNAPBACK_EPOCH__` | server | — | — | `src/runtime.rs:7883` | 1 |
 | <a id="diagnostic-snapback-errors-query-invalid"></a>`SNAPBACK_ERRORS_QUERY_INVALID` | server | 400 | — | `src/errors_query.rs:882` | 3 |
 | <a id="diagnostic-snapback-errors-query-serialization-failed"></a>`SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED` | server | — | — | `src/server.rs:22559` | 4 |
@@ -27088,8 +27101,8 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-expo-asset-source-invalid"></a>`SNAPBACK_EXPO_ASSET_SOURCE_INVALID` | expo | — | — | `packages/snapback-expo/asset-source.mjs:33` | 3 |
 | <a id="diagnostic-snapback-expo-asset-uri-unreadable"></a>`SNAPBACK_EXPO_ASSET_URI_UNREADABLE` | expo | — | — | `packages/snapback-expo/asset-source.mjs:175` | 9 |
 | <a id="diagnostic-snapback-expo-asset-uri-unsupported"></a>`SNAPBACK_EXPO_ASSET_URI_UNSUPPORTED` | expo | — | — | `packages/snapback-expo/asset-source.mjs:63` | 1 |
-| <a id="diagnostic-snapback-expo-bootstrap-invalid"></a>`SNAPBACK_EXPO_BOOTSTRAP_INVALID` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:206` | 3 |
-| <a id="diagnostic-snapback-expo-bootstrap-origin-invalid"></a>`SNAPBACK_EXPO_BOOTSTRAP_ORIGIN_INVALID` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:147` | 2 |
+| <a id="diagnostic-snapback-expo-bootstrap-invalid"></a>`SNAPBACK_EXPO_BOOTSTRAP_INVALID` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:210` | 3 |
+| <a id="diagnostic-snapback-expo-bootstrap-origin-invalid"></a>`SNAPBACK_EXPO_BOOTSTRAP_ORIGIN_INVALID` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:151` | 2 |
 | <a id="diagnostic-snapback-expo-bootstrap-route-not-found"></a>`SNAPBACK_EXPO_BOOTSTRAP_ROUTE_NOT_FOUND` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1356` | 2 |
 | <a id="diagnostic-snapback-expo-bootstrap-unavailable"></a>`SNAPBACK_EXPO_BOOTSTRAP_UNAVAILABLE` | cli | — | [guide](../clients/react-expo.md#reproduce-a-supervised-cold-boot-with-bare-metro) | `packages/snapback-cli/expo-dev.mjs:1409` | 5 |
 | <a id="diagnostic-snapback-expo-boot-failed"></a>`SNAPBACK_EXPO_BOOT_FAILED` | expo | — | — | `packages/snapback-expo/diagnostic-sanitization.mjs:89` | 3 |
@@ -27103,16 +27116,18 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-expo-dev-identity-checkout-hook"></a>`SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_HOOK` | expo-dev-identity | — | — | `packages/snapback-expo-dev-identity/index.mjs:2` | 4 |
 | <a id="diagnostic-snapback-expo-dev-identity-checkout-nonce"></a>`SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:31` | 2 |
 | <a id="diagnostic-snapback-expo-dev-identity-checkout-nonce--"></a>`SNAPBACK_EXPO_DEV_IDENTITY_CHECKOUT_NONCE__` | expo-dev-identity | — | — | `packages/snapback-expo-dev-identity/install-core.mjs:2` | 2 |
-| <a id="diagnostic-snapback-expo-environment-invalid"></a>`SNAPBACK_EXPO_ENVIRONMENT_INVALID` | expo | — | — | `packages/snapback-expo/provider.mjs:385` | 5 |
+| <a id="diagnostic-snapback-expo-environment-invalid"></a>`SNAPBACK_EXPO_ENVIRONMENT_INVALID` | expo | — | — | `packages/snapback-expo/provider.mjs:402` | 5 |
 | <a id="diagnostic-snapback-expo-fetch-unavailable"></a>`SNAPBACK_EXPO_FETCH_UNAVAILABLE` | expo | — | — | `packages/snapback-expo/asset-source.mjs:76` | 1 |
 | <a id="diagnostic-snapback-expo-file-system-unavailable"></a>`SNAPBACK_EXPO_FILE_SYSTEM_UNAVAILABLE` | expo | — | — | `packages/snapback-expo/asset-source.mjs:91` | 1 |
-| <a id="diagnostic-snapback-expo-integration-receipt-format"></a>`SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT` | expo | — | — | `packages/snapback-expo/index.mjs:39` | 1 |
+| <a id="diagnostic-snapback-expo-integration-receipt-format"></a>`SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT` | expo | — | — | `packages/snapback-expo/index.mjs:43` | 1 |
 | <a id="diagnostic-snapback-expo-ios-device-inventory-failed"></a>`SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:639` | 1 |
 | <a id="diagnostic-snapback-expo-ios-device-inventory-invalid"></a>`SNAPBACK_EXPO_IOS_DEVICE_INVENTORY_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:588` | 2 |
 | <a id="diagnostic-snapback-expo-ios-device-not-found"></a>`SNAPBACK_EXPO_IOS_DEVICE_NOT_FOUND` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:657` | 1 |
 | <a id="diagnostic-snapback-expo-ios-device-unavailable"></a>`SNAPBACK_EXPO_IOS_DEVICE_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:676` | 1 |
 | <a id="diagnostic-snapback-expo-ios-network-device-refused"></a>`SNAPBACK_EXPO_IOS_NETWORK_DEVICE_REFUSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:664` | 1 |
 | <a id="diagnostic-snapback-expo-ios-usb-reverse-forward-unavailable"></a>`SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE` | cli | — | [guide](../clients/react-expo.md#choose-simulator-emulator-or-usb-routing) | `packages/snapback-cli/expo-dev.mjs:718` | 1 |
+| <a id="diagnostic-snapback-expo-legacy-file-delete-unconfirmed"></a>`SNAPBACK_EXPO_LEGACY_FILE_DELETE_UNCONFIRMED` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:317` | 1 |
+| <a id="diagnostic-snapback-expo-legacy-migration-fence-lost"></a>`SNAPBACK_EXPO_LEGACY_MIGRATION_FENCE_LOST` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:398` | 1 |
 | <a id="diagnostic-snapback-expo-listener-enumeration-incomplete"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1292` | 1 |
 | <a id="diagnostic-snapback-expo-listener-enumeration-unavailable"></a>`SNAPBACK_EXPO_LISTENER_ENUMERATION_UNAVAILABLE` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1156` | 3 |
 | <a id="diagnostic-snapback-expo-listener-exposed"></a>`SNAPBACK_EXPO_LISTENER_EXPOSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1282` | 3 |
@@ -27121,14 +27136,23 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-expo-metro-watch-inert"></a>`SNAPBACK_EXPO_METRO_WATCH_INERT` | cli | — | [guide](../clients/react-expo.md#know-what-the-supervisor-owns) | `packages/snapback-cli/expo-dev.mjs:105` | 3 |
 | <a id="diagnostic-snapback-expo-native-checkout-hook-conflict"></a>`SNAPBACK_EXPO_NATIVE_CHECKOUT_HOOK_CONFLICT` | expo-dev-identity | — | — | `packages/snapback-expo-dev-identity/install-core.mjs:29` | 2 |
 | <a id="diagnostic-snapback-expo-native-checkout-own-bundle-required"></a>`SNAPBACK_EXPO_NATIVE_CHECKOUT_OWN_BUNDLE_REQUIRED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:972` | 9 |
-| <a id="diagnostic-snapback-expo-native-checkout-unavailable"></a>`SNAPBACK_EXPO_NATIVE_CHECKOUT_UNAVAILABLE` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:415` | 1 |
+| <a id="diagnostic-snapback-expo-native-checkout-unavailable"></a>`SNAPBACK_EXPO_NATIVE_CHECKOUT_UNAVAILABLE` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:421` | 1 |
 | <a id="diagnostic-snapback-expo-native-launch-failed"></a>`SNAPBACK_EXPO_NATIVE_LAUNCH_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:1052` | 2 |
-| <a id="diagnostic-snapback-expo-provider-required"></a>`SNAPBACK_EXPO_PROVIDER_REQUIRED` | expo | — | — | `packages/snapback-expo/provider.mjs:870` | 1 |
+| <a id="diagnostic-snapback-expo-provider-required"></a>`SNAPBACK_EXPO_PROVIDER_REQUIRED` | expo | — | — | `packages/snapback-expo/provider.mjs:908` | 1 |
 | <a id="diagnostic-snapback-expo-push-base-url"></a>`SNAPBACK_EXPO_PUSH_BASE_URL` | server | — | [guide](../backend/expo-push.md#test-without-exfiltrating-tokens) | `src/server.rs:601` | 2 |
 | <a id="diagnostic-snapback-expo-route-invalid"></a>`SNAPBACK_EXPO_ROUTE_INVALID` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:336` | 5 |
 | <a id="diagnostic-snapback-expo-session-mint-failed"></a>`SNAPBACK_EXPO_SESSION_MINT_FAILED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:402` | 3 |
+| <a id="diagnostic-snapback-expo-sqlite-capacity-exceeded"></a>`SNAPBACK_EXPO_SQLITE_CAPACITY_EXCEEDED` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:243` | 2 |
+| <a id="diagnostic-snapback-expo-sqlite-durability-pragmas-unavailable"></a>`SNAPBACK_EXPO_SQLITE_DURABILITY_PRAGMAS_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:421` | 2 |
+| <a id="diagnostic-snapback-expo-sqlite-multi-process-host-unsupported"></a>`SNAPBACK_EXPO_SQLITE_MULTI_PROCESS_HOST_UNSUPPORTED` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:139` | 2 |
+| <a id="diagnostic-snapback-expo-sqlite-native-api-unavailable"></a>`SNAPBACK_EXPO_SQLITE_NATIVE_API_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:115` | 6 |
+| <a id="diagnostic-snapback-expo-sqlite-store-closed"></a>`SNAPBACK_EXPO_SQLITE_STORE_CLOSED` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:77` | 1 |
+| <a id="diagnostic-snapback-expo-sqlite-store-close-failed"></a>`SNAPBACK_EXPO_SQLITE_STORE_CLOSE_FAILED` | expo | — | — | `packages/snapback-expo/expo-sqlite-carrier.mjs:235` | 2 |
+| <a id="diagnostic-snapback-expo-sqlite-store-corrupt"></a>`SNAPBACK_EXPO_SQLITE_STORE_CORRUPT` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:82` | 2 |
+| <a id="diagnostic-snapback-expo-sqlite-store-owner-unavailable"></a>`SNAPBACK_EXPO_SQLITE_STORE_OWNER_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:164` | 4 |
+| <a id="diagnostic-snapback-expo-sqlite-transaction-reentrant"></a>`SNAPBACK_EXPO_SQLITE_TRANSACTION_REENTRANT` | client | — | — | `packages/snapback-client/rqs-store-sqlite.mjs:203` | 1 |
 | <a id="diagnostic-snapback-expo-supervisor-closed"></a>`SNAPBACK_EXPO_SUPERVISOR_CLOSED` | cli | — | — | `packages/snapback-cli/expo-dev.mjs:2100` | 1 |
-| <a id="diagnostic-snapback-expo-supervisor-origin--"></a>`SNAPBACK_EXPO_SUPERVISOR_ORIGIN__` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:109` | 1 |
+| <a id="diagnostic-snapback-expo-supervisor-origin--"></a>`SNAPBACK_EXPO_SUPERVISOR_ORIGIN__` | expo | — | — | `packages/snapback-expo/supervised-environment.mjs:113` | 1 |
 | <a id="diagnostic-snapback-expr-type"></a>`SNAPBACK_EXPR_TYPE` | contract | 400 | — | `packages/snapback-contract/derived-overlay.mjs:76` | 30 |
 | <a id="diagnostic-snapback-expr-unanalyzable"></a>`SNAPBACK_EXPR_UNANALYZABLE` | contract | 400 | — | `packages/snapback-contract/derived-overlay.mjs:379` | 4 |
 | <a id="diagnostic-snapback-expr-unsupported-function"></a>`SNAPBACK_EXPR_UNSUPPORTED_FUNCTION` | codegen | 400 | — | `packages/snapback-codegen/data-tier-corpus.mjs:719` | 6 |
@@ -27412,9 +27436,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-ibex-runtime-load-failed"></a>`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED` | runtime | — | [guide](../operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first) | `packages/snapback-cli/index.mjs:588` | 2 |
 | <a id="diagnostic-snapback-ibex-runtime-receipt-invalid"></a>`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` | runtime | — | [guide](../operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first) | `packages/snapback-cli/admin-snapshot.mjs:31` | 8 |
 | <a id="diagnostic-snapback-ibex-runtime-vm-create-failed"></a>`SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED` | runtime | — | [guide](../operating/diagnostics.md#diagnose-the-vendored-ibex-runtime-first) | `packages/snapback-cli/index.mjs:473` | 2 |
-| <a id="diagnostic-snapback-id"></a>`SNAPBACK_ID` | client | — | — | `packages/snapback-client/index.mjs:1045` | 6 |
+| <a id="diagnostic-snapback-id"></a>`SNAPBACK_ID` | client | — | — | `packages/snapback-client/index.mjs:1048` | 6 |
 | <a id="diagnostic-snapback-id-pattern"></a>`SNAPBACK_ID_PATTERN` | contract | — | — | `packages/snapback-contract/client-store.mjs:45` | 6 |
-| <a id="diagnostic-snapback-id-table"></a>`SNAPBACK_ID_TABLE` | client | — | — | `packages/snapback-client/index.mjs:406` | 2 |
+| <a id="diagnostic-snapback-id-table"></a>`SNAPBACK_ID_TABLE` | client | — | — | `packages/snapback-client/index.mjs:409` | 2 |
 | <a id="diagnostic-snapback-impersonated-global-role-ambiguous"></a>`SNAPBACK_IMPERSONATED_GLOBAL_ROLE_AMBIGUOUS` | server | 400 | — | `src/membership_rules.rs:83` | 3 |
 | <a id="diagnostic-snapback-impersonated-global-role-invalid"></a>`SNAPBACK_IMPERSONATED_GLOBAL_ROLE_INVALID` | server | 400 | — | `src/membership_rules.rs:65` | 4 |
 | <a id="diagnostic-snapback-ingress-limit-exceeded"></a>`SNAPBACK_INGRESS_LIMIT_EXCEEDED` | admin-client | — | — | `packages/snapback-admin-client/index.mjs:814` | 9 |
@@ -27512,9 +27536,9 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-live-force-resync-subscription-not-found"></a>`SNAPBACK_LIVE_FORCE_RESYNC_SUBSCRIPTION_NOT_FOUND` | realtime | 404 | — | `src/local.rs:5967` | 2 |
 | <a id="diagnostic-snapback-live-max-eval-turn-ms"></a>`SNAPBACK_LIVE_MAX_EVAL_TURN_MS` | realtime | — | — | `src/cli.rs:8972` | 1 |
 | <a id="diagnostic-snapback-live-overload-degrade"></a>`SNAPBACK_LIVE_OVERLOAD_DEGRADE` | realtime | — | — | `src/local.rs:23840` | 2 |
-| <a id="diagnostic-snapback-live-query-disposed-during-subscribe"></a>`SNAPBACK_LIVE_QUERY_DISPOSED_DURING_SUBSCRIBE` | realtime | — | — | `packages/snapback-client/index.mjs:14107` | 1 |
-| <a id="diagnostic-snapback-live-query-paused-during-subscribe"></a>`SNAPBACK_LIVE_QUERY_PAUSED_DURING_SUBSCRIBE` | realtime | — | — | `packages/snapback-client/index.mjs:14108` | 1 |
-| <a id="diagnostic-snapback-live-query-subscribe-queue-invalidated"></a>`SNAPBACK_LIVE_QUERY_SUBSCRIBE_QUEUE_INVALIDATED` | realtime | — | — | `packages/snapback-client/index.mjs:14115` | 4 |
+| <a id="diagnostic-snapback-live-query-disposed-during-subscribe"></a>`SNAPBACK_LIVE_QUERY_DISPOSED_DURING_SUBSCRIBE` | realtime | — | — | `packages/snapback-client/index.mjs:14117` | 1 |
+| <a id="diagnostic-snapback-live-query-paused-during-subscribe"></a>`SNAPBACK_LIVE_QUERY_PAUSED_DURING_SUBSCRIBE` | realtime | — | — | `packages/snapback-client/index.mjs:14118` | 1 |
+| <a id="diagnostic-snapback-live-query-subscribe-queue-invalidated"></a>`SNAPBACK_LIVE_QUERY_SUBSCRIBE_QUEUE_INVALIDATED` | realtime | — | — | `packages/snapback-client/index.mjs:14125` | 4 |
 | <a id="diagnostic-snapback-live-registration-answer-invalid"></a>`SNAPBACK_LIVE_REGISTRATION_ANSWER_INVALID` | realtime | — | — | `packages/snapback-client/registration-ledger.mjs:821` | 2 |
 | <a id="diagnostic-snapback-live-resume-function-mismatch"></a>`SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH` | realtime | 400 | — | `src/local.rs:16661` | 3 |
 | <a id="diagnostic-snapback-live-resume-ownership"></a>`SNAPBACK_LIVE_RESUME_OWNERSHIP` | realtime | 403 | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:596` | 6 |
@@ -27526,13 +27550,13 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-live-stage-corrupt"></a>`SNAPBACK_LIVE_STAGE_CORRUPT` | realtime | — | — | `src/local.rs:3704` | 1 |
 | <a id="diagnostic-snapback-live-stage-fence-required"></a>`SNAPBACK_LIVE_STAGE_FENCE_REQUIRED` | realtime | — | — | `src/local.rs:16522` | 2 |
 | <a id="diagnostic-snapback-live-stage-unavailable"></a>`SNAPBACK_LIVE_STAGE_UNAVAILABLE` | realtime | — | — | `src/local.rs:3696` | 2 |
-| <a id="diagnostic-snapback-live-stream-closed"></a>`SNAPBACK_LIVE_STREAM_CLOSED` | realtime | — | — | `packages/snapback-client/index.mjs:15757` | 3 |
-| <a id="diagnostic-snapback-live-stream-not-ready"></a>`SNAPBACK_LIVE_STREAM_NOT_READY` | realtime | — | — | `packages/snapback-client/index.mjs:12198` | 1 |
-| <a id="diagnostic-snapback-live-stream-readiness-cancelled"></a>`SNAPBACK_LIVE_STREAM_READINESS_CANCELLED` | realtime | — | — | `packages/snapback-client/index.mjs:15813` | 2 |
-| <a id="diagnostic-snapback-live-stream-readiness-timeout"></a>`SNAPBACK_LIVE_STREAM_READINESS_TIMEOUT` | realtime | — | — | `packages/snapback-client/index.mjs:15888` | 1 |
-| <a id="diagnostic-snapback-live-subscription-already-retired"></a>`SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED` | realtime | — | [guide](../clients/headless.md#subscribe-to-durable-state) | `packages/snapback-client/index.mjs:12940` | 1 |
+| <a id="diagnostic-snapback-live-stream-closed"></a>`SNAPBACK_LIVE_STREAM_CLOSED` | realtime | — | — | `packages/snapback-client/index.mjs:15767` | 3 |
+| <a id="diagnostic-snapback-live-stream-not-ready"></a>`SNAPBACK_LIVE_STREAM_NOT_READY` | realtime | — | — | `packages/snapback-client/index.mjs:12208` | 1 |
+| <a id="diagnostic-snapback-live-stream-readiness-cancelled"></a>`SNAPBACK_LIVE_STREAM_READINESS_CANCELLED` | realtime | — | — | `packages/snapback-client/index.mjs:15823` | 2 |
+| <a id="diagnostic-snapback-live-stream-readiness-timeout"></a>`SNAPBACK_LIVE_STREAM_READINESS_TIMEOUT` | realtime | — | — | `packages/snapback-client/index.mjs:15898` | 1 |
+| <a id="diagnostic-snapback-live-subscription-already-retired"></a>`SNAPBACK_LIVE_SUBSCRIPTION_ALREADY_RETIRED` | realtime | — | [guide](../clients/headless.md#subscribe-to-durable-state) | `packages/snapback-client/index.mjs:12950` | 1 |
 | <a id="diagnostic-snapback-live-supersession-target-unknown"></a>`SNAPBACK_LIVE_SUPERSESSION_TARGET_UNKNOWN` | realtime | — | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/SnapbackClient.swift:394` | 4 |
-| <a id="diagnostic-snapback-live-supersession-witness-invalid"></a>`SNAPBACK_LIVE_SUPERSESSION_WITNESS_INVALID` | realtime | — | — | `packages/snapback-client/index.mjs:990` | 2 |
+| <a id="diagnostic-snapback-live-supersession-witness-invalid"></a>`SNAPBACK_LIVE_SUPERSESSION_WITNESS_INVALID` | realtime | — | — | `packages/snapback-client/index.mjs:993` | 2 |
 | <a id="diagnostic-snapback-live-update-serialize-failed"></a>`SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED` | realtime | — | — | `src/local.rs:9110` | 7 |
 | <a id="diagnostic-snapback-local-evaluation-diagnostics"></a>`SNAPBACK_LOCAL_EVALUATION_DIAGNOSTICS` | client | — | — | `packages/snapback-client/evaluation-floor.mjs:11` | 2 |
 | <a id="diagnostic-snapback-local-evaluation-unadmitted"></a>`SNAPBACK_LOCAL_EVALUATION_UNADMITTED` | client | — | [guide](../sync/offline-and-retention.md#evaluate-an-owner-reclassified-retained-result) | `packages/snapback-client/evaluation-floor.mjs:8` | 5 |
@@ -27804,11 +27828,11 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-migration-rollback-unavailable"></a>`SNAPBACK_MIGRATION_ROLLBACK_UNAVAILABLE` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/cli.rs:1859` | 7 |
 | <a id="diagnostic-snapback-migration-step-failed"></a>`SNAPBACK_MIGRATION_STEP_FAILED` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/server/api_error.rs:570` | 5 |
 | <a id="diagnostic-snapback-migration-target-mismatch"></a>`SNAPBACK_MIGRATION_TARGET_MISMATCH` | migrations | 400 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/server/api_error.rs:1370` | 3 |
-| <a id="diagnostic-snapback-migration-upgrade-required"></a>`SNAPBACK_MIGRATION_UPGRADE_REQUIRED` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `packages/snapback-client/index.mjs:239` | 6 |
+| <a id="diagnostic-snapback-migration-upgrade-required"></a>`SNAPBACK_MIGRATION_UPGRADE_REQUIRED` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `packages/snapback-client/index.mjs:242` | 6 |
 | <a id="diagnostic-snapback-migration-verification-failed"></a>`SNAPBACK_MIGRATION_VERIFICATION_FAILED` | migrations | 409 | [guide](../backend/migrations.md#handle-migration-refusals) | `src/server/api_error.rs:571` | 6 |
 | <a id="diagnostic-snapback-mode--"></a>`SNAPBACK_MODE__` | server | — | — | `src/runtime.rs:7880` | 1 |
 | <a id="diagnostic-snapback-mutation-conflict"></a>`SNAPBACK_MUTATION_CONFLICT` | server | 409 | [guide](../backend/mutations.md#anti-patterns) | `src/bench.rs:1218` | 16 |
-| <a id="diagnostic-snapback-mutation-refused"></a>`SNAPBACK_MUTATION_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:6288` | 2 |
+| <a id="diagnostic-snapback-mutation-refused"></a>`SNAPBACK_MUTATION_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:6298` | 2 |
 | <a id="diagnostic-snapback-mutation-settlement-unavailable"></a>`SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE` | harness | 400 | [guide](../backend/actions-and-fetch.md#keep-network-io-outside-the-transaction) | `packages/snapback-harness/envelope.mjs:29` | 6 |
 | <a id="diagnostic-snapback-network-profile"></a>`SNAPBACK_NETWORK_PROFILE` | server | — | [guide](../operating/network-profiles.md#restore-normal-when-youre-done) | `src/cli.rs:883` | 4 |
 | <a id="diagnostic-snapback-network-profile-"></a>`SNAPBACK_NETWORK_PROFILE_` | server | — | — | `src/server.rs:22218` | 1 |
@@ -27822,27 +27846,27 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-new-usage"></a>`SNAPBACK_NEW_USAGE` | create-snapback-app | — | — | `packages/create-snapback-app/cli.mjs:50` | 2 |
 | <a id="diagnostic-snapback-observation-stage-duplicate"></a>`SNAPBACK_OBSERVATION_STAGE_DUPLICATE` | server | — | — | `src/telemetry_contract.rs:547` | 2 |
 | <a id="diagnostic-snapback-observation-stage-missing"></a>`SNAPBACK_OBSERVATION_STAGE_MISSING` | server | — | — | `src/telemetry_contract.rs:531` | 1 |
-| <a id="diagnostic-snapback-offline-mutations-deleted-authority-change"></a>`SNAPBACK_OFFLINE_MUTATIONS_DELETED_AUTHORITY_CHANGE` | client | — | — | `packages/snapback-client/index.mjs:7959` | 1 |
-| <a id="diagnostic-snapback-offline-mutations-quarantined"></a>`SNAPBACK_OFFLINE_MUTATIONS_QUARANTINED` | client | — | — | `packages/snapback-client/index.mjs:10149` | 1 |
-| <a id="diagnostic-snapback-offline-mutations-reentered"></a>`SNAPBACK_OFFLINE_MUTATIONS_REENTERED` | client | — | — | `packages/snapback-client/index.mjs:8378` | 1 |
-| <a id="diagnostic-snapback-offline-mutations-stranded"></a>`SNAPBACK_OFFLINE_MUTATIONS_STRANDED` | client | — | — | `packages/snapback-client/index.mjs:7966` | 1 |
+| <a id="diagnostic-snapback-offline-mutations-deleted-authority-change"></a>`SNAPBACK_OFFLINE_MUTATIONS_DELETED_AUTHORITY_CHANGE` | client | — | — | `packages/snapback-client/index.mjs:7969` | 1 |
+| <a id="diagnostic-snapback-offline-mutations-quarantined"></a>`SNAPBACK_OFFLINE_MUTATIONS_QUARANTINED` | client | — | — | `packages/snapback-client/index.mjs:10159` | 1 |
+| <a id="diagnostic-snapback-offline-mutations-reentered"></a>`SNAPBACK_OFFLINE_MUTATIONS_REENTERED` | client | — | — | `packages/snapback-client/index.mjs:8388` | 1 |
+| <a id="diagnostic-snapback-offline-mutations-stranded"></a>`SNAPBACK_OFFLINE_MUTATIONS_STRANDED` | client | — | — | `packages/snapback-client/index.mjs:7976` | 1 |
 | <a id="diagnostic-snapback-offline-mutation-failed"></a>`SNAPBACK_OFFLINE_MUTATION_FAILED` | contract | — | — | `packages/snapback-contract/index.mjs:3334` | 1 |
-| <a id="diagnostic-snapback-offline-mutation-outcome-unknown"></a>`SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN` | client | — | — | `packages/snapback-client/index.mjs:10046` | 2 |
+| <a id="diagnostic-snapback-offline-mutation-outcome-unknown"></a>`SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN` | client | — | — | `packages/snapback-client/index.mjs:10056` | 2 |
 | <a id="diagnostic-snapback-offline-mutation-queued"></a>`SNAPBACK_OFFLINE_MUTATION_QUEUED` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:19` | 7 |
-| <a id="diagnostic-snapback-offline-mutation-queue-refused"></a>`SNAPBACK_OFFLINE_MUTATION_QUEUE_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:7902` | 4 |
-| <a id="diagnostic-snapback-offline-mutation-replayed"></a>`SNAPBACK_OFFLINE_MUTATION_REPLAYED` | client | — | — | `packages/snapback-client/index.mjs:9980` | 1 |
-| <a id="diagnostic-snapback-offline-mutation-replay-failed"></a>`SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED` | client | — | — | `packages/snapback-client/index.mjs:10201` | 1 |
-| <a id="diagnostic-snapback-offline-mutation-result-expired"></a>`SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED` | client | — | — | `packages/snapback-client/index.mjs:10031` | 2 |
-| <a id="diagnostic-snapback-offline-mutation-stranded"></a>`SNAPBACK_OFFLINE_MUTATION_STRANDED` | client | — | — | `packages/snapback-client/index.mjs:10114` | 2 |
-| <a id="diagnostic-snapback-offline-queue-disabled"></a>`SNAPBACK_OFFLINE_QUEUE_DISABLED` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending) | `packages/snapback-client/index.mjs:7733` | 2 |
-| <a id="diagnostic-snapback-offline-queue-durability-required"></a>`SNAPBACK_OFFLINE_QUEUE_DURABILITY_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:7756` | 1 |
-| <a id="diagnostic-snapback-offline-queue-settlement-ledger-required"></a>`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED` | client | — | [guide](../deploying/cloudflare.md#exact-supported-subset-and-non-claims) | `packages/snapback-client/index.mjs:2350` | 1 |
-| <a id="diagnostic-snapback-offline-queue-store-incapable"></a>`SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE` | client | — | — | `packages/snapback-client/index.mjs:7750` | 6 |
-| <a id="diagnostic-snapback-offline-stranded-mutations-discarded"></a>`SNAPBACK_OFFLINE_STRANDED_MUTATIONS_DISCARDED` | client | — | — | `packages/snapback-client/index.mjs:8458` | 1 |
-| <a id="diagnostic-snapback-offline-stranded-mutation-rerecorded"></a>`SNAPBACK_OFFLINE_STRANDED_MUTATION_RERECORDED` | client | — | — | `packages/snapback-client/index.mjs:8547` | 1 |
-| <a id="diagnostic-snapback-offline-stranded-mutation-rerecord-discard-failed"></a>`SNAPBACK_OFFLINE_STRANDED_MUTATION_RERECORD_DISCARD_FAILED` | client | — | — | `packages/snapback-client/index.mjs:8539` | 1 |
+| <a id="diagnostic-snapback-offline-mutation-queue-refused"></a>`SNAPBACK_OFFLINE_MUTATION_QUEUE_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:7912` | 4 |
+| <a id="diagnostic-snapback-offline-mutation-replayed"></a>`SNAPBACK_OFFLINE_MUTATION_REPLAYED` | client | — | — | `packages/snapback-client/index.mjs:9990` | 1 |
+| <a id="diagnostic-snapback-offline-mutation-replay-failed"></a>`SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED` | client | — | — | `packages/snapback-client/index.mjs:10211` | 1 |
+| <a id="diagnostic-snapback-offline-mutation-result-expired"></a>`SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED` | client | — | — | `packages/snapback-client/index.mjs:10041` | 2 |
+| <a id="diagnostic-snapback-offline-mutation-stranded"></a>`SNAPBACK_OFFLINE_MUTATION_STRANDED` | client | — | — | `packages/snapback-client/index.mjs:10124` | 2 |
+| <a id="diagnostic-snapback-offline-queue-disabled"></a>`SNAPBACK_OFFLINE_QUEUE_DISABLED` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending) | `packages/snapback-client/index.mjs:7743` | 2 |
+| <a id="diagnostic-snapback-offline-queue-durability-required"></a>`SNAPBACK_OFFLINE_QUEUE_DURABILITY_REQUIRED` | client | — | [guide](../clients/react-expo.md#the-restart-safe-offline-queue-is-not-yet-available-on-this-carrier) | `packages/snapback-client/index.mjs:7766` | 1 |
+| <a id="diagnostic-snapback-offline-queue-settlement-ledger-required"></a>`SNAPBACK_OFFLINE_QUEUE_SETTLEMENT_LEDGER_REQUIRED` | client | — | [guide](../deploying/cloudflare.md#exact-supported-subset-and-non-claims) | `packages/snapback-client/index.mjs:2353` | 1 |
+| <a id="diagnostic-snapback-offline-queue-store-incapable"></a>`SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE` | client | — | — | `packages/snapback-client/index.mjs:7760` | 6 |
+| <a id="diagnostic-snapback-offline-stranded-mutations-discarded"></a>`SNAPBACK_OFFLINE_STRANDED_MUTATIONS_DISCARDED` | client | — | — | `packages/snapback-client/index.mjs:8468` | 1 |
+| <a id="diagnostic-snapback-offline-stranded-mutation-rerecorded"></a>`SNAPBACK_OFFLINE_STRANDED_MUTATION_RERECORDED` | client | — | — | `packages/snapback-client/index.mjs:8557` | 1 |
+| <a id="diagnostic-snapback-offline-stranded-mutation-rerecord-discard-failed"></a>`SNAPBACK_OFFLINE_STRANDED_MUTATION_RERECORD_DISCARD_FAILED` | client | — | — | `packages/snapback-client/index.mjs:8549` | 1 |
 | <a id="diagnostic-snapback-old-failed"></a>`SNAPBACK_OLD_FAILED` | server | — | — | `src/telemetry.rs:6474` | 1 |
-| <a id="diagnostic-snapback-opaque-id"></a>`SNAPBACK_OPAQUE_ID` | client | — | — | `packages/snapback-client/index.mjs:407` | 4 |
+| <a id="diagnostic-snapback-opaque-id"></a>`SNAPBACK_OPAQUE_ID` | client | — | — | `packages/snapback-client/index.mjs:410` | 4 |
 | <a id="diagnostic-snapback-operation-already-recorded"></a>`SNAPBACK_OPERATION_ALREADY_RECORDED` | server | 409 | — | `src/operation_ledger.rs:4130` | 6 |
 | <a id="diagnostic-snapback-operation-cancelled"></a>`SNAPBACK_OPERATION_CANCELLED` | server | 409 | — | `src/error_tracking.rs:38` | 2 |
 | <a id="diagnostic-snapback-operation-class-derived-meter-supplied"></a>`SNAPBACK_OPERATION_CLASS_DERIVED_METER_SUPPLIED` | server | — | — | `src/telemetry_contract.rs:601` | 2 |
@@ -27868,7 +27892,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-operation-explanation-query-unbounded"></a>`SNAPBACK_OPERATION_EXPLANATION_QUERY_UNBOUNDED` | server | 400 | — | `src/operation_ledger.rs:3307` | 2 |
 | <a id="diagnostic-snapback-operation-explanation-version-unsupported"></a>`SNAPBACK_OPERATION_EXPLANATION_VERSION_UNSUPPORTED` | server | 400 | — | `src/server.rs:26883` | 3 |
 | <a id="diagnostic-snapback-operation-host-identity-forbidden"></a>`SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN` | server | 400 | — | `src/local.rs:12375` | 2 |
-| <a id="diagnostic-snapback-operation-identity-horizon-passed"></a>`SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED` | client | 409 | — | `packages/snapback-client/index.mjs:209` | 8 |
+| <a id="diagnostic-snapback-operation-identity-horizon-passed"></a>`SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED` | client | 409 | — | `packages/snapback-client/index.mjs:212` | 8 |
 | <a id="diagnostic-snapback-operation-identity-range-version-unsupported"></a>`SNAPBACK_OPERATION_IDENTITY_RANGE_VERSION_UNSUPPORTED` | server | 400 | — | `src/server.rs:26852` | 2 |
 | <a id="diagnostic-snapback-operation-identity-required"></a>`SNAPBACK_OPERATION_IDENTITY_REQUIRED` | server | 400 | — | `src/server/api_error.rs:1493` | 2 |
 | <a id="diagnostic-snapback-operation-identity-requires-client-mutation-id"></a>`SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID` | server | 400 | — | `src/local.rs:12363` | 2 |
@@ -27879,21 +27903,21 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-operation-pending-not-found"></a>`SNAPBACK_OPERATION_PENDING_NOT_FOUND` | server | — | — | `src/operation_ledger.rs:2187` | 2 |
 | <a id="diagnostic-snapback-operation-protected-custody-invalid"></a>`SNAPBACK_OPERATION_PROTECTED_CUSTODY_INVALID` | server | — | — | `src/operation_detail.rs:107` | 5 |
 | <a id="diagnostic-snapback-operation-protected-custody-unavailable"></a>`SNAPBACK_OPERATION_PROTECTED_CUSTODY_UNAVAILABLE` | server | — | — | `src/server/api_error.rs:1522` | 2 |
-| <a id="diagnostic-snapback-operation-range-audience-invalid"></a>`SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID` | client | 400 | — | `packages/snapback-client/index.mjs:9851` | 7 |
+| <a id="diagnostic-snapback-operation-range-audience-invalid"></a>`SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID` | client | 400 | — | `packages/snapback-client/index.mjs:9861` | 7 |
 | <a id="diagnostic-snapback-operation-range-auth-invalid"></a>`SNAPBACK_OPERATION_RANGE_AUTH_INVALID` | server | 403 | — | `src/operation_ledger.rs:940` | 6 |
 | <a id="diagnostic-snapback-operation-range-continuity-invalid"></a>`SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID` | client | 409 | — | `packages/snapback-client/outbox-shared.mjs:525` | 9 |
 | <a id="diagnostic-snapback-operation-range-counter-reused"></a>`SNAPBACK_OPERATION_RANGE_COUNTER_REUSED` | server | 409 | — | `src/operation_ledger.rs:1615` | 4 |
 | <a id="diagnostic-snapback-operation-range-custody-invalid"></a>`SNAPBACK_OPERATION_RANGE_CUSTODY_INVALID` | client | — | — | `packages/snapback-client/outbox-shared.mjs:499` | 2 |
-| <a id="diagnostic-snapback-operation-range-exhausted"></a>`SNAPBACK_OPERATION_RANGE_EXHAUSTED` | client | 429 | — | `packages/snapback-client/index.mjs:223` | 13 |
+| <a id="diagnostic-snapback-operation-range-exhausted"></a>`SNAPBACK_OPERATION_RANGE_EXHAUSTED` | client | 429 | — | `packages/snapback-client/index.mjs:226` | 13 |
 | <a id="diagnostic-snapback-operation-range-invalid"></a>`SNAPBACK_OPERATION_RANGE_INVALID` | client | — | — | `packages/snapback-client/outbox-shared.mjs:509` | 1 |
 | <a id="diagnostic-snapback-operation-range-overlap"></a>`SNAPBACK_OPERATION_RANGE_OVERLAP` | server | 409 | — | `src/operation_ledger.rs:960` | 3 |
-| <a id="diagnostic-snapback-operation-range-reauth-required"></a>`SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:229` | 6 |
-| <a id="diagnostic-snapback-operation-range-refresh-failed"></a>`SNAPBACK_OPERATION_RANGE_REFRESH_FAILED` | client | — | — | `packages/snapback-client/index.mjs:10717` | 1 |
-| <a id="diagnostic-snapback-operation-range-response-invalid"></a>`SNAPBACK_OPERATION_RANGE_RESPONSE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:8730` | 2 |
-| <a id="diagnostic-snapback-operation-range-store-incapable"></a>`SNAPBACK_OPERATION_RANGE_STORE_INCAPABLE` | client | — | — | `packages/snapback-client/index.mjs:10459` | 2 |
+| <a id="diagnostic-snapback-operation-range-reauth-required"></a>`SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:232` | 6 |
+| <a id="diagnostic-snapback-operation-range-refresh-failed"></a>`SNAPBACK_OPERATION_RANGE_REFRESH_FAILED` | client | — | — | `packages/snapback-client/index.mjs:10727` | 1 |
+| <a id="diagnostic-snapback-operation-range-response-invalid"></a>`SNAPBACK_OPERATION_RANGE_RESPONSE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:8740` | 2 |
+| <a id="diagnostic-snapback-operation-range-store-incapable"></a>`SNAPBACK_OPERATION_RANGE_STORE_INCAPABLE` | client | — | — | `packages/snapback-client/index.mjs:10469` | 2 |
 | <a id="diagnostic-snapback-operation-range-uncovered-queued"></a>`SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED` | client | — | — | `packages/snapback-client/client-diagnostics.mjs:22` | 4 |
 | <a id="diagnostic-snapback-operation-receipt-invalid"></a>`SNAPBACK_OPERATION_RECEIPT_INVALID` | server | — | — | `src/server/api_error.rs:1552` | 4 |
-| <a id="diagnostic-snapback-operation-result-expired"></a>`SNAPBACK_OPERATION_RESULT_EXPIRED` | client | 410 | — | `packages/snapback-client/index.mjs:215` | 4 |
+| <a id="diagnostic-snapback-operation-result-expired"></a>`SNAPBACK_OPERATION_RESULT_EXPIRED` | client | 410 | — | `packages/snapback-client/index.mjs:218` | 4 |
 | <a id="diagnostic-snapback-operation-stored-refusal"></a>`SNAPBACK_OPERATION_STORED_REFUSAL` | server | 409 | — | `src/server/api_error.rs:506` | 2 |
 | <a id="diagnostic-snapback-operation-stream-unavailable"></a>`SNAPBACK_OPERATION_STREAM_UNAVAILABLE` | server | — | — | `src/server/api_error.rs:1673` | 7 |
 | <a id="diagnostic-snapback-operation-terminal-diverged"></a>`SNAPBACK_OPERATION_TERMINAL_DIVERGED` | server | 409 | — | `src/operation_ledger.rs:2181` | 4 |
@@ -27950,42 +27974,42 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-operator-target-head-mismatch"></a>`SNAPBACK_OPERATOR_TARGET_HEAD_MISMATCH` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/operator-service.mjs:231` | 1 |
 | <a id="diagnostic-snapback-operator-variant-unknown"></a>`SNAPBACK_OPERATOR_VARIANT_UNKNOWN` | hosted-supervisor | — | — | `packages/snapback-hosted-supervisor/operator-authority.mjs:585` | 1 |
 | <a id="diagnostic-snapback-optimistic-cross-table-replay-unproven"></a>`SNAPBACK_OPTIMISTIC_CROSS_TABLE_REPLAY_UNPROVEN` | client | — | [guide](../clients/headless.md#call-ordinary-functions) | `packages/snapback-client/optimistic-rebase.mjs:349` | 2 |
-| <a id="diagnostic-snapback-optimistic-invocation-sequence-exhausted"></a>`SNAPBACK_OPTIMISTIC_INVOCATION_SEQUENCE_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:270` | 1 |
+| <a id="diagnostic-snapback-optimistic-invocation-sequence-exhausted"></a>`SNAPBACK_OPTIMISTIC_INVOCATION_SEQUENCE_EXHAUSTED` | client | — | — | `packages/snapback-client/index.mjs:273` | 1 |
 | <a id="diagnostic-snapback-optimistic-query-membership-unproven"></a>`SNAPBACK_OPTIMISTIC_QUERY_MEMBERSHIP_UNPROVEN` | client | — | — | `packages/snapback-client/optimistic-rebase.mjs:665` | 1 |
 | <a id="diagnostic-snapback-optimistic-rebase-closed"></a>`SNAPBACK_OPTIMISTIC_REBASE_CLOSED` | client | — | — | `packages/snapback-client/optimistic-rebase.mjs:479` | 1 |
 | <a id="diagnostic-snapback-order-field-max-encoded-bytes-exceeded"></a>`SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED` | server | 400 | [guide](../backend/sequences.md#bound-string-order-fields) | `src/server/api_error.rs:1138` | 2 |
 | <a id="diagnostic-snapback-outbound-actions"></a>`SNAPBACK_OUTBOUND_ACTIONS` | codegen | — | [guide](../backend/actions-and-fetch.md#enable-egress-deliberately) | `packages/snapback-codegen/index.mjs:1974` | 15 |
 | <a id="diagnostic-snapback-outbound-loopback"></a>`SNAPBACK_OUTBOUND_LOOPBACK` | server | — | — | `src/outbound_policy.rs:55` | 1 |
-| <a id="diagnostic-snapback-outbox-ack-authority-mixed"></a>`SNAPBACK_OUTBOX_ACK_AUTHORITY_MIXED` | client | — | — | `packages/snapback-client/index.mjs:7683` | 2 |
-| <a id="diagnostic-snapback-outbox-ack-authority-unknown"></a>`SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN` | client | — | — | `packages/snapback-client/index.mjs:7676` | 2 |
+| <a id="diagnostic-snapback-outbox-ack-authority-mixed"></a>`SNAPBACK_OUTBOX_ACK_AUTHORITY_MIXED` | client | — | — | `packages/snapback-client/index.mjs:7693` | 2 |
+| <a id="diagnostic-snapback-outbox-ack-authority-unknown"></a>`SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN` | client | — | — | `packages/snapback-client/index.mjs:7686` | 2 |
 | <a id="diagnostic-snapback-outbox-ack-full"></a>`SNAPBACK_OUTBOX_ACK_FULL` | client | — | — | `packages/snapback-client/outbox-shared.mjs:134` | 1 |
-| <a id="diagnostic-snapback-outbox-adoption-fresh-snapshot-required"></a>`SNAPBACK_OUTBOX_ADOPTION_FRESH_SNAPSHOT_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:10248` | 1 |
-| <a id="diagnostic-snapback-outbox-adoption-incompatible-successor"></a>`SNAPBACK_OUTBOX_ADOPTION_INCOMPATIBLE_SUCCESSOR` | client | — | — | `packages/snapback-client/index.mjs:10282` | 1 |
-| <a id="diagnostic-snapback-outbox-adoption-intent-incompatible"></a>`SNAPBACK_OUTBOX_ADOPTION_INTENT_INCOMPATIBLE` | client | — | — | `packages/snapback-client/index.mjs:10304` | 1 |
-| <a id="diagnostic-snapback-outbox-adoption-not-writer"></a>`SNAPBACK_OUTBOX_ADOPTION_NOT_WRITER` | client | — | — | `packages/snapback-client/index.mjs:10256` | 1 |
-| <a id="diagnostic-snapback-outbox-adoption-replay-refused"></a>`SNAPBACK_OUTBOX_ADOPTION_REPLAY_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:10168` | 1 |
-| <a id="diagnostic-snapback-outbox-adoption-store-id-mismatch"></a>`SNAPBACK_OUTBOX_ADOPTION_STORE_ID_MISMATCH` | client | — | — | `packages/snapback-client/index.mjs:10269` | 1 |
-| <a id="diagnostic-snapback-outbox-adoption-store-id-unavailable"></a>`SNAPBACK_OUTBOX_ADOPTION_STORE_ID_UNAVAILABLE` | client | — | — | `packages/snapback-client/index.mjs:10262` | 1 |
-| <a id="diagnostic-snapback-outbox-drain-barrier-refused"></a>`SNAPBACK_OUTBOX_DRAIN_BARRIER_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:9593` | 2 |
-| <a id="diagnostic-snapback-outbox-drain-barrier-timeout"></a>`SNAPBACK_OUTBOX_DRAIN_BARRIER_TIMEOUT` | client | — | — | `packages/snapback-client/index.mjs:9245` | 3 |
-| <a id="diagnostic-snapback-outbox-drain-stopped"></a>`SNAPBACK_OUTBOX_DRAIN_STOPPED` | client | — | — | `packages/snapback-client/index.mjs:9238` | 2 |
-| <a id="diagnostic-snapback-outbox-failure-mark-skipped-store-closed"></a>`SNAPBACK_OUTBOX_FAILURE_MARK_SKIPPED_STORE_CLOSED` | client | — | — | `packages/snapback-client/index.mjs:11040` | 1 |
+| <a id="diagnostic-snapback-outbox-adoption-fresh-snapshot-required"></a>`SNAPBACK_OUTBOX_ADOPTION_FRESH_SNAPSHOT_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:10258` | 1 |
+| <a id="diagnostic-snapback-outbox-adoption-incompatible-successor"></a>`SNAPBACK_OUTBOX_ADOPTION_INCOMPATIBLE_SUCCESSOR` | client | — | — | `packages/snapback-client/index.mjs:10292` | 1 |
+| <a id="diagnostic-snapback-outbox-adoption-intent-incompatible"></a>`SNAPBACK_OUTBOX_ADOPTION_INTENT_INCOMPATIBLE` | client | — | — | `packages/snapback-client/index.mjs:10314` | 1 |
+| <a id="diagnostic-snapback-outbox-adoption-not-writer"></a>`SNAPBACK_OUTBOX_ADOPTION_NOT_WRITER` | client | — | — | `packages/snapback-client/index.mjs:10266` | 1 |
+| <a id="diagnostic-snapback-outbox-adoption-replay-refused"></a>`SNAPBACK_OUTBOX_ADOPTION_REPLAY_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:10178` | 1 |
+| <a id="diagnostic-snapback-outbox-adoption-store-id-mismatch"></a>`SNAPBACK_OUTBOX_ADOPTION_STORE_ID_MISMATCH` | client | — | — | `packages/snapback-client/index.mjs:10279` | 1 |
+| <a id="diagnostic-snapback-outbox-adoption-store-id-unavailable"></a>`SNAPBACK_OUTBOX_ADOPTION_STORE_ID_UNAVAILABLE` | client | — | — | `packages/snapback-client/index.mjs:10272` | 1 |
+| <a id="diagnostic-snapback-outbox-drain-barrier-refused"></a>`SNAPBACK_OUTBOX_DRAIN_BARRIER_REFUSED` | client | — | — | `packages/snapback-client/index.mjs:9603` | 2 |
+| <a id="diagnostic-snapback-outbox-drain-barrier-timeout"></a>`SNAPBACK_OUTBOX_DRAIN_BARRIER_TIMEOUT` | client | — | — | `packages/snapback-client/index.mjs:9255` | 3 |
+| <a id="diagnostic-snapback-outbox-drain-stopped"></a>`SNAPBACK_OUTBOX_DRAIN_STOPPED` | client | — | — | `packages/snapback-client/index.mjs:9248` | 2 |
+| <a id="diagnostic-snapback-outbox-failure-mark-skipped-store-closed"></a>`SNAPBACK_OUTBOX_FAILURE_MARK_SKIPPED_STORE_CLOSED` | client | — | — | `packages/snapback-client/index.mjs:11050` | 1 |
 | <a id="diagnostic-snapback-outbox-full"></a>`SNAPBACK_OUTBOX_FULL` | client | — | — | `packages/snapback-client/outbox-shared.mjs:128` | 1 |
 | <a id="diagnostic-snapback-outbox-identity-mismatch"></a>`SNAPBACK_OUTBOX_IDENTITY_MISMATCH` | client | — | — | `packages/snapback-client/outbox-shared.mjs:595` | 1 |
-| <a id="diagnostic-snapback-outbox-not-writer"></a>`SNAPBACK_OUTBOX_NOT_WRITER` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending) | `packages/snapback-client/index.mjs:10755` | 2 |
-| <a id="diagnostic-snapback-outbox-quarantine-unsupported"></a>`SNAPBACK_OUTBOX_QUARANTINE_UNSUPPORTED` | client | — | — | `packages/snapback-client/index.mjs:10126` | 1 |
+| <a id="diagnostic-snapback-outbox-not-writer"></a>`SNAPBACK_OUTBOX_NOT_WRITER` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending) | `packages/snapback-client/index.mjs:10765` | 2 |
+| <a id="diagnostic-snapback-outbox-quarantine-unsupported"></a>`SNAPBACK_OUTBOX_QUARANTINE_UNSUPPORTED` | client | — | — | `packages/snapback-client/index.mjs:10136` | 1 |
 | <a id="diagnostic-snapback-outbox-record-invalid"></a>`SNAPBACK_OUTBOX_RECORD_INVALID` | client | — | — | `packages/snapback-client/outbox-shared.mjs:117` | 2 |
 | <a id="diagnostic-snapback-outbox-record-oversize"></a>`SNAPBACK_OUTBOX_RECORD_OVERSIZE` | client | — | — | `packages/snapback-client/outbox-shared.mjs:140` | 1 |
-| <a id="diagnostic-snapback-outbox-reentry-not-durable"></a>`SNAPBACK_OUTBOX_REENTRY_NOT_DURABLE` | client | — | — | `packages/snapback-client/index.mjs:8371` | 2 |
-| <a id="diagnostic-snapback-outbox-replay-failed"></a>`SNAPBACK_OUTBOX_REPLAY_FAILED` | client | — | — | `packages/snapback-client/index.mjs:10185` | 3 |
-| <a id="diagnostic-snapback-outbox-result-gone-acknowledged"></a>`SNAPBACK_OUTBOX_RESULT_GONE_ACKNOWLEDGED` | client | — | — | `packages/snapback-client/index.mjs:8314` | 1 |
+| <a id="diagnostic-snapback-outbox-reentry-not-durable"></a>`SNAPBACK_OUTBOX_REENTRY_NOT_DURABLE` | client | — | — | `packages/snapback-client/index.mjs:8381` | 2 |
+| <a id="diagnostic-snapback-outbox-replay-failed"></a>`SNAPBACK_OUTBOX_REPLAY_FAILED` | client | — | — | `packages/snapback-client/index.mjs:10195` | 3 |
+| <a id="diagnostic-snapback-outbox-result-gone-acknowledged"></a>`SNAPBACK_OUTBOX_RESULT_GONE_ACKNOWLEDGED` | client | — | — | `packages/snapback-client/index.mjs:8324` | 1 |
 | <a id="diagnostic-snapback-outbox-result-gone-invalid"></a>`SNAPBACK_OUTBOX_RESULT_GONE_INVALID` | client | — | — | `packages/snapback-client/outbox-shared.mjs:935` | 1 |
 | <a id="diagnostic-snapback-outbox-result-gone-mismatch"></a>`SNAPBACK_OUTBOX_RESULT_GONE_MISMATCH` | client | — | — | `packages/snapback-client/outbox-shared.mjs:946` | 1 |
-| <a id="diagnostic-snapback-outbox-result-gone-not-current"></a>`SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT` | client | — | — | `packages/snapback-client/index.mjs:8303` | 2 |
-| <a id="diagnostic-snapback-outbox-result-gone-not-durable"></a>`SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE` | client | — | — | `packages/snapback-client/index.mjs:10009` | 4 |
-| <a id="diagnostic-snapback-outbox-settlement-not-durable"></a>`SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE` | client | — | — | `packages/snapback-client/index.mjs:9971` | 5 |
-| <a id="diagnostic-snapback-outbox-stranded-authority-required"></a>`SNAPBACK_OUTBOX_STRANDED_AUTHORITY_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:8393` | 2 |
-| <a id="diagnostic-snapback-outbox-stranded-not-current"></a>`SNAPBACK_OUTBOX_STRANDED_NOT_CURRENT` | client | — | — | `packages/snapback-client/index.mjs:8487` | 2 |
+| <a id="diagnostic-snapback-outbox-result-gone-not-current"></a>`SNAPBACK_OUTBOX_RESULT_GONE_NOT_CURRENT` | client | — | — | `packages/snapback-client/index.mjs:8313` | 2 |
+| <a id="diagnostic-snapback-outbox-result-gone-not-durable"></a>`SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE` | client | — | — | `packages/snapback-client/index.mjs:10019` | 4 |
+| <a id="diagnostic-snapback-outbox-settlement-not-durable"></a>`SNAPBACK_OUTBOX_SETTLEMENT_NOT_DURABLE` | client | — | — | `packages/snapback-client/index.mjs:9981` | 5 |
+| <a id="diagnostic-snapback-outbox-stranded-authority-required"></a>`SNAPBACK_OUTBOX_STRANDED_AUTHORITY_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:8403` | 2 |
+| <a id="diagnostic-snapback-outbox-stranded-not-current"></a>`SNAPBACK_OUTBOX_STRANDED_NOT_CURRENT` | client | — | — | `packages/snapback-client/index.mjs:8497` | 2 |
 | <a id="diagnostic-snapback-overloaded"></a>`SNAPBACK_OVERLOADED` | harness | — | — | `packages/snapback-harness/envelope.mjs:25` | 6 |
 | <a id="diagnostic-snapback-packaged-store-qualification-closure-invalid"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_CLOSURE_INVALID` | server | — | — | `src/cli.rs:3654` | 1 |
 | <a id="diagnostic-snapback-packaged-store-qualification-identity-unqualified"></a>`SNAPBACK_PACKAGED_STORE_QUALIFICATION_IDENTITY_UNQUALIFIED` | server | — | — | `src/cli.rs:3652` | 1 |
@@ -28017,7 +28041,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-prepared-release-profile-invalid"></a>`SNAPBACK_PREPARED_RELEASE_PROFILE_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:1960` | 2 |
 | <a id="diagnostic-snapback-prepared-release-required"></a>`SNAPBACK_PREPARED_RELEASE_REQUIRED` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:3544` | 1 |
 | <a id="diagnostic-snapback-profile"></a>`SNAPBACK_PROFILE` | codegen | — | [guide](../auth/targets.md#a-public-tunnel-does-not-make-the-loopback-server-production-ready) | `packages/snapback-codegen/visibility-governance-dev-config.mjs:596` | 16 |
-| <a id="diagnostic-snapback-profile-forbids"></a>`SNAPBACK_PROFILE_FORBIDS` | client | 403 | — | `packages/snapback-client/index.mjs:7110` | 4 |
+| <a id="diagnostic-snapback-profile-forbids"></a>`SNAPBACK_PROFILE_FORBIDS` | client | 403 | — | `packages/snapback-client/index.mjs:7120` | 4 |
 | <a id="diagnostic-snapback-projection-fanout-exceeded"></a>`SNAPBACK_PROJECTION_FANOUT_EXCEEDED` | server | 409 | [guide](../backend/relational-queries.md#maintained-projections) | `src/server/api_error.rs:576` | 2 |
 | <a id="diagnostic-snapback-projection-maintenance-invalid"></a>`SNAPBACK_PROJECTION_MAINTENANCE_INVALID` | server | 400 | — | `src/server/api_error.rs:1382` | 2 |
 | <a id="diagnostic-snapback-projection-output-read-unenforced"></a>`SNAPBACK_PROJECTION_OUTPUT_READ_UNENFORCED` | server | 400 | — | `src/local.rs:30689` | 3 |
@@ -28162,7 +28186,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-query-in-items-exceeded"></a>`SNAPBACK_QUERY_IN_ITEMS_EXCEEDED` | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `packages/snapback-harness/envelope.mjs:36` | 6 |
 | <a id="diagnostic-snapback-query-keyset-invalid"></a>`SNAPBACK_QUERY_KEYSET_INVALID` | queries | — | — | `src/storage.rs:5959` | 4 |
 | <a id="diagnostic-snapback-query-limit-invalid"></a>`SNAPBACK_QUERY_LIMIT_INVALID` | queries | 400 | [guide](../backend/queries.md#builder-bounds-and-their-refusal-codes) | `packages/snapback-harness/envelope.mjs:38` | 6 |
-| <a id="diagnostic-snapback-query-offline-unavailable"></a>`SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` | queries | — | — | `packages/snapback-client/index.mjs:2381` | 3 |
+| <a id="diagnostic-snapback-query-offline-unavailable"></a>`SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` | queries | — | — | `packages/snapback-client/index.mjs:2384` | 3 |
 | <a id="diagnostic-snapback-query-order-unsupported-field-type"></a>`SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE` | queries | 400 | — | `packages/snapback-codegen/index.mjs:5469` | 4 |
 | <a id="diagnostic-snapback-query-registration-address-invalid"></a>`SNAPBACK_QUERY_REGISTRATION_ADDRESS_INVALID` | queries | — | — | `packages/snapback-client/registration-ledger.mjs:216` | 5 |
 | <a id="diagnostic-snapback-query-registration-bytes-limit"></a>`SNAPBACK_QUERY_REGISTRATION_BYTES_LIMIT` | queries | — | — | `packages/snapback-client/registration-ledger.mjs:626` | 2 |
@@ -28195,7 +28219,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-react-command-result-invalid"></a>`SNAPBACK_REACT_COMMAND_RESULT_INVALID` | react | — | — | `packages/snapback-react/implementation.mjs:2218` | 1 |
 | <a id="diagnostic-snapback-react-diagnostics-unsupported"></a>`SNAPBACK_REACT_DIAGNOSTICS_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:6014` | 1 |
 | <a id="diagnostic-snapback-react-group-already-consumed"></a>`SNAPBACK_REACT_GROUP_ALREADY_CONSUMED` | client | — | — | `packages/snapback-client/react-binding.mjs:1833` | 1 |
-| <a id="diagnostic-snapback-react-group-attach-expired"></a>`SNAPBACK_REACT_GROUP_ATTACH_EXPIRED` | client | — | — | `packages/snapback-client/index.mjs:15255` | 5 |
+| <a id="diagnostic-snapback-react-group-attach-expired"></a>`SNAPBACK_REACT_GROUP_ATTACH_EXPIRED` | client | — | — | `packages/snapback-client/index.mjs:15265` | 5 |
 | <a id="diagnostic-snapback-react-group-authority-stale"></a>`SNAPBACK_REACT_GROUP_AUTHORITY_STALE` | client | — | — | `packages/snapback-client/react-binding.mjs:1844` | 2 |
 | <a id="diagnostic-snapback-react-group-auth-invalidation-required"></a>`SNAPBACK_REACT_GROUP_AUTH_INVALIDATION_REQUIRED` | client | — | — | `packages/snapback-client/react-binding.mjs:2053` | 1 |
 | <a id="diagnostic-snapback-react-group-bundle-invalid"></a>`SNAPBACK_REACT_GROUP_BUNDLE_INVALID` | client | — | — | `packages/snapback-client/react-binding.mjs:2145` | 9 |
@@ -28231,7 +28255,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-react-presence-consumer-limit"></a>`SNAPBACK_REACT_PRESENCE_CONSUMER_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:2896` | 2 |
 | <a id="diagnostic-snapback-react-presence-heartbeat-unsupported"></a>`SNAPBACK_REACT_PRESENCE_HEARTBEAT_UNSUPPORTED` | react | — | — | `packages/snapback-react/implementation.mjs:2485` | 2 |
 | <a id="diagnostic-snapback-react-presence-key-mode-unsupported"></a>`SNAPBACK_REACT_PRESENCE_KEY_MODE_UNSUPPORTED` | client | — | — | `packages/snapback-client/react-binding.mjs:2479` | 1 |
-| <a id="diagnostic-snapback-react-presence-not-authoritative"></a>`SNAPBACK_REACT_PRESENCE_NOT_AUTHORITATIVE` | client | — | — | `packages/snapback-client/index.mjs:11561` | 3 |
+| <a id="diagnostic-snapback-react-presence-not-authoritative"></a>`SNAPBACK_REACT_PRESENCE_NOT_AUTHORITATIVE` | client | — | — | `packages/snapback-client/index.mjs:11571` | 3 |
 | <a id="diagnostic-snapback-react-presence-publisher-limit"></a>`SNAPBACK_REACT_PRESENCE_PUBLISHER_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:2925` | 2 |
 | <a id="diagnostic-snapback-react-presence-publish-churn"></a>`SNAPBACK_REACT_PRESENCE_PUBLISH_CHURN` | client | — | [guide](../clients/react.md#inspect-client-dev-diagnostics) | `packages/snapback-client/client-diagnostics.mjs:14` | 2 |
 | <a id="diagnostic-snapback-react-presence-room-limit"></a>`SNAPBACK_REACT_PRESENCE_ROOM_LIMIT` | react | — | — | `packages/snapback-react/implementation.mjs:2815` | 1 |
@@ -28258,7 +28282,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-rebase-operation-invalid"></a>`SNAPBACK_REBASE_OPERATION_INVALID` | client | — | — | `packages/snapback-client/optimistic-rebase.mjs:277` | 2 |
 | <a id="diagnostic-snapback-rebase-settlement-lane-mismatch"></a>`SNAPBACK_REBASE_SETTLEMENT_LANE_MISMATCH` | client | — | — | `packages/snapback-client/optimistic-rebase.mjs:307` | 2 |
 | <a id="diagnostic-snapback-redirect-refused"></a>`SNAPBACK_REDIRECT_REFUSED` | admin-client | — | — | `packages/snapback-admin-client/index.mjs:795` | 8 |
-| <a id="diagnostic-snapback-registered-subscription-stream-required"></a>`SNAPBACK_REGISTERED_SUBSCRIPTION_STREAM_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:12357` | 2 |
+| <a id="diagnostic-snapback-registered-subscription-stream-required"></a>`SNAPBACK_REGISTERED_SUBSCRIPTION_STREAM_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:12367` | 2 |
 | <a id="diagnostic-snapback-registration-refused"></a>`SNAPBACK_REGISTRATION_REFUSED` | client | — | — | `packages/snapback-client/demand-broker.mjs:441` | 1 |
 | <a id="diagnostic-snapback-registration-released"></a>`SNAPBACK_REGISTRATION_RELEASED` | client | — | — | `packages/snapback-client/demand-broker.mjs:436` | 1 |
 | <a id="diagnostic-snapback-registration-release-refused"></a>`SNAPBACK_REGISTRATION_RELEASE_REFUSED` | client | — | — | `packages/snapback-client/demand-broker.mjs:477` | 1 |
@@ -28410,10 +28434,10 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-resume-witness-root-mismatch"></a>`SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH` | server | — | — | `src/rqs.rs:104` | 1 |
 | <a id="diagnostic-snapback-retained-identity-incomplete"></a>`SNAPBACK_RETAINED_IDENTITY_INCOMPLETE` | contract | — | — | `packages/snapback-contract/index.mjs:1276` | 1 |
 | <a id="diagnostic-snapback-retained-query-stale"></a>`SNAPBACK_RETAINED_QUERY_STALE` | contract | — | — | `packages/snapback-contract/index.mjs:2180` | 1 |
-| <a id="diagnostic-snapback-retention-not-retainable"></a>`SNAPBACK_RETENTION_NOT_RETAINABLE` | client | — | [guide](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority) | `packages/snapback-client/index.mjs:14682` | 2 |
-| <a id="diagnostic-snapback-retention-not-rqs-eligible"></a>`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` | client | — | [guide](../retrieval-eval.md#seed-intents) | `packages/snapback-client/index.mjs:14698` | 1 |
-| <a id="diagnostic-snapback-retention-owner-authority-unavailable"></a>`SNAPBACK_RETENTION_OWNER_AUTHORITY_UNAVAILABLE` | client | — | — | `packages/snapback-client/index.mjs:14671` | 1 |
-| <a id="diagnostic-snapback-retention-store-disabled"></a>`SNAPBACK_RETENTION_STORE_DISABLED` | client | — | [guide](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority) | `packages/snapback-client/index.mjs:14162` | 1 |
+| <a id="diagnostic-snapback-retention-not-retainable"></a>`SNAPBACK_RETENTION_NOT_RETAINABLE` | client | — | [guide](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority) | `packages/snapback-client/index.mjs:14692` | 2 |
+| <a id="diagnostic-snapback-retention-not-rqs-eligible"></a>`SNAPBACK_RETENTION_NOT_RQS_ELIGIBLE` | client | — | [guide](../retrieval-eval.md#seed-intents) | `packages/snapback-client/index.mjs:14708` | 1 |
+| <a id="diagnostic-snapback-retention-owner-authority-unavailable"></a>`SNAPBACK_RETENTION_OWNER_AUTHORITY_UNAVAILABLE` | client | — | — | `packages/snapback-client/index.mjs:14681` | 1 |
+| <a id="diagnostic-snapback-retention-store-disabled"></a>`SNAPBACK_RETENTION_STORE_DISABLED` | client | — | [guide](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority) | `packages/snapback-client/index.mjs:14172` | 1 |
 | <a id="diagnostic-snapback-rollback-plan-invalid"></a>`SNAPBACK_ROLLBACK_PLAN_INVALID` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2883` | 3 |
 | <a id="diagnostic-snapback-rollback-release-mismatch"></a>`SNAPBACK_ROLLBACK_RELEASE_MISMATCH` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2980` | 1 |
 | <a id="diagnostic-snapback-rollback-release-required"></a>`SNAPBACK_ROLLBACK_RELEASE_REQUIRED` | cli | — | — | `packages/snapback-cli/deployment-control.mjs:2968` | 1 |
@@ -28422,16 +28446,16 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-routes-manifest-invalid"></a>`SNAPBACK_ROUTES_MANIFEST_INVALID` | server | 400 | — | `src/local.rs:695` | 6 |
 | <a id="diagnostic-snapback-route-unknown"></a>`SNAPBACK_ROUTE_UNKNOWN` | server | 404 | — | `src/server.rs:17847` | 3 |
 | <a id="diagnostic-snapback-row-not-found"></a>`SNAPBACK_ROW_NOT_FOUND` | codegen | 404 | [guide](../backend/declarative-plans.md#refuse-from-a-plan-elseerror-and-guard) | `packages/snapback-codegen/define.mjs:4277` | 16 |
-| <a id="diagnostic-snapback-rqs-mixed-group-invalid"></a>`SNAPBACK_RQS_MIXED_GROUP_INVALID` | client | — | — | `packages/snapback-client/index.mjs:12350` | 3 |
+| <a id="diagnostic-snapback-rqs-mixed-group-invalid"></a>`SNAPBACK_RQS_MIXED_GROUP_INVALID` | client | — | — | `packages/snapback-client/index.mjs:12360` | 3 |
 | <a id="diagnostic-snapback-rqs-mixed-group-version-unsupported"></a>`SNAPBACK_RQS_MIXED_GROUP_VERSION_UNSUPPORTED` | client | — | — | `packages/snapback-client/rqs-preload.mjs:689` | 1 |
-| <a id="diagnostic-snapback-rqs-read-only-result"></a>`SNAPBACK_RQS_READ_ONLY_RESULT` | client | — | — | `packages/snapback-client/index.mjs:12339` | 2 |
+| <a id="diagnostic-snapback-rqs-read-only-result"></a>`SNAPBACK_RQS_READ_ONLY_RESULT` | client | — | — | `packages/snapback-client/index.mjs:12349` | 2 |
 | <a id="diagnostic-snapback-rqs-store-allocator-exhausted"></a>`SNAPBACK_RQS_STORE_ALLOCATOR_EXHAUSTED` | client | — | — | `packages/snapback-client/protected-query-retention.mjs:54` | 4 |
 | <a id="diagnostic-snapback-rqs-store-closed"></a>`SNAPBACK_RQS_STORE_CLOSED` | client | — | — | `packages/snapback-client/demand-broker.mjs:711` | 6 |
 | <a id="diagnostic-snapback-rqs-store-corrupt"></a>`SNAPBACK_RQS_STORE_CORRUPT` | client | — | [guide](../sync/offline-and-retention.md#evaluate-an-owner-reclassified-retained-result) | `packages/snapback-client/materialization-store-runtime.mjs:59` | 20 |
 | <a id="diagnostic-snapback-rqs-store-failed"></a>`SNAPBACK_RQS_STORE_FAILED` | client | — | — | `packages/snapback-client/rqs-store.mjs:85` | 6 |
-| <a id="diagnostic-snapback-rqs-store-host-unsupported"></a>`SNAPBACK_RQS_STORE_HOST_UNSUPPORTED` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:127` | 1 |
+| <a id="diagnostic-snapback-rqs-store-host-unsupported"></a>`SNAPBACK_RQS_STORE_HOST_UNSUPPORTED` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:128` | 1 |
 | <a id="diagnostic-snapback-rqs-store-lock-unavailable"></a>`SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store.mjs:291` | 1 |
-| <a id="diagnostic-snapback-rqs-store-meta-regression"></a>`SNAPBACK_RQS_STORE_META_REGRESSION` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:900` | 4 |
+| <a id="diagnostic-snapback-rqs-store-meta-regression"></a>`SNAPBACK_RQS_STORE_META_REGRESSION` | client | — | — | `packages/snapback-client/rqs-store-file.mjs:1082` | 5 |
 | <a id="diagnostic-snapback-rqs-store-not-writer"></a>`SNAPBACK_RQS_STORE_NOT_WRITER` | client | — | [guide](../sync/offline-and-retention.md#keep-a-queued-react-mutation-pending) | `packages/snapback-client/materialization-store-runtime.mjs:35` | 5 |
 | <a id="diagnostic-snapback-rqs-store-random-unavailable"></a>`SNAPBACK_RQS_STORE_RANDOM_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-meta.mjs:64` | 2 |
 | <a id="diagnostic-snapback-rqs-store-unavailable"></a>`SNAPBACK_RQS_STORE_UNAVAILABLE` | client | — | — | `packages/snapback-client/rqs-store-expo.mjs:25` | 4 |
@@ -28492,7 +28516,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-search-maintenance-limit"></a>`SNAPBACK_SEARCH_MAINTENANCE_LIMIT` | server | 400 | — | `src/search/sqlite.rs:705` | 3 |
 | <a id="diagnostic-snapback-search-query-invalid"></a>`SNAPBACK_SEARCH_QUERY_INVALID` | client | 400 | [guide](../backend/text-search.md#handle-bounded-refusals) | `packages/snapback-client/search.mjs:7` | 21 |
 | <a id="diagnostic-snapback-search-query-plan-invalid"></a>`SNAPBACK_SEARCH_QUERY_PLAN_INVALID` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:4884` | 10 |
-| <a id="diagnostic-snapback-search-reference-invalid"></a>`SNAPBACK_SEARCH_REFERENCE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:560` | 3 |
+| <a id="diagnostic-snapback-search-reference-invalid"></a>`SNAPBACK_SEARCH_REFERENCE_INVALID` | client | — | — | `packages/snapback-client/index.mjs:563` | 3 |
 | <a id="diagnostic-snapback-search-request-schema-derivation"></a>`SNAPBACK_SEARCH_REQUEST_SCHEMA_DERIVATION` | codegen | — | — | `packages/snapback-codegen/index.mjs:4995` | 3 |
 | <a id="diagnostic-snapback-search-request-schema-mismatch"></a>`SNAPBACK_SEARCH_REQUEST_SCHEMA_MISMATCH` | codegen | — | — | `packages/snapback-codegen/index.mjs:4992` | 1 |
 | <a id="diagnostic-snapback-search-source-limit"></a>`SNAPBACK_SEARCH_SOURCE_LIMIT` | server | 400 | — | `src/search/sqlite.rs:305` | 4 |
@@ -28544,7 +28568,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-snapshot-batch-result-contract-invalid"></a>`SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID` | server | 400 | — | `src/local.rs:29851` | 5 |
 | <a id="diagnostic-snapback-soft-note"></a>`SNAPBACK_SOFT_NOTE` | server | — | — | `src/host_ops.rs:2539` | 1 |
 | <a id="diagnostic-snapback-source-unmapped"></a>`SNAPBACK_SOURCE_UNMAPPED` | codegen | — | — | `packages/snapback-codegen/provider-introspection.mjs:1508` | 1 |
-| <a id="diagnostic-snapback-speculative-id-unresolved"></a>`SNAPBACK_SPECULATIVE_ID_UNRESOLVED` | client | — | [guide](../sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes) | `packages/snapback-client/index.mjs:9794` | 2 |
+| <a id="diagnostic-snapback-speculative-id-unresolved"></a>`SNAPBACK_SPECULATIVE_ID_UNRESOLVED` | client | — | [guide](../sync/offline-and-retention.md#retained-asset-references-do-not-retain-image-bytes) | `packages/snapback-client/index.mjs:9804` | 2 |
 | <a id="diagnostic-snapback-spike-trace"></a>`SNAPBACK_SPIKE_TRACE` | server | — | — | `src/spike_trace.rs:16` | 1 |
 | <a id="diagnostic-snapback-spike-trace-open-failed"></a>`SNAPBACK_SPIKE_TRACE_OPEN_FAILED` | server | — | — | `src/spike_trace.rs:37` | 1 |
 | <a id="diagnostic-snapback-sqlite-error"></a>`SNAPBACK_SQLITE_ERROR` | server | — | — | `src/auth/coordinator.rs:3105` | 4 |
@@ -28584,7 +28608,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-store-export-invalid"></a>`SNAPBACK_STORE_EXPORT_INVALID` | storage | — | [guide](../operating/backup-and-copy.md#it-is-wal-consistent-and-that-matters) | `src/cli.rs:3477` | 4 |
 | <a id="diagnostic-snapback-store-export-refused"></a>`SNAPBACK_STORE_EXPORT_REFUSED` | storage | — | [guide](../operating/backup-and-copy.md#what-an-export-deliberately-is-and-is-not) | `src/store_state.rs:1076` | 2 |
 | <a id="diagnostic-snapback-store-policy-unavailable"></a>`SNAPBACK_STORE_POLICY_UNAVAILABLE` | storage | — | — | `packages/snapback-client/store-runtime.mjs:881` | 2 |
-| <a id="diagnostic-snapback-store-runtime-load-failed"></a>`SNAPBACK_STORE_RUNTIME_LOAD_FAILED` | storage | — | — | `packages/snapback-client/index.mjs:2383` | 8 |
+| <a id="diagnostic-snapback-store-runtime-load-failed"></a>`SNAPBACK_STORE_RUNTIME_LOAD_FAILED` | storage | — | — | `packages/snapback-client/index.mjs:2386` | 8 |
 | <a id="diagnostic-snapback-stream-attempt-limit-exceeded"></a>`SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED` | harness | 413 | — | `packages/snapback-harness/envelope.mjs:72` | 6 |
 | <a id="diagnostic-snapback-stream-attempt-not-found"></a>`SNAPBACK_STREAM_ATTEMPT_NOT_FOUND` | harness | 404 | — | `packages/snapback-harness/envelope.mjs:73` | 7 |
 | <a id="diagnostic-snapback-stream-cancelled"></a>`SNAPBACK_STREAM_CANCELLED` | harness | 409 | — | `packages/snapback-harness/envelope.mjs:74` | 6 |
@@ -28817,11 +28841,11 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-unknown-cron-job"></a>`SNAPBACK_UNKNOWN_CRON_JOB` | server | 404 | — | `src/cron.rs:877` | 2 |
 | <a id="diagnostic-snapback-unknown-field"></a>`SNAPBACK_UNKNOWN_FIELD` | harness | 404 | — | `packages/snapback-harness/envelope.mjs:32` | 5 |
 | <a id="diagnostic-snapback-unknown-function"></a>`SNAPBACK_UNKNOWN_FUNCTION` | server | 404 | [guide](../clients/headless.md#subscribe-to-durable-state) | `src/authoring_suggestion.rs:213` | 4 |
-| <a id="diagnostic-snapback-unknown-subscription"></a>`SNAPBACK_UNKNOWN_SUBSCRIPTION` | client | 404 | — | `packages/snapback-client/index.mjs:14045` | 4 |
+| <a id="diagnostic-snapback-unknown-subscription"></a>`SNAPBACK_UNKNOWN_SUBSCRIPTION` | client | 404 | — | `packages/snapback-client/index.mjs:14055` | 4 |
 | <a id="diagnostic-snapback-unknown-table"></a>`SNAPBACK_UNKNOWN_TABLE` | client | 404 | — | `packages/snapback-client/ir-evaluator.mjs:266` | 8 |
 | <a id="diagnostic-snapback-unsupported-blob"></a>`SNAPBACK_UNSUPPORTED_BLOB` | server | 400 | — | `src/server/api_error.rs:1438` | 1 |
 | <a id="diagnostic-snapback-update-capability-manifest"></a>`SNAPBACK_UPDATE_CAPABILITY_MANIFEST` | codegen | — | — | `packages/snapback-codegen/index.mjs:19545` | 2 |
-| <a id="diagnostic-snapback-upgrade-required"></a>`SNAPBACK_UPGRADE_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:237` | 4 |
+| <a id="diagnostic-snapback-upgrade-required"></a>`SNAPBACK_UPGRADE_REQUIRED` | client | — | — | `packages/snapback-client/index.mjs:240` | 4 |
 | <a id="diagnostic-snapback-url"></a>`SNAPBACK_URL` | swift-client | — | [guide](../auth/agent-principals.md#register-an-agent) | `clients/swift/SnapbackClient/Sources/snapback-prove/main.swift:18` | 2 |
 | <a id="diagnostic-snapback-v8-compat-config-invalid"></a>`SNAPBACK_V8_COMPAT_CONFIG_INVALID` | server | 400 | — | `src/server/api_error.rs:1440` | 2 |
 | <a id="diagnostic-snapback-v8-compat-flag-refused"></a>`SNAPBACK_V8_COMPAT_FLAG_REFUSED` | server | 400 | — | `src/server/api_error.rs:1441` | 2 |
@@ -28843,7 +28867,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-vector-qualification-machine"></a>`SNAPBACK_VECTOR_QUALIFICATION_MACHINE` | server | — | — | `src/vector/acceptance.rs:1284` | 1 |
 | <a id="diagnostic-snapback-vector-qualification-receipt-out"></a>`SNAPBACK_VECTOR_QUALIFICATION_RECEIPT_OUT` | server | — | — | `src/vector/acceptance.rs:1349` | 1 |
 | <a id="diagnostic-snapback-vector-qualification-revision"></a>`SNAPBACK_VECTOR_QUALIFICATION_REVISION` | server | — | — | `src/vector/acceptance.rs:1279` | 1 |
-| <a id="diagnostic-snapback-vector-query-invalid"></a>`SNAPBACK_VECTOR_QUERY_INVALID` | client | 400 | [guide](../backend/vector-search.md#stay-inside-the-exact-work-envelope) | `packages/snapback-client/index.mjs:682` | 4 |
+| <a id="diagnostic-snapback-vector-query-invalid"></a>`SNAPBACK_VECTOR_QUERY_INVALID` | client | 400 | [guide](../backend/vector-search.md#stay-inside-the-exact-work-envelope) | `packages/snapback-client/index.mjs:685` | 4 |
 | <a id="diagnostic-snapback-vector-query-plan-invalid"></a>`SNAPBACK_VECTOR_QUERY_PLAN_INVALID` | codegen | 400 | — | `packages/snapback-codegen/index.mjs:5041` | 4 |
 | <a id="diagnostic-snapback-vector-value-invalid"></a>`SNAPBACK_VECTOR_VALUE_INVALID` | server | 400 | [guide](../backend/vector-search.md#stay-inside-the-exact-work-envelope) | `src/server/api_error.rs:442` | 2 |
 | <a id="diagnostic-snapback-vector-work-limit"></a>`SNAPBACK_VECTOR_WORK_LIMIT` | server | — | [guide](../backend/vector-search.md#stay-inside-the-exact-work-envelope) | `src/server/api_error.rs:458` | 2 |
@@ -28926,7 +28950,7 @@ This build-bound registry is generated from production Rust, JavaScript, and Swi
 | <a id="diagnostic-snapback-webhook-target-unavailable"></a>`SNAPBACK_WEBHOOK_TARGET_UNAVAILABLE` | server | — | — | `src/server.rs:3344` | 4 |
 | <a id="diagnostic-snapback-websocket-message-invalid"></a>`SNAPBACK_WEBSOCKET_MESSAGE_INVALID` | server | 400 | — | `src/server.rs:30497` | 3 |
 | <a id="diagnostic-snapback-websocket-message-too-large"></a>`SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE` | server | 413 | — | `src/server.rs:30479` | 2 |
-| <a id="diagnostic-snapback-websocket-sender-mismatch"></a>`SNAPBACK_WEBSOCKET_SENDER_MISMATCH` | client | 400 | — | `packages/snapback-client/index.mjs:11740` | 3 |
+| <a id="diagnostic-snapback-websocket-sender-mismatch"></a>`SNAPBACK_WEBSOCKET_SENDER_MISMATCH` | client | 400 | — | `packages/snapback-client/index.mjs:11750` | 3 |
 | <a id="diagnostic-snapback-wire-version-mismatch"></a>`SNAPBACK_WIRE_VERSION_MISMATCH` | server | 400 | — | `src/server.rs:5944` | 4 |
 | <a id="diagnostic-snapback-wire-version-required"></a>`SNAPBACK_WIRE_VERSION_REQUIRED` | swift-client | 400 | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1293` | 5 |
 | <a id="diagnostic-snapback-wire-version-unsupported"></a>`SNAPBACK_WIRE_VERSION_UNSUPPORTED` | swift-client | 400 | — | `clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift:1292` | 11 |
@@ -28956,8 +28980,8 @@ reviewed-authorities-digest: sha256:c626ffca5cdf748da0fd61d9154d993bb3f9a766ac6f
 
 # Generated API reference
 
-One build-bound projection of 1247 public symbols (509 runtime values and 738 explicit type-only symbols).
-Registry source identity: `sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+One build-bound projection of 1266 public symbols (523 runtime values and 743 explicit type-only symbols).
+Registry source identity: `sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 
 Use `snapback guide <ExactSymbolName>` for a budgeted exact lookup. Add `--slice N` when a result names a next slice. The JSON registry is available at [registry.json](./registry.json). Stable `SNAPBACK_*` failures have their own [diagnostic code registry](./diagnostics.md).
 
@@ -29000,16 +29024,17 @@ The handler context contract is owned by the type-only [`@expo/snapback-codegen/
 | [`@expo/snapback-client/rqs-preload`](./expo-snapback-client--rqs-preload.md) | 11 | 5 | 6 |
 | [`@expo/snapback-client/rqs-registered`](./expo-snapback-client--rqs-registered.md) | 15 | 5 | 10 |
 | [`@expo/snapback-client/rqs-store`](./expo-snapback-client--rqs-store.md) | 23 | 13 | 10 |
-| [`@expo/snapback-client/rqs-store-default`](./expo-snapback-client--rqs-store-default.md) | 6 | 3 | 3 |
+| [`@expo/snapback-client/rqs-store-default`](./expo-snapback-client--rqs-store-default.md) | 10 | 7 | 3 |
 | [`@expo/snapback-client/rqs-store-expo`](./expo-snapback-client--rqs-store-expo.md) | 7 | 3 | 4 |
-| [`@expo/snapback-client/rqs-store-file`](./expo-snapback-client--rqs-store-file.md) | 8 | 7 | 1 |
+| [`@expo/snapback-client/rqs-store-file`](./expo-snapback-client--rqs-store-file.md) | 12 | 11 | 1 |
+| [`@expo/snapback-client/rqs-store-sqlite`](./expo-snapback-client--rqs-store-sqlite.md) | 9 | 4 | 5 |
 | [`@expo/snapback-client/search`](./expo-snapback-client--search.md) | 11 | 2 | 9 |
 | [`@expo/snapback-client/vector-search`](./expo-snapback-client--vector-search.md) | 5 | 1 | 4 |
 | [`@expo/snapback-react`](./expo-snapback-react.md) | 122 | 43 | 79 |
 | [`@expo/snapback-react/core`](./expo-snapback-react--core.md) | 54 | 23 | 31 |
 | [`@expo/snapback-react/familiar`](./expo-snapback-react--familiar.md) | 15 | 8 | 7 |
 | [`@expo/snapback-react/thumbhash`](./expo-snapback-react--thumbhash.md) | 5 | 5 | 0 |
-| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 170 | 67 | 103 |
+| [`@expo/snapback-expo`](./expo-snapback-expo.md) | 172 | 69 | 103 |
 | [`@expo/snapback-expo/app-binding`](./expo-snapback-expo--app-binding.md) | 13 | 5 | 8 |
 | [`@expo/snapback-expo/app.plugin`](./expo-snapback-expo--app.plugin.md) | 6 | 4 | 2 |
 | [`@expo/snapback-expo/asset-source`](./expo-snapback-expo--asset-source.md) | 7 | 4 | 3 |
@@ -29088,7 +29113,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:7ca006eca5974bb22901f2d6e9532beef0e7c81617de12c8c87a371996d40c21
+reviewed-authorities-digest: sha256:5105c9119e29f540316ecc61dc10cc4f4991e47ce3366c60c5ee0d850c6212e7
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -29096,7 +29121,7 @@ reviewed-authorities-digest: sha256:7ca006eca5974bb22901f2d6e9532beef0e7c81617de
 # @expo/snapback-client
 
 Build-bound public API projection for `@expo/snapback-client`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/index.mjs`.
 
@@ -30670,7 +30695,7 @@ export function classifyRegeneratedReactReference(
 
 Stable identity: `npm:@expo/snapback-client#clearNativeRqsFiles`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:34`
+Source: `packages/snapback-client/rqs-store-default.d.mts:42`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function clearNativeRqsFiles(): void;
@@ -30988,7 +31013,7 @@ export function createExternalSessionClient(
 
 Stable identity: `npm:@expo/snapback-client#createFileRqsResumeStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-file.d.mts:33`
+Source: `packages/snapback-client/rqs-store-file.d.mts:82`
 
 Durable file-backed persisted RQS resume store for native/Node hosts.
 
@@ -31033,7 +31058,7 @@ export function createIdentifierRemediationSet(input: {
 
 Stable identity: `npm:@expo/snapback-client#createIndexedDbRqsResumeStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store.d.mts:245`
+Source: `packages/snapback-client/rqs-store.d.mts:248`
 
 IndexedDB-backed persisted RQS resume store under single-writer Web-Lock
 ownership. `indexedDB` and `lockManager` are host handles (an `IDBFactory`
@@ -31136,6 +31161,8 @@ export function createSnapbackAppClient(input: Readonly<{
   /** Cancels in-flight bootstrap construction and disposes any partially
    * constructed custody/coordinator/client owners. */
   signal?: AbortSignal;
+  /** Provider-resolved RQS store/default-resolution. */
+  rqsStore?: unknown;
 }>): Promise<SnapbackAppClient>;
 ```
 
@@ -33484,7 +33511,7 @@ export function registerExpoFileSystemRqsFiles(
 
 Stable identity: `npm:@expo/snapback-client#registerNativeRqsFiles`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:30`
+Source: `packages/snapback-client/rqs-store-default.d.mts:38`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function registerNativeRqsFiles(
@@ -33633,7 +33660,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#resolveDefaultRqsStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:26`
+Source: `packages/snapback-client/rqs-store-default.d.mts:34`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function resolveDefaultRqsStore(options?: {
@@ -34094,7 +34121,7 @@ export type RqsResumeEntryRefusalReason =
 
 Stable identity: `npm:@expo/snapback-client#RqsResumeStore`
 Kind: `type-interface`
-Source: `packages/snapback-client/rqs-store.d.mts:154`
+Source: `packages/snapback-client/rqs-store.d.mts:157`
 
 The store contract shared by the web/IndexedDB and native/file arms.
 
@@ -34240,7 +34267,10 @@ Source: `packages/snapback-client/rqs-store.d.mts:128`
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type RqsStoreCommitResult =
   | Readonly<{ persisted: true; reason: null; bytes: number; evicted: readonly string[] }>
-  | Readonly<{ persisted: false; reason: 'not_writer' | 'key' | 'oversize' | 'corrupt' }>;
+  | Readonly<{
+    persisted: false;
+    reason: 'not_writer' | 'key' | 'oversize' | 'corrupt' | 'capacity';
+  }>;
 ```
 
 <a id="symbol-rqsstoreidentityresetresult-81c3ad0358"></a>
@@ -34290,7 +34320,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client#RqsStoreInspection`
 Kind: `type-interface`
-Source: `packages/snapback-client/rqs-store.d.mts:132`
+Source: `packages/snapback-client/rqs-store.d.mts:135`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface RqsStoreInspection {
@@ -36573,6 +36603,7 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED'
   | 'SNAPBACK_AUTH_BOOTSTRAP_POLICY_INVALID'
   | 'SNAPBACK_AUTH_BOOTSTRAP_POLICY_ROTATION'
+  | 'SNAPBACK_AUTH_BOOTSTRAP_RQS_STORE_CONFLICT'
   | 'SNAPBACK_AUTH_BUDGET_AUTHORITY_UNAVAILABLE'
   | 'SNAPBACK_AUTH_BUDGET_POLICY_INVALID'
   | 'SNAPBACK_AUTH_CATALOG_CORRUPT'
@@ -37561,6 +37592,8 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_EXPO_IOS_DEVICE_UNAVAILABLE'
   | 'SNAPBACK_EXPO_IOS_NETWORK_DEVICE_REFUSED'
   | 'SNAPBACK_EXPO_IOS_USB_REVERSE_FORWARD_UNAVAILABLE'
+  | 'SNAPBACK_EXPO_LEGACY_FILE_DELETE_UNCONFIRMED'
+  | 'SNAPBACK_EXPO_LEGACY_MIGRATION_FENCE_LOST'
   | 'SNAPBACK_EXPO_LISTENER_ENUMERATION_INCOMPLETE'
   | 'SNAPBACK_EXPO_LISTENER_ENUMERATION_UNAVAILABLE'
   | 'SNAPBACK_EXPO_LISTENER_EXPOSED'
@@ -37575,6 +37608,15 @@ export type SnapbackDiagnosticCode =
   | 'SNAPBACK_EXPO_PUSH_BASE_URL'
   | 'SNAPBACK_EXPO_ROUTE_INVALID'
   | 'SNAPBACK_EXPO_SESSION_MINT_FAILED'
+  | 'SNAPBACK_EXPO_SQLITE_CAPACITY_EXCEEDED'
+  | 'SNAPBACK_EXPO_SQLITE_DURABILITY_PRAGMAS_UNAVAILABLE'
+  | 'SNAPBACK_EXPO_SQLITE_MULTI_PROCESS_HOST_UNSUPPORTED'
+  | 'SNAPBACK_EXPO_SQLITE_NATIVE_API_UNAVAILABLE'
+  | 'SNAPBACK_EXPO_SQLITE_STORE_CLOSED'
+  | 'SNAPBACK_EXPO_SQLITE_STORE_CLOSE_FAILED'
+  | 'SNAPBACK_EXPO_SQLITE_STORE_CORRUPT'
+  | 'SNAPBACK_EXPO_SQLITE_STORE_OWNER_UNAVAILABLE'
+  | 'SNAPBACK_EXPO_SQLITE_TRANSACTION_REENTRANT'
   | 'SNAPBACK_EXPO_SUPERVISOR_CLOSED'
   | 'SNAPBACK_EXPO_SUPERVISOR_ORIGIN__'
   | 'SNAPBACK_EXPR_TYPE'
@@ -40219,7 +40261,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:f5ff81ed6b58bea635b6cb1c6e0f792f93bbd62518d9d4e63592998f6bf52f8d
+reviewed-authorities-digest: sha256:4ccdc5cb61ff56894c54aa7f7d2378d1ec3d74b2a90e4583a50cc9aa8edbbeb6
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40227,7 +40269,7 @@ reviewed-authorities-digest: sha256:f5ff81ed6b58bea635b6cb1c6e0f792f93bbd62518d9
 # @expo/snapback-client/agent-authority
 
 Build-bound public API projection for `@expo/snapback-client/agent-authority`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/agent-authority.mjs`.
 
@@ -40744,7 +40786,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:fbe2dac148c5bd81b2e1f5339cbc6c8a36d1dbb3330239e04b64a9211f45a000
+reviewed-authorities-digest: sha256:795cc059fe8b24bbcbc93db0db111f91969d720e53d8ee4a37922d9b917a7bc6
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40752,7 +40794,7 @@ reviewed-authorities-digest: sha256:fbe2dac148c5bd81b2e1f5339cbc6c8a36d1dbb33302
 # @expo/snapback-client/app-client-internal
 
 Build-bound public API projection for `@expo/snapback-client/app-client-internal`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-client-internal.mjs`.
 
@@ -40773,7 +40815,7 @@ Symbols: 5 total; 5 runtime values; 0 type-only.
 
 Stable identity: `npm:@expo/snapback-client/app-client-internal#adoptSupervisedBootstrapAuthority`
 Kind: `runtime-function`
-Source: `packages/snapback-client/app-client-internal.d.mts:40`
+Source: `packages/snapback-client/app-client-internal.d.mts:41`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function adoptSupervisedBootstrapAuthority(
@@ -40794,7 +40836,7 @@ export function adoptSupervisedBootstrapAuthority(
 
 Stable identity: `npm:@expo/snapback-client/app-client-internal#applicationDescriptorForAppClient`
 Kind: `runtime-function`
-Source: `packages/snapback-client/app-client-internal.d.mts:36`
+Source: `packages/snapback-client/app-client-internal.d.mts:37`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function applicationDescriptorForAppClient(
@@ -40820,7 +40862,7 @@ export function classifyHostedDevelopmentHostname(
 
 Stable identity: `npm:@expo/snapback-client/app-client-internal#createProviderValidatedExpoNativePlatform`
 Kind: `runtime-function`
-Source: `packages/snapback-client/app-client-internal.d.mts:25`
+Source: `packages/snapback-client/app-client-internal.d.mts:26`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createProviderValidatedExpoNativePlatform(input: Readonly<{
@@ -40851,6 +40893,7 @@ export function createSnapbackAppClientWithBootstrapObserver(
     storagePartition?: string;
     now?: () => number;
     signal?: AbortSignal;
+    rqsStore?: unknown;
   }>,
   observer: (snapshot: AuthBootstrapSnapshot) => void,
 ): Promise<SnapbackAppClient>;
@@ -40871,7 +40914,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:185f8e5e539914e1fbfd557da04d68cc55530efbe0b79faeb39f8e2cd290ab55
+reviewed-authorities-digest: sha256:e527c39972d6b68c5d0ccf2435f7ef0adc71d011b1566bc48e4f910016eb733d
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -40879,7 +40922,7 @@ reviewed-authorities-digest: sha256:185f8e5e539914e1fbfd557da04d68cc55530efbe0b7
 # @expo/snapback-client/app-data
 
 Build-bound public API projection for `@expo/snapback-client/app-data`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/app-data.mjs`.
 
@@ -41123,7 +41166,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:0ca13a006b231c015c927225370a627217a247e40929387c3b98d0f2a7b29171
+reviewed-authorities-digest: sha256:16b57a9835bf4b5758306f3f8cfff1ee43ec8a07b2828a9fe9ef7fa89099ab27
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41131,7 +41174,7 @@ reviewed-authorities-digest: sha256:0ca13a006b231c015c927225370a627217a247e40929
 # @expo/snapback-client/argument-normalization
 
 Build-bound public API projection for `@expo/snapback-client/argument-normalization`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/argument-normalization.mjs`.
 
@@ -41236,7 +41279,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:84c1b1f213f9637ae67f47469d0d06a501a2fd0fe64dc028c4fd7aa93f0734f9
+reviewed-authorities-digest: sha256:f80324daa3134bffb5b5ab7a3205c0863d23c4300ffd28d7a026f2cd10ec518d
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -41244,7 +41287,7 @@ reviewed-authorities-digest: sha256:84c1b1f213f9637ae67f47469d0d06a501a2fd0fe64d
 # @expo/snapback-client/assets
 
 Build-bound public API projection for `@expo/snapback-client/assets`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/assets.mjs`.
 
@@ -42071,7 +42114,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:5bc8698a6b2e25a5c413e23013d3b3ccce6eccb616bedcaf2ded90bcc3d0c604
+reviewed-authorities-digest: sha256:2a805290b24fb5705d37a97497655852f62d32bf035f0b89cda97087fa6f0ae3
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42079,7 +42122,7 @@ reviewed-authorities-digest: sha256:5bc8698a6b2e25a5c413e23013d3b3ccce6eccb616be
 # @expo/snapback-client/canonical-client-value
 
 Build-bound public API projection for `@expo/snapback-client/canonical-client-value`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/canonical-client-value.mjs`.
 
@@ -42178,7 +42221,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:23b0bd89c4e05a9cb33193dddbd6f5db6548fbfeff740dab6717c013aa0db9b4
+reviewed-authorities-digest: sha256:ea0a2bdf2f028dca597a3aa8002641b612376ad7e7f463d55dbc063b2a412992
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42186,7 +42229,7 @@ reviewed-authorities-digest: sha256:23b0bd89c4e05a9cb33193dddbd6f5db6548fbfeff74
 # @expo/snapback-client/client-diagnostics
 
 Build-bound public API projection for `@expo/snapback-client/client-diagnostics`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/client-diagnostics.mjs`.
 
@@ -42566,7 +42609,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:9409e7438974a89722951e140b12938a085da36450b26ea75388503c1da14e38
+reviewed-authorities-digest: sha256:2f285da5f9673aaa1c1799fc4d0ed408826bcc8f57450f57a79fd8eacfc55cdb
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -42574,7 +42617,7 @@ reviewed-authorities-digest: sha256:9409e7438974a89722951e140b12938a085da36450b2
 # @expo/snapback-client/commands
 
 Build-bound public API projection for `@expo/snapback-client/commands`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/commands.mjs`.
 
@@ -43263,7 +43306,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:0e6afd55689bb144dcd2d33fe1305c0e201e8f6332f3cb5e5a0eeb983911fed1
+reviewed-authorities-digest: sha256:21055c35997b3172205bffbc37469a8caebc9ef57516ba185246fe9b5daca13b
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43271,7 +43314,7 @@ reviewed-authorities-digest: sha256:0e6afd55689bb144dcd2d33fe1305c0e201e8f6332f3
 # @expo/snapback-client/diagnostic-error
 
 Build-bound public API projection for `@expo/snapback-client/diagnostic-error`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/diagnostic-error.mjs`.
 
@@ -43461,7 +43504,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:dae2200ac72d6c0c4cd8936181cbe5cbafacfa23b600fb9804594168f3f81329
+reviewed-authorities-digest: sha256:96ff82b8b6310ef36a05e40274bd99eca2a931a5df9f45460926aba12301db64
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43469,7 +43512,7 @@ reviewed-authorities-digest: sha256:dae2200ac72d6c0c4cd8936181cbe5cbafacfa23b600
 # @expo/snapback-client/evaluation-floor
 
 Build-bound public API projection for `@expo/snapback-client/evaluation-floor`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/evaluation-floor.mjs`.
 
@@ -43600,7 +43643,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:9e130adf05ba1f977a9dc7ecb04483637a6a17f8a9483b2fa9d01ee41e168355
+reviewed-authorities-digest: sha256:66f4b202f9d1b8033bbf2d3a19599c2de2e457d4a8a757b6d5201f7dc9ec5954
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43608,7 +43651,7 @@ reviewed-authorities-digest: sha256:9e130adf05ba1f977a9dc7ecb04483637a6a17f8a948
 # @expo/snapback-client/external-store
 
 Build-bound public API projection for `@expo/snapback-client/external-store`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/external-store.mjs`.
 
@@ -43962,7 +44005,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:852bc19d78fa83c68bd1535da026e84bb66087840fdf8aadac1db7f9f6597aa9
+reviewed-authorities-digest: sha256:e6c0bc81c1a243c1355a796f4bdda5484bb5e8aeb2ee3d534de091b92c73eb04
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -43970,7 +44013,7 @@ reviewed-authorities-digest: sha256:852bc19d78fa83c68bd1535da026e84bb66087840fdf
 # @expo/snapback-client/hosted-browser
 
 Build-bound public API projection for `@expo/snapback-client/hosted-browser`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/hosted-browser.mjs`.
 
@@ -44053,7 +44096,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:73f59810780e92598bd6cde470dc72110ad5f888322e47c0ac6de8b32d96cad8
+reviewed-authorities-digest: sha256:e34c4514fe06a290b09fb97e465e7a65d7f60e6144d3a8438599070d4f846ceb
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44061,7 +44104,7 @@ reviewed-authorities-digest: sha256:73f59810780e92598bd6cde470dc72110ad5f888322e
 # @expo/snapback-client/ir-evaluator
 
 Build-bound public API projection for `@expo/snapback-client/ir-evaluator`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/ir-evaluator.mjs`.
 
@@ -44422,7 +44465,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:518dddbc5ac2382027e882abe2a556620235303e86cc90c4e99f4460e9caaa91
+reviewed-authorities-digest: sha256:32824f02e644e79cbac531ac9474d12ee3cfbd502db6abfa6095b8e5efff7bd0
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44430,7 +44473,7 @@ reviewed-authorities-digest: sha256:518dddbc5ac2382027e882abe2a556620235303e86cc
 # @expo/snapback-client/lease-convergence
 
 Build-bound public API projection for `@expo/snapback-client/lease-convergence`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/lease-convergence.mjs`.
 
@@ -44572,7 +44615,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:bfee96ccc3ef7207640c8519dc01eedad63b14494c4204af368a1d4d084f0ecd
+reviewed-authorities-digest: sha256:95da9599fb7e5b64756ce8ce5bffcaec3a9e3bf018bf2bea0088ec8431d5a79f
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -44580,7 +44623,7 @@ reviewed-authorities-digest: sha256:bfee96ccc3ef7207640c8519dc01eedad63b14494c42
 # @expo/snapback-client/local-read-admission
 
 Build-bound public API projection for `@expo/snapback-client/local-read-admission`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/local-read-admission.mjs`.
 
@@ -45075,7 +45118,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:2394562ea20fd7e48799639f66f1c8afb50dc7ba85c8dcd72efd627c4fb46daf
+reviewed-authorities-digest: sha256:7fa836b1e6a0c76d5a795123a1c0fbf8898077b51c13ad8b00564af7eeec6c0f
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45083,7 +45126,7 @@ reviewed-authorities-digest: sha256:2394562ea20fd7e48799639f66f1c8afb50dc7ba85c8
 # @expo/snapback-client/materialization-store
 
 Build-bound public API projection for `@expo/snapback-client/materialization-store`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/materialization-store.mjs`.
 
@@ -45576,7 +45619,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:642ab59a8d2d91e13f8192967fa72ffcfc7757e99ceebdf4536fd18e7fd294d8
+reviewed-authorities-digest: sha256:2f4fba046d851e12291364c222777861e191635afa49faa16f61c76ef5d1bd41
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45584,7 +45627,7 @@ reviewed-authorities-digest: sha256:642ab59a8d2d91e13f8192967fa72ffcfc7757e99cee
 # @expo/snapback-client/micro
 
 Build-bound public API projection for `@expo/snapback-client/micro`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro.mjs`.
 
@@ -45810,7 +45853,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:e97426f783bd8fc521355f7592069426660761280e3bd860099a637968ba2223
+reviewed-authorities-digest: sha256:94c15ed0932f0d45cae686a3d6795d42ca2063a53f04b9a4c9f9ac49f1d278f2
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -45818,7 +45861,7 @@ reviewed-authorities-digest: sha256:e97426f783bd8fc521355f7592069426660761280e3b
 # @expo/snapback-client/micro/core
 
 Build-bound public API projection for `@expo/snapback-client/micro/core`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-core.mjs`.
 
@@ -46173,7 +46216,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:d3100d117a27dc0fbfb349e13b7fe8edf4ea2fd66fab410b2156e76e9f8100c7
+reviewed-authorities-digest: sha256:56ce21d1b3ad55853ed8292a41947c3587409c467ed5df06dfcd483e3df9b501
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46181,7 +46224,7 @@ reviewed-authorities-digest: sha256:d3100d117a27dc0fbfb349e13b7fe8edf4ea2fd66fab
 # @expo/snapback-client/micro/live
 
 Build-bound public API projection for `@expo/snapback-client/micro/live`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/micro-live.mjs`.
 
@@ -46287,7 +46330,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:69724212672264a0f3f0e5b2e3aa58e8b21c8d351c79d4c5a99f5becebc8a71a
+reviewed-authorities-digest: sha256:f69925980a9798a9a2c6b86c1cea134aba5fb4dd2827286bd42b51768f9e4fd6
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -46295,7 +46338,7 @@ reviewed-authorities-digest: sha256:69724212672264a0f3f0e5b2e3aa58e8b21c8d351c79
 # @expo/snapback-client/online
 
 Build-bound public API projection for `@expo/snapback-client/online`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/online.mjs`.
 
@@ -47024,7 +47067,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:7af4c171a895db9351c7decaea50497e2ef6611fa610b42bcfd570c1c3a0d4ca
+reviewed-authorities-digest: sha256:5fa209d36b7c8f722b64552ab4997e95d6a73218ba5febe2230772247045a28b
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47032,7 +47075,7 @@ reviewed-authorities-digest: sha256:7af4c171a895db9351c7decaea50497e2ef6611fa610
 # @expo/snapback-client/optimistic-rebase
 
 Build-bound public API projection for `@expo/snapback-client/optimistic-rebase`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/optimistic-rebase.mjs`.
 
@@ -47346,7 +47389,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:3f15ba2837f015a726379c4352b603e720746426f4e738739dc0486e50bfbdb9
+reviewed-authorities-digest: sha256:165fd133c262e8c3cf1264dac95e142217e39b30efe6f482e068b5cfa0b74a35
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47354,7 +47397,7 @@ reviewed-authorities-digest: sha256:3f15ba2837f015a726379c4352b603e720746426f4e7
 # @expo/snapback-client/outbox-shared
 
 Build-bound public API projection for `@expo/snapback-client/outbox-shared`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/outbox-shared.mjs`.
 
@@ -47799,7 +47842,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:07d5ff55a4bc5d39e62159ea82f842b8e21ecc82a979d94a40884a7f8568d7cc
+reviewed-authorities-digest: sha256:feef0ec1d201957001a670c99bbb33250c18c732f07fa19a5c2cea959051226e
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47807,7 +47850,7 @@ reviewed-authorities-digest: sha256:07d5ff55a4bc5d39e62159ea82f842b8e21ecc82a979
 # @expo/snapback-client/push-installation-expo
 
 Build-bound public API projection for `@expo/snapback-client/push-installation-expo`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-installation-expo.mjs`.
 
@@ -47925,7 +47968,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:0d4b680dcdaf24d90928c56964e56c782524d30e3964086aad0195f6dc1b7b18
+reviewed-authorities-digest: sha256:7ec557908b3e9439756e7eb75ded40f2c8270ee287f193e78880345b225c2b4c
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -47933,7 +47976,7 @@ reviewed-authorities-digest: sha256:0d4b680dcdaf24d90928c56964e56c782524d30e3964
 # @expo/snapback-client/push-registry
 
 Build-bound public API projection for `@expo/snapback-client/push-registry`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/push-registry.mjs`.
 
@@ -48097,7 +48140,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:1865ea9b259f25e9d17103a6c635b2018d63f31eff77be0e515c004555904a7c
+reviewed-authorities-digest: sha256:3f6ba9b7ce853d7115707855a79840fa308115127670fbac76a44a9a67ec253a
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48105,7 +48148,7 @@ reviewed-authorities-digest: sha256:1865ea9b259f25e9d17103a6c635b2018d63f31eff77
 # @expo/snapback-client/react-binding
 
 Build-bound public API projection for `@expo/snapback-client/react-binding`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/react-binding.mjs`.
 
@@ -48557,7 +48600,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:12d0ba38084a6b93d4d778d3679d99e9f030ed6a33f8c5bbffaa1d7a5808ad3e
+reviewed-authorities-digest: sha256:38b6bb68b756861f70634543ef9a1c7ef7a8624e5ade9eccb0d9055624ecf2f9
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48565,7 +48608,7 @@ reviewed-authorities-digest: sha256:12d0ba38084a6b93d4d778d3679d99e9f030ed6a33f8
 # @expo/snapback-client/reference-kinds
 
 Build-bound public API projection for `@expo/snapback-client/reference-kinds`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/reference-kinds.mjs`.
 
@@ -48645,7 +48688,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:0337b50edb75389bdc50f01eb16019230c71c1e1dc0aacfa7492c078ffc30d72
+reviewed-authorities-digest: sha256:a11e6af98443a4d5eed04d4d931f44662bc7cf8f71c5592ed53606d55fd9ad53
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48653,7 +48696,7 @@ reviewed-authorities-digest: sha256:0337b50edb75389bdc50f01eb16019230c71c1e1dc0a
 # @expo/snapback-client/remediation
 
 Build-bound public API projection for `@expo/snapback-client/remediation`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/remediation.mjs`.
 
@@ -48832,7 +48875,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:5df506e571745ff29c4ef11df1a6ae6c97b04061e6869f617e67ee9a5a242e2c
+reviewed-authorities-digest: sha256:6c8ba0f0ab25f2f7034cf7f3dfdd7b79fdd59a0aa4215bb99431308dce859ec7
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -48840,7 +48883,7 @@ reviewed-authorities-digest: sha256:5df506e571745ff29c4ef11df1a6ae6c97b04061e686
 # @expo/snapback-client/result-transform
 
 Build-bound public API projection for `@expo/snapback-client/result-transform`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/result-transform.mjs`.
 
@@ -49237,7 +49280,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:b5a4484e52680bfc4019108c03a2af69de6867f896c641d690a21ef05cad4001
+reviewed-authorities-digest: sha256:0342e39cfff01b3b3d1eff7f42b640b6332778210e32b1948ca1676882e0dabc
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -49245,7 +49288,7 @@ reviewed-authorities-digest: sha256:b5a4484e52680bfc4019108c03a2af69de6867f896c6
 # @expo/snapback-client/rqs
 
 Build-bound public API projection for `@expo/snapback-client/rqs`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs.mjs`.
 
@@ -49704,7 +49747,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:9247be69c613e170ce246f14747ddc8332957024a40e52a7f5f2d17937f3649e
+reviewed-authorities-digest: sha256:1ec747aa307ca38233e7a5ca116296872b287a6310f5c95b5533f0e86c16f801
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -49712,7 +49755,7 @@ reviewed-authorities-digest: sha256:9247be69c613e170ce246f14747ddc8332957024a40e
 # @expo/snapback-client/rqs-preload
 
 Build-bound public API projection for `@expo/snapback-client/rqs-preload`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload-core.mjs`.
 
@@ -49961,7 +50004,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:3c7c0296ba579941ec90883808fb19652e0097799a961d8b12c313e96ba1a62f
+reviewed-authorities-digest: sha256:e327d98c6476d6629aa996c74462a43b9c55cd04b74a3cf74df2041c553081b9
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -49969,7 +50012,7 @@ reviewed-authorities-digest: sha256:3c7c0296ba579941ec90883808fb19652e0097799a96
 # @expo/snapback-client/rqs-registered
 
 Build-bound public API projection for `@expo/snapback-client/rqs-registered`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-preload.mjs`.
 
@@ -50351,7 +50394,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:ef98311970832283df8eed7b41695f1d9c4f0729b7e3af61c002dd765eb0b3d0
+reviewed-authorities-digest: sha256:704f1cc65cae5c921dfcb1d756183dc53215080778dc8d029bdb64d4e599f1ee
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -50359,7 +50402,7 @@ reviewed-authorities-digest: sha256:ef98311970832283df8eed7b41695f1d9c4f0729b7e3
 # @expo/snapback-client/rqs-store
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store.mjs`.
 
@@ -50416,7 +50459,7 @@ export function arbitrateResumeCandidates<
 
 Stable identity: `npm:@expo/snapback-client/rqs-store#createIndexedDbRqsResumeStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store.d.mts:245`
+Source: `packages/snapback-client/rqs-store.d.mts:248`
 
 IndexedDB-backed persisted RQS resume store under single-writer Web-Lock
 ownership. `indexedDB` and `lockManager` are host handles (an `IDBFactory`
@@ -50577,7 +50620,7 @@ export function rqsEvictionOrder(
 
 Stable identity: `npm:@expo/snapback-client/rqs-store#RqsMaterializationTransactionView`
 Kind: `type-interface`
-Source: `packages/snapback-client/rqs-store.d.mts:142`
+Source: `packages/snapback-client/rqs-store.d.mts:145`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface RqsMaterializationTransactionView {
@@ -50716,7 +50759,7 @@ export type RqsResumeEntryRefusalReason =
 
 Stable identity: `npm:@expo/snapback-client/rqs-store#RqsResumeStore`
 Kind: `type-interface`
-Source: `packages/snapback-client/rqs-store.d.mts:154`
+Source: `packages/snapback-client/rqs-store.d.mts:157`
 
 The store contract shared by the web/IndexedDB and native/file arms.
 
@@ -50851,7 +50894,10 @@ Source: `packages/snapback-client/rqs-store.d.mts:128`
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type RqsStoreCommitResult =
   | Readonly<{ persisted: true; reason: null; bytes: number; evicted: readonly string[] }>
-  | Readonly<{ persisted: false; reason: 'not_writer' | 'key' | 'oversize' | 'corrupt' }>;
+  | Readonly<{
+    persisted: false;
+    reason: 'not_writer' | 'key' | 'oversize' | 'corrupt' | 'capacity';
+  }>;
 ```
 
 <a id="symbol-rqsstoreidentityresetresult-57211452b0"></a>
@@ -50876,7 +50922,7 @@ export type RqsStoreIdentityResetResult =
 
 Stable identity: `npm:@expo/snapback-client/rqs-store#RqsStoreInspection`
 Kind: `type-interface`
-Source: `packages/snapback-client/rqs-store.d.mts:132`
+Source: `packages/snapback-client/rqs-store.d.mts:135`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface RqsStoreInspection {
@@ -50975,7 +51021,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:6b92d0aaf5fdb20f353e6a53c9c05f6e70ae00673e1a2f826c229b641734c0f1
+reviewed-authorities-digest: sha256:361bb0ab5761864b1d22370b3ed5f3e2786b96c5f8fb1add43e20a03421daa78
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -50983,32 +51029,60 @@ reviewed-authorities-digest: sha256:6b92d0aaf5fdb20f353e6a53c9c05f6e70ae00673e1a
 # @expo/snapback-client/rqs-store-default
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-default`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-default.mjs`.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
 
-Symbols: 6 total; 3 runtime values; 3 type-only.
+Symbols: 10 total; 7 runtime values; 3 type-only.
 
 ## Symbol index
 
+- [`brandDefaultRqsStoreResolution`](#symbol-branddefaultrqsstoreresolution-2cd9e1ceb6) — runtime-function
 - [`clearNativeRqsFiles`](#symbol-clearnativerqsfiles-520ce01059) — runtime-function
+- [`DEFAULT_RQS_STORE_RESOLUTION_BRAND`](#symbol-default-rqs-store-resolution-brand-3d340c45c3) — runtime-constant
 - [`DefaultRqsStoreInfo`](#symbol-defaultrqsstoreinfo-3ec2dec8df) — type-interface
 - [`DefaultRqsStoreResolution`](#symbol-defaultrqsstoreresolution-250f714dab) — type-interface
+- [`isDefaultRqsStoreResolution`](#symbol-isdefaultrqsstoreresolution-7990dcd437) — runtime-function
 - [`NativeRqsFilesProvider`](#symbol-nativerqsfilesprovider-c46488630c) — type-interface
+- [`registeredNativeRqsFiles`](#symbol-registerednativerqsfiles-ce01fa762b) — runtime-function
 - [`registerNativeRqsFiles`](#symbol-registernativerqsfiles-be043c7863) — runtime-function
 - [`resolveDefaultRqsStore`](#symbol-resolvedefaultrqsstore-8416538a27) — runtime-function
+
+<a id="symbol-branddefaultrqsstoreresolution-2cd9e1ceb6"></a>
+## `brandDefaultRqsStoreResolution`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-default#brandDefaultRqsStoreResolution`
+Kind: `runtime-function`
+Source: `packages/snapback-client/rqs-store-default.d.mts:28`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export declare function brandDefaultRqsStoreResolution<T extends DefaultRqsStoreResolution>(
+  resolution: T,
+): T;
+```
 
 <a id="symbol-clearnativerqsfiles-520ce01059"></a>
 ## `clearNativeRqsFiles`
 
 Stable identity: `npm:@expo/snapback-client/rqs-store-default#clearNativeRqsFiles`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:34`
+Source: `packages/snapback-client/rqs-store-default.d.mts:42`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function clearNativeRqsFiles(): void;
+```
+
+<a id="symbol-default-rqs-store-resolution-brand-3d340c45c3"></a>
+## `DEFAULT_RQS_STORE_RESOLUTION_BRAND`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-default#DEFAULT_RQS_STORE_RESOLUTION_BRAND`
+Kind: `runtime-constant`
+Source: `packages/snapback-client/rqs-store-default.d.mts:26`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+DEFAULT_RQS_STORE_RESOLUTION_BRAND: unique symbol
 ```
 
 <a id="symbol-defaultrqsstoreinfo-3ec2dec8df"></a>
@@ -51059,6 +51133,17 @@ Members and overload groups:
 - `store` — property; 1 signature
 - `info` — property; 1 signature
 
+<a id="symbol-isdefaultrqsstoreresolution-7990dcd437"></a>
+## `isDefaultRqsStoreResolution`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-default#isDefaultRqsStoreResolution`
+Kind: `runtime-function`
+Source: `packages/snapback-client/rqs-store-default.d.mts:31`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export declare function isDefaultRqsStoreResolution(value: unknown): boolean;
+```
+
 <a id="symbol-nativerqsfilesprovider-c46488630c"></a>
 ## `NativeRqsFilesProvider`
 
@@ -51082,12 +51167,23 @@ Members and overload groups:
 - `implementation` — property; 1 signature
 - `randomBytes` — property; 1 signature
 
+<a id="symbol-registerednativerqsfiles-ce01fa762b"></a>
+## `registeredNativeRqsFiles`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-default#registeredNativeRqsFiles`
+Kind: `runtime-function`
+Source: `packages/snapback-client/rqs-store-default.d.mts:32`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export declare function registeredNativeRqsFiles(): Readonly<NativeRqsFilesProvider> | null;
+```
+
 <a id="symbol-registernativerqsfiles-be043c7863"></a>
 ## `registerNativeRqsFiles`
 
 Stable identity: `npm:@expo/snapback-client/rqs-store-default#registerNativeRqsFiles`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:30`
+Source: `packages/snapback-client/rqs-store-default.d.mts:38`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function registerNativeRqsFiles(
@@ -51100,7 +51196,7 @@ export declare function registerNativeRqsFiles(
 
 Stable identity: `npm:@expo/snapback-client/rqs-store-default#resolveDefaultRqsStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-default.d.mts:26`
+Source: `packages/snapback-client/rqs-store-default.d.mts:34`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export declare function resolveDefaultRqsStore(options?: {
@@ -51123,7 +51219,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:7b264daa667835ac9220c5a55f50750ff2c78820b80a9d6d06723d6564c2fafc
+reviewed-authorities-digest: sha256:51e963de0e0df329984b2d4fc8012e54b84a790e48b92ec2121e5db1530f8975
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51131,7 +51227,7 @@ reviewed-authorities-digest: sha256:7b264daa667835ac9220c5a55f50750ff2c78820b80a
 # @expo/snapback-client/rqs-store-expo
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-expo`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-expo.mjs`.
 
@@ -51331,7 +51427,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:c5ebc763045a6bcd69dea25eed651e382d58c51ee06127d2813423b24d99e68b
+reviewed-authorities-digest: sha256:7b19d575a97067e7cbe97d77805a259e987944bf44c31f4ebd2ac56ab7e3cf93
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51339,18 +51435,22 @@ reviewed-authorities-digest: sha256:c5ebc763045a6bcd69dea25eed651e382d58c51ee061
 # @expo/snapback-client/rqs-store-file
 
 Build-bound public API projection for `@expo/snapback-client/rqs-store-file`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/rqs-store-file.mjs`.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
 
-Symbols: 8 total; 7 runtime values; 1 type-only.
+Symbols: 12 total; 11 runtime values; 1 type-only.
 
 ## Symbol index
 
+- [`acquireLegacyFileRqsStoreMigrationLease`](#symbol-acquirelegacyfilerqsstoremigrationlease-8076a85e9a) — runtime-function
 - [`createFileRqsResumeStore`](#symbol-createfilerqsresumestore-19858220eb) — runtime-function
 - [`createNodeFilesAdapter`](#symbol-createnodefilesadapter-c7710e6245) — runtime-function
+- [`deleteLegacyFileRqsStore`](#symbol-deletelegacyfilerqsstore-1ead6f8340) — runtime-function
+- [`inspectLegacyFileRqsStore`](#symbol-inspectlegacyfilerqsstore-119102544b) — runtime-function
+- [`legacyFileRqsStorePath`](#symbol-legacyfilerqsstorepath-4cdc470da7) — runtime-function
 - [`RQS_FILE_STORE_FORMAT`](#symbol-rqs-file-store-format-05c25d88f7) — runtime-constant
 - [`RQS_FILE_STORE_FORMAT_V1`](#symbol-rqs-file-store-format-v1-22520ac58a) — runtime-constant
 - [`RQS_FILE_STORE_FORMAT_V2`](#symbol-rqs-file-store-format-v2-e07ed2fca0) — runtime-constant
@@ -51358,12 +51458,43 @@ Symbols: 8 total; 7 runtime values; 1 type-only.
 - [`RqsFilesAdapter`](#symbol-rqsfilesadapter-7a7cca088d) — type-interface
 - [`sweepStaleRqsBlobs`](#symbol-sweepstalerqsblobs-76c944011c) — runtime-function
 
+<a id="symbol-acquirelegacyfilerqsstoremigrationlease-8076a85e9a"></a>
+## `acquireLegacyFileRqsStoreMigrationLease`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-file#acquireLegacyFileRqsStoreMigrationLease`
+Kind: `runtime-function`
+Source: `packages/snapback-client/rqs-store-file.d.mts:59`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export function acquireLegacyFileRqsStoreMigrationLease(options: {
+  readonly directory: string;
+  readonly files: RqsFilesAdapter;
+  readonly identity?: string | number | null;
+  readonly now?: () => number;
+}): Promise<
+  | Readonly<{
+      status: 'writer-active';
+      pathIdentity: string;
+      lockPath: string;
+      owner: Readonly<{ pid: number; instanceId?: string }> | null;
+    }>
+  | Readonly<{
+      status: 'acquired';
+      pathIdentity: string;
+      lockPath: string;
+      inspect(): ReturnType<typeof inspectLegacyFileRqsStore>;
+      deleteAndConfirmAbsent(): Promise<string>;
+      release(): Promise<void>;
+    }>
+>;
+```
+
 <a id="symbol-createfilerqsresumestore-19858220eb"></a>
 ## `createFileRqsResumeStore`
 
 Stable identity: `npm:@expo/snapback-client/rqs-store-file#createFileRqsResumeStore`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-file.d.mts:33`
+Source: `packages/snapback-client/rqs-store-file.d.mts:82`
 
 Durable file-backed persisted RQS resume store for native/Node hosts.
 
@@ -51398,6 +51529,60 @@ Source: `packages/snapback-client/rqs-store-file.d.mts:30`
 export function createNodeFilesAdapter(): RqsFilesAdapter;
 ```
 
+<a id="symbol-deletelegacyfilerqsstore-1ead6f8340"></a>
+## `deleteLegacyFileRqsStore`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-file#deleteLegacyFileRqsStore`
+Kind: `runtime-function`
+Source: `packages/snapback-client/rqs-store-file.d.mts:53`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export function deleteLegacyFileRqsStore(options: {
+  readonly directory: string;
+  readonly files: RqsFilesAdapter;
+  readonly identity?: string | number | null;
+}): Promise<string>;
+```
+
+<a id="symbol-inspectlegacyfilerqsstore-119102544b"></a>
+## `inspectLegacyFileRqsStore`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-file#inspectLegacyFileRqsStore`
+Kind: `runtime-function`
+Source: `packages/snapback-client/rqs-store-file.d.mts:37`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export function inspectLegacyFileRqsStore(options: {
+  readonly directory: string;
+  readonly files: RqsFilesAdapter;
+  readonly identity?: string | number | null;
+}): Promise<
+  | Readonly<{ status: 'absent'; pathIdentity: string }>
+  | Readonly<{ status: 'unreadable'; pathIdentity: string; error?: unknown }>
+  | Readonly<{
+      status: 'discardable' | 'pending-custody';
+      pathIdentity: string;
+      predecessorClientStoreId: string;
+      predecessorHandleKey: string;
+      custodyCount: number;
+    }>
+>;
+```
+
+<a id="symbol-legacyfilerqsstorepath-4cdc470da7"></a>
+## `legacyFileRqsStorePath`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-file#legacyFileRqsStorePath`
+Kind: `runtime-function`
+Source: `packages/snapback-client/rqs-store-file.d.mts:32`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export function legacyFileRqsStorePath(options: {
+  readonly directory: string;
+  readonly identity?: string | number | null;
+}): string;
+```
+
 <a id="symbol-rqs-file-store-format-05c25d88f7"></a>
 ## `RQS_FILE_STORE_FORMAT`
 
@@ -51414,7 +51599,7 @@ RQS_FILE_STORE_FORMAT: string
 
 Stable identity: `npm:@expo/snapback-client/rqs-store-file#RQS_FILE_STORE_FORMAT_V1`
 Kind: `runtime-constant`
-Source: `packages/snapback-client/rqs-store-file.d.mts:51`
+Source: `packages/snapback-client/rqs-store-file.d.mts:100`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 RQS_FILE_STORE_FORMAT_V1: 'snapback-rqs-store-file.v1'
@@ -51436,7 +51621,7 @@ RQS_FILE_STORE_FORMAT_V2: 'snapback-rqs-store-file.v2'
 
 Stable identity: `npm:@expo/snapback-client/rqs-store-file#RQS_STORE_GC_DEFAULT_MAX_AGE_MS`
 Kind: `runtime-constant`
-Source: `packages/snapback-client/rqs-store-file.d.mts:53`
+Source: `packages/snapback-client/rqs-store-file.d.mts:102`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 RQS_STORE_GC_DEFAULT_MAX_AGE_MS: number
@@ -51491,7 +51676,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-client/rqs-store-file#sweepStaleRqsBlobs`
 Kind: `runtime-function`
-Source: `packages/snapback-client/rqs-store-file.d.mts:60`
+Source: `packages/snapback-client/rqs-store-file.d.mts:109`
 
 Directory janitor for the shared default state directory: unlinks sibling
 per-origin blobs (and their stale locks) that are provably abandoned —
@@ -51511,11 +51696,258 @@ export declare function sweepStaleRqsBlobs(options: {
 
 ---
 
+<!-- snapback-guide-source: guide/reference/expo-snapback-client--rqs-store-sqlite.md -->
+---
+title: API reference — @expo/snapback-client/rqs-store-sqlite
+id: reference.api.expo.snapback.client.rqs.store.sqlite
+order: 846
+audience: agent-first
+capabilities: []
+authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-client/package.json, packages/snapback-client/rqs-store-sqlite.d.mts]
+examples: []
+status: current
+targets: [all]
+maturity: shipped
+reviewed: 2026-08-08
+reviewed-authorities-digest: sha256:4517c7d91dca20c8dcf5224f4f83e4037d567db343e6f3c27120f1932cecb741
+---
+
+<!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
+
+# @expo/snapback-client/rqs-store-sqlite
+
+Build-bound public API projection for `@expo/snapback-client/rqs-store-sqlite`. Canonical registry identity:
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
+Runtime parity condition:
+`import` → `packages/snapback-client/rqs-store-sqlite.mjs`.
+
+[Compact reference index](./index.md) · [machine-readable registry](./registry.json)
+
+Symbols: 9 total; 4 runtime values; 5 type-only.
+
+## Symbol index
+
+- [`createExpoSqliteRqsResumeStore`](#symbol-createexposqliterqsresumestore-d0d4218de4) — runtime-constant
+- [`createSqliteRqsResumeStore`](#symbol-createsqliterqsresumestore-fda9285d1a) — runtime-function
+- [`CreateSqliteRqsResumeStoreOptions`](#symbol-createsqliterqsresumestoreoptions-66ae3a8ae9) — type-interface
+- [`EXPO_SQLITE_STORE_PROFILE`](#symbol-expo-sqlite-store-profile-d903b723b1) — runtime-constant
+- [`EXPO_SQLITE_STORE_SCHEMA_VERSION`](#symbol-expo-sqlite-store-schema-version-b79f76e066) — runtime-constant
+- [`SqliteAsyncDatabase`](#symbol-sqliteasyncdatabase-7546e01dc4) — type-interface
+- [`SqliteModuleNamespace`](#symbol-sqlitemodulenamespace-51db3072a3) — type-interface
+- [`SqliteQualificationFacts`](#symbol-sqlitequalificationfacts-9052cf9a95) — type-interface
+- [`SqliteRqsResumeStore`](#symbol-sqliterqsresumestore-a6e4125f6f) — type-interface
+
+<a id="symbol-createexposqliterqsresumestore-d0d4218de4"></a>
+## `createExpoSqliteRqsResumeStore`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#createExpoSqliteRqsResumeStore`
+Kind: `runtime-constant`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:76`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+createExpoSqliteRqsResumeStore: typeof createSqliteRqsResumeStore
+```
+
+<a id="symbol-createsqliterqsresumestore-fda9285d1a"></a>
+## `createSqliteRqsResumeStore`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#createSqliteRqsResumeStore`
+Kind: `runtime-function`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:72`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export function createSqliteRqsResumeStore(
+  options: CreateSqliteRqsResumeStoreOptions,
+): Promise<SqliteRqsResumeStore>;
+```
+
+<a id="symbol-createsqliterqsresumestoreoptions-66ae3a8ae9"></a>
+## `CreateSqliteRqsResumeStoreOptions`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#CreateSqliteRqsResumeStoreOptions`
+Kind: `type-interface`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:54`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export interface CreateSqliteRqsResumeStoreOptions {
+  readonly sqlite: SqliteModuleNamespace;
+  readonly databaseName: string;
+  readonly now?: () => number;
+  readonly maxBytes?: number;
+  readonly maxEntries?: number;
+  readonly clientStoreId?: string | null;
+  readonly randomBytes?: (length: number) => Uint8Array;
+  readonly platformOperatingSystem?: string | null;
+  readonly onBeforeStoreIdentityRotation?: ((input: Readonly<Record<string, unknown>>) => void | Promise<void>) | null;
+  readonly relaunchOutboxEmpty?: (() => boolean | Promise<boolean>) | null;
+  readonly faultInjector?: ((boundary: string) => void | Promise<void>) | null;
+  /** Qualification-only deterministic quota seam. */
+  readonly qualificationMaxPageCount?: number | null;
+  /** Ordinary main app only; extensions/headless secondary processes refuse. */
+  readonly runtimeKind?: 'main-app' | string;
+}
+```
+
+Members and overload groups:
+
+- `sqlite` — property; 1 signature
+- `databaseName` — property; 1 signature
+- `now` — property; 1 signature
+- `maxBytes` — property; 1 signature
+- `maxEntries` — property; 1 signature
+- `clientStoreId` — property; 1 signature
+- `randomBytes` — property; 1 signature
+- `platformOperatingSystem` — property; 1 signature
+- `onBeforeStoreIdentityRotation` — property; 1 signature
+- `relaunchOutboxEmpty` — property; 1 signature
+- `faultInjector` — property; 1 signature
+- `qualificationMaxPageCount` — property; 1 signature
+- `runtimeKind` — property; 1 signature
+
+<a id="symbol-expo-sqlite-store-profile-d903b723b1"></a>
+## `EXPO_SQLITE_STORE_PROFILE`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#EXPO_SQLITE_STORE_PROFILE`
+Kind: `runtime-constant`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:4`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+EXPO_SQLITE_STORE_PROFILE: 'durable-fragments-v1'
+```
+
+<a id="symbol-expo-sqlite-store-schema-version-b79f76e066"></a>
+## `EXPO_SQLITE_STORE_SCHEMA_VERSION`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#EXPO_SQLITE_STORE_SCHEMA_VERSION`
+Kind: `runtime-constant`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:3`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+EXPO_SQLITE_STORE_SCHEMA_VERSION: 1
+```
+
+<a id="symbol-sqliteasyncdatabase-7546e01dc4"></a>
+## `SqliteAsyncDatabase`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#SqliteAsyncDatabase`
+Kind: `type-interface`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:6`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export interface SqliteAsyncDatabase {
+  execAsync(sql: string): Promise<void>;
+  runAsync(sql: string, ...parameters: unknown[]): Promise<unknown>;
+  getFirstAsync(sql: string, ...parameters: unknown[]): Promise<Record<string, unknown> | null>;
+  getAllAsync(sql: string, ...parameters: unknown[]): Promise<Record<string, unknown>[]>;
+  closeAsync(): Promise<void>;
+}
+```
+
+Members and overload groups:
+
+- `execAsync` — method; 1 signature
+- `runAsync` — method; 1 signature
+- `getFirstAsync` — method; 1 signature
+- `getAllAsync` — method; 1 signature
+- `closeAsync` — method; 1 signature
+
+<a id="symbol-sqlitemodulenamespace-51db3072a3"></a>
+## `SqliteModuleNamespace`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#SqliteModuleNamespace`
+Kind: `type-interface`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:14`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export interface SqliteModuleNamespace {
+  openDatabaseAsync(
+    name: string,
+    options: Readonly<{ useNewConnection: true }>,
+  ): Promise<SqliteAsyncDatabase>;
+}
+```
+
+Members and overload groups:
+
+- `openDatabaseAsync` — method; 1 signature
+
+<a id="symbol-sqlitequalificationfacts-9052cf9a95"></a>
+## `SqliteQualificationFacts`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#SqliteQualificationFacts`
+Kind: `type-interface`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:21`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export interface SqliteQualificationFacts {
+  readonly profile: 'durable-fragments-v1';
+  readonly schemaVersion: 1;
+  readonly databaseName: string;
+  readonly sqliteVersion: string;
+  readonly sqliteSourceId: string;
+  readonly compileOptions: readonly string[];
+  readonly pragmas: Readonly<{
+    lockingMode: 'exclusive';
+    journalMode: 'wal';
+    synchronous: 2;
+    foreignKeys: 1;
+    fullfsync: 1 | null;
+  }>;
+}
+```
+
+Members and overload groups:
+
+- `profile` — property; 1 signature
+- `schemaVersion` — property; 1 signature
+- `databaseName` — property; 1 signature
+- `sqliteVersion` — property; 1 signature
+- `sqliteSourceId` — property; 1 signature
+- `compileOptions` — property; 1 signature
+- `pragmas` — property; 1 signature
+
+<a id="symbol-sqliterqsresumestore-a6e4125f6f"></a>
+## `SqliteRqsResumeStore`
+
+Stable identity: `npm:@expo/snapback-client/rqs-store-sqlite#SqliteRqsResumeStore`
+Kind: `type-interface`
+Source: `packages/snapback-client/rqs-store-sqlite.d.mts:37`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export interface SqliteRqsResumeStore extends RqsResumeStore {
+  durability(): Readonly<{ implementation: 'expo-sqlite'; durable: true }>;
+  qualificationFacts(): SqliteQualificationFacts;
+  /** Qualification-only full database check on the owned connection. */
+  qualificationIntegrityCheck(): Promise<string>;
+  predecessorFences(): Promise<readonly Readonly<Record<string, unknown>>[]>;
+  recordPredecessorFence(fence: Readonly<{
+    predecessorClientStoreId: string;
+    predecessorHandleKey: string;
+    pathIdentity: string;
+  }>): Promise<Readonly<Record<string, unknown>>>;
+  confirmPredecessorAbsent(
+    predecessorClientStoreId: string,
+    pathIdentity: string,
+  ): Promise<boolean>;
+}
+```
+
+Members and overload groups:
+
+- `durability` — method; 1 signature
+- `qualificationFacts` — method; 1 signature
+- `qualificationIntegrityCheck` — method; 1 signature
+- `predecessorFences` — method; 1 signature
+- `recordPredecessorFence` — method; 1 signature
+- `confirmPredecessorAbsent` — method; 1 signature
+
+---
+
 <!-- snapback-guide-source: guide/reference/expo-snapback-client--search.md -->
 ---
 title: API reference — @expo/snapback-client/search
 id: reference.api.expo.snapback.client.search
-order: 846
+order: 847
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-client/package.json, packages/snapback-client/search.d.mts]
@@ -51524,7 +51956,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:8f68123adf9876e9434f50921ab55fef0d902d5df50dc1b815e6f1a551380f5b
+reviewed-authorities-digest: sha256:2067eeaa473dd29e597f2f7f7d54fbe3f4581aa9af7fe4b06b45fc26f1b9e3ad
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51532,7 +51964,7 @@ reviewed-authorities-digest: sha256:8f68123adf9876e9434f50921ab55fef0d902d5df50d
 # @expo/snapback-client/search
 
 Build-bound public API projection for `@expo/snapback-client/search`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/search.mjs`.
 
@@ -51768,7 +52200,7 @@ Members and overload groups:
 ---
 title: API reference — @expo/snapback-client/vector-search
 id: reference.api.expo.snapback.client.vector.search
-order: 847
+order: 848
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-client/package.json, packages/snapback-client/vector-search.d.mts]
@@ -51777,7 +52209,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:04c2ae34eecf172e4916c089a5406f9c1676982f574e23ac9967a9e67165e4ed
+reviewed-authorities-digest: sha256:c4f19a7eae0c372670291f3f34a6799029991c2c97fd29eb37f07deb7dc24a8d
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -51785,7 +52217,7 @@ reviewed-authorities-digest: sha256:04c2ae34eecf172e4916c089a5406f9c1676982f574e
 # @expo/snapback-client/vector-search
 
 Build-bound public API projection for `@expo/snapback-client/vector-search`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-client/vector-search.mjs`.
 
@@ -52468,7 +52900,7 @@ Members and overload groups:
 ---
 title: API reference — @expo/snapback-react
 id: reference.api.expo.snapback.react
-order: 848
+order: 849
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-react/package.json, packages/snapback-react/index.d.mts]
@@ -52485,7 +52917,7 @@ reviewed-authorities-digest: sha256:db3cefbd897f5e7cafea8f7f2c76c7702392141a429c
 # @expo/snapback-react
 
 Build-bound public API projection for `@expo/snapback-react`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-react/index.mjs`.
 
@@ -55300,7 +55732,7 @@ export function useSurface<Surface extends SnapbackSurfaceDescriptor>(
 ---
 title: API reference — @expo/snapback-react/core
 id: reference.api.expo.snapback.react.core
-order: 849
+order: 850
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-react/package.json, packages/snapback-react/core.d.mts]
@@ -55317,7 +55749,7 @@ reviewed-authorities-digest: sha256:8fd7779daf2f7654d8e86c55fb63401bca730cae5d89
 # @expo/snapback-react/core
 
 Build-bound public API projection for `@expo/snapback-react/core`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-react/core.mjs`.
 
@@ -56508,7 +56940,7 @@ export function useSnapbackSettledMutation<
 ---
 title: API reference — @expo/snapback-react/familiar
 id: reference.api.expo.snapback.react.familiar
-order: 850
+order: 851
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-react/package.json, packages/snapback-react/familiar.d.mts]
@@ -56525,7 +56957,7 @@ reviewed-authorities-digest: sha256:a4f540a344e862062a52b66eac473987d7a90aabbbff
 # @expo/snapback-react/familiar
 
 Build-bound public API projection for `@expo/snapback-react/familiar`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-react/familiar.mjs`.
 
@@ -56754,7 +57186,7 @@ export function useSnapbackQuery<Ref extends QueryReference>(
 ---
 title: API reference — @expo/snapback-react/thumbhash
 id: reference.api.expo.snapback.react.thumbhash
-order: 851
+order: 852
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-react/package.json, packages/snapback-react/thumbhash.d.mts]
@@ -56771,7 +57203,7 @@ reviewed-authorities-digest: sha256:575b8c74c5fd0c7c6941523ef71a15b57442b885d01b
 # @expo/snapback-react/thumbhash
 
 Build-bound public API projection for `@expo/snapback-react/thumbhash`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-react/thumbhash.mjs`.
 
@@ -56867,7 +57299,7 @@ export function thumbHashToRGBA(hash: Uint8Array): {
 ---
 title: API reference — @expo/snapback-expo
 id: reference.api.expo.snapback.expo
-order: 852
+order: 853
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/index.d.mts]
@@ -56876,7 +57308,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:8c12da5010b4bf80f7dc8cd47d194931f5d6358dddfea1a71d2e4dc58e6b1437
+reviewed-authorities-digest: sha256:2909bbfa6b48b1daa4eca790b39e310814a8faacf86d15b0627816d87609ec71
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -56884,13 +57316,13 @@ reviewed-authorities-digest: sha256:8c12da5010b4bf80f7dc8cd47d194931f5d6358dddfe
 # @expo/snapback-expo
 
 Build-bound public API projection for `@expo/snapback-expo`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import, default` → `packages/snapback-expo/index.mjs`.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
 
-Symbols: 170 total; 67 runtime values; 103 type-only.
+Symbols: 172 total; 69 runtime values; 103 type-only.
 
 ## Symbol index
 
@@ -56990,6 +57422,8 @@ Symbols: 170 total; 67 runtime values; 103 type-only.
 - [`QueryState`](#symbol-querystate-706f7a3d62) — type-type-alias
 - [`QueryStates`](#symbol-querystates-68eb7ded12) — type-type-alias
 - [`ReleaseAppBindingV1`](#symbol-releaseappbindingv1-0ab0d47db9) — type-type-alias
+- [`resolveDefaultExpoSqliteOperatingSystem`](#symbol-resolvedefaultexposqliteoperatingsystem-4c9e1bd0e7) — runtime-function
+- [`resolveDefaultExpoSqliteTarget`](#symbol-resolvedefaultexposqlitetarget-4f522ccab7) — runtime-function
 - [`resolveExpoFetch`](#symbol-resolveexpofetch-f234c80173) — runtime-function
 - [`resolveSupervisedDevIdentityCheckoutNonce`](#symbol-resolvesuperviseddevidentitycheckoutnonce-f8cd1e763f) — runtime-function
 - [`resolveSupervisedExpoExchangeOrigin`](#symbol-resolvesupervisedexpoexchangeorigin-9d484537f9) — runtime-function
@@ -57124,7 +57558,7 @@ adaptExpoAssetSource: (
 
 Stable identity: `npm:@expo/snapback-expo#admitAppBindingV1`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:314`
+Source: `packages/snapback-expo/index.d.mts:333`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function admitAppBindingV1(
@@ -57142,7 +57576,7 @@ export function admitAppBindingV1(
 
 Stable identity: `npm:@expo/snapback-expo#APP_BINDING_FORMAT`
 Kind: `runtime-constant`
-Source: `packages/snapback-expo/index.d.mts:26`
+Source: `packages/snapback-expo/index.d.mts:27`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 APP_BINDING_FORMAT: 'snapback.app-binding.v1'
@@ -57153,7 +57587,7 @@ APP_BINDING_FORMAT: 'snapback.app-binding.v1'
 
 Stable identity: `npm:@expo/snapback-expo#AppBindingAdmissionEvidenceV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:198`
+Source: `packages/snapback-expo/index.d.mts:199`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AppBindingAdmissionEvidenceV1 = Readonly<{
@@ -57174,7 +57608,7 @@ export type AppBindingAdmissionEvidenceV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo#AppBindingTargetV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:34`
+Source: `packages/snapback-expo/index.d.mts:35`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AppBindingTargetV1 = Readonly<{
@@ -57191,7 +57625,7 @@ export type AppBindingTargetV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo#AppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:100`
+Source: `packages/snapback-expo/index.d.mts:101`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AppBindingV1 =
@@ -57205,7 +57639,7 @@ export type AppBindingV1 =
 
 Stable identity: `npm:@expo/snapback-expo#AppBindingValidationProblem`
 Kind: `type-interface`
-Source: `packages/snapback-expo/index.d.mts:127`
+Source: `packages/snapback-expo/index.d.mts:128`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AppBindingValidationProblem {
@@ -57228,7 +57662,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#AppDescriptorV1Like`
 Kind: `type-interface`
-Source: `packages/snapback-expo/index.d.mts:105`
+Source: `packages/snapback-expo/index.d.mts:106`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AppDescriptorV1Like {
@@ -57269,7 +57703,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#APPLICATION_AUTH_BOOTSTRAP_CAPABILITY`
 Kind: `runtime-constant`
-Source: `packages/snapback-expo/index.d.mts:29`
+Source: `packages/snapback-expo/index.d.mts:30`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 APPLICATION_AUTH_BOOTSTRAP_CAPABILITY:
@@ -57281,7 +57715,7 @@ APPLICATION_AUTH_BOOTSTRAP_CAPABILITY:
 
 Stable identity: `npm:@expo/snapback-expo#AppStateSource`
 Kind: `type-interface`
-Source: `packages/snapback-expo/index.d.mts:231`
+Source: `packages/snapback-expo/index.d.mts:232`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AppStateSource {
@@ -57677,7 +58111,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#AuthorityAdoptionResult`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:210`
+Source: `packages/snapback-expo/index.d.mts:211`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AuthorityAdoptionResult =
@@ -57784,7 +58218,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#CapabilityOffer`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:32`
+Source: `packages/snapback-expo/index.d.mts:33`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type CapabilityOffer = string;
@@ -57951,13 +58385,17 @@ export function createExpoAssetSourceAdapter(options?: Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo#createSnapbackExpoBoot`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:337`
+Source: `packages/snapback-expo/index.d.mts:372`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function createSnapbackExpoBoot(options: Readonly<{
   app: AppDescriptorV1Like;
   binding?: AppBindingV1 | null;
   environment?: SnapbackExpoEnvironmentV1;
+  /** Explicit store or null opt-out. Omission requests the evidence-gated
+   * default; pending/unqualified target rows resolve to the reported volatile
+   * fallback rather than a durable carrier. */
+  rqsStore?: RqsStore | null;
   createProvider?: (
     binding: PreparedReactBinding,
     options: Readonly<{ assetSourceAdapter: import('@expo/snapback-client').CommandAssetSourceAdapter }>,
@@ -57973,6 +58411,7 @@ export function createSnapbackExpoBoot(options: Readonly<{
     platform: SnapbackAppClientPlatform;
     now?: () => number;
     signal?: AbortSignal;
+    rqsStore?: unknown;
   }>, observer: (snapshot: AuthBootstrapSnapshot) => void) => Promise<SnapbackAppClient>;
   adoptSupervisedAuthority?: (
     appClient: SnapbackAppClient,
@@ -58044,6 +58483,9 @@ export function createSupervisedExpoEnvironment(options?: Readonly<{
   runtimePlatform?: 'native' | 'web';
   /** Protocol-test injection until the first-party native reader lands. */
   nativeLaunchEnvironment?: Readonly<Record<string, string | undefined>> | null;
+  /** Test/host dependency seams used by the framework-owned SQLite target resolver. */
+  resolveExpoSqliteReactNativeModule?: () => unknown | Promise<unknown>;
+  resolveExpoDeviceModule?: () => unknown | Promise<unknown>;
   bindingCache?: SupervisedBindingCache | null;
   onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
 }>): SupervisedSnapbackExpoEnvironmentV1;
@@ -58054,7 +58496,7 @@ export function createSupervisedExpoEnvironment(options?: Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo#defaultSnapbackExpoEnvironment`
 Kind: `runtime-constant`
-Source: `packages/snapback-expo/index.d.mts:335`
+Source: `packages/snapback-expo/index.d.mts:354`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 defaultSnapbackExpoEnvironment: SnapbackExpoEnvironmentV1
@@ -58078,7 +58520,7 @@ export function expoAssetFetch(
 
 Stable identity: `npm:@expo/snapback-expo#ExpoBootState`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:196`
+Source: `packages/snapback-expo/index.d.mts:197`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type ExpoBootState = LegacyExpoBootState | FirstPartyExpoBootState;
@@ -58127,7 +58569,7 @@ export type ExpoPickerAssetSource = ExpoBlobSource | (PlatformCommandAssetSource
 
 Stable identity: `npm:@expo/snapback-expo#FirstPartyExpoBootState`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:189`
+Source: `packages/snapback-expo/index.d.mts:190`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type FirstPartyExpoBootState =
@@ -58143,7 +58585,7 @@ export type FirstPartyExpoBootState =
 
 Stable identity: `npm:@expo/snapback-expo#HostedDevelopmentAppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:84`
+Source: `packages/snapback-expo/index.d.mts:85`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type HostedDevelopmentAppBindingV1 = Readonly<{
@@ -58211,7 +58653,7 @@ export function invokeSnapbackMutation<
 
 Stable identity: `npm:@expo/snapback-expo#isAppBindingDiagnostic`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:323`
+Source: `packages/snapback-expo/index.d.mts:342`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function isAppBindingDiagnostic(error: unknown): boolean;
@@ -58233,7 +58675,7 @@ export function isSnapbackDiagnosticError(value: unknown): value is SnapbackDiag
 
 Stable identity: `npm:@expo/snapback-expo#isSnapbackExpoBootDiagnostic`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:380`
+Source: `packages/snapback-expo/index.d.mts:424`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function isSnapbackExpoBootDiagnostic(error: unknown): boolean;
@@ -58244,7 +58686,7 @@ export function isSnapbackExpoBootDiagnostic(error: unknown): boolean;
 
 Stable identity: `npm:@expo/snapback-expo#LegacyExpoBootState`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:170`
+Source: `packages/snapback-expo/index.d.mts:171`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type LegacyExpoBootState =
@@ -58871,7 +59313,7 @@ export function projectRecordFields(
 
 Stable identity: `npm:@expo/snapback-expo#PublicAuthorityFacts`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:160`
+Source: `packages/snapback-expo/index.d.mts:161`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type PublicAuthorityFacts = Readonly<{
@@ -58890,7 +59332,7 @@ export type PublicAuthorityFacts = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo#publicBindingFacts`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:322`
+Source: `packages/snapback-expo/index.d.mts:341`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function publicBindingFacts(binding: AppBindingV1): PublicBindingFacts;
@@ -58901,7 +59343,7 @@ export function publicBindingFacts(binding: AppBindingV1): PublicBindingFacts;
 
 Stable identity: `npm:@expo/snapback-expo#PublicBindingFacts`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:144`
+Source: `packages/snapback-expo/index.d.mts:145`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type PublicBindingFacts = Readonly<{
@@ -59035,7 +59477,7 @@ export type QueryStates<Entries extends QueryEntryMap> = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo#ReleaseAppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:62`
+Source: `packages/snapback-expo/index.d.mts:63`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type ReleaseAppBindingV1 = Readonly<{
@@ -59059,6 +59501,40 @@ export type ReleaseAppBindingV1 = Readonly<{
     | Readonly<{ channel: 'signed-artifact'; signature: string }>
     | Readonly<{ channel: 'embedded-at-build' }>;
 }>;
+```
+
+<a id="symbol-resolvedefaultexposqliteoperatingsystem-4c9e1bd0e7"></a>
+## `resolveDefaultExpoSqliteOperatingSystem`
+
+Stable identity: `npm:@expo/snapback-expo#resolveDefaultExpoSqliteOperatingSystem`
+Kind: `runtime-function`
+Source: `packages/snapback-expo/index.d.mts:356`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export function resolveDefaultExpoSqliteOperatingSystem(options?: Readonly<{
+  resolveReactNativeModule?: () => unknown | Promise<unknown>;
+}>): Promise<string>;
+```
+
+<a id="symbol-resolvedefaultexposqlitetarget-4f522ccab7"></a>
+## `resolveDefaultExpoSqliteTarget`
+
+Stable identity: `npm:@expo/snapback-expo#resolveDefaultExpoSqliteTarget`
+Kind: `runtime-function`
+Source: `packages/snapback-expo/index.d.mts:360`
+
+```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
+export function resolveDefaultExpoSqliteTarget(options?: Readonly<{
+  operatingSystem?: string | null;
+  resolveReactNativeModule?: () => unknown | Promise<unknown>;
+  resolveExpoDeviceModule?: () => unknown | Promise<unknown>;
+}>): Promise<Readonly<{
+  operatingSystem?: string;
+  osVersion?: string;
+  architecture?: string;
+  distribution: 'development' | 'release';
+  deviceClass?: 'real-device' | 'emulator' | 'simulator';
+}>>;
 ```
 
 <a id="symbol-resolveexpofetch-f234c80173"></a>
@@ -59092,7 +59568,7 @@ export function resolveSupervisedDevIdentityCheckoutNonce(options?: Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo#resolveSupervisedExpoExchangeOrigin`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/supervised-environment.d.mts:103`
+Source: `packages/snapback-expo/supervised-environment.d.mts:106`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function resolveSupervisedExpoExchangeOrigin(): string | null;
@@ -59125,7 +59601,7 @@ skip: unique symbol
 
 Stable identity: `npm:@expo/snapback-expo#SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT`
 Kind: `runtime-constant`
-Source: `packages/snapback-expo/index.d.mts:27`
+Source: `packages/snapback-expo/index.d.mts:28`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 SNAPBACK_EXPO_INTEGRATION_RECEIPT_FORMAT:
@@ -59313,7 +59789,7 @@ export type SnapbackDiagnosticsSnapshot = import('@expo/snapback-client').Snapba
 
 Stable identity: `npm:@expo/snapback-expo#SnapbackExpoBootController`
 Kind: `type-interface`
-Source: `packages/snapback-expo/index.d.mts:325`
+Source: `packages/snapback-expo/index.d.mts:344`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackExpoBootController {
@@ -59342,7 +59818,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#SnapbackExpoEnvironmentV1`
 Kind: `type-interface`
-Source: `packages/snapback-expo/index.d.mts:239`
+Source: `packages/snapback-expo/index.d.mts:240`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface SnapbackExpoEnvironmentV1 {
@@ -59356,6 +59832,23 @@ export interface SnapbackExpoEnvironmentV1 {
   }>): SnapbackAppClientPlatform | Promise<SnapbackAppClientPlatform>;
   /** Narrow host-OS seam used before the evidence-gated native custody load. */
   resolveNativeAuthCustodyOperatingSystem?(): string | Promise<string>;
+  /** Test/host seams for exact Expo SQLite target-cell resolution. */
+  resolveExpoSqliteOperatingSystem?(): string | Promise<string>;
+  resolveExpoSqliteRuntimeKind?(): string | Promise<string>;
+  resolveExpoSqliteTarget?(): Readonly<Record<string, unknown>> | Promise<Readonly<Record<string, unknown>>>;
+  resolveExpoSqliteReactNativeModule?(): unknown | Promise<unknown>;
+  resolveExpoDeviceModule?(): unknown | Promise<unknown>;
+  resolveExpoSqliteModule?(): unknown | Promise<unknown>;
+  resolveExpoFileSystemModule?(): unknown | Promise<unknown>;
+  resolveExpoLegacyRqsFiles?(): Readonly<{
+    directory: string;
+    files: import('@expo/snapback-client/rqs-store-file').RqsFilesAdapter;
+    randomBytes?: (length: number) => Uint8Array;
+  }> | null | Promise<Readonly<{
+    directory: string;
+    files: import('@expo/snapback-client/rqs-store-file').RqsFilesAdapter;
+    randomBytes?: (length: number) => Uint8Array;
+  }> | null>;
   resolveBinding(input: Readonly<{
     app: AppDescriptorV1Like;
     bindingOverride: AppBindingV1 | null;
@@ -59371,6 +59864,7 @@ export interface SnapbackExpoEnvironmentV1 {
     app: AppDescriptorV1Like;
     binding: AppBindingV1;
     signal: AbortSignal;
+    rqsStore?: unknown;
   }>): Promise<AuthorityAdoptionResult> | AuthorityAdoptionResult;
   /** Supervised carrier handoff used only by the first-party app owner. */
   resolveSupervisedAuthority?(input: Readonly<{
@@ -59428,6 +59922,14 @@ Members and overload groups:
 - `resolveAppState` — method; 1 signature
 - `resolveAppClientPlatform` — method; 1 signature
 - `resolveNativeAuthCustodyOperatingSystem` — method; 1 signature
+- `resolveExpoSqliteOperatingSystem` — method; 1 signature
+- `resolveExpoSqliteRuntimeKind` — method; 1 signature
+- `resolveExpoSqliteTarget` — method; 1 signature
+- `resolveExpoSqliteReactNativeModule` — method; 1 signature
+- `resolveExpoDeviceModule` — method; 1 signature
+- `resolveExpoSqliteModule` — method; 1 signature
+- `resolveExpoFileSystemModule` — method; 1 signature
+- `resolveExpoLegacyRqsFiles` — method; 1 signature
 - `resolveBinding` — method; 1 signature
 - `adoptAuthority` — method; 1 signature
 - `resolveSupervisedAuthority` — method; 1 signature
@@ -59439,13 +59941,17 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo#SnapbackExpoProvider`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:369`
+Source: `packages/snapback-expo/index.d.mts:409`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function SnapbackExpoProvider(props: Readonly<{
   app: AppDescriptorV1Like;
   binding?: AppBindingV1 | null;
   environment?: SnapbackExpoEnvironmentV1;
+  /** Explicit store or null opt-out. Omission requests the evidence-gated
+   * default; pending/unqualified target rows resolve to the reported volatile
+   * fallback rather than a durable carrier. */
+  rqsStore?: RqsStore | null;
   fallback?: any | ((state: ExpoBootState) => any);
   children?: any;
   outboxDrain?: 'auto' | 'manual';
@@ -60124,7 +60630,7 @@ export type SupervisedBindingCacheRecord = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo#SupervisedDevAppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:42`
+Source: `packages/snapback-expo/index.d.mts:43`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SupervisedDevAppBindingV1 = Readonly<{
@@ -60326,7 +60832,7 @@ export function thumbHashToRGBA(hash: Uint8Array): {
 
 Stable identity: `npm:@expo/snapback-expo#TypedRemediation`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:134`
+Source: `packages/snapback-expo/index.d.mts:135`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type TypedRemediation = Readonly<{
@@ -60488,7 +60994,7 @@ export function useSnapbackDiagnostics(): SnapbackDiagnosticsSnapshot;
 
 Stable identity: `npm:@expo/snapback-expo#useSnapbackExpoBootState`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:379`
+Source: `packages/snapback-expo/index.d.mts:423`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function useSnapbackExpoBootState(): ExpoBootState;
@@ -60687,7 +61193,7 @@ export function useSurface<Surface extends SnapbackSurfaceDescriptor>(
 
 Stable identity: `npm:@expo/snapback-expo#validateAppBindingV1`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:313`
+Source: `packages/snapback-expo/index.d.mts:332`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function validateAppBindingV1(candidate: unknown): readonly AppBindingValidationProblem[];
@@ -60711,7 +61217,7 @@ export function validateAppBindingV1(candidate: unknown): readonly AppBindingVal
 ---
 title: API reference — @expo/snapback-expo/app-binding
 id: reference.api.expo.snapback.expo.app.binding
-order: 853
+order: 854
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/app-binding.d.mts]
@@ -60720,7 +61226,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:451debdf8640f5c9ca4ea3ae0693d4e89beb47dae4227efb28cadca2224e6d6c
+reviewed-authorities-digest: sha256:2c94f7e5e53f83faeb38e78b7fa858f9a036c80dd39a4e588a7202b0033ac271
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -60728,7 +61234,7 @@ reviewed-authorities-digest: sha256:451debdf8640f5c9ca4ea3ae0693d4e89beb47dae422
 # @expo/snapback-expo/app-binding
 
 Build-bound public API projection for `@expo/snapback-expo/app-binding`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/app-binding.mjs`.
 
@@ -60757,7 +61263,7 @@ Symbols: 13 total; 5 runtime values; 8 type-only.
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#admitAppBindingV1`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:314`
+Source: `packages/snapback-expo/index.d.mts:333`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function admitAppBindingV1(
@@ -60775,7 +61281,7 @@ export function admitAppBindingV1(
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#APP_BINDING_FORMAT`
 Kind: `runtime-constant`
-Source: `packages/snapback-expo/index.d.mts:26`
+Source: `packages/snapback-expo/index.d.mts:27`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 APP_BINDING_FORMAT: 'snapback.app-binding.v1'
@@ -60786,7 +61292,7 @@ APP_BINDING_FORMAT: 'snapback.app-binding.v1'
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#AppBindingAdmissionEvidenceV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:198`
+Source: `packages/snapback-expo/index.d.mts:199`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AppBindingAdmissionEvidenceV1 = Readonly<{
@@ -60807,7 +61313,7 @@ export type AppBindingAdmissionEvidenceV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#AppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:100`
+Source: `packages/snapback-expo/index.d.mts:101`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type AppBindingV1 =
@@ -60821,7 +61327,7 @@ export type AppBindingV1 =
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#AppBindingValidationProblem`
 Kind: `type-interface`
-Source: `packages/snapback-expo/index.d.mts:127`
+Source: `packages/snapback-expo/index.d.mts:128`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AppBindingValidationProblem {
@@ -60844,7 +61350,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#AppDescriptorV1Like`
 Kind: `type-interface`
-Source: `packages/snapback-expo/index.d.mts:105`
+Source: `packages/snapback-expo/index.d.mts:106`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export interface AppDescriptorV1Like {
@@ -60885,7 +61391,7 @@ Members and overload groups:
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#HostedDevelopmentAppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:84`
+Source: `packages/snapback-expo/index.d.mts:85`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type HostedDevelopmentAppBindingV1 = Readonly<{
@@ -60910,7 +61416,7 @@ export type HostedDevelopmentAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#isAppBindingDiagnostic`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:323`
+Source: `packages/snapback-expo/index.d.mts:342`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function isAppBindingDiagnostic(error: unknown): boolean;
@@ -60921,7 +61427,7 @@ export function isAppBindingDiagnostic(error: unknown): boolean;
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#publicBindingFacts`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:322`
+Source: `packages/snapback-expo/index.d.mts:341`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function publicBindingFacts(binding: AppBindingV1): PublicBindingFacts;
@@ -60932,7 +61438,7 @@ export function publicBindingFacts(binding: AppBindingV1): PublicBindingFacts;
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#PublicBindingFacts`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:144`
+Source: `packages/snapback-expo/index.d.mts:145`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type PublicBindingFacts = Readonly<{
@@ -60957,7 +61463,7 @@ export type PublicBindingFacts = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#ReleaseAppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:62`
+Source: `packages/snapback-expo/index.d.mts:63`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type ReleaseAppBindingV1 = Readonly<{
@@ -60988,7 +61494,7 @@ export type ReleaseAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#SupervisedDevAppBindingV1`
 Kind: `type-type-alias`
-Source: `packages/snapback-expo/index.d.mts:42`
+Source: `packages/snapback-expo/index.d.mts:43`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export type SupervisedDevAppBindingV1 = Readonly<{
@@ -61017,7 +61523,7 @@ export type SupervisedDevAppBindingV1 = Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo/app-binding#validateAppBindingV1`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/index.d.mts:313`
+Source: `packages/snapback-expo/index.d.mts:332`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function validateAppBindingV1(candidate: unknown): readonly AppBindingValidationProblem[];
@@ -61029,7 +61535,7 @@ export function validateAppBindingV1(candidate: unknown): readonly AppBindingVal
 ---
 title: API reference — @expo/snapback-expo/app.plugin
 id: reference.api.expo.snapback.expo.app.plugin
-order: 854
+order: 855
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/config-plugin.d.mts]
@@ -61038,7 +61544,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:58124ee3fca4b00944d8c0f920fec2145a650a9c556549b669366fbccc6a488c
+reviewed-authorities-digest: sha256:bcfc22f5dedc65445b01c3b82a359362455cb4c83edb0d86e7f640852cc1194f
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -61046,7 +61552,7 @@ reviewed-authorities-digest: sha256:58124ee3fca4b00944d8c0f920fec2145a650a9c5565
 # @expo/snapback-expo/app.plugin
 
 Build-bound public API projection for `@expo/snapback-expo/app.plugin`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/app.plugin.js`.
 
@@ -61153,7 +61659,7 @@ withSnapbackExpo: SnapbackExpoConfigPlugin
 ---
 title: API reference — @expo/snapback-expo/asset-source
 id: reference.api.expo.snapback.expo.asset.source
-order: 855
+order: 856
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/asset-source.d.mts]
@@ -61162,7 +61668,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:27af848ab609b1e40c4176b79c3fbe71ad2ee04c4988da5f4aee43ba8a5e7325
+reviewed-authorities-digest: sha256:a5eae2b3b1095d460ccb76459bbf0ca5234bec8643c99319929cf54f54b41c76
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -61170,7 +61676,7 @@ reviewed-authorities-digest: sha256:27af848ab609b1e40c4176b79c3fbe71ad2ee04c4988
 # @expo/snapback-expo/asset-source
 
 Build-bound public API projection for `@expo/snapback-expo/asset-source`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/asset-source.mjs`.
 
@@ -61308,7 +61814,7 @@ export function resolveExpoFetch(): Promise<typeof globalThis.fetch>;
 ---
 title: API reference — @expo/snapback-expo/config-plugin
 id: reference.api.expo.snapback.expo.config.plugin
-order: 856
+order: 857
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/config-plugin.d.mts]
@@ -61317,7 +61823,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:58124ee3fca4b00944d8c0f920fec2145a650a9c556549b669366fbccc6a488c
+reviewed-authorities-digest: sha256:bcfc22f5dedc65445b01c3b82a359362455cb4c83edb0d86e7f640852cc1194f
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -61325,7 +61831,7 @@ reviewed-authorities-digest: sha256:58124ee3fca4b00944d8c0f920fec2145a650a9c5565
 # @expo/snapback-expo/config-plugin
 
 Build-bound public API projection for `@expo/snapback-expo/config-plugin`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `require, default` → `packages/snapback-expo/config-plugin.cjs`.
 
@@ -61432,7 +61938,7 @@ withSnapbackExpo: SnapbackExpoConfigPlugin
 ---
 title: API reference — @expo/snapback-expo/supervised-environment
 id: reference.api.expo.snapback.expo.supervised.environment
-order: 857
+order: 858
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-expo/package.json, packages/snapback-expo/supervised-environment.d.mts]
@@ -61441,7 +61947,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-08
-reviewed-authorities-digest: sha256:36e06add572d32784c602d3177462b1711bf07d63e018b9c84bf26d35319dca6
+reviewed-authorities-digest: sha256:12849082cb23cf47557e82d3e8f83f911eea1eabb87ae0870e39b1bc16896e2d
 ---
 
 <!-- Generated by scripts/generate-symbol-registry.mjs. Never hand-edit. -->
@@ -61449,7 +61955,7 @@ reviewed-authorities-digest: sha256:36e06add572d32784c602d3177462b1711bf07d63e01
 # @expo/snapback-expo/supervised-environment
 
 Build-bound public API projection for `@expo/snapback-expo/supervised-environment`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `import` → `packages/snapback-expo/supervised-environment.mjs`.
 
@@ -61490,6 +61996,9 @@ export function createSupervisedExpoEnvironment(options?: Readonly<{
   runtimePlatform?: 'native' | 'web';
   /** Protocol-test injection until the first-party native reader lands. */
   nativeLaunchEnvironment?: Readonly<Record<string, string | undefined>> | null;
+  /** Test/host dependency seams used by the framework-owned SQLite target resolver. */
+  resolveExpoSqliteReactNativeModule?: () => unknown | Promise<unknown>;
+  resolveExpoDeviceModule?: () => unknown | Promise<unknown>;
   bindingCache?: SupervisedBindingCache | null;
   onDiagnostic?: (diagnostic: SnapbackDiagnostic) => void;
 }>): SupervisedSnapbackExpoEnvironmentV1;
@@ -61515,7 +62024,7 @@ export function resolveSupervisedDevIdentityCheckoutNonce(options?: Readonly<{
 
 Stable identity: `npm:@expo/snapback-expo/supervised-environment#resolveSupervisedExpoExchangeOrigin`
 Kind: `runtime-function`
-Source: `packages/snapback-expo/supervised-environment.d.mts:103`
+Source: `packages/snapback-expo/supervised-environment.d.mts:106`
 
 ```ts fragment reason="generated declaration projection; canonical bytes live in registry.json"
 export function resolveSupervisedExpoExchangeOrigin(): string | null;
@@ -61694,7 +62203,7 @@ Members and overload groups:
 ---
 title: API reference — @expo/snapback-cli/verify
 id: reference.api.expo.snapback.cli.verify
-order: 858
+order: 859
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-cli/package.json, packages/snapback-cli/verify.d.mts]
@@ -61711,7 +62220,7 @@ reviewed-authorities-digest: sha256:324cbd969cd9d38480596082e4a9cd39789a57b512aa
 # @expo/snapback-cli/verify
 
 Build-bound public API projection for `@expo/snapback-cli/verify`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 Runtime parity condition:
 `default` → `packages/snapback-cli/verify.mjs`.
 
@@ -62173,7 +62682,7 @@ export function writeVerifyReceipt(path: string, receipt: unknown): string;
 ---
 title: API reference — @expo/snapback-codegen/ctx
 id: reference.api.expo.snapback.codegen.ctx
-order: 859
+order: 860
 audience: agent-first
 capabilities: []
 authorities: [llp/0194-generated-api-reference.rfc.md, guide/reference/lifecycle.json, packages/snapback-codegen/package.json, packages/snapback-codegen/ctx.d.mts]
@@ -62190,7 +62699,7 @@ reviewed-authorities-digest: sha256:c6ac25bebab6c78a56453c33dd9c9bfd099bb1b2d196
 # @expo/snapback-codegen/ctx
 
 Build-bound public API projection for `@expo/snapback-codegen/ctx`. Canonical registry identity:
-`sha256:7cc533ee732f9b40da5eb4ca78eddd913d0fd5e9c0a7d2aaf3fcbc18f96f4cc3`.
+`sha256:e7fab5473dc03ec63f6e7acada6e83c989893ac573f0d7b4d10d7733b57aa6b2`.
 This package subpath is type-only; runtime export parity is not applicable.
 
 [Compact reference index](./index.md) · [machine-readable registry](./registry.json)
@@ -63785,6 +64294,13 @@ fallback elsewhere, reporting the resolved implementation and durability on
 `client.rqsStoreInfo` (pass `rqsStore: null` or set
 `SNAPBACK_CLIENT_RQS_STORE=off` to opt out).
 
+The Expo provider resolves its platform default only after binding supplies
+the canonical origin. The SQLite carrier code is present, but the packaged
+target manifest is empty pending separate real-device iOS and Android
+qualification. Without a registered legacy file carrier, Expo therefore uses
+memory and reports `expo-sqlite-carrier-pending-qualification`; it does not
+queue or claim retained cold-boot facts at this stage.
+
 ### Branch on a persisted binding receipt at offline cold boot
 
 `prepareReactBinding` may return a ready binding with
@@ -64293,7 +64809,9 @@ query in that class requests and maintains durable retention automatically;
 the app does not set `persistResume`, `retainable`, or
 `authorityIndependent` for this purpose. A fresh client can therefore render
 the proof-verified facts with `freshness: 'retained'` while the server is
-unreachable. The current Expo memory carrier is not part of this claim.
+unreachable. The current Expo default is not part of this claim: SQLite
+remains behind an empty real-device publication manifest, and its fallback
+reports volatile.
 This no-declaration derivation is implemented on the local/Ibex host. The
 Cloudflare coordinator still requires a validated
 `authorityIndependent: true` flag alongside the same closed-plan proof;
@@ -64626,10 +65144,11 @@ proofs. An authority change therefore retains the predecessor proof rather
 than leaking its id into, or deleting it under, the successor. A volatile
 memory fallback reports `durable: false`, does not auto-queue, and refuses
 `queue: true` with `SNAPBACK_OFFLINE_QUEUE_DISABLED` before network
-dispatch. The current Expo file adapter makes the
-same conservative report because its File/Directory API exposes no fsync cut
-and has a non-atomic compatibility replacement; it can cache RQS rows but does
-not own durable settlement publication.
+dispatch. Expo makes the same conservative report at this landing: the legacy
+File/Directory adapter lacks an fsync/atomic-replace cut, while the new SQLite
+carrier has no published real-device target row yet. Either path may support
+Online operation, but neither owns durable settlement publication until the
+SQLite receipt and manifest row land for that exact target cell.
 
 Deploying a bundle that removes or renames the mutation does not strand an
 already committed result. Until ACK, the server can recover it through the

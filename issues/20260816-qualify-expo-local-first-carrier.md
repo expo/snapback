@@ -81,3 +81,67 @@ it.
   completeness, expiry, and refusal behavior on both platforms.
 - Guide claims are narrowed or promoted to match the receipts in the same
   landing.
+
+## Resolution (code stage)
+
+The code stage landed in the working tree on 2026-08-16 without a capability
+claim flip. `@expo/snapback-client` now has the module-neutral one-connection
+SQLite carrier: WAL, FULL synchronous commits, EXCLUSIVE lifetime locking,
+pragma readback, `BEGIN IMMEDIATE`, non-reentrant serialization, all v3
+sections plus predecessor fences, digest validation, outbox/settlement/ACK
+custody, and checkpoint-confirmed authority wipes. `@expo/snapback-expo`
+owns the guarded `expo-sqlite` load, binding-derived database identity,
+global refcounted registry, explicit prop/null precedence, app-client owner
+compatibility, and exact fail-closed `rqsStoreInfo` reasons.
+
+Legacy file rows are never adopted. Empty valid v3 predecessors are fenced,
+deleted, and confirmed absent before SQLite exposure; pending custody keeps
+the legacy writer active; unreadable bytes are preserved behind an exact
+memory refusal. The packaged publication manifest remains empty, so ordinary
+iOS/Android providers without a legacy registration report
+`expo-sqlite-carrier-pending-qualification` and no durable claim activates.
+
+The Node supporting tier exercises statement/boundary faults, two-process
+ownership/takeover, every named crash phase, killed/truncated WAL copies,
+corruption, quota/FULL rollback, and same-realm coalescing. Its receipt is
+under `demos/expo-local-first-carrier/evidence/` and is explicitly
+non-promotional. The qualification-only Expo probe/director documents and
+drives 100 process or 25 witnessed power cuts per target cell, but no device
+receipt was produced in this code-stage environment.
+
+Status remains Open. The remaining tail is separate reviewed real-device iOS
+and Android qualification, including true abrupt-power evidence, followed by
+receipt-bound publication rows and only then any positive Guide/capability
+promotion.
+
+Round-2 correction made the publication cell and evidence closure complete:
+OS/API version and architecture join OS/distribution/device class, Expo and
+React Native join the material package identities, and each package digest is
+over its installed directory artifact. The default supervised Expo environment
+now resolves those facts without an application-provided target hook. The
+supporting negative control runs a broken store through the same child-worker,
+kill, recovery, settlement/ACK, observation, and verdict pipeline and must
+produce a failing harness verdict. Same-process file-lock ownership is visible
+before post-create chmod, and a failed SQLite close remains registry-owned and
+retryable behind the distinct `expo-sqlite-store-close-failed` reason.
+
+---
+
+**Code stage landed 2026-08-16** (design + implementation via the Expo
+carrier orchestration; design memo adjudicated in-session): expo-sqlite WAL
+carrier (`synchronous=FULL`, EXCLUSIVE single connection, owner-bound
+transactions), provider default-install with guarded require + framework
+target resolver, fail-closed rqsStoreInfo taxonomy, discard-and-refetch
+migration with unconditional predecessor-fence replay and legacy writer-lock
+coordination, evidence-bound publication admission (self-asserted rows
+rejected), and the falsifiable qualification harness (Node tier PASS 8/8
+supporting-only with real SIGKILL cuts and a pipeline-real negative
+control; device director for iOS/Android). Four-round dual-family review
+converged (codex r4 with executed lock/close probes, grok r2 with fence/race
+repros). **The packaged publication manifest is EMPTY: every ordinary cell
+resolves `memory/false/expo-sqlite-carrier-pending-qualification` and no
+capability claim flipped.** Remaining tail: real-device receipts per target
+cell via `demos/expo-local-first-carrier/scripts/qualify.mjs` — process-cut
+receipts can run on any simulator-capable Mac; the power-interruption arm
+needs physical hardware with a power-cut rig or operator per the README
+protocol. Ticket stays Open until receipts land and rows activate.

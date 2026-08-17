@@ -55,6 +55,7 @@ import {
   prepareReactBindingReceipt,
   rqsEntryRecordBytes,
   rqsEvictionOrder,
+  verifyPersistedResumeEntry,
 } from './rqs-store.mjs';
 import {
   allOutboxRecords,
@@ -251,6 +252,177 @@ const identitySlug = (identity) => {
   return `id-${hex(sha256(new TextEncoder().encode(String(identity)))).slice(0, 32)}`;
 };
 
+export function legacyFileRqsStorePath({ directory, identity = null } = {}) {
+  if (typeof directory !== 'string' || directory.length === 0) {
+    throw new TypeError('legacy file inspection requires a non-empty directory');
+  }
+  const sep = directory.endsWith('/') ? '' : '/';
+  return `${directory}${sep}${BLOB_PREFIX}${identitySlug(identity)}${BLOB_SUFFIX}`;
+}
+
+const legacyFileRqsStoreLockPath = ({ directory, identity = null }) => {
+  const sep = directory.endsWith('/') ? '' : '/';
+  return `${directory}${sep}${BLOB_PREFIX}${identitySlug(identity)}${LOCK_SUFFIX}`;
+};
+
+// Read-only migration preflight. It never opens the legacy writer and never
+// rewrites numbered predecessors: SQLite adoption is allowed only from the
+// exact current v3 shape with no pending/settled/ACK custody.
+export async function inspectLegacyFileRqsStore({ directory, files, identity = null } = {}) {
+  if (typeof files?.readFile !== 'function') {
+    throw new TypeError('legacy file inspection requires files.readFile()');
+  }
+  const pathIdentity = legacyFileRqsStorePath({ directory, identity });
+  let raw;
+  try { raw = await files.readFile(pathIdentity); } catch (error) {
+    return Object.freeze({ status: 'unreadable', pathIdentity, error });
+  }
+  if (raw === null) return Object.freeze({ status: 'absent', pathIdentity });
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch {
+    return Object.freeze({ status: 'unreadable', pathIdentity });
+  }
+  const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const outbox = validateOutboxState(parsed?.outbox);
+  const storeMeta = prepareStoreMeta(parsed?.storeMeta);
+  const entriesValid = plain(parsed?.entries)
+    && Object.values(parsed.entries).every((entry) => verifyPersistedResumeEntry(entry).ok);
+  if (
+    parsed?.format !== RQS_FILE_STORE_FORMAT
+    || !entriesValid
+    || outbox === null
+    || !plain(parsed.materializations)
+    || !plain(parsed.pageSets)
+    || !plain(parsed.memberships)
+    || storeMeta === null
+  ) return Object.freeze({ status: 'unreadable', pathIdentity });
+  const custodyCount = allOutboxRecords(outbox).length + outbox.acks.length;
+  return Object.freeze({
+    status: custodyCount === 0 ? 'discardable' : 'pending-custody',
+    pathIdentity,
+    predecessorClientStoreId: storeMeta.clientStoreId,
+    predecessorHandleKey: storeMeta.handleKey,
+    custodyCount,
+  });
+}
+
+export async function deleteLegacyFileRqsStore({ directory, files, identity = null } = {}) {
+  if (typeof files?.unlink !== 'function' || typeof files?.readFile !== 'function') {
+    throw new TypeError('legacy file deletion requires files.unlink() and files.readFile()');
+  }
+  const pathIdentity = legacyFileRqsStorePath({ directory, identity });
+  await files.unlink(pathIdentity);
+  if (await files.readFile(pathIdentity) !== null) {
+    throw storeError(
+      'SNAPBACK_EXPO_LEGACY_FILE_DELETE_UNCONFIRMED',
+      'legacy RQS file remained present after deletion',
+      { pathIdentity },
+    );
+  }
+  return pathIdentity;
+}
+
+// Migration is an authority transition, not an unlocked file inspection. The
+// lease below acquires the exact writer lock used by createFileRqsResumeStore
+// and retains it across inspection, durable successor fencing, unlink, and
+// absence confirmation. A live legacy writer therefore either wins before
+// inspection or waits until migration has finished; it cannot enqueue or
+// recreate the blob in the middle of the transition.
+export async function acquireLegacyFileRqsStoreMigrationLease({
+  directory,
+  files,
+  identity = null,
+  now = () => Date.now(),
+} = {}) {
+  if (typeof directory !== 'string' || directory.length === 0) {
+    throw new TypeError('legacy file migration requires a non-empty directory');
+  }
+  for (const method of ['mkdir', 'readFile', 'writeFileExclusive', 'unlink', 'processId', 'processAlive']) {
+    if (typeof files?.[method] !== 'function') {
+      throw new TypeError(`legacy file migration requires files.${method}()`);
+    }
+  }
+  const pathIdentity = legacyFileRqsStorePath({ directory, identity });
+  const lockPath = legacyFileRqsStoreLockPath({ directory, identity });
+  await files.mkdir(directory);
+  const inProcessOwner = heldLocks.get(lockPath);
+  if (inProcessOwner !== undefined) {
+    return Object.freeze({
+      status: 'writer-active',
+      pathIdentity,
+      lockPath,
+      owner: Object.freeze({ pid: files.processId(), instanceId: inProcessOwner }),
+    });
+  }
+
+  const migrationInstanceId = `${files.processId()}-migration-${++instanceCounter}-${Math.random().toString(36).slice(2, 10)}`;
+  const payload = JSON.stringify({
+    pid: files.processId(),
+    instanceId: migrationInstanceId,
+    acquiredAt: now(),
+    purpose: 'sqlite-successor-migration',
+  });
+  let acquired = await files.writeFileExclusive(lockPath, payload);
+  if (!acquired) {
+    const raw = await files.readFile(lockPath);
+    let holder = null;
+    try { holder = raw === null ? null : JSON.parse(raw); } catch { holder = null; }
+    const holderPid = Number.isSafeInteger(holder?.pid) ? holder.pid : null;
+    const stale = holderPid === null
+      || holderPid === files.processId()
+      || files.processAlive(holderPid) !== true;
+    if (!stale) {
+      return Object.freeze({
+        status: 'writer-active',
+        pathIdentity,
+        lockPath,
+        owner: Object.freeze({
+          pid: holderPid,
+          ...(typeof holder?.instanceId === 'string' ? { instanceId: holder.instanceId } : {}),
+        }),
+      });
+    }
+    await files.unlink(lockPath);
+    acquired = await files.writeFileExclusive(lockPath, payload);
+  }
+  if (!acquired) {
+    return Object.freeze({ status: 'writer-active', pathIdentity, lockPath, owner: null });
+  }
+
+  heldLocks.set(lockPath, migrationInstanceId);
+  files.trackLockForExitCleanup?.(lockPath);
+  let released = false;
+  const requireLease = () => {
+    if (released || heldLocks.get(lockPath) !== migrationInstanceId) {
+      throw storeError(
+        'SNAPBACK_EXPO_LEGACY_MIGRATION_FENCE_LOST',
+        'legacy migration no longer owns the actual writer fence',
+        { pathIdentity, lockPath },
+      );
+    }
+  };
+  return Object.freeze({
+    status: 'acquired',
+    pathIdentity,
+    lockPath,
+    async inspect() {
+      requireLease();
+      return inspectLegacyFileRqsStore({ directory, files, identity });
+    },
+    async deleteAndConfirmAbsent() {
+      requireLease();
+      return deleteLegacyFileRqsStore({ directory, files, identity });
+    },
+    async release() {
+      if (released) return;
+      released = true;
+      if (heldLocks.get(lockPath) === migrationInstanceId) heldLocks.delete(lockPath);
+      files.untrackLockForExitCleanup?.(lockPath);
+      try { await files.unlink(lockPath); } catch { /* successor observes stale owner */ }
+    },
+  });
+}
+
 const plainSweepRecord = (value) => (
   value !== null && typeof value === 'object' && !Array.isArray(value)
 );
@@ -381,40 +553,50 @@ export function createFileRqsResumeStore({
       });
       files.trackLockForExitCleanup?.(lockPath);
     };
-    if (await files.writeFileExclusive(lockPath, payload)) {
-      await chmodBestEffort(lockPath, FILE_MODE);
-      granted();
-      return;
-    }
-    const raw = await files.readFile(lockPath);
-    if (raw !== null) {
-      let holder = null;
-      try {
-        holder = JSON.parse(raw);
-      } catch {
-        holder = null;
-      }
-      const holderPid = Number.isSafeInteger(holder?.pid) ? holder.pid : null;
-      // Liveness, never a timing lease (LLP 0008 DK-9): a readable lock from
-      // a live foreign process keeps us a reader; anything else is stale.
-      const stale = holderPid === null
-        || holderPid === files.processId() // our pid, not registered here: a crashed predecessor's leftover
-        || files.processAlive(holderPid) !== true;
-      if (!stale) {
-        competingWriter = {
-          pid: holderPid,
-          ...(typeof holder?.instanceId === 'string' ? { instanceId: holder.instanceId } : {}),
-          lockPath,
-          storePath: blobPath,
-        };
+    // Registration covers the entire acquisition, including adapters that
+    // create the lock synchronously but resolve writeFileExclusive later. A
+    // same-PID migration must see that in-flight owner instead of declaring
+    // its newly-created lock stale.
+    heldLocks.set(lockPath, instanceId);
+    try {
+      if (await files.writeFileExclusive(lockPath, payload)) {
+        granted();
+        await chmodBestEffort(lockPath, FILE_MODE);
         return;
       }
-      await files.unlink(lockPath);
+      const raw = await files.readFile(lockPath);
+      if (raw !== null) {
+        let holder = null;
+        try {
+          holder = JSON.parse(raw);
+        } catch {
+          holder = null;
+        }
+        const holderPid = Number.isSafeInteger(holder?.pid) ? holder.pid : null;
+        // Liveness, never a timing lease (LLP 0008 DK-9): a readable lock from
+        // a live foreign process keeps us a reader; anything else is stale.
+        const stale = holderPid === null
+          || holderPid === files.processId() // no distinct registered holder: a crashed predecessor's leftover
+          || files.processAlive(holderPid) !== true;
+        if (!stale) {
+          competingWriter = {
+            pid: holderPid,
+            ...(typeof holder?.instanceId === 'string' ? { instanceId: holder.instanceId } : {}),
+            lockPath,
+            storePath: blobPath,
+          };
+          return;
+        }
+        await files.unlink(lockPath);
+      }
+      if (await files.writeFileExclusive(lockPath, payload)) {
+        granted();
+        await chmodBestEffort(lockPath, FILE_MODE);
+      } else competingWriter = { pid: null, lockPath, storePath: blobPath };
+    } finally {
+      // A failed/refused create never leaves a phantom in-process owner.
+      if (!writer && heldLocks.get(lockPath) === instanceId) heldLocks.delete(lockPath);
     }
-    if (await files.writeFileExclusive(lockPath, payload)) {
-      await chmodBestEffort(lockPath, FILE_MODE);
-      granted();
-    } else competingWriter = { pid: null, lockPath, storePath: blobPath };
   };
 
   const readState = async () => {

@@ -18,6 +18,7 @@ export function createSnapbackAppClientWithBootstrapObserver(
     storagePartition?: string;
     now?: () => number;
     signal?: AbortSignal;
+    rqsStore?: unknown;
   }>,
   observer: (snapshot: AuthBootstrapSnapshot) => void,
 ): Promise<SnapbackAppClient>;
