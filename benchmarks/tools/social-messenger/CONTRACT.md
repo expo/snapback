@@ -122,10 +122,11 @@ The P2 choreography hardening also freezes these accessible-state semantics:
 
 ## Versioning
 
-The choreography subdirectory is `0.3.1-m8`; the patch separates the
-per-message Reply action from the quoted-excerpt jump selector. The UI kit
-remains `0.3.0-m8` after the additive M8 surfaces (the choreography's P2
-hardening history is retained in its README). Other P1 artifacts remain at
-their existing pre-freeze versions.
+The choreography subdirectory is `0.3.2-m8` and the UI kit is `0.3.1-m8`; the
+patch series separates
+the per-message Reply action from the quoted-excerpt jump selector, including
+migration of the kit's quoted-excerpt default. The choreography's P2 hardening
+history is retained in its README. Other P1 artifacts remain at their existing
+pre-freeze versions.
 The P3 freeze bumps the complete instrument to `1.0.0` and pins hashes in the
 brief.

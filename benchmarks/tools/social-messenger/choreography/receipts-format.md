@@ -1,6 +1,6 @@
 # Social-messenger choreography receipts
 
-Version `0.3.1-m8` writes newline-delimited JSON to `receipts.jsonl`. The same
+Version `0.3.2-m8` writes newline-delimited JSON to `receipts.jsonl`. The same
 objects are written to stdout with the literal prefix `STRUCTURED RECEIPT ` so
 an outer run harness can separate proof records from ordinary process output.
 Each line validates independently against `receipts.schema.json`.
@@ -32,8 +32,7 @@ under each attempt's `metrics` object. This is best-of-three flake control, not
 permission to discard measurements.
 
 For M3's `quoted-reply-excerpt-and-jump` assertion, each attempt's existing
-`timing.note` records whether the jump used `sm-convo-quote-preview` or the
-legacy `sm-convo-quote` fallback.
+`timing.note` records the `sm-convo-quote-preview` jump selector.
 
 ## Segment summaries and milestone green
 
@@ -89,7 +88,7 @@ The normative aggregation is:
    required assertion remains unimplemented. Optional skips therefore stay
    explicit without becoming silent failed attempts.
 2. `externalPass` is true when every external leg required for web green passes.
-   In `0.3.1-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
+   In `0.3.2-m8` there are no such legs. M6's `ios-simulator-m6` and M8's
    `ios-simulator-m8` statuses are recorded in their matching summaries under
    `supplementalExternal` with `requiredForGreen:false`; they are distinct
    native/O4 artifacts governed by `simulator.md`.
@@ -100,8 +99,8 @@ The normative aggregation is:
    produce green.
 5. `nonGreenCause` is the closed recording convention for a non-green
    segment. It is optional on the schema (default `null` when omitted) so
-   existing `0.3.0-m8` receipts remain valid; the `0.3.1-m8` emitter always
-   writes it. Allowed values:
+   existing `0.3.0-m8` receipts remain valid; emitters since `0.3.1-m8`
+   always write it. Allowed values:
    - `null` — `green` is true. There is no second green label.
    - `required-unimplemented` — a required assertion was skipped.
    - `choreography-failed` — an implemented assertion failed.
@@ -135,5 +134,9 @@ Consumers must reject an unknown major receipt version and validate with the
 schema matching the declared version; unknown fields are rejected. Stable
 `(segment, assertion)` names must not be silently repurposed;
 changed semantics require a version bump. `nonGreenCause` is an optional
-additive field on `0.3.1-m8` segment summaries (default `null` when omitted);
-it does not bump the receipt version.
+additive field introduced on `0.3.1-m8` segment summaries (default `null`
+when omitted); it did not bump the receipt version. `0.3.2-m8` IS a semantic
+bump: it removes the legacy `sm-convo-quote` jump fallback, so an M3
+`quoted-reply-excerpt-and-jump` receipt at `0.3.2-m8` proves preview-only
+selection, while a `0.3.1-m8` receipt may have recorded the reply-bubble-
+scoped fallback.

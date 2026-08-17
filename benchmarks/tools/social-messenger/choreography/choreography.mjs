@@ -6,7 +6,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 
-const VERSION = "0.3.1-m8";
+const VERSION = "0.3.2-m8";
 const SEGMENTS = ["m1", "m2", "m3", "m4", "m5", "m6", "m8"];
 const SIMULATOR_IDS = {
   m6: "ios-simulator-m6",
@@ -1389,10 +1389,7 @@ async function m3(ctx) {
       if (!(await aliceReply.innerText()).includes(original)) {
         throw new Error("quoted reply bubble did not render the original excerpt");
       }
-      const quotePreview = testId(aliceReply, "sm-convo-quote-preview");
-      const quoteJumpSelector =
-        (await quotePreview.count()) > 0 ? "sm-convo-quote-preview" : "sm-convo-quote";
-      await testId(aliceReply, quoteJumpSelector).click();
+      await testId(aliceReply, "sm-convo-quote-preview").click();
       const aliceOriginal = testId(ctx.alicePage, "sm-convo-bubble")
         .filter({ hasText: original })
         .last();
@@ -1402,7 +1399,7 @@ async function m3(ctx) {
         return rect.top >= 0 && rect.bottom <= window.innerHeight;
       });
       if (!inViewport) throw new Error("quoted-excerpt activation did not jump to the original");
-      return { note: `quoted-excerpt jump selector: ${quoteJumpSelector}` };
+      return { note: "quoted-excerpt jump selector: sm-convo-quote-preview" };
     },
   );
 }

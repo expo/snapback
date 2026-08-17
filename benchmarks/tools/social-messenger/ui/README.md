@@ -2,7 +2,7 @@
 
 Presentational UI kit for the **social-messenger** canonical
 benchmark (app name: **Clique**). Version: see [`VERSION`](./VERSION)
-(`0.3.0-m8`; the P3 freeze bumps to `1.0.0` and pins hashes in the
+(`0.3.1-m8`; the P3 freeze bumps to `1.0.0` and pins hashes in the
 brief). Governing design: LLP 0201 D6
 (`llp/0201-social-messenger-canonical-benchmark.plan.md`);
 coordination pins: `benchmarks/tools/social-messenger/CONTRACT.md`;
@@ -83,21 +83,25 @@ contract testID from `CONTRACT.md` (scheme `sm-<area>-<element>`). Lane shells
 own the route- and message-action IDs that require application state or
 navigation. Choreography consumes only the shared contract set.
 
-## Typechecking
+## Tests
 
 ```
-npx --yes -p typescript@5 tsc --noEmit -p benchmarks/tools/social-messenger/ui
+cd benchmarks/tools/social-messenger/ui
+npm install
+npm test
 ```
 
-(`npm install` in this directory first — `react`, `react-native`, and
-`@types/react` are devDependencies for typechecking only; at runtime
-they are peers supplied by the lane's app.)
+The suite checks contract-ID defaults and typechecks the package. `react`,
+`react-native`, and `@types/react` are devDependencies for typechecking only;
+at runtime they are peers supplied by the lane's app.
 
 ## Versioning
 
 `VERSION`, `package.json`, and the brief's pinned kit version move together.
-`0.3.0-m8` adds the M8 Insights and Trending surfaces; `0.2.0-p2` added the
-accessible state consumed by the hardened choreography. The P3 freeze bumps
-to `1.0.0` after the cross-backend neutrality review and
+`0.3.1-m8` migrates the pressable quoted excerpt to
+`sm-convo-quote-preview`, reserving `sm-convo-quote` for the lane-owned
+per-message Reply action. `0.3.0-m8` added the M8 Insights and Trending
+surfaces; `0.2.0-p2` added the accessible state consumed by the hardened
+choreography. The P3 freeze bumps to `1.0.0` after the cross-backend neutrality review and
 pilot shakedown, and the frozen hash is recorded in the brief. Post-freeze
 changes require a version bump and re-disclosure per LLP 0197.

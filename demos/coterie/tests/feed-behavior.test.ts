@@ -1068,16 +1068,10 @@ component NegativeRgb
       'highlighted=chatState.highlightedMessageId == message.id',
     );
     expect(choreographySource).toContain(
-      'const quotePreview = testId(aliceReply, "sm-convo-quote-preview");',
+      'await testId(aliceReply, "sm-convo-quote-preview").click();',
     );
     expect(choreographySource).toContain(
-      '(await quotePreview.count()) > 0 ? "sm-convo-quote-preview" : "sm-convo-quote";',
-    );
-    expect(choreographySource).toContain(
-      'await testId(aliceReply, quoteJumpSelector).click();',
-    );
-    expect(choreographySource).toContain(
-      'return { note: `quoted-excerpt jump selector: ${quoteJumpSelector}` };',
+      'return { note: "quoted-excerpt jump selector: sm-convo-quote-preview" };',
     );
     expect(choreographySource).toContain(
       'if (!inViewport) throw new Error("quoted-excerpt activation did not jump to the original")',

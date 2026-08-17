@@ -163,8 +163,9 @@ the background.
 +--------------------------------------+
 | < Design gang               (⚙)      |  (lane chrome → chat settings)
 |  (o) | Bob                        |  | #sm-convo-bubble
-|      | > Alice: Coffee time?     |  | #sm-convo-quote (tap → jump)
+|      | > Alice: Coffee time?     |  | #sm-convo-quote-preview (tap → jump)
 |      | on my way                 |  |
+|      | [Reply]                   |  | #sm-convo-quote
 |      [👍 2][❤️ 1]                  |  | (#sm-convo-reaction-chip)
 |              | sure! (edited) ✓✓ |  | #sm-convo-bubble + #sm-convo-receipt
 |  (…)                                 | #sm-convo-typing
@@ -173,10 +174,10 @@ the background.
 +--------------------------------------+
 ```
 
-Contract IDs: `sm-convo-bubble`, `sm-convo-quote`, `sm-convo-typing`,
-`sm-convo-receipt`, `sm-convo-reaction`, `sm-convo-input`,
-`sm-convo-send` (+ `sm-poll-option`, `sm-poll-tally` when a poll
-message renders).
+Contract IDs: `sm-convo-bubble`, `sm-convo-quote-preview` (quoted-excerpt
+jump), `sm-convo-quote` (per-message Reply action), `sm-convo-typing`,
+`sm-convo-receipt`, `sm-convo-reaction`, `sm-convo-input`, `sm-convo-send`
+(+ `sm-poll-option`, `sm-poll-tally` when a poll message renders).
 
 ## 9. Chat settings
 

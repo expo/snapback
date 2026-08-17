@@ -1,6 +1,6 @@
 {
   "name": "@snapback-benchmarks/social-messenger-choreography",
-  "version": "0.3.1-m8",
+  "version": "0.3.2-m8",
   "private": true,
   "type": "module",
   "scripts": {

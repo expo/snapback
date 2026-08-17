@@ -11,7 +11,7 @@ export interface QuotedReplyProps {
   accentColor?: string;
   /** Tap → jump/scroll to the original message (the lane implements the jump). */
   onPress?: () => void;
-  /** Contract testID. Default `sm-convo-quote`. */
+  /** Contract testID. Default `sm-convo-quote-preview`. */
   testID?: string;
 }
 
@@ -24,7 +24,7 @@ export function QuotedReply({
   excerpt,
   accentColor = palette.primary,
   onPress,
-  testID = 'sm-convo-quote',
+  testID = 'sm-convo-quote-preview',
 }: QuotedReplyProps): React.JSX.Element {
   return (
     <Pressable

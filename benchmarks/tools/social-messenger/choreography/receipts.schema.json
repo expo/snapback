@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://snapback.dev/schemas/benchmarks/social-messenger/choreography-receipt-0.3.1-m8.json",
+  "$id": "https://snapback.dev/schemas/benchmarks/social-messenger/choreography-receipt-0.3.2-m8.json",
   "title": "Social-messenger choreography JSONL receipt",
   "oneOf": [
     { "$ref": "#/$defs/assertionReceipt" },
@@ -60,7 +60,7 @@
         "details"
       ],
       "properties": {
-        "version": { "const": "0.3.1-m8" },
+        "version": { "const": "0.3.2-m8" },
         "runId": { "type": "string", "format": "uuid" },
         "recordedAt": { "type": "string", "format": "date-time" },
         "type": { "const": "assertion" },
@@ -309,7 +309,7 @@
         "green"
       ],
       "properties": {
-        "version": { "const": "0.3.1-m8" },
+        "version": { "const": "0.3.2-m8" },
         "runId": { "type": "string", "format": "uuid" },
         "recordedAt": { "type": "string", "format": "date-time" },
         "type": { "const": "segment-summary" },
