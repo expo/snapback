@@ -32,6 +32,7 @@ const binary = process.env.SNAPBACK_SERVER_BINARY ?? join(repoRoot, 'target', 'd
 const bindHost = process.env.MESSAGING_HOST ?? '127.0.0.1';
 
 const child = spawn(binary, [
+  'start',
   '--host', bindHost,
   '--port', String(PORT),
   '--db', dbPath,

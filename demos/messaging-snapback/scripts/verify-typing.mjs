@@ -27,9 +27,12 @@ await page.waitForTimeout(2000);
 const client = new SnapbackClient(origin, { rqsStore: null });
 const conversations = await client.query(api.myConversations, { args: { viewerHandle: 'lin' } });
 const trip = conversations.rows.find((c) => c.title.includes('Weekend Trip'));
+const scope = { conversationId: trip._id };
 const overlay = await client.subscribeEphemeral(api.ephemeral.typing, {
   connectionId: 'simulated-priya-device',
-  scope: { conversationId: trip._id },
+  scope,
+  userId: 'priya',
+  permissions: [SnapbackClient.roomPermission('m_conversationMemberships', scope)],
 });
 await overlay.publish({ userHandle: 'priya', name: 'Priya Rao' }, { ttlMs: api.ephemeral.typing.maxTtlMs });
 

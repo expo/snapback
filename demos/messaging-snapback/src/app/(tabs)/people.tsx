@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSnapbackSettledMutation } from '@messenger/snapback-react';
 import { Avatar } from '@/components/avatar';
 import { api } from '@/lib/snapback';
 import { PERSONAS, useIdentity } from '@/lib/identity';
 import { colors } from '@/theme/colors';
 
 export default function PeopleScreen() {
-  const { self, setSelf } = useIdentity();
-  const startDirectMessage = useSnapbackSettledMutation(api.startDirectMessage);
+  const { client, self, setSelf } = useIdentity();
   const [opening, setOpening] = useState<string | null>(null);
 
   async function openDm(otherHandle: string) {
@@ -17,13 +15,18 @@ export default function PeopleScreen() {
     if (!other || opening) return;
     setOpening(otherHandle);
     try {
-      const result = await startDirectMessage({
-        selfHandle: self.handle,
-        selfName: self.name,
-        otherHandle: other.handle,
-        otherName: other.name,
+      const result = await client.mutate(api.startDirectMessage, {
+        userId: self.handle,
+        queue: false,
+        args: {
+          selfHandle: self.handle,
+          selfName: self.name,
+          otherHandle: other.handle,
+          otherName: other.name,
+        },
       });
-      router.push({ pathname: '/conversation/[id]', params: { id: result } });
+      if (result.status !== 'settled') throw new Error('DM bootstrap unexpectedly queued');
+      router.push({ pathname: '/conversation/[id]', params: { id: result.result } });
     } finally {
       setOpening(null);
     }

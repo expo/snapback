@@ -493,6 +493,8 @@ export const toggleReaction = defineJsMutation({
 });
 
 export const startDirectMessage = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
   args: {
     selfHandle: v.string(),
     selfName: v.string(),
@@ -501,13 +503,18 @@ export const startDirectMessage = defineJsMutation({
   },
   result: results.value(v.id('conversations')),
   reads: ['conversationMembers', 'conversations'],
-  writes: ['conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationMemberships'],
   handler: async (ctx, args) => {
-    if (args.selfHandle === args.otherHandle) throw new Error('pick someone else to message');
+    // @ref LLP 0056#dated-amendment-bounded-atomic-bootstrap-rosters-2026-08-15 — the
+    // creator seat and every product projection use the server-resolved
+    // principal. In dev mode that principal comes from the direct client's
+    // asserted userId; Sessions mode ignores client assertions.
+    const selfHandle = ctx.auth.userId;
+    if (selfHandle === args.otherHandle) throw new Error('pick someone else to message');
     const mine = await ctx.db
       .query('conversationMembers')
       .withIndex('by_user')
-      .eq('userHandle', args.selfHandle)
+      .eq('userHandle', selfHandle)
       .take(500)
       .collect();
     for (const membership of mine) {
@@ -522,22 +529,24 @@ export const startDirectMessage = defineJsMutation({
       }
     }
     const now = ctx.runtime.now();
-    const conversationId = await ctx.db.insert('conversations', {
+    const conversationId = await ctx.membership.conversationMemberships.bootstrap({
       kind: 'dm',
       title: '',
-      memberHandles: [args.selfHandle, args.otherHandle],
+      memberHandles: [selfHandle, args.otherHandle],
       lastMessageText: 'Say hello 👋',
       lastMessageAuthorName: '',
       lastMessageAt: now,
       createdAt: now,
-    });
-    await ctx.db.insert('conversationMembers', { conversationId, userHandle: args.selfHandle, joinedAt: now });
+    }, [{ userHandle: args.otherHandle, role: 'member', joinedAt: now }]);
+    await ctx.db.insert('conversationMembers', { conversationId, userHandle: selfHandle, joinedAt: now });
     await ctx.db.insert('conversationMembers', { conversationId, userHandle: args.otherHandle, joinedAt: now });
     return conversationId;
   },
 });
 
 export const createGroup = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
   args: {
     title: v.string(),
     creatorHandle: v.string(),
@@ -545,15 +554,19 @@ export const createGroup = defineJsMutation({
     memberHandles: v.array(v.string()),
   },
   result: results.value(v.id('conversations')),
-  writes: ['conversations', 'conversationMembers'],
+  writes: ['conversations', 'conversationMembers', 'conversationMemberships'],
   handler: async (ctx, args) => {
     const title = String(args.title ?? '').trim();
     if (!title) throw new Error('a group needs a name');
-    const uniqueOthers = Array.from(new Set(args.memberHandles.filter((h) => h !== args.creatorHandle)));
+    // @ref LLP 0056#dated-amendment-bounded-atomic-bootstrap-rosters-2026-08-15 — do
+    // not let an authenticated caller split the creator principal from the
+    // handle written into the legacy product projections.
+    const creatorHandle = ctx.auth.userId;
+    const uniqueOthers = Array.from(new Set(args.memberHandles.filter((h) => h !== creatorHandle)));
     if (uniqueOthers.length < 1) throw new Error('a group needs at least one other member');
-    const allHandles = [args.creatorHandle, ...uniqueOthers];
+    const allHandles = [creatorHandle, ...uniqueOthers];
     const now = ctx.runtime.now();
-    const conversationId = await ctx.db.insert('conversations', {
+    const conversationId = await ctx.membership.conversationMemberships.bootstrap({
       kind: 'group',
       title,
       memberHandles: allHandles,
@@ -561,10 +574,85 @@ export const createGroup = defineJsMutation({
       lastMessageAuthorName: '',
       lastMessageAt: now,
       createdAt: now,
-    });
+    }, uniqueOthers.map((userHandle) => ({ userHandle, role: 'member', joinedAt: now })));
     for (const handle of allHandles) {
       await ctx.db.insert('conversationMembers', { conversationId, userHandle: handle, joinedAt: now });
     }
     return conversationId;
+  },
+});
+
+// These two ordinary product mutations are also the sessions acceptance seam:
+// a member may leave, and the conversation owner may seat that principal again.
+export const leaveConversation = defineJsMutation({
+  auth: 'authenticated',
+  args: { conversationId: v.id('conversations') },
+  result: results.value(v.boolean()),
+  reads: ['conversationMembers', 'conversations'],
+  writes: ['conversationMemberships', 'conversationMembers', 'conversations'],
+  handler: async (ctx, args) => {
+    // @ref LLP 0176#one-owner-many-projections — the canonical roster and both
+    // legacy read projections move together in this one mutation.
+    const memberHandle = ctx.auth.userId;
+    const projectedMembership = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation_user')
+      .eq('conversationId', args.conversationId)
+      .eq('userHandle', memberHandle)
+      .first();
+    const conversation = await ctx.db.get('conversations', args.conversationId);
+    if (!conversation) throw new Error('conversation not found');
+    await ctx.membership.conversationMemberships.removeSelf(args.conversationId);
+    if (projectedMembership) {
+      await ctx.db.delete('conversationMembers', projectedMembership._id);
+    }
+    await ctx.db.patch('conversations', args.conversationId, {
+      memberHandles: conversation.memberHandles.filter((handle) => handle !== memberHandle),
+    });
+    return true;
+  },
+});
+
+export const addConversationMember = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
+  args: {
+    conversationId: v.id('conversations'),
+    userHandle: v.principal(),
+  },
+  result: results.value(v.boolean()),
+  reads: ['conversationMembers', 'conversations'],
+  writes: ['conversationMemberships', 'conversationMembers', 'conversations'],
+  handler: async (ctx, args) => {
+    // @ref LLP 0176#one-owner-many-projections — seating a principal updates the
+    // authority roster, inbox edge, and member-count projection atomically.
+    const conversation = await ctx.db.get('conversations', args.conversationId);
+    if (!conversation) throw new Error('conversation not found');
+    const projectedMembership = await ctx.db
+      .query('conversationMembers')
+      .withIndex('by_conversation_user')
+      .eq('conversationId', args.conversationId)
+      .eq('userHandle', args.userHandle)
+      .first();
+    const now = ctx.runtime.now();
+    await ctx.membership.conversationMemberships.insert({
+      conversationId: args.conversationId,
+      userHandle: args.userHandle,
+      role: 'member',
+      joinedAt: now,
+    });
+    if (!projectedMembership) {
+      await ctx.db.insert('conversationMembers', {
+        conversationId: args.conversationId,
+        userHandle: args.userHandle,
+        joinedAt: now,
+      });
+    }
+    if (!conversation.memberHandles.includes(args.userHandle)) {
+      await ctx.db.patch('conversations', args.conversationId, {
+        memberHandles: [...conversation.memberHandles, args.userHandle],
+      });
+    }
+    return true;
   },
 });

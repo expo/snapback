@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { useSnapbackSettledMutation } from '@messenger/snapback-react';
 import { Avatar } from '@/components/avatar';
 import { api } from '@/lib/snapback';
 import { PERSONAS, useIdentity } from '@/lib/identity';
 import { colors } from '@/theme/colors';
 
 export default function NewGroupScreen() {
-  const { self } = useIdentity();
+  const { client, self } = useIdentity();
   const [title, setTitle] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
-  const createGroup = useSnapbackSettledMutation(api.createGroup);
 
   const others = PERSONAS.filter((p) => p.handle !== self.handle);
 
@@ -28,13 +26,18 @@ export default function NewGroupScreen() {
     if (!title.trim() || picked.size === 0 || creating) return;
     setCreating(true);
     try {
-      const conversationId = await createGroup({
-        title,
-        creatorHandle: self.handle,
-        creatorName: self.name,
-        memberHandles: Array.from(picked),
+      const created = await client.mutate(api.createGroup, {
+        userId: self.handle,
+        queue: false,
+        args: {
+          title,
+          creatorHandle: self.handle,
+          creatorName: self.name,
+          memberHandles: Array.from(picked),
+        },
       });
-      router.replace({ pathname: '/conversation/[id]', params: { id: conversationId } });
+      if (created.status !== 'settled') throw new Error('group bootstrap unexpectedly queued');
+      router.replace({ pathname: '/conversation/[id]', params: { id: created.result } });
     } finally {
       setCreating(false);
     }

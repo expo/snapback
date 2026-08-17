@@ -1,11 +1,12 @@
 // Snapback Messenger — schema.
 //
-// Seven durable tables (users, conversations, conversationMembers, messages,
-// reactions, viewOnceMessages, viewOnceConsumptions) plus one ephemeral
-// collection (typing). The interactive surface uses dev-mode client-asserted
-// personas, the same trade-off Warble documents. The view-once handlers are
-// deliberately different: they derive principals from auth and are witnessed
-// by the acceptance suite's Sessions-mode copy of this backend.
+// Eight durable tables (users, conversations, conversationMembers,
+// conversationMemberships, messages, reactions, viewOnceMessages,
+// viewOnceConsumptions) plus one ephemeral collection (typing). The interactive
+// surface uses dev-mode client-asserted personas, the same trade-off Warble
+// documents. The view-once handlers are deliberately different: they derive
+// principals from auth and are witnessed by the acceptance suite's Sessions-
+// mode copy of this backend.
 
 import {
   allow,
@@ -50,6 +51,34 @@ export const conversationMembers = defineTable({
   .index('by_conversation', ['conversationId'])
   .index('by_user', ['userHandle'])
   .index('by_conversation_user', ['conversationId', 'userHandle'], { unique: true });
+
+export const conversationMemberships = defineTable({
+  conversationId: v.id('conversations'),
+  userHandle: v.principal(),
+  role: v.string(),
+  // The generated bootstrap owns the creator seat and therefore cannot take
+  // app-authored incidental fields for it; initial roster seats still stamp it.
+  joinedAt: v.optional(v.integer()),
+})
+  .visibility({ kind: 'owner', field: 'userHandle' })
+  .index('by_conversation', ['conversationId'])
+  .index('by_user', ['userHandle'])
+  .index('by_conversation_user', ['conversationId', 'userHandle'], { unique: true })
+  // @ref LLP 0056#declaring-a-membership-table — typing authority is one
+  // canonical current principal/resource/role row, never a historical flag.
+  .membership({
+    id: 'conversationMemberships',
+    principal: 'userHandle',
+    resource: 'conversationId',
+    role: 'role',
+    roles: ['owner', 'member'],
+    bootstrapRole: 'owner',
+    provenance: 'full',
+    transitions: [
+      { op: 'insert', by: ['owner'], target: 'other', to: ['member'], fields: ['joinedAt'] },
+      { op: 'remove', by: ['self'], target: 'self', from: ['member'] },
+    ],
+  });
 
 export const messages = defineTable({
   conversationId: v.id('conversations'),
@@ -106,6 +135,7 @@ export default defineSchema({
   users,
   conversations,
   conversationMembers,
+  conversationMemberships,
   messages,
   reactions,
   viewOnceMessages,
@@ -116,7 +146,7 @@ export default defineSchema({
     // scoped per conversation so a busy inbox never fans typing state into
     // conversations nobody is viewing.
     typing: ephemeral.collection({
-      scope: { conversationId: v.string() },
+      scope: { conversationId: v.id('conversations') },
       routing: ['conversationId'],
       key: 'connection',
       ttlMs: 6_000,
@@ -128,8 +158,10 @@ export default defineSchema({
         userHandle: v.string(),
         name: v.string(),
       }),
-      publish: allow.all(),
-      subscribe: allow.all(),
+      // @ref LLP 0013#authorization-and-privacy — both operations bind to one
+      // durable membership declaration so removal revokes the whole room edge.
+      publish: allow.members('conversationMemberships'),
+      subscribe: allow.members('conversationMemberships'),
     }),
   }),
 });

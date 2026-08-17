@@ -1846,30 +1846,24 @@ channel.send({ type: "broadcast", event: "cursor", payload: { userId, x, y } });
 ```
 
 Snapback uses one mechanism for both: a typed ephemeral collection. The base
-projection is `useSnapbackPresence`; typing uses its activity-scoped
-convenience. The typing/online case:
+projection is `useSnapbackPresence`; typing normally uses its activity-scoped
+convenience. The messaging demo's dev-mode roster is the direct-client
+exception: it must carry the asserted persona and exact room permission on the
+subscription, after which publish/delete inherit them:
 
 ```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
-export function useTyping(conversationId: string, selfHandle: string, selfName: string) {
   const scope = useMemo(() => ({ conversationId }), [conversationId]);
-  const presence = useSnapbackActivityPresence(typingRef, {
-    scope,
-    value: () => ({ userHandle: selfHandle, name: selfName }),
-    idleMs: 3_000,
-  });
-  const typers = useMemo<Typer[]>(() => {
-    return presence.peers
-      .filter((entry) => entry.value.userHandle !== selfHandle)
-      .map((entry) => entry.value);
-  }, [presence, selfHandle]);
-
-  return {
-    typers,
-    publishTyping: presence.touch,
-    clearTyping: presence.withdraw,
-  };
-}
+  const permissions = useMemo(
+    () => [(SnapbackClient as unknown as {
+      roomPermission(prefix: string, permissionScope: Record<string, unknown>): string;
+    }).roomPermission('m_conversationMemberships', scope)],
+    [scope],
+  );
 ```
+
+Sessions ignores those client assertions and resolves the same identity and
+room edge server-side. The transport primitive remains identical; only the
+source of authority differs.
 
 And the cursor case is the same ephemeral mechanism over a collection tuned
 for high-frequency, small-payload publishes — the difference is entirely in

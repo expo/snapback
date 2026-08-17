@@ -327,3 +327,69 @@ The guide now puts the convenience first, retains observer-mode
 the volatile-thunk rate-budget trap. That closes the discovery and timer-
 choreography friction recorded by this diary's earlier presence correction;
 no additional guide-gap ticket was needed.
+
+## 2026-08-17 — Typing authority follows conversation membership
+
+The typing collection now binds both publish and subscribe to one canonical
+`conversationMemberships` declaration. Its principal/resource/role axes are
+`userHandle`/`conversationId`/`role`; creators bootstrap as owners, owners may
+seat members, and members may leave. The ephemeral scope uses the same nominal
+`v.id('conversations')` resource field. This was a pleasantly small policy
+expression: no separate subscribe rule, pending-role state, or ephemeral ACL
+table was needed. The Sessions witness makes the lifecycle concrete — a member
+can see a peer type, leaving produces a terminal denial for the leaver and an
+`AuthRevoked` removal for the survivor, and reseating admits a fresh
+subscription.
+
+The existing public-read `conversationMembers` table remains byte-identical in
+schema shape and keeps its original read/write projection paths. Canonical
+authority instead lives in the new restricted `conversationMemberships` table:
+resource creation bootstraps that roster while preserving the old projection
+inserts, and leave/rejoin use its generated `removeSelf`/`insert` helpers. This
+separation keeps the public product projection distinct from the restricted
+authority rows. Leave and add now update the canonical roster,
+`conversationMembers`, and `conversations.memberHandles` atomically so the
+inbox and member-count projections cannot retain a departed member or omit a
+new one. One
+DSL edge was worth learning: the generated bootstrap owns the creator seat, so
+an incidental creator-only `joinedAt` value must be optional even though every
+explicitly seeded or inserted member still receives it.
+
+That new-table shape also fits the governance ratchet's paved admission path.
+The comparator classifies the owner-visible, owner/member-written table as
+`new-restricted`, whose ledger admission requires no authority artifacts — but
+LLP 0234's committed-first posture means the root transition node and the
+updated exact-set baseline must be authored into the committed ledger before
+generation, and no dev-mint tool exists yet for that step (a known Class R
+open tail). This landing authored the node with the package's own exported
+digest functions and let the unpatched generator validate and rewrite it. The
+sessions acceptance harness also needed one seam: its scratch fixture carries
+a per-run appId the governed-launch registry cannot resolve, so `startServer`
+now names `governanceBackendRoot` explicitly. With both in place the official
+25-check headless acceptance runs the generated scratch Sessions fixture on
+the official server with no approval substitute.
+
+The interactive dev surface uses the complementary direct-client lane: DM and
+group bootstrap calls assert the selected persona as `userId`, while typing
+asserts both that identity and the generated
+`m_conversationMemberships` room permission. Sessions mode ignores those
+client assertions and derives the principal and room authority server-side,
+so the convenience remains explicitly dev-only rather than weakening the
+production witness.
+
+The interactive rerun also caught launcher drift: the current CLI requires
+the explicit `snapback start` subcommand, while this demo still passed server
+flags at the command root. Adding `start` restored the official dev backend;
+Metro then produced the web bundle and a direct two-client smoke proved dev
+DM/group bootstrap plus permissioned typing. The two screenshot scripts were
+invoked too, but this agent environment aborted system Chrome at process launch
+(`SIGABRT`), before either script could reach the app, so this round makes no
+new screenshot claim.
+
+The removal scenario also exposed a client-overlay gap. The server emits the
+denied subscriber's `PermissionDenied` terminal frame and stops later delivery,
+but `EphemeralOverlay.apply` recognizes the envelope as ephemeral and then
+falls through to `not_ephemeral` because it has no `Error` arm. Consequently
+the React presence and LLP 0257 activity-presence surfaces retain their prior
+ready/empty state instead of surfacing terminal `status`/`diagnostic` or
+`onError`. This slice records that finding without changing the client.

@@ -11,12 +11,18 @@ import { createAssetClient, createMemoryAssetTaskStore } from '@expo/snapback-cl
 import { generate } from '../../../../packages/snapback-codegen/index.mjs';
 
 import { importGeneratedModule } from '../../../_kit/generated-artifacts.mjs';
-import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
+import {
+  assert,
+  assertEqual,
+  createSuite,
+  eventually,
+  runAcceptance,
+} from '../../../_kit/harness.mjs';
 import { resolveHeadlessAppLayout } from '../../../_kit/repo-layout.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { makeSolidPng } from '../../scripts/make-png.mjs';
 
-const suite = createSuite('messaging-snapback / headless', { expectedChecks: 18 });
+const suite = createSuite('messaging-snapback / headless', { expectedChecks: 25 });
 const { appDir, backendDir, repoRoot } = resolveHeadlessAppLayout(import.meta.url);
 const scratch = mkdtempSync(join(tmpdir(), 'messaging-sessions-acceptance-'));
 const fixtureBackendDir = join(scratch, 'snapback');
@@ -53,6 +59,9 @@ const operatorServer = await startServer({
   db: ':memory:',
   cwd: repoRoot,
   startupArtifacts,
+  // The sessions fixture is a scratch copy with a per-run appId, so the
+  // governed-launch registry cannot resolve it; name its backend explicitly.
+  governanceBackendRoot: fixtureBackendDir,
   captureImpersonationCapability: true,
 });
 
@@ -136,6 +145,21 @@ function assertAppRefusal(error, appCode, label) {
   );
 }
 
+function assertPermissionDenied(error, label) {
+  assert(error && typeof error === 'object', `${label} returned an error object`);
+  assertEqual(
+    error.diagnostic?.code,
+    'SNAPBACK_AUTH_PERMISSION_DENIED',
+    `${label} diagnostic code`,
+  );
+}
+
+function ephemeralMessage(frame) {
+  if (frame?.Ephemeral) return frame.Ephemeral;
+  if (frame?.kind === 'ephemeral') return frame.message;
+  return frame?.message ?? frame;
+}
+
 let app;
 try {
   await seedFixture(operatorServer);
@@ -149,26 +173,44 @@ try {
   const ownerClient = createExternalSessionClient(operatorServer.baseUrl, {
     bearerToken: ownerMinted.token,
     clientStoreId: 'messaging-view-once-owner',
+    rqsStore: null,
+    offlineQueue: false,
   });
   const recipientAClient = createExternalSessionClient(operatorServer.baseUrl, {
     bearerToken: recipientAMinted.token,
     clientStoreId: 'messaging-view-once-recipient-a-1',
+    rqsStore: null,
+    offlineQueue: false,
   });
   const recipientASecondClient = createExternalSessionClient(operatorServer.baseUrl, {
     bearerToken: recipientAMinted.token,
     clientStoreId: 'messaging-view-once-recipient-a-2',
+    rqsStore: null,
+    offlineQueue: false,
   });
   const recipientBClient = createExternalSessionClient(operatorServer.baseUrl, {
     bearerToken: recipientBMinted.token,
     clientStoreId: 'messaging-view-once-recipient-b-1',
+    rqsStore: null,
+    offlineQueue: false,
   });
   const recipientBSecondClient = createExternalSessionClient(operatorServer.baseUrl, {
     bearerToken: recipientBMinted.token,
     clientStoreId: 'messaging-view-once-recipient-b-2',
+    rqsStore: null,
+    offlineQueue: false,
   });
   const outsiderClient = createExternalSessionClient(operatorServer.baseUrl, {
     bearerToken: outsiderMinted.token,
     clientStoreId: 'messaging-view-once-outsider',
+    rqsStore: null,
+    offlineQueue: false,
+  });
+  const anonymousClient = new SnapbackClient(operatorServer.baseUrl, {
+    custody: 'anonymous-public',
+    authClientProtocol: 1,
+    adminToken: null,
+    rqsStore: null,
   });
   const { default: api } = await importGeneratedModule(generatedDir, 'api.mjs');
   // The application-facing object deliberately carries no admin token,
@@ -185,6 +227,7 @@ try {
       recipientB: recipientBClient,
       recipientBSecond: recipientBSecondClient,
       outsider: outsiderClient,
+      anonymous: anonymousClient,
     },
     sessions: {
       owner: ownerMinted,
@@ -203,6 +246,7 @@ try {
           recipientBClient.closeAuth(),
           recipientBSecondClient.closeAuth(),
           outsiderClient.closeAuth(),
+          anonymousClient.closeAuth(),
         ]);
       } finally {
         try {
@@ -326,10 +370,23 @@ try {
   });
 
   await suite.check('startDirectMessage reuses an existing dm instead of duplicating it', async () => {
-    const again = await app.client.mutate(api.startDirectMessage, {
-      args: { selfHandle: 'lin', selfName: 'Lin Chen', otherHandle: 'ada', otherName: 'Ada Lovelace' },
+    const created = await app.client.mutate(api.startDirectMessage, {
+      args: {
+        selfHandle: 'caller-asserted-dedup-creator',
+        selfName: 'Dedup creator',
+        otherHandle: 'dedup-recipient',
+        otherName: 'Dedup recipient',
+      },
     });
-    assertEqual(again.result, dmId, 'existing dm reused');
+    const again = await app.client.mutate(api.startDirectMessage, {
+      args: {
+        selfHandle: 'different-caller-asserted-creator',
+        selfName: 'Dedup creator',
+        otherHandle: 'dedup-recipient',
+        otherName: 'Dedup recipient',
+      },
+    });
+    assertEqual(again.result, created.result, 'authenticated principal reuses its existing dm');
   });
 
   let groupId;
@@ -660,22 +717,292 @@ try {
     assertEqual(after, before, 'refused message wrote no row');
   });
 
-  await suite.check('typing presence: a second persona publishing typing is visible over the ephemeral overlay', async () => {
-    const typingRef = api.ephemeral.typing;
-    const overlay = await app.client.subscribeEphemeral(typingRef, {
-      connectionId: 'acceptance-watcher',
-      scope: { conversationId: dmId },
+  const typingRef = api.ephemeral.typing;
+  let typingConversationId;
+  let typingScope;
+  let memberAOverlay;
+  let memberBOverlay;
+  let memberBFreshOverlay;
+  let memberBEntryKey;
+  const memberAFrames = [];
+  const memberBFrames = [];
+  let unregisterMemberAFrames;
+  let unregisterMemberBFrames;
+  let memberBTerminalFrameCount;
+  let memberBTerminalMessage;
+
+  await suite.check('typing membership (a): anonymous subscribe and publish are denied', async () => {
+    const scope = { conversationId: dmId };
+    const subscribeError = await captureRejection(app.clients.anonymous.subscribeEphemeral(typingRef, {
+      connectionId: 'typing-anonymous-subscribe',
+      scope,
+      transport: 'poll',
+    }), 'anonymous typing subscribe');
+    assertPermissionDenied(subscribeError, 'anonymous typing subscribe');
+
+    const publishError = await captureRejection(app.clients.anonymous.publishEphemeral(typingRef, {
+      connectionId: 'typing-anonymous-publish',
+      scope,
+      value: { userHandle: 'anonymous', name: 'Anonymous' },
+      ttlMs: typingRef.maxTtlMs,
+    }), 'anonymous typing publish');
+    assertPermissionDenied(publishError, 'anonymous typing publish');
+    return {
+      subscribe: subscribeError.diagnostic.code,
+      publish: publishError.diagnostic.code,
+    };
+  });
+
+  await suite.check('typing membership (b): an authenticated non-member is denied', async () => {
+    const scope = { conversationId: dmId };
+    const subscribeError = await captureRejection(app.clients.outsider.subscribeEphemeral(typingRef, {
+      connectionId: 'typing-outsider-subscribe',
+      scope,
+      transport: 'poll',
+    }), 'non-member typing subscribe');
+    assertPermissionDenied(subscribeError, 'non-member typing subscribe');
+
+    const publishError = await captureRejection(app.clients.outsider.publishEphemeral(typingRef, {
+      connectionId: 'typing-outsider-publish',
+      scope,
+      value: { userHandle: 'outsider', name: 'Outsider' },
+      ttlMs: typingRef.maxTtlMs,
+    }), 'non-member typing publish');
+    assertPermissionDenied(publishError, 'non-member typing publish');
+    return {
+      subscribe: subscribeError.diagnostic.code,
+      publish: publishError.diagnostic.code,
+    };
+  });
+
+  await suite.check('typing membership (c): Sessions creation binds the creator handle to the authenticated principal', async () => {
+    const forgedCreatorHandle = 'caller-asserted-forged-creator';
+    const created = await app.clients.owner.mutate(api.startDirectMessage, {
+      args: {
+        selfHandle: forgedCreatorHandle,
+        selfName: 'Member A',
+        otherHandle: recipientAPrincipal,
+        otherName: 'Member B',
+      },
     });
-    const otherOverlay = await app.client.subscribeEphemeral(typingRef, {
-      connectionId: 'acceptance-typer',
-      scope: { conversationId: dmId },
+    typingConversationId = created.result;
+    typingScope = { conversationId: typingConversationId };
+    const conversation = await app.clients.owner.query(api.conversationById, {
+      args: { conversationId: typingConversationId },
     });
-    await otherOverlay.publish({ userHandle: 'ada', name: 'Ada Lovelace' }, { ttlMs: typingRef.maxTtlMs });
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    const entries = overlay.currentEntries();
-    assert(entries.some((e) => e.value.userHandle === 'ada'), 'watcher sees ada typing over the live overlay');
-    overlay.dispose();
-    otherOverlay.dispose();
+    assertEqual(conversation.rows.length, 1, 'created conversation is queryable');
+    assert(
+      conversation.rows[0].memberHandles.includes(ownerPrincipal),
+      'creator projection uses the authenticated principal',
+    );
+    assert(
+      !conversation.rows[0].memberHandles.includes(forgedCreatorHandle),
+      'caller-asserted creator handle is not stored',
+    );
+    const ownerInbox = await app.clients.owner.query(api.myConversations, {
+      args: { viewerHandle: ownerPrincipal },
+    });
+    const forgedInbox = await app.clients.owner.query(api.myConversations, {
+      args: { viewerHandle: forgedCreatorHandle },
+    });
+    assert(ownerInbox.rows.some((row) => row._id === typingConversationId), 'creator principal owns the inbox edge');
+    assert(!forgedInbox.rows.some((row) => row._id === typingConversationId), 'forged creator has no inbox edge');
+    return { creatorHandle: conversation.rows[0].memberHandles[0], forgedCreatorStored: false };
+  });
+
+  await suite.check('typing membership (d): member A sees member B typing', async () => {
+    unregisterMemberAFrames = app.clients.owner.registerEphemeralConsumer(
+      'typing-member-a',
+      (frame) => memberAFrames.push(frame),
+    );
+    unregisterMemberBFrames = app.clients.recipientA.registerEphemeralConsumer(
+      'typing-member-b',
+      (frame) => {
+        memberBFrames.push(frame);
+        const message = ephemeralMessage(frame);
+        if (
+          memberBTerminalFrameCount === undefined
+          && message?.Error?.error?.code === 'PermissionDenied'
+        ) {
+          memberBTerminalFrameCount = memberBFrames.length;
+          memberBTerminalMessage = message;
+        }
+      },
+    );
+    memberAOverlay = await app.clients.owner.subscribeEphemeral(typingRef, {
+      connectionId: 'typing-member-a',
+      scope: typingScope,
+      transport: 'poll',
+    });
+    memberBOverlay = await app.clients.recipientA.subscribeEphemeral(typingRef, {
+      connectionId: 'typing-member-b',
+      scope: typingScope,
+      transport: 'poll',
+    });
+    const published = await memberBOverlay.publish(
+      { userHandle: recipientAPrincipal, name: 'Member B' },
+      { ttlMs: typingRef.maxTtlMs },
+    );
+    memberBEntryKey = published.key;
+    await eventually(async () => {
+      await memberAOverlay.drain();
+      assert(
+        memberAOverlay.currentEntries().some((entry) => (
+          entry.key === memberBEntryKey
+          && entry.value.userHandle === recipientAPrincipal
+        )),
+        'member A sees member B typing',
+      );
+    }, 'member A observes member B typing');
+    return { memberAObservedMemberB: true };
+  });
+
+  await suite.check('typing membership (e): removing B revokes B and removes B from A', async () => {
+    await app.clients.recipientA.mutate(api.leaveConversation, {
+      args: { conversationId: typingConversationId },
+    });
+
+    await eventually(async () => {
+      await Promise.all([memberAOverlay.drain(), memberBOverlay.drain()]);
+      const denied = ephemeralMessage(memberBFrames.at(-1));
+      assert(memberBTerminalMessage, 'removed member receives the PermissionDenied terminal frame');
+      assertEqual(
+        denied?.Error?.error?.code,
+        'PermissionDenied',
+        'PermissionDenied is the last frame received at revocation time',
+      );
+      assertEqual(
+        memberBFrames.length,
+        memberBTerminalFrameCount,
+        'no frame follows the first PermissionDenied at the revocation checkpoint',
+      );
+      assertEqual(
+        denied.Error.room_authority_generation,
+        2,
+        'removed member terminal frame carries the successor authority generation',
+      );
+      const revoked = memberAFrames
+        .map(ephemeralMessage)
+        .find((message) => (
+          message?.Remove?.key === memberBEntryKey
+          && message.Remove.reason === 'AuthRevoked'
+        ));
+      assert(revoked, 'surviving member receives the AuthRevoked removal frame');
+      assert(
+        !memberAOverlay.currentEntries().some((entry) => entry.key === memberBEntryKey),
+        'member A no longer sees member B typing',
+      );
+    }, 'membership removal revokes B and deletes B typing');
+
+    const publishError = await captureRejection(memberBOverlay.publish(
+      { userHandle: recipientAPrincipal, name: 'Removed member B' },
+      { ttlMs: typingRef.maxTtlMs },
+    ), 'removed member typing publish');
+    assertPermissionDenied(publishError, 'removed member typing publish');
+
+    assertEqual(
+      memberBFrames.length,
+      memberBTerminalFrameCount,
+      'removed member receives zero frames between terminal denial and survivor probe',
+    );
+    await memberAOverlay.publish(
+      { userHandle: ownerPrincipal, name: 'Member A after removal' },
+      { ttlMs: typingRef.maxTtlMs },
+    );
+    await memberAOverlay.drain();
+    await memberBOverlay.drain();
+    assertEqual(
+      memberBFrames.length,
+      memberBTerminalFrameCount,
+      'removed member subscription stays silent after its terminal frame',
+    );
+    const removal = memberAFrames
+      .map(ephemeralMessage)
+      .find((message) => (
+        message?.Remove?.key === memberBEntryKey
+        && message.Remove.reason === 'AuthRevoked'
+      ));
+    return {
+      removedSubscriberFrameCode: memberBTerminalMessage.Error.error.code,
+      successorAuthorityGeneration: memberBTerminalMessage.Error.room_authority_generation,
+      survivorRemovalReason: removal.Remove.reason,
+      formerMemberPublish: publishError.diagnostic.code,
+      postTerminalFrames: memberBFrames.length - memberBTerminalFrameCount,
+    };
+  });
+
+  await suite.check('typing membership (f): leave removes B from inbox and member-count projections', async () => {
+    const departedInbox = await app.clients.recipientA.query(api.myConversations, {
+      args: { viewerHandle: recipientAPrincipal },
+    });
+    const conversation = await app.clients.owner.query(api.conversationById, {
+      args: { conversationId: typingConversationId },
+    });
+    assert(
+      !departedInbox.rows.some((row) => row._id === typingConversationId),
+      'departed member no longer sees the conversation in their inbox',
+    );
+    assert(
+      !conversation.rows[0].memberHandles.includes(recipientAPrincipal),
+      'departed member is removed from the denormalized member list',
+    );
+    return { departedInboxEdge: false, departedMemberHandle: false };
+  });
+
+  await suite.check('typing membership (g): add restores B to inbox and member-count projections', async () => {
+    await app.clients.owner.mutate(api.addConversationMember, {
+      args: {
+        conversationId: typingConversationId,
+        userHandle: recipientAPrincipal,
+      },
+    });
+    const restoredInbox = await app.clients.recipientA.query(api.myConversations, {
+      args: { viewerHandle: recipientAPrincipal },
+    });
+    const conversation = await app.clients.owner.query(api.conversationById, {
+      args: { conversationId: typingConversationId },
+    });
+    assert(
+      restoredInbox.rows.some((row) => row._id === typingConversationId),
+      're-added member sees the conversation in their inbox',
+    );
+    assert(
+      conversation.rows[0].memberHandles.includes(recipientAPrincipal),
+      're-added member is restored to the denormalized member list',
+    );
+    return { restoredInboxEdge: true, restoredMemberHandle: true };
+  });
+
+  await suite.check('typing membership (h): B rejoins through a fresh subscription', async () => {
+    memberBFreshOverlay = await eventually(async () => {
+      await memberAOverlay.drain();
+      return app.clients.recipientA.subscribeEphemeral(typingRef, {
+        connectionId: 'typing-member-b-rejoined',
+        scope: typingScope,
+        transport: 'poll',
+      });
+    }, 'fresh member B subscribe clears the authority barrier');
+    const republished = await memberBFreshOverlay.publish(
+      { userHandle: recipientAPrincipal, name: 'Member B rejoined' },
+      { ttlMs: typingRef.maxTtlMs },
+    );
+    await eventually(async () => {
+      await memberAOverlay.drain();
+      assert(
+        memberAOverlay.currentEntries().some((entry) => (
+          entry.key === republished.key
+          && entry.value.name === 'Member B rejoined'
+        )),
+        'member A sees member B after rejoin',
+      );
+    }, 'member B rejoin becomes visible to member A');
+
+    memberAOverlay.dispose();
+    memberBOverlay.dispose();
+    memberBFreshOverlay.dispose();
+    unregisterMemberAFrames();
+    unregisterMemberBFrames();
+    return { freshSubscribe: true, memberAObservedMemberBAgain: true };
   });
   }, { cleanups: [app.close], reportFile: join(app.appDir, 'acceptance-report.json') });
 } catch (error) {

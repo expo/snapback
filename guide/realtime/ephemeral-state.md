@@ -53,42 +53,51 @@ the first publication until AppState observation is established and withdraws
 on backgrounding. A direct `@expo/snapback-react` import has the same deadline
 state machine but no platform lifecycle listener.
 
+The messaging demo has one deliberate direct-client exception. Its interactive
+server uses dev-mode persona assertions, while the `typing` collection also
+requires a client-asserted membership permission. The provider hook does not
+accept those direct-dev credentials, so this demo constructs the exact room
+permission, passes both assertions when subscribing, and lets the returned
+overlay inherit them for publish/delete:
+
 ```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
-import { useMemo } from 'react';
-import { useSnapbackActivityPresence } from '@messenger/snapback-expo';
-import { ephemeral } from '@generated/api.mjs';
-
-export type Typer = { userHandle: string; name: string };
-
-const typingRef = ephemeral.typing;
-
-// @ref LLP 0257#expo-backgrounding-and-resume — the Expo facade adds
-// background withdrawal to the canonical activity state machine.
-export function useTyping(conversationId: string, selfHandle: string, selfName: string) {
   const scope = useMemo(() => ({ conversationId }), [conversationId]);
-  const presence = useSnapbackActivityPresence(typingRef, {
-    scope,
-    value: () => ({ userHandle: selfHandle, name: selfName }),
-    idleMs: 3_000,
-  });
-  const typers = useMemo<Typer[]>(() => {
-    return presence.peers
-      .filter((entry) => entry.value.userHandle !== selfHandle)
-      .map((entry) => entry.value);
-  }, [presence, selfHandle]);
-
-  return {
-    typers,
-    publishTyping: presence.touch,
-    clearTyping: presence.withdraw,
-  };
-}
+  const permissions = useMemo(
+    () => [(SnapbackClient as unknown as {
+      roomPermission(prefix: string, permissionScope: Record<string, unknown>): string;
+    }).roomPermission('m_conversationMemberships', scope)],
+    [scope],
+  );
 ```
 
-(That import path, `@messenger/snapback-expo`, is the messaging demo's own
-tsconfig/metro alias for **`@expo/snapback-expo`** — there is no published
-`@messenger/*` package. In your app, install and import
-`@expo/snapback-expo`.)
+```tsx source=demos/messaging-snapback/src/lib/useTyping.ts
+    void client.subscribeEphemeral(typingRef, {
+      connectionId,
+      scope,
+      userId: selfHandle,
+      permissions,
+    }).then((subscribed) => {
+      overlay = subscribed;
+      if (cancelled) {
+        void subscribed.delete().catch(() => {}).finally(() => subscribed.dispose());
+        return;
+      }
+      overlayRef.current = subscribed;
+      const refresh = () => setEntries(subscribed.currentEntries());
+      stopObserving = subscribed.onChange(refresh);
+      refresh();
+    }).catch((error) => {
+      if (!cancelled) reportTypingFailure('subscribe', error);
+    });
+```
+
+That is a dev/production split, not a production permission pattern. A
+Sessions server ignores client-asserted identity and permission strings and
+derives both from the session and server-side roster. Prefer
+`useSnapbackActivityPresence` whenever the provider owns that authority; use a
+direct overlay only when the dev surface genuinely must carry direct
+assertions, and then recreate the idle withdrawal and AppState cleanup shown
+by the demo.
 
 The helper removes only the current connection's `selfKey`. The visible
 `userHandle` filter is still required to hide the same user typing from

@@ -18,7 +18,10 @@ export async function createProvider(
       ? { onStateChange: onDevelopmentSync }
       : undefined,
   });
-  return createSnapbackReactProvider(binding, { connectionId: 'messenger-expo' });
+  return {
+    client,
+    provider: createSnapbackReactProvider(binding, { connectionId: 'messenger-expo' }),
+  };
 }
 
 export function publicAssetUrl(assetId: string, variant: 'primary' | 'thumb' = 'primary') {

@@ -62,6 +62,19 @@
       { "_id": "cm_gt_mo", "conversationId": "conv_group_trip", "userHandle": "mo", "joinedAt": 1785650000000 },
       { "_id": "cm_gt_priya", "conversationId": "conv_group_trip", "userHandle": "priya", "joinedAt": 1785650000000 }
     ],
+    "conversationMemberships": [
+      { "_id": "cms_dm1_lin", "conversationId": "conv_dm_lin_ada", "userHandle": "lin", "role": "owner", "joinedAt": 1785700000000 },
+      { "_id": "cms_dm1_ada", "conversationId": "conv_dm_lin_ada", "userHandle": "ada", "role": "member", "joinedAt": 1785700000000 },
+      { "_id": "cms_dm2_lin", "conversationId": "conv_dm_lin_grace", "userHandle": "lin", "role": "owner", "joinedAt": 1785690000000 },
+      { "_id": "cms_dm2_grace", "conversationId": "conv_dm_lin_grace", "userHandle": "grace", "role": "member", "joinedAt": 1785690000000 },
+      { "_id": "cms_gf_lin", "conversationId": "conv_group_founders", "userHandle": "lin", "role": "owner", "joinedAt": 1785600000000 },
+      { "_id": "cms_gf_ada", "conversationId": "conv_group_founders", "userHandle": "ada", "role": "member", "joinedAt": 1785600000000 },
+      { "_id": "cms_gf_grace", "conversationId": "conv_group_founders", "userHandle": "grace", "role": "member", "joinedAt": 1785600000000 },
+      { "_id": "cms_gf_mo", "conversationId": "conv_group_founders", "userHandle": "mo", "role": "member", "joinedAt": 1785600000000 },
+      { "_id": "cms_gt_lin", "conversationId": "conv_group_trip", "userHandle": "lin", "role": "owner", "joinedAt": 1785650000000 },
+      { "_id": "cms_gt_mo", "conversationId": "conv_group_trip", "userHandle": "mo", "role": "member", "joinedAt": 1785650000000 },
+      { "_id": "cms_gt_priya", "conversationId": "conv_group_trip", "userHandle": "priya", "role": "member", "joinedAt": 1785650000000 }
+    ],
     "messages": [
       { "_id": "msg_dm1_1", "conversationId": "conv_dm_lin_ada", "authorHandle": "ada", "authorName": "Ada Lovelace", "body": "Hey! Did you get a chance to look at the analytical engine notes?", "createdAt": 1785773000000 },
       { "_id": "msg_dm1_2", "conversationId": "conv_dm_lin_ada", "authorHandle": "lin", "authorName": "Lin Chen", "body": "Just finished — the loop diagram is beautiful.", "createdAt": 1785773200000 },

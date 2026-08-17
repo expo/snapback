@@ -30,6 +30,32 @@
         "audienceDeclarationClosure": [],
         "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
         "policy": {
+          "field": "userHandle",
+          "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userHandle",
+          "semanticVersion": "snapback.owner-write.v1"
+        }
+      },
+      "policyDigest": "sha256:50a1086bd806a9cd0a237981c3414b7a608f8a879485dc3a4a15c6dce1133181",
+      "provenanceHeadId": "conversationMemberships-new-20260817-v1",
+      "tableId": "conversationMemberships"
+    },
+    {
+      "normalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
           "kind": "public-read"
         },
         "writePosture": {
@@ -176,6 +202,6 @@
       "tableId": "viewOnceMessages"
     }
   ],
-  "exactSetDigest": "sha256:c098f2fc7bb97ae2ff59c1fe0a0c9c86f882e4680d0efb0d8dd2408f95d2c6b4",
+  "exactSetDigest": "sha256:1192fb50a74b7a3ce0a955c5eb10768a91858b1f3c59c6f9a95502025e18c5c3",
   "schemaVersion": "snapback.table-visibility-policy-baseline.v2"
 }

@@ -640,7 +640,7 @@ terminal that executes the builder and returns the bounded array:
     const mine = await ctx.db
       .query('conversationMembers')
       .withIndex('by_user')
-      .eq('userHandle', args.selfHandle)
+      .eq('userHandle', selfHandle)
       .take(500)
       .collect();
 ```

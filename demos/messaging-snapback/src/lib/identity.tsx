@@ -1,9 +1,10 @@
-// Dev-mode persona switcher — the same trade-off Warble documents: identity
-// is client-asserted (an argument on every call), not a real session, so
-// this context just tracks "who am I right now" for the demo's UI. Switching
+// Dev-mode persona switcher — the same trade-off Warble documents: bootstrap
+// and typing direct calls assert the selected persona, not a real session, so
+// this context tracks "who am I right now" for the demo's UI. Switching
 // personas is how one browser tab can stand in for "someone else typing" or
 // "someone else reacting" when verifying the live-update path end to end.
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import type { SnapbackClient } from '@expo/snapback-client';
 
 export type Persona = {
   handle: string;
@@ -21,16 +22,18 @@ export const PERSONAS: Persona[] = [
 ];
 
 const IdentityContext = createContext<{
+  client: SnapbackClient;
   self: Persona;
   setSelf: (handle: string) => void;
 } | null>(null);
 
-export function IdentityProvider({ children }: { children: ReactNode }) {
+export function IdentityProvider({ children, client }: { children: ReactNode; client: SnapbackClient }) {
   const [handle, setHandle] = useState('lin');
   const value = useMemo(() => ({
+    client,
     self: PERSONAS.find((p) => p.handle === handle) ?? PERSONAS[0],
     setSelf: setHandle,
-  }), [handle]);
+  }), [client, handle]);
   return <IdentityContext.Provider value={value}>{children}</IdentityContext.Provider>;
 }
 

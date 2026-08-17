@@ -44,14 +44,21 @@ Press `w` for web, or scan the QR code for iOS/Android via Expo Go.
 
 ## How it is built
 
-`snapback/schema.mjs` + `snapback/functions.mjs` are the whole backend: seven
-tables (`users`, `conversations`, `conversationMembers`, `messages`,
-`reactions`, `viewOnceMessages`, `viewOnceConsumptions`) and one ephemeral
-collection (`typing`). Three things shaped the design:
+`snapback/schema.mjs` + `snapback/functions.mjs` are the whole backend: eight
+tables (`users`, `conversations`, `conversationMembers`,
+`conversationMemberships`, `messages`, `reactions`, `viewOnceMessages`,
+`viewOnceConsumptions`) and one ephemeral collection (`typing`). Four things
+shaped the design:
 
 - **Conversations are denormalized for a single-scan inbox.** `lastMessageText`/
   `lastMessageAuthorName`/`lastMessageAt` are patched on every send, so
   `myConversations` never joins into `messages` to render the list.
+- **Typing is authorized by the canonical conversation roster.** Both publish
+  and subscribe use the new restricted `conversationMemberships` membership
+  declaration, scoped by the nominal `conversationId`. The existing public
+  `conversationMembers` table remains the app's denormalized read projection.
+  Leaving therefore revokes the departing member's room edge and removes their
+  retained typing entry from the peers who remain.
 - **Reactions and reply previews are JS-handler aggregates, not declarative
   plans.** `conversationMessages` reads `messages` and `reactions` in one
   snapshot and groups reactions per message / looks up the quoted reply
@@ -65,7 +72,13 @@ collection (`typing`). Three things shaped the design:
   id and removes the typed reference and consumptions atomically.
 
 Auth is `dev` mode (client-asserted identity via a persona switcher), the
-same trade-off `demos/warble` documents — not a production posture.
+same trade-off `demos/warble` documents — not a production posture. The
+interactive client sends the selected persona as the direct call's asserted
+`userId`; typing also sends
+`SnapbackClient.roomPermission('m_conversationMemberships', scope)` on its
+subscription and inherits it for publication. A Sessions server ignores both
+client assertions and resolves the principal and permissions itself, which is
+the intended dev/production split.
 
 ## Why view-once is headless-only
 
@@ -100,7 +113,10 @@ Full mechanism and a suggested guide fix in
 node demos/messaging-snapback/tests/acceptance/headless.mjs
 ```
 
-Eighteen checks: the existing messaging, asset-upload, and live typing proofs;
+Twenty-five checks: the existing messaging and asset-upload proofs; an
+eight-part Sessions-mode typing-membership battery (anonymous and non-member
+refusal, creator principal binding, cross-member visibility, removal
+revocation, leave/add projection coherence, and fresh rejoin); plus
 recipient-set validation; hostile pending/outsider delivery; repeated and
 concurrent second-open refusal from product consumption state; strict
 403→200→403 close; two-recipient delete-for-everyone; and close-then-delete

@@ -22,7 +22,7 @@ if (Platform.OS !== 'web') {
 
 export default function RootLayout() {
   const [state, setState] = useState<{
-    provider?: Awaited<ReturnType<typeof createProvider>>;
+    runtime?: Awaited<ReturnType<typeof createProvider>>;
     sync?: ReactBindingDevelopmentSyncState;
     error?: unknown;
   }>({});
@@ -32,9 +32,9 @@ export default function RootLayout() {
     createProvider((sync) => {
       if (mounted) setState((current) => ({ ...current, sync }));
     }).then(
-      (provider) => {
-        if (mounted) setState({ provider });
-        else void provider.dispose();
+      (runtime) => {
+        if (mounted) setState({ runtime });
+        else void runtime.provider.dispose();
       },
       (error) => {
         if (mounted) setState((current) => ({ ...current, error }));
@@ -43,13 +43,13 @@ export default function RootLayout() {
     return () => { mounted = false; };
   }, []);
 
-  if (!state.provider) {
+  if (!state.runtime) {
     return <QueryState message={state.sync?.message ?? 'Connecting to Snapback…'} error={state.error} />;
   }
 
   return (
-    <SnapbackProvider provider={state.provider}>
-      <IdentityProvider>
+    <SnapbackProvider provider={state.runtime.provider}>
+      <IdentityProvider client={state.runtime.client}>
         <StatusBar style="auto" />
         <Stack
           screenOptions={{

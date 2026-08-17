@@ -1,6 +1,7 @@
 {
   "heads": {
     "conversationMembers": "conversationMembers-g1-20260816-v1",
+    "conversationMemberships": "conversationMemberships-new-20260817-v1",
     "conversations": "conversations-g1-20260816-v1",
     "messages": "messages-g1-20260816-v1",
     "reactions": "reactions-g1-20260816-v1",
@@ -8,7 +9,7 @@
     "viewOnceConsumptions": "viewOnceConsumptions-g1-20260816-v1",
     "viewOnceMessages": "viewOnceMessages-g1-20260816-v1"
   },
-  "ledgerDigest": "sha256:2dc4f06a7c0d1f5dc77c773f9207c345b9de17ee00d6ee5be86ebe6a1fcf3c71",
+  "ledgerDigest": "sha256:84e40af53429bc089539a96351b67297dc5d1d5233492f1e6195f548b312019c",
   "nodes": [
     {
       "admissionKind": "g1-migration",
@@ -261,6 +262,43 @@
       },
       "successorPolicyDigest": "sha256:cc9fe68171764a808cd97f07bb8a192d266e993c26382a258b92ba3fe32f4489",
       "tableId": "viewOnceMessages"
+    },
+    {
+      "admissionKind": "new-restricted",
+      "approvalClosureDigest": null,
+      "approvalPath": null,
+      "id": "conversationMemberships-new-20260817-v1",
+      "predecessorHeadDigest": null,
+      "predecessorHeadId": null,
+      "predecessorNormalizedPolicyBody": null,
+      "predecessorPolicyDigest": null,
+      "quarantineVerdict": null,
+      "schemaVersion": "snapback.table-visibility-policy-transition.v2",
+      "serverSeparationReceipt": null,
+      "serverSeparationReceiptDigest": null,
+      "successorNormalizedPolicyBody": {
+        "audienceDeclarationClosure": [],
+        "audienceDeclarationClosureDigest": "sha256:a353a1e98819f5e861505c01a0a67e49699b43901106e79e5617d3165f6553d3",
+        "policy": {
+          "field": "userHandle",
+          "kind": "owner"
+        },
+        "writePosture": {
+          "authorityTableClass": "membership",
+          "dispositions": {
+            "delete": "refused",
+            "delete-where": "refused",
+            "insert": "refused",
+            "insert-each": "refused",
+            "patch": "refused"
+          },
+          "globalUniqueDisclosures": [],
+          "ownerField": "userHandle",
+          "semanticVersion": "snapback.owner-write.v1"
+        }
+      },
+      "successorPolicyDigest": "sha256:50a1086bd806a9cd0a237981c3414b7a608f8a879485dc3a4a15c6dce1133181",
+      "tableId": "conversationMemberships"
     }
   ],
   "schemaVersion": "snapback.table-visibility-policy-transition-ledger.v2"
