@@ -60,13 +60,15 @@ scanning is mandatory and always runs; the dead
 The iOS fresh-install precondition resets the selected simulator keychain.
 Pass `--preserve-keychain` only when the target is already known clean. The
 post-journey uninstall/reinstall does not reset it, which is the behavior P5
-measures. P4 uses `xcodebuild test` and the committed UI test to tap the
-always-present app button, open the system share sheet, and select the
-committed Share Extension. It then requires the exact single-runtime refusal,
-zero Keychain I/O, the `com.apple.share-services` extension point, and a PID
-distinct from the main app. `--ios-extension-evidence <path>` remains
-available as an explicit supervisor-evidence override. Android P5 claims only
-uninstall-clears-data. `bmgr` backup/restore
+measures. P4 inventories the app and extension products from `xcodebuild
+build-for-testing`, then uses `xcodebuild test-without-building` and the
+committed UI test to tap the always-present app button, open the system share
+sheet, and select the committed Share Extension. It then requires the exact
+single-runtime refusal, zero Keychain I/O, the `com.apple.share-services`
+extension point, and an OS-attributed process observation (a simulator `launchctl` row or a host `ps` row for the appex executable) whose PID matches the
+extension report and differs from the main app. `--ios-extension-evidence
+<path>` remains available as an explicit supervisor-evidence override.
+Android P5 claims only uninstall-clears-data. `bmgr` backup/restore
 (LLP 0263 A-9) and device-to-device transfer remain explicitly not claimed.
 
 Android P2 uses only a verified SIGKILL: the host tries debug-app `run-as`
@@ -85,8 +87,7 @@ The witness imports the first-party custody package directly and injects its
 `owner-key-v1` adapter through app-client's explicit advanced
 `{ kind: 'expo-native', authCustodyStorage }` evidence seam. The package is
 also listed in the app's Expo `plugins` array so the Android backup exclusions
-are applied. Ordinary provider resolution remains capability-refused until the
-per-OS Phase 2 evidence flips it.
+are applied. Ordinary provider resolution is admitted per-OS on the committed evidence bundles (both OS arms flipped).
 
 Android debug builds expose `testHooks.corruptCiphertext(ownerKey)` for the
 AEAD probe. It persists a byte-flipped AES-GCM payload, discards the per-key

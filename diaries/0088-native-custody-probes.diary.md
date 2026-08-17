@@ -268,3 +268,29 @@ This was more moving parts than the NSE push path, but it crosses a real iOS
 extension process boundary instead of relying on a simulator injection API
 whose implementation omits that boundary. It remains probe-host-only
 verification, not a supported app-authoring recipe or physical-device claim.
+
+## Final review hardening — 2026-08-16
+
+The close-out review exposed two evidence-binding gaps that the successful UI
+journey alone could not reveal. First, the extension result carried a
+self-reported PID but the harness had independently observed only the main app.
+P4 now samples simulator `launchctl list` throughout the share-sheet drive,
+retains each distinct share-appex `(pid, label)` pair, and requires the report
+PID to occur in that OS-attributed set. Keeping `/extension-result` separate
+from ordinary app events made the trust boundary legible, and a negative forge
+test now pins it.
+
+Second, `xcodebuild test` could rebuild products after the harness inventoried
+them. The main build is now `build-for-testing`, followed by inventory, while
+P4 uses `test-without-building` against the identical workspace, scheme,
+destination, and DerivedData. This is slightly more explicit Xcode ceremony,
+but the receipt can finally say which app and appex bytes were exercised.
+
+The same review clarified an important vocabulary trap: `single-runtime` does
+not mean foreground-only. Background execution in the same declared runtime is
+permitted; separate background runtimes, extensions, and other processes are
+the typed-refusal boundary. This was qualification-harness knowledge rather
+than a missing app-authoring instruction, so it required LLP/ticket/guide
+alignment but no new Guide-gap ticket. Compared with the usual Convex or
+Supabase integration, the extra work buys an independently attributable
+security claim rather than merely a successful end-to-end interaction.

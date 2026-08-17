@@ -971,7 +971,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:2dc2739723561bb726d1f38029d6f76e37c8d3680efe9467a52911e93f65299b
+reviewed-authorities-digest: sha256:1d0ef691c71c6e84568069a4adeb495c7139f83d28d71e97180eb21177908ebf
 ---
 
 # Email and password
@@ -1238,12 +1238,14 @@ export default function App() {
 ```
 
 **Expo web** selects the shipped browser IndexedDB/Web Locks carrier and has
-the same durable reload restoration as React web. **Android native now has a
-source-current Phase-2 force-stop receipt and admits `durable-required` at
-`single-runtime`, but that package closure remains unpublished** behind
-`issues/20260816-custody-first-publish-gate.md`. iOS stays on the evidence
-sentinel pending `issues/20260816-ios-extension-refusal-probe.md`; neither path
-falls back to memory. The disposable cross-platform `expo-chat` template
+the same durable reload restoration as React web. **Both native OS paths are
+source-current at the exact iOS/Android + `single-runtime` tuples, but the
+package closure remains UNPUBLISHED** behind
+[the custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md);
+neither path falls back to memory. The iOS receipt proves only the share-sheet extension kind. Its
+built/embedded Notification Service Extension remains a nonclaim because
+simulator `simctl push` cannot invoke that service stage. The disposable
+cross-platform `expo-chat` template
 therefore keeps `custody: 'volatile-explicit'`: it can exercise
 signup/sign-in/sign-out but cannot claim process-death restoration or supported
 relaunch. Read [Authenticate a native app](./native-apps.md) for the native
@@ -1457,8 +1459,10 @@ These are not shipped, and Snapback says so rather than pretending:
 - **Do not implement user switch as sign-in over an authenticated principal.**
   Sign out, wait for settled anonymous, then enter the successor account.
 - **Do not infer Expo-native restoration from browser or Expo-web evidence.**
-  Android's source-current `single-runtime` arm has its own Phase-2 receipt but
-  is unpublished; iOS remains evidence-gated and refused.
+  The source-current iOS and Android `single-runtime` arms have separate
+  Phase-2 receipts and both remain unpublished behind the
+  [custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md). The iOS extension evidence
+  is share-sheet-kind-only; NSE/`simctl push` remains a nonclaim.
 - **Do not generalize this local bearer journey into hosted or
   sender-constrained auth.** Check [Targets](./targets.md) first.
 

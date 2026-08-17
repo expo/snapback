@@ -18,7 +18,7 @@ final class NativeCustodyProbesUITests: XCTestCase {
     // ActivityListView/sheet queries miss, and labels the extension cell with
     // the containing app's display name. Waiting for the cell itself is both
     // the sheet-appearance proof and the tap target.
-    let candidateLabels = ["Native Custody Probes", "Custody Probe"]
+    let candidateLabels = ["Custody Probe", "Native Custody Probes"]
     var tapped = false
     for label in candidateLabels where !tapped {
       tapped = tapActivity(named: label, app: app, springboard: springboard)
@@ -26,27 +26,6 @@ final class NativeCustodyProbesUITests: XCTestCase {
     XCTAssertTrue(tapped, "No share-extension cell matched \(candidateLabels)")
 
     Thread.sleep(forTimeInterval: 5)
-  }
-
-  private func waitForActivitySheet(
-    app: XCUIApplication,
-    springboard: XCUIApplication,
-    timeout: TimeInterval
-  ) -> Bool {
-    let deadline = Date().addingTimeInterval(timeout)
-    while Date() < deadline {
-      if app.otherElements["ActivityListView"].exists
-        || springboard.otherElements["ActivityListView"].exists
-        || app.buttons["Edit Actions"].exists
-        || springboard.buttons["Edit Actions"].exists
-        || app.sheets.firstMatch.exists
-        || springboard.sheets.firstMatch.exists
-      {
-        return true
-      }
-      RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-    }
-    return false
   }
 
   private func tapActivity(

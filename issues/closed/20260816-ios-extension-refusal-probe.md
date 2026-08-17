@@ -14,7 +14,7 @@ capability honesty
 ## Resolution (2026-08-16; receipt 2026-08-17 UTC)
 
 The committed unqualified 43-probe PASS receipt at
-`demos/native-custody-probes/evidence/20260817T005627Z-7a5041db-phase2-ios`
+`demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios`
 exercises `NativeCustodyProbesShare` through an XCUITest-driven share sheet.
 The Share Extension ran in a PID distinct from the main app and returned exact
 `SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED` with `ioOccurred: false`; the
@@ -71,6 +71,12 @@ flip. It does not upgrade simulator evidence into LLP 0263 §5 physical-device
 These arms refine future grades and platform lifecycle claims; they are not
 silently claimed by the Android `single-runtime` admission or by the eventual
 iOS extension-refusal proof.
+
+The LLP 0258 D3 amendment dated 2026-08-16 distinguishes this extension and
+other separate runtimes from same-runtime background execution. The latter is
+permitted by the `single-runtime` grade (LLP 0263 §§1.1/1.4) but was not
+exercised here; provider live-stream lifecycle pause/resume is also a separate
+nonclaim.
 
 ## Exit
 

@@ -1,0 +1,4 @@
+sha256: 97dbb784bf434cb1e75131c21743ee514393acb283d3a4ff2bf8add3af1a8ca5
+bytes: 64117441
+retained: probe host (Durand M4 Pro mini) ~/projects/snapback-lanes/p2probes/demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios/ios-device.log
+note: full leakage-scanned device-log capture; replaced in-repo by this digest stub to keep OS log noise off main

@@ -6,11 +6,21 @@ by iOS Keychain or Android DataStore plus Android Keystore AES-GCM. Custody
 grades are reported by the selected adapter; in v1, both OS adapters declare
 only `single-runtime`.
 
-Publication in the matched Snapback package closure does not claim native
-durable custody on either OS. Those claims remain withheld until the separate
-iOS and Android probes in
-[`issues/20260815-llp-0258-phase-2-native-custody-evidence.md`](https://github.com/expo/snapback/blob/main/issues/20260815-llp-0258-phase-2-native-custody-evidence.md)
-pass. The package is a native module and therefore requires an Expo
+Both native provider tuples are source-current but UNPUBLISHED. The first
+qualified publication remains blocked by the
+[`custody first-publish gate`](https://github.com/expo/snapback/blob/main/issues/20260816-custody-first-publish-gate.md).
+
+| OS | Adapter-reported grade | Source/publication posture |
+| --- | --- | --- |
+| iOS | `single-runtime` | Source-current; UNPUBLISHED. Share-sheet-extension evidence only; the built NSE and `simctl push` service-stage invocation remain nonclaims. |
+| Android | `single-runtime` | Source-current; UNPUBLISHED. |
+
+The separate Phase-2 receipts and closure records live in the
+[both-OS Phase-2 close-out](https://github.com/expo/snapback/blob/main/issues/closed/20260815-llp-0258-phase-2-native-custody-evidence.md)
+and the
+[iOS extension-refusal close-out](https://github.com/expo/snapback/blob/main/issues/closed/20260816-ios-extension-refusal-probe.md).
+No publication or npm tag change is performed by this source update. The
+package is a native module and therefore requires an Expo
 development/production build; it is not available in Expo Go.
 
 ```js

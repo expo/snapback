@@ -42,10 +42,18 @@ final class ShareViewController: UIViewController {
       request.httpMethod = "POST"
       request.setValue("application/json", forHTTPHeaderField: "content-type")
       request.httpBody = body
-      reportTask = URLSession.shared.dataTask(with: request)
+      reportTask = URLSession.shared.dataTask(with: request) { [self] _, _, _ in
+        // Linger briefly so the harness's fast host-level process sampler can
+        // attribute this extension process before it exits; the probe claims
+        // nothing about extension lifetime.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [self] in
+          extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
+          reportTask = nil
+        }
+      }
       reportTask?.resume()
+    } else {
+      extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
     }
-
-    extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
   }
 }

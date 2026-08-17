@@ -3225,7 +3225,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-16
-reviewed-authorities-digest: sha256:6fee42fc6e5faea23a84b4546d367b3b46bb8116ebf541698f4814695f7c2fc2
+reviewed-authorities-digest: sha256:5c1d6d246c233b4f592773af065ccd8a887ba43ff60c75fccf21e57c22279cf9
 ---
 
 # React Expo Online clients
@@ -3261,12 +3261,13 @@ into the common application client and exposes `useSnapbackAuth()` plus
 for anonymous `ready`, signup and its one-time recovery projection, sign-in,
 restoration, sign-out, and user switch.
 
-Expo web has the shipped browser durable-custody evidence. The source-current
-Android native path now admits `durable-required` at `single-runtime` on its
-Phase-2 force-stop receipt, but remains unpublished behind
-`issues/20260816-custody-first-publish-gate.md`. iOS still returns the Phase-2
-evidence sentinel pending `issues/20260816-ios-extension-refusal-probe.md`.
-The cross-platform disposable template therefore remains
+Expo web has the shipped browser durable-custody evidence. Both native OS
+paths are source-current at the exact iOS/Android + `single-runtime` tuples on
+their separate Phase-2 receipts, but remain UNPUBLISHED behind
+[the custody first-publish gate](repo:issues/20260816-custody-first-publish-gate.md). The iOS proof is
+share-sheet-kind-only; the built/embedded Notification Service Extension and
+`simctl push` service-stage invocation remain nonclaims. The cross-platform
+disposable template therefore remains
 `volatile-explicit` without claiming process-death restoration. Keep the
 [native threat-model page](../auth/native-apps.md) and
 [target-honesty page](../auth/targets.md) in view before changing that policy.

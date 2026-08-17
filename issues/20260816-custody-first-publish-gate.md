@@ -37,7 +37,7 @@ complete ceremony does not close, no qualified-publication claim advances;
 the retained ceremony evidence and this still-open gate require explicit
 reconciliation before another attempt.
 
-## Ceremony addendum (2026-08-16, after the Android flip 7f3607781)
+## Historical ceremony addendum (2026-08-16, after the Android flip 7f3607781)
 
 The LLP 0258 Phase-2 Android arm landed source-current-but-unpublished
 (Android-only ordinary-path admission, exact android+single-runtime tuple;
@@ -47,3 +47,22 @@ must, in the same publication change, add the Android grade row to
 `packages/snapback-expo-custody/README.md` consistently with the package's
 Experimental / adapter-reported-grades description wording, so the published
 README and the shipped Android capability row agree at first publish.
+This interim one-OS state is superseded by the both-OS addendum below.
+
+## Ceremony addendum (2026-08-16, after the iOS flip 7942b3b43)
+
+Both exact provider tuples are now source-current and **UNPUBLISHED**:
+Android + `single-runtime` is supported by
+`demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android`,
+and iOS + `single-runtime` is supported by
+`demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios`.
+The closure records are
+`issues/closed/20260815-llp-0258-phase-2-native-custody-evidence.md` and
+`issues/closed/20260816-ios-extension-refusal-probe.md`.
+
+The separately authorized ceremony must publish a README grade table naming
+**both** OS rows and their `single-runtime` grades, while preserving the
+package's Experimental / adapter-reported posture. The iOS row must retain the
+share-sheet-kind-only evidence boundary and the NSE/`simctl push` nonclaim.
+This addendum performs no publication, changes no npm tag, and does not close
+this gate.

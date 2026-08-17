@@ -42,11 +42,13 @@ Run and retain separate evidence for each supported OS/package/SDK tuple:
    whole-record replacement preserves the bearer, revision, epoch, and phase
    atomically enough for the claimed LLP 0258 D3 grade. Hash or redact bearer
    material in every receipt.
-4. **Background and multi-process posture.** Probe background tasks, Android
-   headless/secondary processes, and iOS extension/background access where
+4. **Background and multi-process posture.** Probe Android headless/secondary
+   processes, iOS extensions, and any other separate background runtime where
    applicable. If cross-process fencing is not independently proved, declare
-   the platform `single-runtime` and prove background, extension, and
-   multi-process entry refuse with the typed diagnostic before custody I/O.
+   the platform `single-runtime` and prove those separate runtime/extension/
+   multi-process entries refuse with the typed diagnostic before custody I/O.
+   Same-runtime background execution remains permitted within that declared
+   runtime; its lifecycle behavior is a separate evidence arm.
 
 If the current SecureStore adapter cannot meet even the single-runtime grade,
 harden or replace it with the first-party native custody module LLP 0258 D3
@@ -121,7 +123,7 @@ custody claim.
 ## iOS flip and ticket closure (2026-08-16; receipt 2026-08-17 UTC)
 
 The committed iOS bundle
-`demos/native-custody-probes/evidence/20260817T005627Z-7a5041db-phase2-ios`
+`demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios`
 is an unqualified 43-probe PASS. Its XCUITest-driven Share Extension arm
 returned exact `SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED` before custody
 I/O (`ioOccurred: false`) from a PID distinct from the main app. The ordinary
@@ -135,6 +137,16 @@ fencing, hardware custody, backup continuity, or sender-constrained auth. Only
 the iOS share-sheet extension kind was exercised; the built/embedded NSE is
 structurally non-invokable via simulator `simctl push`. Publication remains
 governed by `issues/20260816-custody-first-publish-gate.md`.
+
+**Background-boundary reconciliation (2026-08-16):** per LLP 0258 D3's dated
+amendment and LLP 0263 §§1.1/1.4, `single-runtime` permits background execution
+inside the same application runtime; iOS selected
+`AfterFirstUnlockThisDeviceOnly` for that availability window, while the
+provider pauses live streams separately on lifecycle grounds. Separate
+background runtimes, extensions, and other multi-process entry refuse. The
+Android `:probe` receipt above and iOS Share Extension receipt prove the two
+separate-runtime refusal kinds. Neither receipt claims same-runtime lifecycle
+background execution or pause/resume evidence.
 
 **Ticket disposition:** CLOSED. Both OS arms are admitted in source at
 `single-runtime`; the preserved (D)-grade and stronger-grade nonclaims remain

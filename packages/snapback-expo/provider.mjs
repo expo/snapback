@@ -81,7 +81,7 @@ export const APPLICATION_AUTH_BOOTSTRAP_CAPABILITY = 'auth.application-bootstrap
 // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
 // — Android and iOS admission are frozen to the qualifying receipts at
 // demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android;
-// demos/native-custody-probes/evidence/20260817T005627Z-7a5041db-phase2-ios.
+// demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios.
 const QUALIFIED_NATIVE_AUTH_CUSTODY_OSES = Object.freeze(['android', 'ios']);
 
 const NATIVE_AUTH_CUSTODY_PACKAGE = '@expo/snapback-expo-custody';

@@ -11,7 +11,8 @@ Guide, Testing, Developer experience
 blocker and admits iOS native custody at `single-runtime`; both native OS arms
 are now source-current and unpublished)
 **Revised:** 2026-08-16 (Phase 2 evidence admits Android native custody at
-`single-runtime`; iOS remains refused pending a real extension-refusal probe)
+`single-runtime`; iOS remains refused pending a real extension-refusal probe;
+superseded by the entry above)
 **Revised:** 2026-08-16 (publication posture: the first-party native custody
 package enters the 0.1.24 qualified closure as Experimental without changing
 either OS capability claim; see the implementation record)
@@ -459,7 +460,8 @@ from a first-party package. Its normative contract:
 - it provides ownership fencing at the strongest level the OS proves. Where
   cross-process fencing cannot be independently demonstrated for a platform,
   the module declares a **single-runtime capability** for that platform:
-  background, extension, and multi-process use refuse with a typed
+  same-runtime background execution is permitted, while a separate background
+  runtime, extension, or other multi-process entry refuses with a typed
   diagnostic rather than racing; and
 - it owns its storage format and migrations, validates every read and write,
   and reports its exact durability/security grade per platform; and
@@ -467,6 +469,24 @@ from a first-party package. Its normative contract:
   the full owner key — (canonical app id, storage partition) — so the D2/D5
   partition remediations are real; an adapter keyed by app id alone does not
   qualify.
+
+**D3 amendment (2026-08-16) — the boundary is runtime identity, not app
+lifecycle.** The preceding `single-runtime` sentence permits background execution that
+continues in the declared, same application runtime; that is still one
+runtime, not a competing custody owner. LLP 0263 §1.1 selected
+`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` precisely so that same
+runtime can read after first unlock in a background availability window, and
+§1.4 retained that accessibility class in the selected iOS v1 composition.
+The provider separately pauses live streams on lifecycle grounds; that
+transport behavior does not create a second custody runtime. A **separate**
+background runtime, app extension, or other multi-process entry must refuse
+with the typed single-runtime diagnostic before custody I/O. The Android
+`:probe` receipt at
+`demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android`
+and the iOS Share Extension receipt at
+`demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios`
+prove those separate-runtime refusal kinds; neither receipt exercises
+same-runtime lifecycle backgrounding.
 
 Phase 0's iOS and Android probes validate this design's per-OS evidence
 (LLP 0064 — iOS evidence is not Android evidence); they inform grade
@@ -842,8 +862,10 @@ client, contract, Expo, React, codegen, and CLI/runtime support.
    code.
 3. Prove iOS process kill/relaunch and Android force-stop/relaunch with the
    same settled principal and no credential reissuance.
-4. Prove unsupported/background/multi-process cases refuse at the promised
-   capability boundary.
+4. Prove unsupported, separate-background-runtime, extension, and
+   multi-process cases refuse at the promised capability boundary. Same-runtime
+   background execution remains within the declared runtime and is a separate
+   lifecycle evidence arm.
 
 ### Phase 3 — Supervised development and profile closure
 
@@ -1040,7 +1062,7 @@ custody/barrier semantics.
   `issues/closed/20260816-ios-extension-refusal-probe.md`.
 - iOS flip (2026-08-16; receipt 2026-08-17 UTC): the committed unqualified
   43-probe PASS bundle
-  `demos/native-custody-probes/evidence/20260817T005627Z-7a5041db-phase2-ios`
+  `demos/native-custody-probes/evidence/20260817T023429Z-1c2624fb-phase2-ios`
   proves the XCUITest-driven Share Extension refusal with exact
   `SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED`, no custody I/O, and distinct
   app/extension PIDs, so the ordinary Expo path now admits iOS at
@@ -1060,8 +1082,7 @@ custody/barrier semantics.
   supervised same-origin Vite relay), and the guide-journey landing
   (`guide/auth/passwords.md` + routing + capability-GAP closure).
   `issues/20260815-llp-0258-phase-3-remainders.md` is closed; remaining
-  closure is the Phase 2 and Phase 4 tickets plus the 0241 successor-proof
-  ticket.
+  closure is the Phase 4 ticket plus the 0241 successor-proof ticket.
 - A post-convergence r4 delta review (codex + grok, 2026-08-15) found the
   shipped mid-entry supervisor adoption deferred-then-adopted and an
   intermediate mid-entry `ready` publication; both were fixed with the r5

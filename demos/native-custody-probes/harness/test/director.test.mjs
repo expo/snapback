@@ -54,7 +54,7 @@ test('director frames extension results as strict in-memory events', async (t) =
     body: JSON.stringify(result),
   });
   assert.equal(posted.status, 200);
-  const event = await director.waitEvent(
+  const event = await director.waitExtensionResult(
     (entry) => entry.schemaVersion === 'snapback.native-custody-extension.v1',
   );
   assert.deepEqual(
@@ -69,7 +69,15 @@ test('director frames extension results as strict in-memory events', async (t) =
     body: JSON.stringify({ ...result, bearer: 'must-not-enter-extension-events' }),
   });
   assert.equal(secretBearing.status, 400);
-  assert.equal(director.events.length, 1);
+  assert.equal(director.events.length, 0);
+  assert.equal(director.extensionResults.length, 1);
+
+  await fetch(`${origin}/event`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(result),
+  });
+  assert.equal(director.extensionResults.length, 1, 'generic app events cannot forge extension results');
 });
 
 test('director retains scanner secrets only in memory and never in event or request logs', async (t) => {

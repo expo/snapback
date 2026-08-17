@@ -30,19 +30,49 @@ function availableDevice(catalog, requested) {
     ?? null;
 }
 
+function iosBuildSettings(bundleId) {
+  return [
+    `APP_PRODUCT_BUNDLE_IDENTIFIER=${bundleId}`,
+    `NSE_PRODUCT_BUNDLE_IDENTIFIER=${bundleId}.nse`,
+    `SHARE_PRODUCT_BUNDLE_IDENTIFIER=${bundleId}.share`,
+    `UITEST_PRODUCT_BUNDLE_IDENTIFIER=${bundleId}.uitests`,
+  ];
+}
+
+export function iosBuildForTestingArguments({ udid, derivedData, bundleId }) {
+  return Object.freeze([
+    '-workspace', 'ios/NativeCustodyProbes.xcworkspace',
+    '-scheme', 'NativeCustodyProbes',
+    '-configuration', 'Debug',
+    '-sdk', 'iphonesimulator',
+    '-destination', `id=${udid}`,
+    '-derivedDataPath', derivedData,
+    ...iosBuildSettings(bundleId),
+    'build-for-testing',
+  ]);
+}
+
 export function iosShareProbeTestArguments({ udid, derivedData, bundleId }) {
   return Object.freeze([
-    'test',
+    'test-without-building',
     '-workspace', 'ios/NativeCustodyProbes.xcworkspace',
     '-scheme', 'NativeCustodyProbes',
     '-destination', `id=${udid}`,
     '-derivedDataPath', derivedData,
     '-only-testing:NativeCustodyProbesUITests',
-    `APP_PRODUCT_BUNDLE_IDENTIFIER=${bundleId}`,
-    `NSE_PRODUCT_BUNDLE_IDENTIFIER=${bundleId}.nse`,
-    `SHARE_PRODUCT_BUNDLE_IDENTIFIER=${bundleId}.share`,
-    `UITEST_PRODUCT_BUNDLE_IDENTIFIER=${bundleId}.uitests`,
+    ...iosBuildSettings(bundleId),
   ]);
+}
+
+export function launchctlProcessRows(output, labelSubstring) {
+  return Object.freeze(output.split('\n').flatMap((entry) => {
+    const columns = entry.trim().split(/\s+/u);
+    if (columns.length < 3) return [];
+    const pid = Number.parseInt(columns[0], 10);
+    const label = columns.slice(2).join(' ');
+    if (!Number.isSafeInteger(pid) || pid <= 0 || !label.includes(labelSubstring)) return [];
+    return [Object.freeze({ pid, label })];
+  }));
 }
 
 function waitForProcessStatus(child, label, timeoutMs) {
@@ -119,23 +149,17 @@ export async function createIosDevice({ appRoot, evidence, options }) {
         cwd: appRoot, timeoutMs: 20 * 60_000,
       });
     }
-    await run('iOS Debug simulator build', 'xcodebuild', [
-      '-workspace', 'ios/NativeCustodyProbes.xcworkspace',
-      '-scheme', 'NativeCustodyProbes',
-      '-configuration', 'Debug',
-      '-sdk', 'iphonesimulator',
-      '-destination', `platform=iOS Simulator,id=${device.udid}`,
-      '-derivedDataPath', derivedData,
+    await run('iOS Debug simulator build-for-testing', 'xcodebuild', [
       // Simulator builds sign with the automatic ad-hoc identity. A fully
       // unsigned app (CODE_SIGNING_ALLOWED=NO) has no application-identifier,
       // and securityd refuses its SecItem calls with -34018
       // (errSecMissingEntitlement), which would break the Keychain custody
       // module under test.
-      `APP_PRODUCT_BUNDLE_IDENTIFIER=${options.bundleId}`,
-      `NSE_PRODUCT_BUNDLE_IDENTIFIER=${options.bundleId}.nse`,
-      `SHARE_PRODUCT_BUNDLE_IDENTIFIER=${options.bundleId}.share`,
-      `UITEST_PRODUCT_BUNDLE_IDENTIFIER=${options.bundleId}.uitests`,
-      'build',
+      ...iosBuildForTestingArguments({
+        udid: device.udid,
+        derivedData,
+        bundleId: options.bundleId,
+      }),
     ], { cwd: appRoot, timeoutMs: 40 * 60_000 });
   }
   if (!existsSync(appPath)) {
@@ -251,16 +275,42 @@ export async function createIosDevice({ appRoot, evidence, options }) {
   jsBundleSha256 = `sha256:${createHash('sha256').update(bundleBytes).digest('hex')}`;
   jsBundleByteLength = bundleBytes.byteLength;
 
-  const processRow = async () => {
+  const driveProcessRows = async () => {
     const output = await run('locate iOS probe process', 'xcrun', [
       'simctl', 'spawn', device.udid, 'launchctl', 'list',
     ], { cwd: appRoot });
     const marker = `UIKitApplication:${bundleId}[`;
-    const line = output.split('\n').find((entry) => entry.includes(marker));
-    if (line === undefined) return null;
-    const pid = Number.parseInt(line.trim().split(/\s+/u)[0], 10);
-    return Number.isSafeInteger(pid) && pid > 0 ? Object.freeze({ pid, marker }) : null;
+    const main = launchctlProcessRows(output, marker)[0] ?? null;
+    // Share-extension processes are short-lived and do not reliably carry a
+    // greppable launchctl label, but every simulator process is a host
+    // process, so the extension's getpid() is host-attributable via pgrep
+    // against its embedded executable path.
+    const shareExtensions = [...launchctlProcessRows(output, `${bundleId}.share`)];
+    try {
+      // The run() helper retains only the final 64KB of output, so the
+      // filtering must happen inside the pipeline: a full ps sweep on a busy
+      // host exceeds the cap and silently truncates the match away. The raw
+      // matching line is retained as the attribution witness.
+      const psOutput = await run('host-attribute share extension processes', '/bin/sh', [
+        '-c', 'ps auxww | grep -i nativecustodyprobesshare | grep -v grep',
+      ], { cwd: appRoot, timeoutMs: 5_000 });
+      for (const line of psOutput.split('\n')) {
+        if (!/nativecustodyprobesshare/iu.test(line)) continue;
+        const pid = Number.parseInt(line.trim().split(/\s+/u)[1], 10);
+        if (Number.isSafeInteger(pid) && pid > 0) {
+          shareExtensions.push(Object.freeze({
+            pid,
+            label: `host-ps:${line.trim().slice(0, 400)}`,
+          }));
+        }
+      }
+    } catch { /* no live extension process at this sample */ }
+    return Object.freeze({
+      main: main === null ? null : Object.freeze({ pid: main.pid, marker: main.label }),
+      shareExtensions,
+    });
   };
+  const processRow = async () => (await driveProcessRows()).main;
 
   const terminate = async () => {
     try {
@@ -307,6 +357,26 @@ export async function createIosDevice({ appRoot, evidence, options }) {
       ], { cwd: appRoot });
     },
     locate: processRow,
+    sampleShareExtensionDriveProcesses: driveProcessRows,
+    // Fast host-only extension attribution: the launchctl-backed sampler can
+    // crawl to multi-second latency under xcodebuild churn, letting a
+    // short-lived extension process slip between samples entirely.
+    async sampleShareExtensionHostPs() {
+      const rows = [];
+      try {
+        const psOutput = await run('fast host share-extension sweep', '/bin/sh', [
+          '-c', 'ps auxww | grep -i nativecustodyprobesshare | grep -v grep',
+        ], { cwd: appRoot, timeoutMs: 5_000 });
+        for (const line of psOutput.split('\n')) {
+          if (!/nativecustodyprobesshare/iu.test(line)) continue;
+          const pid = Number.parseInt(line.trim().split(/\s+/u)[1], 10);
+          if (Number.isSafeInteger(pid) && pid > 0) {
+            rows.push(Object.freeze({ pid, label: `host-ps:${line.trim().slice(0, 400)}` }));
+          }
+        }
+      } catch { /* no live extension process at this sample */ }
+      return Object.freeze(rows);
+    },
     async kill({ midWrite = false, row: providedRow = null } = {}) {
       const row = providedRow ?? await processRow();
       if (row === null) {
@@ -383,6 +453,8 @@ export async function createIosDevice({ appRoot, evidence, options }) {
         bundleId,
         nativeBuildConfiguration: 'Debug',
         bundleDelivery: 'metro',
+        testExecutionArtifactBinding:
+          'inventoried build-for-testing products exercised by test-without-building',
         appPathOverride: options.appPath ?? null,
         codesign: signingIdentifier,
         notificationServiceExtension: Object.freeze({
