@@ -1,0 +1,4 @@
+interface:
+  display_name: "SBS Orchestrate"
+  short_description: "Supervise work with the Codex and Grok roster"
+  default_prompt: "Use $sbs-orchestrate to plan, delegate, review, integrate, and land this body of work."
