@@ -27,12 +27,16 @@ import type {
 // @ts-expect-error generated Snapback ESM is typed by the adjacent api.d.ts
 import { api as generatedApi } from '../../snapback/generated/api.mjs';
 import { coterieAvatarUrlForRef } from './avatar-refs.ts';
+import {
+  COTERIE_IMAGE_URLS,
+  COTERIE_VIDEO_URLS,
+} from './coterie-fixtures.ts';
 import { coterieSurfaceManifest } from './memory-provider.ts';
 import { coterieProviderClaims } from './provider-claims.ts';
 
 const api = generatedApi as GeneratedApi;
 
-export const COTERIE_SNAPBACK_MILESTONE = 'M1' as const;
+export const COTERIE_SNAPBACK_MILESTONE = 'M2' as const;
 
 export const COTERIE_SNAPBACK_M1_OPERATIONS = Object.freeze({
   queries: Object.freeze(['listSession', 'listProfiles', 'listProviderClaims']),
@@ -45,24 +49,38 @@ export const COTERIE_SNAPBACK_M1_OPERATIONS = Object.freeze({
   ]),
 });
 
-const M1_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_M1_OPERATIONS.queries);
-const M1_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_M1_OPERATIONS.mutations);
-const M2_QUERY_NAMES = new Set([
-  'listFeed',
-  'listInsights',
-  'listProfilePosts',
-  'listThread',
-]);
+export const COTERIE_SNAPBACK_M2_OPERATIONS = Object.freeze({
+  queries: Object.freeze(['listFeed', 'listThread', 'listProfilePosts']),
+  mutations: Object.freeze(['createPost', 'setFollow', 'setLike', 'setRepost']),
+});
+
+export const COTERIE_SNAPBACK_CLAIMED_OPERATIONS = Object.freeze({
+  queries: Object.freeze([
+    ...COTERIE_SNAPBACK_M1_OPERATIONS.queries,
+    ...COTERIE_SNAPBACK_M2_OPERATIONS.queries,
+  ]),
+  mutations: Object.freeze([
+    ...COTERIE_SNAPBACK_M1_OPERATIONS.mutations,
+    ...COTERIE_SNAPBACK_M2_OPERATIONS.mutations,
+  ]),
+});
+
+const CLAIMED_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.queries);
+const CLAIMED_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_CLAIMED_OPERATIONS.mutations);
+const M2_QUERY_NAMES = new Set<string>(COTERIE_SNAPBACK_M2_OPERATIONS.queries);
 const M3_QUERY_NAMES = new Set(['listChats', 'listMessages']);
-const M2_MUTATION_NAMES = new Set(['createPost', 'setFollow', 'setLike', 'setRepost']);
+const M2_MUTATION_NAMES = new Set<string>(COTERIE_SNAPBACK_M2_OPERATIONS.mutations);
 const M3_MUTATION_NAMES = new Set(['sendMessage']);
 const M4_MUTATION_NAMES = new Set(['setMessageReaction']);
 const M5_QUERY_NAMES = new Set(['searchSocial']);
 const M5_MUTATION_NAMES = new Set(['setChatAccent', 'setDisappearing']);
-const SNAPBACK_PROVIDER_CLAIMS = coterieProviderClaims(COTERIE_SNAPBACK_M1_OPERATIONS);
+const M8_QUERY_NAMES = new Set(['listInsights']);
+const SNAPBACK_PROVIDER_CLAIMS = coterieProviderClaims(COTERIE_SNAPBACK_CLAIMED_OPERATIONS);
 
 const PROFILE_STREAM_TIMEOUT_MS = 10_000;
 const AVATAR_ASSET_CACHE_LIMIT = 32;
+const POST_ASSET_CACHE_LIMIT = 64;
+const FEED_PAGE_SIZE = 20;
 const AVATAR_MEDIA_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const SESSION_REQUIRED_CODES = new Set([
   'SNAPBACK_AUTH_SESSION_EXPIRED',
@@ -129,6 +147,75 @@ interface ProfileSubscription<T> {
   start: Promise<void> | null;
   connection: DataConnection;
   lastValue?: T;
+  backendRows: readonly BackendProfileRow[];
+  stats: Map<string, BackendProfileStatsRow>;
+  statsHandles: Map<string, LiveHandle>;
+  statsConnections: Map<string, DataConnection>;
+  statsGeneration: number;
+  statsReady: boolean;
+}
+
+interface LiveHandle {
+  readonly rows: readonly unknown[];
+  readonly connection: unknown;
+  dispose(): void | Promise<void>;
+}
+
+interface M2Subscription<T> {
+  active: boolean;
+  generation: number;
+  observer: DataObserver<T>;
+  handle: LiveHandle | null;
+  start: Promise<void> | null;
+  connection: DataConnection;
+  lastValue?: T;
+  queryName: string;
+  args: Record<string, unknown>;
+}
+
+interface BackendProfileStatsRow {
+  profileId: string;
+  followerCount: number;
+  followingCount: number;
+  viewerFollows: boolean;
+  isSelf: boolean;
+}
+
+interface BackendPostViewRow {
+  _id: string;
+  kind: string;
+  body: string;
+  parentId?: string;
+  postPageKey: string;
+  createdAt: number;
+  authorProfileId: string;
+  authorHandle: string;
+  authorDisplayName: string;
+  authorAvatar?: string;
+  imageMedia: ReadonlyArray<{ position: number; asset: string }>;
+  videoMedia?: { asset: string };
+  likeCount: number;
+  repostCount: number;
+  replyCount: number;
+  viewerLiked: boolean;
+  viewerReposted: boolean;
+}
+
+interface BackendFeedRow extends BackendPostViewRow {
+  itemId: string;
+  eventKind: string;
+  pageKey: string;
+  eventCreatedAt: number;
+  repostedByProfileId?: string;
+  repostedByHandle?: string;
+  repostedByDisplayName?: string;
+}
+
+interface FeedCursorPayload {
+  v: 1;
+  mode: 'following' | 'global';
+  sortAt: string;
+  eventId: string;
 }
 
 interface AuthResultState {
@@ -212,19 +299,20 @@ function createCustodyStorage(custody: CoterieSnapbackCustody): SnapbackAuthCust
   return createMemoryAuthCustodyStorage({ state: { custody: {} } });
 }
 
-function milestoneForOperation(name: string): 'M2' | 'M3' | 'M4' | 'M5' | null {
+function milestoneForOperation(name: string): 'M2' | 'M3' | 'M4' | 'M5' | 'M8' | null {
   if (M2_QUERY_NAMES.has(name) || M2_MUTATION_NAMES.has(name)) return 'M2';
   if (M3_QUERY_NAMES.has(name) || M3_MUTATION_NAMES.has(name)) return 'M3';
   if (M4_MUTATION_NAMES.has(name)) return 'M4';
   if (M5_QUERY_NAMES.has(name) || M5_MUTATION_NAMES.has(name)) return 'M5';
+  if (M8_QUERY_NAMES.has(name)) return 'M8';
   return null;
 }
 
 function milestoneRefusal(name: string): NamedProviderError {
-  const milestone = milestoneForOperation(name) ?? 'M2/M3/M4/M5';
+  const milestone = milestoneForOperation(name) ?? 'M2/M3/M4/M5/M8';
   return new NamedProviderError(
     'SnapbackMilestoneUnsupportedError',
-    `snapback provider claims M1 plus provider discovery only; ${name} arrives with M2/M3/M4/M5 — LLP 0266 D7 (${milestone})`,
+    `snapback provider claims M1+M2 plus provider discovery only; ${name} is outside that claim — LLP 0266 D7 (${milestone})`,
   );
 }
 
@@ -267,19 +355,57 @@ function declaredError(operation: string, error: unknown): NamedProviderError {
   const appCode = applicationCode(error);
   const causeMessage = error instanceof Error ? error.message : String(error);
 
-  if (appCode === 'DUPLICATE_HANDLE') {
-    return new NamedProviderError(
-      'DuplicateHandleError',
-      'An account already uses that handle.',
-      { cause: error },
-    );
-  }
-  if (appCode === 'PROFILE_NOT_OWNED') {
-    return new NamedProviderError(
-      'SnapbackProviderError',
-      `The active Snapback session does not own the requested profile: ${causeMessage}`,
-      { cause: error },
-    );
+  const applicationMappings: Record<string, Record<string, readonly [string, string]>> = {
+    signup: {
+      DUPLICATE_HANDLE: ['DuplicateHandleError', 'An account already uses that handle.'],
+    },
+    editProfile: {
+      DUPLICATE_HANDLE: ['DuplicateHandleError', 'An account already uses that handle.'],
+    },
+    createPost: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      POST_BODY_TOO_LONG: [
+        'PostBodyInvalidError',
+        'Post text must contain at most 500 characters, and text-only posts cannot be empty.',
+      ],
+      POST_IMAGE_COUNT_INVALID: [
+        'ImageCountInvalidError',
+        'Image posts require 1-4 fixture images.',
+      ],
+      POST_MEDIA_MIXED: ['MediaMixInvalidError', 'A post cannot mix images and video.'],
+      POST_KIND_MEDIA_MISMATCH: [
+        'MediaReferenceInvalidError',
+        'Post media must reference a committed fixture image or video.',
+      ],
+      POST_KIND_INVALID: [
+        'MediaReferenceInvalidError',
+        'Post media must reference a committed fixture image or video.',
+      ],
+      POST_PARENT_NOT_FOUND: ['ParentPostNotFoundError', 'The parent post does not exist.'],
+    },
+    setFollow: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      PROFILE_NOT_FOUND: ['ProfileNotFoundError', 'The profile does not exist.'],
+      SELF_FOLLOW_FORBIDDEN: [
+        'SelfFollowInvalidError',
+        'Self-follow is implicit for feeds and is not a follow edge.',
+      ],
+    },
+    setLike: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      POST_NOT_FOUND: ['PostNotFoundError', 'The post does not exist.'],
+    },
+    setRepost: {
+      PROFILE_REQUIRED: ['SessionRequiredError', 'An active session is required.'],
+      POST_NOT_FOUND: ['PostNotFoundError', 'The post does not exist.'],
+      REPLY_REPOST_FORBIDDEN: ['ReplyRepostForbiddenError', 'Replies cannot be reposted.'],
+    },
+  };
+  const applicationMapping = appCode
+    ? applicationMappings[operation]?.[appCode]
+    : undefined;
+  if (applicationMapping) {
+    return new NamedProviderError(applicationMapping[0], applicationMapping[1], { cause: error });
   }
 
   if (operation === 'login' && code === 'SNAPBACK_AUTH_CREDENTIAL_INVALID') {
@@ -304,7 +430,11 @@ function declaredError(operation: string, error: unknown): NamedProviderError {
     );
   }
   if (
-    (operation === 'editProfile' || operation === 'setAvatar')
+    (
+      operation === 'editProfile'
+      || operation === 'setAvatar'
+      || M2_MUTATION_NAMES.has(operation)
+    )
     && code !== null
     && SESSION_REQUIRED_CODES.has(code)
   ) {
@@ -315,13 +445,15 @@ function declaredError(operation: string, error: unknown): NamedProviderError {
     );
   }
   if (
-    operation === 'setAvatar'
+    (operation === 'setAvatar' || operation === 'createPost')
     && code !== null
     && AVATAR_REFERENCE_ADMISSION_CODES.has(code)
   ) {
     return new NamedProviderError(
-      'AvatarReferenceInvalidError',
-      'Avatar reference is invalid or unavailable.',
+      operation === 'setAvatar' ? 'AvatarReferenceInvalidError' : 'MediaReferenceInvalidError',
+      operation === 'setAvatar'
+        ? 'Avatar reference is invalid or unavailable.'
+        : 'Post media must reference a committed fixture image or video.',
       { cause: error },
     );
   }
@@ -455,12 +587,13 @@ function readyCell<T>(value: T, connection: DataConnection): DataCellV2<T> {
   return { status: 'ready', value, empty, connection };
 }
 
-async function sha256Hex(bytes: ArrayBuffer): Promise<string> {
+async function sha256Hex(
+  bytes: ArrayBuffer,
+  errorName = 'AvatarReferenceInvalidError',
+  message = 'Avatar upload requires WebCrypto SHA-256 support.',
+): Promise<string> {
   if (!globalThis.crypto?.subtle) {
-    throw new NamedProviderError(
-      'AvatarReferenceInvalidError',
-      'Avatar upload requires WebCrypto SHA-256 support.',
-    );
+    throw new NamedProviderError(errorName, message);
   }
   const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', bytes));
   return [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -496,6 +629,190 @@ function sniffAvatarMediaType(bytes: ArrayBuffer): 'image/jpeg' | 'image/png' | 
   throw new NamedProviderError(
     'AvatarReferenceInvalidError',
     'Avatar reference must contain a PNG, JPEG, or WebP image.',
+  );
+}
+
+function invalidFeedCursor(cause?: unknown): NamedProviderError {
+  return new NamedProviderError(
+    'FeedCursorInvalidError',
+    'The feed cursor is invalid for this feed mode.',
+    cause === undefined ? undefined : { cause },
+  );
+}
+
+function argsFeedMode(value: unknown): FeedCursorPayload['mode'] {
+  if (value === 'following' || value === 'global') return value;
+  throw new NamedProviderError(
+    'FeedModeInvalidError',
+    'Feed mode must be following or global.',
+  );
+}
+
+function encodeBase64Url(value: string): string {
+  return globalThis.btoa(value).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+}
+
+function decodeBase64Url(value: string): string {
+  const base64 = value.replaceAll('-', '+').replaceAll('_', '/');
+  return globalThis.atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
+}
+
+function paddedFeedMilliseconds(value: number): string | null {
+  if (!Number.isSafeInteger(value) || value < 0) return null;
+  const padded = String(value).padStart(16, '0');
+  return /^\d{16}$/u.test(padded) ? padded : null;
+}
+
+function decodeFeedCursor(
+  value: unknown,
+  mode: FeedCursorPayload['mode'],
+): { payload: FeedCursorPayload; pageKey: string } | null {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value !== 'string') throw invalidFeedCursor();
+  try {
+    const parsed = JSON.parse(decodeBase64Url(value)) as Partial<FeedCursorPayload>;
+    if (
+      parsed.v !== 1
+      || parsed.mode !== mode
+      || typeof parsed.sortAt !== 'string'
+      || typeof parsed.eventId !== 'string'
+      || parsed.eventId.length === 0
+      || parsed.eventId.includes(':')
+    ) throw invalidFeedCursor();
+    const sortAtMs = Date.parse(parsed.sortAt);
+    const paddedSortAtMs = paddedFeedMilliseconds(sortAtMs);
+    if (
+      paddedSortAtMs === null
+      || new Date(sortAtMs).toISOString() !== parsed.sortAt
+    ) throw invalidFeedCursor();
+    const pageKey = `${paddedSortAtMs}:${parsed.eventId}`;
+    return { payload: parsed as FeedCursorPayload, pageKey };
+  } catch (error) {
+    if (error instanceof NamedProviderError && error.name === 'FeedCursorInvalidError') {
+      throw error;
+    }
+    throw invalidFeedCursor(error);
+  }
+}
+
+function encodeFeedCursor(mode: FeedCursorPayload['mode'], row: BackendFeedRow): string {
+  const match = /^(\d{16}):([^:]+)$/u.exec(row.pageKey);
+  const paddedEventCreatedAt = paddedFeedMilliseconds(row.eventCreatedAt);
+  if (
+    !match
+    || paddedEventCreatedAt === null
+    || match[1] !== paddedEventCreatedAt
+    || !Number.isFinite(new Date(row.eventCreatedAt).getTime())
+  ) {
+    throw new NamedProviderError(
+      'SnapbackProviderError',
+      `Snapback returned a feed pageKey that cannot round-trip: ${row.pageKey}`,
+    );
+  }
+  return encodeBase64Url(JSON.stringify({
+    v: 1,
+    mode,
+    sortAt: new Date(row.eventCreatedAt).toISOString(),
+    eventId: match[2],
+  } satisfies FeedCursorPayload));
+}
+
+async function setRepostThroughBackend(
+  client: SnapbackClient,
+  postId: GeneratedDataModel['posts']['_id'],
+  reposted: boolean,
+  mutationId: string,
+): Promise<void> {
+  await client.mutate(api.setRepost, {
+    args: { postId, reposted, mutationId },
+  });
+}
+
+function normalizedCreatePostInput(args: Record<string, unknown>): {
+  body: string;
+  imageRefs: string[];
+  videoRefs: string[];
+  parentId?: string;
+  kind: 'text' | 'images' | 'video';
+} {
+  const body = String(args.body ?? '').normalize('NFC').trim();
+  const imageRefs = Array.isArray(args.imageRefs)
+    ? args.imageRefs.map((value) => String(value))
+    : [];
+  const videoRefs = Array.isArray(args.videoRefs)
+    ? args.videoRefs.map((value) => String(value))
+    : [];
+  const parentId = args.parentId === null || args.parentId === undefined
+    ? undefined
+    : String(args.parentId);
+  if ([...body].length > 500 || (!body && imageRefs.length === 0 && videoRefs.length === 0)) {
+    throw new NamedProviderError(
+      'PostBodyInvalidError',
+      'Post text must contain at most 500 characters, and text-only posts cannot be empty.',
+    );
+  }
+  if (imageRefs.length > 0 && videoRefs.length > 0) {
+    throw new NamedProviderError('MediaMixInvalidError', 'A post cannot mix images and video.');
+  }
+  if (imageRefs.length > 4) {
+    throw new NamedProviderError(
+      'ImageCountInvalidError',
+      'Image posts require 1-4 fixture images.',
+    );
+  }
+  if (videoRefs.length > 1) {
+    throw new NamedProviderError(
+      'VideoCountInvalidError',
+      'Video posts require exactly one fixture video.',
+    );
+  }
+  if (
+    imageRefs.some((mediaRef) => !COTERIE_IMAGE_URLS.has(mediaRef))
+    || videoRefs.some((mediaRef) => !COTERIE_VIDEO_URLS.has(mediaRef))
+  ) {
+    throw new NamedProviderError(
+      'MediaReferenceInvalidError',
+      'Post media must reference a committed fixture image or video.',
+    );
+  }
+  if (parentId !== undefined && parentId.length === 0) {
+    throw new NamedProviderError('ParentPostNotFoundError', 'The parent post does not exist.');
+  }
+  return {
+    body,
+    imageRefs,
+    videoRefs,
+    ...(parentId ? { parentId } : {}),
+    kind: imageRefs.length > 0 ? 'images' : videoRefs.length > 0 ? 'video' : 'text',
+  };
+}
+
+function sniffPostMediaType(
+  bytes: ArrayBuffer,
+  kind: 'image' | 'video',
+): 'image/jpeg' | 'image/png' | 'image/webp' | 'video/mp4' {
+  if (kind === 'image') {
+    try {
+      return sniffAvatarMediaType(bytes);
+    } catch (cause) {
+      throw new NamedProviderError(
+        'MediaReferenceInvalidError',
+        'Post media must reference a committed fixture image or video.',
+        { cause },
+      );
+    }
+  }
+  const view = new Uint8Array(bytes);
+  if (
+    view.length >= 12
+    && view[4] === 0x66
+    && view[5] === 0x74
+    && view[6] === 0x79
+    && view[7] === 0x70
+  ) return 'video/mp4';
+  throw new NamedProviderError(
+    'MediaReferenceInvalidError',
+    'Post media must reference a committed fixture image or video.',
   );
 }
 
@@ -545,7 +862,12 @@ async function clearCapturedAuthorityAndReconcile(
 export const coterieSnapbackTestInternals = Object.freeze({
   coterieAvatarUrlForRef,
   clearCapturedAuthorityAndReconcile,
+  decodeFeedCursor,
   declaredError,
+  encodeFeedCursor,
+  normalizedCreatePostInput,
+  setRepostThroughBackend,
+  sniffPostMediaType,
   sniffAvatarMediaType,
   validateLoginInput,
 });
@@ -563,8 +885,13 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   readonly #profileDeliveryTimeoutMs: number;
   readonly #sessionObservers = new Set<DataObserver<unknown>>();
   readonly #profileSubscriptions = new Set<ProfileSubscription<unknown>>();
+  readonly #m2Subscriptions = new Set<M2Subscription<unknown>>();
+  readonly #m2Cache = new Map<string, { value: unknown; connection: DataConnection }>();
   readonly #profileWaiters = new Set<() => void>();
   readonly #uploadedAvatarAssets = new Map<string, string>();
+  readonly #uploadedPostAssets = new Map<string, string>();
+  readonly #profileIdentityById = new Map<string, string>();
+  readonly #profileStatsRows = new Map<string, BackendProfileStatsRow>();
   readonly #unsubscribePrincipal: () => void;
   readonly #unsubscribeAuthTerminal: () => void;
   #initialization: Promise<void> | null = null;
@@ -572,6 +899,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
   #profileRevision = 0;
   #profileRows: readonly BackendProfileRow[] | null = null;
   #profileConnectionSequence = 0;
+  #m2ConnectionSequence = 0;
   #principalRefreshGeneration = 0;
   #profileCompletion: { email: string; credential: BackendSessionCredential } | null = null;
   #closePromise: Promise<void> | null = null;
@@ -616,6 +944,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       if (this.#client.auth.authTerminalStatus().terminated) {
         this.#emitSessionReady([]);
         this.#stopProfileSubscriptions('disconnected');
+        this.#stopM2Subscriptions('disconnected');
       }
     });
   }
@@ -644,7 +973,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       });
       return { dispose() {} };
     }
-    if (!M1_QUERY_NAMES.has(queryName)) {
+    if (!CLAIMED_QUERY_NAMES.has(queryName)) {
       observer({ status: 'error', error: serialized(milestoneRefusal(queryName)) });
       return { dispose() {} };
     }
@@ -685,6 +1014,69 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       };
     }
 
+    if (M2_QUERY_NAMES.has(queryName)) {
+      try {
+        if (queryName === 'listFeed') {
+          const mode = argsFeedMode(_args.mode);
+          decodeFeedCursor(_args.cursor, mode);
+        }
+      } catch (error) {
+        observer({ status: 'error', error: serialized(error) });
+        return { dispose() {} };
+      }
+      const subscription: M2Subscription<T> = {
+        active: true,
+        generation: 0,
+        observer,
+        handle: null,
+        start: null,
+        connection: 'connecting',
+        queryName,
+        args: _args,
+      };
+      const initializationGeneration = subscription.generation;
+      this.#m2Subscriptions.add(subscription as M2Subscription<unknown>);
+      const cached = this.#m2Cache.get(this.#m2CacheKey(queryName, _args));
+      if (cached) {
+        subscription.lastValue = cached.value as T;
+        subscription.connection = cached.connection;
+        observer(readyCell(cached.value as T, cached.connection));
+      } else {
+        observer({ status: 'pending', connection: 'connecting' });
+      }
+      void this.#ensureInitialized().then(
+        () => {
+          if (
+            !subscription.active
+            || subscription.generation !== initializationGeneration
+            || this.#disposed
+          ) return;
+          return this.#startM2Subscription(subscription);
+        },
+        (error) => {
+          if (
+            !subscription.active
+            || subscription.generation !== initializationGeneration
+            || this.#disposed
+          ) return;
+          observer({
+            status: 'error',
+            error: serialized(declaredError(queryName, error)),
+            connection: 'disconnected',
+          });
+        },
+      );
+      return {
+        dispose: () => {
+          subscription.active = false;
+          subscription.generation += 1;
+          this.#m2Subscriptions.delete(subscription as M2Subscription<unknown>);
+          void subscription.handle?.dispose();
+          subscription.handle = null;
+        },
+      };
+    }
+
     const subscription: ProfileSubscription<T> = {
       active: true,
       generation: 0,
@@ -692,11 +1084,22 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       handle: null,
       start: null,
       connection: 'connecting',
+      backendRows: [],
+      stats: new Map(),
+      statsHandles: new Map(),
+      statsConnections: new Map(),
+      statsGeneration: 0,
+      statsReady: false,
     };
     const initializationGeneration = subscription.generation;
     this.#profileSubscriptions.add(subscription as ProfileSubscription<unknown>);
-    if (this.#profileRows) {
-      this.#publishProfiles(subscription, this.#profileRows);
+    if (this.#profileRows && this.#profileStatsRows.size === this.#profileRows.length) {
+      subscription.backendRows = this.#profileRows;
+      subscription.stats = new Map(this.#profileStatsRows);
+      subscription.statsReady = true;
+      const value = this.#projectProfiles<T>(this.#profileRows, this.#profileStatsRows);
+      subscription.lastValue = value;
+      observer(readyCell(value, subscription.connection));
     } else {
       observer({ status: 'pending', connection: 'connecting' });
     }
@@ -728,6 +1131,8 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         subscription.generation += 1;
         this.#profileSubscriptions.delete(subscription as ProfileSubscription<unknown>);
         void subscription.handle?.dispose();
+        for (const handle of subscription.statsHandles.values()) void handle.dispose();
+        subscription.statsHandles.clear();
         subscription.handle = null;
       },
     };
@@ -744,13 +1149,13 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     if (!Object.hasOwn(this.manifest.mutations, mutationName)) {
       return rejected(new NamedProviderError('UnknownMutationError', `Unknown mutation ${mutationName}`));
     }
-    if (!M1_MUTATION_NAMES.has(mutationName)) {
+    if (!CLAIMED_MUTATION_NAMES.has(mutationName)) {
       return rejected(milestoneRefusal(mutationName));
     }
 
     try {
       await this.#ensureInitialized();
-      const value = await this.#runM1Mutation(mutationName, args);
+      const value = await this.#runClaimedMutation(mutationName, args);
       return { ok: true, ...(value === undefined ? {} : { value: value as T }) };
     } catch (error) {
       return rejected(declaredError(mutationName, error));
@@ -771,10 +1176,19 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       subscription.active = false;
       subscription.generation += 1;
       const result = subscription.handle?.dispose();
+      for (const handle of subscription.statsHandles.values()) void handle.dispose();
+      subscription.statsHandles.clear();
       subscription.handle = null;
       return result;
     });
     this.#profileSubscriptions.clear();
+    for (const subscription of this.#m2Subscriptions) {
+      subscription.active = false;
+      subscription.generation += 1;
+      handleClosures.push(subscription.handle?.dispose());
+      subscription.handle = null;
+    }
+    this.#m2Subscriptions.clear();
     this.#closePromise = (async () => {
       await Promise.allSettled(handleClosures.map((result) => Promise.resolve(result)));
       await this.#client.closeAuth();
@@ -804,6 +1218,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       this.#profileCompletion = null;
       this.#emitSessionReady([]);
       this.#stopProfileSubscriptions('disconnected');
+      this.#stopM2Subscriptions('disconnected');
       return;
     }
     if (principal.status === 'blocked') {
@@ -813,12 +1228,14 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       );
       this.#emitSessionError(error);
       this.#stopProfileSubscriptions('disconnected');
+      this.#stopM2Subscriptions('disconnected');
       return;
     }
     if (principal.status === 'loading' || principal.status === 'refreshing') return;
     await Promise.all([
       this.#refreshSessionProjection(),
       this.#startAllProfileSubscriptions(),
+      this.#startAllM2Subscriptions(),
     ]);
   }
 
@@ -836,6 +1253,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
           this.#profileCompletion = null;
           this.#emitSessionReady([]);
           this.#stopProfileSubscriptions('disconnected');
+          this.#stopM2Subscriptions('disconnected');
         },
         refreshNonAnonymous: () => this.#principalChanged(),
       },
@@ -911,6 +1329,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     const generation = ++subscription.generation;
     subscription.start = (async () => {
       try {
+        let established = false;
         const handle = await this.#client.liveQuery(api.listProfiles, {
           args: {},
           connectionId: `${this.#instanceId}-profiles-${++this.#profileConnectionSequence}`,
@@ -921,11 +1340,25 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
             if (this.#testHooks.suppressProfileUpdate?.(
               rows as readonly BackendProfileRow[],
             )) return;
-            this.#publishProfiles(subscription, rows as readonly BackendProfileRow[]);
+            this.#rememberProfileIdentities(rows as readonly BackendProfileRow[]);
+            if (!established) return;
+            const nextRows = rows as readonly BackendProfileRow[];
+            const sameProfiles = nextRows.length === subscription.backendRows.length
+              && nextRows.every((row) => subscription.statsHandles.has(row._id));
+            if (sameProfiles) {
+              subscription.backendRows = nextRows;
+              if (subscription.statsReady) this.#publishProfiles(subscription, nextRows);
+              return;
+            }
+            void this.#rebuildProfileStats(
+              subscription,
+              nextRows,
+              generation,
+            );
           },
           onConnectionChange: (connection) => {
             if (!subscription.active || subscription.generation !== generation) return;
-            const next = toConnection(connection);
+            const next = this.#profileSubscriptionConnection(subscription, toConnection(connection));
             if (next === subscription.connection) return;
             subscription.connection = next;
             this.#publishProfileConnection(subscription);
@@ -936,8 +1369,11 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
           return;
         }
         subscription.handle = handle;
+        established = true;
+        const rows = handle.rows as readonly BackendProfileRow[];
+        this.#rememberProfileIdentities(rows);
         subscription.connection = toConnection(handle.connection);
-        this.#publishProfiles(subscription, handle.rows as readonly BackendProfileRow[]);
+        await this.#rebuildProfileStats(subscription, rows, generation);
       } catch (error) {
         if (!subscription.active || subscription.generation !== generation) return;
         subscription.observer({
@@ -957,16 +1393,24 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     rows: readonly BackendProfileRow[],
   ): void {
     this.#profileRows = rows;
-    const value = this.#projectProfiles<T>(rows);
-    subscription.lastValue = value;
-    subscription.observer(readyCell(value, subscription.connection));
+    this.#profileStatsRows.clear();
+    for (const [profileId, stats] of subscription.stats) {
+      this.#profileStatsRows.set(profileId, stats);
+    }
+    for (const target of this.#profileSubscriptions) {
+      if (!target.active) continue;
+      const value = this.#projectProfiles<unknown>(rows, this.#profileStatsRows);
+      target.lastValue = value;
+      target.observer(readyCell(value, target.connection));
+    }
     this.#profileRevision += 1;
     for (const resolve of [...this.#profileWaiters]) resolve();
   }
 
-  #projectProfiles<T>(rows: readonly BackendProfileRow[]): T {
-    const principal = this.#client.auth.currentPrincipal();
-    const principalId = principal.status === 'authenticated' ? principal.userId : null;
+  #projectProfiles<T>(
+    rows: readonly BackendProfileRow[],
+    stats: ReadonlyMap<string, BackendProfileStatsRow>,
+  ): T {
     return rows.map((row) => ({
       id: row.fixtureId ?? row.ownerId,
       handle: row.handle,
@@ -975,11 +1419,124 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       location: row.location,
       link: row.link,
       avatarUrl: row.avatar ? this.#assetUrl(row.avatar) : null,
-      followers: 0,
-      following: 0,
-      followedByMe: false,
-      isMe: principalId !== null && row.ownerId === principalId,
+      followers: stats.get(row._id)?.followerCount ?? 0,
+      following: stats.get(row._id)?.followingCount ?? 0,
+      followedByMe: stats.get(row._id)?.viewerFollows ?? false,
+      isMe: stats.get(row._id)?.isSelf ?? false,
     })) as T;
+  }
+
+  #rememberProfileIdentities(rows: readonly BackendProfileRow[]): void {
+    for (const row of rows) {
+      this.#profileIdentityById.set(row._id, row.fixtureId ?? row.ownerId);
+    }
+  }
+
+  async #rebuildProfileStats<T>(
+    subscription: ProfileSubscription<T>,
+    rows: readonly BackendProfileRow[],
+    profileGeneration: number,
+  ): Promise<void> {
+    const statsGeneration = ++subscription.statsGeneration;
+    subscription.backendRows = rows;
+    const profileIds = new Set<string>(rows.map((row) => row._id));
+    const removedHandles: LiveHandle[] = [];
+    for (const [profileId, handle] of subscription.statsHandles) {
+      if (profileIds.has(profileId)) continue;
+      removedHandles.push(handle);
+      subscription.statsHandles.delete(profileId);
+      subscription.statsConnections.delete(profileId);
+      subscription.stats.delete(profileId);
+    }
+    await Promise.allSettled(removedHandles.map((handle) => Promise.resolve(handle.dispose())));
+    if (
+      !subscription.active
+      || subscription.generation !== profileGeneration
+      || subscription.statsGeneration !== statsGeneration
+      || this.#disposed
+    ) return;
+
+    try {
+      const newRows = rows.filter((row) => !subscription.statsHandles.has(row._id));
+      subscription.statsReady = newRows.length === 0;
+      await Promise.all(newRows.map(async (row) => {
+        const handle = await this.#client.liveQuery(api.profileStats, {
+          args: { profileId: row._id },
+          connectionId:
+            `${this.#instanceId}-profile-stats-${++this.#profileConnectionSequence}`,
+          transport: 'stream',
+          fallbackToPoll: false,
+          onUpdate: (statsRows) => {
+            if (
+              !subscription.active
+              || subscription.generation !== profileGeneration
+              || !subscription.backendRows.some((candidate) => candidate._id === row._id)
+            ) return;
+            const stats = (statsRows as readonly BackendProfileStatsRow[])[0];
+            if (stats) subscription.stats.set(row._id, stats);
+            else subscription.stats.delete(row._id);
+            if (subscription.statsReady) {
+              this.#publishProfiles(subscription, subscription.backendRows);
+            }
+          },
+          onConnectionChange: (connection) => {
+            if (
+              !subscription.active
+              || subscription.generation !== profileGeneration
+              || !subscription.backendRows.some((candidate) => candidate._id === row._id)
+            ) return;
+            subscription.statsConnections.set(row._id, toConnection(connection));
+            const next = this.#profileSubscriptionConnection(subscription);
+            if (next === subscription.connection) return;
+            subscription.connection = next;
+            this.#publishProfileConnection(subscription);
+          },
+        });
+        if (
+          !subscription.active
+          || subscription.generation !== profileGeneration
+          || subscription.statsGeneration !== statsGeneration
+          || this.#disposed
+        ) {
+          await handle.dispose();
+          return;
+        }
+        subscription.statsHandles.set(row._id, handle as LiveHandle);
+        subscription.statsConnections.set(row._id, toConnection(handle.connection));
+        const stats = (handle.rows as readonly BackendProfileStatsRow[])[0];
+        if (stats) subscription.stats.set(row._id, stats);
+      }));
+      if (
+        !subscription.active
+        || subscription.generation !== profileGeneration
+        || subscription.statsGeneration !== statsGeneration
+      ) return;
+      subscription.connection = this.#profileSubscriptionConnection(subscription);
+      subscription.statsReady = true;
+      this.#publishProfiles(subscription, rows);
+    } catch (error) {
+      if (
+        !subscription.active
+        || subscription.generation !== profileGeneration
+        || subscription.statsGeneration !== statsGeneration
+      ) return;
+      subscription.observer({
+        status: 'error',
+        error: serialized(declaredError('listProfiles', error)),
+        connection: 'disconnected',
+      });
+    }
+  }
+
+  #profileSubscriptionConnection<T>(
+    subscription: ProfileSubscription<T>,
+    profileConnection = toConnection(subscription.handle?.connection),
+  ): DataConnection {
+    const connections = [profileConnection, ...subscription.statsConnections.values()];
+    for (const state of ['disconnected', 'stale', 'polling', 'connecting'] as const) {
+      if (connections.includes(state)) return state;
+    }
+    return 'live';
   }
 
   #publishProfileConnection<T>(subscription: ProfileSubscription<T>): void {
@@ -993,12 +1550,272 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     subscription.observer(readyCell(subscription.lastValue, subscription.connection));
   }
 
+  async #startAllM2Subscriptions(): Promise<void> {
+    await Promise.all(
+      [...this.#m2Subscriptions].map((subscription) => this.#startM2Subscription(subscription)),
+    );
+  }
+
+  async #startM2Subscription<T>(subscription: M2Subscription<T>): Promise<void> {
+    if (!subscription.active || this.#disposed) return;
+    const principal = this.#client.auth.currentPrincipal();
+    if (principal.status !== 'authenticated') return;
+    if (subscription.handle) return;
+    if (subscription.start) return subscription.start;
+
+    const generation = ++subscription.generation;
+    subscription.start = (async () => {
+      let pendingDelivery = Promise.resolve();
+      const publishRows = (rows: readonly unknown[]): Promise<void> => {
+        const deliveryRows = [...rows];
+        pendingDelivery = pendingDelivery.then(async () => {
+          if (!subscription.active || subscription.generation !== generation) return;
+          try {
+            await this.#hydrateM2ProfileIdentities(deliveryRows);
+            if (!subscription.active || subscription.generation !== generation) return;
+            const value = this.#projectM2Rows<T>(subscription, deliveryRows);
+            const cacheKey = this.#m2CacheKey(subscription.queryName, subscription.args);
+            this.#m2Cache.set(cacheKey, { value, connection: subscription.connection });
+            for (const target of this.#m2Subscriptions) {
+              if (!target.active || this.#m2CacheKey(target.queryName, target.args) !== cacheKey) {
+                continue;
+              }
+              target.lastValue = value;
+              target.observer(readyCell(value, target.connection));
+            }
+          } catch (error) {
+            subscription.observer({
+              status: 'error',
+              error: serialized(declaredError(subscription.queryName, error)),
+              connection: 'disconnected',
+            });
+          }
+        });
+        return pendingDelivery;
+      };
+      const onConnectionChange = (connection: unknown) => {
+        if (!subscription.active || subscription.generation !== generation) return;
+        const next = toConnection(connection);
+        if (next === subscription.connection) return;
+        subscription.connection = next;
+        if (subscription.lastValue === undefined) {
+          subscription.observer({ status: 'pending', connection: next });
+        } else {
+          subscription.observer(readyCell(subscription.lastValue, next));
+        }
+      };
+      try {
+        await this.#refreshProfileIdentityIndex();
+        const connectionId =
+          `${this.#instanceId}-${subscription.queryName}-${++this.#m2ConnectionSequence}`;
+        let handle: LiveHandle;
+        if (subscription.queryName === 'listFeed') {
+          const mode = argsFeedMode(subscription.args.mode);
+          const cursor = decodeFeedCursor(subscription.args.cursor, mode);
+          const common = {
+            args: cursor ? { before: cursor.pageKey } : {},
+            connectionId,
+            transport: 'stream' as const,
+            fallbackToPoll: false,
+            onUpdate: (rows: readonly BackendFeedRow[]) => { void publishRows(rows); },
+            onConnectionChange,
+          };
+          handle = mode === 'global'
+            ? await this.#client.liveQuery(api.globalFeed, common)
+            : await this.#client.liveQuery(api.followingFeed, common);
+        } else if (subscription.queryName === 'listThread') {
+          const postId = nonEmptyString(
+            subscription.args.parentId,
+            'ParentPostNotFoundError',
+            'The parent post does not exist.',
+          ) as GeneratedDataModel['posts']['_id'];
+          handle = await this.#client.liveQuery(api.thread, {
+            args: { postId },
+            connectionId,
+            transport: 'stream',
+            fallbackToPoll: false,
+            onUpdate: (rows) => { void publishRows(rows); },
+            onConnectionChange,
+          });
+        } else if (subscription.queryName === 'listProfilePosts') {
+          const profileId = await this.#backendProfileId(subscription.args.userId);
+          handle = await this.#client.liveQuery(api.profilePosts, {
+            args: { profileId },
+            connectionId,
+            transport: 'stream',
+            fallbackToPoll: false,
+            onUpdate: (rows) => { void publishRows(rows); },
+            onConnectionChange,
+          });
+        } else {
+          throw milestoneRefusal(subscription.queryName);
+        }
+        if (!subscription.active || subscription.generation !== generation || this.#disposed) {
+          await handle.dispose();
+          return;
+        }
+        subscription.handle = handle;
+        subscription.connection = toConnection(handle.connection);
+        await publishRows(handle.rows);
+      } catch (error) {
+        if (!subscription.active || subscription.generation !== generation) return;
+        subscription.observer({
+          status: 'error',
+          error: serialized(declaredError(subscription.queryName, error)),
+          connection: 'disconnected',
+        });
+      } finally {
+        if (subscription.generation === generation) subscription.start = null;
+      }
+    })();
+    return subscription.start;
+  }
+
+  #projectM2Rows<T>(subscription: M2Subscription<T>, rows: readonly unknown[]): T {
+    if (subscription.queryName === 'listFeed') {
+      const mode = argsFeedMode(subscription.args.mode);
+      const backendRows = rows as readonly BackendFeedRow[];
+      const nextCursor = backendRows.length === FEED_PAGE_SIZE
+        ? encodeFeedCursor(mode, backendRows.at(-1)!)
+        : null;
+      return backendRows.map((row) => ({
+        id: row.itemId,
+        ...this.#projectPostView(row),
+        feedSortAt: new Date(row.eventCreatedAt).toISOString(),
+        repostedById: row.repostedByProfileId
+          ? this.#externalProfileId(row.repostedByProfileId)
+          : null,
+        repostedByName: row.repostedByDisplayName ?? null,
+        repostedByHandle: row.repostedByHandle ?? null,
+        nextCursor,
+      })) as T;
+    }
+    const backendRows = rows as readonly BackendPostViewRow[];
+    if (subscription.queryName === 'listThread') {
+      if (backendRows.length === 0) {
+        throw new NamedProviderError('ParentPostNotFoundError', 'The parent post does not exist.');
+      }
+      return backendRows.map((row, index) => ({
+        id: row._id,
+        ...this.#projectPostView(row),
+        parentId: row.parentId ?? null,
+        threadRole: index === 0 ? 'parent' : 'direct-reply',
+      })) as T;
+    }
+    return backendRows.map((row) => ({
+      id: row._id,
+      ...this.#projectPostView(row),
+    })) as T;
+  }
+
+  #projectPostView(row: BackendPostViewRow): Record<string, unknown> {
+    const mediaUrls = [
+      ...row.imageMedia
+        .slice()
+        .sort((left, right) => left.position - right.position)
+        .map((media) => this.#assetUrl(media.asset, 'feed')),
+      ...(row.videoMedia ? [this.#assetUrl(row.videoMedia.asset, 'primary')] : []),
+    ];
+    return {
+      postId: row._id,
+      authorId: this.#externalProfileId(row.authorProfileId),
+      authorName: row.authorDisplayName,
+      authorHandle: row.authorHandle,
+      avatarUrl: row.authorAvatar ? this.#assetUrl(row.authorAvatar) : null,
+      body: row.body,
+      createdAt: new Date(row.createdAt).toISOString(),
+      likeCount: row.likeCount,
+      repostCount: row.repostCount,
+      replyCount: row.replyCount,
+      likedByMe: row.viewerLiked,
+      repostedByMe: row.viewerReposted,
+      mediaUrls,
+      mediaKind: row.videoMedia ? 'video' : row.imageMedia.length > 0 ? 'images' : null,
+    };
+  }
+
+  async #refreshProfileIdentityIndex(): Promise<readonly BackendProfileRow[]> {
+    const rows = (await this.#client.query(api.listProfiles, { args: {} })).rows;
+    this.#rememberProfileIdentities(rows);
+    return rows;
+  }
+
+  async #hydrateM2ProfileIdentities(rows: readonly unknown[]): Promise<void> {
+    const profileIds = new Set<string>();
+    for (const row of rows as readonly BackendFeedRow[]) {
+      profileIds.add(row.authorProfileId);
+      if (row.repostedByProfileId) profileIds.add(row.repostedByProfileId);
+    }
+    if ([...profileIds].every((profileId) => this.#profileIdentityById.has(profileId))) return;
+    await this.#refreshProfileIdentityIndex();
+    if ([...profileIds].some((profileId) => !this.#profileIdentityById.has(profileId))) {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'Snapback returned an M2 row whose external profile identity is unavailable.',
+      );
+    }
+  }
+
+  #externalProfileId(profileId: string): string {
+    const externalId = this.#profileIdentityById.get(profileId);
+    if (!externalId) {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'Snapback returned an M2 row whose external profile identity is unavailable.',
+      );
+    }
+    return externalId;
+  }
+
+  async #backendProfileId(value: unknown): Promise<GeneratedDataModel['profiles']['_id']> {
+    const externalId = nonEmptyString(
+      value,
+      'ProfileNotFoundError',
+      'The profile does not exist.',
+    );
+    const rows = await this.#refreshProfileIdentityIndex();
+    const profile = rows.find((row) => (row.fixtureId ?? row.ownerId) === externalId);
+    if (!profile) {
+      throw new NamedProviderError('ProfileNotFoundError', 'The profile does not exist.');
+    }
+    return profile._id;
+  }
+
+  #stopM2Subscriptions(connection: DataConnection): void {
+    this.#m2Cache.clear();
+    for (const subscription of this.#m2Subscriptions) {
+      subscription.generation += 1;
+      subscription.connection = connection;
+      void subscription.handle?.dispose();
+      subscription.handle = null;
+      subscription.start = null;
+      subscription.lastValue = undefined;
+      if (subscription.active) subscription.observer({ status: 'pending', connection });
+    }
+  }
+
+  #m2CacheKey(queryName: string, args: Record<string, unknown>): string {
+    if (queryName === 'listFeed') {
+      return `${queryName}:${String(args.mode)}:${String(args.cursor ?? '')}`;
+    }
+    if (queryName === 'listThread') return `${queryName}:${String(args.parentId ?? '')}`;
+    return `${queryName}:${String(args.userId ?? '')}`;
+  }
+
   #stopProfileSubscriptions(connection: DataConnection): void {
     this.#profileRows = null;
+    this.#profileStatsRows.clear();
     for (const subscription of this.#profileSubscriptions) {
       subscription.generation += 1;
       subscription.connection = connection;
       void subscription.handle?.dispose();
+      for (const handle of subscription.statsHandles.values()) void handle.dispose();
+      subscription.statsHandles.clear();
+      subscription.statsConnections.clear();
+      subscription.stats.clear();
+      subscription.statsReady = false;
+      subscription.backendRows = [];
+      subscription.statsGeneration += 1;
       subscription.handle = null;
       subscription.start = null;
       subscription.lastValue = undefined;
@@ -1008,7 +1825,7 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     }
   }
 
-  async #runM1Mutation(name: string, args: Record<string, unknown>): Promise<unknown> {
+  async #runClaimedMutation(name: string, args: Record<string, unknown>): Promise<unknown> {
     switch (name) {
       case 'signup':
         return this.#signup(args);
@@ -1020,8 +1837,145 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
         return this.#editProfile(args);
       case 'setAvatar':
         return this.#setAvatar(args);
+      case 'createPost':
+        return this.#createPost(args);
+      case 'setFollow':
+        return this.#setFollow(args);
+      case 'setLike':
+        return this.#setLike(args);
+      case 'setRepost':
+        return this.#setRepost(args);
       default:
         throw milestoneRefusal(name);
+    }
+  }
+
+  async #createPost(args: Record<string, unknown>): Promise<{ id: string }> {
+    const input = normalizedCreatePostInput(args);
+    const imageAssetIds = [];
+    for (const mediaRef of input.imageRefs) {
+      imageAssetIds.push(await this.#postAsset(mediaRef, 'image'));
+    }
+    const videoAssetId = input.videoRefs[0]
+      ? await this.#postAsset(input.videoRefs[0], 'video')
+      : undefined;
+    const outcome = await this.#client.mutate(api.createPost, {
+      args: {
+        kind: input.kind,
+        body: input.body,
+        imageAssetIds,
+        ...(videoAssetId ? { videoAssetId } : {}),
+        ...(input.parentId
+          ? { parentId: input.parentId as GeneratedDataModel['posts']['_id'] }
+          : {}),
+      },
+    });
+    if (outcome.status !== 'settled') {
+      throw new NamedProviderError(
+        'SnapbackProviderError',
+        'createPost was queued even though the Coterie adapter disables offline mutation replay.',
+      );
+    }
+    return { id: outcome.result };
+  }
+
+  async #setFollow(args: Record<string, unknown>): Promise<void> {
+    const profileId = await this.#backendProfileId(args.userId);
+    await this.#client.mutate(api.setFollow, {
+      args: {
+        profileId,
+        following: Boolean(args.following),
+        mutationId: String(args.mutationId ?? ''),
+      },
+    });
+  }
+
+  async #setLike(args: Record<string, unknown>): Promise<void> {
+    const postId = nonEmptyString(
+      args.postId,
+      'PostNotFoundError',
+      'The post does not exist.',
+    ) as GeneratedDataModel['posts']['_id'];
+    await this.#client.mutate(api.setLike, {
+      args: {
+        postId,
+        liked: Boolean(args.liked),
+        mutationId: String(args.mutationId ?? ''),
+      },
+    });
+  }
+
+  async #setRepost(args: Record<string, unknown>): Promise<void> {
+    const postId = nonEmptyString(
+      args.postId,
+      'PostNotFoundError',
+      'The post does not exist.',
+    ) as GeneratedDataModel['posts']['_id'];
+    await setRepostThroughBackend(
+      this.#client,
+      postId,
+      Boolean(args.reposted),
+      String(args.mutationId ?? ''),
+    );
+  }
+
+  async #postAsset(mediaRef: string, kind: 'image' | 'video'): Promise<string> {
+    const servedUrl = kind === 'image'
+      ? COTERIE_IMAGE_URLS.get(mediaRef)
+      : COTERIE_VIDEO_URLS.get(mediaRef);
+    if (!servedUrl) {
+      throw new NamedProviderError(
+        'MediaReferenceInvalidError',
+        'Post media must reference a committed fixture image or video.',
+      );
+    }
+    let bytes: ArrayBuffer;
+    try {
+      const sourceUrl = new URL(
+        servedUrl,
+        typeof globalThis.location?.href === 'string' ? globalThis.location.href : this.baseUrl,
+      );
+      const response = await fetch(sourceUrl);
+      if (!response.ok) throw new Error(`fixture media response ${response.status}`);
+      bytes = await response.arrayBuffer();
+    } catch (cause) {
+      throw new NamedProviderError(
+        'MediaReferenceInvalidError',
+        'Post media must reference a committed fixture image or video.',
+        { cause },
+      );
+    }
+    const mediaType = sniffPostMediaType(bytes, kind);
+    const sourceDigest = await sha256Hex(
+      bytes,
+      'MediaReferenceInvalidError',
+      'Post media upload requires WebCrypto SHA-256 support.',
+    );
+    const principal = this.#client.auth.currentPrincipal();
+    if (principal.status !== 'authenticated') {
+      throw new NamedProviderError('SessionRequiredError', 'An active session is required.');
+    }
+    const cacheKey = `${principal.userId}:${kind}:${sourceDigest}`;
+    const cached = this.#uploadedPostAssets.get(cacheKey);
+    if (cached) return cached;
+    const assetClient = createAssetClient(
+      this.#client as unknown as Parameters<typeof createAssetClient>[0],
+    );
+    const assetId = await assetClient.upload(
+      kind === 'image' ? api.postImageUpload : api.postVideoUpload,
+      new Blob([bytes], { type: mediaType }),
+    );
+    this.#rememberPostAsset(cacheKey, assetId);
+    return assetId;
+  }
+
+  #rememberPostAsset(key: string, assetId: string): void {
+    this.#uploadedPostAssets.delete(key);
+    this.#uploadedPostAssets.set(key, assetId);
+    while (this.#uploadedPostAssets.size > POST_ASSET_CACHE_LIMIT) {
+      const oldest = this.#uploadedPostAssets.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      this.#uploadedPostAssets.delete(oldest);
     }
   }
 
@@ -1054,7 +2008,11 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       });
       await this.#testHooks.beforeAuthResult?.('signup');
       const result = await this.#authResult(credential);
-      await Promise.all([this.#refreshSessionProjection(), this.#startAllProfileSubscriptions()]);
+      await Promise.all([
+        this.#refreshSessionProjection(),
+        this.#startAllProfileSubscriptions(),
+        this.#startAllM2Subscriptions(),
+      ]);
       return result.value;
     } catch (originalError) {
       const error = applicationCode(originalError) === 'DUPLICATE_HANDLE'
@@ -1077,7 +2035,11 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
       await this.#testHooks.beforeAuthResult?.('login');
       const result = await this.#authResult(credential);
       this.#profileCompletion = result.profileExists ? null : { email, credential };
-      await Promise.all([this.#refreshSessionProjection(), this.#startAllProfileSubscriptions()]);
+      await Promise.all([
+        this.#refreshSessionProjection(),
+        this.#startAllProfileSubscriptions(),
+        this.#startAllM2Subscriptions(),
+      ]);
       return result.value;
     } catch (error) {
       await this.#rollbackAdoptedAuthority(adoptedCapture, 'coterie_login_processing_failed', error);
@@ -1136,7 +2098,11 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     });
     const result = await this.#authResult(recovery.credential);
     this.#profileCompletion = null;
-    await Promise.all([this.#refreshSessionProjection(), this.#startAllProfileSubscriptions()]);
+    await Promise.all([
+      this.#refreshSessionProjection(),
+      this.#startAllProfileSubscriptions(),
+      this.#startAllM2Subscriptions(),
+    ]);
     return result.value;
   }
 
@@ -1305,8 +2271,8 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
     }
   }
 
-  #assetUrl(assetId: string): string {
-    return `${this.baseUrl}/assets/public/${encodeURIComponent(assetId)}/thumb`;
+  #assetUrl(assetId: string, rendition: 'feed' | 'primary' | 'thumb' = 'thumb'): string {
+    return `${this.baseUrl}/assets/public/${encodeURIComponent(assetId)}/${rendition}`;
   }
 
   async #waitForProfileDelivery(before: number): Promise<void> {
@@ -1342,7 +2308,9 @@ class SnapbackCoterieProvider implements CoterieSnapbackProvider {
  * @ref LLP 0266#d4-backend-boundary — backend transport and live delivery stay
  * behind Exact's public ContractDataProvider seam.
  * @ref LLP 0266#d7-milestone-frozen-provider-surfaces-resolves-oq1 — this
- * adapter implements M1 and refuses every later operation explicitly.
+ * adapter implements the frozen M1+M2 set and refuses every later operation
+ * explicitly. Snapback's ensureFixture* and getMyFixture* operations are seed
+ * machinery only and are never mapped onto this declaration.
  * @ref LLP 0266#d8-provider-selection-at-boot — the adapter never generates a
  * provider-specific Coterie declaration or manifest.
  * @ref LLP 0266#d9-snapback-backend-placement — application-owned auth,

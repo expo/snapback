@@ -961,6 +961,9 @@ async function setRepostCore(ctx, postId, reposted, fixture, clientMutationId) {
   const profile = await requireMyProfile(ctx);
   const post = await ctx.db.get('posts', postId);
   if (!post) ctx.refuse('POST_NOT_FOUND');
+  // @ref LLP 0266#d4-backend-boundary — reply eligibility is mutation
+  // authority, not a client/adapter projection preflight.
+  if (post.parentId) ctx.refuse('REPLY_REPOST_FORBIDDEN');
   const existing = await ctx.db
     .query('reposts')
     .withIndex('by_owner_post')
@@ -1114,7 +1117,7 @@ export const setRepost = defineJsMutation({
   },
   reads: ['profiles', 'posts', 'reposts', 'feedEvents'],
   writes: ['posts', 'reposts', 'feedEvents'],
-  refusals: ['PROFILE_REQUIRED', 'POST_NOT_FOUND'],
+  refusals: ['PROFILE_REQUIRED', 'POST_NOT_FOUND', 'REPLY_REPOST_FORBIDDEN'],
   result: results.value(v.object({
     reposted: v.boolean(),
     repostCount: v.integer(),
@@ -1281,7 +1284,7 @@ export const ensureFixtureRepost = defineJsMutation({
   },
   reads: ['profiles', 'posts', 'reposts', 'feedEvents'],
   writes: ['posts', 'reposts', 'feedEvents'],
-  refusals: ['PROFILE_REQUIRED', 'POST_NOT_FOUND'],
+  refusals: ['PROFILE_REQUIRED', 'POST_NOT_FOUND', 'REPLY_REPOST_FORBIDDEN'],
   result: results.value(v.string()),
   handler: async (ctx, args) => {
     const outcome = await setRepostCore(ctx, args.postId, true, {

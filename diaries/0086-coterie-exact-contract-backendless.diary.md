@@ -579,3 +579,70 @@ excerpts jump to their source. It also caught a direct-message avatar update
 keyed by membership rather than displayed counterpart: Alice changing her own
 avatar could overwrite the row that displays Bob. The projection now updates
 only rows that display the changed persona and leaves group rows unchanged.
+
+## 2026-08-16 — Snapback `ContractDataProvider` adapter growth (M2)
+
+Growing the adapter from M1 to the frozen M1+M2 claim kept the public seam
+clean: Coterie's Contract routes did not change, the v7 declaration stayed
+byte-for-byte frozen, and the adapter mapped the generated `globalFeed`,
+`followingFeed`, `thread`, `profilePosts`, `createPost`, `setFollow`, `setLike`,
+and `setRepost` references directly. Client B observed client A's post and
+subsequent like-count change over stream transport with polling disabled, so
+the live-query ownership rule remained legible in the proof.
+
+The awkward part was projection composition. `listProfiles@2` is one list but
+Snapback's `profileStats` is keyed to one profile, so the adapter retains a
+stats stream per visible profile, joins the snapshots, and fans authoritative
+updates back to every Exact observer. Publishing while those streams were
+still opening briefly exposed zero counts; rebuilding all streams after an
+unrelated profile edit then hit auth establishment throttling. The stable form
+gates the first ready cell on the complete stats snapshot and reconciles
+streams only when profile IDs enter or leave. A backend list-shaped stats
+projection, or a first-class generated multi-query composition, would make
+this much less machinery for a `ContractDataProvider`.
+
+The two cursor vocabularies fit after making the translation explicit.
+Coterie's cursor carries `{v, mode, sortAt, eventId}` while the backend accepts
+`<16-digit-ms>:<event-id>` as `pageKey`; the adapter checks the timestamp both
+directions and rejects malformed or cross-mode tokens before opening a stream.
+The backend returns only 20 rows rather than a 21st overflow witness, so a full
+page conservatively carries a next cursor and a short page terminates. This is
+workable keyset behavior, but the page-boundary fact is less direct than the
+memory provider's 21-row lookahead.
+
+Committed composer refs also mapped predictably: resolve the shared fixture
+URL, sniff bytes, hash them, reuse an owner/kind/digest asset mapping, upload
+through `postImageUpload` or `postVideoUpload`, then call `createPost`. That is
+more ceremony than a direct Convex storage URL or Supabase bucket write, but
+the upload intent makes custody and attachment admission explicit while the
+fixture vocabulary remains provider-neutral.
+
+The reply-repost rule belongs at the backend mutation boundary. `setRepostCore`
+now refuses any post with a parent through the declared
+`REPLY_REPOST_FORBIDDEN` application code, and both the user mutation and
+fixture ensure path declare that code. The adapter maps it directly to
+`ReplyRepostForbiddenError` and no longer opens the bounded `thread` query as a
+preflight. Besides removing a redundant round trip, this matters for an
+original with more than 1,023 direct replies: the thread projection correctly
+refuses its overflow witness, while reposting the original remains a bounded
+single-post mutation. No `ensureFixture*` or `getMyFixture*` operation was
+mapped—the seed installer remains a separate program surface.
+
+Review also found two projection boundaries worth making explicit. Asset URLs
+must use renditions guaranteed by their upload declarations (`feed` for post
+images, `primary` for post video, `thumb` for avatars); a generic thumbnail
+helper produced non-existent video/image URLs. And a feed subscribed before a
+new profile signed up could observe the new post before the adapter's cached
+profile index learned that identity. M2 delivery now serializes snapshots,
+hydrates only unknown author/reposter IDs before publication, and fails closed
+instead of falling back to a backend `_id`. The integration proof subscribes a
+feed without a profile stream before signup, then checks both create and repost
+delivery against the new external owner identity.
+
+Finally, the shared Exact headless handle emits an empty placeholder before an
+asynchronous Snapback live snapshot. The acceptance runner had treated that
+placeholder as the seeded feed; waiting for the first non-empty M2 snapshot
+fixed the evidence without provider branching. The durable Snapback lane also
+made scenario cleanup matter: the follow step now restores Dave's unfollowed
+precondition so the second boot-state scenario measures the same choreography
+instead of inheriting the first scenario's edge.

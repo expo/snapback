@@ -234,6 +234,10 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
         },
       );
     }
+    for (const operationName of ['setRepost', 'ensureFixtureRepost']) {
+      const operation = functions.functions.find(({ exportedName }) => exportedName === operationName);
+      assert(operation.refusals.includes('REPLY_REPOST_FORBIDDEN'));
+    }
 
     const imageIntent = functions.assetUploadIntents.find(({ exportedName }) => (
       exportedName === 'postImageUpload'
@@ -595,6 +599,17 @@ test('Coterie Snapback M2 backend', { timeout: 600_000 }, async (t) => {
       assert(thread.rows[1].createdAt <= thread.rows[2].createdAt);
       assert(thread.rows.every(({ _id }) => _id !== created.reply.nested));
     }, 'thread did not return exactly the direct replies in chronological order');
+
+    await expectAppCode(
+      () => bob.client.mutate(api.setRepost, {
+        args: {
+          postId: created.reply.first,
+          reposted: true,
+          mutationId: 'reply-repost-refusal',
+        },
+      }),
+      'REPLY_REPOST_FORBIDDEN',
+    );
 
     const [global, following, bobPosts] = await Promise.all([
       allPages(bob.client, api.globalFeed),

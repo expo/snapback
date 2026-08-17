@@ -17,7 +17,7 @@ import {
 } from '../src/data/generated/coterie.bindings.ts';
 import { bootCoterieProvider } from '../src/data/provider-factory.ts';
 import { resolveCoterieSnapbackUrl } from '../src/data/snapback-provider.ts';
-import { installM1Fixtures } from '../snapback/seed-m1.mjs';
+import { installM2Fixtures } from '../snapback/seed-m2.mjs';
 
 const CONTRACT_PATH = new URL(
   '../../../benchmarks/tools/social-messenger/CONTRACT.md',
@@ -359,7 +359,10 @@ async function runAcceptanceScenario({
       globalFeedHandle.subscribe((rows) => globalFeedLog.push(rows)),
       followingFeedHandle.subscribe((rows) => followingFeedLog.push(rows)),
     );
-    await Promise.all([globalFeedLog.waitFor(), followingFeedLog.waitFor()]);
+    await Promise.all([
+      globalFeedLog.waitFor((rows) => rows.length > 0),
+      followingFeedLog.waitFor((rows) => rows.length > 0),
+    ]);
 
     await runStep(
       'm2-boot-global-following-split',
@@ -378,7 +381,9 @@ async function runAcceptanceScenario({
         );
         if (!globalHasDave || followingHasDave) {
           throw new Error(
-            'boot feed split did not keep an unfollowed author in Global and out of Following',
+            'boot feed split did not keep an unfollowed author in Global and out of Following '
+              + `(globalHasDave=${globalHasDave}, followingHasDave=${followingHasDave}, `
+              + `globalRows=${globalRows.length}, followingRows=${followingRows.length})`,
           );
         }
         return {
@@ -456,6 +461,19 @@ async function runAcceptanceScenario({
         if (followingFeedLog.deliveries.length <= deliveriesBeforeFollow) {
           throw new Error('Following feed emitted no follow invalidation delivery');
         }
+        requireMutationSuccess(
+          await setFollow({
+            userId: 'dave',
+            following: false,
+            mutationId: `accept-follow-restore-dave-${scenario}`,
+          }),
+          'setFollow(restore precondition)',
+        );
+        await followingFeedLog.waitFor(
+          (delivery) => !delivery.some(
+            (post) => post.authorId === 'dave' && post.repostedById === null,
+          ),
+        );
         return {
           followedUserId: 'dave',
           directPostCount: rows.filter(
@@ -574,7 +592,7 @@ async function main() {
 
   try {
     if (requestedProvider === 'snapback') {
-      await installM1Fixtures({
+      await installM2Fixtures({
         baseUrl: resolveCoterieSnapbackUrl(),
         runId: `accept-${Date.now()}`,
       });
