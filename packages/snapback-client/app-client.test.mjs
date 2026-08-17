@@ -1012,6 +1012,72 @@ test('browser durable custody restores the default record and keeps signed-in pa
   }
 });
 
+test('volatile custody recreates its queue epoch domain before a later password sign-in', async () => {
+  const server = installServer();
+  delete process.env.SNAPBACK_CLIENT_RQS_STORE;
+  const app = makeApp({ custody: 'volatile-explicit' });
+  const platform = {
+    kind: 'expo-web',
+    indexedDB: new IDBFactory(),
+    lockManager: createSerialLockManager(),
+    cryptoObject: webcrypto,
+  };
+  const input = { app, binding: makeBinding(app), platform };
+  let first = null;
+  let recreated = null;
+  try {
+    server.respond('/auth/password/signup', () => (
+      Response.json(server.credential({ codes: RECOVERY_CODES }))
+    ));
+    first = await createSnapbackAppClient(input);
+    assert.deepEqual(
+      {
+        implementation: first.client.rqsStoreInfo.implementation,
+        durable: first.client.rqsStoreInfo.durable,
+        reason: first.client.rqsStoreInfo.reason,
+      },
+      { implementation: 'memory', durable: false, reason: 'volatile-platform' },
+      'volatile custody resolves a client-lifetime queue instead of the durable web default',
+    );
+    const firstQueueStore = first.client.rqsStore;
+    await first.auth.signUpWithPassword({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    await first.dispose();
+    first = null;
+
+    recreated = await createSnapbackAppClient(input);
+    assert.notEqual(
+      recreated.client.rqsStore,
+      firstQueueStore,
+      'reconstruction starts a fresh queue epoch domain with fresh volatile custody',
+    );
+    assert.equal(
+      recreated.auth.currentPrincipal().status,
+      'anonymous',
+      'volatile custody does not restore the predecessor principal',
+    );
+    server.respond('/auth/password/signin', () => (
+      Response.json(server.credential({
+        token: ROTATED_BEARER,
+        userId: USER,
+        sessionId: PEER_SESSION,
+        authorityInstanceId: PEER_AUTHORITY,
+      }))
+    ));
+    await recreated.auth.signInWithPassword({
+      email: 'person@example.com',
+      password: PASSWORD,
+    });
+    assert.equal(recreated.auth.currentPrincipal().status, 'authenticated');
+  } finally {
+    await recreated?.dispose();
+    await first?.dispose();
+    server.restore();
+  }
+});
+
 test('browser app-client defaults ignore ambient Node file and unowned browser queue epochs', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'snapback-app-client-rqs-file-isolation-'));
   const previousDir = process.env.SNAPBACK_CLIENT_RQS_DIR;

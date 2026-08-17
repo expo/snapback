@@ -7,6 +7,9 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
+**Revised:** 2026-08-17 (`volatile-explicit` now couples the application
+queue's authority-transition epoch domain to the volatile custody lifetime;
+durable custody and queue fencing semantics are unchanged)
 **Revised:** 2026-08-16 (Phase 2 iOS evidence closes the extension-refusal
 blocker and admits iOS native custody at `single-runtime`; both native OS arms
 are now source-current and unpublished)
@@ -500,6 +503,20 @@ If `durable-required` cannot resolve a qualifying adapter, construction fails
 with `SNAPBACK_AUTH_CUSTODY_DURABLE_UNAVAILABLE` before protected resources or
 credential entry start. It does not substitute memory. Explicit volatile use
 reports `custody: "volatile"` in inspection and cannot pass a restart claim.
+
+**D3 amendment (2026-08-17) — authority-transition epochs share the custody
+lifetime.** The composed application client's RQS/outbox participant persists
+LLP 0059's exact transition key and monotone successor epoch. It therefore
+belongs to the same epoch domain as the `AuthCoordinator` custody that drives
+those transitions. Under `volatile-explicit`, the application client admits
+only a fresh client-lifetime memory queue (or an explicit disabled queue), even
+when the platform or an Expo provider has resolved a durable default store. A
+durable queue cannot outlive discarded volatile custody: reconstruction would
+restart the coordinator below the persisted queue epoch and correctly trip the
+existing stale-transition CAS on the next distinct authority successor. This
+selection rule does not rebase, adopt, clear, or weaken that fence. Under
+`durable-required`, the owner-key durable queue remains selected and resumes in
+the same persistent epoch domain as custody.
 
 ### D4. Credential entry adopts into the existing coordinator automatically
 
@@ -1088,6 +1105,11 @@ custody/barrier semantics.
   intermediate mid-entry `ready` publication; both were fixed with the r5
   alignment (arrival-time drop, no intermediate publication) in the same
   landing as this note.
+- Fix round 4 (2026-08-17) couples `volatile-explicit` auth custody to a fresh
+  client-lifetime memory RQS/outbox participant. The regression exercises
+  sign-up, owner disposal/reconstruction, volatile anonymous bootstrap, and a
+  distinct same-user sign-in successor; the pre-fix durable queue retained the
+  first transition epoch and refused the second as stale.
 
 ## Revision history
 

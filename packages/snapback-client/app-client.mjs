@@ -584,6 +584,17 @@ function preflight(input) {
   const storagePartition = validateStoragePartition(
     input.storagePartition ?? DEFAULT_AUTH_STORAGE_PARTITION,
   );
+  // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
+  // — volatile auth custody creates a fresh epoch domain with each owner;
+  // its default queue participant must have the same lifetime instead of
+  // reopening a durable owner-key namespace carrying predecessor epochs.
+  // @ref LLP 0059#transition-barrier — commitDurable keeps the monotone CAS
+  // fence intact; coupling lifetimes prevents a fresh volatile coordinator
+  // from ever starting below a persisted queue transition floor.
+  const volatileQueueLifetime = policy.custody === 'volatile-explicit'
+    && input.rqsStore !== null
+    && input.rqsStore !== false;
+  const rqsStore = volatileQueueLifetime ? undefined : input.rqsStore;
   if (policy.custody === 'durable-required') {
     const indexedDB = platform.indexedDB ?? globalThis.indexedDB;
     const injectedNativeCustody = platform.kind === 'expo-native'
@@ -611,8 +622,11 @@ function preflight(input) {
     policy,
     storagePartition,
     signal,
-    rqsStore: input.rqsStore,
-    rqsStoreIdentity: Object.hasOwn(input, 'rqsStore') ? input.rqsStore : undefined,
+    rqsStore,
+    rqsStoreIdentity: Object.hasOwn(input, 'rqsStore') ? rqsStore : undefined,
+    rqsStoreAppPlatform: volatileQueueLifetime
+      ? Object.freeze({ kind: 'memory' })
+      : platform,
   });
 }
 
@@ -964,10 +978,10 @@ async function constructOwner(preflighted, bootstrapObservers, onOwner) {
       authorityDescriptorProtocol: 1,
       rqsStore: preflighted.rqsStore,
       // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
-      // — every default participant is resolved from the admitted platform
-      // and full owner key; a Node browser harness is not a second custody
-      // domain, and two app partitions never share queue transition epochs.
-      __defaultRqsStoreAppPlatform: preflighted.platform,
+      // — durable defaults follow the admitted platform and full owner key;
+      // volatile preflight instead supplies the memory platform so its queue
+      // transition epochs end with the volatile custody owner.
+      __defaultRqsStoreAppPlatform: preflighted.rqsStoreAppPlatform,
       __defaultRqsStoreAppOwnerKey: Object.freeze({
         appId: preflighted.app.identity.app,
         storagePartition: preflighted.storagePartition,
