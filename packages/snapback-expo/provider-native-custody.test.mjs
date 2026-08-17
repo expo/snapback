@@ -161,32 +161,39 @@ test('native custody provider admits only the evidenced tuple and refuses every 
   delete globalThis.indexedDB;
 
   try {
-    await t.test('android + single-runtime is admitted and its validated grade is threaded', async () => {
-      const probe = fakeStorage();
-      let factoryCalls = 0;
-      const result = await runBoot(environmentFor({
-        moduleResolver: async () => moduleFor(probe.storage, () => {
-          factoryCalls += 1;
-          return probe.storage;
-        }),
-      }));
-      assert.equal(result.state.status, 'ready');
-      assert.equal(factoryCalls, 1);
-      assert.equal(probe.gradeCalls(), 1, 'provider evaluates platformGrade exactly once');
-      assert.equal(result.applicationClientInputs.length, 1);
-      assert.deepEqual(result.applicationClientInputs[0].platform, {
-        kind: 'expo-native',
-        authCustodyStorage: probe.storage,
-        cryptoObject: webcrypto,
+    for (const operatingSystem of ['android', 'ios']) {
+      await t.test(`${operatingSystem} + single-runtime is admitted and its validated grade is threaded`, async () => {
+        const probe = fakeStorage({ os: operatingSystem });
+        let factoryCalls = 0;
+        const result = await runBoot(environmentFor({
+          operatingSystem,
+          moduleResolver: async () => moduleFor(probe.storage, () => {
+            factoryCalls += 1;
+            return probe.storage;
+          }),
+        }));
+        assert.equal(result.state.status, 'ready');
+        assert.equal(factoryCalls, 1);
+        assert.equal(probe.gradeCalls(), 1, 'provider evaluates platformGrade exactly once');
+        assert.equal(result.applicationClientInputs.length, 1);
+        assert.deepEqual(result.applicationClientInputs[0].platform, {
+          kind: 'expo-native',
+          authCustodyStorage: probe.storage,
+          cryptoObject: webcrypto,
+        });
+        await result.boot.dispose();
       });
-      await result.boot.dispose();
-    });
+    }
 
     for (const cell of [
       { name: 'android + durable grade', operatingSystem: 'android', gradeOs: 'android', grade: 'durable' },
       { name: 'android + other grade', operatingSystem: 'android', gradeOs: 'android', grade: 'volatile' },
       { name: 'android host + iOS report', operatingSystem: 'android', gradeOs: 'ios', grade: 'single-runtime' },
       { name: 'android host + unknown report', operatingSystem: 'android', gradeOs: 'unknown', grade: 'single-runtime' },
+      { name: 'iOS + durable grade', operatingSystem: 'ios', gradeOs: 'ios', grade: 'durable' },
+      { name: 'iOS + other grade', operatingSystem: 'ios', gradeOs: 'ios', grade: 'volatile' },
+      { name: 'iOS host + Android report', operatingSystem: 'ios', gradeOs: 'android', grade: 'single-runtime' },
+      { name: 'iOS host + unknown report', operatingSystem: 'ios', gradeOs: 'unknown', grade: 'single-runtime' },
     ]) {
       await t.test(`${cell.name} returns the byte-identical sentinel`, async () => {
         const probe = fakeStorage({ os: cell.gradeOs, grade: cell.grade });
@@ -200,14 +207,14 @@ test('native custody provider admits only the evidenced tuple and refuses every 
       });
     }
 
-    for (const operatingSystem of ['ios', 'web', 'unknown']) {
+    for (const operatingSystem of ['web', 'unknown']) {
       await t.test(`${operatingSystem} host returns the sentinel without loading native custody`, async () => {
         let moduleCalls = 0;
         const result = await runBoot(environmentFor({
           operatingSystem,
           moduleResolver: async () => {
             moduleCalls += 1;
-            throw new Error('non-Android hosts must not load custody');
+            throw new Error('non-member hosts must not load custody');
           },
         }));
         assert.equal(moduleCalls, 0);
@@ -216,41 +223,47 @@ test('native custody provider admits only the evidenced tuple and refuses every 
       });
     }
 
-    for (const cell of [
-      {
-        name: 'malformed module export',
-        expectedCauseCode: 'SNAPBACK_AUTH_CUSTODY_MODULE_INVALID',
-        moduleResolver: async () => Object.freeze({}),
-      },
-      {
-        name: 'factory throw',
-        expectedCauseCode: 'SNAPBACK_NATIVE_FACTORY_FAILED',
-        moduleResolver: async () => moduleFor(null, () => {
-          throw Object.assign(new Error('factory failed'), { code: 'SNAPBACK_NATIVE_FACTORY_FAILED' });
-        }),
-      },
-      {
-        name: 'platformGrade throw (package present, native module unlinked)',
-        expectedCauseCode: 'ERR_NATIVE_MODULE_NOT_FOUND',
-        moduleResolver: async () => moduleFor(fakeStorage({
-          probeError: Object.assign(
-            new Error('Cannot find native module SnapbackExpoCustody'),
-            { code: 'ERR_NATIVE_MODULE_NOT_FOUND' },
-          ),
-        }).storage),
-      },
-      {
-        name: 'package absent',
-        expectedCauseCode: 'ERR_MODULE_NOT_FOUND',
-        moduleResolver: async () => {
-          throw Object.assign(new Error('module absent'), { code: 'ERR_MODULE_NOT_FOUND' });
+    for (const operatingSystem of ['android', 'ios']) {
+      for (const cell of [
+        {
+          name: 'malformed module export',
+          expectedCauseCode: 'SNAPBACK_AUTH_CUSTODY_MODULE_INVALID',
+          moduleResolver: async () => Object.freeze({}),
         },
-      },
-    ]) {
-      await t.test(`${cell.name} refuses typed before client construction`, async () => {
-        const result = await runBoot(environmentFor({ moduleResolver: cell.moduleResolver }));
-        assertTypedUnavailable(result, cell.expectedCauseCode);
-      });
+        {
+          name: 'factory throw',
+          expectedCauseCode: 'SNAPBACK_NATIVE_FACTORY_FAILED',
+          moduleResolver: async () => moduleFor(null, () => {
+            throw Object.assign(new Error('factory failed'), { code: 'SNAPBACK_NATIVE_FACTORY_FAILED' });
+          }),
+        },
+        {
+          name: 'platformGrade throw (package present, native module unlinked)',
+          expectedCauseCode: 'ERR_NATIVE_MODULE_NOT_FOUND',
+          moduleResolver: async () => moduleFor(fakeStorage({
+            os: operatingSystem,
+            probeError: Object.assign(
+              new Error('Cannot find native module SnapbackExpoCustody'),
+              { code: 'ERR_NATIVE_MODULE_NOT_FOUND' },
+            ),
+          }).storage),
+        },
+        {
+          name: 'package absent',
+          expectedCauseCode: 'ERR_MODULE_NOT_FOUND',
+          moduleResolver: async () => {
+            throw Object.assign(new Error('module absent'), { code: 'ERR_MODULE_NOT_FOUND' });
+          },
+        },
+      ]) {
+        await t.test(`${operatingSystem} ${cell.name} refuses typed before client construction`, async () => {
+          const result = await runBoot(environmentFor({
+            operatingSystem,
+            moduleResolver: cell.moduleResolver,
+          }));
+          assertTypedUnavailable(result, cell.expectedCauseCode);
+        });
+      }
     }
 
     await t.test('platform override has precedence over OS and module seams', async () => {
@@ -283,22 +296,6 @@ test('native custody provider admits only the evidenced tuple and refuses every 
       await result.boot.dispose();
     });
 
-    await t.test('iOS stays refused end to end and never publishes ready', async () => {
-      let moduleCalls = 0;
-      const result = await runBoot(environmentFor({
-        operatingSystem: 'ios',
-        moduleResolver: async () => {
-          moduleCalls += 1;
-          throw Object.assign(new Error('native module unlinked'), {
-            code: 'ERR_NATIVE_MODULE_NOT_FOUND',
-          });
-        },
-      }), { realApplicationClient: true });
-      assert.notEqual(result.state.status, 'ready');
-      assert.equal(result.state.diagnostic.code, 'SNAPBACK_AUTH_BOOTSTRAP_PLATFORM_UNSUPPORTED');
-      assert.equal(moduleCalls, 0);
-      await result.boot.dispose();
-    });
   } finally {
     if (previousCrypto === undefined) delete globalThis.crypto;
     else Object.defineProperty(globalThis, 'crypto', previousCrypto);

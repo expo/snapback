@@ -79,10 +79,10 @@ const APPLICATION_AUTH_BOOTSTRAP_FORMAT = 'snapback.application-auth-bootstrap.v
 export const APPLICATION_AUTH_BOOTSTRAP_CAPABILITY = 'auth.application-bootstrap.v1';
 
 // @ref LLP 0258#d3-custody-is-selected-by-capability-never-convenience-fallback
-// — Android admission is frozen to the qualifying receipt at
+// — Android and iOS admission are frozen to the qualifying receipts at
 // demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android;
-// iOS stays refused pending issues/20260816-ios-extension-refusal-probe.md.
-const QUALIFIED_NATIVE_AUTH_CUSTODY_OSES = Object.freeze(['android']);
+// demos/native-custody-probes/evidence/20260817T005627Z-7a5041db-phase2-ios.
+const QUALIFIED_NATIVE_AUTH_CUSTODY_OSES = Object.freeze(['android', 'ios']);
 
 const NATIVE_AUTH_CUSTODY_PACKAGE = '@expo/snapback-expo-custody';
 const NATIVE_AUTH_CUSTODY_SENTINEL = Object.freeze({
@@ -170,7 +170,8 @@ async function resolveAppClientPlatform(environment, app) {
     const authCustodyStorage = createNativeAuthCustodyStorage();
     const authCustodyGrade = await authCustodyStorage.platformGrade();
     if (
-      authCustodyGrade?.os === 'android'
+      authCustodyGrade?.os === operatingSystem
+      && QUALIFIED_NATIVE_AUTH_CUSTODY_OSES.includes(authCustodyGrade.os)
       && authCustodyGrade?.grade === 'single-runtime'
     ) {
       return createProviderValidatedExpoNativePlatform({

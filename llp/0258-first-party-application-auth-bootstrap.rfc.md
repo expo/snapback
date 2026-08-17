@@ -7,6 +7,9 @@ clients, Custody, Password auth, Code generation, Packaging, Diagnostics,
 Guide, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-15
+**Revised:** 2026-08-16 (Phase 2 iOS evidence closes the extension-refusal
+blocker and admits iOS native custody at `single-runtime`; both native OS arms
+are now source-current and unpublished)
 **Revised:** 2026-08-16 (Phase 2 evidence admits Android native custody at
 `single-runtime`; iOS remains refused pending a real extension-refusal probe)
 **Revised:** 2026-08-16 (publication posture: the first-party native custody
@@ -1027,15 +1030,25 @@ custody/barrier semantics.
   custody claim: adapters report their own grade, v1 declares only
   `single-runtime`, the config plugin must be listed in the application's Expo
   `plugins` array, and both per-OS flips remain gated by
-  `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`.
+  `issues/closed/20260815-llp-0258-phase-2-native-custody-evidence.md`.
 - Phase 2 evidence close-out (2026-08-16): the committed Android PASS bundle
   `demos/native-custody-probes/evidence/20260816T214639Z-0a6c91ed-phase2-android`
   admits the ordinary Expo path at `single-runtime`. The iOS bundle
   `demos/native-custody-probes/evidence/20260816T214117Z-dfaa64ff-phase2-ios`
   passes its exercised arms but marks P4 extension refusal INCOMPLETE, so iOS
-  stays refused pending `issues/20260816-ios-extension-refusal-probe.md`.
-- Remaining closure is tracked by
-  `issues/20260815-llp-0258-phase-2-native-custody-evidence.md`,
+  stays refused pending
+  `issues/closed/20260816-ios-extension-refusal-probe.md`.
+- iOS flip (2026-08-16; receipt 2026-08-17 UTC): the committed unqualified
+  43-probe PASS bundle
+  `demos/native-custody-probes/evidence/20260817T005627Z-7a5041db-phase2-ios`
+  proves the XCUITest-driven Share Extension refusal with exact
+  `SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED`, no custody I/O, and distinct
+  app/extension PIDs, so the ordinary Expo path now admits iOS at
+  `single-runtime`. Physical-device (D), backup/migration, and stronger
+  cross-process-fencing claims remain unmade; the built/embedded NSE remains
+  structurally non-invokable through simulator `simctl push`. Publication is
+  still governed by `issues/20260816-custody-first-publish-gate.md`.
+- Remaining closure outside completed Phase 2 is tracked by
   `issues/20260815-llp-0258-phase-3-remainders.md`,
   `issues/20260815-llp-0258-phase-4-external-qualification.md`, and
   `issues/20260815-llp-0258-rebind-0241-successor-proof.md` (today's binding

@@ -1,6 +1,7 @@
 # iOS native-custody extension-refusal probe
 
-**Status:** Open
+**Status:** Closed
+**Closed:** 2026-08-16
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 2
@@ -10,7 +11,24 @@
 **Governing:** LLP 0258 D3 and Phase 2; LLP 0263 §5; LLP 0064 per-platform
 capability honesty
 
-## Remaining admission blocker
+## Resolution (2026-08-16; receipt 2026-08-17 UTC)
+
+The committed unqualified 43-probe PASS receipt at
+`demos/native-custody-probes/evidence/20260817T005627Z-7a5041db-phase2-ios`
+exercises `NativeCustodyProbesShare` through an XCUITest-driven share sheet.
+The Share Extension ran in a PID distinct from the main app and returned exact
+`SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED` with `ioOccurred: false`; the
+XCUITest command exited 0. This satisfies the `single-runtime` extension
+refusal blocker and admits the source-current iOS provider tuple.
+
+The Notification Service Extension remains built and embedded but is a
+structural nonclaim: on iOS 26 simulators, `simctl push` bypasses the NSE stage
+through CoreSimulatorBridge and cannot invoke that extension kind. Physical
+device (D), backup/migration, and stronger cross-process fencing claims remain
+open outside this ticket. Publication remains governed by
+`issues/20260816-custody-first-publish-gate.md`.
+
+## Original admission blocker
 
 The committed iOS receipt at
 `demos/native-custody-probes/evidence/20260816T214117Z-dfaa64ff-phase2-ios`
@@ -59,4 +77,4 @@ iOS extension-refusal proof.
 A committed iOS receipt exercises a real extension and proves the exact typed
 refusal before custody I/O; focused provider tests admit iOS only after that
 evidence; the capability index names the resulting grade and remaining
-nonclaims; the open Phase 2 parent ticket records the iOS flip.
+nonclaims; the closed Phase 2 parent ticket records the iOS flip.

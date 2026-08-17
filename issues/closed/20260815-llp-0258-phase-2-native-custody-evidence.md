@@ -1,6 +1,7 @@
 # LLP 0258 Phase 2: qualify native auth custody per OS
 
-**Status:** Open
+**Status:** Closed
+**Closed:** 2026-08-16
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 2
@@ -109,7 +110,7 @@ custody claim.
   committed v1 app has no extension target. LLP 0258 requires background,
   extension, and multi-process entry refusal for `single-runtime`; iOS remains
   refused and continues in
-  `issues/20260816-ios-extension-refusal-probe.md`.
+  `issues/closed/20260816-ios-extension-refusal-probe.md`.
 - Claim chain: `b7f01a693` claimed the lane; `676d53befa` recorded its cession
   to the commissioned Phase 2 owner; this record closes the Android flip from
   the committed evidence while preserving the iOS holdout.
@@ -117,6 +118,24 @@ custody claim.
   yet. That remains Phase 3 row-group-4's dependency rather than an invented
   target claim in this lane.
 
-**Ticket disposition:** OPEN. The Android arm is complete, but this ticket is
-the per-OS Phase 2 tracker and stays open until the iOS arm qualifies; do not
-move it to `issues/closed/` for the Android-only flip.
+## iOS flip and ticket closure (2026-08-16; receipt 2026-08-17 UTC)
+
+The committed iOS bundle
+`demos/native-custody-probes/evidence/20260817T005627Z-7a5041db-phase2-ios`
+is an unqualified 43-probe PASS. Its XCUITest-driven Share Extension arm
+returned exact `SNAPBACK_AUTH_CUSTODY_SINGLE_RUNTIME_REFUSED` before custody
+I/O (`ioOccurred: false`) from a PID distinct from the main app. The ordinary
+Expo resolver now admits the exact iOS + `single-runtime` tuple, completing
+the second per-OS source admission beside Android.
+
+The Phase 2 (S)-grade evidence does not claim physical-device (D) lock-state,
+real securityd/f2fs kill behavior, backup restore or device migration,
+extension/app interleaving, writer kill/suspension, stronger cross-process
+fencing, hardware custody, backup continuity, or sender-constrained auth. Only
+the iOS share-sheet extension kind was exercised; the built/embedded NSE is
+structurally non-invokable via simulator `simctl push`. Publication remains
+governed by `issues/20260816-custody-first-publish-gate.md`.
+
+**Ticket disposition:** CLOSED. Both OS arms are admitted in source at
+`single-runtime`; the preserved (D)-grade and stronger-grade nonclaims remain
+future work, not blockers to this Phase 2 source flip.

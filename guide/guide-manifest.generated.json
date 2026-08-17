@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:c44bf23a37396f89950c6229d606e68adee1eb764a881ddf880b61adab3b01fa"
+    "sourceDigest": "sha256:f455a87b5c1f81dbca4484e5ef91f90803600d96c183cb590c3b720cb8c492ea"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2812,7 +2812,7 @@
       "examples": [],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:41a71ce40674c88e9cff5ba210c8ea81fb61bc41e28505d587ad9d6bdff8e2fa",
-      "sha256": "cbe9c72adc6a98ed15d3cb13e8a55cc26c7d7d8c17c6244b3d6d9e8d2161a69a",
+      "sha256": "a487105d432435057752e38c3bb2953e86bad43f9f2579a0ffd735f0b574cb82",
       "snippets": []
     },
     "clients.app-cli": {
@@ -5140,7 +5140,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:905b55f9601f6db90290f89515be7c19f6b1671ea45c92c2ed09ba5602ce2044",
-      "sha256": "6111399be70ac036ed0c9de339e025da212b4ba3ae6074a138d339d67604fc07",
+      "sha256": "88c0820fc7d59696653a9a814e5ca348cbba32146aaf33e963186d0f23286f18",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -11832,7 +11832,7 @@
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
       "bytes": 2365883,
-      "sha256": "7a6bd5987157e70e2d15956e781c2c7c6855752e959ee30d406664ecf17723a7",
+      "sha256": "c6de8ad7be2f2ec5828e2e08f21d585bd799ade9460a8eb4653860259e0b0dff",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -11841,7 +11841,7 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:64618f03ec186a2f16f2eb25ff19ceab229f841f3ae50f61debcff864bf05d50",
+      "sourceDigest": "sha256:8a1499d34c7d658b1e28c6b29488bb58e28117ba2a7b3c74f9f73974a2cec130",
       "codes": 3386,
       "emittingSites": 11589
     }
@@ -11852,6 +11852,7 @@
       "assets.media-field.v1",
       "auth.agent-principals",
       "auth.agent-registration",
+      "auth.application-bootstrap-native-custody",
       "auth.authorized-leases",
       "auth.browser-session-custody",
       "auth.external-identity-broker",
@@ -11951,7 +11952,6 @@
     "gaps": [
       "assets.media-collection.v1",
       "assets.media-command.v1",
-      "auth.application-bootstrap-native-custody",
       "backend.bounded-children-v1",
       "backend.handler-typescript",
       "backend.identity-columns",
@@ -11977,16 +11977,16 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3396841,
-      "sha256": "12652b3782382c1e0547097e03a01211b5f92209b9bbccb7bdf60348a1ee0e93"
+      "bytes": 3397029,
+      "sha256": "86fd902f0c9e829a9378c74d9fe876e2d7c3b060883bd15ceb252898176c16c9"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 146498,
-        "sha256": "cc84aee3c4bc4bb514c5a50f227259251ec77468c5df799f831ed6a27516a87f"
+        "bytes": 146686,
+        "sha256": "f64bbf459e11a68fe8920ff647561eee5e9768ce086dafd62d13a7d87a7b62c2"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
@@ -12056,7 +12056,7 @@
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
         "bytes": 1923871,
-        "sha256": "8a05606f71198738596805a00c769485f880f4699b7616e1655e4aa5e19aaa86"
+        "sha256": "1a0acc01c964969fc7d881483468d4882d07e8ba45d24521ed46b714d4d469fc"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -12081,5 +12081,5 @@
       }
     }
   },
-  "contentHash": "c44bf23a37396f89950c6229d606e68adee1eb764a881ddf880b61adab3b01fa"
+  "contentHash": "f455a87b5c1f81dbca4484e5ef91f90803600d96c183cb590c3b720cb8c492ea"
 }
