@@ -13246,6 +13246,7 @@ fn settled_sessions_activation_snapback(
 fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
     let random = CounterRandom::new();
     let now_ms = now_millis();
+    let service_fences = snapback.service_authority_fence_registry();
     let (resolved, service_publication) = {
         let db = snapback.auth_database_mut();
         db.auth_catalog()
@@ -13280,8 +13281,7 @@ fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
         let resolved = db
             .resolve_scoped_token(&token.secret, now_ms)
             .expect("resolve activation token");
-        let publication = db
-            .service_authority_fence_registry()
+        let publication = service_fences
             .register(resolved.service_authority_witness(), now_ms, Instant::now())
             .expect("register activation token fence");
         (resolved, publication)
@@ -25293,7 +25293,7 @@ fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
     const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";
     let mut snapback = guarded_snapback();
     install_service_replay_auth(&mut snapback);
-    let service_fences = snapback.db.service_authority_fence_registry();
+    let service_fences = snapback.service_authority_fence_registry();
     let first = service_mutation_authority(&service_fences, "token-a", 1, "grant-a");
     let descriptor =
         crate::auth::invocation::descriptor_for_resolved_authority(first.resolved(), INCARNATION)
@@ -27188,12 +27188,14 @@ fn retired_auth_epoch_cannot_commit_retry_registry_state() {
             None,
             |database| {
                 database.with_invalidation_retry_episode(&key, |registry| {
-                    registry.reserve(
-                        key.clone(),
-                        witness,
-                        now_millis(),
-                        RetryReservationKind::Initial,
-                    )
+                    registry
+                        .reserve(
+                            key.clone(),
+                            witness,
+                            now_millis(),
+                            RetryReservationKind::Initial,
+                        )
+                        .map_err(Into::into)
                 })
             },
         )
@@ -27861,12 +27863,14 @@ fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
         let initial = snapback
             .auth_database_mut()
             .with_invalidation_retry_episode(&target, |registry| {
-                registry.reserve(
-                    target.clone(),
-                    witness.clone(),
-                    now,
-                    RetryReservationKind::Initial,
-                )
+                registry
+                    .reserve(
+                        target.clone(),
+                        witness.clone(),
+                        now,
+                        RetryReservationKind::Initial,
+                    )
+                    .map_err(Into::into)
             })
             .expect("initial refire reservation");
         assert!(matches!(
@@ -27877,12 +27881,14 @@ fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
         let automatic = snapback
             .auth_database_mut()
             .with_invalidation_retry_episode(&target, |registry| {
-                registry.reserve(
-                    target.clone(),
-                    witness.clone(),
-                    now,
-                    RetryReservationKind::Automatic,
-                )
+                registry
+                    .reserve(
+                        target.clone(),
+                        witness.clone(),
+                        now,
+                        RetryReservationKind::Automatic,
+                    )
+                    .map_err(Into::into)
             })
             .expect("automatic refire reservation");
         assert!(matches!(

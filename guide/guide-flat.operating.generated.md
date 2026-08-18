@@ -2733,7 +2733,7 @@ id: operating.data-patch
 order: 8
 audience: agent-first
 capabilities: [operating.data-patch]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, crates/snapback/src/data_patch.rs, crates/snapback/src/local.rs, crates/snapback/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, crates/snapback-kernel/src/data_patch.rs, crates/snapback/src/local.rs, crates/snapback/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
 examples: [crates/snapback/tests/data_patch_v1.rs, packages/snapback-cli/mcp-control.test.mjs]
 status: current
 targets: [local]

@@ -24787,7 +24787,7 @@ async fn start_ask_stream(
     let snapshots = registry.dirty_snapshots(namespace);
     let rows = snapshots
         .iter()
-        .map(crate::stream_attempt::PersistedStreamAttempt::to_row)
+        .map(|attempt| attempt.to_row().map_err(Into::into))
         .collect::<SnapbackResult<Vec<_>>>()?;
     with_snapback(state, move |snapback| {
         snapback.persist_stream_attempts(&rows)
@@ -24814,7 +24814,7 @@ async fn settle_ask_stream(
     let snapshots = registry.dirty_snapshots(namespace);
     let rows = snapshots
         .iter()
-        .map(crate::stream_attempt::PersistedStreamAttempt::to_row)
+        .map(|attempt| attempt.to_row().map_err(Into::into))
         .collect::<SnapbackResult<Vec<_>>>()?;
     let record = crate::storage::stream_transcripts::StreamTranscriptRecord {
         attempt_token,
@@ -27782,7 +27782,7 @@ async fn cancel_stream_attempt(
         let snapshots = registry.dirty_snapshots(namespace);
         let rows = snapshots
             .iter()
-            .map(crate::stream_attempt::PersistedStreamAttempt::to_row)
+            .map(|attempt| attempt.to_row().map_err(Into::into))
             .collect::<SnapbackResult<Vec<_>>>()?;
         snapback.persist_stream_attempts(&rows)?;
         if let Some(snapshot) = registry.stream_output(&attempt_token) {

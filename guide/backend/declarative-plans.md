@@ -4,7 +4,7 @@ id: backend.declarative-plans
 order: 3
 audience: agent-first
 capabilities: [backend.functions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0051-language-neutral-data-tier.rfc.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/settlement-bounded-skew.test.mjs, crates/snapback/src/storage.rs, crates/snapback-types/src/value_expr.rs, demos/warble/snapback/functions.mjs, demos/todo/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0051-language-neutral-data-tier.rfc.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/settlement-bounded-skew.test.mjs, crates/snapback-kernel/src/storage.rs, crates/snapback-types/src/value_expr.rs, demos/warble/snapback/functions.mjs, demos/todo/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/warble, demos/todo, demos/signal-desk]
 status: current
 targets: [local]

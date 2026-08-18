@@ -8835,9 +8835,11 @@ async fn run_composed(
         Some((verified, _)) => {
             let authority = {
                 let mut snapback = state.lock().await;
-                snapback
-                    .auth_database_mut()
-                    .install_hosted_admission(verified, hosted_now_ms())
+                crate::auth::hosted_edge::install_verified_admission(
+                    verified,
+                    hosted_now_ms(),
+                    snapback.auth_database_mut(),
+                )
                     .map_err(anyhow::Error::new)?
             };
             app_state
@@ -8885,7 +8887,8 @@ async fn run_composed(
                     let now_ms = hosted_now_ms();
                     let renewed = {
                         let mut snapback = renewal_state.lock().await;
-                        snapback.auth_database_mut().renew_hosted_admission(
+                        crate::auth::hosted_edge::renew_hosted_admission(
+                            snapback.auth_database_mut(),
                             &renewal,
                             installed_issued_at_ms,
                             now_ms,

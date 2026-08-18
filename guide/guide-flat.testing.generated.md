@@ -551,7 +551,7 @@ id: testing.large-fixtures
 order: 3
 audience: agent-first
 capabilities: [testing.large-fixtures]
-authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, demos/zerobugs/control/scripts/load-fixture.mts, demos/zerobugs/control/snapback/functions.mjs, demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs, crates/snapback/src/seed_identity.rs, crates/snapback/src/storage.rs]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, demos/zerobugs/control/scripts/load-fixture.mts, demos/zerobugs/control/snapback/functions.mjs, demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs, crates/snapback-kernel/src/seed_identity.rs, crates/snapback-kernel/src/storage.rs]
 examples: [demos/zerobugs/control, demos/zero-bakeoff/apps/fleet-observatory]
 status: current
 targets: [local]

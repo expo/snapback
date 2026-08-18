@@ -12,7 +12,7 @@ use crate::admin_secret_read::{
     SecretReadScope, VerifiedSecretReadMint,
 };
 use crate::auth::admission::{AdmissionLease, AuthAdmissionController};
-use crate::auth::invocation::PreparedAuthority;
+use crate::auth::invocation::{InvocationSource, PreparedAuthority, ResolvedAppAuthority};
 use crate::auth::lease::AuthorizedLeaseConfig;
 use crate::auth::mode::{AuthModeStateRecord, AuthProgramReadiness};
 use crate::auth::provider::AuthProvider;
@@ -2764,7 +2764,7 @@ impl AppState {
                         "one SharedSnapback graph already belongs to an AppState; clone that AppState for additional routers",
                     ));
                 }
-                database.service_authority_fence_registry()
+                instance.service_authority_fence_registry()
             };
             // Embedders enter through this host-owned context seam rather
             // than leaving governance admission on LocalSnapback's
@@ -4016,6 +4016,54 @@ impl ProtectedErasureAdminCredentialBinding {
             )),
         }
     }
+}
+
+fn derive_protected_record_erasure_authority(
+    authority: &PreparedAuthority,
+    credential: &ProtectedErasureAdminCredentialBinding,
+) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureAuthorityV1> {
+    authority.validate_admission("protected-record erasure authority derivation")?;
+    if authority.source() != InvocationSource::ProtectedRecordErasure {
+        return Err(SnapbackError::error(
+            "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+            "admin",
+            "protected-record erasure requires its registered product invocation source",
+        ));
+    }
+    let (mode, principal_id, audit_class) =
+        match (authority.active_mode(), authority.resolved()) {
+            (AuthMode::Dev, ResolvedAppAuthority::Anonymous) => {
+                ("dev", "operator:local-admin", "anonymous-admin-transport")
+            }
+            (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. }) => {
+                ("sessions", "operator:admin-bypass", "admin-bypass")
+            }
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                    "admin",
+                    "protected-record erasure requires current administrative authority",
+                ));
+            }
+        };
+    let profile = match authority.profile() {
+        ServerProfile::Dev => "dev",
+        ServerProfile::Demo => "demo",
+        ServerProfile::Test => "test",
+        ServerProfile::Prod => "prod",
+    };
+    crate::proof_checkpoint::ProtectedRecordErasureAuthorityV1::from_admitted_facts(
+        mode,
+        principal_id,
+        audit_class,
+        profile,
+        authority.transition_generation(),
+        credential.credential_class(),
+        credential.credential_digest_sha256(),
+        authority
+            .authorization_stream_incarnation()
+            .unwrap_or("dev-no-stream"),
+    )
 }
 
 pub(crate) fn resolve_protected_erasure_admin_credential(
@@ -5635,10 +5683,7 @@ async fn admin_protected_record_erasure(
         // ride an earlier middleware success into this mutation.
         let credential = resolve_protected_erasure_admin_credential(&ctx, &headers, mode)?;
         let internal_authority =
-            crate::proof_checkpoint::ProtectedRecordErasureAuthorityV1::from_prepared(
-                &authority,
-                &credential,
-            )?;
+            derive_protected_record_erasure_authority(&authority, &credential)?;
         let now_ms = now_millis();
         let request = crate::proof_checkpoint::ProtectedRecordErasureRequestV1 {
             operation_id: wire.operation_id,
@@ -6096,7 +6141,90 @@ fn now_millis() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::admission::AdmissionController;
+    use crate::auth::invocation::{InvocationGate, WireAuthorityFields};
     use std::collections::BTreeMap;
+
+    #[test]
+    fn protected_erasure_authority_requires_exact_current_registered_admin_source() {
+        let controller = AdmissionController::new(11, true).expect("dev admission");
+        let prepared = InvocationGate::prepare_admitted_authority(
+            InvocationSource::ProtectedRecordErasure,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            controller.admit().expect("admit protected erasure"),
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+            None,
+        )
+        .expect("prepare registered admin command");
+        let credential =
+            ProtectedErasureAdminCredentialBinding::for_test("master-admin", "admin-a");
+        let carrier = derive_protected_record_erasure_authority(&prepared, &credential)
+            .expect("derive current carrier");
+        assert_eq!(carrier.principal_id(), "operator:local-admin");
+        assert!(carrier.authority_fingerprint().starts_with("sha256:"));
+        assert_eq!(carrier.authority_fingerprint().len(), 71);
+        let different_credential =
+            ProtectedErasureAdminCredentialBinding::for_test("master-admin", "admin-b");
+        let different_carrier =
+            derive_protected_record_erasure_authority(&prepared, &different_credential)
+                .expect("derive other concrete admin credential");
+        assert_ne!(
+            carrier.authority_instance_id(),
+            different_carrier.authority_instance_id(),
+            "two validated credentials cannot exact-replay as one authority instance"
+        );
+        assert_ne!(
+            carrier.authority_fingerprint(),
+            different_carrier.authority_fingerprint()
+        );
+
+        let wrong_source = InvocationGate::prepare_authority(
+            InvocationSource::DirectAdminRunner,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            11,
+            1,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+        )
+        .expect("prepare different admin source");
+        assert_eq!(
+            derive_protected_record_erasure_authority(&wrong_source, &credential)
+                .expect_err("another admin source cannot mint this carrier")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID"
+        );
+
+        assert_eq!(
+            InvocationGate::prepare_authority(
+                InvocationSource::ProtectedRecordErasure,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                11,
+                1,
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::Anonymous,
+            )
+            .expect_err("non-admin sessions authority is refused")
+            .diagnostic
+                .code,
+            "SNAPBACK_INVOCATION_SOURCE_INVALID"
+        );
+
+        controller
+            .begin_transition_for_test(Duration::ZERO)
+            .expect_err("live authority prevents immediate transition drain");
+        assert_eq!(
+            derive_protected_record_erasure_authority(&prepared, &credential)
+                .expect_err("retired admission cannot mint erasure authority")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
 
     #[test]
     fn dev_auth_origins_are_exact_normalized_loopback_origins() {

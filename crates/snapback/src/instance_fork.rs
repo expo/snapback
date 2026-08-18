@@ -12,5 +12,7 @@
 mod service;
 
 pub use service::*;
+pub use snapback_kernel::instance_fork::{inspect_boot, inspect_boot_at};
+pub use snapback_kernel::instance_fork::*;
 pub use snapback_types::instance_fork::contract;
 pub use snapback_types::instance_fork::*;

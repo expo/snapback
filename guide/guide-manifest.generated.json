@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:b76fbdb850b7e144bf9143947cf7f73571c91131499c3bc60c5101621c1733e8"
+    "sourceDigest": "sha256:f87a39d153647916df7cd3c88f0837fd7a41fc9a4ccae98ff3220e5d2c6909eb"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -810,7 +810,7 @@
         "packages/snapback-client/index.mjs",
         "packages/snapback-codegen/ctx.d.mts",
         "crates/snapback/src/auth/invocation.rs",
-        "crates/snapback/src/storage/auth_identity.rs",
+        "crates/snapback-kernel/src/storage/auth_identity.rs",
         "crates/snapback/src/cli.rs",
         "demos/browser-auth/server/gateway.mjs",
         "demos/browser-auth/snapback/schema.mjs",
@@ -825,7 +825,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:f2306d9477abd4af9d9e81a0fd94f5a9f71f3280544cb4626ea2b93c669116f6",
-      "sha256": "30b82970079a30ea313fb3f27ee8c761a3610f65b1196dd1b6c622d963483008",
+      "sha256": "68593618443e2e8bbe12b895584f0c4f51cdf413fa2f25df89e060865204c654",
       "snippets": [
         {
           "lang": "js",
@@ -873,17 +873,17 @@
       "authorities": [
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0057-auth-provider-protocol.spec.md",
-        "crates/snapback/src/auth/logical_transfer.rs",
-        "crates/snapback/src/storage/auth_logical_transfer.rs",
+        "crates/snapback-kernel/src/auth/logical_transfer.rs",
+        "crates/snapback-kernel/src/storage/auth_logical_transfer.rs",
         "crates/snapback/src/cli.rs",
         "schemas/auth.logical-export.v1.schema.json"
       ],
       "examples": [
-        "crates/snapback/src/storage/auth_logical_transfer.rs"
+        "crates/snapback-kernel/src/storage/auth_logical_transfer.rs"
       ],
       "reviewed": "2026-08-11",
       "reviewedAuthoritiesDigest": "sha256:177cfb52b773143139cf8fa071c37532617458dbdf2dded321ac76a74b4d4da8",
-      "sha256": "b7cac8dd73545e55ba836a27abacdb5cee3ed8548a78b5d3ceb30adb64beb31e",
+      "sha256": "21381027bbfe43117704b66e768383afec6a60270d2786b4b5a2b7d4a330a85a",
       "snippets": []
     },
     "auth.native-apps": {
@@ -945,7 +945,7 @@
         "crates/snapback/src/auth/runtime.rs",
         "crates/snapback-types/src/auth/wire.rs",
         "crates/snapback-types/src/contract_types.rs",
-        "crates/snapback/src/storage/auth_identity.rs",
+        "crates/snapback-kernel/src/storage/auth_identity.rs",
         "crates/snapback/src/server.rs",
         "crates/snapback/src/cli.rs",
         "packages/snapback-codegen/define.mjs",
@@ -968,7 +968,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:1d0ef691c71c6e84568069a4adeb495c7139f83d28d71e97180eb21177908ebf",
-      "sha256": "e32fdd8ebbcbde96677cdaf7502c450177cf6d9abf26f9a024491045abef31ac",
+      "sha256": "8bca5ff9eaffe5f12871c98c2d927ed8fe51e9e3f14c66a4a018aeaf03b376e0",
       "snippets": [
         {
           "lang": "js",
@@ -1131,9 +1131,9 @@
         "packages/snapback-codegen/index.mjs",
         "crates/snapback/src/admin.rs",
         "crates/snapback/src/manifest.rs",
-        "crates/snapback/src/membership_rules.rs",
+        "crates/snapback-kernel/src/membership_rules.rs",
         "crates/snapback/src/runtime.rs",
-        "crates/snapback/src/storage.rs",
+        "crates/snapback-kernel/src/storage.rs",
         "demos/rbac/tests/acceptance/rbac.mjs",
         "demos/shindig/snapback/schema.mjs",
         "demos/shindig/snapback/functions.mjs",
@@ -1148,7 +1148,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:c4978542d3184b50789dde574d70e83214609204f5e9767ede6470c5557cbaf7",
-      "sha256": "85449ca2b81d54a63223e9ba7f09eca41e3ce95720d68c77fa5bd2d65a68927b",
+      "sha256": "5567ed9eab34fe8def9c192773d54d135c12cc8367f2ab421a83950d2de0fd88",
       "snippets": [
         {
           "lang": "js",
@@ -1742,7 +1742,7 @@
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-codegen/settlement-bounded-skew.test.mjs",
-        "crates/snapback/src/storage.rs",
+        "crates/snapback-kernel/src/storage.rs",
         "crates/snapback-types/src/value_expr.rs",
         "demos/warble/snapback/functions.mjs",
         "demos/todo/snapback/functions.mjs",
@@ -1755,7 +1755,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:391f5bef508ca9c561097cb2f5de09f3c55ca2953808ca3c93f8ee2eb89361ae",
-      "sha256": "11142f3d6fce45e021c5b0930d17db495de0b55f3e5fc23c8d4705362327cfcb",
+      "sha256": "cbdd37a95457bd0a2cf4f18e41b4c03e6ec646ecce2ac79e085783532f76c7cf",
       "snippets": [
         {
           "lang": "js",
@@ -1857,11 +1857,11 @@
         "crates/snapback/src/server.rs",
         "crates/snapback/src/server/effects.rs",
         "crates/snapback/src/server/oauth.rs",
-        "crates/snapback/src/storage/ask_spend.rs",
-        "crates/snapback/src/storage/pending_effects.rs",
-        "crates/snapback/src/storage/capability_links.rs",
-        "crates/snapback/src/storage/auth_integrations.rs",
-        "crates/snapback/src/storage/auth_agent_credentials.rs",
+        "crates/snapback-kernel/src/storage/ask_spend.rs",
+        "crates/snapback-kernel/src/storage/pending_effects.rs",
+        "crates/snapback-kernel/src/storage/capability_links.rs",
+        "crates/snapback-kernel/src/storage/auth_integrations.rs",
+        "crates/snapback-kernel/src/storage/auth_agent_credentials.rs",
         "crates/snapback/src/auth/invocation.rs",
         "crates/snapback/src/telemetry.rs",
         "crates/snapback/src/telemetry_query.rs"
@@ -1871,7 +1871,7 @@
       ],
       "reviewed": "2026-08-09",
       "reviewedAuthoritiesDigest": "sha256:33436c3acb6ab29a45b16c1b9d986e0037996934e374c91db0a295ece3ed8122",
-      "sha256": "5b21520a4a7a6481cc41e667d75103d0b07fbba634d852faf460ce85781d6766",
+      "sha256": "881747eab01326dfbb375edad703f79f4200e2823ad75093d721bb70f70c4bc8",
       "snippets": [
         {
           "lang": "js",
@@ -2089,7 +2089,7 @@
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-codegen/app-descriptor.mjs",
-        "crates/snapback/src/storage.rs",
+        "crates/snapback-kernel/src/storage.rs",
         "packages/snapback-client/assets.mjs",
         "packages/snapback-client/commands.mjs",
         "packages/snapback-client/react-binding.mjs",
@@ -2110,7 +2110,7 @@
       ],
       "reviewed": "2026-08-16",
       "reviewedAuthoritiesDigest": "sha256:17c83fe601e56488b64e3952744f80e95cc17c899099ba8f0729ea401da5efac",
-      "sha256": "3982fe8bfc294c8d80176708e6fcb4030e85f85e2e9cd5a3f52bee3d19f55e65",
+      "sha256": "30cecc25603e0b361f6730794a63debee080d42bccb12e94cd7be94cee0d06ac",
       "snippets": [
         {
           "lang": "js",
@@ -2169,8 +2169,8 @@
       "authorities": [
         "llp/0081-reviewed-storage-evolution-and-migrations.rfc.md",
         "crates/snapback/src/cli.rs",
-        "crates/snapback/src/migration.rs",
-        "crates/snapback/src/migration_presentation.rs",
+        "crates/snapback-kernel/src/migration.rs",
+        "crates/snapback-kernel/src/migration_presentation.rs",
         "crates/snapback/src/local.rs",
         "crates/snapback/tests/migration_cli_presentation_v1.rs",
         "crates/snapback/tests/migration_corpus_v0.rs"
@@ -2181,7 +2181,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:0845678e9f349bbf1f6872d176f125d4fcd113124dda99a6558eb22917bb249f",
-      "sha256": "e6b12470eb9ca96430541f1a36c44622fafbb02dbd94a1a3be946f879e823f27",
+      "sha256": "14decd90119af637096ddb8c021184d32fed648d6736bd927d669f567f3baeee",
       "snippets": [
         {
           "lang": "json",
@@ -2221,7 +2221,7 @@
         "crates/snapback/src/server.rs",
         "crates/snapback/src/runtime.rs",
         "crates/snapback-types/src/result_contract.rs",
-        "crates/snapback/src/proof_checkpoint.rs",
+        "crates/snapback-kernel/src/proof_checkpoint.rs",
         "schemas/mutation.output.schema.json",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/history-authoring-types.fixture.ts",
@@ -2241,7 +2241,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:57c704b548d0d3feb6bc066747148bcb4c897957e4f96527d921bf35c1889cc2",
-      "sha256": "c041ea007b9bb1c1223e0c7b922bdcaba3f4c6eb93e9664b59c6e29a350cd1ff",
+      "sha256": "05049cc217522ef48ee0ea1c9940435ebdf34f4f0737352ac318427da12f686c",
       "snippets": [
         {
           "lang": "js",
@@ -2331,7 +2331,7 @@
         "schemas/capability.manifest.local-dev-sqlite-ibex.json",
         "crates/snapback/src/manifest.rs",
         "crates/snapback/src/runtime.rs",
-        "crates/snapback/src/storage.rs",
+        "crates/snapback-kernel/src/storage.rs",
         "crates/snapback-types/src/result_contract.rs",
         "crates/snapback/tests/local_v0.rs",
         "demos/signal-desk/snapback/functions.mjs"
@@ -2343,7 +2343,7 @@
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:46147d74a2d26fe478b7826855e02827d9f62f3d34a9ad56ef34fa90d6458bf1",
-      "sha256": "85651d125aef97b359c9c066825405348a311c096445fe403094f916cd073af3",
+      "sha256": "327325c718cd6570e3fc40fdd226978f4cfab4570f7412721e5ee0b83bc98e64",
       "snippets": [
         {
           "lang": "js",
@@ -2429,17 +2429,17 @@
         "llp/0160-ideal-migration-experience.rfc.md",
         "crates/snapback/src/auth/mode.rs",
         "crates/snapback/src/cli.rs",
-        "crates/snapback/src/storage.rs",
+        "crates/snapback-kernel/src/storage.rs",
         "packages/snapback-cli/index.mjs"
       ],
       "examples": [
         "packages/snapback-cli/sessions-dev-loop.test.mjs",
         "crates/snapback/src/cli/tests.rs",
-        "crates/snapback/src/storage/tests.rs"
+        "crates/snapback-kernel/src/storage/tests.rs"
       ],
       "reviewed": "2026-08-15",
       "reviewedAuthoritiesDigest": "sha256:0aa239149530db05c541bcb02491fd9d2f69e8aa558e1b34e8a293ba11aeaa7a",
-      "sha256": "9d5fdeda117dafc49e6cd9488f76facc9b56e86f47c808cb1b64bbdc1ce226e5",
+      "sha256": "7c4f6455815729d264acf0be130a6c07c1aa38ab2e61eb9a65c45c4d45fd7ecd",
       "snippets": []
     },
     "backend.sequences": {
@@ -2462,7 +2462,7 @@
         "crates/snapback/src/local-sequence-allocation-publication.v1.json",
         "crates/snapback/src/manifest.rs",
         "crates/snapback/src/runtime.rs",
-        "crates/snapback/src/storage.rs",
+        "crates/snapback-kernel/src/storage.rs",
         "tests/conformance/sequence-allocation-publication-v1.receipt.json",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/sequence-authoring.test.mjs",
@@ -2475,7 +2475,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedAuthoritiesDigest": "sha256:339769af563c7edf2b98728e26b469c9b33b7635fa8666b193a2ba63e7a578cf",
-      "sha256": "81cf6161055821c5414ad6edfd37fdf0343e72cd6ade101568165852908e553c",
+      "sha256": "30c8770626c73ac52796147e802e171bea11003782dcc8482273a49c6ded02fc",
       "snippets": [
         {
           "lang": "js",
@@ -2668,7 +2668,7 @@
         "llp/0131-structured-argument-contracts.spec.md",
         "llp/0240-application-authority-profiles.rfc.md",
         "crates/snapback-types/src/search/types.rs",
-        "crates/snapback/src/search/sqlite.rs",
+        "crates/snapback-kernel/src/search/sqlite.rs",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs",
@@ -2680,7 +2680,7 @@
       ],
       "reviewed": "2026-08-10",
       "reviewedAuthoritiesDigest": "sha256:5e680f348cb234fc1cc9f17ced62ccdbd88940e0a57db43733e514c47e2e81f9",
-      "sha256": "1c540c53085ae8f7d215304bbd9fc96e70995d3b6d6ce014a976d3ef7c4854ba",
+      "sha256": "7b16e33597cc34d4a64cf43914eaff2873be907cd40fd196326c8509d30bd8ac",
       "snippets": [
         {
           "lang": "js",
@@ -2750,8 +2750,8 @@
       "authorities": [
         "llp/0132-vector-search.spec.md",
         "crates/snapback-types/src/vector/types.rs",
-        "crates/snapback/src/vector/query.rs",
-        "crates/snapback/src/vector/sqlite.rs",
+        "crates/snapback-kernel/src/vector/query.rs",
+        "crates/snapback-kernel/src/vector/sqlite.rs",
         "crates/snapback/src/manifest.rs",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-client/index.mjs"
@@ -2762,7 +2762,7 @@
       ],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:39af92584e57debdcb2baa5c38f3f7b19dac6a588f5fefec6e5ba8d7e77d1dcd",
-      "sha256": "39237701c1de8d841b86d7c25824effcb15e11b028cdfa9cfec927c7b4dfbfef",
+      "sha256": "97fb27eecaaca706e57ba774792a8db42bc88685c4585aeedc81f5286244aba8",
       "snippets": [
         {
           "lang": "js",
@@ -2791,8 +2791,8 @@
       "authorities": [
         "llp/0109-versioned-seed-evolution.spec.md",
         "llp/0056-scoped-roles-and-memberships.rfc.md",
-        "crates/snapback/src/seed_identity.rs",
-        "crates/snapback/src/storage.rs",
+        "crates/snapback-kernel/src/seed_identity.rs",
+        "crates/snapback-kernel/src/storage.rs",
         "crates/snapback/src/server.rs",
         "packages/snapback-codegen/seed-artifact.mjs",
         "packages/snapback-client/index.mjs",
@@ -2805,7 +2805,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedAuthoritiesDigest": "sha256:d7472d809b09c8d3009cae85e794bb85f54db6098441f82a8b50424cf0f2459f",
-      "sha256": "d24f16230d598f13a97e06aeafaeb2643139bc25f7013a2dd82c46d225f4493b",
+      "sha256": "7f3324ce881442607e8ff97524f376091980d84210dbda5c3988fffa57d68371",
       "snippets": []
     },
     "meta.capabilities": {
@@ -2852,7 +2852,7 @@
       "examples": [],
       "reviewed": "2026-08-17",
       "reviewedAuthoritiesDigest": "sha256:7f9585e2924827e7f5057f9a42dfda3b1c15cefeb0c142a6f5c2a2fcaab3db64",
-      "sha256": "ecba871f2bb2d202774294a84610997bab88d9082340941a20446f6b3436f103",
+      "sha256": "e896fed0e40c97b1dd21aa2cf0ab072d74cb1a0cf88555d28bb989e5b669c2cd",
       "snippets": []
     },
     "clients.app-cli": {
@@ -3841,7 +3841,7 @@
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs",
         "crates/snapback-types/src/contract_types.rs",
-        "crates/snapback/src/storage.rs"
+        "crates/snapback-kernel/src/storage.rs"
       ],
       "examples": [
         "demos/todo/snapback",
@@ -3853,7 +3853,7 @@
       ],
       "reviewed": "2026-08-09",
       "reviewedAuthoritiesDigest": "sha256:b3d9adcd8e76825df7794cd4c78f72926c6f0cd6fa43552f8d54d2f82cc125ba",
-      "sha256": "4b0c4120ec6b55a8c9f816430771ef64149c90a735f82c4b9ef26f36b098e334",
+      "sha256": "f1fd65c8ec8cd41676858b7d64c0c99099cafc28cae2491ef54ccee1d8f36160",
       "snippets": [
         {
           "lang": "js",
@@ -4084,7 +4084,7 @@
         "llp/0024-agent-operating-surface.spec.md",
         "llp/0031-server-route-taxonomy.spec.md",
         "llp/0017-admin-console-inspection-surface.rfc.md",
-        "crates/snapback/src/data_patch.rs",
+        "crates/snapback-kernel/src/data_patch.rs",
         "crates/snapback/src/local.rs",
         "crates/snapback/src/server.rs",
         "crates/snapback/src/cli.rs",
@@ -4096,7 +4096,7 @@
       ],
       "reviewed": "2026-08-12",
       "reviewedAuthoritiesDigest": "sha256:a8646ba81d5d0a44332038047afe5eef25aadaf921bbf296e607e8c23eccbf46",
-      "sha256": "b62d77dd549f46eea456ec7d970ae75cc98d3961ebfc9e01fdc34b3b60b9bfc1",
+      "sha256": "6ccf97b9b8c4f7deaacb35a2bf2db13ce1e55c47b893766843a5571c54c2b826",
       "snippets": [
         {
           "lang": "json",
@@ -5292,7 +5292,7 @@
         "llp/0220-recipient-bound-asset-grants.plan.md",
         "llp/0210-asset-upload-dx-closure.rfc.md",
         "llp/0044-asset-storage-pipeline.rfc.md",
-        "crates/snapback/src/storage/asset_grants.rs",
+        "crates/snapback-kernel/src/storage/asset_grants.rs",
         "demos/messaging-snapback/snapback/schema.mjs",
         "demos/messaging-snapback/snapback/functions.mjs",
         "demos/messaging-snapback/tests/acceptance/headless.mjs"
@@ -5302,7 +5302,7 @@
       ],
       "reviewed": "2026-08-10",
       "reviewedAuthoritiesDigest": "sha256:b2f44450f65c94d36f116a994a9586c316339fadc42dc0e20ca51f8c17976f9c",
-      "sha256": "5712172b735ad0113f6ddccf1d98225a2c63744f6a1d7157138df15fa181a6c5",
+      "sha256": "11ce6e3ac644d44553da5a90e0b0d92d6e15bea5ff89038cfefd2fbd6da72919",
       "snippets": [
         {
           "lang": "js",
@@ -5355,7 +5355,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:ca585690b1ca47619fa4b134e886e43f05d37d7e51c6eea6c7d003e888b98f45",
-      "sha256": "592c44c273ddc276cac6ab7ac6e58da9a4e25fc2965b7c7218101ffe09d23773",
+      "sha256": "59188179c73895b255aac46f3f82d677fef2e12fdc3f1fc0051743a2b6ded68b",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -8346,7 +8346,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:1e941a7daecd9e15a2aa849542738725e080a0794966c426fce5c8bf0422abf4",
-      "sha256": "9b12fec3daea3cffef1a9cf6dfcca755a537dbd4ce7059536ac56e933a6aebae",
+      "sha256": "08cc60eeb9a24ef16b1072f0ce9df55b77ae29eeba1180ffd66052f598df7183",
       "snippets": [
         {
           "lang": "ts",
@@ -12223,8 +12223,8 @@
         "demos/zerobugs/control/scripts/load-fixture.mts",
         "demos/zerobugs/control/snapback/functions.mjs",
         "demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs",
-        "crates/snapback/src/seed_identity.rs",
-        "crates/snapback/src/storage.rs"
+        "crates/snapback-kernel/src/seed_identity.rs",
+        "crates/snapback-kernel/src/storage.rs"
       ],
       "examples": [
         "demos/zerobugs/control",
@@ -12232,7 +12232,7 @@
       ],
       "reviewed": "2026-08-07",
       "reviewedAuthoritiesDigest": "sha256:5742dae5187b91cc2e253e1b98308576566793436f851c2b776a78b53ec1c471",
-      "sha256": "308565e0d7c29e82c2253ce280f94e57fdc0529c7fe4d3933c5bbd2e572032c8",
+      "sha256": "ab63da0288f8c002ecf821e29d222456c2f69c00bce09805b236e58233ea7db6",
       "snippets": [
         {
           "lang": "js",
@@ -12307,8 +12307,8 @@
       "path": "guide/reference/registry.json",
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
-      "bytes": 4696616,
-      "sha256": "f78679a0d6ee2a3465c647bb2071f73f084416011e6d50f5746bb98410d5e22a",
+      "bytes": 4693523,
+      "sha256": "c168076df134bd9299e07ee926a1035e87ca5c6885cedcfeb80a5de685ff875c",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -12325,8 +12325,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2525033,
-      "sha256": "c94c9eded81053fd962deda73a2f0e2b063408caa98e7859d02a985d22ce352b",
+      "bytes": 2267537,
+      "sha256": "ab08e99681d627e6c2ba4402e68b830b203b67892a825f08bae4498e56460af0",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12335,9 +12335,9 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:40b14fa026bde73a165b0b2e0bc3caf258fbbb556d2ae9fc719e239d4e51d4b3",
-      "codes": 3427,
-      "emittingSites": 11754
+      "sourceDigest": "sha256:bffb19ea803499aea01cd495014e09a09508a5d82ee7e02847c21da28ba64fa0",
+      "codes": 3358,
+      "emittingSites": 9892
     }
   },
   "capabilities": {
@@ -12473,30 +12473,30 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3550292,
-      "sha256": "80908f522c647f9ff158395e3c84a0219928d4235454155ae586e46c11f3729f"
+      "bytes": 3535636,
+      "sha256": "ec3225d5164779d594036b2d545c24c74a4d3e1bf6cf1bd0d8e81b4b7aa5099a"
     },
     "sections": {
       "meta": {
         "path": "guide/guide-flat.meta.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.meta.generated.md",
         "uri": "snapback-guide://flat/meta",
-        "bytes": 149651,
-        "sha256": "d88b9370d4a0f8ef50b240cd94281c3fd55e28de2fed3b4ec9e711dc645ebf86"
+        "bytes": 149700,
+        "sha256": "aa0a45b3086973a58267b015fc0cddde810849f831dd31c3c227031327074cbf"
       },
       "auth": {
         "path": "guide/guide-flat.auth.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.auth.generated.md",
         "uri": "snapback-guide://flat/auth",
-        "bytes": 165979,
-        "sha256": "27dab5567283a593b167fad634ec429f617fc5cfaa498ea972df295b007e9d00"
+        "bytes": 166028,
+        "sha256": "077509ea8de529794a44a63794681b7b5f3163be7fb3f136ac1ead546133fd57"
       },
       "backend": {
         "path": "guide/guide-flat.backend.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.backend.generated.md",
         "uri": "snapback-guide://flat/backend",
-        "bytes": 361584,
-        "sha256": "3602644d47e283c1db5a78aea97f73f23cc2cca1807d24308a59ae089ba1d165"
+        "bytes": 361717,
+        "sha256": "522c24527744a9fed939ef741e7974b9881f4216f558feabc909618a2a7f743d"
       },
       "clients": {
         "path": "guide/guide-flat.clients.generated.md",
@@ -12516,15 +12516,15 @@
         "path": "guide/guide-flat.getting-started.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.getting-started.generated.md",
         "uri": "snapback-guide://flat/getting-started",
-        "bytes": 63177,
-        "sha256": "43c1f144745b7280c9a26e774f2c6901105f83182d4430da616c6a2c0729f59b"
+        "bytes": 63184,
+        "sha256": "90f9154151c94c838f9c494370d0ef4cd5b32aa9fb87641fed61bee67c9a1d6a"
       },
       "operating": {
         "path": "guide/guide-flat.operating.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.operating.generated.md",
         "uri": "snapback-guide://flat/operating",
-        "bytes": 178386,
-        "sha256": "0894cbf49a326fc730fa14223873ae2c6c4b7fed65e7d3d249a96a8fa082e6b5"
+        "bytes": 178393,
+        "sha256": "0b011f70bec9a68d5b069a28d3e3f93dc89f4e44eb96f669d76901b862c18ef5"
       },
       "protocol": {
         "path": "guide/guide-flat.protocol.generated.md",
@@ -12544,15 +12544,15 @@
         "path": "guide/guide-flat.recipes.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.recipes.generated.md",
         "uri": "snapback-guide://flat/recipes",
-        "bytes": 130724,
-        "sha256": "b2829f12772f9f6f3b3f154da7f21f89276b3016ab8e5f1545028aca7e126081"
+        "bytes": 130731,
+        "sha256": "d2b728779e760a4874519289e25277b749b342eefa842f073152ff6b180f2b35"
       },
       "reference": {
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2022070,
-        "sha256": "b00235c5eaa4cf5aec178ced9ba1f23b72131a4ddab030ee90e0d624c571b380"
+        "bytes": 2007148,
+        "sha256": "3fdc4a957055a95135fd4f942f79047f4f76bdb7a1fd803d117dd3eba493ac48"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -12572,10 +12572,10 @@
         "path": "guide/guide-flat.testing.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.testing.generated.md",
         "uri": "snapback-guide://flat/testing",
-        "bytes": 39501,
-        "sha256": "37c20b8bdb3d840489e15f83dba60e2a4e54d7dac2d52895e1153c76d3196570"
+        "bytes": 39515,
+        "sha256": "0a61933ffcf60a8cd1984718bea523f282907786defdd28d1c0f9aae0fbed360"
       }
     }
   },
-  "contentHash": "b76fbdb850b7e144bf9143947cf7f73571c91131499c3bc60c5101621c1733e8"
+  "contentHash": "f87a39d153647916df7cd3c88f0837fd7a41fc9a4ccae98ff3220e5d2c6909eb"
 }

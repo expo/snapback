@@ -60,7 +60,7 @@ pub mod bench;
 pub mod bench_fixture;
 pub(crate) mod bounded_children_cursor;
 #[doc(hidden)]
-pub mod branches;
+pub use snapback_kernel::branches;
 #[doc(hidden)]
 pub mod bundle;
 #[doc(hidden)]
@@ -71,7 +71,7 @@ pub use snapback_types::commit_envelope;
 pub mod completeness;
 #[doc(hidden)]
 pub mod config;
-pub mod conformance;
+pub use snapback_kernel::conformance;
 pub(crate) mod connected_clients;
 pub(crate) mod contract_exact;
 // @ref LLP 0225#1-ownership-map — owner 1: crate-private generation
@@ -90,9 +90,9 @@ pub mod control_catalog;
 #[doc(hidden)]
 pub mod cron;
 #[doc(hidden)]
-pub mod data_patch;
+pub use snapback_kernel::data_patch;
 #[doc(hidden)]
-pub mod data_tier;
+pub use snapback_kernel::data_tier;
 #[doc(hidden)]
 pub mod deploy;
 #[doc(hidden)]
@@ -108,7 +108,7 @@ pub mod errors_query;
 #[doc(hidden)]
 pub use snapback_types::exec_guard;
 #[doc(hidden)]
-pub mod fork_promotion;
+pub use snapback_kernel::fork_promotion;
 #[doc(hidden)]
 pub mod guide;
 pub(crate) mod guide_mcp;
@@ -124,7 +124,7 @@ pub use snapback_types::identity;
 pub use snapback_types::ids;
 #[doc(hidden)]
 pub mod instance_fork;
-pub(crate) mod instance_lock;
+pub(crate) use snapback_kernel::instance_lock;
 #[doc(hidden)]
 pub mod jobs;
 pub mod live_coalesce;
@@ -132,28 +132,28 @@ pub(crate) mod outbound_policy;
 pub(crate) mod watches;
 pub(crate) mod webhooks;
 
-pub(crate) mod live_matcher;
+pub use snapback_kernel::live_matcher;
 #[doc(hidden)]
 pub use snapback_types::live_wire;
 #[doc(hidden)]
 pub mod local;
 #[doc(hidden)]
 pub mod manifest;
-pub(crate) mod membership_rules;
+pub use snapback_kernel::membership_rules;
 #[doc(hidden)]
-pub mod migration;
+pub use snapback_kernel::migration;
 #[doc(hidden)]
-pub mod migration_presentation;
+pub use snapback_kernel::migration_presentation;
 #[doc(hidden)]
 pub mod network_profile;
-pub(crate) mod operation_detail;
+pub(crate) use snapback_kernel::operation_detail;
 #[doc(hidden)]
-pub mod operation_ledger;
+pub use snapback_kernel::operation_ledger;
 #[doc(hidden)]
 pub mod operational_readiness;
 pub(crate) use snapback_types::owner_only_file;
 #[doc(hidden)]
-pub mod proof_checkpoint;
+pub use snapback_kernel::proof_checkpoint;
 #[doc(hidden)]
 pub mod push;
 pub mod realtime;
@@ -173,10 +173,10 @@ pub mod runtime;
 #[doc(hidden)]
 pub mod schema_export;
 #[doc(hidden)]
-pub mod search;
-pub(crate) mod secure_file;
+pub use snapback_kernel::search;
+pub(crate) use snapback_kernel::secure_file;
 #[doc(hidden)]
-pub mod seed_identity;
+pub use snapback_kernel::seed_identity;
 #[doc(hidden)]
 pub mod server;
 #[doc(hidden)]
@@ -185,7 +185,7 @@ pub(crate) mod snapshot_batch_cursor;
 #[doc(hidden)]
 pub mod snapshot_batch_cursor_v2;
 #[doc(hidden)]
-pub mod storage;
+pub use snapback_kernel::storage;
 #[doc(hidden)]
 pub mod store_state;
 #[doc(hidden)]
@@ -199,7 +199,7 @@ pub mod telemetry_query;
 #[doc(hidden)]
 pub use snapback_types::value_expr;
 #[doc(hidden)]
-pub mod vector;
+pub use snapback_kernel::vector;
 pub(crate) mod warm_vm;
 #[doc(hidden)]
 pub mod wire_fixtures;

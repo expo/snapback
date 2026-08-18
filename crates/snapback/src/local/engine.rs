@@ -2856,6 +2856,9 @@ impl AssetStoreConfig {
 
 pub struct LocalSnapback {
     db: LocalDatabase,
+    /// Process-local service-authority policy lives above the storage kernel;
+    /// the database retains only its commit-interlock port.
+    service_authority_fences: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
     /// Independently host-resolved deployment posture used by every
     /// governance preflight. Generated artifacts and target configs cannot
     /// select or weaken this value.
@@ -16844,7 +16847,9 @@ impl LocalSnapback {
             let _effect =
                 authority.effect_guard("authorization manual retry reservation transaction")?;
             self.db.with_invalidation_retry_episode(&key, |registry| {
-                registry.manual_retry(&key, input.manual_retry_id, now_millis())
+                registry
+                    .manual_retry(&key, input.manual_retry_id, now_millis())
+                    .map_err(Into::into)
             })?
         };
         let episode = match reservation {
@@ -21427,6 +21432,11 @@ impl LocalSnapback {
         telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
         asset_store_config: AssetStoreConfig,
     ) -> SnapbackResult<Self> {
+        let service_authority_fences =
+            crate::auth::service_fence::ServiceAuthorityFenceRegistry::default();
+        db.install_service_authority_commit_interlock(std::sync::Arc::new(
+            service_authority_fences.clone(),
+        ));
         // LocalSnapback is the auth-capable embedding boundary. Complete the
         // explicit stream migration here, before the instance can disappear
         // behind a managed server mutex; managed authorization writes may then
@@ -21552,6 +21562,7 @@ impl LocalSnapback {
             std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
             db,
+            service_authority_fences,
             // @ref LLP 0234#d4--production-authority-expires-fixtures-cannot-become-production
             // — an unbound in-crate graph must refuse the repository-local
             // dev provider until a host-owned startup seam binds otherwise.
@@ -21638,6 +21649,12 @@ impl LocalSnapback {
         &self,
     ) -> crate::connected_clients::ConnectedClientRegistry {
         self.connected_clients.clone()
+    }
+
+    pub(crate) fn service_authority_fence_registry(
+        &self,
+    ) -> crate::auth::service_fence::ServiceAuthorityFenceRegistry {
+        self.service_authority_fences.clone()
     }
 
     pub(crate) fn function(
@@ -24247,7 +24264,7 @@ impl LocalSnapback {
                         witness_floor.clone(),
                         now,
                         RetryReservationKind::Initial,
-                    )
+                    ).map_err(Into::into)
                 })
             },
         );
@@ -24265,7 +24282,7 @@ impl LocalSnapback {
                                 witness_floor.clone(),
                                 now_millis(),
                                 RetryReservationKind::Automatic,
-                            )
+                            ).map_err(Into::into)
                         })
                     },
                 ) {
@@ -24341,7 +24358,9 @@ impl LocalSnapback {
                         Some(episode.episode_id.clone()),
                         |database| {
                             database.with_invalidation_retry_episode(&key, |registry| {
-                                registry.record_failure(&key, now_millis())
+                                registry
+                                    .record_failure(&key, now_millis())
+                                    .map_err(Into::into)
                             })
                         },
                     );
@@ -24357,7 +24376,7 @@ impl LocalSnapback {
                                     witness_floor.clone(),
                                     now_millis(),
                                     RetryReservationKind::Automatic,
-                                )
+                                ).map_err(Into::into)
                             })
                         },
                     );

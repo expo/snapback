@@ -4,7 +4,7 @@ id: backend.migrations
 order: 30
 audience: agent-first
 capabilities: [backend.migrations]
-authorities: [llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, crates/snapback/src/cli.rs, crates/snapback/src/migration.rs, crates/snapback/src/migration_presentation.rs, crates/snapback/src/local.rs, crates/snapback/tests/migration_cli_presentation_v1.rs, crates/snapback/tests/migration_corpus_v0.rs]
+authorities: [llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, crates/snapback/src/cli.rs, crates/snapback-kernel/src/migration.rs, crates/snapback-kernel/src/migration_presentation.rs, crates/snapback/src/local.rs, crates/snapback/tests/migration_cli_presentation_v1.rs, crates/snapback/tests/migration_corpus_v0.rs]
 examples: [crates/snapback/tests/migration_cli_presentation_v1.rs, crates/snapback/tests/migration_corpus_v0.rs]
 status: current
 targets: [local]

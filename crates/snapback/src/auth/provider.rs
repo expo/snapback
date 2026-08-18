@@ -114,14 +114,12 @@ impl AuthGcPass {
     }
 }
 
-impl From<AuthProviderProfile> for AuthBudgetDeploymentProfile {
-    fn from(profile: AuthProviderProfile) -> Self {
-        match profile {
-            AuthProviderProfile::Dev => Self::Dev,
-            AuthProviderProfile::Test => Self::Test,
-            AuthProviderProfile::Demo => Self::Demo,
-            AuthProviderProfile::Prod => Self::Prod,
-        }
+fn auth_budget_deployment_profile(profile: AuthProviderProfile) -> AuthBudgetDeploymentProfile {
+    match profile {
+        AuthProviderProfile::Dev => AuthBudgetDeploymentProfile::Dev,
+        AuthProviderProfile::Test => AuthBudgetDeploymentProfile::Test,
+        AuthProviderProfile::Demo => AuthBudgetDeploymentProfile::Demo,
+        AuthProviderProfile::Prod => AuthBudgetDeploymentProfile::Prod,
     }
 }
 
@@ -1324,7 +1322,7 @@ impl AuthProvider {
         // evidence has a sealed derivation seam in the budget layer, but this
         // migration intentionally applies one finite term table to every tier.
         let budgets = ResolvedCompatibilityAuthBudgetPolicy::resolve(
-            profile.into(),
+            auth_budget_deployment_profile(profile),
             derive_auth_trust_tier(ServerVerifiedAuthTrustEvidence::Anonymous),
         );
         let mailbox = CaptureMailbox::new_with_clock_and_capacity(

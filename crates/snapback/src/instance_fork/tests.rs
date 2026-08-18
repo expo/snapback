@@ -1,4 +1,5 @@
 use super::*;
+use snapback_kernel::instance_fork::DerivedForkRuntimeExt as _;
 
 #[test]
 fn json_publication_hides_the_final_path_until_synced_temp_is_complete() {

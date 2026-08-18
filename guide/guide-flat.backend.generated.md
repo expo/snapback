@@ -9,7 +9,7 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics, backend.batch-reads]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/n-plus-one-advisory.mjs, packages/snapback-codegen/n-plus-one-advisory.test.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/authoring-validation.test.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-harness/envelope.test.mjs, schemas/capability.manifest.local-dev-sqlite-ibex.json, crates/snapback/src/manifest.rs, crates/snapback/src/runtime.rs, crates/snapback/src/storage.rs, crates/snapback-types/src/result_contract.rs, crates/snapback/tests/local_v0.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, llp/0245-infer-show-freeze-declarations.rfc.md, llp/0248-bounded-batch-reads.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/n-plus-one-advisory.mjs, packages/snapback-codegen/n-plus-one-advisory.test.mjs, packages/snapback-codegen/result-contracts.mjs, packages/snapback-codegen/ctx.d.mts, packages/snapback-codegen/authoring-validation.test.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-harness/envelope.test.mjs, schemas/capability.manifest.local-dev-sqlite-ibex.json, crates/snapback/src/manifest.rs, crates/snapback/src/runtime.rs, crates/snapback-kernel/src/storage.rs, crates/snapback-types/src/result_contract.rs, crates/snapback/tests/local_v0.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
@@ -443,7 +443,7 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics, backend.record-history, backend.mutation-settlement-identity]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback/src/server.rs, crates/snapback/src/runtime.rs, crates/snapback-types/src/result_contract.rs, crates/snapback/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0043-offline-replay-retention.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, llp/0162-agent-safe-storage-profile.rfc.md, llp/0174-authoring-incidents-at-security-fences.research.md, llp/0231-entity-and-permissioning-recommendation.rfc.md, crates/snapback/src/server.rs, crates/snapback/src/runtime.rs, crates/snapback-types/src/result_contract.rs, crates/snapback-kernel/src/proof_checkpoint.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/history-authoring-types.fixture.ts, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/refusal-tracking-authoring.test.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs, tests/conformance/twin-corpus.handlers.js, demos/messaging-snapback/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/messaging-snapback, demos/signal-desk]
 status: current
 targets: [local]
@@ -1319,7 +1319,7 @@ id: backend.declarative-plans
 order: 3
 audience: agent-first
 capabilities: [backend.functions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0051-language-neutral-data-tier.rfc.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/settlement-bounded-skew.test.mjs, crates/snapback/src/storage.rs, crates/snapback-types/src/value_expr.rs, demos/warble/snapback/functions.mjs, demos/todo/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0051-language-neutral-data-tier.rfc.md, llp/0133-local-settlement.spec.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0144-declared-app-refusal-codes.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/settlement-bounded-skew.test.mjs, crates/snapback-kernel/src/storage.rs, crates/snapback-types/src/value_expr.rs, demos/warble/snapback/functions.mjs, demos/todo/snapback/functions.mjs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/warble, demos/todo, demos/signal-desk]
 status: current
 targets: [local]
@@ -2707,7 +2707,7 @@ id: backend.versioned-seed
 order: 8
 audience: agent-first
 capabilities: [backend.versioned-seed]
-authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0056-scoped-roles-and-memberships.rfc.md, crates/snapback/src/seed_identity.rs, crates/snapback/src/storage.rs, crates/snapback/src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0056-scoped-roles-and-memberships.rfc.md, crates/snapback-kernel/src/seed_identity.rs, crates/snapback-kernel/src/storage.rs, crates/snapback/src/server.rs, packages/snapback-codegen/seed-artifact.mjs, packages/snapback-client/index.mjs, packages/snapback-cli/index.mjs, packages/snapback-vite/lifecycle.mjs, tests/conformance/versioned-seed-v1.manifest.json]
 examples: [demos/party-wall]
 status: current
 targets: [local]
@@ -4122,7 +4122,7 @@ id: backend.media-happy-paths
 order: 10
 audience: agent-first
 capabilities: [assets.media-field.v1, assets.media-collection.v1, assets.media-command.v1]
-authorities: [llp/0239-asset-collections-and-media-field.rfc.md, llp/0244-media-ref-projection.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/app-descriptor.mjs, crates/snapback/src/storage.rs, packages/snapback-client/assets.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/implementation.mjs]
+authorities: [llp/0239-asset-collections-and-media-field.rfc.md, llp/0244-media-ref-projection.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0210-asset-upload-dx-closure.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-codegen/app-descriptor.mjs, crates/snapback-kernel/src/storage.rs, packages/snapback-client/assets.mjs, packages/snapback-client/commands.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-react/implementation.mjs]
 examples: [tests/acceptance/fixtures/media-profile/snapback/schema.mjs, tests/acceptance/fixtures/media-profile/snapback/functions.mjs, packages/snapback-codegen/media-field-authoring.test.mjs, packages/snapback-codegen/media-collection-authoring.test.mjs, packages/snapback-codegen/media-command-authoring.test.mjs, packages/snapback-client/assets.test.mjs, packages/snapback-client/commands.test.mjs, packages/snapback-react/assets.test.mjs, packages/snapback-react/commands.test.mjs, packages/snapback-react/asset-upload-types.fixture.ts, packages/snapback-react/media-collection-types.fixture.ts]
 status: current
 targets: [local]
@@ -4438,7 +4438,7 @@ id: backend.external-api
 order: 19
 audience: agent-first
 capabilities: [api.external-exposure]
-authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback/src/manifest.rs, crates/snapback-types/src/api_envelope.rs, crates/snapback/src/ask.rs, crates/snapback/src/server.rs, crates/snapback/src/server/effects.rs, crates/snapback/src/server/oauth.rs, crates/snapback/src/storage/ask_spend.rs, crates/snapback/src/storage/pending_effects.rs, crates/snapback/src/storage/capability_links.rs, crates/snapback/src/storage/auth_integrations.rs, crates/snapback/src/storage/auth_agent_credentials.rs, crates/snapback/src/auth/invocation.rs, crates/snapback/src/telemetry.rs, crates/snapback/src/telemetry_query.rs]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback/src/manifest.rs, crates/snapback-types/src/api_envelope.rs, crates/snapback/src/ask.rs, crates/snapback/src/server.rs, crates/snapback/src/server/effects.rs, crates/snapback/src/server/oauth.rs, crates/snapback-kernel/src/storage/ask_spend.rs, crates/snapback-kernel/src/storage/pending_effects.rs, crates/snapback-kernel/src/storage/capability_links.rs, crates/snapback-kernel/src/storage/auth_integrations.rs, crates/snapback-kernel/src/storage/auth_agent_credentials.rs, crates/snapback/src/auth/invocation.rs, crates/snapback/src/telemetry.rs, crates/snapback/src/telemetry_query.rs]
 examples: [packages/snapback-codegen/auth-artifacts.test.mjs]
 status: current
 targets: [local]
@@ -5804,7 +5804,7 @@ id: backend.text-search
 order: 27
 audience: agent-first
 capabilities: [backend.text-search, authority.profile.v1]
-authorities: [llp/0073-portable-full-text-search.rfc.md, llp/0131-structured-argument-contracts.spec.md, llp/0240-application-authority-profiles.rfc.md, crates/snapback-types/src/search/types.rs, crates/snapback/src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-client/search.mjs]
+authorities: [llp/0073-portable-full-text-search.rfc.md, llp/0131-structured-argument-contracts.spec.md, llp/0240-application-authority-profiles.rfc.md, crates/snapback-types/src/search/types.rs, crates/snapback-kernel/src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-client/search.mjs]
 examples: [demos/rbac, demos/signal-desk]
 status: current
 targets: [local]
@@ -6012,7 +6012,7 @@ id: backend.sequences
 order: 28
 audience: agent-first
 capabilities: [backend.sequences]
-authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, crates/snapback/src/local-sequence-allocation-publication.v1.json, crates/snapback/src/manifest.rs, crates/snapback/src/runtime.rs, crates/snapback/src/storage.rs, tests/conformance/sequence-allocation-publication-v1.receipt.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-contract/derived-overlay.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
+authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, crates/snapback/src/local-sequence-allocation-publication.v1.json, crates/snapback/src/manifest.rs, crates/snapback/src/runtime.rs, crates/snapback-kernel/src/storage.rs, tests/conformance/sequence-allocation-publication-v1.receipt.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-contract/derived-overlay.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
 examples: [demos/improvement-sweep/arms/a6-snapback-web/evidence/app]
 status: current
 targets: [local]
@@ -6113,8 +6113,8 @@ id: backend.schema-evolution
 order: 29
 audience: agent-first
 capabilities: [backend.schema-evolution]
-authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, crates/snapback/src/auth/mode.rs, crates/snapback/src/cli.rs, crates/snapback/src/storage.rs, packages/snapback-cli/index.mjs]
-examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, crates/snapback/src/cli/tests.rs, crates/snapback/src/storage/tests.rs]
+authorities: [llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, llp/0160-ideal-migration-experience.rfc.md, crates/snapback/src/auth/mode.rs, crates/snapback/src/cli.rs, crates/snapback-kernel/src/storage.rs, packages/snapback-cli/index.mjs]
+examples: [packages/snapback-cli/sessions-dev-loop.test.mjs, crates/snapback/src/cli/tests.rs, crates/snapback-kernel/src/storage/tests.rs]
 status: current
 targets: [local]
 maturity: shipped
@@ -6272,7 +6272,7 @@ id: backend.vector-search
 order: 29
 audience: agent-first
 capabilities: [backend.vector-search]
-authorities: [llp/0132-vector-search.spec.md, crates/snapback-types/src/vector/types.rs, crates/snapback/src/vector/query.rs, crates/snapback/src/vector/sqlite.rs, crates/snapback/src/manifest.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0132-vector-search.spec.md, crates/snapback-types/src/vector/types.rs, crates/snapback-kernel/src/vector/query.rs, crates/snapback-kernel/src/vector/sqlite.rs, crates/snapback/src/manifest.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs]
 examples: [packages/snapback-codegen/vector-authoring.test.mjs, packages/snapback-client/package.test.mjs]
 status: current
 targets: [local]
@@ -6420,7 +6420,7 @@ id: backend.migrations
 order: 30
 audience: agent-first
 capabilities: [backend.migrations]
-authorities: [llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, crates/snapback/src/cli.rs, crates/snapback/src/migration.rs, crates/snapback/src/migration_presentation.rs, crates/snapback/src/local.rs, crates/snapback/tests/migration_cli_presentation_v1.rs, crates/snapback/tests/migration_corpus_v0.rs]
+authorities: [llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, crates/snapback/src/cli.rs, crates/snapback-kernel/src/migration.rs, crates/snapback-kernel/src/migration_presentation.rs, crates/snapback/src/local.rs, crates/snapback/tests/migration_cli_presentation_v1.rs, crates/snapback/tests/migration_corpus_v0.rs]
 examples: [crates/snapback/tests/migration_cli_presentation_v1.rs, crates/snapback/tests/migration_corpus_v0.rs]
 status: current
 targets: [local]

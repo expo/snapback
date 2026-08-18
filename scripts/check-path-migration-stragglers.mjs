@@ -48,6 +48,7 @@ const EXTRACTED_WORKSPACE_MEMBERS = [
 // lockstep with completed carves while the broader path-migration epoch stays
 // at Phase 1 until the auxiliary tools move completes the Phase 2 shape.
 const PHASE_2_CARVED_WORKSPACE_MEMBERS = new Set([
+  'crates/snapback-kernel',
   'crates/snapback-types',
 ]);
 

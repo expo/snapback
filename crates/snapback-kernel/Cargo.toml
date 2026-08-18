@@ -1,0 +1,59 @@
+[package]
+name = "snapback-kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "snapback_kernel"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Remainder unit tests retain their existing kernel fixture seams after the
+# crate boundary. Production dependencies never enable this feature.
+test-support = []
+
+[dependencies]
+anyhow = "1.0"
+argon2 = "0.6.0-rc.8"
+base64 = "0.22"
+bcrypt = "0.19.3"
+chacha20poly1305 = "0.10"
+getrandom = "0.3"
+hkdf = "0.12"
+hmac = "0.12"
+http = "1"
+libc = "0.2"
+rusqlite = { version = "0.31", features = ["backup", "bundled", "column_decltype", "functions", "hooks", "limits", "serialize"] }
+ring = "0.17"
+ryu-js = "1.0.2"
+schemars = "1.2.1"
+scrypt = { version = "0.12.0", features = ["phc"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_path_to_error = "0.1"
+sha2 = "0.10"
+snapback-types = { path = "../snapback-types" }
+subtle = "2"
+tempfile = "3.23"
+unicode-normalization = "0.1"
+unicode-segmentation = "1.12"
+uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
+zeroize = "1.8"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61.2", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+jsonschema = { version = "0.46.8", default-features = false, features = ["resolve-file"] }
+
+[lints]
+workspace = true

@@ -589,7 +589,7 @@ id: auth.app-identity-binding
 order: 2
 audience: agent-first
 capabilities: [auth.sessions, auth.external-identity-broker]
-authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0183-zerobugs-quality-surface.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0226-identity-architecture.decision.md, packages/snapback-client/index.mjs, packages/snapback-codegen/ctx.d.mts, crates/snapback/src/auth/invocation.rs, crates/snapback/src/storage/auth_identity.rs, crates/snapback/src/cli.rs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
+authorities: [llp/0039-auth-vertical-slice.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, llp/0151-first-party-identity-integrations.rfc.md, llp/0183-zerobugs-quality-surface.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0226-identity-architecture.decision.md, packages/snapback-client/index.mjs, packages/snapback-codegen/ctx.d.mts, crates/snapback/src/auth/invocation.rs, crates/snapback-kernel/src/storage/auth_identity.rs, crates/snapback/src/cli.rs, demos/browser-auth/server/gateway.mjs, demos/browser-auth/snapback/schema.mjs, demos/browser-auth/snapback/functions.mjs, demos/browser-auth/tests/acceptance/browser-auth.mjs, demos/zerobugs/control/snapback/schema.mjs, demos/zerobugs/control/snapback/functions.mjs]
 examples: [demos/browser-auth, demos/zerobugs/control]
 status: current
 targets: [local]
@@ -965,7 +965,7 @@ id: auth.passwords
 order: 2
 audience: agent-first
 capabilities: [auth.passwords, auth.sessions, auth.browser-session-custody, auth.application-bootstrap-native-custody]
-authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback/src/auth/provider.rs, crates/snapback/src/auth/runtime.rs, crates/snapback-types/src/auth/wire.rs, crates/snapback-types/src/contract_types.rs, crates/snapback/src/storage/auth_identity.rs, crates/snapback/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-admin-client/index.mjs]
+authorities: [llp/0227-password-credential-auth.rfc.md, llp/0214-snapback-identity-core.spec.md, llp/0215-effect-budgets.spec.md, llp/0011-auth-and-permissions.rfc.md, llp/0057-auth-provider-protocol.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0238-explicit-client-lifecycles.rfc.md, llp/0258-first-party-application-auth-bootstrap.rfc.md, crates/snapback/src/auth/provider.rs, crates/snapback/src/auth/runtime.rs, crates/snapback-types/src/auth/wire.rs, crates/snapback-types/src/contract_types.rs, crates/snapback-kernel/src/storage/auth_identity.rs, crates/snapback/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/app-client.mjs, packages/snapback-client/app-client.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/password-auth.test.mjs, packages/snapback-react/auth-bootstrap.test.mjs, packages/snapback-react/index.mjs, packages/snapback-expo/provider-auth-bootstrap.test.mjs, packages/snapback-expo/provider.mjs, packages/snapback-admin-client/index.mjs]
 examples: [packages/snapback-cli/templates/react, packages/snapback-cli/templates/expo-chat, tests/fixtures/application-auth/browser-explicit/application, demos/browser-auth]
 status: current
 targets: [local]
@@ -2073,7 +2073,7 @@ id: auth.scoped-roles
 order: 5
 audience: agent-first
 capabilities: [auth.scoped-roles, authority.profile.v1, authority.custom.coarse-global, authority.inspection.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback/src/admin.rs, crates/snapback/src/manifest.rs, crates/snapback/src/membership_rules.rs, crates/snapback/src/runtime.rs, crates/snapback/src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, crates/snapback/tests/membership_principal_addressed_v0.rs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback/src/admin.rs, crates/snapback/src/manifest.rs, crates/snapback-kernel/src/membership_rules.rs, crates/snapback/src/runtime.rs, crates/snapback-kernel/src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, crates/snapback/tests/membership_principal_addressed_v0.rs]
 examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen/custom-authorization.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
@@ -3030,8 +3030,8 @@ id: auth.logical-transfer
 order: 7
 audience: agent-first
 capabilities: [auth.logical-transfer]
-authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0057-auth-provider-protocol.spec.md, crates/snapback/src/auth/logical_transfer.rs, crates/snapback/src/storage/auth_logical_transfer.rs, crates/snapback/src/cli.rs, schemas/auth.logical-export.v1.schema.json]
-examples: [crates/snapback/src/storage/auth_logical_transfer.rs]
+authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0057-auth-provider-protocol.spec.md, crates/snapback-kernel/src/auth/logical_transfer.rs, crates/snapback-kernel/src/storage/auth_logical_transfer.rs, crates/snapback/src/cli.rs, schemas/auth.logical-export.v1.schema.json]
+examples: [crates/snapback-kernel/src/storage/auth_logical_transfer.rs]
 status: current
 targets: [local]
 maturity: partial

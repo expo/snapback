@@ -23,6 +23,10 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 use tokio::sync::Notify;
 
+pub(crate) use snapback_kernel::auth::service_fence::{
+    PreparedServiceAuthorityTerminal, ServiceAuthorityCommitInterlock,
+};
+
 const MAX_IN_FLIGHT_SERVICE_AUTHORITY_WORK: usize = 4_096;
 
 thread_local! {
@@ -554,20 +558,6 @@ impl ServiceAuthorityPublication {
     ) -> SnapbackResult<ServiceAuthorityExternalEffectPermit> {
         self.begin_authority_work(now_ms, monotonic_now)
     }
-}
-
-pub(crate) trait PreparedServiceAuthorityTerminal: Send {
-    fn committed(self: Box<Self>) -> SnapbackResult<()>;
-    fn rolled_back(self: Box<Self>);
-    fn mark_ambiguous(&mut self);
-}
-
-pub(crate) trait ServiceAuthorityCommitInterlock: Send + Sync {
-    fn prepare_terminal(
-        &self,
-        token_ids: &[String],
-        disposition: ServiceAuthorityDisposition,
-    ) -> SnapbackResult<Box<dyn PreparedServiceAuthorityTerminal>>;
 }
 
 #[derive(Default)]

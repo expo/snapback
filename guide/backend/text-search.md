@@ -4,7 +4,7 @@ id: backend.text-search
 order: 27
 audience: agent-first
 capabilities: [backend.text-search, authority.profile.v1]
-authorities: [llp/0073-portable-full-text-search.rfc.md, llp/0131-structured-argument-contracts.spec.md, llp/0240-application-authority-profiles.rfc.md, crates/snapback-types/src/search/types.rs, crates/snapback/src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-client/search.mjs]
+authorities: [llp/0073-portable-full-text-search.rfc.md, llp/0131-structured-argument-contracts.spec.md, llp/0240-application-authority-profiles.rfc.md, crates/snapback-types/src/search/types.rs, crates/snapback-kernel/src/search/sqlite.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-client/search.mjs]
 examples: [demos/rbac, demos/signal-desk]
 status: current
 targets: [local]

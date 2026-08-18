@@ -41,12 +41,14 @@ pub use crate::vector::types::{
 };
 
 mod capability_registry;
+mod identity;
 mod types;
 mod vector;
 
 pub use types::*;
 pub use vector::*;
 pub use capability_registry::*;
+pub use identity::*;
 
 #[doc(hidden)]
 pub fn capability_manifest_kind() -> String {

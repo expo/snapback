@@ -16,6 +16,8 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use zeroize::Zeroize as _;
 
+pub(crate) use snapback_kernel::auth::deployment::HostedAuthenticationThrottle;
+
 pub use snapback_types::auth::deployment::*;
 
 pub fn parse_auth_deployment_target(value: &str) -> Result<AuthDeploymentTarget, String> {
@@ -763,26 +765,6 @@ impl HostedServingAuthority {
             ));
         }
         Ok(format!("{}{}", self.public_origin, path))
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct HostedAuthenticationThrottle {
-    pub(crate) limiter_epoch: u64,
-    pub(crate) deployment_id: String,
-    pub(crate) config: SharedAuthenticationThrottleConfig,
-    pub(crate) key: Arc<AuthenticationThrottleKey>,
-}
-
-impl fmt::Debug for HostedAuthenticationThrottle {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("HostedAuthenticationThrottle")
-            .field("limiter_epoch", &self.limiter_epoch)
-            .field("deployment_id", &self.deployment_id)
-            .field("config", &self.config)
-            .field("key", &"[REDACTED]")
-            .finish()
     }
 }
 

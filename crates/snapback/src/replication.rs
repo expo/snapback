@@ -34,7 +34,9 @@ use uuid::Uuid;
 use crate::auth::keyring::{AUTH_KEYRING_MAXIMUM_BYTES, AuthKeyringStore};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
-pub const ENV_TARGET: &str = "SNAPBACK_REPLICATION_TARGET";
+pub use snapback_kernel::replication::{
+    ENV_TARGET, configure_connection_wal_lifetime, configured_from_env,
+};
 pub const ENV_KEY_FILE: &str = "SNAPBACK_REPLICATION_KEY_FILE";
 pub const ENV_ENDPOINT: &str = "SNAPBACK_REPLICATION_ENDPOINT";
 pub const ENV_REGION: &str = "SNAPBACK_REPLICATION_REGION";
@@ -103,27 +105,6 @@ fn join_key(prefix: &str, suffix: &str) -> String {
         (prefix, "") => prefix.to_owned(),
         (prefix, suffix) => format!("{prefix}/{suffix}"),
     }
-}
-
-pub fn configured_from_env() -> bool {
-    std::env::var(ENV_TARGET)
-        .ok()
-        .is_some_and(|value| !value.trim().is_empty())
-}
-
-/// Prevents a Snapback-owned connection from performing SQLite's close-time
-/// WAL checkpoint/removal while the LTX runtime owns the journal lifecycle.
-/// Every connection that can touch the replicated database must opt in because
-/// SQLITE_FCNTL_PERSIST_WAL is connection-local in SQLite's VFS.
-// @ref LLP 0188#2-integration-point-the-whole-instance-database — one LTX
-// owner governs the whole instance WAL, including connection close behavior.
-pub(crate) fn configure_connection_wal_lifetime(conn: &Connection) -> SnapbackResult<()> {
-    celld_ltx::db::set_persist_wal(conn).map_err(|error| {
-        replication_error(
-            "SNAPBACK_REPLICATION_DATABASE_UNAVAILABLE",
-            format!("configure persistent WAL on Snapback connection: {error}"),
-        )
-    })
 }
 
 #[derive(Clone, Debug)]

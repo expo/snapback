@@ -39,13 +39,11 @@ pub use crate::vector::types::{
 // @ref LLP 0276#the-target-layout — owner-aligned manifest modules retain
 // the legacy manifest surface through parent re-exports.
 mod capabilities;
-mod identity;
 mod push_assets;
 #[cfg(test)]
 mod types_remainder_tests;
 
 pub use capabilities::*;
-pub(crate) use identity::*;
 #[allow(unused_imports)]
 pub use push_assets::*;
 pub use snapback_types::manifest::*;

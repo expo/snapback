@@ -9,6 +9,10 @@
 //! @ref LLP 0059#two-phase-mutation-protocol — unique tickets, rather than a
 //! saved session snapshot, own every reversible pre-commit marker.
 
+pub(crate) use snapback_kernel::auth::session_projection::{
+    AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamRecord, ProjectionIdentityRow,
+    ProjectionSessionRow, ProjectionSource, ProjectionTokenRow, ProjectionUserRow,
+};
 use crate::contract_types::{
     AuthorizationStreamIncarnation, RevocationReason, SessionTerminalCauseRecord, TokenDigest,
 };
@@ -25,9 +29,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::Notify;
 use uuid::Uuid;
 
-pub(crate) const AUTHORIZATION_STREAM_FORMAT_VERSION: u32 = 1;
 pub(crate) const SESSION_PROJECTION_FORMAT_VERSION: u32 = 1;
-pub(crate) const AUTHORIZATION_STREAM_META_KEY: &str = "auth_stream_incarnation_v1";
 const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
 pub(crate) const TERMINAL_CLOSE_GRACE: Duration = Duration::from_millis(5_000);
@@ -121,121 +123,6 @@ pub(crate) fn ranked_mutex_lock_unpoisoned<T>(
         guard,
         _rank: rank_guard,
     }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct AuthorizationStreamRecord {
-    format_version: u32,
-    incarnation: String,
-}
-
-impl AuthorizationStreamRecord {
-    pub(crate) fn new(incarnation: AuthorizationStreamIncarnation) -> Self {
-        Self {
-            format_version: AUTHORIZATION_STREAM_FORMAT_VERSION,
-            incarnation: incarnation.0,
-        }
-    }
-
-    /// Parse the closed record and require byte-for-byte canonical encoding.
-    /// This rejects whitespace, reordered fields, duplicate fields, unknown
-    /// fields, non-UTF-8 input, and non-canonical UUID spellings alike.
-    pub(crate) fn parse_exact(bytes: &[u8]) -> SnapbackResult<Self> {
-        let record: Self = serde_json::from_slice(bytes).map_err(|_| {
-            stream_corrupt("authorization-stream metadata is not a closed format-1 record")
-        })?;
-        record.validate()?;
-        let canonical = record.encode_bytes()?;
-        if canonical != bytes {
-            return Err(stream_corrupt(
-                "authorization-stream metadata is not canonically encoded",
-            ));
-        }
-        Ok(record)
-    }
-
-    pub(crate) fn encode_bytes(&self) -> SnapbackResult<Vec<u8>> {
-        self.validate()?;
-        serde_json::to_vec(self)
-            .map_err(|_| stream_corrupt("authorization-stream metadata could not be encoded"))
-    }
-
-    pub(crate) fn encode_string(&self) -> SnapbackResult<String> {
-        String::from_utf8(self.encode_bytes()?)
-            .map_err(|_| stream_corrupt("authorization-stream metadata could not be encoded"))
-    }
-
-    pub(crate) fn incarnation(&self) -> AuthorizationStreamIncarnation {
-        AuthorizationStreamIncarnation(self.incarnation.clone())
-    }
-
-    fn validate(&self) -> SnapbackResult<()> {
-        if self.format_version != AUTHORIZATION_STREAM_FORMAT_VERSION {
-            return Err(stream_corrupt(
-                "authorization-stream metadata has an unsupported format",
-            ));
-        }
-        AuthorizationStreamIncarnation::parse(&self.incarnation)?;
-        Ok(())
-    }
-}
-
-/// Raw rows copied from one SQLite read transaction. Numeric fields remain
-/// signed and digests remain variable-length until detached validation so a
-/// malformed database cannot be normalized accidentally while reading it.
-#[derive(Clone, Eq, PartialEq)]
-pub(crate) struct ProjectionSource {
-    pub authorization_stream_value: Vec<u8>,
-    pub restore_declaration_id: Option<Vec<u8>>,
-    pub users: Vec<ProjectionUserRow>,
-    pub identities: Vec<ProjectionIdentityRow>,
-    pub sessions: Vec<ProjectionSessionRow>,
-    pub superseded_tokens: Vec<ProjectionTokenRow>,
-}
-
-impl fmt::Debug for ProjectionSource {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("ProjectionSource([REDACTED])")
-    }
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub(crate) struct ProjectionUserRow {
-    pub id: String,
-    pub created_at_ms: i64,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub(crate) struct ProjectionIdentityRow {
-    pub id: String,
-    pub user_id: String,
-    pub provider: String,
-    pub verified_at_ms: i64,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub(crate) struct ProjectionSessionRow {
-    pub id: String,
-    pub user_id: String,
-    pub identity_id: String,
-    pub authority_instance_id: String,
-    pub token_hash: Vec<u8>,
-    pub generation: i64,
-    pub created_at_ms: i64,
-    pub last_used_at_ms: i64,
-    pub expires_at_ms: i64,
-    pub absolute_expires_at_ms: i64,
-    pub revoked_at_ms: Option<i64>,
-    pub terminal_cause: Option<Vec<u8>>,
-    pub rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub(crate) struct ProjectionTokenRow {
-    pub token_hash: Vec<u8>,
-    pub session_id: String,
-    pub superseded_at_ms: i64,
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

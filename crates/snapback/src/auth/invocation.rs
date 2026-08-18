@@ -642,6 +642,53 @@ impl ResolvedAppAuthority {
     }
 }
 
+pub(crate) trait MembershipWriterResolvedExt {
+    fn from_resolved(resolved: &ResolvedAppAuthority) -> Self;
+    fn from_resolved_with_authority_creating(
+        resolved: &ResolvedAppAuthority,
+        authority_creating_consent: bool,
+    ) -> Self;
+}
+
+impl MembershipWriterResolvedExt for crate::storage::MembershipWriter {
+    fn from_resolved(resolved: &ResolvedAppAuthority) -> Self {
+        <Self as MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
+            resolved, false,
+        )
+    }
+
+    fn from_resolved_with_authority_creating(
+        resolved: &ResolvedAppAuthority,
+        authority_creating_consent: bool,
+    ) -> Self {
+        use crate::storage::ResolvedMembershipWriter as Kernel;
+        let kernel = match resolved {
+            ResolvedAppAuthority::Session { user_id, .. }
+            | ResolvedAppAuthority::RevalidatedPrincipal { user_id, .. }
+            | ResolvedAppAuthority::DevImpersonation { user_id, .. } => Kernel::User {
+                user_id: user_id.clone(),
+            },
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                effective_user_id,
+                grant_id,
+                ..
+            } => Kernel::ServicePrincipal {
+                actor_user_id: actor_user_id.clone(),
+                effective_user_id: effective_user_id.clone(),
+                grant_id: grant_id.clone(),
+            },
+            ResolvedAppAuthority::System => Kernel::System,
+            ResolvedAppAuthority::AdminBypass { .. } => Kernel::AdminBypass,
+            ResolvedAppAuthority::Anonymous => Kernel::Anonymous,
+        };
+        crate::storage::MembershipWriter::from_resolved_with_authority_creating(
+            &kernel,
+            authority_creating_consent,
+        )
+    }
+}
+
 /// Stable, bearer-free equality key for authority-owned state.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum AuthorityKey {

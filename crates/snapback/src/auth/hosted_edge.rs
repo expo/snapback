@@ -559,111 +559,9 @@ impl HostedAdmissionEnvelope {
 
 /// Create the durable admission high-water table.
 pub fn initialize_hosted_admission_watermark(connection: &Connection) -> SnapbackResult<()> {
-    connection
-        .execute_batch(&format!(
-            "CREATE TABLE IF NOT EXISTS {ADMISSION_WATERMARK_TABLE} (
-                 id INTEGER PRIMARY KEY CHECK (id = 1),
-                 admission_epoch INTEGER NOT NULL,
-                 sender_replay_epoch_floor INTEGER NOT NULL
-             ) STRICT;"
-        ))
-        .map_err(|_| {
-            refuse(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "hosted admission watermark could not be initialized",
-            )
-        })
+    snapback_kernel::auth::hosted_edge::initialize_hosted_admission_watermark(connection)
 }
 
-/// Read the durable high-water marks. Absent means this deployment has never
-/// installed an admission.
-fn read_watermark(connection: &Connection) -> SnapbackResult<Option<(u64, u64)>> {
-    connection
-        .query_row(
-            &format!(
-                "SELECT admission_epoch, sender_replay_epoch_floor \
-                 FROM {ADMISSION_WATERMARK_TABLE} WHERE id = 1"
-            ),
-            [],
-            |row| Ok((row.get::<_, i64>(0)? as u64, row.get::<_, i64>(1)? as u64)),
-        )
-        .optional()
-        .map_err(|_| {
-            refuse(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "hosted admission watermark could not be read",
-            )
-        })
-}
-
-/// Advance the durable high-water marks inside one immediate transaction.
-///
-/// The comparison and the write share the transaction so two concurrent
-/// installs cannot both observe the old mark and both admit.
-fn advance_watermark(
-    connection: &mut Connection,
-    admission_epoch: u64,
-    sender_replay_epoch_floor: u64,
-) -> SnapbackResult<()> {
-    let transaction = connection
-        .transaction_with_behavior(TransactionBehavior::Immediate)
-        .map_err(|_| {
-            refuse(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "hosted admission watermark could not be advanced",
-            )
-        })?;
-    let current: Option<(i64, i64)> = transaction
-        .query_row(
-            &format!(
-                "SELECT admission_epoch, sender_replay_epoch_floor \
-                 FROM {ADMISSION_WATERMARK_TABLE} WHERE id = 1"
-            ),
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()
-        .map_err(|_| {
-            refuse(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "hosted admission watermark could not be read",
-            )
-        })?;
-    if let Some((durable_epoch, durable_floor)) = current
-        && (admission_epoch < durable_epoch as u64
-            || sender_replay_epoch_floor < durable_floor as u64)
-    {
-        return Err(refuse(
-            "SNAPBACK_AUTH_HOSTED_ADMISSION_ROLLED_BACK",
-            "hosted admission is older than the durable high-water mark",
-        ));
-    }
-    transaction
-        .execute(
-            &format!(
-                "INSERT INTO {ADMISSION_WATERMARK_TABLE} \
-                     (id, admission_epoch, sender_replay_epoch_floor) \
-                 VALUES (1, ?1, ?2) \
-                 ON CONFLICT(id) DO UPDATE SET \
-                     admission_epoch = MAX(admission_epoch, excluded.admission_epoch), \
-                     sender_replay_epoch_floor = \
-                         MAX(sender_replay_epoch_floor, excluded.sender_replay_epoch_floor)"
-            ),
-            params![admission_epoch as i64, sender_replay_epoch_floor as i64],
-        )
-        .map_err(|_| {
-            refuse(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "hosted admission watermark could not be written",
-            )
-        })?;
-    transaction.commit().map_err(|_| {
-        refuse(
-            "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-            "hosted admission watermark could not be committed",
-        )
-    })
-}
 
 /// An envelope that passed every check not requiring durable state.
 ///
@@ -676,6 +574,13 @@ pub(crate) struct VerifiedHostedAdmission {
 }
 
 impl VerifiedHostedAdmission {
+    fn durable_commit(&self) -> snapback_kernel::auth::hosted_edge::HostedAdmissionCommit {
+        snapback_kernel::auth::hosted_edge::HostedAdmissionCommit {
+            admission_epoch: self.envelope.admission.admission_epoch,
+            sender_replay_epoch_floor: self.envelope.admission.sender_replay_epoch_floor,
+        }
+    }
+
     pub(crate) fn public_origin(&self) -> &str {
         &self.envelope.public_origin
     }
@@ -816,21 +721,9 @@ pub(crate) fn verify_admission_envelope_prebind(
 pub(crate) fn install_verified_admission(
     verified: &VerifiedHostedAdmission,
     now_ms: u64,
-    connection: &mut Connection,
+    database: &mut crate::storage::LocalDatabase,
 ) -> SnapbackResult<HostedServingAuthority> {
-    initialize_hosted_admission_watermark(connection)?;
     let admission = &verified.envelope.admission;
-
-    if let Some((durable_epoch, durable_floor)) = read_watermark(connection)?
-        && (admission.admission_epoch < durable_epoch
-            || admission.sender_replay_epoch_floor < durable_floor)
-    {
-        return Err(refuse(
-            "SNAPBACK_AUTH_HOSTED_ADMISSION_ROLLED_BACK",
-            "hosted admission is older than the durable high-water mark",
-        ));
-    }
-
     let mut authority = HostedServingAuthority::from_authenticated_target(
         verified.envelope.public_origin.clone(),
         admission.clone(),
@@ -838,14 +731,22 @@ pub(crate) fn install_verified_admission(
         verified.throttle_key,
     )?;
     authority.install_hosted_target_admission(verified.envelope.hosted_target_admission.clone());
-
-    advance_watermark(
-        connection,
-        admission.admission_epoch,
-        admission.sender_replay_epoch_floor,
-    )?;
-
+    database.install_hosted_admission(verified.durable_commit())?;
     Ok(authority)
+}
+
+pub(crate) fn renew_hosted_admission(
+    database: &mut crate::storage::LocalDatabase,
+    inputs: &AdmissionRenewalInputs,
+    installed_issued_at_ms: u64,
+    now_ms: u64,
+) -> SnapbackResult<Option<(HostedServingAuthority, u64)>> {
+    let Some(verified) = verify_renewal_candidate(inputs, installed_issued_at_ms, now_ms)? else {
+        return Ok(None);
+    };
+    let issued_at_ms = verified.issued_at_ms();
+    let authority = install_verified_admission(&verified, now_ms, database)?;
+    Ok(Some((authority, issued_at_ms)))
 }
 
 /// Derive the shared-throttle bucket key from the release-bound verification
@@ -1020,17 +921,15 @@ mod tests {
         }
     }
 
-    fn connection() -> Connection {
-        let connection = Connection::open_in_memory().expect("memory database");
-        initialize_hosted_admission_watermark(&connection).expect("watermark table");
-        connection
+    fn connection() -> crate::storage::LocalDatabase {
+        crate::storage::LocalDatabase::memory().expect("memory database")
     }
 
     fn verify(
         envelope: &HostedAdmissionEnvelope,
         key: &Ed25519KeyPair,
         facts: &HostedEdgeSelfFacts,
-        connection: &mut Connection,
+        connection: &mut crate::storage::LocalDatabase,
     ) -> SnapbackResult<HostedServingAuthority> {
         let verified = verify_admission_envelope_prebind(
             envelope,

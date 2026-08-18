@@ -4,6 +4,7 @@ use crate::auth::admission::{AdmissionLease, CancellationRegistration};
 #[cfg(test)]
 use crate::auth::invocation::ResolvedAppAuthority;
 use crate::auth::invocation::{HandlerAuthProjection, PreparedInvocation};
+use crate::auth::invocation::MembershipWriterResolvedExt;
 use crate::config::SecretRedactor;
 use crate::cron::CronRunMetadata;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -453,9 +454,7 @@ pub(crate) fn authorize_invocation_membership_commands(
     commands: Vec<BufferedMembershipCommand>,
     invocation_reads: &mut Vec<CapturedReadDependency>,
 ) -> SnapbackResult<Vec<crate::storage::AuthorizedMembershipPlan>> {
-    db.membership_plans()
-        .authorize_membership_commands(commands)
-        .map_err(|error| error.finalize_invocation_refusal(invocation_reads))
+    crate::storage::authorize_invocation_membership_commands(db, commands, invocation_reads)
 }
 
 #[derive(Debug)]
@@ -688,7 +687,7 @@ impl RuntimeManager {
             input.clone(),
             prepared.projection().clone(),
             prepared.admission_lease().clone(),
-            MembershipWriter::from_resolved_with_authority_creating(
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
                 prepared.authority().resolved(),
                 prepared.authority_creating_consent(),
             ),
@@ -801,7 +800,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
-        MembershipWriter::from_resolved_with_authority_creating(
+        <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
             prepared.authority().resolved(),
             prepared.authority_creating_consent(),
         ),
@@ -891,7 +890,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
-        MembershipWriter::from_resolved_with_authority_creating(
+        <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
             prepared.authority().resolved(),
             prepared.authority_creating_consent(),
         ),
@@ -988,7 +987,7 @@ pub(crate) fn run_ibex_asset_authorizer_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
-        MembershipWriter::from_resolved_with_authority_creating(
+        <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
             prepared.authority().resolved(),
             prepared.authority_creating_consent(),
         ),
@@ -6666,7 +6665,7 @@ mod runtime_boundary_hardening_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            MembershipWriter::from_resolved(&authority),
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
             false,
             true,
         )
@@ -7265,7 +7264,7 @@ mod private_failure_carrier_tests {
             HandlerInput::default(),
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            MembershipWriter::from_resolved(&authority),
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
             true,
             true,
         )
@@ -7445,7 +7444,7 @@ mod handler_result_bridge_tests {
             HandlerInput::default(),
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            MembershipWriter::from_resolved(&authority),
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
             false,
             true,
         )
@@ -7887,7 +7886,7 @@ mod table_visibility_runtime_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            MembershipWriter::from_resolved(&authority),
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
             writable,
             true,
         )
@@ -9391,7 +9390,7 @@ mod membership_bridge_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            MembershipWriter::from_resolved(&authority),
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
             true,
             true,
         )
@@ -9419,7 +9418,7 @@ mod membership_bridge_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            MembershipWriter::from_resolved_with_authority_creating(
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved_with_authority_creating(
                 &authority,
                 authority_creating_consent,
             ),
@@ -9746,7 +9745,7 @@ mod membership_bridge_tests {
             input,
             HandlerAuthProjection::from_authority(&authority, None).unwrap(),
             AdmissionLease::unmanaged(0, 0),
-            MembershipWriter::from_resolved(&authority),
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
             true,
             true,
         )
@@ -11003,7 +11002,7 @@ mod direct_human_projection_tests {
             HandlerInput::default(),
             projection,
             AdmissionLease::unmanaged(0, 0),
-            MembershipWriter::from_resolved(&authority),
+            <MembershipWriter as crate::auth::invocation::MembershipWriterResolvedExt>::from_resolved(&authority),
             false,
             true,
         )
