@@ -1,6 +1,0 @@
-(node:32565) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-SERVER BINARY IDENTITY MISMATCH: health commit 6fa857834f5f6e2272cb952d648feb9c8891e2bc does not match checkout e3e477aa2616e00889ad7ba9fc5b5ff4e20686a1. Booting anyway because this binary was explicitly configured (serverBinary / SNAPBACK_SERVER_BINARY); the handle reports identity.verdict "stamp-mismatch".
-(node:33099) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
-(Use `node --trace-warnings ...` to show where the warning was created)
-{"ok":true,"pass":5,"blocked":0,"receipt":"tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json","evidence":"tests/acceptance/latency-kanban-move3-v1-evidence.md"}
