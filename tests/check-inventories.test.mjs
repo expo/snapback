@@ -149,6 +149,47 @@ test('scripts test inventory rejects a pathname argument to a non-Node command',
   }
 });
 
+function assertRejectedScriptsTestCommand(command) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-command-grammar-'));
+  try {
+    write(join(scratch, 'scripts/foo.test.mjs'), '');
+    write(join(scratch, 'scripts/wrapper.mjs'), '');
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [{
+        file: 'scripts/foo.test.mjs',
+        disposition: 'run',
+        runner: { mechanism: 'verify-local-proof', gateId: 'grammar-fixtures' },
+      }],
+      proofSource: `run grammar-fixtures -- ${command}\n`,
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(audit.errors.join('\n'), /gate grammar-fixtures does not run this file/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+test('scripts test inventory rejects node --eval with a test pathname argument', () => {
+  assertRejectedScriptsTestCommand("node --eval '0' scripts/foo.test.mjs");
+});
+
+test('scripts test inventory rejects node --test options that can suppress every test', () => {
+  assertRejectedScriptsTestCommand(
+    'node --test --test-name-pattern=^$ scripts/foo.test.mjs',
+  );
+});
+
+test('scripts test inventory rejects a Node wrapper with a test pathname argument', () => {
+  assertRejectedScriptsTestCommand('node scripts/wrapper.mjs scripts/foo.test.mjs');
+});
+
+test('scripts test inventory rejects a comment suffix after a test command', () => {
+  assertRejectedScriptsTestCommand('node --test scripts/foo.test.mjs # ignored');
+});
+
 test('scripts test inventory rejects a symlinked root test', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-symlink-bypass-'));
   try {
@@ -165,7 +206,87 @@ test('scripts test inventory rejects a symlinked root test', () => {
     });
     assert.match(
       audit.errors.join('\n'),
-      /scripts\/zzz-probe\.test\.mjs: scripts test inventory requires a regular file, found symlink/u,
+      /scripts\/zzz-probe\.test\.mjs: scripts test inventory refuses symlinks/u,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('scripts test inventory rejects a symlinked directory without following it', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-directory-symlink-bypass-'));
+  try {
+    write(join(scratch, 'outside/hidden.test.mjs'), '');
+    mkdirSync(join(scratch, 'scripts'));
+    symlinkSync('../outside', join(scratch, 'scripts/hidden-dir'));
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [],
+      proofSource: '',
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(
+      audit.errors.join('\n'),
+      /scripts\/hidden-dir: scripts test inventory refuses symlinks/u,
+    );
+    assert.deepEqual(audit.files, []);
+    assert.equal(audit.errors.length, 1);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('scripts test inventory rejects shell-unsafe test filenames and command targets', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-shell-unsafe-bypass-'));
+  try {
+    const file = 'scripts/${X:-safe}.test.mjs';
+    write(join(scratch, file), '');
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [{
+        file,
+        disposition: 'run',
+        runner: { mechanism: 'verify-local-proof', gateId: 'unsafe-fixtures' },
+      }],
+      proofSource: `run unsafe-fixtures -- node --test ${file}\n`,
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(
+      audit.errors.join('\n'),
+      /scripts test inventory filenames must use only shell-safe/u,
+    );
+    assert.match(
+      audit.errors.join('\n'),
+      /inventory path must be a root scripts\/\*\.test\.mjs file/u,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('scripts test inventory rejects shell-unsafe extra command targets', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-shell-unsafe-target-'));
+  try {
+    write(join(scratch, 'scripts/foo.test.mjs'), '');
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [{
+        file: 'scripts/foo.test.mjs',
+        disposition: 'run',
+        runner: { mechanism: 'verify-local-proof', gateId: 'unsafe-target-fixtures' },
+      }],
+      proofSource: 'run unsafe-target-fixtures -- node --test scripts/foo.test.mjs scripts/${X:-safe}.test.mjs\n',
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(
+      audit.errors.join('\n'),
+      /gate unsafe-target-fixtures does not run this file/u,
     );
   } finally {
     rmSync(scratch, { recursive: true, force: true });

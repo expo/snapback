@@ -20,7 +20,7 @@ import { parseGateCalls } from './check-local-proof-gates.mjs';
 const ROOT = resolve(import.meta.dirname, '..');
 const PROOF_PATH = 'scripts/verify-local-proof';
 const POLICY_PATH = 'scripts/local-proof-selection-policy.v1.json';
-const ROOT_SCRIPTS_TEST_PATTERN = /^scripts\/[^/]+\.test\.mjs$/u;
+const ROOT_SCRIPTS_TEST_PATTERN = /^scripts\/[A-Za-z0-9._-]+\.test\.mjs$/u;
 
 export const SCRIPTS_TEST_INVENTORY = Object.freeze([
   {
@@ -192,17 +192,28 @@ function discoverScriptsTests(root) {
       .sort((left, right) => left.name.localeCompare(right.name));
     for (const entry of entries) {
       const relativePath = posix.join(relativeDirectory, entry.name);
+      if (entry.isSymbolicLink()) {
+        errors.push(`${relativePath}: scripts test inventory refuses symlinks`);
+        continue;
+      }
       if (entry.name.endsWith('.test.mjs')) {
         if (relativeDirectory !== 'scripts') {
           errors.push(
             `${relativePath}: nested scripts test files are outside the root scripts/*.test.mjs inventory scope`,
           );
-        } else if (!entry.isFile()) {
-          errors.push(
-            `${relativePath}: scripts test inventory requires a regular file, found ${directoryEntryKind(entry)}`,
-          );
         } else {
-          files.push(relativePath);
+          if (!ROOT_SCRIPTS_TEST_PATTERN.test(relativePath)) {
+            errors.push(
+              `${relativePath}: scripts test inventory filenames must use only shell-safe letters, digits, dots, underscores, and hyphens`,
+            );
+          }
+          if (!entry.isFile()) {
+            errors.push(
+              `${relativePath}: scripts test inventory requires a regular file, found ${directoryEntryKind(entry)}`,
+            );
+          } else {
+            files.push(relativePath);
+          }
         }
       }
       if (entry.isDirectory()) walk(relativePath);
@@ -214,9 +225,12 @@ function discoverScriptsTests(root) {
 }
 
 function nodeCommandRunsFile(command, file) {
+  if (!ROOT_SCRIPTS_TEST_PATTERN.test(file)) return false;
   const words = command.trim().split(/\s+/u);
   if (words[0] !== 'node') return false;
-  if (words.length === 2) return words[1] === file;
+  if (words.length === 2) {
+    return ROOT_SCRIPTS_TEST_PATTERN.test(words[1]) && words[1] === file;
+  }
   if (words[1] !== '--test') return false;
 
   const targets = words.slice(2);
