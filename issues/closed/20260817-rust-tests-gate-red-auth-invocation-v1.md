@@ -61,8 +61,15 @@ Added `owner_write_checks: Vec::new()` to the identity-binding HostPlan helper.
 This is the semantic value, not merely a compiler placeholder: LLP 0264 D4
 permits entries only for owner-policy `Patch`/`Delete` sites, while every plan
 constructed here targets the separately sealed identity-binding table. A real
-owner-write check would be invalid and could mask the LLP 0214 specialized
-refusal this test is intended to prove.
+owner-write check would therefore be semantically invalid here.
+
+(Correction, 2026-08-18, after review: an earlier version of this paragraph
+claimed a non-empty carrier "could mask the LLP 0214 specialized refusal." That
+is not supported on this path — HostPlan preflight seals the binding at
+`src/storage.rs:3038`, ahead of owner-check validation at `src/storage.rs:3167`,
+so the ordering holds regardless of the carrier. The real precedence problem is
+on the JavaScript handler path and is tracked separately in
+`issues/20260817-auth-invocation-v1-write-policy-fixtures.md`.)
 
 Verification with `CARGO_PROFILE_DEV_DEBUG=0`:
 
