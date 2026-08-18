@@ -82,12 +82,12 @@ line numbers are courtesy, pinned against origin/main `0de3e875`.
 | `auth/rr` | authenticated request/response | `onlineRequestResponse` | LLP 0057/0058/0059 |
 | `auth/live` | auth-scoped live with the invalidation acknowledge protocol | `authScopedLive` | LLP 0053/0059 |
 | `auth/replay` | authority descriptors / queued replay | `queuedReplay` | LLP 0043/0059 |
-| `auth/lease` | authorized leases / retained reads | `retainedReads` | LLP 0059 (lease shape: `src/auth/lease.rs`) |
+| `auth/lease` | authorized leases / retained reads | `retainedReads` | LLP 0059 (lease shape: `crates/snapback/src/auth/lease.rs`) |
 | `auth/sender` | sender-constrained custody (browser-class) | — (custody plane, not an availability axis) | LLP 0077 (posture: LLP 0060) |
 
 The first four map **one-to-one** onto LLP 0059's independent item-5
 availability axes (`AuthSessionAvailability`,
-`src/auth/handshake.rs:282-289`: `onlineRequestResponse`,
+`crates/snapback/src/auth/handshake.rs:282-289`: `onlineRequestResponse`,
 `authScopedLive`, `retainedReads`, `queuedReplay`). `auth/sender` is
 deliberately **not** a fifth axis: LLP 0059's matrix is about what work a
 session admits; sender-constraint is about how credentials are custodied
@@ -107,10 +107,10 @@ forbids.
   `auth/lease` availability requires the invalidation offer
   (`RetainedReadAvailability` carries both
   `minimumAuthInvalidationProtocol` and
-  `minimumAuthorizedLeaseProtocol`, `src/auth/handshake.rs:251-268`; the
+  `minimumAuthorizedLeaseProtocol`, `crates/snapback/src/auth/handshake.rs:251-268`; the
   route enforces both, §2.4), and every sessions-mode axis requires
   `auth/rr`'s offer (the `availability()` computation gates each axis on
-  `online_ready`, `src/auth/handshake.rs:467-521`). A client claiming
+  `online_ready`, `crates/snapback/src/auth/handshake.rs:467-521`). A client claiming
   `auth/lease` therefore must also offer the invalidation protocol —
   the *server's declared* dependency, restated here, never extended.
 - **Profiles compose with conformance tuples.** A full conformance claim
@@ -120,23 +120,23 @@ forbids.
   evidence rule applies to the composed claim (§4.3).
 - **Exact tokens.** Every profile version is an exact must-understand
   value (LLP 0064 doctrine). The only defined version for the four axis
-  profiles is `1` (`AUTH_PROTOCOL_V1`, `src/auth/handshake.rs:29`); for
+  profiles is `1` (`AUTH_PROTOCOL_V1`, `crates/snapback/src/auth/handshake.rs:29`); for
   `auth/sender` it is the string `snapback.sender-constrained.v2`
   (LLP 0077 §Protocol and algorithms). A different integer is a
-  different protocol, not an additive change (`src/auth/handshake.rs`
+  different protocol, not an additive change (`crates/snapback/src/auth/handshake.rs`
   `AuthSessionResponse` schema note, `:345-349`).
 
 ### 1.3 Carrier grammar (shared by the four axis profiles)
 
 The four axis profiles share one carrier grammar, implemented in
-`AuthClientProtocolOffers` (`src/auth/handshake.rs:34-134`):
+`AuthClientProtocolOffers` (`crates/snapback/src/auth/handshake.rs:34-134`):
 
 - **HTTP requests** carry decimal offers in exactly four named headers
   (`x-snapback-auth-client-protocol`,
   `x-snapback-auth-invalidation-protocol`,
   `x-snapback-authority-descriptor-protocol`,
   `x-snapback-authorized-lease-protocol` — constants at
-  `src/auth/handshake.rs:21-24`). `from_http_headers` accepts **only**
+  `crates/snapback/src/auth/handshake.rs:21-24`). `from_http_headers` accepts **only**
   these headers; a `Sec-WebSocket-Protocol` header on an ordinary HTTP
   request is never an offer carrier (doc comment `:42-44`).
 - **WebSocket upgrades** may carry the same offers in closed subprotocol
@@ -147,17 +147,17 @@ The four axis profiles share one carrier grammar, implemented in
   present-but-malformed or duplicated header never falls through to the
   subprotocol carrier (`decimal_protocol_offer`, `:107-134`). The only
   route parsed with the upgrade grammar is the kit stream
-  (`src/server.rs:7865-7875`: `/live/{connection_id}/stream` uses
+  (`crates/snapback/src/server.rs:7865-7875`: `/live/{connection_id}/stream` uses
   `from_headers`, every other route `from_http_headers`) — with one
   code divergence recorded in §8.2.
 - **One open-time body member**: `authInvalidationProtocol` on
   `POST /connection/open` (`OpenConnectionRequest.auth_invalidation_protocol`,
-  `src/server.rs:4083-4093`) — §2.2's open-time half of `auth/live`.
+  `crates/snapback/src/server.rs:4083-4093`) — §2.2's open-time half of `auth/live`.
 
 Offers are **stateless discovery plus per-boundary repetition**: the
 handshake never becomes server-side state; every protected boundary
 re-presents its offer on the carrier available to that boundary
-(`src/auth/handshake.rs` module doc; @ref LLP 0058#bootstrap-handshake).
+(`crates/snapback/src/auth/handshake.rs` module doc; @ref LLP 0058#bootstrap-handshake).
 The one exception is deliberate and connection-scoped: the open-time
 `authInvalidationProtocol` binding, which the acknowledge routes consult
 (§2.2).
@@ -165,7 +165,7 @@ The one exception is deliberate and connection-scoped: the open-time
 ## 2. Per-profile contract
 
 Every table below states the **local arm** (the Rust server,
-`src/server.rs`) in **sessions mode**. Dev mode is §3.2; the hosted
+`crates/snapback/src/server.rs`) in **sessions mode**. Dev mode is §3.2; the hosted
 (Cloudflare) arm is §2.6 — it currently has **no sessions surface at
 all**, so no profile is negotiable there.
 
@@ -177,8 +177,8 @@ all**, so no profile is negotiable there.
   the kit stream upgrade. **Per-request gated.**
 - **Scope:** every `RouteClass::AppData` route except the diagnostic
   trio `/`, `/health`, `/auth/session` (`auth_diagnostic_app_route`,
-  `src/server.rs:7744`) and `/app/ensure`
-  (`session_online_protocol_refusal`, `src/server.rs:7843-7889`).
+  `crates/snapback/src/server.rs:7744`) and `/app/ensure`
+  (`session_online_protocol_refusal`, `crates/snapback/src/server.rs:7843-7889`).
   This includes `/connection/open`: Public there means no credential is
   required to mint an anonymous grant, not that sessions-mode protocol
   offers are skipped.
@@ -213,9 +213,9 @@ all**, so no profile is negotiable there.
   1. **Open-time (connection-scoped):** `authInvalidationProtocol: 1` in
      the `POST /connection/open` body
      (`OpenConnectionRequest.auth_invalidation_protocol`,
-     `src/server.rs:4083-4093`). Exact match binds the invalidation
+     `crates/snapback/src/server.rs:4083-4093`). Exact match binds the invalidation
      connection state; any other or absent value opens a legacy
-     connection (`src/server.rs:4727-4729` exact-match-else-`None`).
+     connection (`crates/snapback/src/server.rs:4727-4729` exact-match-else-`None`).
      LLP 0094 §0C.5 (decided): from its stage B1, **unknown values
      refuse** (`SNAPBACK_AUTH_INVALIDATION_PROTOCOL_UNSUPPORTED`)
      instead of silently degrading; absent keeps opening legacy. This
@@ -231,23 +231,23 @@ all**, so no profile is negotiable there.
      clients, so clients cannot safely branch on it; always offering is the
      conformant rule. The server may omit the requirement only for a target
      it proves authority-independent (`session_live_protocol_refusal`,
-     `src/server.rs`).
+     `crates/snapback/src/server.rs`).
 - **Refusals:** server not ready →
   `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` (HTTP 503);
   missing/inexact client offer
   → `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`
-  (HTTP 400; `src/server.rs`). A missing namespace is
+  (HTTP 400; `crates/snapback/src/server.rs`). A missing namespace is
   `SNAPBACK_AUTH_INVALIDATION_NAMESPACE_REQUIRED` (HTTP 400). The
   acknowledge routes refuse
   `SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED` ("connection did not
   negotiate authInvalidationProtocol: 1") when the open-time half was
   not bound (`acknowledge_authorization_invalidation`,
-  `src/server.rs:16537-16554`; `manual_retry_authorization_invalidation`,
+  `crates/snapback/src/server.rs:16537-16554`; `manual_retry_authorization_invalidation`,
   `:16613-16630`).
 - **Routes owned by the claim:**
   `POST /live/authorization-invalidation/acknowledge` and
   `POST /live/authorization-invalidation/manual-retry`
-  (registered `src/server.rs:7049-7059`; ConnectionAuth + the negotiated
+  (registered `crates/snapback/src/server.rs:7049-7059`; ConnectionAuth + the negotiated
   connection). Both are **local-arm only** (LLP 0094 §0A.1). Their closed
   request bodies are camelCase:
   acknowledge `{connectionId, ackToken}`; manual retry
@@ -376,25 +376,25 @@ never-reused `queryInstanceId` and performs a fresh subscribe.
   `/mutation/{name}` body carrying `clientMutationId` /
   `acknowledgedClientMutationIds` (either casing), or any
   standalone-acknowledgement route (`queued_replay_requested`,
-  `src/server.rs:8084-8095`; gate at
-  `prepare_registered_route_authority`, `src/server.rs:8117-8130`).
+  `crates/snapback/src/server.rs:8084-8095`; gate at
+  `prepare_registered_route_authority`, `crates/snapback/src/server.rs:8117-8130`).
 - **Refusal:** unavailable authority-descriptor readiness is
   `SNAPBACK_AUTH_POLICY_UNAVAILABLE` (HTTP 503) with
   `{capability: "queuedReplay"}`. Once ready, a missing/inexact client
   offer is `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` (HTTP 400) with
   `minimumAuthorityDescriptorProtocol: 1`; unchanged retry is forbidden.
 - **Routes owned by the claim:** `POST /client-mutations/acknowledge`
-  (registered `src/server.rs:6977`; local-arm only, LLP 0094 §0A.1),
+  (registered `crates/snapback/src/server.rs:6977`; local-arm only, LLP 0094 §0A.1),
   plus the replay members on ordinary mutation bodies.
 - **Conformance obligations** (semantics owned by LLP 0043/0059/0064,
   referenced): treat the authority descriptor as consistency evidence,
   never authority ("possession never authorizes an invocation",
   `AuthSessionResponse.authority_descriptor` doc,
-  `src/auth/handshake.rs:370-371`); durable ordered queue with
+  `crates/snapback/src/auth/handshake.rs:370-371`); durable ordered queue with
   idempotent redelivery under a retained `clientMutationId`; acknowledge
   consumed results via `/client-mutations/acknowledge` (the route
   exists precisely so a one-shot client's final mutation is reclaimable
-  — handler doc, `src/server.rs:16253-16256`); suspend a
+  — handler doc, `crates/snapback/src/server.rs:16253-16256`); suspend a
   predecessor-authority queue on authority-instance mismatch, never
   replay it under successor authority (LLP 0064 §4).
 - **Fixture classes** (**seeded 2026-07-30**):
@@ -414,16 +414,16 @@ never-reused `queryInstanceId` and performs a fresh subscribe.
 - **Carrier:** `x-snapback-authorized-lease-protocol: 1` **and**
   `x-snapback-auth-invalidation-protocol: 1` together on
   `POST /query/{name}/authorized-lease` (registered
-  `src/server.rs:6973`; enforced in `invoke_authorized_lease_query`,
-  `src/server.rs` — readiness failure is
+  `crates/snapback/src/server.rs:6973`; enforced in `invoke_authorized_lease_query`,
+  `crates/snapback/src/server.rs` — readiness failure is
   `SNAPBACK_AUTH_POLICY_UNAVAILABLE` (HTTP 503), while a missing/inexact
   offer pair is `SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED` (HTTP 400)).
   **Per-request gated.** The
   dual-offer requirement is the declared composition of §1.2, mirrored
   in the handshake's `RetainedReadAvailability` minima
-  (`src/auth/handshake.rs:251-268`).
+  (`crates/snapback/src/auth/handshake.rs:251-268`).
 - **Conformance obligations** (lease semantics owned by LLP 0059,
-  referenced; shape/limits in `src/auth/lease.rs` —
+  referenced; shape/limits in `crates/snapback/src/auth/lease.rs` —
   `AUTHORIZED_LEASE_PROTOCOL_VERSION = 1`, default and hard-max lease
   86 400 000 ms, `:26-28`): retain rows only under a current exact
   signed lease; delete retained material on the LLP 0059 transition
@@ -448,15 +448,15 @@ never-reused `queryInstanceId` and performs a fresh subscribe.
 - **Carriers:** one `DPoP` header per protected HTTP request; on the
   kit stream upgrade, a dedicated subprotocol value
   `snapback.sender-proof.<compact-jws>`
-  (`SENDER_PROOF_SUBPROTOCOL_PREFIX`, `src/server.rs:5462`; parsed with
+  (`SENDER_PROOF_SUBPROTOCOL_PREFIX`, `crates/snapback/src/server.rs:5462`; parsed with
   duplicate/oversize refusal by `sender_proof_subprotocol`,
-  `src/server.rs:8993-9018`). The server never selects or echoes the
+  `crates/snapback/src/server.rs:8993-9018`). The server never selects or echoes the
   proof-bearing value as the negotiated subprotocol (LLP 0077
   §WebSocket and connection binding).
 - **Refusals:** `SNAPBACK_AUTH_SENDER_PROOF_{REQUIRED, INVALID,
   REPLAYED, AUTHORITY_UNAVAILABLE}` and the terminal
   `SNAPBACK_AUTH_SESSION_EXPIRED` durable-delete outcome
-  (`sender_admission_response`, `src/server.rs:9030-9086`).
+  (`sender_admission_response`, `crates/snapback/src/server.rs:9030-9086`).
 - **Scope today:** browser-class transports on the local (Rust) server
   under LLP 0060's hosted admission posture. A sender-bound grant
   requires a valid proof on **every** subsequent use — each
@@ -522,21 +522,21 @@ demand and open a fresh connection grant before re-establishing live state.
 
 The bootstrap handshake echoes exactly the offers this binary
 understands (`ClientProtocols` — v1 or null, never another integer,
-`src/auth/handshake.rs:215-229`) and computes per-axis availability from
+`crates/snapback/src/auth/handshake.rs:215-229`) and computes per-axis availability from
 mode, readiness, and the presented offers (`availability()`,
-`src/auth/handshake.rs:438-522`). Each axis carries its own
+`crates/snapback/src/auth/handshake.rs:438-522`). Each axis carries its own
 `available`/`reason` and its minimum-protocol members, so a client can
 learn *which* profile is refused and why before attempting protected
 work. Discovery is never authentication: every protected request still
 resolves its own credential and repeats its own offer (@ref LLP
 0058#bootstrap-handshake). Readiness items unlock axes independently and
 in order (`later_items_unlock_only_their_owned_surfaces` test,
-`src/auth/handshake.rs:717-765`).
+`crates/snapback/src/auth/handshake.rs:717-765`).
 
 ### 3.2 Dev mode
 
 In settled dev mode all four axes report available with **null** minima
-and no offers required (`src/auth/handshake.rs:445-465`); the profile
+and no offers required (`crates/snapback/src/auth/handshake.rs:445-465`); the profile
 gates of §2 are sessions-mode gates and do not run
 (`session_online_protocol_refusal` returns early unless active mode is
 Sessions). A dev-mode client may send the offers; they are echoed but
@@ -664,12 +664,12 @@ mail or hosted-auth claim; LLP 0045 still owns production challenge delivery.
 
 Routes a protocol client touches to *hold* a session, each owned
 elsewhere and referenced, never re-specified (LLP 0093 P-3's rule).
-Registration verified at `src/server.rs:6719-6975`; policies are LLP
+Registration verified at `crates/snapback/src/server.rs:6719-6975`; policies are LLP
 0031's matrix rows (LLP 0031 §Route matrix, `/auth/*` rows).
 
 | Route | Client purpose | Owner |
 | --- | --- | --- |
-| `GET /auth/session` | bootstrap discovery; axis availability matrix (§3.1); Public, optional bearer | LLP 0058 (DTO: `src/auth/handshake.rs` `AuthSessionResponse`) |
+| `GET /auth/session` | bootstrap discovery; axis availability matrix (§3.1); Public, optional bearer | LLP 0058 (DTO: `crates/snapback/src/auth/handshake.rs` `AuthSessionResponse`) |
 | `POST /auth/request-code` | provider challenge issuance | LLP 0057 |
 | `POST /auth/exchange` | challenge proof → session mint (`ChallengeProof`, never session/admin substitution) | LLP 0057; sender-bound issuance overlay: LLP 0077 |
 | `POST /auth/refresh` | session rotation (required bearer; grace rules) | LLP 0057 (grace/supersession composition: LLP 0059) |
@@ -748,7 +748,7 @@ that LLP 0093 D2 explicitly legitimizes.
 ## 8. Verification findings and tickets
 
 The §2 pass checked every carrier/axis/route claim against
-`src/auth/handshake.rs`, `src/server.rs` route registrations and
+`crates/snapback/src/auth/handshake.rs`, `crates/snapback/src/server.rs` route registrations and
 handlers, LLP 0031's matrix, and the hosted gateway/coordinator plus the
 generated hosted capability manifest, at `0de3e875`. Two divergences and
 one gap-class surfaced:
@@ -758,16 +758,16 @@ one gap-class surfaced:
 `registered_invocation_source` maps
 `/live/authorization-invalidation/acknowledge` and `/manual-retry` to
 `InvocationSource::StandaloneAcknowledgement`
-(`src/server.rs:7993-7997`), and `queued_replay_requested` returns
-`true` for every standalone acknowledgement (`src/server.rs:8084-8095`),
+(`crates/snapback/src/server.rs:7993-7997`), and `queued_replay_requested` returns
+`true` for every standalone acknowledgement (`crates/snapback/src/server.rs:8084-8095`),
 so in sessions mode both invalidation-ack routes require
 authority-descriptor **readiness and the
 `x-snapback-authority-descriptor-protocol: 1` offer**
-(`src/server.rs:8117-8130`) — `auth/live`'s acknowledge path is coupled
+(`crates/snapback/src/server.rs:8117-8130`) — `auth/live`'s acknowledge path is coupled
 to `auth/replay`'s plane. In the readiness interval where invalidation
 is ready but the descriptor program is not (a state LLP 0059's item
 ordering admits — `later_items_unlock_only_their_owned_surfaces`,
-`src/auth/handshake.rs:736-745`), `authScopedLive` advertises available
+`crates/snapback/src/auth/handshake.rs:736-745`), `authScopedLive` advertises available
 while its own acknowledge protocol refuses. This is either a deliberate
 descriptor-bound-acknowledgement rule (then LLP 0053/0059 should state
 it and this spec's §2.2 flag becomes ratified contract) or an
@@ -793,13 +793,13 @@ in the commit carrying this amendment.
 ### 8.2 The lease route parses offers with the upgrade grammar
 
 `invoke_authorized_lease_query` reads offers via
-`AuthClientProtocolOffers::from_headers` (`src/server.rs:16205`) — the
+`AuthClientProtocolOffers::from_headers` (`crates/snapback/src/server.rs:16205`) — the
 WebSocket-upgrade parser whose subprotocol fallback exists solely for
 genuine browser upgrades — on an ordinary HTTP route. The route-level
 gate's own rule is explicit ("Keep every non-upgrade route on the
 HTTP-only parser: a forged Sec-WebSocket-Protocol header must not
-become a second HTTP grammar", `src/server.rs:7865-7875`;
-`src/auth/handshake.rs:42-44`), so a `Sec-WebSocket-Protocol` header on
+become a second HTTP grammar", `crates/snapback/src/server.rs:7865-7875`;
+`crates/snapback/src/auth/handshake.rs:42-44`), so a `Sec-WebSocket-Protocol` header on
 the lease POST is currently an accepted alternate offer carrier there.
 Offers are not credentials, so this is a doctrine/second-grammar
 divergence, not a credential hole; the fix (use `from_http_headers`) is
@@ -837,7 +837,7 @@ The §2 fixture classes extend LLP 0095's corpus (§2.4's deferred
 cluster). **Landed 2026-07-30** with fixture-format v3 (the
 `client_to_server` request/refusal direction and the
 advance/event step forms — LLP 0095 §2.1): every §2.1-§2.4 class above is
-seeded, gate-checked by `tests/wire_fixtures_v1.rs`
+seeded, gate-checked by `crates/snapback/tests/wire_fixtures_v1.rs`
 (`auth_profile_fixtures_pin_refusals_split_dispositions_and_lease_rules`,
 plus the census and the LLP 0096 §2.6 local-arm tuple gate). `auth/sender`
 remains deliberately unseeded until §5's off-browser custody story

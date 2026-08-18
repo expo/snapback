@@ -4,8 +4,8 @@ id: operating.instance-forks
 order: 7
 audience: agent-first
 capabilities: [operating.instance-forks]
-authorities: [llp/0158-instance-forking.rfc.md, src/cli.rs, src/instance_fork.rs, demos/_kit/instance-fork.mjs]
-examples: [demos/todo/tests/acceptance/forked-parent.mjs, tests/instance_fork_cli_v1.rs, tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json]
+authorities: [llp/0158-instance-forking.rfc.md, crates/snapback/src/cli.rs, crates/snapback/src/instance_fork.rs, demos/_kit/instance-fork.mjs]
+examples: [demos/todo/tests/acceptance/forked-parent.mjs, crates/snapback/tests/instance_fork_cli_v1.rs, tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json]
 status: current
 targets: [local]
 maturity: partial
@@ -27,7 +27,7 @@ data-stream, admin-token, and resume-keyring identities.
 
 This is a **partial contributor-source local surface**, published for exactly
 the two measured release platforms, `macos/aarch64` and `linux/x86_64`, by the
-[source anchor](repo:src/local-agent-safe-derived-deployment-fork-publication.anchor.json)
+[source anchor](repo:crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json)
 and its
 [dated digest-bound receipt](repo:tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json).
 The claim is a qualification-C snapshot under LLP 0189 scoped-digest custody:

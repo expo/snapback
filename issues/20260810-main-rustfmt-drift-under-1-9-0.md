@@ -16,19 +16,19 @@ rustc   1.97.0 (2d8144b78 2026-07-07)
 none of which are unformatted in any way a reviewer would call broken:
 
 ```
-src/admin.rs                     src/server/api_error.rs
-src/agent_safe_publication.rs    src/storage/auth_rehearsal.rs
-src/auth/rehearsal.rs            src/storage/auth_stream.rs
-src/auth/throttle.rs             src/storage/capability_links.rs
-src/authoring_suggestion.rs      src/storage/webhooks.rs
-src/remediation.rs               src/watches.rs
-src/runtime.rs                   src/webhooks.rs
-src/auth/provider.rs             tests/auth_artifacts_v1.rs
-src/server.rs                    src/server/effects.rs
-src/local.rs                     src/storage/pending_effects.rs
+crates/snapback/src/admin.rs                     crates/snapback/src/server/api_error.rs
+crates/snapback/src/agent_safe_publication.rs    crates/snapback/src/storage/auth_rehearsal.rs
+crates/snapback/src/auth/rehearsal.rs            crates/snapback/src/storage/auth_stream.rs
+crates/snapback/src/auth/throttle.rs             crates/snapback/src/storage/capability_links.rs
+crates/snapback/src/authoring_suggestion.rs      crates/snapback/src/storage/webhooks.rs
+crates/snapback/src/remediation.rs               crates/snapback/src/watches.rs
+crates/snapback/src/runtime.rs                   crates/snapback/src/webhooks.rs
+crates/snapback/src/auth/provider.rs             crates/snapback/tests/auth_artifacts_v1.rs
+crates/snapback/src/server.rs                    crates/snapback/src/server/effects.rs
+crates/snapback/src/local.rs                     crates/snapback/src/storage/pending_effects.rs
 ```
 
-`src/server/effects.rs` alone accounts for ~266 rewritten lines. The changes
+`crates/snapback/src/server/effects.rs` alone accounts for ~266 rewritten lines. The changes
 are ordinary rustfmt output — collapsing wrapped call chains, re-wrapping
 `use` groups, moving `else` onto its own line after a multi-line `let ... =
 ... else` — i.e. the file was last formatted by a *different* rustfmt.
@@ -68,4 +68,4 @@ Until then, the working rule this ticket records: **do not run `cargo fmt
 
 High — reproduced on a clean worktree at `3d1553975`, and independently
 confirmed by `rustfmt --edition 2024 --check` reporting drift on HEAD's own
-copy of `src/server/effects.rs` before any local edit.
+copy of `crates/snapback/src/server/effects.rs` before any local edit.

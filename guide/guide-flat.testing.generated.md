@@ -9,7 +9,7 @@ id: testing.acceptance
 order: 1
 audience: agent-first
 capabilities: [testing.acceptance, operating.server-lifecycle]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0012-headless-integration-contract.spec.md, llp/0031-server-route-taxonomy.spec.md, crates/snapback/src/cli.rs, demos/_kit/harness.mjs, demos/_kit/server-process.mjs, packages/snapback-cli/comparator-profile.mjs, packages/snapback-cli/comparator-receipt.schema.json, schemas/host-ready.schema.json]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs, demos/all-aboard/tests/acceptance/headless.mjs, packages/snapback-cli/fixtures/comparator/green.config.mjs]
 status: current
 targets: [local]
@@ -551,7 +551,7 @@ id: testing.large-fixtures
 order: 3
 audience: agent-first
 capabilities: [testing.large-fixtures]
-authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, demos/zerobugs/control/scripts/load-fixture.mts, demos/zerobugs/control/snapback/functions.mjs, demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs, src/seed_identity.rs, src/storage.rs]
+authorities: [llp/0109-versioned-seed-evolution.spec.md, llp/0183-zerobugs-quality-surface.rfc.md, demos/zerobugs/control/scripts/load-fixture.mts, demos/zerobugs/control/snapback/functions.mjs, demos/zero-bakeoff/apps/fleet-observatory/snapback/functions.mjs, crates/snapback/src/seed_identity.rs, crates/snapback/src/storage.rs]
 examples: [demos/zerobugs/control, demos/zero-bakeoff/apps/fleet-observatory]
 status: current
 targets: [local]

@@ -95,7 +95,7 @@ day.
 - **Admin console — missed 3/3.** All three arms debugged with raw host-op
   calls, `curl`, and hand-written verification scripts. The console is
   shipped, documented (`guide/operating/admin-console.md`), and its URL is
-  printed on every native server boot (`src/cli.rs`, the
+  printed on every native server boot (`crates/snapback/src/cli.rs`, the
   `admin console:` banner) — at least one arm had that line on screen via an
   `stdio: 'inherit'` launcher and still never used it
   (`issues/closed/20260805-admin-console-undiscovered-by-expo-bakeoffs.md`).
@@ -159,7 +159,7 @@ worth investing in:
   diagnostics named concepts. By contrast, every diagnostic that named only
   the symptom (the `v.array()` table-field refusal, the hashed field path in
   `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION`, `SNAPBACK_ARG_MISSING` on an
-  omitted optional argument) sent an agent into `src/` or into a workaround.
+  omitted optional argument) sent an agent into `crates/snapback/src/` or into a workaround.
 - **Redundant entry steering.** The AGENTS.md ↔ `guide/index.md` "stop
   reading this, go there" split, stated in both documents, was called "the
   single most useful thing in the first five minutes."

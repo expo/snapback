@@ -558,7 +558,7 @@ falling back to a different model.
 (`CapabilityManifest::local_v0_declared`) generates the committed
 `schemas/capability.manifest.local-dev-sqlite-ibex.json`, codegen embeds that
 file verbatim into every generated backend (failing closed if it is missing or
-for the wrong target), and drift-gate tests (`tests/capability_v0.rs`) hold
+for the wrong target), and drift-gate tests (`crates/snapback/tests/capability_v0.rs`) hold
 the committed file equal to the declaration and the live `/inspect` report
 equal to it modulo exactly two documented instance-live fields — `vmLifecycle`
 (the DK-4 posture actually in force) and the `ibex_cli` gap. Codegen asserts
@@ -953,7 +953,7 @@ Valet's experience hardens this section (`[observed - Valet LLP 0004/0012/0048]`
   Realized 2026-07-02 by DK-7 ([LLP 0037](./0037-schema-source-of-truth.decision.md),
   Rust-first): the Rust serde types are the single source of truth, `schemars`-derived
   JSON Schemas for the Snapback-owned artifacts are committed under `schemas/`, and
-  `tests/artifact_schemas_v0.rs` is the drift gate (`dk7_committed_schemas_match_rust_types`;
+  `crates/snapback/tests/artifact_schemas_v0.rs` is the drift gate (`dk7_committed_schemas_match_rust_types`;
   regenerate the committed schemas with `cargo run --bin snapback-schemagen`).
 - **Beware two hashes for one artifact.** Valet computed *two* schema hashes — the
   client hash excluded indexes the client never creates, the server hash included

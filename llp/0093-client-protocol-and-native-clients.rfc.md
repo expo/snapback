@@ -24,13 +24,13 @@ Revision history)
 
 Snapback's live-query delta model is its best feature, and today it is
 effectively JavaScript-only. Every live-wire envelope family is already a
-single-sourced Rust serde + `schemars` type (`src/live_wire.rs`, plus the
-drain wrapper in `src/ephemeral.rs`), exported to committed JSON Schemas
+single-sourced Rust serde + `schemars` type (`crates/snapback/src/live_wire.rs`, plus the
+drain wrapper in `crates/snapback/src/ephemeral.rs`), exported to committed JSON Schemas
 (`schemas/live.*.schema.json`, `schemas/realtime.envelope.schema.json`) with
 drift gates on both
-the Rust side (`tests/artifact_schemas_v0.rs`) and the JS side
+the Rust side (`crates/snapback/tests/artifact_schemas_v0.rs`) and the JS side
 (`demos/_kit/tests/live-wire-schema.mjs`), plus exact wire-shape tests
-(`src/live_wire.rs:481-820`; they pin names, casing, tags, and values via
+(`crates/snapback/src/live_wire.rs:481-820`; they pin names, casing, tags, and values via
 `serde_json::Value`, not serialized byte order). What does not exist is the **external-implementer
 view**: no document a Swift or Kotlin author could build a client from, no
 conformance definition for what "a Snapback client" must do, and no statement
@@ -121,7 +121,7 @@ wasn't idle because a lingering subscriber kept the poll armed
 The lifecycle itself is deliberate and well-implemented — LLP 0049's
 demand-armed alarm, `reconcileCronActivation()`
 (`cloudflare/src/coordinator.js:2437-2461`), `refresh_cron_active()`
-(`src/local.rs:10098-10103`), and the explicit "no last-subscriber linger
+(`crates/snapback/src/local.rs:10098-10103`), and the explicit "no last-subscriber linger
 window" non-behavior (`coordinator.js:2359-2360`). The defect is that none of
 it is stated anywhere a client implementer or test author would look. A
 subscribe frame is not a read; it is a demand signal with billing
@@ -169,24 +169,24 @@ batch (`cloudflare/src/coordinator.js:1763`, declared in the hosted
 capability manifest), and the follow-on Specs must carry an explicit
 arm × route matrix, including the admin/testing seams (D3.1).
 
-**Envelopes** (`src/live_wire.rs`): `LiveEnvelope`
+**Envelopes** (`crates/snapback/src/live_wire.rs`): `LiveEnvelope`
 (`live_replace | live_delta | resync_required | authorization_invalidation`,
 snake_case, tag `kind`); `LiveSocketServerFrame` (`sender_nonce | auth_error |
 pong | ephemeral_ack | ephemeral_error | ephemeral | durable_bytes`,
 camelCase, tag `kind`); `LiveSocketClientMessage` (tag `type`); `Receipt`;
 plus `RealtimeEnvelope` (the drain's `{"Durable":{"payload":[u8…]}}`
-wrapper), defined in `src/ephemeral.rs:1406` with the wrapper asymmetry
+wrapper), defined in `crates/snapback/src/ephemeral.rs:1406` with the wrapper asymmetry
 noted at `live_wire.rs:33-35`.
 
 **Versioning that already exists**: the `snapback.v1` stream subprotocol
-(`src/server.rs:5456`), four exact-match must-understand capability axes with
-header-or-subprotocol carriers (`src/auth/handshake.rs:20-120` — auth-client,
+(`crates/snapback/src/server.rs:5456`), four exact-match must-understand capability axes with
+header-or-subprotocol carriers (`crates/snapback/src/auth/handshake.rs:20-120` — auth-client,
 auth-invalidation, authority-descriptor, authorized-lease), the
 sender-constrained `snapback.sender-constrained.v2` strings (LLP 0077), and
 the doctrine LLP 0064 (Draft) pins: exact tokens, synchronous refusal on
 unknown versions, a new token for any incompatible change. One enforcement
 gap matters: the server *echoes* `snapback.v1` when offered
-(`src/server.rs:16938`) but does not require the offer.
+(`crates/snapback/src/server.rs:16938`) but does not require the offer.
 
 **The gotcha ledger** — load-bearing facts currently living only in code
 comments, all normative in the spec:
@@ -201,7 +201,7 @@ comments, all normative in the spec:
    entries are selected without removal, acknowledged/removed only once
    ownership transfer is accepted, and retained/released — possibly
    redelivered — on cancellation before the cut
-   (`llp/0059…:1415-1479`, `src/server.rs:19009`). It is destructive
+   (`llp/0059…:1415-1479`, `crates/snapback/src/server.rs:19009`). It is destructive
    from the client's perspective only *after* acknowledgement; clients must
    be duplicate-tolerant across cancelled drains.
 4. `resume_live` exists server-side but the JS kit never calls it; socket
@@ -210,7 +210,7 @@ comments, all normative in the spec:
    (`packages/snapback-client/index.mjs:102`).
 5. `live_delta` is opt-in-by-analysis: ordered, limit-saturated, and
    membership/semi-join queries silently ride `live_replace`
-   (`src/live_matcher.rs:622-706`). Clients must treat delta-vs-replace as
+   (`crates/snapback/src/live_matcher.rs:622-706`). Clients must treat delta-vs-replace as
    the server's choice, always.
 6. `resync_required.reason` is deliberately an open string, not an enum
    (`live_wire.rs:74-78`); the `request_id` alias is accepted only on the
@@ -245,7 +245,7 @@ nothing. The pinned direction, with mechanics in P-0:
 
 - **Socket lane:** a conformant client MUST offer `snapback.v1`; P-0 makes
   the server refuse upgrades that offer no known wire version, following the
-  existing must-understand refusal style of `src/auth/handshake.rs`. The
+  existing must-understand refusal style of `crates/snapback/src/auth/handshake.rs`. The
   socket offer MUST equal the version already bound on the connection at
   open; a mismatch refuses.
 - **HTTP lane:** the wire version is bound once, at `POST /connection/open`
@@ -286,7 +286,7 @@ route stability plus the additive-fields policy — not by the
 connection-bound version. Receipts are owned precisely, with one honest
 seam: the typed `Receipt` union today rides only `/mutation` responses;
 the subscribe/unsubscribe outputs carry `receipt` as untyped
-`Option<Value>` (`src/local/live_protocol.rs`), so the subscription receipt is
+`Option<Value>` (`crates/snapback/src/local/live_protocol.rs`), so the subscription receipt is
 currently an **untyped compatibility seam**. P-0 types both fields as
 `Option<Receipt>` and regenerates the schemas — only then is the shared
 union a ratified claim, evolving under the stricter connection-scoped
@@ -303,12 +303,12 @@ Server→client: new *optional fields* on existing envelopes, and new
 for this purpose). Client→server the wire is **heterogeneous today**, and
 the policy states it honestly rather than assuming closure: the handshake
 and invalidation-ack DTOs are closed (`deny_unknown_fields` —
-`OpenConnectionRequest`, `src/server.rs:4072`;
-`AuthorizationInvalidationAckInput`, `src/local/live_protocol.rs`), sessions-mode
+`OpenConnectionRequest`, `crates/snapback/src/server.rs:4072`;
+`AuthorizationInvalidationAckInput`, `crates/snapback/src/local/live_protocol.rs`), sessions-mode
 socket requests decode a third, auth-mode-dependent closed family
-(`SessionLiveSocketClientMessage`, `src/server.rs:18204`), while the
+(`SessionLiveSocketClientMessage`, `crates/snapback/src/server.rs:18204`), while the
 subscribe/resume/unsubscribe bodies, `HandlerInput`
-(`src/manifest.rs:2937`), and the generated dev-mode socket message are
+(`crates/snapback/src/manifest.rs:2937`), and the generated dev-mode socket message are
 **open decoders** that silently ignore unknown client fields. The rule is the same
 either way — a new client-sent field is **never** an ungated addition; it
 requires a capability proof, a compatible fallback, or a new version — but
@@ -320,8 +320,8 @@ closure, fallback semantics — by route, transport, and auth mode) and
 decides which families stay open; closing an open DTO changes observable
 behavior and needs its own blast-radius evidence. The matrix covers
 **both directions**: several server→client families are closed today too
-(`AuthorizationInvalidationSnapshot`, `src/live_wire.rs:128-136`;
-`AuthorizationInvalidationAckOutput`, `src/local/live_protocol.rs` — their
+(`AuthorizationInvalidationSnapshot`, `crates/snapback/src/live_wire.rs:128-136`;
+`AuthorizationInvalidationAckOutput`, `crates/snapback/src/local/live_protocol.rs` — their
 schemas say `additionalProperties: false`), so the schemas describe what
 current servers *emit* while the fixture corpus and abstract state
 machine define what clients must *accept*; on unknown fields the
@@ -329,7 +329,7 @@ acceptance grammar wins, and an addition to any family whose deployed
 schema-validating clients are not proven tolerant needs capability
 gating or a new wire token. The matrix also audits the existing
 body-carried `authInvalidationProtocol` offer, whose unknown values
-silently degrade to legacy (`src/server.rs:4716-4718`) — the opposite of
+silently degrade to legacy (`crates/snapback/src/server.rs:4716-4718`) — the opposite of
 this RFC's unknown-refuses rule — so the two adjacent open-body fields
 get deliberately decided, not inherited, semantics. The open handshake gets
 a **staged bootstrap**, scoped to servers that carry the field: first ship
@@ -369,7 +369,7 @@ ground truth; the generated schemas are their authoritative machine view;
 the fixture corpus is normative for clients (it also pins facts schemars
 cannot express, like the accepted aliases — `request_id` on the socket
 client family and `authorization_namespace` on the subscribe body,
-`src/local/live_protocol.rs`); the exact wire-shape tests are
+`crates/snapback/src/local/live_protocol.rs`); the exact wire-shape tests are
 illustrative. Where prose disagrees with any of these, prose loses; where
 schema and served bytes disagree, that is a drift-gate defect, not a spec
 question. The existing exact wire-shape tests (`live_wire.rs:481-820`) are
@@ -378,11 +378,11 @@ committed conformance corpus — complete over the specified behavior
 classes, not exhaustive over all valid schema values — including a
 fixture for the `durable_bytes` recovery transition (a known kind with a
 required action, distinguished from a genuinely unknown future kind). Its seed is honest but thin:
-`artifact_instances()` (`src/schema_export.rs:337-344`) today emits only
+`artifact_instances()` (`crates/snapback/src/schema_export.rs:337-344`) today emits only
 the data-tier profile artifact, so P-1 extends it (or adds a wire-fixture
 generator) — it does not presently provide live-wire instances. One
 namespace note for external implementers: the committed schema `$id`s use
-`snapback.v0`, the artifact-format namespace (`src/schema_export.rs:370`),
+`snapback.v0`, the artifact-format namespace (`crates/snapback/src/schema_export.rs:370`),
 which is distinct from and does not contradict the wire identity
 `snapback.v1`.
 For row-bearing live frames, the durable row identity is the system `_id`
@@ -475,10 +475,10 @@ unsubscribe on normal shutdown and backgrounding; exactly one drain owner
 per connection with non-overlapping drains; and defined crash behavior per
 an **arm-specific lifecycle matrix**: on both arms socket close drops the
 connection's durable subscriptions (server-side:
-`disconnect_topology_for_transport`, `src/local.rs:10164`, and the
+`disconnect_topology_for_transport`, `crates/snapback/src/local.rs:10164`, and the
 hosted teardown below; the kit comment at
 `packages/snapback-client/index.mjs:102` restates it); on the local arm the 120 s idle TTL (`CONNECTION_IDLE_TTL_MS`,
-`src/server.rs:14113`) additionally reaps an abandoned socketless
+`crates/snapback/src/server.rs:14113`) additionally reaps an abandoned socketless
 connection and releases its demand; on the hosted arm demand is released
 by the socket close/error teardown
 (`webSocketClose` teardown, `cloudflare/src/coordinator.js:5062`) — the 24 h default grant TTL
@@ -540,7 +540,7 @@ The spec must state, as normative client-facing contract:
    join the arm × route matrix): on the local arm,
    `POST /_snapback/api/cron/tick` and the per-job
    `POST /_snapback/api/cron/{name}/run` the existing browser suites use
-   (`src/admin.rs:1953-1985`, AdminWrite); on the hosted arm, the
+   (`crates/snapback/src/admin.rs:1953-1985`, AdminWrite); on the hosted arm, the
    admin-gated `POST /cron/run` with `{job}` forwarded to the coordinator
    (`cloudflare/src/gateway.js:128-135`,
    `cloudflare/src/coordinator.js:912-924`) — there is no hosted tick
@@ -572,7 +572,7 @@ The spec must state, as normative client-facing contract:
    lane for `live/hosted`, and the spec states this as a lifecycle fact.
    **(2b) `durable_bytes` requires recovery.** The frame exists so an
    undecodable durable payload is never dropped silently
-   (`src/live_wire.rs:280-283`), and its outbox lease is already released
+   (`crates/snapback/src/live_wire.rs:280-283`), and its outbox lease is already released
    at delivery — a client that ignores it can stay silently stale while
    reporting current. The normative transition is forced resync:
    close/reconnect with fresh subscribe (or an equivalent), encoded in
@@ -591,7 +591,7 @@ The spec must state, as normative client-facing contract:
    ownership-transfer cut and duplicate-tolerance rule (inventory item 3),
    cadence, batch bounds (`MAX_OUTBOX_DRAIN_BATCH=64`), backlog/overflow
    behavior (`outbox_overflow` → connection-wide resync, `clear_retained`),
-   and the 64 MiB handoff/retention budgets (`src/ephemeral.rs:798`)
+   and the 64 MiB handoff/retention budgets (`crates/snapback/src/ephemeral.rs:798`)
    are spec facts.
 4. **Delta is the server's choice.** Clients implement both paths and never
    infer query shape from which arrives.
@@ -679,9 +679,9 @@ Follow-on Spec clusters, 0091/0092-style, in landing order:
   re-establishes every subscription); also retires the stale
   destructive-drain comments the 0059 change left behind
   (`packages/snapback-client/index.mjs:3846`,
-  `src/server.rs:19004`).
+  `crates/snapback/src/server.rs:19004`).
   *Status (2026-07-25): landed as LLP 0095 (Draft) — state machine, corpus
-  contract + seeded generator (`src/wire_fixtures.rs`), dispatch seam,
+  contract + seeded generator (`crates/snapback/src/wire_fixtures.rs`), dispatch seam,
   comment retirement; remaining coverage tracked by
   `issues/20260725-0093-p1-*`.*
   *Status (2026-07-30): the remaining corpus coverage landed as
@@ -724,7 +724,7 @@ version carrier (bound at `/connection/open`; see D1).
    client protocol and `onUpdate`/consistency semantics, plus the
    InstantDB native-client question (0074's inventory re-verification rule
    applies). Unowned.
-3. **Fixture emission mechanics**: extend `tests/artifact_schemas_v0.rs` to
+3. **Fixture emission mechanics**: extend `crates/snapback/tests/artifact_schemas_v0.rs` to
    emit the corpus alongside its drift check, or a separate generator over
    `artifact_instances()`? (The authority question is settled in D1; this
    is plumbing — the drift gate already walks `artifact_instances()`, so

@@ -199,15 +199,15 @@ in the corpus are corrected where they overreach.
 
 ### 3.1 Profile is derived from the server's own bind
 
-`resolve_profile` (`src/admin.rs:291`) returns `Dev` when `SNAPBACK_PROFILE` is
+`resolve_profile` (`crates/snapback/src/admin.rs:291`) returns `Dev` when `SNAPBACK_PROFILE` is
 unset/empty and the bind is loopback, `Prod` otherwise; any exact
 `dev|demo|test|prod` overrides; any other non-empty value fails closed to `Prod`.
-`ServerProfile::for_bind_ip` (`src/admin.rs:158`) feeds it the concrete address
+`ServerProfile::for_bind_ip` (`crates/snapback/src/admin.rs:158`) feeds it the concrete address
 startup will bind. A front is invisible to it. This confirms the tunnel ticket.
 
 ### 3.2 What the `dev` profile actually unlocks
 
-`operation_profile_requirement` (`src/admin.rs:199-244`) marks these `NonProd`:
+`operation_profile_requirement` (`crates/snapback/src/admin.rs:199-244`) marks these `NonProd`:
 `app.reset`, `app.ensure.provision`, the four `app.seed.*` operations,
 `schema.load`, `functions.load`, `function.run`, `auth.mintSession`, and the
 `asset.put|ensureSeedFixture|inspect|list|retry|delete` operator surface.
@@ -219,13 +219,13 @@ The tunnel ticket says the loopback default "grants the
 destructive/provisioning capability" to whoever reaches the public URL. That is
 accurate about the **profile** half and quotes the source comment correctly. It is
 **not** the composite exposure, because those operations are separately gated by
-`OperationAuthorityRequirement` and `evaluate_access` (`src/admin.rs:3557`):
+`OperationAuthorityRequirement` and `evaluate_access` (`crates/snapback/src/admin.rs:3557`):
 
 - **AdminWrite with a configured token:** the token is required, loopback or not.
 - **AdminWrite with no configured token:** allowed on loopback — but that branch
   is documented as unreachable from the serve path, because
   `resolve_serve_admin_token` (ENG-23443) always resolves or auto-mints a token
-  before serving (`src/admin.rs:3546-3556`). The token lands in an owner-only
+  before serving (`crates/snapback/src/admin.rs:3546-3556`). The token lands in an owner-only
   `<ready-file>.admin-token` sibling, which a tunnel does not expose.
 - **AdminRead:** `else if loopback || token_ok` — **allowed with no credential at
   all on a loopback bind.**
@@ -237,8 +237,8 @@ So the accurate present-tense exposure of a tunnelled loopback dev server is:
    `RoutePolicy::AdminRead` registrations.
 2. **Client-asserted application identity**: in `PolicyAuthMode::Dev` the caller
    supplies its own `auth` in the request body — `resolved_wire_ephemeral_auth`
-   (`src/server.rs:29510-29522`) returns exactly what the client sent, and
-   `WirePublishRequest::resolve` (`src/server.rs:29536`) takes `session_id`,
+   (`crates/snapback/src/server.rs:29510-29522`) returns exactly what the client sent, and
+   `WirePublishRequest::resolve` (`crates/snapback/src/server.rs:29536`) takes `session_id`,
    `user_id`, and `custom_key` from the wire. Anyone with the URL acts as any
    user.
 3. **Not** unauthenticated reset/provisioning on a served instance.
@@ -246,7 +246,7 @@ So the accurate present-tense exposure of a tunnelled loopback dev server is:
 This refinement belongs to the tunnel ticket's owner. **This packet does not close
 or duplicate that ticket**; it hands over one correction (the composite is 1+2,
 not "reset for anyone") and one addition: `ctx.loopback` is *also* the gate for
-value-carrying configuration writes (`src/server.rs:19404`, `19446`), whose
+value-carrying configuration writes (`crates/snapback/src/server.rs:19404`, `19446`), whose
 source comment states "An SSH tunnel (loopback at the server) is the blessed
 remote path." That comment is a second, independent site where a loopback peer is
 treated as authority, and it is a design statement, not an accident.
@@ -255,7 +255,7 @@ treated as authority, and it is a design statement, not an accident.
 
 `demos/relay-room-bakeoff/snapback-expo/scripts/dev-server.mjs:42-55` binds
 `0.0.0.0`, sets `SNAPBACK_PROFILE: 'dev'` (so the non-loopback bind does not fall
-back to `Prod`), and passes `--allow-insecure-dev-auth` — which `src/cli.rs:801`
+back to `Prod`), and passes `--allow-insecure-dev-auth` — which `crates/snapback/src/cli.rs:801`
 documents as "Permit client-asserted dev auth on a plaintext non-loopback bind,"
 i.e. LLP 0060 D1's "explicit non-production dev override."
 
@@ -307,8 +307,8 @@ Concretely, three changes that stand or fall together:
    authenticate against — the property LLP 0181 already relies on for binding
    integrity.
 3. **The two remaining loopback-as-authority sites are converted to the same
-   check**: `evaluate_access`'s tokenless `AdminRead` branch (`src/admin.rs:3581`)
-   and the `ctx.loopback` configuration-write gate (`src/server.rs:19404`,
+   check**: `evaluate_access`'s tokenless `AdminRead` branch (`crates/snapback/src/admin.rs:3581`)
+   and the `ctx.loopback` configuration-write gate (`crates/snapback/src/server.rs:19404`,
    `19446`).
 
 ### 4.2 The explicit local-process threat model
@@ -325,7 +325,7 @@ The design states its boundary rather than leaving it implicit:
   `<ready-file>.admin-token` sibling, and any capability the supervisor persists.
   This is consistent with the already-recorded position that "same-user
   filesystem access *is* local admin (LLP 0036 D3)"
-  (`src/admin.rs:3457-3459`). **The design does not claim to defend against a
+  (`crates/snapback/src/admin.rs:3457-3459`). **The design does not claim to defend against a
   same-user local process, and any successor that claims otherwise is
   overclaiming.**
 

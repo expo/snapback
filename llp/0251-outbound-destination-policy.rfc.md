@@ -197,7 +197,7 @@ A landing claiming this RFC Implemented must provide executable evidence that:
 
 - 2026-08-12 — the concrete P1 parity landing
   (`issues/closed/20260812-host-fetch-ssrf-parity-with-webhooks.md`): Rust
-  `src/outbound_policy.rs` is the shared primitive behind webhooks and both
+  `crates/snapback/src/outbound_policy.rs` is the shared primitive behind webhooks and both
   host action-fetch lanes (metadata/non-public answers refused, resolver
   pinned at transport time, redirects(0), env proxies ignored, authored URL
   echoed, loopback denied unless `SNAPBACK_OUTBOUND_LOOPBACK=1` or the

@@ -1104,7 +1104,7 @@ The amended successful-exchange path follows §6:
    LLP 0059. Shipped exchange issuance performs the LLP 0059 projection `Begin` /
    cap-eviction drain **before** its SQLite commit (`AuthCoordinator::premark_issuance`:
    topology lock, `begin_issuance`, the cap-eviction `begin_session_mutation`, then
-   `drain.wait()` — `src/auth/coordinator.rs`, `src/auth/provider.rs`), and LLP
+   `drain.wait()` — `crates/snapback/src/auth/coordinator.rs`, `crates/snapback/src/auth/provider.rs`), and LLP
    0057 requires every provider/projection guard dropped before that `Begin` and
    forbids holding a projection guard while holding a provider lock. So the host,
    guards released, performs that `Begin` / cap-eviction drain here, keeping LLP
@@ -1137,7 +1137,7 @@ The amended successful-exchange path follows §6:
    all rolled back (§6.3). **Any `STALE` or hook refusal *after* the step-4
    `premark_issuance` MUST roll back that issuance premark** — `finish_issuance`
    with the compensating `compare_unmark_issuance` (and its session/stream
-   counterparts), `src/auth/coordinator.rs`, `src/auth/session_projection.rs` — so
+   counterparts), `crates/snapback/src/auth/coordinator.rs`, `crates/snapback/src/auth/session_projection.rs` — so
    the cap-eviction premark and topology reservation are released rather than
    stranded; aborting only the SQLite transaction is insufficient because the 0059
    `Begin` ran outside it. The shipped post-commit mailbox erase, which LLP 0057
@@ -1585,7 +1585,7 @@ LLP 0053/0056 require a protected-room reservation to be installed and quiesced
 **before** entering Local/SQLite; the shipped interlock carries an **unbound**
 `AuthorizationCommitReservation` into SQLite and refuses at commit unless it is
 `bind()`-bound to the exact impact — `bind()` returns the `PreparedAuthorizationCommit`
-(`src/storage.rs`, the `AuthorizationCommitInterlock` /
+(`crates/snapback/src/storage.rs`, the `AuthorizationCommitInterlock` /
 `AuthorizationCommitReservation` contract; the shipped `bind()` also refuses an
 impact the reserved selector does not `covers()`). Routing effects through the
 central commit hook does not by itself install that reservation, and preparing it
@@ -1974,7 +1974,7 @@ Two write surfaces that today bypass the seal are folded in:
   from generated insert/patch/delete types — the same shape it already uses for
   `identity_binding_tables`.
 - **Migration executor.** The LLP 0081 migration executor
-  (`src/storage/migration_executor.rs`) does not call the seal today. **Every** one
+  (`crates/snapback/src/storage/migration_executor.rs`) does not call the seal today. **Every** one
   of its write primitives that can create or materialize a row in a custody/registry
   target MUST route through the same `(schema, table)` seal check — not only raw
   `INSERT INTO {staged}` but also `CopyTable`, `CopyField`, `BackfillField`, an

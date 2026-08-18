@@ -9,9 +9,9 @@
 ## Problem
 
 Actions currently have only the process-wide `outbound_actions_enabled`
-boolean (`src/runtime.rs:4744-4760`). That switch cannot represent LLP 0249's
+boolean (`crates/snapback/src/runtime.rs:4744-4760`). That switch cannot represent LLP 0249's
 per-action, per-destination authority. The webhook SSRF checks in
-`src/webhooks.rs:95-140` are useful precedent, but their classifier is
+`crates/snapback/src/webhooks.rs:95-140` are useful precedent, but their classifier is
 unversioned and unreachable from actions.
 
 The spike admitted exactly one brokered request —

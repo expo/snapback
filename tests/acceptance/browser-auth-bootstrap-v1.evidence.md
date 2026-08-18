@@ -61,7 +61,7 @@ bearer/recovery-token scans pass).
    the stranded publication surfaced as `SNAPBACK_AUTH_SESSION_EXPIRED` →
    client `SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`. Fixed in this
    landing with an operation-specific committed-refresh fence
-   (`src/auth/session_projection.rs`) that admits the winner past only its
+   (`crates/snapback/src/auth/session_projection.rs`) that admits the winner past only its
    already-doomed sibling refresh tickets while binding admission to the
    finalized successor digest and captured authenticated-use deadline pair;
    later finalized same-generation rotation, deadline replacement,

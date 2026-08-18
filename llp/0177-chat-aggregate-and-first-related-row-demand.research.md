@@ -130,7 +130,7 @@ The current baseline is not ambiguous:
 
 - `packages/snapback-codegen/define.mjs` asserts that relational root and
   joined table names differ; and
-- `src/manifest.rs` rejects a relational plan whose root and joined table
+- `crates/snapback/src/manifest.rs` rejects a relational plan whose root and joined table
   are equal with `SNAPBACK_RELATIONAL_PLAN_INVALID`.
 
 So `defineRelationalQuery` does **not** admit this self-join in v1. The
@@ -267,7 +267,7 @@ claim completion until it includes:
 
 Review. The factual question about current self-join support is
 closed: v1 explicitly refuses it, cited against `define.mjs` and
-`src/manifest.rs`. The aggregation recommendation now follows LLP 0130
+`crates/snapback/src/manifest.rs`. The aggregation recommendation now follows LLP 0130
 SD-2's actual expressibility-first decision procedure rather than a
 workload-count approximation of it, and no longer leans toward
 maintained-exact without the contention evidence SD-2 requires for that

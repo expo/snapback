@@ -49,7 +49,7 @@ validation, no consistency in prefix length or meaning.
 
 **Bare UUIDv7 — and this is the problem.** `_auth_users.id`, `identity_id`,
 `session_id`, `authority_instance_id`, receipt ids, declaration ids, and
-**every app document id** (`new_id()` in `src/storage.rs`).
+**every app document id** (`new_id()` in `crates/snapback/src/storage.rs`).
 
 So the secrets are well designed, the throwaway internal handles are casually
 marked, and the durable object identities that users, app code, support
@@ -264,7 +264,7 @@ first hosted-auth target, not before.
 - Five committed schemas pin the UUIDv7 regex
   (`auth.credential.output`, `auth.session.output`, `client-mutation.ack.input`,
   `mutation.input`, `mutation.output`) and regenerate under LLP 0037.
-- `validate_uuid_v7` in `src/auth/invalidation.rs` becomes a registry-aware
+- `validate_uuid_v7` in `crates/snapback/src/auth/invalidation.rs` becomes a registry-aware
   shape check that accepts both spellings.
 - Client-minted mutation ids (`packages/snapback-client`) mint `mut_` through
   the generated TypeScript half of the registry.

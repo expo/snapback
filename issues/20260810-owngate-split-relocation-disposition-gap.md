@@ -18,8 +18,8 @@ predecessor (it cannot — the new module did not exist), leaving
 coupling is pre-existing, not new — which overloads the waiver vocabulary
 LLP 0225 §2 reserves for genuinely new coupling.
 
-Live example: `src/server/writer_gate.rs → src/local.rs` at the owner-#5
-slice (predecessor `src/server.rs → src/local.rs` retained; recorded as a
+Live example: `crates/snapback/src/server/writer_gate.rs → crates/snapback/src/local.rs` at the owner-#5
+slice (predecessor `crates/snapback/src/server.rs → crates/snapback/src/local.rs` retained; recorded as a
 waiver with explanatory provenance in
 `issues/20260809-0199-ownership-ratchet-worklist.md`, deadline 2026-09-15).
 

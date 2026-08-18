@@ -15,12 +15,12 @@ same mechanism, Impact 5 / Urgency 5, already open),
 
 ## What happened
 
-Landing the Ibex diagnostic-noise fix (`src/runtime.rs`, `src/local.rs`) was
+Landing the Ibex diagnostic-noise fix (`crates/snapback/src/runtime.rs`, `crates/snapback/src/local.rs`) was
 refused by the `local-store-publication` pre-push gate. The refusal was
 **correct and correctly attributed**: the gate ran an attribution check, proved
 baseline `ad9125a54fdd` passes, and reported that the pushed revision introduced
-the staleness. A `src/` change legitimately rotates the source digest that
-`src/local-persistent-store-publication.v1.json` pins.
+the staleness. A `crates/snapback/src/` change legitimately rotates the source digest that
+`crates/snapback/src/local-persistent-store-publication.v1.json` pins.
 
 The gate named its own repair:
 
@@ -71,8 +71,8 @@ per the repository rule that a deliberate bypass must be exact and visible.
 
 ## What is actually owed
 
-- `src/local-persistent-store-publication.v1.json` and its `.anchor.v1.json` are
-  now stale with respect to `src/` on main and must be refreshed by whoever next
+- `crates/snapback/src/local-persistent-store-publication.v1.json` and its `.anchor.v1.json` are
+  now stale with respect to `crates/snapback/src/` on main and must be refreshed by whoever next
   runs the re-mint chain.
 - The `triage-graph-move1` retained receipt must be re-minted against current
   `packages/snapback-client/index.mjs` before `finalize` can run at all.
@@ -91,4 +91,4 @@ separate owner's debt instead of presenting itself as the available repair.
 `issues/20260811-record-inventory-local-store-publication.md` already argues
 that dated pathnames should not be part of this control plane. This incident is
 the concrete cost of that design: the calendar-shaped coupling is what makes one
-lane's small `src/` edit depend on another lane's unrelated receipt being fresh.
+lane's small `crates/snapback/src/` edit depend on another lane's unrelated receipt being fresh.

@@ -136,7 +136,7 @@ one such mutation, and it is not a common interactive offline path.
 | Artifact | Raw/minified bytes | Gzip | Brotli | Measurement meaning |
 | --- | ---: | ---: | ---: | --- |
 | shipped `@expo/snapback-client/ir-evaluator` browser closure | 21,295 minified | 7,615 | 6,739 | committed esbuild browser/ESM/ES2022 metrology, including used contract dependencies |
-| pure-Rust evaluator WASM PoC | 306,890 raw `.wasm` | 117,353 | 95,830 | exact `src/value_expr.rs` + `src/result_transform.rs`, minimal type/error shims, serde/SHA-256 closure; optimized for size with Rust LTO |
+| pure-Rust evaluator WASM PoC | 306,890 raw `.wasm` | 117,353 | 95,830 | exact `crates/snapback/src/value_expr.rs` + `crates/snapback/src/result_transform.rs`, minimal type/error shims, serde/SHA-256 closure; optimized for size with Rust LTO |
 | Binaryen `wasm-opt` result | **not measured** | — | — | `wasm-opt` is not installed; no substitute number is mislabeled |
 
 The measured Rust proof is **14.4× raw/minified, 15.4× gzip, and 14.2×
@@ -283,7 +283,7 @@ latency is claimed.
 ### Repository reality on 2026-08-05
 
 - `FunctionRuntime` contains only `HostPlan` and `IbexModule`
-  (`src/manifest.rs:6757-6760`); D3's proposed `WasmModule` variant is absent.
+  (`crates/snapback/src/manifest.rs:6757-6760`); D3's proposed `WasmModule` variant is absent.
 - The repository declares no Snapback handler `wasm32` build target, handler
   artifact pipeline, browser host/import ABI, or WASM conformance runner. The
   developer toolchain happened to have `wasm32-unknown-unknown` installed,

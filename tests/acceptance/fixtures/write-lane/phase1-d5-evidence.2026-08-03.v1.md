@@ -104,7 +104,7 @@ this evidence and is not inferred from the D5 result.
 - `packages/snapback-client/ir-evaluator.test.mjs` makes the complete 37-case
   JS replay and the four local outcome classes part of the client package
   suite.
-- `tests/data_tier_corpus_v0.rs` requires exact results, counts, output
+- `crates/snapback/tests/data_tier_corpus_v0.rs` requires exact results, counts, output
   ledgers, rejection codes, and rollback; an opt-in environment path emits
   normalized Rust outcomes for evidence comparison.
 - `phase1-d5-evidence.2026-08-03.v1.mjs` runs the Rust leg, runs the JS leg,

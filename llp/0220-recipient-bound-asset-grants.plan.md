@@ -79,7 +79,7 @@ commit identity comes from `git log` directly; no cited document records
 it):
 
 - **Admission-frozen opt-in** — `grants_enabled` on the admitted asset
-  record (`src/assets.rs` ~796: "a later deploy cannot retrofit authority
+  record (`crates/snapback/src/assets.rs` ~796: "a later deploy cannot retrofit authority
   onto already-admitted bytes"); intent-side `grants: true` in
   `packages/snapback-codegen/define.mjs` (~3995, ~4047).
 - **Handler ops** — `ctx.assets.grant` / `activate` / `revoke` host calls
@@ -87,12 +87,12 @@ it):
   (denied in queries and actions alike).
 - **Closed authorization machine** — owner-mint, named-principal-activate,
   owner-or-principal revoke, enforced transactionally in
-  `src/storage/asset_grants.rs` (~80 onward, `@ref LLP 0210#d5`), staged
-  as `asset_grant_ops` through commit in `src/runtime.rs` (~357).
+  `crates/snapback/src/storage/asset_grants.rs` (~80 onward, `@ref LLP 0210#d5`), staged
+  as `asset_grant_ops` through commit in `crates/snapback/src/runtime.rs` (~357).
 - **Integration** — active-only read authority and GC protection, live
   revoke blanking, consistent-cut custody, typed refusals, 1,024
   pending-plus-active edges per app; covered by
-  `asset_grant_ops_pilot_strict_signed_and_lifecycle` (`src/local/tests.rs`
+  `asset_grant_ops_pilot_strict_signed_and_lifecycle` (`crates/snapback/src/local/tests.rs`
   ~2781), `asset_grant_commit_wakes_and_revoke_blanks_live_projection`
   (~4541), and `asset_cut_carries_grants_at_the_same_consistent_cut`
   (~2151).
@@ -174,7 +174,7 @@ question. Do not build C or D now.
 
 The recipe generalizes the pilot's working pattern onto the primitive
 (semantics verified against `guide/backend/assets.md` §627 and the
-enforcement in `src/storage/asset_grants.rs`):
+enforcement in `crates/snapback/src/storage/asset_grants.rs`):
 
 1. **Send**: the owner attaches once, retains the typed reference on the
    message row (pending grants do **not** protect against GC — the
@@ -246,7 +246,7 @@ capability-gate.
   main; capability row cites the new witnesses.
 - **D3 — Acceptance-tested demo witness.** No `demos/*` app exercises
   `grants: true` today; the primitive's app-shaped proof lives only in
-  `src/local/tests.rs`. Extend a messaging-shaped demo (e.g.
+  `crates/snapback/src/local/tests.rs`. Extend a messaging-shaped demo (e.g.
   `demos/team-chat` or `demos/messaging-snapback`) or add a minimal one
   with the full recipe, plus an acceptance test mirroring the pilot's
   hostile probes and the recipe's load-bearing invariants: non-recipient

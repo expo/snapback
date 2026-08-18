@@ -142,7 +142,7 @@ search or bisection are the recurring audit input.
 
 The earlier intake estimate of **200–500** codes is superseded by the audit's
 measured **~2,418 distinct production `SNAPBACK_*` identifiers**. The audit
-scanned literal identifiers in `src/**/*.rs` (1,248 distinct) and
+scanned literal identifiers in `crates/snapback/src/**/*.rs` (1,248 distinct) and
 `packages/**/*.mjs` (1,316 distinct), excluded tests, fixtures, and templates,
 then deduplicated the two sets to a 2,418-identifier union. This measurement is
 the sizing input for Phase 1; grading still distinguishes actual diagnostics
@@ -287,7 +287,7 @@ pre-decided here).
 
 First entry recorded under this rule — `SNAPBACK_AUTH_REQUEST_INVALID`
 (five emitting sites, two behind the shared `auth_host_operation_input`
-parser in `src/server.rs`, which serves several host-ops operation
+parser in `crates/snapback/src/server.rs`, which serves several host-ops operation
 families):
 
 - **(SNAPBACK_AUTH_REQUEST_INVALID, auth.mintSession): A** after
@@ -295,11 +295,11 @@ families):
   `operation: "auth.mintSession"`, the expected argument contract
   (`args: { email }`, closed), and the resolving
   `guide/operating/host-ops.md` mint-section anchor;
-  `tests/host_ops_v0.rs` pins the shape.
+  `crates/snapback/tests/host_ops_v0.rs` pins the shape.
 - **The remaining contexts of the shared parser** (the rescue and
   integration-operator families) and the non-fan-out sites
-  (`src/auth/provider.rs`, the `src/server.rs` mailbox path,
-  `src/server/api_error.rs`) stay ungraded-B/C pending their own
+  (`crates/snapback/src/auth/provider.rs`, the `crates/snapback/src/server.rs` mailbox path,
+  `crates/snapback/src/server/api_error.rs`) stay ungraded-B/C pending their own
   context repairs; they are unchanged by ticket 2 and keep the stable
   code.
 

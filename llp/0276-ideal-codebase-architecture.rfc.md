@@ -18,7 +18,7 @@ D1–D7, the ownership-map amendments, and the supersessions recorded in
 pointers land with the program's Phase 4 docs series.)
 **Revised:** 2026-08-17 (r5, editorial only, after dual-READY convergence
 bound to r4: the six non-blocking round-4 minors folded — OQ-B asks for
-revoked/disabled bypass dispositions; leaf-assigned `src/auth/` files named
+revoked/disabled bypass dispositions; leaf-assigned `crates/snapback/src/auth/` files named
 in the types row and `throttle.rs` in the kernel row; the entry-anchor
 gloss points at the LLP 0175 D2.3 complete inventory; the required-green
 "migration-critical" set defined; two stale risk cells updated; Phase 3
@@ -29,7 +29,7 @@ with a remainder exemption ending at the flip); the qualification contract
 gains a required-green scope anchored to a named prior battery, preserving
 LLP 0189 D-6 for publication; the freeze lease made exclusive (bypass
 grants revoked/disabled for the window, not merely listed); leaf-owned
-`src/auth/` modules and `SessionProjection` placement clarified; owner ids
+`crates/snapback/src/auth/` modules and `SessionProjection` placement clarified; owner ids
 for the rank-7 harness crates; straggler-gate exemptions narrowed; touched
 `@ref` glosses made a phase obligation)
 **Revised:** 2026-08-17 (r3: round-2 in-delta findings applied — the
@@ -116,7 +116,7 @@ layout is judged against.
 
 | Surface | Measure |
 | --- | --- |
-| Rust | One crate, no workspace. 242 files under `src/`, ~563k lines (~468k excluding the giant sibling `tests.rs` files); 74 integration-test files under `tests/`; 12 auxiliary bins; `Cargo.lock` resolves 548 packages. |
+| Rust | One crate, no workspace. 242 files under `crates/snapback/src/`, ~563k lines (~468k excluding the giant sibling `tests.rs` files); 74 integration-test files under `tests/`; 12 auxiliary bins; `Cargo.lock` resolves 548 packages. |
 | God files | `local.rs` 33,787 · `server.rs` 31,697 · `manifest.rs` 20,594 · `storage.rs` 20,158 · `ephemeral.rs` 16,657 · `runtime.rs` 12,250 · `telemetry.rs` 11,851 · `cli.rs` 11,129. The five largest ≈ 26% of non-test source. Test siblings: `local/tests.rs` 33,873 · `server/tests.rs` 33,165 · `storage/tests.rs` 22,448 · `cli/tests.rs` 5,638. 51 files exceed 2,000 lines. |
 | JS/TS | 20 package dirs (19 names) in a bun workspace scoped to `packages/*` only; 13 published as the 0.1.24 closure. **No build step anywhere**: hand-authored ESM `.mjs` with 126 hand-written `.d.mts`; TypeScript is a checker, not a compiler. `snapback-client` is the largest surface (57k src lines, 41 subpath exports). |
 | Contract corpus | `schemas/`: 295 flat JSON files (~272 JSON Schemas + 23 fixture/registry corpora), consumed by Rust, JS, Swift, and the Cloudflare target. |
@@ -139,7 +139,7 @@ layout is judged against.
 - **The no-build JS posture**: source-is-artifact `.mjs` + hand-written
   `.d.mts`, checked not compiled. This keeps published packages exactly
   equal to what agents read and edit. Ratified as Decision D3 below.
-- **The single Ibex seam**: exactly one module (`src/runtime.rs`) links
+- **The single Ibex seam**: exactly one module (`crates/snapback/src/runtime.rs`) links
   `ibex-runtime`. The target layout promotes this from a convention to a
   crate boundary with a gate-enforced external-dependency rule.
 - **The proof engine's shape**: gates as data, fail-closed inventories,
@@ -154,9 +154,9 @@ layout is judged against.
    call every other. The boundaries the project already ratified are
    advisory at compile time.
 2. **God files.** Five files carry a quarter of the source; each drags a
-   test sibling of comparable size. `src/` is flat (124 top-level entries)
+   test sibling of comparable size. `crates/snapback/src/` is flat (124 top-level entries)
    with no hierarchy above two levels. Agents pay the cost on every read:
-   orientation in a 33k-line file is expensive, and `src/lib.rs` plus a JSON
+   orientation in a 33k-line file is expensive, and `crates/snapback/src/lib.rs` plus a JSON
    manifest are the only maps.
 3. **Root namespace noise.** ~60 *tracked* one-off coordination artifacts at
    the repo root: 29 `*.log` (two over 1 MB), 13 `*-CHARTER.md`, 13
@@ -265,7 +265,7 @@ checker), `app.json`/`eas.json` (→ `website/`), `examples/`
 (→ `crates/snapback/examples/`, keeping `embed::production` /
 `NativeCodePosture` as the public names), `tools/` (→ `crates/`),
 `spike-isolated-node-action/`, `docs/`, `notes-archive/` (→ `archive/`),
-`build.rs` (per-crate now), `src/` and the root manifest's single-package
+`build.rs` (per-crate now), `crates/snapback/src/` and the root manifest's single-package
 form. `.gitignore` gains `/*.log`, `/runs/`, and a rule that orchestration
 outputs live under gitignored `runs/<date>-<slug>/` — never loose at the
 root.
@@ -285,9 +285,9 @@ a strictly lower rank; the matrix is therefore a DAG by construction.
 
 | Crate | Rank | Owner | May depend on (workspace) | Charter and today's principal modules |
 | --- | --- | --- | --- | --- |
-| `snapback-types` | 0 | `shared-contract-types-leaf` | — | Language-neutral schema/wire/id/value/generation types; `schemars` derives; hosts the `snapback-schemagen` bin that exports `schemas/`. Today: `contract_types.rs`, the DTO half of `manifest.rs`, `ids.rs`, `value_expr.rs`, wire shape structs, `schema_export.rs`, and the leaf-assigned `src/auth/` modules per 0225 — `auth/identity_core.rs`, `auth/crypto.rs`, `auth/service_authority_contract.rs`. |
-| `snapback-kernel` | 1 | `storage-migration-kernel` | types | SQLite transactions — the only commit primitive for the canonical store (LLP 0059); schema lineage, migration executor, rollback artifacts, durability; **search + vector** as storage-level query machinery over the canonical store (their rebuild jobs stay above, in services, composing kernel ops). Today: `storage.rs` + **all of `storage/*` including every `storage/auth_*`** — after 0225's A2/A3 those are the kernel's typed durable operations (transaction scope + SQL), and they stay in the kernel; plus `migration*.rs`, `data_patch.rs`, `data_tier.rs`, `seed_identity.rs`, `instance_lock.rs`, `store_state.rs`, `src/auth/throttle.rs` (kernel per 0225 A1 until its `auth_rehearsal` call-up inverts), `search/*`, `vector/*` (the generated `unicode17` table is a recorded generated-file exception). Any remaining `storage/* → src/auth/*` call-up is an **inversion prerequisite for both the kernel and auth carves** — the fix is inverting the edge, never reassigning the calling file upward. |
-| `snapback-auth` | 2 | `auth-substrate` *(new owner)* | kernel, types | The auth **substrate**: provider, session/credential/lease/custody **policy and published substrate surfaces** (durability stays kernel), revocation **publication** through the LLP 0053 leaf shapes (`SessionProjection` itself stays in `snapback-sync` per 0225's landed cut), rescue, sender-proof, identity, hosted-edge *policy*. Sits **below** the domain rank so sync, services, and transport may all consume it without sideways edges — preserving 0225's landed item-3 cut. The boundary rule: `snapback-sync` keeps witnessed delivery obligations, resync fan-out, and subscription-invalidation *delivery*; auth owns authorization policy and its published epochs/leases, carried by the leaf's existing LLP 0053 shapes (authorization versions/epochs, lease ids, terminal-cause records) — not a new undirected pile; **the live matcher makes no per-row cross-crate call on the fan-out path** (the port pattern: policy compiles/publishes in auth, sync evaluates locally against leaf-shaped state, refresh rides auth commits through sync's existing invalidation delivery — off the fan-out path). A policy module that provably cannot leave sync without a hot-path hop stays in sync as a **bounded, named membership exception in `crates/allowed-dependencies.v1.json`** with a burn-down ticket — membership, never a matrix edge exception. Today: `src/auth/*` **minus its already-leaf-assigned modules** (`identity_core.rs`, `crypto.rs`, `service_authority_contract.rs` are leaf-owned files staying with `snapback-types` per 0225's assignments) and minus `throttle.rs` (kernel per 0225 A1 until the `auth_rehearsal` call-up inverts) — i.e. policy: provider, sender-proof decisions, hosted-edge policy, identity/lifecycle, rescue; plus `membership_rules.rs`, `dev_identity.rs` — **not** the durable `storage/auth_*` operations, which are kernel. |
+| `snapback-types` | 0 | `shared-contract-types-leaf` | — | Language-neutral schema/wire/id/value/generation types; `schemars` derives; hosts the `snapback-schemagen` bin that exports `schemas/`. Today: `contract_types.rs`, the DTO half of `manifest.rs`, `ids.rs`, `value_expr.rs`, wire shape structs, `schema_export.rs`, and the leaf-assigned `crates/snapback/src/auth/` modules per 0225 — `auth/identity_core.rs`, `auth/crypto.rs`, `auth/service_authority_contract.rs`. |
+| `snapback-kernel` | 1 | `storage-migration-kernel` | types | SQLite transactions — the only commit primitive for the canonical store (LLP 0059); schema lineage, migration executor, rollback artifacts, durability; **search + vector** as storage-level query machinery over the canonical store (their rebuild jobs stay above, in services, composing kernel ops). Today: `storage.rs` + **all of `storage/*` including every `storage/auth_*`** — after 0225's A2/A3 those are the kernel's typed durable operations (transaction scope + SQL), and they stay in the kernel; plus `migration*.rs`, `data_patch.rs`, `data_tier.rs`, `seed_identity.rs`, `instance_lock.rs`, `store_state.rs`, `crates/snapback/src/auth/throttle.rs` (kernel per 0225 A1 until its `auth_rehearsal` call-up inverts), `search/*`, `vector/*` (the generated `unicode17` table is a recorded generated-file exception). Any remaining `storage/* → crates/snapback/src/auth/*` call-up is an **inversion prerequisite for both the kernel and auth carves** — the fix is inverting the edge, never reassigning the calling file upward. |
+| `snapback-auth` | 2 | `auth-substrate` *(new owner)* | kernel, types | The auth **substrate**: provider, session/credential/lease/custody **policy and published substrate surfaces** (durability stays kernel), revocation **publication** through the LLP 0053 leaf shapes (`SessionProjection` itself stays in `snapback-sync` per 0225's landed cut), rescue, sender-proof, identity, hosted-edge *policy*. Sits **below** the domain rank so sync, services, and transport may all consume it without sideways edges — preserving 0225's landed item-3 cut. The boundary rule: `snapback-sync` keeps witnessed delivery obligations, resync fan-out, and subscription-invalidation *delivery*; auth owns authorization policy and its published epochs/leases, carried by the leaf's existing LLP 0053 shapes (authorization versions/epochs, lease ids, terminal-cause records) — not a new undirected pile; **the live matcher makes no per-row cross-crate call on the fan-out path** (the port pattern: policy compiles/publishes in auth, sync evaluates locally against leaf-shaped state, refresh rides auth commits through sync's existing invalidation delivery — off the fan-out path). A policy module that provably cannot leave sync without a hot-path hop stays in sync as a **bounded, named membership exception in `crates/allowed-dependencies.v1.json`** with a burn-down ticket — membership, never a matrix edge exception. Today: `crates/snapback/src/auth/*` **minus its already-leaf-assigned modules** (`identity_core.rs`, `crypto.rs`, `service_authority_contract.rs` are leaf-owned files staying with `snapback-types` per 0225's assignments) and minus `throttle.rs` (kernel per 0225 A1 until the `auth_rehearsal` call-up inverts) — i.e. policy: provider, sender-proof decisions, hosted-edge policy, identity/lifecycle, rescue; plus `membership_rules.rs`, `dev_identity.rs` — **not** the durable `storage/auth_*` operations, which are kernel. |
 | `snapback-activation` | 3 | `generation-activation-coordinator` | auth, kernel, types | Composes and atomically installs successor generations via kernel commits (LLP 0225 §3.2 unchanged). Today: `generation_activation.rs`, the activation logic of `local.rs`/`manifest.rs`. |
 | `snapback-sync` | 3 | `sync-realtime-engine` | auth, kernel, types | Subscriptions, version streams, live matching/coalescing, RQS, cursors, outbox settlement, invalidation delivery, fan-out, ephemeral rooms. Today: `live_matcher.rs`, `live_coalesce.rs`, `rqs*.rs`, `watches.rs`, `connected_clients.rs`, `snapshot_batch_cursor*.rs`, `ephemeral.rs`, `realtime.rs`. |
 | `snapback-services` | 3 | `background-services` | auth, kernel, types | Assets + media pipeline, jobs, cron, push, webhooks, outbound policy, forks/branches, replication (`celld-ltx`'s sole consumer), telemetry (its sidecar store stays its own per 0225 §3.1), error tracking, ledger/proof-checkpoint custody, search/vector rebuild jobs. |
@@ -507,7 +507,7 @@ The seams the layout must keep legible, in generation/dependency order:
 
 | Today | Target | Kind | Phase |
 | --- | --- | --- | --- |
-| `src/**`, `build.rs`, root `tests/*.rs` | `crates/*` per the matrix | `git mv` + carve | 1–2 |
+| `crates/snapback/src/**`, `build.rs`, root `tests/*.rs` | `crates/*` per the matrix | `git mv` + carve | 1–2 |
 | `tools/agent-safe-baseline-worker` | `crates/snapback-tools` | `git mv` | 2 |
 | `examples/*.rs` | `crates/snapback/examples/` | `git mv` | 2 |
 | `cloudflare/` | `targets/cloudflare/` (+ 9 guide `source=` updates) | `git mv` | 3 |
@@ -518,7 +518,7 @@ The seams the layout must keep legible, in generation/dependency order:
 | ~60 tracked root logs/charters/reports/one-off scripts | deleted per reviewed manifest (`git rm`; history retains) | delete | 0 |
 | Ownership analyzer/manifest/baseline/ratchet | gate lands Phase 1 (overlap); retirement behind the flip predicate; worklist resolved → `issues/closed/`; 0232 events + D-3 pointer | replace | 1→3 |
 | Provably unreferenced scripts/tests | deleted or bound to a gate | delete | 0 |
-| 12 auxiliary `src/bin/*` bins | mapped per the Phase 0 manifest (conformance/tools/server/types/façade) | `git mv` | 2 |
+| 12 auxiliary `crates/snapback/src/bin/*` bins | mapped per the Phase 0 manifest (conformance/tools/server/types/façade) | `git mv` | 2 |
 | 74 integration-test binaries | ≤ 12 consolidated targets (audited; semantic isolation retained; remainders ticket — optional scope) | reviewed slice | 3+ |
 | `build.rs` agent-safe digest job | `snapback-tools` | split | 3 |
 | `scripts/` flat → grouped | follow-on after the window | deferred | — |
@@ -619,11 +619,11 @@ Consequences:
   readiness-receipt paths); digest pathspecs (`scripts/runtime-build-inputs.txt`,
   the agent-safe tree list); selection-policy path rules; CI workflow YAML +
   `ci_workflows_v0.mjs`; documented commands in AGENTS.md and guide pages;
-  source-reading checkers (`scripts/guide-lib.mjs` → `src/server.rs`,
-  `scripts/capability-maturity.mjs` → `src/manifest.rs`); the 11 guide
+  source-reading checkers (`scripts/guide-lib.mjs` → `crates/snapback/src/server.rs`,
+  `scripts/capability-maturity.mjs` → `crates/snapback/src/manifest.rs`); the 11 guide
   snippet transclusions from `cloudflare/**` and `tests/*.rs`;
   `SNAPBACK_REPO_ROOT` consumers; per-target/client roots; and a complete
-  **`[[bin]]`/`src/bin/*` → crate mapping** for the 12 auxiliary bins
+  **`[[bin]]`/`crates/snapback/src/bin/*` → crate mapping** for the 12 auxiliary bins
   (conformance-twin/sbsb-vectors/cf-manifest → `snapback-conformance`;
   agent-safe and bench bins → `snapback-tools`; the hosted-admission bin →
   `snapback-server`; `snapback-local` alias → the façade;
@@ -655,7 +655,7 @@ Consequences:
   demand a rank-violating (acyclic, compilable, illegal) edge the gate must
   refuse. The recorded activation → `local.rs` frozen edge is the named
   hard prerequisite for `snapback-activation`; the remaining
-  `storage/* → src/auth/*` call-up family is likewise the named prerequisite
+  `storage/* → crates/snapback/src/auth/*` call-up family is likewise the named prerequisite
   for the kernel and auth carves (invert the edge; never reassign the
   calling file upward). Each carve: invert, `git mv`, split the sibling
   `tests.rs` along the same lines, resolve that module's grandfathered

@@ -109,7 +109,7 @@ overrides generatable today. The present table surface warns on omission and
 states in code that the fail phase is blocked on override governance
 (`packages/snapback-codegen/index.mjs`, diagnostic anchor
 `SNAPBACK_AUTH_TABLE_VISIBILITY_IMPLICIT`); the manifest's closed table-policy
-union `TableVisibilityV1` has no override variant (`src/manifest.rs`). This Draft becomes an
+union `TableVisibilityV1` has no override variant (`crates/snapback/src/manifest.rs`). This Draft becomes an
 implementation authority only after acceptance and a separately verified
 implementation.
 
@@ -133,7 +133,7 @@ implementation.
   shipped end-state precedent, not evidence that table overrides exist.
 - The Rust manifest carries the table policy and documents that arbitrary
   handler reads remain outside the bounded implementation slice
-  (`src/manifest.rs`, `TableVisibilityV1` symbol anchor).
+  (`crates/snapback/src/manifest.rs`, `TableVisibilityV1` symbol anchor).
 - Relational, bounded-children, and snapshot-batch plan classes currently emit
   `SNAPBACK_TABLE_VISIBILITY_UNCOMPOSED_READ_SURFACE` when a restricted table
   policy is not composed. That warning is a live widening route, not a harmless
@@ -144,9 +144,9 @@ implementation.
   list (LLP 0070#what-the-slice-deliberately-does-not-implement-honest-gaps).
 
 The charter-mandated search found no visibility-override declaration or grant
-carrier in `packages/snapback-codegen/` or `src/manifest.rs`. The only
+carrier in `packages/snapback-codegen/` or `crates/snapback/src/manifest.rs`. The only
 `override` field in the searched manifest file was the unrelated
-`local_loopback_test_override` (`src/manifest.rs`, symbol anchor). This is a scoped negative inventory, not
+`local_loopback_test_override` (`crates/snapback/src/manifest.rs`, symbol anchor). This is a scoped negative inventory, not
 a claim about files outside that search.
 
 ### What the prior-art survey does not contain
@@ -1499,7 +1499,7 @@ G0 implementation record (2026-08-16):
 - [ ] The transitive root-provenance/runtime host-call fixture named above is
   pending the separately assigned D7 lane. G0 carries and validates the closed
   elevated-read capability manifest, but this lane deliberately does not edit
-  the elevated dispatch sites in `src/runtime.rs`.
+  the elevated dispatch sites in `crates/snapback/src/runtime.rs`.
 
 ### Phase G1 — migration closure
 

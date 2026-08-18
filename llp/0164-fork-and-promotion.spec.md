@@ -205,7 +205,7 @@ leg. The consolidated ticket tracks both without changing either to green.
 
 ### Implementation record — 2026-08-03
 
-The first core in-app slice lives in `src/fork_promotion.rs`. The superseded
+The first core in-app slice lives in `crates/snapback/src/fork_promotion.rs`. The superseded
 `branches::promote` post-image entry point is compile-disabled, while
 `MaterializedBase` now retains a SQLite-enforced query-only base distinct from
 its writable head. Rust is the source of truth for the nine committed
@@ -482,7 +482,7 @@ capability claim changes.
   (`instance_fork::tests::derived_fork_keeps_its_pinned_copy_when_parent_writes_after_publication`)
   was joined 2026-08-05 by
   `parent_commits_after_the_fork_point_are_invisible_to_the_published_fork`
-  and the live-server bidirectional leg in `tests/instance_fork_cli_v1.rs`.
+  and the live-server bidirectional leg in `crates/snapback/tests/instance_fork_cli_v1.rs`.
   The 2026-08-05 owner note above remains correct about *ownership* (this
   Spec's row-5 work, not LLP 0158 F1's), but its "remaining" framing is
   superseded on this specific fixture.

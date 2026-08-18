@@ -1102,15 +1102,15 @@ byte length with
 Executable substrate evidence is:
 
 - `sequence_host_bridge_is_declared_scoped_and_commits_with_the_mutation` in
-  `src/runtime.rs` for the ctx boundary, explicit public scope, undeclared
+  `crates/snapback/src/runtime.rs` for the ctx boundary, explicit public scope, undeclared
   refusal, and the collapsed missing-scope refusal;
 - `sequence_allocation_is_gapless_atomic_replay_safe_and_incarnation_scoped`
-  in `src/storage.rs` for explicit brownfield-incarnation backfill refusal,
+  in `crates/snapback/src/storage.rs` for explicit brownfield-incarnation backfill refusal,
   abort-without-burn, dense allocation, stale allocator conflict, exact
   settlement replay, maximum/exhaustion rollback, and delete/recreate restart
   under a new incarnation;
 - `order_field_utf8_bound_refuses_brownfield_and_all_central_writes` in
-  `src/storage.rs` plus `packages/snapback-codegen/sequence-authoring.test.mjs`
+  `crates/snapback/src/storage.rs` plus `packages/snapback-codegen/sequence-authoring.test.mjs`
   for authoring, identity/capability emission, brownfield adoption, and
   central-writer enforcement; and
 - the A6 operations-ledger fixture, whose concurrent `createJob` calls now use
@@ -1134,7 +1134,7 @@ complete multi-writer performance/commit-order corpus, or the other unlisted
 The complete §5.1 qualification corpus is now green for the contributor-source
 `local-dev-sqlite-ibex` target. The digest-bound
 `LocalCapabilityPublicationV1` carrier in
-`src/local-sequence-allocation-publication.v1.json` binds the qualification
+`crates/snapback/src/local-sequence-allocation-publication.v1.json` binds the qualification
 receipt and the executor, schema-authoring, and client-withholding source
 bytes. The runtime manifest publishes `sequence_allocation_v1` only when that
 carrier, receipt, contributor-source distribution, exact local profile, both
@@ -1235,10 +1235,10 @@ Cursor-free first pages admit whole-result `live_replace`; cursor-bearing
 subscribe refuses before storage.
 
 Executable evidence includes the fixed-nonce exact-order `sbsb1` golden and
-cross-family refusal tests in `src/snapshot_batch_cursor.rs`, codegen/host
+cross-family refusal tests in `crates/snapback/src/snapshot_batch_cursor.rs`, codegen/host
 `ParentAuthorizationKeyV1` vectors, artifact identity exact-compare tests, and
 `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in
-`src/local.rs`. That acceptance executes three nodes over one deduplicated
+`crates/snapback/src/local.rs`. That acceptance executes three nodes over one deduplicated
 parent group, crosses one coordinated continuation, proves sealed absence
 before malformed-cursor validation, and observes whole-batch live replacement
 plus cursor-bearing subscribe refusal. The local capability manifest now

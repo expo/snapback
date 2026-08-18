@@ -41,7 +41,7 @@ they do not establish that either workaround is safe or should become product
 behavior.
 
 The findings below were checked against the current codegen scanner, handler
-loading path, LLP 0009/0108/0118, LLP 0058, `src/auth/mode.rs`, the sessions dev-
+loading path, LLP 0009/0108/0118, LLP 0058, `crates/snapback/src/auth/mode.rs`, the sessions dev-
 loop regression test, and the guide's documented live-reload path.
 
 ## Finding 1: third-party handler admission is a supply-chain decision
@@ -104,7 +104,7 @@ different options and should not be conflated.
 LLP 0058 defines a closed deployment identity containing `schemaHash`,
 `bundleHash`, and the pair-level `inputsHash`. The cold startup carrier contains
 the complete schema and function manifests, is treated as executable authority,
-and must equal the pinned deployment before listener bind. `src/auth/mode.rs`
+and must equal the pinned deployment before listener bind. `crates/snapback/src/auth/mode.rs`
 computes and compares that complete identity.
 
 The source and guide also verify the intended evolution path. A stop,

@@ -401,7 +401,7 @@ tier. [inferred]
   architecture, style, product documentation, and engineering posts.
 - **Snapback current-state characterization: high.** The relevant contracts and
   limits were read in LLP 0003, 0007, 0008, 0010, 0035, 0038, 0043, 0046, and
-  0047 and spot-checked against `src/storage.rs` and the current test tree.
+  0047 and spot-checked against `crates/snapback/src/storage.rs` and the current test tree.
 - **Priority ordering: medium-high.** Crash/reopen and composed sync/replay testing
   close already-recorded proof gaps. The simulator boundary and storage injection
   mechanism need a scoped design pass.

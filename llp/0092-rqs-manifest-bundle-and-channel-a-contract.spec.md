@@ -107,7 +107,7 @@ other trusted artifact: deterministic bytes, a canonical hash, drift gates,
 and one admission point.
 
 **Artifact schema** (exported as `routes.manifest.schema.json` in the
-artifact-schema family, `tests/artifact_schemas_v0.rs`):
+artifact-schema family, `crates/snapback/tests/artifact_schemas_v0.rs`):
 
 ```
 routesManifest = { formatVersion: 1,
@@ -169,7 +169,7 @@ served-manifest fact:
   existing non-retention consumers such as `publicInline`; it cannot cause a
   failed host proof to pass.
 - **Closed-inputs proof.** The obligations are exactly those
-  `validate_retainable_query` (`src/manifest.rs`) enforces for the
+  `validate_retainable_query` (`crates/snapback/src/manifest.rs`) enforces for the
   retainable class — HostPlan query runtime (no opaque JavaScript), a
   complete read summary (today: the `singleTable` summary whose table set
   equals the plan's), and declared-equals-observed authorization dependence
@@ -192,7 +192,7 @@ Target posture for the 2026-08-16 amendment:
 
 | Target | No-declaration public-exact admission | Status |
 |---|---|---|
-| local/Ibex (`src/manifest.rs`) | codegen and the served host independently derive the class; `authorityIndependent` is not an input | Implemented |
+| local/Ibex (`crates/snapback/src/manifest.rs`) | codegen and the served host independently derive the class; `authorityIndependent` is not an input | Implemented |
 | Cloudflare (`cloudflare/src/rqs-host.mjs`) | still requires a validated `authorityIndependent: true` flag in addition to the closed HostPlan/read-summary proof | **Pending** — port the owner-derived proof and its adversarial acceptance before removing the flag |
 
 Thus every unqualified no-declaration/default-retention claim in this dated
@@ -204,7 +204,7 @@ normative for that target until the pending row lands.
 - Codegen (`packages/snapback-codegen`): the functions manifest gains the
   authored `publicInline` boolean (§0C.3); no authored `rqsEligible` field
   exists anywhere.
-- Local served manifest (`src/manifest.rs` `FunctionDefinition` family): accepts
+- Local served manifest (`crates/snapback/src/manifest.rs` `FunctionDefinition` family): accepts
   `publicInline` (serde-renamed like `authorityIndependent`), validates it
   per §0C.3, computes `rqsEligible`, and carries both on the served
   functions manifest **and its public projection** (`PublicFunctionManifest`
@@ -508,7 +508,7 @@ authoritative; this section adds only wire parameters:
 
 0090 D1.2 requires the local arm to evaluate a bundle "inside one pinned
 read transaction (or an equivalent storage-layer cut)". The mechanism
-exists: **`with_pinned_read_snapshot`** (`src/storage.rs`) wraps reads in a
+exists: **`with_pinned_read_snapshot`** (`crates/snapback/src/storage.rs`) wraps reads in a
 transaction that pins one WAL read snapshot — the read lane already reads
 query plans against a pinned snapshot head. Contract:
 
@@ -810,7 +810,7 @@ sections above read as amended here.
    read of a route whose queries all carry `publicInline` succeeds; any
    non-`publicInline` query on the entry refuses
    `SNAPBACK_BUNDLE_NOT_PUBLIC` (acceptance in
-   `tests/rqs_routes_manifest_v0.rs`).
+   `crates/snapback/tests/rqs_routes_manifest_v0.rs`).
 6. **OQ-A interim: one shared anonymous bucket on the local arm.** The
    endpoint's per-authority rate limiter keys anonymous callers into a
    single `"anonymous"` bucket (per-client-address keying stays OQ-A, an
@@ -844,7 +844,7 @@ ENG-25454):**
 - **§0E.6 typed decode landed with two sharpenings.** (a) The server's
   per-arg types are **AST-derived**: a plan filter comparing a schema field
   against `Arg(name)` types that arg from the schema field type
-  (`function_route_arg_types`, `src/bundle.rs`) — there is no
+  (`function_route_arg_types`, `crates/snapback/src/bundle.rs`) — there is no
   manifest-carried arg schema server-side; codegen validates the same rules
   against the authored args validators at compile time. (b) References are
   typable **only at top-level arg positions**: a `$param` nested inside an
@@ -1114,7 +1114,7 @@ left them.)
   land with cluster implementation, LLP 0091's stub pattern):
   `packages/snapback-vite/rqs-serializer.test.mjs` and, for the
   Cloudflare-arm assembler, a `cloudflare/`-side test over the same fixture
-  files; a Rust-side `tests/rqs_serializer_v0.rs` only if a Rust assembler
+files; a Rust-side `crates/snapback/tests/rqs_serializer_v0.rs` only if a Rust assembler
   ever exists.
 - **Closed-union schema parity:** fixtures proving the per-entry union of
   §0D.1 (resume present iff `rqsEligible`; auth-scoped register entries

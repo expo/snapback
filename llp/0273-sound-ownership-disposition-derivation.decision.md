@@ -127,7 +127,7 @@ The gate's disposition vocabulary is `analyzer-upgrade`, `relocation`, and
 `edgeFingerprint = "${from} (${fromOwner}) → ${to} (${toOwner})"` (~line 580),
 so it changes whenever the `from`/`to` file path or either owner changes. A
 god-file drainage routinely changes a fingerprint while the underlying coupling
-is unchanged: code that carried `src/local.rs → T` moves into a new owned module
+is unchanged: code that carried `crates/snapback/src/local.rs → T` moves into a new owned module
 `M`, producing `M → T`. The pre-existing coupling is now keyed differently, but
 it is *pre-existing*, not new — overloading `time-bounded-waiver` (reserved by
 LLP 0225 §2 for genuinely new coupling) is dishonest, and the naive
@@ -206,7 +206,7 @@ families identified as soundness holes rather than permissiveness knobs.
    lineage value never discharges an obligation** — only §3.2 conservation does.
 4. **False-negative tolerance, but never a fresh clock and never a dropped
    deadline.** The proof must still admit legitimate god-file drainage (the
-   standing `src/local.rs` waivers). Bias toward over-conserving: an unprovable or
+   standing `crates/snapback/src/local.rs` waivers). Bias toward over-conserving: an unprovable or
    ambiguous transition over a **surviving** coupling **preserves** the strictest
    applicable predecessor obligation (carried forward verbatim, or the push
    blocks). It is **never** converted into a fresh waiver with a new deadline or a
@@ -299,7 +299,7 @@ families identified as soundness holes rather than permissiveness knobs.
 ### 3.0 What the gate already has
 
 `loadRevisionSnapshot(revision)` (~line 763) already materializes the **full
-source bytes** of every `src/**/*.rs` module at a named predecessor revision via
+source bytes** of every `crates/snapback/src/**/*.rs` module at a named predecessor revision via
 `git ls-tree` + `git show`, and `analyzeSources` (~line 584) already derives the
 forbidden-edge graph (`forbiddenEdges`, ~line 823) from those bytes. The gate
 therefore holds, in one process, both the predecessor forbidden-edge set and the
@@ -1054,11 +1054,11 @@ What changes versus today:
 
 ### 3.9 Proving a genuine god-file extraction (false-negative tolerance)
 
-A legitimate drainage of `src/local.rs`:
+A legitimate drainage of `crates/snapback/src/local.rs`:
 
 - **Re-key (drain, coupling still upward).** The `fn` carrying
-  `crate::…::connected_clients::…` moves from `src/local.rs` into
-  `src/server/writer_gate.rs` (owner-5). Predecessor `PredObl(connected_clients)`
+  `crate::…::connected_clients::…` moves from `crates/snapback/src/local.rs` into
+  `crates/snapback/src/server/writer_gate.rs` (owner-5). Predecessor `PredObl(connected_clients)`
   holds worklist item 8's waiver on `local.rs → connected_clients`;
   `CurEdges(connected_clients)` holds `writer_gate.rs → connected_clients`. With
   `k = m = 1`, conservation requires the surviving edge to carry item 8's waiver
@@ -1205,7 +1205,7 @@ promotion).
 
 | # | Case | Fixture | Admission (why) |
 |---|---|---|---|
-| P1 | **genuine god-file extraction (drain, re-key)** | Predecessor: waiver on `src/local.rs → src/connected_clients.rs`. Current: the reference-bearing `fn` moved verbatim into `src/server/writer_gate.rs (owner-5)`; `local.rs` no longer references the target. Record: `lineage: relocation [P8]` + verbatim obligation. | Conservation `k = m = 1` over `connected_clients`: the surviving edge carries item 8's waiver verbatim. |
+| P1 | **genuine god-file extraction (drain, re-key)** | Predecessor: waiver on `crates/snapback/src/local.rs → crates/snapback/src/connected_clients.rs`. Current: the reference-bearing `fn` moved verbatim into `crates/snapback/src/server/writer_gate.rs (owner-5)`; `local.rs` no longer references the target. Record: `lineage: relocation [P8]` + verbatim obligation. | Conservation `k = m = 1` over `connected_clients`: the surviving edge carries item 8's waiver verbatim. |
 | P2 | **owner re-key with carry-forward** | Predecessor: waiver `G → T`. Current: `G` reassigned to a different owner, still forbidden, bytes identical; record carries the verbatim obligation. | `k = m = 1`; strict waiver carried verbatim. (Contrast N5, same setup with the obligation dropped.) |
 | P3 | **method extraction from a large `impl`** | Predecessor: waiver `G → T`; the coupling is in one method of a 40-method `impl`. Current: that method moved verbatim into `M`; the `impl` stays in `G`. | Conservation over `T`: `M → T` survives (`k = m = 1`) and carries the waiver; the `impl` staying put does not block it. §3.1 method-granular carriers make the byte-scan precise. |
 | P4 | **honest merge (N→1) — byte-scan promotion** | Predecessor: waivers `P1 = G1 → T` (D1) and `P2 = G2 → T` (D2 > D1). Current: only the coupling-bearing items move **verbatim** into a fresh merged `M` (so `G1`/`G2` no longer couple to `T`, but `own(M) ⊉ own(G1)` — `M` carries the carriers, not all of `G1`'s own items); `S = M → T` survives forbidden; record `lineage: merge [P1,P2]`, `deadline = D1`, owners = union. | The host rule gives `SH = ∅` (`own(M) ⊉ own(G1)`) with `LH = {M}` ⇒ leftover-fail — but this **refuses only the `k = 0` discharge, NOT the landing** (round-6 fix). `M → T` is a surviving **forbidden** edge (`k = 1`), so the §3.4 **byte-scan promotes** both obligations (the identical carriers reappear in `M`) onto it; §3.4 merge aggregation folds them (strictest `D1` + union). Conservation `k = 1 < m = 2` sheds **nothing** — promotion prevented a discharge and the honest merge **ADMITS**. |

@@ -102,37 +102,37 @@ the finalized-only v1 rule without changing LLP 0239 or the general
 These are implementation anchors, not claims that the missing projection
 already exists.
 
-1. `src/manifest.rs:2781-2800` (`result_contract_hash`) hashes canonical JSON
+1. `crates/snapback/src/manifest.rs:2781-2800` (`result_contract_hash`) hashes canonical JSON
    for the complete result contract under `snapback:function-result:v1`.
-   `src/manifest.rs:3837-3890` (`rqs_eligible_digest_kind`) admits only a public,
+   `crates/snapback/src/manifest.rs:3837-3890` (`rqs_eligible_digest_kind`) admits only a public,
    authority-independent, single-table HostPlan LiveQuery whose complete read
    summary names exactly that one plan table.
-2. `src/runtime.rs:594-670` (`run_ibex_query_with_reads_prepared`) executes JS
+2. `crates/snapback/src/runtime.rs:594-670` (`run_ibex_query_with_reads_prepared`) executes JS
    query reads through one `DbRead` and reports the version from that same view.
-   `src/local.rs:30194-30229` (`execute_query_invocation`) pins the live
+   `crates/snapback/src/local.rs:30194-30229` (`execute_query_invocation`) pins the live
    connection before any plan/handler work, then
-   `src/local.rs:31337-31348` validates and publishes the returned rows while
+   `crates/snapback/src/local.rs:31337-31348` validates and publishes the returned rows while
    still inside that invocation.
-3. `src/result_contract.rs:76-105` (`validate_handler_result`) serializes,
+3. `crates/snapback/src/result_contract.rs:76-105` (`validate_handler_result`) serializes,
    bounds, and recursively shape-validates a supplied `serde_json::Value`. It
    accepts no database/snapshot argument and performs no projection.
-4. `src/local.rs:11483-11545` and `src/local.rs:12226-12263` recover an exact
+4. `crates/snapback/src/local.rs:11483-11545` and `crates/snapback/src/local.rs:12226-12263` recover an exact
    client-mutation settlement before handler dispatch; the latter path also
-   returns before active-function selection. `src/storage.rs:15215-15326`
+   returns before active-function selection. `crates/snapback/src/storage.rs:15215-15326`
    (`record_client_mutation_result`) serializes and inserts `output_json` in the
-   committing transaction, while `src/storage/settlement.rs:411-620`
+   committing transaction, while `crates/snapback/src/storage/settlement.rs:411-620`
    (`client_mutation_result`) later decodes those bytes from a new pinned read.
-5. `src/storage/asset_reads.rs:258-340` shows that an asset record is loaded
+5. `crates/snapback/src/storage/asset_reads.rs:258-340` shows that an asset record is loaded
    before the separate `asset_read_authorized` decision and that the reserved
-   live projection returns no row on denial. `src/storage/asset_reads.rs:650-725`
+   live projection returns no row on denial. `crates/snapback/src/storage/asset_reads.rs:650-725`
    applies the same policy before variant enumeration and requires `ready`
    before signed issuance.
-6. `src/storage/asset_attempts.rs:323-430` creates an asset as `pending` and
+6. `crates/snapback/src/storage/asset_attempts.rs:323-430` creates an asset as `pending` and
    stores `declared_content_type` as optional request data. Trusted finalization
    records the detected primary `contentType` and transitions the asset to
-   `ready` in one transaction at `src/storage/asset_attempts.rs:900-962`.
+   `ready` in one transaction at `crates/snapback/src/storage/asset_attempts.rs:900-962`.
    The general attachment checker currently accepts both pending and ready
-   assets at `src/assets.rs:2320-2398` (`verify_attachment`), which is why
+   assets at `crates/snapback/src/assets.rs:2320-2398` (`verify_attachment`), which is why
    `v.media()` needs an explicit stricter field profile rather than an
    assumption about existing behavior.
 

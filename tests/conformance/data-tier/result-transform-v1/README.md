@@ -27,7 +27,7 @@ same pure transform.
   evaluator identities, per-case SHA-256, and `TransformHashV1`.
 - `packages/snapback-client/result-transform.test.mjs --write` regenerates the
   cases and manifest. Without `--write`, it is the drift gate and JS runner.
-- `tests/result_transform_corpus_v1.rs` is the Rust runner.
+- `crates/snapback/tests/result_transform_corpus_v1.rs` is the Rust runner.
 - `schemas/result-transform-v1.{case,corpus}.schema.json` are generated from
   the Rust envelope types with `snapback-schemagen`.
 

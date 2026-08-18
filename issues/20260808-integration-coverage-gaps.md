@@ -18,7 +18,7 @@ value.
 
 ## B) In-app fork/branch promotion has zero black-box coverage
 
-`src/fork_promotion.rs` (9,322 lines) has 37 in-file unit tests but **zero**
+`crates/snapback/src/fork_promotion.rs` (9,322 lines) has 37 in-file unit tests but **zero**
 references from `tests/` (`rg "fork_promotion|promote_branch|promotable|
 OverlayWrite" tests/*.rs` is empty). Promotion-by-re-execution inside a hidden
 canonical transaction is precisely the data-integrity path that needs black-box
@@ -28,8 +28,8 @@ settlement.
 
 ## C) Push delivery state machine has no integration exercise
 
-`src/push.rs` (5,649 lines) + `src/push/fake_expo.rs` have 19 unit tests; the
-fake provider is referenced only from `src/push.rs` itself. No integration/
+`crates/snapback/src/push.rs` (5,649 lines) + `crates/snapback/src/push/fake_expo.rs` have 19 unit tests; the
+fake provider is referenced only from `crates/snapback/src/push.rs` itself. No integration/
 acceptance test exercises queueing, retry, or provider-error paths. Thin-layer
 by design (LLP 0000), but the delivery state machine is nontrivial. *Ask:* an
 acceptance script driving enqueue → fake-provider error → retry → settle.
@@ -67,5 +67,5 @@ proof and classified for client changes. Parts B and C remain open.
 Item A landed: a dedicated JS lane replays `schemas/live.wire-fixtures.v1.json`
 against the JS client (50 fixtures, 78 local judgments; suite 23/23),
 registered and classified in the local proof. Items B (black-box
-`src/fork_promotion.rs` coverage) and C (push delivery state-machine
+`crates/snapback/src/fork_promotion.rs` coverage) and C (push delivery state-machine
 integration) remain open — this ticket stays open for them.

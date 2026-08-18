@@ -315,7 +315,7 @@ Three distinct internal types, distinctly named: the raw **wire auth input**
 `#[serde(default)]`, so presence is currently erased — ingress must preserve
 presence); the **resolved authority** (server-only); the immutable **handler
 projection** `ctx.auth`. The internal type must not collide with the
-room-permission-shaped Rust `AuthContext` in `src/ephemeral.rs`. Under
+room-permission-shaped Rust `AuthContext` in `crates/snapback/src/ephemeral.rs`. Under
 sessions, ingress **rejects** every client-auth-bearing field — nested
 `HandlerInput.auth`, live resume/unsubscribe owner auth, the ephemeral identity
 fields (which need mode-dependent DTOs: today's wire types *require* `auth`, so

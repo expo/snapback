@@ -9,12 +9,12 @@ naming the exact outstanding fingerprints and observation revision.
 Outstanding forbidden-edge fingerprints (re-observed at `245f23518`, after
 the original jobs-wave pair first observed at `eefe4e446` was cleared):
 
-1. `src/storage.rs (storage-migration-kernel) → src/runtime.rs
+1. `crates/snapback/src/storage.rs (storage-migration-kernel) → crates/snapback/src/runtime.rs
    (transport-adapters)` — the kernel points up into a transport adapter.
-2. `src/storage/mutation_writes.rs (storage-migration-kernel) → src/runtime.rs
+2. `crates/snapback/src/storage/mutation_writes.rs (storage-migration-kernel) → crates/snapback/src/runtime.rs
    (transport-adapters)` — a kernel mutation module points up into a transport
    adapter.
-3. `src/storage/tests.rs (storage-migration-kernel) → src/runtime.rs
+3. `crates/snapback/src/storage/tests.rs (storage-migration-kernel) → crates/snapback/src/runtime.rs
    (transport-adapters)` — the kernel test module points up into a transport
    adapter.
 
@@ -32,11 +32,11 @@ laundering path LLP 0225 §2 forbids.
 The two edges that gave this ticket its name are gone without a waiver or
 direction change:
 
-1. `JOBS_STATUS_TABLE` moved from kernel-owned `src/storage/jobs.rs` to the
-   dependency-free `src/contract_types.rs`; `src/manifest.rs` now names the
-   leaf directly while `src/storage/jobs.rs` re-exports the constant to
+1. `JOBS_STATUS_TABLE` moved from kernel-owned `crates/snapback/src/storage/jobs.rs` to the
+   dependency-free `crates/snapback/src/contract_types.rs`; `crates/snapback/src/manifest.rs` now names the
+   leaf directly while `crates/snapback/src/storage/jobs.rs` re-exports the constant to
    preserve its public façade.
-2. `src/storage.rs` now spells its kernel child re-export as
+2. `crates/snapback/src/storage.rs` now spells its kernel child re-export as
    `pub use self::jobs::{JobsKernel, JobsReadKernel};`, preventing the analyzer
    from resolving the bare `jobs` segment through the crate-level background
    service façade.
@@ -50,12 +50,12 @@ The LLP 0218 candidate is cleared by construction: both 0218 landings in
 the wave window — 9f62b14e2 (P1 headless union) and e6d0fe270 (P2 outbox
 drain controller) — contain **zero `.rs` paths** (`git show --name-only`
 each; the program is JS-client/React/docs only, and "outbox" in its titles
-refers to the JS-arm outbox, not `src/jobs.rs`). Neither edge can
-originate there. `git log -S 'crate::jobs' -- src/storage.rs` places the
+refers to the JS-arm outbox, not `crates/snapback/src/jobs.rs`). Neither edge can
+originate there. `git log -S 'crate::jobs' -- crates/snapback/src/storage.rs` places the
 kernel→jobs coupling lineage in the jobs-kernel commits (d9f3d4046
 owner-#2 jobs/cron facade slice, bfd4b437c LLP 0188 G1/G2 self-hosted
 lane, da67ba627 ratchet slice 1), and the LLP 0214 catalog-v3 wave
-(961b8be8c) touched `src/storage.rs` in the same window. Routing should
+(961b8be8c) touched `crates/snapback/src/storage.rs` in the same window. Routing should
 focus there; the LLP 0218 program takes no further action on this ticket.
 
 ## Re-observation — 2026-08-15

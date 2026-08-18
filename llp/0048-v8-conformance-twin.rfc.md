@@ -368,12 +368,12 @@ The twin is built and its minimum gate is green. What landed:
 - **Single-sourced harness.** The ctx bootstrap, the invocation settlement
   wrapper, and the Workers-dialect allowlist installer are extracted to
   `packages/snapback-harness/` and `include_str!`-embedded into the Ibex
-  runtime (`src/runtime.rs`), so the Ibex leg, the workerd leg, and the
+  runtime (`crates/snapback/src/runtime.rs`), so the Ibex leg, the workerd leg, and the
   LLP 0040 deploy Worker run the *same* JS bytes. The Ibex ambient-denial list
   is now generated from `allowlist.json`'s `bannedEverywhere.globals`, so the
   two engines' banned surface is one data source, not two hand-maintained
   lists.
-- **workerd executor behind a per-run seam.** `src/workerd_exec.rs` adds the
+- **workerd executor behind a per-run seam.** `crates/snapback/src/workerd_exec.rs` adds the
   V8 backend: a fresh workerd process per invocation (kill domain = one
   invocation), the harness modules materialized from the single source, a
   private loopback host-call transport, and the async `ctx` protocol served
@@ -393,7 +393,7 @@ The twin is built and its minimum gate is green. What landed:
   can neither learn callback authority nor forge a successful response. Public
   diagnostics read a fixed tail window from stderr and redact capability values
   and the private materialization path.
-- **Conformance runner + gate.** `src/bin/snapback-conformance-twin.rs` runs
+- **Conformance runner + gate.** `crates/snapback/src/bin/snapback-conformance-twin.rs` runs
   one corpus (`tests/conformance/twin-corpus.handlers.js`) on both engines,
   normalizes ids/timestamps and strips diagnostic-only `runtime.log`, then
   diffs normalized outcomes, host-call traces, and committed storage. Current
@@ -401,7 +401,7 @@ The twin is built and its minimum gate is green. What landed:
   two declared facts are the V8 busy-loop wall-clock kill (enforceable only at
   the service boundary) and Ibex's non-configurable `HermesInternal` global.
   `Date.now`/`Math.random`, zero-argument Date construction, and dynamic source
-  compilation are now convergent runtime denials. `tests/workerd_twin_v0.rs`
+  compilation are now convergent runtime denials. `crates/snapback/tests/workerd_twin_v0.rs`
   pins the LLP 0009 floor (settlement, unhandled rejection) engine-neutral,
   the two-direction ambient denial on both engines, the allowlist-slice
   agreement, and the busy-loop kill with no commit and no collateral.
@@ -409,7 +409,7 @@ The twin is built and its minimum gate is green. What landed:
   serves `local-conformance-sqlite-workerd-v8` with computed `runtime_facts`
   (workerd release id, compat pins, kill domain, measured wall-clock budget);
   `wall_clock_timeout` reports **Enforced** here, `cpu_budget` stays honestly
-  **Missing**. `tests/workerd_config_v0.rs` proves the single-sourced compat
+  **Missing**. `crates/snapback/tests/workerd_config_v0.rs` proves the single-sourced compat
   config and the `nodejs_compat*` refusal.
 
 **Author decisions taken (proposed defaults in the header, applied):** the
@@ -477,7 +477,7 @@ all are fixed and gated by the twin suites and the conformance corpus:
   the Ibex denier gained a symmetric post-install probe that fails the
   invocation (`SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE`) on any survivor
   except the declared `HermesInternal` fact.
-  `tests/workerd_twin_v0.rs` parses its probe list from `allowlist.json`
+  `crates/snapback/tests/workerd_twin_v0.rs` parses its probe list from `allowlist.json`
   instead of a retyped literal.
 - **Date constructor** (ENG-23588): zero-arg `new Date()` and `Date()` as a
   function are denied by the V8 strip (explicit-timestamp construction and
@@ -505,7 +505,7 @@ all are fixed and gated by the twin suites and the conformance corpus:
   and mutations only; egress-enabled actions restore the pre-0048 surface
   (deny exactly `process`/`require`/`WebSocket`), so the lazily-installed
   configurable `fetch` and the wide compute surface stay reachable.
-  `tests/egress_ambient_v0.rs` pins this in `cargo test`.
+  `crates/snapback/tests/egress_ambient_v0.rs` pins this in `cargo test`.
 
 ## Third leg: the Cloudflare-JS host-op table (2026-07-08, ENG-23605)
 

@@ -22,17 +22,17 @@ what already ships.
 The honest starting position is strong — with one correction from review.
 The ephemeral subsystem is complete and Accepted (LLP 0013: TTL/lease,
 latest-state coalescing, token-bucket publish budgets, connection-owned
-cleanup — `src/ephemeral.rs`). `subscribe_live` already returns the
+cleanup — `crates/snapback/src/ephemeral.rs`). `subscribe_live` already returns the
 authoritative initial snapshot in the same response as the subscription id
-(`src/local.rs:596-600`). A live WebSocket (`GET
+(`crates/snapback/src/local.rs:596-600`). A live WebSocket (`GET
 /live/{connection_id}/stream`) already carries ephemeral push to real
 browsers (cursors-web) and durable full-row updates to headless tests — the
 server even re-runs queries on mutation and pushes `live_replace` rows with
-a global commit version attached (`src/local.rs:1247-1262`). The
+a global commit version attached (`crates/snapback/src/local.rs:1247-1262`). The
 inspect-before-provision boot (`ensure_collections`,
-`src/ephemeral.rs:716-770`, LLP 0025 lineage) already exists for ephemeral
+`crates/snapback/src/ephemeral.rs:716-770`, LLP 0025 lineage) already exists for ephemeral
 collections. **But it is not all wiring:** the stream has no liveness signal
-at all (idle sockets send nothing; Ping/Pong are no-ops, `src/server.rs:641`),
+at all (idle sockets send nothing; Ping/Pong are no-ops, `crates/snapback/src/server.rs:641`),
 so the connection axis needs one small piece of real server work — named
 below as D0.
 
@@ -76,24 +76,24 @@ Exact 0284's acceptance is gated on this document.
 
 | Exact 0284 § | Obligation | Here today | Deliverable |
 |---|---|---|---|
-| §2.1 rule 1 | snapshot-with-subscribe, one operation | ✅ `subscribe_live` returns `{subscription_id, snapshot, permission_epochs}` (`src/local.rs:596-600`) | D5 names the atomicity check |
+| §2.1 rule 1 | snapshot-with-subscribe, one operation | ✅ `subscribe_live` returns `{subscription_id, snapshot, permission_epochs}` (`crates/snapback/src/local.rs:596-600`) | D5 names the atomicity check |
 | §2.1 rule 3 | declared degradation, static ↔ runtime agreement | partial — transports exist; nothing reports which is in effect | D1 + D2 |
 | §2.1 rule 4 | background/foreground = provider policy | ❌ | D1 (§2.4 lifecycle) |
-| §2.2 | connection axis (`connecting/live/polling/stale/disconnected`) | ❌ — and no liveness signal exists (`src/server.rs:625-660`; Ping/Pong no-op at `:641`) | **D0** + D1 §2.3 mapping |
+| §2.2 | connection axis (`connecting/live/polling/stale/disconnected`) | ❌ — and no liveness signal exists (`crates/snapback/src/server.rs:625-660`; Ping/Pong no-op at `:641`) | **D0** + D1 §2.3 mapping |
 | §2.4 | manifest v2 per-descriptor facts | partial — `subscription` field emitted (`demos/_kit/codegen.mjs:149,183`) | D3 |
 | §2.5 | `EphemeralMapCell` metadata (`updatedAt`/`expiresAt`/`sourceClientId`/`self`) | runtime facts exist server-side (LLP 0013) but are not surfaced per entry | D1 + D3 |
-| §2.5.1 | delivered-rate observability against `maxDeltaRateHz` | partial — `coalesced_updates` diagnostic (`src/ephemeral.rs:1278`) | D2 + D5 |
-| §2.6 | receipts with normative correlation keys | ❌ (durable payloads already carry the global commit version, `src/local.rs:1261` — the version fact exists; the receipt surface does not) | D2 |
-| §2.7 | bootstrap split by blast radius | partial — `ensure_collections` + identity guard (`src/ephemeral.rs:703-770`); but All Aboard's boot still calls destructive `reset()` on every load | D4 |
+| §2.5.1 | delivered-rate observability against `maxDeltaRateHz` | partial — `coalesced_updates` diagnostic (`crates/snapback/src/ephemeral.rs:1278`) | D2 + D5 |
+| §2.6 | receipts with normative correlation keys | ❌ (durable payloads already carry the global commit version, `crates/snapback/src/local.rs:1261` — the version fact exists; the receipt surface does not) | D2 |
+| §2.7 | bootstrap split by blast radius | partial — `ensure_collections` + identity guard (`crates/snapback/src/ephemeral.rs:703-770`); but All Aboard's boot still calls destructive `reset()` on every load | D4 |
 | §5.2 | provider conformance additions | partial — demo acceptance suites | D5 |
 
 ## 2. D0 + D1 — a liveness signal, then durable push to the browser
 
 **Fact base (corrected in rev 2):** the server already streams a
 connection's outbox over WebSocket (`GET /live/{connection_id}/stream`,
-`src/server.rs:58`), already re-runs affected queries on mutation and pushes
+`crates/snapback/src/server.rs:58`), already re-runs affected queries on mutation and pushes
 **full replacement rows** (`LiveUpdate{kind:"live_replace", rows, version}`,
-`src/local.rs:1247-1262`), and the kit already opens the socket
+`crates/snapback/src/local.rs:1247-1262`), and the kit already opens the socket
 (`openLiveStream`, `demos/_kit/client.mjs:164-207`) — but only headless Node
 tests use it for durable rows; every browser surface polls. cursors-web
 already uses the same socket for ephemeral push. So the wire shape is
@@ -104,7 +104,7 @@ server work the connection axis cannot exist without.**
 ### 2.1 D0 — the liveness signal (server precondition)
 
 The stream loop drains every 25 ms but sends nothing on an idle-healthy
-socket and explicitly ignores Ping/Pong (`src/server.rs:625-660`, `:641`).
+socket and explicitly ignores Ping/Pong (`crates/snapback/src/server.rs:625-660`, `:641`).
 A browser therefore cannot distinguish `live` from a dead-but-open socket
 until TCP timeout. D0 adds the smaller of:
 
@@ -128,7 +128,7 @@ ephemeral extends to durable). HTTP outbox drain remains the declared poll
 fallback — same data, declared cadence. **Invariant (LLP 0013, restated):
 durable traffic keeps scheduling priority over ephemeral on the shared
 socket** — the per-connection outbox already maintains separate bounded
-durable and resync lanes (`src/ephemeral.rs:517-518`); the merge must
+durable and resync lanes (`crates/snapback/src/ephemeral.rs:517-518`); the merge must
 preserve that drain order, verified under D5's flood check. No SSE lane
 unless a deployment target forbids WebSockets (OQ2).
 
@@ -152,8 +152,8 @@ agree (0284 §2.1 rule 3).
 
 - **Reconnect is always a fresh `subscribe_live`.** Socket close disposes
   the connection's durable subscriptions server-side (`live_stream` calls
-  `disconnect` on close, `src/server.rs:658`; `disconnect` removes them,
-  `src/local.rs:857`) — there is nothing to resume across a dropped socket.
+  `disconnect` on close, `crates/snapback/src/server.rs:658`; `disconnect` removes them,
+  `crates/snapback/src/local.rs:857`) — there is nothing to resume across a dropped socket.
   Fresh subscribe is snapshot-with-subscribe, so no prime race by
   construction; the adapter emits `resubscribed` with
   `reason: 'reconnect'`. A subscription-survival grace window is future
@@ -167,12 +167,12 @@ agree (0284 §2.1 rule 3).
 - **`resume_live` is a same-socket repoint, not a reconnect mechanism.** It
   takes `{subscription_id, connection_id, auth, recorded_permission_epochs}`
   — no versions — and returns `mode: 'retained' | 'resnapshot'` driven by
-  permission epochs (`src/local.rs:650-690`). There is no version-based
+  permission epochs (`crates/snapback/src/local.rs:650-690`). There is no version-based
   delta replay anywhere in resume.
 - **Resync triggers are resubscribe triggers.** Outbox overflow
-  (`MAX_OUTBOX_BACKLOG`, `src/ephemeral.rs:191`) collapses the queue to a
+  (`MAX_OUTBOX_BACKLOG`, `crates/snapback/src/ephemeral.rs:191`) collapses the queue to a
   sticky resync signal; permission changes enqueue `resync_required`
-  (`src/local.rs:1404`). Both drive a fresh `subscribe_live` and a
+  (`crates/snapback/src/local.rs:1404`). Both drive a fresh `subscribe_live` and a
   `resubscribed` receipt with `reason: 'overflow' | 'permission-epoch'`.
   Because the overflow sentinel is one-shot per episode (pushes are dropped
   while overflowed; the flag resets only on drain), a `resync_required`
@@ -224,7 +224,7 @@ scope); ephemeral still never resumes.
 Rev 1 proposed a new per-subscription sequence on the false premise that
 updates are unnumbered. In fact every durable snapshot and `live_replace`
 already carries the **global durable commit version**
-(`src/local.rs:1261`; `src/storage.rs` `current_version()` reading
+(`crates/snapback/src/local.rs:1261`; `crates/snapback/src/storage.rs` `current_version()` reading
 `_snapback_version`). That version *is* `snapshotVersion` /
 `lastDeltaVersion` for durable receipts — monotonic, shared across snapshot
 and deltas, nothing new invented. For ephemeral, the stored compound
@@ -254,7 +254,7 @@ OQ2 / 0278 OQ2:
 `SubscriptionReceipt.event` is `'established' | 'resubscribed' | 'disposed'`
 with `reason: 'reconnect' | 'overflow' | 'permission-epoch'` on
 resubscription. Delivered ephemeral rate (the `coalesced_updates`
-diagnostic, `src/ephemeral.rs:1278`) becomes a receipt-visible fact so
+diagnostic, `crates/snapback/src/ephemeral.rs:1278`) becomes a receipt-visible fact so
 conformance can check delivered rate ≤ `maxDeltaRateHz` (0284 §2.5.1).
 
 ### 3.3 Privacy
@@ -314,7 +314,7 @@ Changes:
 ## 5. D4 — bootstrap by blast radius (rewritten as concrete edits)
 
 Two distinct mechanisms, not one: the **existing `AdminWrite` auth policy**
-(`src/server.rs:165-167`, LLP 0031) — which is deliberately open on
+(`crates/snapback/src/server.rs:165-167`, LLP 0031) — which is deliberately open on
 loopback without a token — and a **new positive environment/profile
 capability** (dev/demo/test) that D4 introduces. Auth answers "may this
 principal?"; the profile answers "is this operation appropriate in this
@@ -329,7 +329,7 @@ fix):
 1. **Remove `reset()` from the mount path.** Mount lifecycle = connect,
    health, inspect-only provisioning check ("is this backend provisioned
    for this manifest?") — extending the `ensure_collections` inspect-first
-   pattern (`src/ephemeral.rs:716-770`) to schema and functions as one
+   pattern (`crates/snapback/src/ephemeral.rs:716-770`) to schema and functions as one
    idempotent call.
 2. **Provision + seed become inspect-first and environment-gated:**
    `apply_schema` / function push / seed run only when inspection says
@@ -422,7 +422,7 @@ deletion.
    query so a predicate-derived delta is sound. Ibex queries (which may
    transform results in JS beyond their captured predicate) and
    ordered/limited windows keep `live_replace`. Server: `notify_live_subscriptions`
-   + `compute_live_delta` (`src/live_matcher.rs`), membership maintained by
+   + `compute_live_delta` (`crates/snapback/src/live_matcher.rs`), membership maintained by
    applying ops with a debug-build convergence assertion; client:
    `applyDurable` in `demos/_kit/client.mjs`. Governed by
    [LLP 0008](../llp/0008-local-first-sync-and-realtime.rfc.md) §Decision DK-3;

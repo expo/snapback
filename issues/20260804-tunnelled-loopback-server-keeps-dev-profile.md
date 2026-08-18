@@ -16,7 +16,7 @@
 This is about the server **as it ships today** — not about the unbuilt dev edge
 researched in LLP 0168.
 
-`resolve_profile` (`src/admin.rs:291`) derives the server profile from the
+`resolve_profile` (`crates/snapback/src/admin.rs:291`) derives the server profile from the
 server's **own bind address**: with `SNAPBACK_PROFILE` unset it resolves `dev`
 on loopback and `prod` on a real interface. That fail-closed default is correct
 for a direct bind.
@@ -77,7 +77,7 @@ correspondingly the largest change. Direction 1 should land regardless.
 `guide/auth/targets.md` now states: a tunnelled loopback server
 (ngrok/Cloudflare Tunnel/Tailscale Funnel/SSH) stays bind-derived
 development; public exposure this way is unsupported; `SNAPBACK_PROFILE=prod`
-is not a repair and may fail closed. Verified against `src/admin.rs` and
+is not a repair and may fail closed. Verified against `crates/snapback/src/admin.rs` and
 LLP 0060 D1. Directions 2 (explicit exposure declaration) and 3 (narrowing
 loopback default authority) remain open — this ticket stays open for them.
 

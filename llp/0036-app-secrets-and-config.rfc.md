@@ -30,7 +30,7 @@ subsystem is defined as "a thin layer that you configure with your own provider
 API keys" ([LLP 0000](./0000-snapback.explainer.md) §Notifications), and the v2
 AI/data gateways are key-consuming subsystems by construction. Today the only
 mechanism is `SNAPBACK_ACTION_SECRETS`, a process-wide JSON env blob
-(`src/runtime.rs`), named as gap G4 in
+(`crates/snapback/src/runtime.rs`), named as gap G4 in
 [LLP 0029](./0029-all-aboard-gap-closure.plan.md).
 
 This RFC proposes **app configuration** as a first-class subsystem, with secret
@@ -77,7 +77,7 @@ flow drivable end-to-end by an agent through MCP instead of a browser.
 > `/_snapback/admin/setup` wizard plus the printed install line, the one-time
 > deprecated `SNAPBACK_ACTION_SECRETS` import, the All Aboard +
 > egress-probe migration (G4 closed; acceptance:
-> `demos/all-aboard/tests/acceptance/egress.mjs`, `tests/config_v0.rs`), and
+> `demos/all-aboard/tests/acceptance/egress.mjs`, `crates/snapback/tests/config_v0.rs`), and
 > a **Secrets surface in both admin consoles** projecting `config.status` —
 > per-entry set/verified/apply state, `uses`-grant legibility, probe verify —
 > with values write-only via the wizard (ENG-22598, LLP 0017).
@@ -197,7 +197,7 @@ Settled questions, each argued in its section below:
 App source declares its configuration the way it declares cron jobs: in source,
 carried into the generated function manifest, validated at manifest load
 ([LLP 0028](./0028-cron-scheduled-execution.rfc.md) establishes the pattern;
-`src/manifest.rs` carries `cronJobs` beside function definitions today).
+`crates/snapback/src/manifest.rs` carries `cronJobs` beside function definitions today).
 
 Sketch of a declaration (authoring-surface syntax is
 [LLP 0004](./0004-application-data-api.rfc.md)/[LLP 0020](./0020-core-authoring-surface.plan.md)
@@ -297,7 +297,7 @@ happened.
 
 **Local baseline: a 0600 file in the instance directory** — e.g.
 `.snapback/config.json` beside the default `.snapback/dev.sqlite3`
-(`src/cli.rs`). Values plus minimal metadata (set-at timestamp, source, verified
+(`crates/snapback/src/cli.rs`). Values plus minimal metadata (set-at timestamp, source, verified
 state); file mode 0600; owned by the store seam, never read by app code.
 Existing files are opened no-follow, must be regular and owned by the effective
 service identity, and are repaired to owner-only mode before any value is read;
@@ -580,7 +580,7 @@ value into an audit record, and honesty that a handler legitimately holding a
 secret can exfiltrate it — this is defense-in-depth.
 
 **The handle is a real type, not a convention.** Today's v0 injects a plain
-JSON object as `ctx.secrets` (`src/runtime.rs`) — exactly the shape Valet
+JSON object as `ctx.secrets` (`crates/snapback/src/runtime.rs`) — exactly the shape Valet
 shipped as a regression and fixed. The v1 handle is opaque: `toString()`,
 `toJSON()`, template-literal coercion, and console inspection all yield a
 redacted marker, never the value. The paved path never materializes the
@@ -755,7 +755,7 @@ A page in the admin console shell — `/_snapback/admin/setup` — rendered
 entirely from manifest declarations plus `config.status`:
 
 - **First run:** server startup already prints admin posture lines
-  (`src/cli.rs`); it additionally prints
+  (`crates/snapback/src/cli.rs`); it additionally prints
   `config: 2 required entries missing → http://127.0.0.1:<port>/_snapback/admin/setup`
   when applicable. That printed line *is* the install instruction for the
   open-source case; the README step is "start it and open the link."
@@ -793,7 +793,7 @@ local admin token (persisted 0600 next to the database or ready file, printed
 on the minting start, discoverable via a trusted local readiness descriptor's
 mechanically-derived `adminTokenFile`; inspect's `admin.tokenFile` is status
 metadata and is never followed by `--url` tooling (ENG-24338)); admin stays disabled
-entirely on a non-loopback bind without a token (`src/admin.rs`). Rationale:
+entirely on a non-loopback bind without a token (`crates/snapback/src/admin.rs`). Rationale:
 `config.set` is
 not a new authority class — the same lane already exposes `app.reset`, which is
 *more* destructive — and a subsystem-private auth scheme would fork the admin

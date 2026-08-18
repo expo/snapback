@@ -224,17 +224,17 @@ The item has six load-bearing claims:
   assignment. This Spec owns the concrete transition table that refines those
   frozen outcomes.
 - **[observed — Snapback commit `d172fd1`, 2026-07-13]** The current
-  `ConnectionRegistry` in `src/server.rs` binds only token/use state;
-  `DeliveryNotifier` in `src/ephemeral.rs` already generation-guards waiter
+  `ConnectionRegistry` in `crates/snapback/src/server.rs` binds only token/use state;
+  `DeliveryNotifier` in `crates/snapback/src/ephemeral.rs` already generation-guards waiter
   replacement; `OutboundQueue` entries carry no auth fence; provider commits
-  in `src/auth/provider.rs` can return revocation outcomes that callers do not
+  in `crates/snapback/src/auth/provider.rs` can return revocation outcomes that callers do not
   project; `demos/_kit/client.mjs` caches grants and reconnects without a typed
   terminal auth frame; `packages/snapback-contract/client-store.mjs` format 2
   has a write generation and user fingerprint but no authority epoch; and
   `packages/snapback-contract/index.mjs` has no shared transition barrier.
 - **[observed — Snapback commits `2d75ff7`, `40fd84e`, `e608c58`, and
   `c4b3989`, plus executable suites, 2026-07-14]** The durable session
-  projection/coordinator lives in `src/auth/{session_projection,coordinator}.rs`;
+  projection/coordinator lives in `crates/snapback/src/auth/{session_projection,coordinator}.rs`;
   provider, reset, expiry, connection, outbox, and live paths use its tickets and
   final fences; `packages/snapback-contract/auth-coordinator.mjs` and
   `client-store.mjs` implement transactional custody/barrier participation; and

@@ -138,7 +138,7 @@ Two classes, checked:
 - **Corpus-internal links** are relative paths within `guide/`
   (`../realtime/live-queries.md`). They must resolve.
 - **Out-of-corpus references** — `authorities:`, `examples:`, and inline
-  bridges into `llp/`, `demos/`, `src/`, etc. — use repo-root paths in
+  bridges into `llp/`, `demos/`, `crates/snapback/src/`, etc. — use repo-root paths in
   frontmatter and the `repo:` scheme inline
   (`[LLP 0008](repo:llp/0008-local-first-sync-and-realtime.rfc.md)`). They
   must exist in the repo.

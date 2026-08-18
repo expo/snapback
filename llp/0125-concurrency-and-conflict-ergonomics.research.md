@@ -144,7 +144,7 @@ E3 decision — server-captured reads would be a no-op there because the
 deciding read happened on the client). At commit, any invalidated
 dependency rejects the whole mutation with
 `SNAPBACK_MUTATION_CONFLICT`. The captured-read path
-(`src/storage.rs`, `captured_conflict`) attaches machine-readable
+(`crates/snapback/src/storage.rs`, `captured_conflict`) attaches machine-readable
 details: the failing dependency (`table`/`id`/`expected`/`actual`), the
 full captured read set, and `retryPolicy: "reject"`; the explicit
 `readSet` path shares the code and dependency detail but not yet the
@@ -160,7 +160,7 @@ a conflict mechanism: declarative host-plan mutations can author their
 own rejection codes — `get(..., {elseError})` and
 `guard(..., elseError)` (`packages/snapback-codegen/define.mjs`) — and
 storage emits those codes verbatim as structured handler diagnostics
-(`src/storage.rs`, the `Get`/`Guard` step failures). That is a stable
+(`crates/snapback/src/storage.rs`, the `Get`/`Guard` step failures). That is a stable
 machine-readable app-authored code, not a declared failure set:
 nothing closes the code union per operation or projects it into
 generated client types (LLP 0066's audit — "there is no generated,
@@ -275,7 +275,7 @@ separating three concepts often grouped as "domain-typed rejection":
 a stable machine-readable application code, a declaration-closed
 per-operation failure set, and a generated TypeScript error/result
 union. In the JS/Ibex lane a handler that throws surfaces
-`SNAPBACK_HANDLER_FAILED`: `handler_envelope_code` in `src/runtime.rs`
+`SNAPBACK_HANDLER_FAILED`: `handler_envelope_code` in `crates/snapback/src/runtime.rs`
 maps handler-envelope codes through a closed `SNAPBACK_*` allowlist and
 collapses everything else — its own test uses a code literally named
 `MADE_UP_BY_HANDLER` — to the generic code, keeping the thrown message
@@ -298,7 +298,7 @@ pipeline rather than rejections-as-data. Diary 0030's capacity-loser
 complaint stands on current main for the JS lane.
 
 **(c) Action failure vs mutation failure: two shapes.** Verified in
-`src/server.rs` and `src/local.rs`: the mutation route returns
+`crates/snapback/src/server.rs` and `crates/snapback/src/local.rs`: the mutation route returns
 `Result<Json<MutationResponse>, ApiError>` — a failed mutation rejects
 with an error envelope that still carries its terminal receipt — while
 the action route returns HTTP 200 with
@@ -326,7 +326,7 @@ client pins this with its action-never-retries test).
 
 ### The 409 taxonomy as a whole
 
-`status_for_established_diagnostic_code` (`src/server.rs`) maps a
+`status_for_established_diagnostic_code` (`crates/snapback/src/server.rs`) maps a
 large family — reservation staleness, mutation conflict, unique
 violation, action generation conflict, migration and seed conflicts,
 membership invariants, dozens of codes in all — to HTTP 409, with codes
@@ -558,7 +558,7 @@ document's.
    evidence above last-write-wins alternatives (Diary 0029).
 4. JS/Ibex handlers lack a declared, closed, per-operation rejection
    union that reaches generated client types: `handler_envelope_code`
-   (`src/runtime.rs`) collapses every non-allowlisted handler-thrown
+   (`crates/snapback/src/runtime.rs`) collapses every non-allowlisted handler-thrown
    code to `SNAPBACK_HANDLER_FAILED`. The host-plan lane already emits
    app-authored `elseError`/`guard` codes verbatim, but no lane has a
    declaration-closed failure set or a generated failure union. The
@@ -568,8 +568,8 @@ document's.
    complaint stands for the JS lane.
 5. The action/mutation failure-shape split is structural and current:
    actions settle HTTP 200 `{ok:false, diagnostic}`
-   (`FunctionRunResult`, `src/local.rs`), mutations reject with a
-   receipt-carrying error envelope (`src/server.rs`); LLP 0094 lists
+   (`FunctionRunResult`, `crates/snapback/src/local.rs`), mutations reject with a
+   receipt-carrying error envelope (`crates/snapback/src/server.rs`); LLP 0094 lists
    the action output as an open envelope family. Also observed at the
    remediated commit, so the remediation did not address it. The
    shapes differ in semantics, not just style: a rejected mutation

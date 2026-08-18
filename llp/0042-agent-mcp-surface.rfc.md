@@ -295,7 +295,7 @@ artifacts (0024's pinned entry shape; queries by default, mutations only
 with an explicit authority tuple; `devAdminBypass` without `reason`
 refused with a `next` hint). `app.inspect` now carries the SC-1a
 `recentInvocations` ring (128 entries, recorded at the host-ops handler so
-HTTP and MCP project identically; `src/host_ops.rs`, `src/server.rs`).
+HTTP and MCP project identically; `crates/snapback/src/host_ops.rs`, `crates/snapback/src/server.rs`).
 `snapback_acceptance_run` **proxies** the pinned
 `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope over HTTP: ENG-25388 (resolved
 2026-07-23, same day) registered the pinned-unbuilt operations in the HTTP

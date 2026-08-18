@@ -159,7 +159,7 @@ are inputs, never approvals, and the author decides.
 
 The registries of record are:
 
-- the Rust registry, `TargetCapabilityId::maturity` in `src/manifest.rs`,
+- the Rust registry, `TargetCapabilityId::maturity` in `crates/snapback/src/manifest.rs`,
   the sole runtime authority, guarded by the exhaustive registry test
   `capability_maturity_promotions_hold_and_admission_stays_fail_closed`; and
 - the codegen mirror, `EXPERIMENTAL_TARGET_CAPABILITY_IDS` in
@@ -269,7 +269,7 @@ shared; a split promotion would claim what was never separately witnessed.
 The rule follows the evidence, not only the wire carrier: the seed pair
 `versioned_seed_install_v1` + `versioned_seed_reset_v1` is advertised only
 after one closed mandatory suite passes every local row (the registry gate
-in `src/manifest.rs` carrying `@ref LLP 0109`), so its evidence is
+in `crates/snapback/src/manifest.rs` carrying `@ref LLP 0109`), so its evidence is
 likewise shared and the pair promotes and demotes together. An id coupled
 this way gains a solo route only when a dated revision here records every
 §2 item witnessed for it severally.
@@ -296,7 +296,7 @@ missing or vacuous item refuses the promotion; there is no partial credit.
   cannot promote, and acceptance alone is not the exit: `experimental`
   persists until the contract is Accepted, witnessed Implemented, and the
   id explicitly promoted under a route here (the `CapabilityMaturity`
-  vocabulary in `src/manifest.rs`; LLP 0080's ids stayed experimental
+  vocabulary in `crates/snapback/src/manifest.rs`; LLP 0080's ids stayed experimental
   after its 2026-07-24 acceptance until the Implemented witnesses landed
   2026-07-26).
 - **E2 — Acceptance-corpus breadth.** The promoted id's own acceptance
@@ -525,7 +525,7 @@ A promotion is one dated commit that carries the promotion and nothing else
 migration). The commit:
 
 1. moves the id from the `Experimental` arm of `TargetCapabilityId::maturity`
-   to the stable arm in `src/manifest.rs`, with a dated comment citing this
+   to the stable arm in `crates/snapback/src/manifest.rs`, with a dated comment citing this
    Spec and the exact repo-relative promotion-record path, and carrying the
    closed `@ref LLP 0134#4-the-promotion-act` annotation defined below;
 2. removes the id from `EXPERIMENTAL_TARGET_CAPABILITY_IDS` in
@@ -558,7 +558,7 @@ receipt's locators; A5 identifies the receipt introduced by the transition,
 binds it to the exact changed ids and sole parent, and recomputes the complete
 self-excluding landed-tree digest. Duplicating the receipt digest in a file
 inside that digest domain added a cycle, not evidence. A5 refuses a promotion
-whose `src/manifest.rs` lacks the exact citation marker.
+whose `crates/snapback/src/manifest.rs` lacks the exact citation marker.
 
 The promotion commit lands as a sole-parent commit: no merge commit, no
 stacked promotions, exactly one maturity transition per `parent..HEAD`
@@ -986,7 +986,7 @@ Spec. Per the executing ticket, this document promotes nothing itself.
   record, so registration cannot be mistaken for rollback. Final-tree tests,
   including the post-flip admission
   behavior, run on the transition commit itself, not only on its parent.
-  For promotions, that run also requires `src/manifest.rs` to contain the
+  For promotions, that run also requires `crates/snapback/src/manifest.rs` to contain the
   exact dated §4 promotion-record citation defined above, then recomputes the
   landed
   tree's canonical self-excluding staged-tree manifest (§4's
@@ -1007,7 +1007,7 @@ capability. `TargetCapabilityId::maturity` remains the sole runtime authority,
 but its former `_ => Stable` judgment default is gone: all ids are assigned
 exhaustively, so adding an id without choosing a maturity fails compilation.
 Codegen's mirror now includes every Rust non-stable id and exports a sorted
-canonical-JSON projection; `tests/capability_v0.rs` compares that emission
+canonical-JSON projection; `crates/snapback/tests/capability_v0.rs` compares that emission
 byte-for-byte with Rust and with the committed history projection at
 `tests/acceptance/capability-maturity.experimental.json`. The five §7 ids are
 also a closed Rust eligibility set whose members remain experimental.
@@ -1058,7 +1058,7 @@ The first retained production-tree observation is
 emitted after `inline-result-contracts.test.mjs` passed against candidate
 `55971c8b25d34a5f75d920f25debe55458332807`. The intended relation/activity
 pair could not start its window: its mandatory publication suite found the
-committed `src/local.rs` digest had drifted from the source-owned carrier on
+committed `crates/snapback/src/local.rs` digest had drifted from the source-owned carrier on
 that candidate. Issue
 `20260802-relation-activity-publication-carrier-drift` retains the exact
 failure; no green observation was fabricated.

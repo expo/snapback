@@ -4,8 +4,8 @@ id: auth.logical-transfer
 order: 7
 audience: agent-first
 capabilities: [auth.logical-transfer]
-authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0057-auth-provider-protocol.spec.md, src/auth/logical_transfer.rs, src/storage/auth_logical_transfer.rs, src/cli.rs, schemas/auth.logical-export.v1.schema.json]
-examples: [src/storage/auth_logical_transfer.rs]
+authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0057-auth-provider-protocol.spec.md, crates/snapback/src/auth/logical_transfer.rs, crates/snapback/src/storage/auth_logical_transfer.rs, crates/snapback/src/cli.rs, schemas/auth.logical-export.v1.schema.json]
+examples: [crates/snapback/src/storage/auth_logical_transfer.rs]
 status: current
 targets: [local]
 maturity: partial

@@ -1062,7 +1062,7 @@ designed but unbuilt. Proposed owners are proposals (constraint 7).
    ladder, which LLP 0008 itself names as this consumer's widening —
    the client sends `resumeFromToken` and consumes the rung answers,
    and `journal_resume_requires_resnapshot` has a server-side caller
-   (`src/local.rs`). What this row still tracks, at its honest reach:
+   (`crates/snapback/src/local.rs`). What this row still tracks, at its honest reach:
    the LLP 0008 **journal-delta** path specifically, and the exact
    `rqsEligible`/`mset1` boundary of what the shipped ladder covers.
    That boundary has not been verified end to end by this loop, so the
@@ -1680,8 +1680,8 @@ was an implicit 1,024-row query prefix silently treated as complete before
 application-side ordering (LLP 0138's 2026-08-01 Revised header and §Status).
 That is false completion — gate 9's territory — and it is **remediated**:
 `b52e3b9c` ("fix(query): refuse implicit result truncation") landed
-`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` with regressions in `tests/local_v0.rs`
-and `tests/workerd_twin_v0.rs`, closed as
+`SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED` with regressions in `crates/snapback/tests/local_v0.rs`
+and `crates/snapback/tests/workerd_twin_v0.rs`, closed as
 `issues/closed/20260801-fleet-query-implicit-limit.md`, and the v2 remediation
 receipt reads 7 PASS / 1 GAP / 0 FAIL. What survives as a nonclaim: the v1
 receipt stays immutable evidence, and gate-9 passes inside this lab's three

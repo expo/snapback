@@ -69,7 +69,7 @@ A client holds at most one state per connection:
 | State | Meaning |
 | --- | --- |
 | `IDLE` | No connection grant held. |
-| `GRANTED` | Grant held (`POST /connection/open` succeeded — `open_connection`, `src/server.rs`); no delivery attachment. The wire version is bound here (P-0). |
+| `GRANTED` | Grant held (`POST /connection/open` succeeded — `open_connection`, `crates/snapback/src/server.rs`); no delivery attachment. The wire version is bound here (P-0). |
 | `ATTACHED_LIVE` | Lane L: the managed socket is open (`GET /live/{connection_id}/stream`). At most one live socket per connection (LLP 0034 §2.1). |
 | `ATTACHED_POLL` | Lane P: the client is the connection's drain owner, polling `GET /outbox/{connection_id}` at a **declared, bounded cadence** with backoff (the kit's default: `DEFAULT_POLL_CADENCE_MS` = 1.5 s). Exactly one drain owner; non-overlapping drains (LLP 0093 D2 demand ownership). |
 | `RECOVERING` | Lane L socket lost; bounded-backoff reconnect in progress (250 ms → 10 s, LLP 0034 D0/D1). Where the arm serves Lane P and the client claims it, drain fallback may run concurrently; on the hosted arm there is no fallback (T-BLACKOUT). |
@@ -109,8 +109,8 @@ original token.
 
 Every transition below is normative. "Both lanes" means the frame class
 arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
-`RealtimeEnvelope`, `src/ephemeral.rs`) and lane-L-unwrapped
-(`src/live_wire.rs` module doc) — unwrapping is a lane obligation, not core.
+`RealtimeEnvelope`, `crates/snapback/src/ephemeral.rs`) and lane-L-unwrapped
+(`crates/snapback/src/live_wire.rs` module doc) — unwrapping is a lane obligation, not core.
 
 - **T-OPEN** (`IDLE → GRANTED`): `POST /connection/open`. Grant carriage
   splits by transport per LLP 0031's matrix (header;
@@ -134,8 +134,8 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   identity the subscribe carried (dev mode: the `auth` object of the
   subscribe input, e.g. `auth.user_id`) on the same connection grant.
   The server's ownership predicate is `LiveSubscription::is_owned_by`
-  (`src/local.rs`) over `RetainedLiveAuthority::matches`
-  (`src/auth/invocation.rs`) — resolved-identity key, auth mode, profile,
+  (`crates/snapback/src/local.rs`) over `RetainedLiveAuthority::matches`
+  (`crates/snapback/src/auth/invocation.rs`) — resolved-identity key, auth mode, profile,
   and exact connection effect fence — and a mismatch (including an absent
   `auth` on an authed subscription) refuses HTTP 403
   `SNAPBACK_LIVE_RESUME_OWNERSHIP` (the shared live-ownership code; scope
@@ -157,7 +157,7 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   retains the establishing body identity. In sessions it never synthesizes
   body identity; a user switch opens a fresh connection.
 - **T-REAP** (crash backstop, never normal release): on the local arm the
-  120 s idle TTL (`CONNECTION_IDLE_TTL_MS`, `src/server.rs`) reaps an
+  120 s idle TTL (`CONNECTION_IDLE_TTL_MS`, `crates/snapback/src/server.rs`) reaps an
   abandoned socketless connection and releases its demand; on the hosted
   arm demand release is the socket close/error teardown (`webSocketClose`
   teardown, `cloudflare/src/coordinator.js`) — the 24 h default grant TTL
@@ -172,7 +172,7 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
 - **T-LOSS** (`ATTACHED_LIVE → RECOVERING`; every subscription
   `→ DROPPED`): **socket loss drops the connection's durable
   subscriptions** server-side (`disconnect_topology_for_transport`,
-  `src/local.rs`; D3 fact 2), including a subscription whose subscribe was
+  `crates/snapback/src/local.rs`; D3 fact 2), including a subscription whose subscribe was
   still in flight — the ambiguous in-flight outcome resolves to `DROPPED`
   and is never assumed established. Backoff 250 ms → 10 s. Fixtures:
   `arm.socket_loss_mid_subscribe`, `timing.reconnect.backoff_bounds`.
@@ -183,7 +183,7 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   the same ownership predicate as T-UNSUB, and a superseded subscription
   owned by a different live owner fails closed with
   `SNAPBACK_LIVE_RESUME_OWNERSHIP` (the known-foreign-owner check in
-  `subscribe_live`'s supersession validation, `src/local.rs`) — so for
+  `subscribe_live`'s supersession validation, `crates/snapback/src/local.rs`) — so for
   authed subscriptions the retained per-subscription identity of T-UNSUB
   is also what makes reconnect possible. The successful subscribe response
   must echo the exact retired id in `superseded`; an already-absent target
@@ -205,7 +205,7 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   `arm.live_hosted_drain_declared_empty_blackout`.
 - **T-DB** (D3 fact 2b; `ATTACHED_LIVE`, connection-wide): a
   `durable_bytes` socket frame (`LiveSocketServerFrame::DurableBytes`,
-  `src/live_wire.rs`) is a **known kind with a required recovery action**.
+  `crates/snapback/src/live_wire.rs`) is a **known kind with a required recovery action**.
   Its payload's outbox lease was already released at socket handoff; the
   update is unrecoverable and unattributable. The normative obligation is
   the forced-resync **equivalence class** of §4.2: every durable
@@ -223,9 +223,9 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   **leased batch with an ownership-transfer cut**: entries are selected
   without removal, removed only once ownership transfer is accepted, and
   released — possibly redelivered — on cancellation before the cut
-  (`drain_outbox`, `src/server.rs`). Clients MUST be duplicate-tolerant
+  (`drain_outbox`, `crates/snapback/src/server.rs`). Clients MUST be duplicate-tolerant
   across cancelled drains. Batch bound `MAX_OUTBOX_DRAIN_BATCH = 64`;
-  handoff/retention budgets 64 MiB (`src/ephemeral.rs`). Fixture:
+  handoff/retention budgets 64 MiB (`crates/snapback/src/ephemeral.rs`). Fixture:
   `poll.drain_cancel.redelivered_duplicates_tolerated`.
 - **T-OVERFLOW** (both lanes; connection-wide): a `resync_required` with no
   `subscription_id` and `clear_retained: true` (the `outbox_overflow`
@@ -236,11 +236,11 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   `durable.resync_required.connection_wide_clear_retained`.
 - **T-RESYNC** (subscription-scoped): `resync_required` with a
   `subscription_id` sends that subscription `→ RESYNC_PENDING` →
-  resubscribe. `reason` is an **open string** (`src/live_wire.rs`,
+  resubscribe. `reason` is an **open string** (`crates/snapback/src/live_wire.rs`,
   `LiveEnvelope::ResyncRequired`): recovery is identical for every reason
   and an unknown reason must not change the transition.
 - **T-APPLY** (D3 fact 4): `live_replace` vs `live_delta` is **the server's
-  choice, always** (`src/live_matcher.rs` decides analyzability). A client
+  choice, always** (`crates/snapback/src/live_matcher.rs` decides analyzability). A client
   implements both paths and never infers query shape from which arrives.
 - **T-CURRENT-AS-OF** (`LIVE(v) → LIVE(v')`, `v' > v`): adopt the
   mandatory fresh resume token and advance the held version without
@@ -300,7 +300,7 @@ arrives lane-P-wrapped (`{"Durable":{"payload":[u8…]}}`,
   `auth.live.foreign_obligation_never_acknowledged`.
 - **T-AUTH-TERM** (`→ TERMINAL_AUTH`): `auth_error` frame / close code
   4401. The `authorityDisposition` distinguishes carrier loss from durable
-  authority deletion (`LiveAuthorityDisposition`, `src/live_wire.rs`).
+  authority deletion (`LiveAuthorityDisposition`, `crates/snapback/src/live_wire.rs`).
   Fixtures: `auth.live.terminal_auth_carrier_disposition`,
   `auth.live.terminal_auth_durable_delete_disposition`.
 - **T-GRANT-LOSS** (`→ GRANT_LOST → IDLE`): on
@@ -349,7 +349,7 @@ LLP 0096 profile classes: `delete_local_durable_authority` (T-AUTH-TERM's
 The corpus is the committed artifact `schemas/live.wire-fixtures.v1.json`
 (`artifactKind: liveWireFixtureCorpus`, `formatVersion: 3`,
 `wireVersion: "snapback.v1"`), generated by
-`snapback::wire_fixtures::wire_fixture_corpus()` (`src/wire_fixtures.rs`).
+`snapback::wire_fixtures::wire_fixture_corpus()` (`crates/snapback/src/wire_fixtures.rs`).
 Each fixture carries: `name`, `family` (the committed schema file the frame
 instantiates; `null` for unknown-kind negatives), `lane`
 (`core`/`live`/`poll`), `tuples`, `direction`, `schemaValid`, either
@@ -433,7 +433,7 @@ first consumer implementing all four, with the rule-4 virtual clock in
 
 Positive frames are constructed **through the serde wire types**, so a
 fixture can never drift from the wire; negative frames are raw JSON.
-`tests/wire_fixtures_v1.rs` proves every `schemaValid` claim against the
+`crates/snapback/tests/wire_fixtures_v1.rs` proves every `schemaValid` claim against the
 committed family schema, and additionally proves each family-less negative
 is unknown to *both* live-wire families (the known-kind/unknown-kind
 distinction fact 2b turns on).
@@ -443,7 +443,7 @@ distinction fact 2b turns on).
 Fixtures are evaluated per conformance tuple. The v1 claimable set is
 `poll/local`, `live/local`, `live/hosted` (LLP 0093 D2); **`poll/hosted` is
 not claimable** and never appears in a fixture's `tuples` (gate-enforced in
-`tests/wire_fixtures_v1.rs`). Wrapper-framing fixtures are assigned to
+`crates/snapback/tests/wire_fixtures_v1.rs`). Wrapper-framing fixtures are assigned to
 their lane (`lane: "poll"`), never core; `live/hosted` inherits no drain
 obligations. Tuples are claimed independently; composition is permitted,
 not required. LLP 0064's per-OS evidence rule applies unchanged.
@@ -492,14 +492,14 @@ malformed item.
 
 ## 3. Fixture emission mechanics (closes LLP 0093 OQ3)
 
-**Decision: extend `artifact_instances()`** (`src/schema_export.rs`) — the
+**Decision: extend `artifact_instances()`** (`crates/snapback/src/schema_export.rs`) — the
 least-drift path OQ3 anticipated. The corpus rides the exact pipeline the
 data-tier profile and the LLP 0080 golden vectors already ride: one
 generator (`wire_fixture_corpus()`), two callers (`snapback-schemagen`
-writes; `tests/artifact_schemas_v0.rs`
+writes; `crates/snapback/tests/artifact_schemas_v0.rs`
 `dk7_committed_public_instances_match_rust_types` compares), so the
 committed file cannot diverge from the generator, and a live-wire serde
-change that skips regeneration fails CI. `tests/wire_fixtures_v1.rs` adds
+change that skips regeneration fails CI. `crates/snapback/tests/wire_fixtures_v1.rs` adds
 the corpus-internal honesty gates (§2.1, §2.2). No separate generator
 binary exists or is planned; a second emission path would reintroduce
 exactly the drift the single-generator rule prevents.
@@ -509,9 +509,9 @@ exactly the drift the single-generator rule prevents.
 ### 4.1 The drain's `?connection_token=` dev affordance — **retained, constrained**
 
 The query carrier (`ConnectionGrantCarrierKind::DevQuery`,
-`src/server.rs`) is kept as a dev-arm convenience: sessions-mode route
+`crates/snapback/src/server.rs`) is kept as a dev-arm convenience: sessions-mode route
 policy already refuses it (`dev query credential fallback remains live in
-sessions` is a route-validation failure, `src/server.rs`), it never carries
+sessions` is a route-validation failure, `crates/snapback/src/server.rs`), it never carries
 a sender proof, and header/subprotocol carriage is the conformant path. It
 is **not** part of any conformance tuple's obligations — a conformant
 client never sends it. Removing it would break the local-arm curl/debug
@@ -560,9 +560,9 @@ distinguish reap from expiry at the refusal.
 
 ## 5. Companion changes landed with this spec
 
-- **Fixture generator skeleton**: `src/wire_fixtures.rs`, the
+- **Fixture generator skeleton**: `crates/snapback/src/wire_fixtures.rs`, the
   `artifact_instances()` entry, the committed
-  `schemas/live.wire-fixtures.v1.json`, and `tests/wire_fixtures_v1.rs`.
+  `schemas/live.wire-fixtures.v1.json`, and `crates/snapback/tests/wire_fixtures_v1.rs`.
 - **The dispatch-wiring test seam** (`issues/closed/20260725-durable-bytes-dispatch-test-seam.md`):
   `LiveStreamManager.debugInjectFrame(frame)` routes through the extracted
   `#receiveFrame` — the real receive path (authority-fence commit into
@@ -571,7 +571,7 @@ distinguish reap from expiry at the refusal.
   section (4 checks) proving frame-at-seam → sentinel-in-registry with the
   propagated authority capture asserted non-vacuously.
 - **Stale destructive-drain comments retired** (the 0093 P-1 obligation):
-  the kit's `drainConnection` header and `src/server.rs` `drain_outbox`
+  the kit's `drainConnection` header and `crates/snapback/src/server.rs` `drain_outbox`
   header now state the LLP 0059 leased-batch ownership-cut contract, and
   the latter records §4.1's decision.
 - **Poll-lane post-cut decode recovery** (T-DB-P): the kit now routes an

@@ -140,7 +140,7 @@ the client can author neither the plan nor the admission
 read dependencies its execution contributes (§5). A graph plan without
 per-node dependency capture would regress affected-read precision exactly
 where the profile adds joins — today's two-source relational plans match
-table-granularly by design (`src/live_matcher.rs`: a commit touching
+table-granularly by design (`crates/snapback/src/live_matcher.rs`: a commit touching
 either declared source resnapshots; LLP 0080 §4), which is honest for two
 tables and unacceptable for a 22-relation graph.
 
@@ -209,7 +209,7 @@ upgraded one is a conformance failure.
 
 ## 5. Rung 2 — affected-read precision: extend and measure
 
-**What exists** (grounded in `src/live_matcher.rs`, LLP 0020 Phase 4):
+**What exists** (grounded in `crates/snapback/src/live_matcher.rs`, LLP 0020 Phase 4):
 subscriptions capture read dependencies at evaluation — `Row`/`MissingRow`
 point reads, `Query` dependencies carrying the serialized plan predicate,
 order, limit, result count, and the window **boundary** (first/last sort

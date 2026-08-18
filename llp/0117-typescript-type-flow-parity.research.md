@@ -147,7 +147,7 @@ the schema-expanded contract (`packages/snapback-codegen/index.mjs:1943`,
 Schema, provider introspection, and Contract bindings, and the Rust host
 enforces it at egress: queries validate before publication, mutations
 before their transaction commits, rolling back on failure
-(`src/result_contract.rs:19`; 4 MiB ceiling at line 15). Precision
+(`crates/snapback/src/result_contract.rs:19`; 4 MiB ceiling at line 15). Precision
 therefore costs authored lines: the contract spells out every nested field,
 including stored system fields, that Convex would infer.
 
@@ -183,8 +183,8 @@ is specifically arrays and unions.
 **No server-side argument ingress validation exists at all.** Args are
 typed by codegen and by plan-time expression typing, but no per-invocation
 args-shape check runs in the Rust host even for scalars (no ingress
-counterpart to `validate_handler_result` exists in `src/`; args cross
-`src/handler_wire.rs` as pre-serialized JSON text). Convex validates
+counterpart to `validate_handler_result` exists in `crates/snapback/src/`; args cross
+`crates/snapback/src/handler_wire.rs` as pre-serialized JSON text). Convex validates
 declared args at runtime. Closing CV-4a therefore *adds* an evidence
 boundary Snapback currently lacks.
 
@@ -245,7 +245,7 @@ The honest other side, which the diaries also credit:
   unless the author opts into `returns:` validators, nothing checks what
   the function actually returns. Snapback validates every declared result
   at egress, before publication or commit, with rollback semantics
-  (`src/result_contract.rs`). An inferred type is a claim; a contract is a
+  (`crates/snapback/src/result_contract.rs`). An inferred type is a claim; a contract is a
   check. Diary 0039's executive-table framing — "Convex infers more,
   Snapback proves more" (0039:22) — is exactly right.
 - **Reviewability and drift.** A Snapback contract change is a visible
@@ -303,7 +303,7 @@ LLP 0081 migrations).
   cost; interaction with the host-plan value-expression IR (whose argument
   references already carry structured JSON — `ValueExpr::Args` yields the
   whole args object and `ValueExpr::Arg` path lookups yield whatever JSON
-  sits at the path, `src/value_expr.rs:121–128` — so the interaction is
+  sits at the path, `crates/snapback/src/value_expr.rs:121–128` — so the interaction is
   with operator and comparison semantics, not reference shape); CV-4b's
   storage design is genuinely large and not de-risked by any of this.
   Crucially, this option does nothing about authoring bulk or inference —
@@ -566,7 +566,7 @@ about at app boundaries. Downstream, the generated client's
 literals inside codegen (index.mjs:5907–5908), not derived from a shared
 artifact; the client package's public typings hand-author the same AST
 shapes a second time, independently
-(`packages/snapback-client/index.d.mts:145`); and `src/schema_export.rs`
+(`packages/snapback-client/index.d.mts:145`); and `crates/snapback/src/schema_export.rs`
 exports no search schema — so four carriers (the authored validator, the
 codegen-emitted client types, the client package's own typings, and the
 Rust parser that actually owns the grammar) describe one shape with
@@ -630,7 +630,7 @@ question 12, owned there; nothing here re-litigates it.
    next rerun tests (open question 6), not an established fact.
 6. Explicit contracts hold four advantages ordinary handler inference
    does not provide: runtime egress enforcement with pre-commit rollback
-   (`src/result_contract.rs:19`), replay identity bound to contract hashes,
+   (`crates/snapback/src/result_contract.rs:19`), replay identity bound to contract hashes,
    language-neutral projection (Swift, Contract, provider introspection),
    and a value vocabulary richer than inferred TS. A normalizing,
    fail-closed inference lane (H) could recover the projection and
@@ -673,8 +673,8 @@ repo-wide); the separate result-contract lane (define.mjs:1711;
 result-contracts.mjs:473); the info-severity degraded diagnostic
 (index.mjs:1955–1956) and warning-severity provider degradation
 (provider-introspection.mjs:621, 633); Rust egress validation, rollback
-seam, and ceiling (src/result_contract.rs:15–44); absence of args ingress
-validation in `src/`; `defineSearchQuery` authoring `query: v.json()`
+seam, and ceiling (crates/snapback/src/result_contract.rs:15–44); absence of args ingress
+validation in `crates/snapback/src/`; `defineSearchQuery` authoring `query: v.json()`
 (define.mjs:778); no handler-facing types in the emitted artifact list
 (index.mjs:2428); the pinned TypeScript toolchain and its actual role
 (`import ts from 'typescript'`, index.mjs:34; `"typescript": "5.9.3"`,
@@ -684,10 +684,10 @@ index.mjs:7112) against `any`-typed inline handler signatures
 (define.d.ts:305, 326, 341) and non-generic builders
 (define.d.ts:449–452); structured argument references in the
 value-expression IR (`ValueExpr::Args` and path lookups,
-src/value_expr.rs:121–128); both hand-authored search client carriers —
+crates/snapback/src/value_expr.rs:121–128); both hand-authored search client carriers —
 the codegen-emitted interfaces (index.mjs:5907–5908) and the client
 package's public typings (packages/snapback-client/index.d.mts:145) —
-and the absence of any search schema in `src/schema_export.rs`; the
+and the absence of any search schema in `crates/snapback/src/schema_export.rs`; the
 unconsumed `argsContractHash` identity witness (result-contracts.mjs:38;
 computed at index.mjs:1942); fixed `.mjs` definition roots
 (index.mjs:574–575) and the closed-script import/export refusal for

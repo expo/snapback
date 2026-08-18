@@ -21,7 +21,7 @@ families caught the round-1 reconciliation of the delivery counts
 misreading the open-loop receipt — the two measurements are now stated
 exactly as the artifacts record them and their discrepancy declared an
 open question the OQ4 spike resolves; the current-architecture paragraph
-now describes the captured-dependency matcher `src/live_matcher.rs`
+now describes the captured-dependency matcher `crates/snapback/src/live_matcher.rs`
 actually implements, and rung 2 is extend-and-measure, not build.
 Post-loop repair after round 3 closed the budget: the 8-trigger/
 8-non-trigger inventory partition replaces the false "all 16 touch the
@@ -76,7 +76,7 @@ and local diagnosis traces (labeled as such where used):
 **Current architecture.** A live query is an opaque JavaScript handler.
 When a mutation commits, subscriptions are matched against their
 *captured* read dependencies — the realtime matcher
-(`src/live_matcher.rs`, LLP 0020 Phase 4) reuses captured row/predicate/
+(`crates/snapback/src/live_matcher.rs`, LLP 0020 Phase 4) reuses captured row/predicate/
 window-boundary read sets to skip provably disjoint changes, with a
 conservative replace fallback where proof is unavailable. A subscription
 that matches (or falls back) is then re-evaluated by re-running its
@@ -233,7 +233,7 @@ contract), behind `SNAPBACK_LIVE_COALESCE_DISABLED=1` as the strict
 per-commit control arm. Synthetic reduced-scale evidence (30k rows, six
 ordered 1,000-row windows, 16-mutation open-loop burst — the replace-lane
 shape at reduced scale): 96 → 6 delivered frames, 15.6× wall, in
-`tests/live_coalesce_v0.rs`. This is a landing with a kill-switch, not the
+`crates/snapback/tests/live_coalesce_v0.rs`. This is a landing with a kill-switch, not the
 OQ4 measurement spike and not the de facto D4 design: the spike's
 predeclared axes (frame-kind accounting resolving the 521-vs-12
 discrepancy, matcher and evaluation counters, commit-ack vs settlement vs

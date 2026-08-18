@@ -267,12 +267,12 @@ grant.
 
 - **Phase 1 — application-readiness receipt (Option D, immediate).**
   Add `OperationalReadinessV1` to `app.inspect`/host-ops results
-  (`src/host_ops.rs`) as the one core fact (LLP 0024); after its existing
+  (`crates/snapback/src/host_ops.rs`) as the one core fact (LLP 0024); after its existing
   `loadGenerated` succeeds, `runDev` reads that fact and projects it as
   `snapback.application-ready.v1` (removal-before-work per the lifecycle
   above); add `snapback wait --level host|application`; export
   `schemas/application-ready.schema.json` and the core fact's schema via
-  `src/schema_export.rs`. Narrow amendments to LLPs 0030 (receipt file
+  `crates/snapback/src/schema_export.rs`. Narrow amendments to LLPs 0030 (receipt file
   alongside the ready file), 0024 (new core fact), and 0058 (binding the
   operational predicate to its existing settlement facts) land with this
   phase, since it changes their surfaces. **Proof:** process tests for no-early-receipt (receipt absent
@@ -285,7 +285,7 @@ grant.
 - **Phase 2 — prepared standalone start (Option A core).** Reproduce and
   classify the pilot's standalone capability refusal; add
   `snapback.start-plan.v1` and native `start --release` +
-  `--application-ready-file` in `src/cli.rs`, consuming and revalidating
+  `--application-ready-file` in `crates/snapback/src/cli.rs`, consuming and revalidating
   the release capability manifest; extract shared startup-obligation
   planning/evaluation so dev and standalone consume one implementation,
   without routing dev through release construction or changing
@@ -340,7 +340,7 @@ wait` lives in the **native binary**. Both super-refine review families
 independently recommended native — standalone environments have no JS
 toolchain, and the command is a thin read/validate over server-owned
 facts — and the author approved adopting the convergent recommendation.
-Implemented as the CLI-only operation `host.wait` in `src/cli.rs`; the
+Implemented as the CLI-only operation `host.wait` in `crates/snapback/src/cli.rs`; the
 package CLI reaches it through its existing native-delegation
 fallthrough, with no package delegation layer.
 
@@ -364,7 +364,7 @@ after harness experience.
 
 **Phase 1 checkpoint (2026-08-10).** Landed: the Rust-owned carriers
 `ExpectedActivationTargetV1` / `OperationalReadinessV1` /
-`ApplicationReadyReceiptV1` (`src/operational_readiness.rs`; committed
+`ApplicationReadyReceiptV1` (`crates/snapback/src/operational_readiness.rs`; committed
 schemas
 `schemas/{expected-activation-target,operational-readiness,application-ready}.schema.json`);
 the served authenticated op `app.readiness.v1` (declare-and-evaluate

@@ -85,7 +85,7 @@ LLP 0083, LLP 0099, LLP 0111, LLP 0134, LLP 0158
 
 Snapback has no continuous replication of its SQLite databases anywhere in
 the system. The local server writes a WAL-mode SQLite file
-(`src/storage.rs`); durability beyond the local disk exists only as the
+(`crates/snapback/src/storage.rs`); durability beyond the local disk exists only as the
 LLP 0057 quiesced backup/restore image and as control-plane backup
 manifests that LLP 0072 and LLP 0111 specify for the hosted lane. LLP 0099
 (Accepted) already *requires* a "streaming backup" to a separately
@@ -251,7 +251,7 @@ replication lane defines: put/get of immutable keys plus a
 conditional-write (compare-and-swap) primitive that §4 requires,
 qualified per store. Whether the vendored crate's own storage backend
 sits behind that protocol or is replaced by an adapter over the existing
-SigV4 core (`src/assets_s3.rs`, MinIO-qualified per LLP 0044) is decided
+SigV4 core (`crates/snapback/src/assets_s3.rs`, MinIO-qualified per LLP 0044) is decided
 at vendoring time by inspecting the crate's storage seam; either outcome
 is recorded in the vendoring receipt. Per-store qualification records
 *which* store mechanism satisfied each requirement — conditional write

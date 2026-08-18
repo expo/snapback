@@ -10,7 +10,7 @@
 
 ## Context
 
-The LLP 0214 ctx.auth.claims + binding-seal landing changed src/local.rs, which
+The LLP 0214 ctx.auth.claims + binding-seal landing changed crates/snapback/src/local.rs, which
 rotates the source hash embedded in the local persistent-store publication
 carrier. The carrier + anchor were re-minted and all verifiable gates pass
 (publication manifest tests 70/0, agent_safe_publication_checker 110/0,
@@ -25,6 +25,6 @@ check fails closed correctly. No lane-G gate is red.
 
 When `SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG` is available (visibility-
 governance owner / external custody), re-mint the persistent-store qualification
-receipt to pin the current src/local.rs and confirm the retained-source check
+receipt to pin the current crates/snapback/src/local.rs and confirm the retained-source check
 passes. Until then the capability verification stands on the reconciled carrier
 + retained receipt.

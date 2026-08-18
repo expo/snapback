@@ -147,7 +147,7 @@ must never merge namespaces or authority.
 ## Research snapshot: 2026-08-05
 
 The review covered LLPs 0017, 0024, 0031, 0042, 0061, 0146, 0154, 0156, and
-0167; the route and host-operation registries; `src/cli.rs`; the two MCP
+0167; the route and host-operation registries; `crates/snapback/src/cli.rs`; the two MCP
 servers; `packages/snapback-admin-client`; the Contract admin console; and the
 Guide's index, capability index, surface map, host-ops page, config page, and
 feature-area pages.
@@ -456,7 +456,7 @@ contains at least:
   },
   "guide": "operating/network-profiles.md#set-a-profile",
   "authorities": ["llp/0167"],
-  "sources": ["src/host_ops.rs", "src/cli.rs"]
+  "sources": ["crates/snapback/src/host_ops.rs", "crates/snapback/src/cli.rs"]
 }
 ```
 
@@ -574,7 +574,7 @@ while the shipped code contradicted it; instead:
   applies the same concrete-credential proof before its stop leg; the
   exception is closed.
 
-`src/host_ops.rs`'s in-code `CLI_ONLY_HOST_OPS` allowlist and the
+`crates/snapback/src/host_ops.rs`'s in-code `CLI_ONLY_HOST_OPS` allowlist and the
 `SNAPBACK_HOST_OP_CLI_ONLY` diagnostic text it drives both assert the
 opposite division of labor ("the CLI owns them" / "use the snapback CLI")
 for `host.restart` while no `snapback restart` CLI command existed at the
@@ -644,7 +644,7 @@ CI enforces these rules:
    `pageTo`) is caught because it is enumerated at all, not because of what
    it is named. The same rule covers the two other places the console issues
    admin calls outside `app.contract` — the bootstrap/credential-recovery
-   calls in `admin-ui/main.ts` and the standalone `src/admin/setup.html` page
+   calls in `admin-ui/main.ts` and the standalone `crates/snapback/src/admin/setup.html` page
    — via a second declared call-site manifest with the same
    row-or-`uiLocal`-marker obligation; neither surface is exempt for being
    outside the primary Contract app. **This second manifest is v1's chosen
@@ -1123,7 +1123,7 @@ designed, simulated publish remains `unavailable` with this explanation.
 Raw SQL over **application** data remains declined for the same portability
 and safety reasons LLP 0017 already records. This does not reach the shipped
 local-only, read-only SQL hatch over telemetry visibility views
-(`src/cli.rs`'s bounded `max_rows`/`max_steps`/`max_time_ms`/`max_bytes`
+(`crates/snapback/src/cli.rs`'s bounded `max_rows`/`max_steps`/`max_time_ms`/`max_bytes`
 surface) — that operation gets its own catalog row like any other CLI
 command; it is not the arbitrary-SQL-over-application-data this section and
 §Non-goals decline.
@@ -1134,7 +1134,7 @@ command; it is not the arbitrary-SQL-over-application-data this section and
 
 1. Correct the host-ops inventory and generate its counts — including the
    in-code `SERVED_HOST_OPS`/`CLI_ONLY_HOST_OPS`/`PINNED_UNBUILT_HOST_OPS`
-   allowlists in `src/host_ops.rs`, not only the guide prose; asset and
+   allowlists in `crates/snapback/src/host_ops.rs`, not only the guide prose; asset and
    network-profile identities belong in that allowlist today and currently
    fall through to `"unrecognized"` in diagnostics. `CLI_ONLY_HOST_OPS` also
    asserted CLI ownership of `host.restart` before a CLI command existed at
@@ -1427,7 +1427,7 @@ coordinated orchestrator sessions (lane ownership recorded in the closed
 - **Phase 3**: §A `data.patch` at `42ce63d93..480ac704d` (single-use
   apply-token binding incl. authority tuple, per-row CAS, ordinary changeset
   + live notification, non-authorizing receipt token id;
-  `tests/data_patch_v1.rs`); §B at `57aa150db`
+  `crates/snapback/tests/data_patch_v1.rs`); §B at `57aa150db`
   (single-subscription forced resync driving a real client through
   `resync_required`/re-snapshot; `demos/_kit/tests/llp0184-force-live-resync.mjs`);
   §C at `d6bb5e69f` (operator ephemeral-entry delete fenced on scope epoch

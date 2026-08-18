@@ -26,13 +26,13 @@ sessions store before, which is why three earlier receipted attempts and every
 prior lane missed it
 (`issues/20260808-sessions-store-copy-needs-auth-keyring-sibling.md`).
 
-The keyring is not the only sibling. An audit of `src/` found more than a dozen
+The keyring is not the only sibling. An audit of `crates/snapback/src/` found more than a dozen
 path-bound siblings of the database filename plus several directory-bound
 members, spread across auth, config, assets, admin, telemetry, branches, and
 fork lifecycle. Two partial registries already existed and disagreed:
-`managed_startup_paths` in `src/cli.rs` (twelve db-bound paths, thirteen where
+`managed_startup_paths` in `crates/snapback/src/cli.rs` (twelve db-bound paths, thirteen where
 the target-instance restore reservation applies) and
-`SIDECAR_CUSTODY` in `src/instance_fork.rs` (ten entries, four of them prose
+`SIDECAR_CUSTODY` in `crates/snapback/src/instance_fork.rs` (ten entries, four of them prose
 labels like `"assets/blobs tree"` rather than derived paths). Nothing
 mechanically reconciled them, and neither is reachable by an operator asking
 "what do I copy?".
@@ -55,7 +55,7 @@ what this document decides.
 
 ### D-1: the durable-state registry
 
-`src/store_state.rs` owns one enumeration, `durable_state_members(db)`, that
+`crates/snapback/src/store_state.rs` owns one enumeration, `durable_state_members(db)`, that
 returns every member of a file-backed store's durable state derived from the
 database path. It is the single source of truth. `SIDECAR_CUSTODY` and
 `managed_startup_paths` remain for their own purposes (fork custody, startup
@@ -205,7 +205,7 @@ split cannot regress in either direction.
   which teaches the set, the three verbs (`store describe`, `store export`,
   `auth backup`/`auth restore`), and the anti-pattern this decision exists to
   kill: `cp app.sqlite3 elsewhere/`.
-- New path-bound durable state added anywhere in `src/` must be added to the
+- New path-bound durable state added anywhere in `crates/snapback/src/` must be added to the
   registry in the same change. The divergence test makes an omission loud
   rather than latent until someone copies a store.
 - This decision does not claim a hosted or Cloudflare backup story. It is a
@@ -231,4 +231,4 @@ split cannot regress in either direction.
 
 Accepted 2026-08-08 and implemented in the same landing: the registry, both
 `store` verbs, the diagnostic split, the guide page, and the acceptance tests
-in `tests/store_export_v1.rs`.
+in `crates/snapback/tests/store_export_v1.rs`.

@@ -12,7 +12,7 @@
 
 LLP 0204 D6 shipped `POST /api/v1/run` (and MCP `run_code`): a surface that
 lets a third party — or an AI agent — submit a small program to run
-server-side against the app's data (`src/server.rs:22394` `invoke_run`). The
+server-side against the app's data (`crates/snapback/src/server.rs:22394` `invoke_run`). The
 surface is registered, bounded, and envelope-digest-bound, but **every current
 target refuses it** with a typed capability refusal
 (`SNAPBACK_API_RUN_UNTRUSTED_CODE_UNSUPPORTED`), because no target carries an
@@ -20,7 +20,7 @@ target refuses it** with a typed capability refusal
 threat class is *adversary-authored* code, not the app owner's own handlers, and
 LLP 0009 names the prerequisite plainly as **comprehensive preemption**. Owner-code
 runtime qualification (`snapback runtime-qualify`) is explicitly not accepted as
-evidence (`src/manifest.rs:12945-12953`, `@ref LLP 0204#d6`).
+evidence (`crates/snapback/src/manifest.rs:12945-12953`, `@ref LLP 0204#d6`).
 
 This document is decision support, not a design. It puts Snapback's two code
 runtimes side by side — the **Ibex restricted Hermes worker** and **workerd / V8
@@ -45,13 +45,13 @@ V8 leg first; keep Ibex a trusted-local runtime with the gap declared.
 Two independent checks stand between `/api/v1/run` and any execution:
 
 1. **The manifest evidence gate** —
-   `manifest::untrusted_code_profile_evidenced` (`src/manifest.rs:12954`).
+   `manifest::untrusted_code_profile_evidenced` (`crates/snapback/src/manifest.rs:12954`).
    It passes only when both hold:
    - the `hosted_untrusted_code` capability gap is **absent** from the target
      manifest, and
    - each of **eight** required resource limits appears as exactly one row with
      status `Enforced` (`UNTRUSTED_CODE_REQUIRED_LIMITS`,
-     `src/manifest.rs:12934`):
+     `crates/snapback/src/manifest.rs:12934`):
      `wall_clock_timeout`, `action_wall_clock_timeout`, `cpu_budget`,
      `maximum_result_size`, `maximum_rows_read`, `maximum_rows_written`,
      `maximum_host_call_count`, `maximum_heap_size`.
@@ -59,7 +59,7 @@ Two independent checks stand between `/api/v1/run` and any execution:
    There is no partial credit.
 
 2. **The executor-promotion gate** — even a manifest that passes is still
-   refused at `run_code_capability_refusal` (`src/server.rs:22371-22392`) with
+   refused at `run_code_capability_refusal` (`crates/snapback/src/server.rs:22371-22392`) with
    `executorPromoted: false`, until an author-gated landing replaces that match
    arm with a real checker/executor. "There is no partial executor behind
    today's unevidenced profiles."
@@ -100,12 +100,12 @@ honest posture LLP 0009 requires.
 **What runs here.** Two distinct Ibex execution paths exist and must not be
 conflated:
 
-- The **owner-handler VM** (`src/runtime.rs`, `RuntimeGuard::create`,
-  `src/runtime.rs:889`): `ex_hermes_create_no_eval` builds a no-eval Hermes
+- The **owner-handler VM** (`crates/snapback/src/runtime.rs`, `RuntimeGuard::create`,
+  `crates/snapback/src/runtime.rs:889`): `ex_hermes_create_no_eval` builds a no-eval Hermes
   runtime, fresh per invocation, with a per-VM armed strict host context
-  (`arm_strict_host_context`, `src/runtime.rs:885`). This is the runtime
+  (`arm_strict_host_context`, `crates/snapback/src/runtime.rs:885`). This is the runtime
   `snapback runtime-qualify` exercises (`qualify_handler_vm`,
-  `src/runtime.rs:983`). It runs the *app owner's* trusted handlers. It is
+  `crates/snapback/src/runtime.rs:983`). It runs the *app owner's* trusted handlers. It is
   **explicitly not** untrusted-code evidence (LLP 0204 D6).
 - The **restricted external-script worker**
   (`vendor/ibex/src/engine/hermes_restricted_worker.cc`, driven from
@@ -194,7 +194,7 @@ without engine support.** This is the structural difference from the V8 leg.
 
 ### 1b. workerd / V8 isolates
 
-**What runs here.** `src/workerd_exec.rs` — the LLP 0048 conformance twin's
+**What runs here.** `crates/snapback/src/workerd_exec.rs` — the LLP 0048 conformance twin's
 engine leg and the LLP 0040 Cloudflare harness, proven locally before deploy.
 The same single-sourced handler harness (`packages/snapback-harness`) is hosted
 in a local workerd process, speaking the async host-call protocol over a private
@@ -231,14 +231,14 @@ Cloudflare (LLP 0048 §Security posture, `0048…rfc.md:236-251`):
   terminating the whole process (`drop(child)`, `workerd_exec.rs:814-830`,
   diagnostic `SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED`,
   `killDomain: process-per-invocation`). Already tested — see
-  `tests/workerd_twin_v0.rs:969` `busy_loop_is_killed_with_no_commit_and_no_collateral`.
+  `crates/snapback/tests/workerd_twin_v0.rs:969` `busy_loop_is_killed_with_no_commit_and_no_collateral`.
 - **Memory bomb / deep recursion.** V8 has real per-isolate heap limits and
   stack guards; on Cloudflare these are platform-enforced. The local leg needs an
   adversarial suite to confirm the process dies and commits nothing.
 - **Giant results.** Bounded by the 8 MiB response ceiling
   (`workerd_exec.rs:91`), refused before commit
   (`local_workerd_invoke_rejects_oversized_bodies_before_handler_execution`,
-  `tests/workerd_twin_v0.rs:371`).
+  `crates/snapback/tests/workerd_twin_v0.rs:371`).
 - **Ambient-authority leak.** Defended by discipline (global strip + denial
   suite). The honest caveat (LLP 0048 §Security posture): local workerd is *not*
   a hardened sandbox; hosted untrusted execution needs the real platform
@@ -279,8 +279,8 @@ LLP 0009 names as the prerequisite (comprehensive preemption).
 What concrete, testable evidence would justify flipping a runtime's
 `hosted_untrusted_code` gap to "profile evidenced"? The right vehicle already
 exists: the LLP 0048 conformance twin
-(`src/bin/snapback-conformance-twin.rs`) and its adversarial corpus
-(`tests/workerd_twin_v0.rs`). The battery below extends that corpus. Every item
+(`crates/snapback/src/bin/snapback-conformance-twin.rs`) and its adversarial corpus
+(`crates/snapback/tests/workerd_twin_v0.rs`). The battery below extends that corpus. Every item
 is an *adversary-authored program submitted through `/api/v1/run`'s real path*
 (not an owner handler), and the pass condition is a **stable `SNAPBACK_*`
 diagnostic + no committed writes + no collateral to a concurrent invocation.**
@@ -298,12 +298,12 @@ diagnostic + no committed writes + no collateral to a concurrent invocation.**
 | A7 | Host reach-through / prototype pollution against the injected client and broker | frozen/non-configurable surfaces hold; no privilege escalation |
 | A8 | Timing side-channel probes (any residual clock) | no high-resolution clock reachable |
 | A9 | Stale-continuation host call after settlement | refused (invocation-epoch guard, `runtime.rs:1007`; LLP 0047 acceptance) |
-| A10 | Killed mutation that buffered writes | commits nothing (`tests/workerd_twin_v0.rs:988-993`) |
+| A10 | Killed mutation that buffered writes | commits nothing (`crates/snapback/tests/workerd_twin_v0.rs:988-993`) |
 | A11 | Host-call-count / rows-read / rows-written flood | refused at the declared ceiling with a structured diagnostic |
 | A12 | Concurrent adversary + honest invocation | the kill of the adversary leaves the honest one intact (collateral-free kill domain) |
 
 For **workerd / V8**, A1, A5, A9, A10 already have passing tests in
-`tests/workerd_twin_v0.rs`; A2–A4, A6–A8, A11–A12 are the net-new corpus rows.
+`crates/snapback/tests/workerd_twin_v0.rs`; A2–A4, A6–A8, A11–A12 are the net-new corpus rows.
 The twin's three-class divergence report (contract violation / declared engine
 fact / diagnostic noise — LLP 0048 §The conformance contract) is the machine
 -readable evidence artifact.
@@ -389,7 +389,7 @@ Rationale, argued from the evidence rather than by default:
 1. **The prerequisite is already met on exactly one runtime.** LLP 0009 makes
    comprehensive preemption the named gate. workerd/V8 has it — a proven,
    tested, collateral-free process kill (`workerd_exec.rs:814-830`,
-   `tests/workerd_twin_v0.rs:969`). Ibex does not, and closing G5 requires
+   `crates/snapback/tests/workerd_twin_v0.rs:969`). Ibex does not, and closing G5 requires
    engine-level change in a vendored dependency, which is the highest-cost,
    longest-lead item on the board.
 2. **The testbed already exists for V8.** The LLP 0048 conformance twin, its

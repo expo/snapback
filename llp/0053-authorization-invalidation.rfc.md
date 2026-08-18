@@ -33,7 +33,7 @@ stated. Surfaced by the LLP 0145 super-refine loop, round 4.)
 **Revised:** 2026-08-01 (0137 a4-f5 witness-gated action pass-through: a
 nested mutation's trusted `SNAPBACK_AUTH_PERMISSION_DENIED` now survives
 the ACTION boundary via a host-recorded denial witness
-(`denial_witness` + `restore_denial_witness`, src/runtime.rs) — when the
+(`denial_witness` + `restore_denial_witness`, crates/snapback/src/runtime.rs) — when the
 failing action's claimed envelope code matches a denial the host itself
 produced during that invocation, the surfaced diagnostic is the recorded
 trusted error with its uniform bytes. The forged-code rule is unchanged: a
@@ -57,8 +57,8 @@ protected query for mutable input reachable only from an unrelated sibling
 export); 2026-07-23 (LLP 0086 CC-3.1 acceptance evidence and target
 coverage: added the dated §Acceptance evidence and target coverage note under
 §Status linking the local-target implementation and acceptance receipts —
-`src/auth/{invalidation,lease}.rs`, `src/storage/{auth_invalidation,authorized_lease,authorization}.rs`,
-`src/local/{authorization_acceptance,auth_room_kick_acceptance}.rs`,
+`crates/snapback/src/auth/{invalidation,lease}.rs`, `crates/snapback/src/storage/{auth_invalidation,authorized_lease,authorization}.rs`,
+`crates/snapback/src/local/{authorization_acceptance,auth_room_kick_acceptance}.rs`,
 `tests/acceptance/auth-invalidation-v1-*`, and the card-game
 `authority-scope.mjs` proof — and stating per-target coverage honestly: local
 (Ibex) yes at the negotiated item-6/item-8 scope; Cloudflare no (open question 3
@@ -2120,14 +2120,14 @@ exists" caveat above is now discharged for the local target at the negotiated
 item-6/item-8 scope, as LLP 0008's Revised header (2026-07-14
 auth-program implementation reconciliation) records. The evidence:
 
-- **Implementation.** Server side: `src/auth/invalidation.rs` (obligations,
+- **Implementation.** Server side: `crates/snapback/src/auth/invalidation.rs` (obligations,
   issuers, retry episodes; `@ref`s to §Invalidation is an obligation, not a
-  message and §Negative deltas), `src/auth/lease.rs` (AuthorizedLease MAC,
+  message and §Negative deltas), `crates/snapback/src/auth/lease.rs` (AuthorizedLease MAC,
   keyring, verification locus per ENG-24992),
-  `src/storage/auth_invalidation.rs` (durable boot issuers/counters),
-  `src/storage/authorized_lease.rs`, `src/storage/authorization.rs`
+  `crates/snapback/src/storage/auth_invalidation.rs` (durable boot issuers/counters),
+  `crates/snapback/src/storage/authorized_lease.rs`, `crates/snapback/src/storage/authorization.rs`
   (authorization version, `permissionFields` classification), and the room
-  machinery in `src/ephemeral.rs`. Client arm: `packages/snapback-contract/`
+  machinery in `crates/snapback/src/ephemeral.rs`. Client arm: `packages/snapback-contract/`
   (`client-store.mjs`, `authorized-lease.mjs`, `query-authorization.mjs`,
   `auth-coordinator*.mjs`).
 - **Committed acceptance receipts.** The canonical map is
@@ -2142,11 +2142,11 @@ auth-program implementation reconciliation) records. The evidence:
   `auth-invalidation-v1-property-corpus.json`, composed and drift-checked by
   `tests/acceptance/auth-invalidation-v1-report.mjs`, which runs in
   `scripts/verify-local-proof` under an `@ref LLP 0053#acceptance` marker.
-- **Focused Rust suites.** `src/local/authorization_acceptance.rs` (the shapes
+- **Focused Rust suites.** `crates/snapback/src/local/authorization_acceptance.rs` (the shapes
   that killed attempts 1–5, plus the randomized convergence oracle),
-  `src/local/auth_room_kick_acceptance.rs` (the §Ephemeral room kick trace;
+  `crates/snapback/src/local/auth_room_kick_acceptance.rs` (the §Ephemeral room kick trace;
   clause map in `tests/eng-24604-protected-room-kick.acceptance.md`),
-  `tests/protected_query_profile_v1.rs` and `tests/retainability_profile_v1.rs`
+  `crates/snapback/tests/protected_query_profile_v1.rs` and `crates/snapback/tests/retainability_profile_v1.rs`
   (the default-deny profile and retainability matrix), and the unit corpora in
   `auth::lease::tests`, `storage::authorized_lease::tests`,
   `storage::auth_invalidation::tests`, and `storage::authorization::tests`.
@@ -2262,7 +2262,7 @@ LLP 0086 governing constraint 2.
   custody hash (client delete-before-read on substitution,
   `authorized-retained-store.test.mjs`), is refused by
   `verify_for_service`, and an unknown `key_id` fails closed at the keyring
-  (`src/auth/lease.rs`). No architectural or wire change; no status
+  (`crates/snapback/src/auth/lease.rs`). No architectural or wire change; no status
   transition.
 - **2026-07-13 (focused exact confirmation complete; Accepted).** Codex round 6
   returned NOT READY and Fable round 7 returned READY on the prior exact corpus;

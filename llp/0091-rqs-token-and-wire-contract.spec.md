@@ -34,8 +34,8 @@ clusters 0A (token & digest cryptography) and 0B (wire schemas)** so that two
 independent implementers — the Rust local arm, the Cloudflare Worker/DO arm,
 and the JS client — produce byte-compatible artifacts. Everything here is a
 contract statement; no behavior ships with this document. Wire additions land
-through LLP 0051's schema-governed drift gates (`src/live_wire.rs`,
-`src/schema_export.rs`, `tests/artifact_schemas_v0.rs`); endpoint changes take
+through LLP 0051's schema-governed drift gates (`crates/snapback/src/live_wire.rs`,
+`crates/snapback/src/schema_export.rs`, `crates/snapback/tests/artifact_schemas_v0.rs`); endpoint changes take
 LLP 0031 route-taxonomy entries in cluster 0D.
 
 The seed for 0A is the Round-6 implementer-lens review of LLP 0090
@@ -64,13 +64,13 @@ tokenWire = "sbrt1." keyId "." b64url(bodyBytes) "." b64url(mac)
   this section mints `sbrt2` tokens and continues verifying `sbrt1` through
   the keyring overlap window.
 - `keyId = "sbrk_" <22-char base64url>` — a resume-keyring key id following
-  the `AuthKeyId` shape (`src/auth/crypto.rs` credential-prefix registry;
+  the `AuthKeyId` shape (`crates/snapback/src/auth/crypto.rs` credential-prefix registry;
   `sbrk_` is a new prefix in that registry, 16 random bytes, base64url no
   pad).
 - `bodyBytes` is the RFC 8785 (JCS) serialization of `tokenBody` (§0A.2's
   encoding, applied to the body object itself).
 - `b64url` is base64url without padding (repo precedent: `URL_SAFE_NO_PAD`
-  in `src/auth/lease.rs`).
+  in `crates/snapback/src/auth/lease.rs`).
 - Maximum accepted token size is **1 KiB** of `tokenWire` bytes; oversize
   refuses with `SNAPBACK_RESUME_TOKEN_OVERSIZE`.
 
@@ -96,7 +96,7 @@ tokenBody = { app, generation, versionStream, version,
 - `argsHash = "sha256:" + hex(SHA-256("snapback-rqs-args-v1\0" || jcs(args)))`
   where `args` is the subscription's canonicalized argument object under
   §0A.2 (fingerprint style follows `mutation_input_fingerprint`,
-  `src/storage.rs`, with an added domain tag).
+  `crates/snapback/src/storage.rs`, with an added domain tag).
 
 The token is **self-describing**: admission decodes `bodyBytes` from the
 token itself, with unknown body fields refused (`deny_unknown_fields`
@@ -105,7 +105,7 @@ tokens; new fields require `sbrt2`). The clear `meta` copy (§0B) is never an
 admission input.
 
 **MAC.** HMAC-SHA256, untruncated (32 bytes), over a length-framed
-transcript in the exact style of `src/auth/lease.rs` (`put_string` =
+transcript in the exact style of `crates/snapback/src/auth/lease.rs` (`put_string` =
 u64-big-endian length then bytes; `put_u64` = 8 big-endian bytes;
 `put_optional_*` = 0x00 for absent, 0x01 then value for present):
 
@@ -132,7 +132,7 @@ transcript (the lease's own pattern). MAC verification failure refuses with
 `SNAPBACK_RESUME_MAC_INVALID`.
 
 **Keyring.** A dedicated resume keyring per served instance, reusing the
-`src/auth/keyring.rs` machinery pattern (active key mints; retired keys are
+`crates/snapback/src/auth/keyring.rs` machinery pattern (active key mints; retired keys are
 retained for verification; `rotate_if_due` cadence) but as a **separate ring
 and file** from the auth keyring — resume-key compromise or loss must never
 touch session/lease security, and vice versa. Parameters:
@@ -154,7 +154,7 @@ touch session/lease security, and vice versa. Parameters:
   minter and verifier, DO storage is transactional with the data it
   protects, and rotation must not require a deploy.
 - **Local arm:** a `resume-keyring.json` under the instance's `secure_file`
-  discipline (`src/secure_file.rs`), beside the auth keyring file, surviving
+  discipline (`crates/snapback/src/secure_file.rs`), beside the auth keyring file, surviving
   restart. Dev-loop restarts therefore do **not** refuse outstanding tokens.
 - **Key loss is availability-only** on every arm: a lost/wiped ring means
   every outstanding token refuses (to rung 3 — fresh `LiveReplace`); it is
@@ -195,7 +195,7 @@ Negative zero needs no rule: JCS serializes it as `0`, matching
 `canonicalValue`'s normalization.
 
 `canonicalRowId` is the UTF-8 byte sequence of the wire row id — the same
-string carried as `LiveDeltaWireOp.id` (`src/live_wire.rs`) and stored as
+string carried as `LiveDeltaWireOp.id` (`crates/snapback/src/live_wire.rs`) and stored as
 `_snapback_changes.row_id`.
 
 ```
@@ -205,7 +205,7 @@ rowHash = SHA-256("snapback-rqs-row-v1\0" || jcs(row))        // 32 bytes
 Hash domain tags in this spec follow the repo's hash-tag convention
 (hyphenated name + NUL byte, as in
 `cloudflare/scripts/generate-deployment-identity.mjs`); MAC transcript
-domains follow the dotted `put_string` convention of `src/auth/lease.rs`.
+domains follow the dotted `put_string` convention of `crates/snapback/src/auth/lease.rs`.
 
 ### 0A.3 Leaf construction (domain-separated, length-framed)
 
@@ -355,7 +355,7 @@ components = put_string(deploymentIdentity)
   format 2): `deploymentIdentity` = its `inputsHash`, `schemaIdentity` =
   its `schemaHash`; `functionsIdentity` and `capabilityIdentity` are the
   served instance's functions/capability manifest hashes. (The Round-6
-  draft cited `src/deploy.rs` `ReleaseCompatibility`, which exists only on
+  draft cited `crates/snapback/src/deploy.rs` `ReleaseCompatibility`, which exists only on
   the unlanded LLP 0074 tranche branch; this artifact is what main
   actually has. If the deploy-receipt work lands, its compatibility hashes
   slot into the same component positions without changing this contract.)
@@ -392,8 +392,8 @@ equality at admission (`SNAPBACK_RESUME_GENERATION_STALE` on mismatch).
 `versionStream` is **the existing data version stream** — the UUIDv7 stored
 in `_snapback_meta` by `ensure_data_version_stream_in` and rotated inside
 the reset transaction by `rotate_data_version_stream_in`
-(`src/storage/auth_invalidation.rs`); it is the same identity the
-`AuthorizedLease` carries as `data.versionStream` (`src/auth/lease.rs`) and
+(`crates/snapback/src/storage/auth_invalidation.rs`); it is the same identity the
+`AuthorizedLease` carries as `data.versionStream` (`crates/snapback/src/auth/lease.rs`) and
 LLP 0043 names `versionStreamId`. This spec introduces **no new stream
 identity**. Normative crosswalk:
 
@@ -411,10 +411,10 @@ exists (0090 D1's post-reset version-10 example).
 
 ## 0B — Wire schemas
 
-All shapes land as serde+schemars types in `src/live_wire.rs` (or the
+All shapes land as serde+schemars types in `crates/snapback/src/live_wire.rs` (or the
 local-input module for request shapes) and flow through the LLP 0051 drift
 gates: schema export names below are additions to
-`src/schema_export.rs` / `tests/artifact_schemas_v0.rs`, with the JS kit
+`crates/snapback/src/schema_export.rs` / `crates/snapback/tests/artifact_schemas_v0.rs`, with the JS kit
 pinned via `demos/_kit/tests/live-wire-schema.mjs`.
 
 ### 0B.1 The `resume` object and `meta`
@@ -496,8 +496,8 @@ authoritative base; a client with a non-empty *relaunch* outbox never sent
 **Naming.** The existing `POST /live/{name}/resume` is the **reattach**
 operation — subscription-id continuation of a server-retained subscription,
 schemas `live.resume.input/output.schema.json`, already exported and
-drift-gated (`src/schema_export.rs`, `LiveResumeInput` in
-`src/local/live_protocol.rs`).
+drift-gated (`crates/snapback/src/schema_export.rs`, `LiveResumeInput` in
+`crates/snapback/src/local/live_protocol.rs`).
 Per 0090 D1, nothing is renamed. Token resume is **not a new route**: it is
 the optional `resumeFromToken` field on the existing subscribe input
 (`live.subscribe.input.schema.json` / `LiveSubscribeInput`), named in
@@ -644,7 +644,7 @@ The Round-6 implementer-lens draft logged 16 decisions. Disposition here;
     per-cause registry of §0B.6.
 
 **Citation correction:** the draft's §0A.5 sourced Cloudflare `generation`
-components from `src/deploy.rs` (`ReleaseCompatibility`). That file exists
+components from `crates/snapback/src/deploy.rs` (`ReleaseCompatibility`). That file exists
 only on the unlanded `agent/llp-0074-competitive-tranche` branch; on main
 the deployment identity artifact is
 `cloudflare/scripts/generate-deployment-identity.mjs` (§0A.6 uses it).
@@ -660,13 +660,13 @@ including `app`; G6 (constructions by name and parameters) is closed by
 ## Dated amendment: step-1 implementation reconciliation (2026-07-24)
 
 LLP 0090 rollout step 1 (ENG-25452, commit 390a6f22) implemented this
-contract in `src/rqs.rs` / `packages/snapback-client/rqs.mjs` and reported
+contract in `crates/snapback/src/rqs.rs` / `packages/snapback-client/rqs.mjs` and reported
 three divergences. Per LLP 0004 the docs track the code; the implemented
 behavior is normative and the sections above read as amended here:
 
 1. **Key-id prefix is `sbrq_`, not `sbrk_`** (§0A.1). The drafted `sbrk_`
    prefix collides with the secret-read root key class already registered in
-   the `src/auth/crypto.rs` credential-prefix registry; the collision-free
+   the `crates/snapback/src/auth/crypto.rs` credential-prefix registry; the collision-free
    spelling `sbrq_` landed instead (`ResumeKeyId`, `RESUME_KEY_PREFIX`).
    `keyId = "sbrq_" <22-char base64url>`; everything else in §0A.1 is
    unchanged.
@@ -684,7 +684,7 @@ behavior is normative and the sections above read as amended here:
    that field is cluster-0C work — so step 1 derives the identity from the
    served `FunctionDefinition` itself:
    `"sha256:" + hex(SHA-256("snapback-rqs-query-artifact-v1\0" ||
-   jcs(functionDefinition)))` (`query_artifact_hash`, `src/rqs.rs`). The
+   jcs(functionDefinition)))` (`query_artifact_hash`, `crates/snapback/src/rqs.rs`). The
    identity is stable within a generation and rotates whenever the function
    artifact changes — the property admission needs. When 0C lands the
    manifest-carried per-function artifact hash, it replaces this derivation
@@ -694,8 +694,8 @@ behavior is normative and the sections above read as amended here:
 
 LLP 0090 rollout steps 5a+6 decided Q7 here — the witness wire format,
 size-cap defaults, reconciliation rule, and replay algorithm — and the
-local arm implemented them (`src/rqs.rs` witness decode/aggregate,
-`src/local.rs` `rqs_attempt_delta_replay`, the `subscribe_live` rung-2 arm;
+local arm implemented them (`crates/snapback/src/rqs.rs` witness decode/aggregate,
+`crates/snapback/src/local.rs` `rqs_attempt_delta_replay`, the `subscribe_live` rung-2 arm;
 `packages/snapback-client/rqs.mjs` `membershipWitnessOfRows`). This
 amendment closes OQ1. The sections above read as amended:
 
@@ -936,7 +936,7 @@ Rust arm and the JS arms for every construction in this spec. Scaffolded
 stubs land with this document and are ignored/skipped until cluster
 implementation begins (they are named obligations, not CI gates):
 
-- `tests/rqs_digest_parity_v0.rs` — Rust side, `#[ignore]`d.
+- `crates/snapback/tests/rqs_digest_parity_v0.rs` — Rust side, `#[ignore]`d.
 - `packages/snapback-client/rqs-digest-parity.test.mjs` — JS side, skipped
   via `node:test` skip; deliberately **not** added to the package's `test`
   script until implementation.

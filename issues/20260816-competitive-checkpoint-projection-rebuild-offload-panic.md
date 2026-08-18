@@ -18,7 +18,7 @@ freshly primed artifacts fail to reach readiness. The server exits 101 before
 readiness with the LLP 0032 L7 blocking-offload assertion:
 
 ```
-thread 'main' (43102921) panicked at src/storage/projection_rebuild.rs:248:9:
+thread 'main' (43102921) panicked at crates/snapback/src/storage/projection_rebuild.rs:248:9:
 a projection rebuild would block a tokio async worker; route it through the
 blocking offload helpers (LLP 0032 L7)
 ```

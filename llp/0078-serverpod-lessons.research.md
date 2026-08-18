@@ -188,14 +188,14 @@ and F3 bet against Snapback's actual state, so the recommendations below rest
 on verified ground rather than assumption.
 
 - **A1. Order-dependence (F2c): pass, cleanly.** No by-index enum
-  serialization exists anywhere (`serde_repr` is absent from `src/`); the
-  one schema-type enum (`FieldType`, `src/manifest.rs`) serializes by
+  serialization exists anywhere (`serde_repr` is absent from `crates/snapback/src/`); the
+  one schema-type enum (`FieldType`, `crates/snapback/src/manifest.rs`) serializes by
   variant name, and membership roles are name strings, never ordinals.
   Every persisted and wire encoding is name-keyed: SQLite rows decode into
-  name-keyed documents (`row_to_document`, `src/storage.rs`), schema
+  name-keyed documents (`row_to_document`, `crates/snapback/src/storage.rs`), schema
   migration matches tables and fields strictly by name, and the
   `live_replace`/`live_delta` wire carries named JSON objects with a
-  by-name op-kind enum (`src/live_wire.rs`). The only order-derived
+  by-name op-kind enum (`crates/snapback/src/live_wire.rs`). The only order-derived
   artifacts are `argOrder` (which shapes generated positional TypeScript
   signatures only — the wire is name-keyed objects, and client-store arg
   identity is canonicalized, not insertion-ordered) and composite-index
@@ -230,14 +230,14 @@ on verified ground rather than assumption.
   logs/diagnostics, running acceptance suites, or driving/screenshotting a
   client surface, which are exactly the verbs Serverpod ships. None of
   LLP 0042 is implemented; the only MCP server in the repo today is the
-  read-only guide projection (`src/guide_mcp.rs`, LLP 0061).
+  read-only guide projection (`crates/snapback/src/guide_mcp.rs`, LLP 0061).
 - **A5. Postgres dev-time story (F3c): open, as suspected.** LLP 0046
   (Draft) proposes a `postgres-dev` target profile but leaves "Docker,
   connect-to-URL, or both?" as an explicit open question, and LLP 0007
   says only "a simulated or real Postgres adapter once one exists." No
   embedded/child-process Postgres option is considered anywhere in the
   corpus — and the storage trait seam LLP 0046 needs first is itself
-  unbuilt (`src/storage.rs` is a concrete rusqlite implementation).
+  unbuilt (`crates/snapback/src/storage.rs` is a concrete rusqlite implementation).
 
 ## Recommendations
 

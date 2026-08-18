@@ -89,7 +89,7 @@ Of the three bullets the 2026-08-01 sweep left open:
 
 - **Inode-predicate refusal bullet: FIXED.** Secure startup-artifact
   refusals now identify the failed inode predicate without disclosing
-  contents. `src/secure_file.rs` names the observed kind for non-regular
+  contents. `crates/snapback/src/secure_file.rs` names the observed kind for non-regular
   files, observed-vs-effective uid for ownership, observed octal mode
   against the required 0600 (or clear group/other-write bits for
   executable artifacts), and the observed hard-link count; the extended-ACL

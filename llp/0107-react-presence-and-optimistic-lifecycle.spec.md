@@ -547,7 +547,7 @@ Implemented on 2026-07-27 as one projection across:
   inspection;
 - `packages/snapback-contract/result-contract-validator.mjs` for the shared
   generated result-contract validator;
-- `packages/snapback-codegen`, `src/ephemeral.rs`, and `src/manifest.rs` for
+- `packages/snapback-codegen`, `crates/snapback/src/ephemeral.rs`, and `crates/snapback/src/manifest.rs` for
   complete private collection/result descriptors;
 - `packages/snapback-react` for the provider-owned presence registry and the
   single authoritative optimistic query-store ledger; and

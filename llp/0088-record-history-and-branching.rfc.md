@@ -63,7 +63,7 @@ that must not be conflated.
   mutation produces a versioned changeset; `_version` on every row is the
   global commit version that last changed it.
 - **The bounded change journal** — `_snapback_changes` exists on both
-  shipped targets (local Rust SQLite, `src/storage.rs`; Cloudflare DO
+  shipped targets (local Rust SQLite, `crates/snapback/src/storage.rs`; Cloudflare DO
   coordinator, `cloudflare/src/coordinator.js`) with the same essential
   shape: `(version, table_name, row_id, op, row_json)` — a **per-row
   post-image per committed version**. This is already, mechanically, a

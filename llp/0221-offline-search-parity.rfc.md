@@ -177,7 +177,7 @@ is not — local corpus state and cursors necessarily differ.
 - **Evaluator kernel** (new optional subpath, e.g.
   `@expo/snapback-client/local-search`): JS Unicode analyzer, AST matcher,
   scorer/orderer, highlighter, local cursor codec. Generated Unicode
-  tables shared with `src/search/`; kept out of micro-client bundles
+  tables shared with `crates/snapback/src/search/`; kept out of micro-client bundles
   unless imported.
 - **Store** (`packages/snapback-client/materialization-store.mjs` + RQS
   store arms): a derived search corpus/index record keyed by semantic-plan
@@ -240,7 +240,7 @@ closed). Proof: the landed
 corrupted-hash and missing-resource refusals) green in that release.
 (b) *Membership-search envelope latency (806 ms p95).* Membership
 resolution itself is already a single pre-traversal seat lookup
-(`src/search/sqlite.rs` ~1798), so the likely bottlenecks are broader:
+(`crates/snapback/src/search/sqlite.rs` ~1798), so the likely bottlenecks are broader:
 prefix predicates using `substr(token, …)` instead of an index-friendly
 range (~1503), and candidate release doing per-row source lookup and
 authoritative reload/re-analysis plus a final authoritative query (~1857).
@@ -354,7 +354,7 @@ record is now complete rather than "still open":
   `main` (re-verified in this execution, 1 pass / 0 fail).
 
 **2026-08-10 — Phase 0(b) landed.** Both diagnosed bottlenecks in
-`src/search/sqlite.rs` are fixed, public semantics unchanged (an LLP 0073
+`crates/snapback/src/search/sqlite.rs` are fixed, public semantics unchanged (an LLP 0073
 implementation fix, as this phase requires):
 
 - *Sargable prefix traversal.* The two prefix predicates

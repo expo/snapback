@@ -193,11 +193,11 @@ implementation defects ledger that blocks any positive capability claim).
 
 **Implementation checkpoint (2026-07-24):** The implementation lives on main
 (worktree re-land of the stranded primary-checkout state, adapted to the
-landed LLP 0076 server surface). Server: `src/auth/sender_proof.rs` (closed
+landed LLP 0076 server surface). Server: `crates/snapback/src/auth/sender_proof.rs` (closed
 proof codec/verifier, durable replay/nonce/epoch/family-binding authority,
-pre-body admission), `src/auth/throttle.rs` (D3 shared durable limiter,
-charge-on-denial), `src/storage/auth_sender.rs`/`auth_throttle.rs` (storage
-lanes), and the route-level admission composition in `src/server.rs`.
+pre-body admission), `crates/snapback/src/auth/throttle.rs` (D3 shared durable limiter,
+charge-on-denial), `crates/snapback/src/storage/auth_sender.rs`/`auth_throttle.rs` (storage
+lanes), and the route-level admission composition in `crates/snapback/src/server.rs`.
 Client: `packages/snapback-client/sender-proof.mjs` (non-extractable P-256
 custody + exact proof shapes + reject-not-resolve canonical URIs),
 `hosted-browser.mjs` (frozen non-inheriting facade), the sender transport in

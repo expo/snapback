@@ -19,11 +19,11 @@ premise rather than finding a culprit:
   28.7/26.9 ≈ 1.07×, not 1.5–2×, and the boundaries are not comparable
   anyway.
 - **The measured path is byte-identical at both endpoints.** The staged
-  writer-gate wrapper (`src/server.rs` 444–635 @ de / 469–660 @ af), the
-  complete recorded-mutation staging block (`src/local.rs` 13470–13890 @ de /
-  10616–11036 @ af), the buffered preview/apply block (`src/storage.rs`
+  writer-gate wrapper (`crates/snapback/src/server.rs` 444–635 @ de / 469–660 @ af), the
+  complete recorded-mutation staging block (`crates/snapback/src/local.rs` 13470–13890 @ de /
+  10616–11036 @ af), the buffered preview/apply block (`crates/snapback/src/storage.rs`
   6758–6955 @ de / 6769–6966 @ af), the fixture-relevant query executor and
-  point-read blocks, and `src/runtime.rs` (identical git object
+  point-read blocks, and `crates/snapback/src/runtime.rs` (identical git object
   `898b50a09…`) do not change across the window. Orchestrator re-verified
   the four load-bearing equalities directly with git (2026-08-15).
 - **The leading suspect is refuted.** The LLP 0199 storage modularization

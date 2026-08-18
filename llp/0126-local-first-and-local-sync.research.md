@@ -483,7 +483,7 @@ the pin between the two sides:
   still behave differently.
 - **The deterministic tier is enforced, not requested (d).** Queries
   and mutations run in a no-eval VM that denies ambient nondeterminism
-  at runtime (`ambient_restriction_source`, `src/runtime.rs`; the
+  at runtime (`ambient_restriction_source`, `crates/snapback/src/runtime.rs`; the
   action tier deliberately retains ambient access — LLP 0118).
   `ctx.runtime.now()` is per-invocation frozen; LLP 0051 D1's
   ctx-answer ledger is the designed record/replay channel for the
@@ -491,7 +491,7 @@ the pin between the two sides:
   (`{generatedIds, now}` on the wire) is the settlement-side half,
   grounded in Valet production behavior.
 - **The runtime is a packaged, hostable artifact (d).** The server is
-  one binary (`src/main.rs` is four lines into `snapback::cli`;
+  one binary (`crates/snapback/src/main.rs` is four lines into `snapback::cli`;
   `Cargo.toml` `default-run = "snapback"`), and co-packaged,
   digest-attested per-platform runtime packages exist —
   `packages/snapback-runtime-darwin-arm64` pairs `bin/snapback` with
@@ -638,7 +638,7 @@ question 10), not a lane.
   evidence (true signatures) would be a new mechanism with its own
   key-distribution and rotation costs, not shipped precedent.
   Settlement receipts already carry `snapshotVersion`
-  (`src/live_wire.rs`, `Receipt::Mutation`). The composed contract:
+  (`crates/snapback/src/live_wire.rs`, `Receipt::Mutation`). The composed contract:
   speculative receipts
   carry content address plus captured environment; settlement receipts
   bind them to the authoritative commit version; capability claims
@@ -680,13 +680,13 @@ onto affected rows; `_snapback_changes` journals row changes with
 tombstones, a pruning floor, and `resume_requires_resnapshot`
 (LLP 0003, 0008 L3). Two OCC channels validate inside the commit
 transaction: client-declared `readSet` baselines (deliberate CAS,
-LLP 0003 E3) via `validate_read_set` (`src/storage.rs:10402`) and
+LLP 0003 E3) via `validate_read_set` (`crates/snapback/src/storage.rs:10402`) and
 handler-captured dependencies via `validate_captured_read_set`
-(`src/storage.rs:10468`), rejecting as `SNAPBACK_MUTATION_CONFLICT`
+(`crates/snapback/src/storage.rs:10468`), rejecting as `SNAPBACK_MUTATION_CONFLICT`
 with the failing dependency, the captured read set, and
-`retryPolicy: "reject"` (`src/storage.rs:10609-10620`). The server-side
+`retryPolicy: "reject"` (`crates/snapback/src/storage.rs:10609-10620`). The server-side
 exactly-once ledger for client mutation ids lives in
-`_snapback_client_mutations` (`src/storage.rs:1966-2050`).
+`_snapback_client_mutations` (`crates/snapback/src/storage.rs:1966-2050`).
 
 **The wire is online-shaped.** Reconnect is always a fresh
 `subscribe_live` — the server drops durable subscriptions at socket
@@ -744,7 +744,7 @@ changes offline, replays a durable outbox in order after reconnect, and
 a durable client store, complete retained identity, every mutation
 locally IR-derivable (LLP 0043's claim rule). The local capability
 manifest claims `offline_retention: true, optimistic_replay: true`
-(`src/manifest.rs:6100-6101`); the Cloudflare profile sets both false
+(`crates/snapback/src/manifest.rs:6100-6101`); the Cloudflare profile sets both false
 and lists `offline_mutation_replay` in its capability gaps.
 
 **And the diaries scored the arm that has none of this.** The bakeoff
@@ -1131,8 +1131,8 @@ High: every diary quotation was read from the cited diary during this
 research; the code claims in "What Snapback has today" and the
 approach-9 ingredient list were verified against the working tree on
 2026-07-30 (`packages/snapback-client/index.mjs`, `external-store.mjs`,
-`rqs-store.mjs`, `rqs-store-file.mjs`, `src/storage.rs`,
-`src/runtime.rs`, `src/live_wire.rs`, `src/manifest.rs`, `src/main.rs`,
+`rqs-store.mjs`, `rqs-store-file.mjs`, `crates/snapback/src/storage.rs`,
+`crates/snapback/src/runtime.rs`, `crates/snapback/src/live_wire.rs`, `crates/snapback/src/manifest.rs`, `crates/snapback/src/main.rs`,
 `guide/capabilities.md`, `guide/sync/offline-and-retention.md`); the
 owning-document claims (0003, 0008, 0034, 0043, 0051, 0053, 0059,
 0073, 0081, 0090, 0093, 0107, 0111, 0112, 0114) were read from the

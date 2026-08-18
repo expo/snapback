@@ -7,10 +7,10 @@
 
 Snapback's platform live-window ceiling is 1,024 rows:
 
-- `src/manifest.rs` defines `QUERY_MAX_LIMIT = 1_024`.
+- `crates/snapback/src/manifest.rs` defines `QUERY_MAX_LIMIT = 1_024`.
 - `packages/snapback-harness/ctx-bootstrap.js` rejects `.take(n)` above
   1,024 with `SNAPBACK_QUERY_LIMIT_INVALID`.
-- the function `records` contract in `src/manifest.rs` requires
+- the function `records` contract in `crates/snapback/src/manifest.rs` requires
   `maxItems <= 1_024`.
 
 Coterie M3 therefore closes its product envelope at 1,024 messages per

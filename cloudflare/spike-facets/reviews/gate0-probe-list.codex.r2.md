@@ -946,7 +946,7 @@ is re-measured to confirm the projected win.
 The gated leg shipped. This subsection is the as-built design: what the warm
 path reuses, what proves the VM clean between invocations, and — most
 importantly — the limits stated honestly. The implementation lives in
-`src/warm_vm.rs` (pool, setup/reset sources) and `src/runtime.rs` (the warm
+`crates/snapback/src/warm_vm.rs` (pool, setup/reset sources) and `crates/snapback/src/runtime.rs` (the warm
 orchestration inside `run_ibex_handler_with_context`).
 
   (obscure or host-specific) is the same documented residue class as module
@@ -1010,7 +1010,7 @@ orchestration inside `run_ibex_handler_with_context`).
   malformed report or a
   vendored-runtime upgrade that makes detection unsupported fails the
   invocation closed. A VM with any unhandled rejection is burned instead of
-  returned to the warm pool. `tests/unhandled_rejection_v0.rs` and the
+  returned to the warm pool. `crates/snapback/tests/unhandled_rejection_v0.rs` and the
   adversarial twin tests pin warm, fresh, action, early-inspection,
   serializer-poisoning, native-await, adoption, combinator, erased-reaction,
   stale-generation, and Proxy-receiver behavior (ENG-24559). Every continuation that does run therefore runs inside

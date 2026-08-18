@@ -15,7 +15,7 @@ and the cursor binding digest extends with the five §5 member groups
 (normalized argument values incl. the exact resource id, membership
 declaration facts, durable global AuthorizationVersion pair, data-version
 stream, active artifact identity) while the owned profile's digest stays
-byte-identical; §Acceptance's membership-pages rows run in src/local.rs
+byte-identical; §Acceptance's membership-pages rows run in crates/snapback/src/local.rs
 including the mandatory cross-resource VALUE negative and the
 per-component mutation schedule. Team Chat adoption and its three product
 receipts (implementation-order step 6) landed on the local target in
@@ -26,7 +26,7 @@ spans both surfaces — "the absent-target no-op advances no authorization
 version and the present-target removal does … asserted via cursor
 validity across each branch" — is now witnessed:
 `membership_keyset_cursor_witnesses_the_scoped_removal_disclosure`
-in src/local.rs runs both branches against one instance carrying the §2
+in crates/snapback/src/local.rs runs both branches against one instance carrying the §2
 opt-in and the §4 pages, using an uninvolved third party's outstanding
 continuation as the observable while that holder's own seat survives
 both branches, so the difference is attributable only to the epoch.) 2026-08-01 (M1 core operations LANDED: §§1–3 implemented on
@@ -35,7 +35,7 @@ contract (codegen + `validate_membership_declaration`), the generated
 `removePrincipal` command with the §3 refusal ordering, captured
 present/absent lookups, the exact no-op commit, typed emission, and the
 `myMemberships` seat-drop receipt; acceptance rows witnessed in
-src/storage.rs, tests/membership_principal_addressed_v0.rs, src/local.rs,
+crates/snapback/src/storage.rs, crates/snapback/tests/membership_principal_addressed_v0.rs, crates/snapback/src/local.rs,
 and rbac-authoring.test.mjs; guide section landed
 (guide/auth/scoped-roles.md). Team Chat adoption and the
 composed family witness remained open at that checkpoint — Status stays
@@ -67,7 +67,7 @@ artifacts:
 Dispositions, verified against the tree at `6c68fe6c`:
 **Codex 2 residual** (§8a resource contract) — pinned: `SearchRequestV1`
 carries no resource argument (`{query, limit?, after?}`,
-src/search/types.rs:268–274), so the routed interface requires a
+crates/snapback/src/search/types.rs:268–274), so the routed interface requires a
 **required, equality-bound resource argument** on the generated
 membership-visible search function, one singular
 `membership:{declaration, resource-value}` partition per invocation —
@@ -84,7 +84,7 @@ event 1 for the reset lane.
 **Fable round-2 nits, all applied:** §5 artifact-identity binding stated
 as invalidating on any artifact change, meaning-changing or not (the
 accepted conservatism OQ3 owns); `validate_function_args` cited at its
-home (src/args_contract.rs, called from src/local.rs); §8a cites the
+home (crates/snapback/src/args_contract.rs, called from crates/snapback/src/local.rs); §8a cites the
 asset lane's existing `membership` sharing kind (define.mjs:129) as
 in-tree vocabulary precedent. No reviewer point rejected this round.)
 2026-08-01 (v0.3, the verify-then-fix pass applying the merged
@@ -97,7 +97,7 @@ round-1 findings of the author-directed loop. Both round-1 artifacts:
 Dispositions, each verified against the tree at `444eaeb9`:
 **Codex 1 / Fable 3** (self-membership listing) — resolved outside this
 RFC by `_snapback.myMemberships` (landed `67da515f`,
-src/local.rs `MY_MEMBERSHIPS_LIVE_FUNCTION`; LLP 0056 dated amendment
+crates/snapback/src/local.rs `MY_MEMBERSHIPS_LIVE_FUNCTION`; LLP 0056 dated amendment
 2026-08-01, which explicitly leaves this RFC's two surfaces here); §1's
 stale baseline refreshed and cross-referenced. Fable 3's suggestion to
 cite the projection in the §1 disclosure argument is **not adopted, with
@@ -106,15 +106,15 @@ amendment text), so it implies nothing about a removal target and cannot
 strengthen that argument.
 **Codex 2 / Fable 1** (membership-visible search) — routed with named
 owner and interface, §8a: an LLP 0073 dated amendment adding a third
-`SearchVisibilityV1` variant (src/search/types.rs), obligations pinned.
+`SearchVisibilityV1` variant (crates/snapback/src/search/types.rs), obligations pinned.
 **Codex 3 / Fable 2** (trusted membership seed/reset) — routed with named
 owner and interface, §8b: the LLP 0109 × LLP 0056 lane admitting fixture
 seats through the existing `MembershipWriter::Seed` carrier
-(src/storage.rs); §1's trusted-migration/import sentence reconciled with
+(crates/snapback/src/storage.rs); §1's trusted-migration/import sentence reconciled with
 the fact that the receipted lane refuses memberships today.
 **Codex 4 / Fable 4** (cursor custody) — §5 restated as an explicit delta
 over the current `standard_pattern_cursor_binding`
-(src/local.rs:21370–21415): inherited members and new members enumerated,
+(crates/snapback/src/local.rs:21370–21415): inherited members and new members enumerated,
 pair identity defined, and the implementation bridge mapping every new
 member to its current-tree source added; §Acceptance gains the
 per-component binding-mutation schedule including the cross-resource
@@ -229,7 +229,7 @@ membership fact. On the query side the baseline has two surfaces *(refreshed
 2026-08-01 — the tree moved under v0.2)*: the declarative `memberOf` /
 `hasRole` predicates, and the reserved, declaration-owned self-projection
 `_snapback.myMemberships` (landed 2026-08-01, `67da515f`;
-`MY_MEMBERSHIPS_LIVE_FUNCTION`, src/local.rs; recorded by LLP 0056's dated
+`MY_MEMBERSHIPS_LIVE_FUNCTION`, crates/snapback/src/local.rs; recorded by LLP 0056's dated
 amendment of the same date). The projection returns only the **caller's
 own** seats — `{id, resource, role, sinceMs}` — and discloses nothing about
 any other principal, not even existence, so the private-roster posture holds
@@ -242,7 +242,7 @@ migration/import mechanisms, not an ordinary application path. One honest
 qualification *(v0.3)*: the receipted trusted-import lane an application
 actually has — the LLP 0109 versioned seed — refuses membership rows
 outright today (`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`,
-src/storage.rs `validate_versioned_seed_request`), so "trusted
+crates/snapback/src/storage.rs `validate_versioned_seed_request`), so "trusted
 migration/import" currently names only the unreceipted id-addressed
 methods. Closing that gap is the routed seed/reset lane of §8b, owned by
 LLP 0109 × LLP 0056, not by this RFC.
@@ -508,7 +508,7 @@ lease.
 The binding digest for this profile **extends** the existing
 standard-pattern custody contract; it does not merely match it *(restated
 v0.3 — the v0.2 phrasing overstated the current binding)*. What exists
-today is `standard_pattern_cursor_binding` (src/local.rs:21370–21415),
+today is `standard_pattern_cursor_binding` (crates/snapback/src/local.rs:21370–21415),
 whose digest covers: app id, helper id, profile id, table, exact index,
 order, limit, the serialized shared filter **shapes** (with symbolic
 `Arg` references, not argument values), the caller authority fingerprint,
@@ -516,7 +516,7 @@ and the caller's per-user permission-scope epoch. Deployment/database
 generation is bound by **custody**, not digest: the `sbpc1` envelope is
 MACed under the instance keyring, so a cursor cannot cross instances. The
 runtime's profile registry currently admits only `owned-keyset-pages.v1`
-(src/local.rs:21331).
+(crates/snapback/src/local.rs:21331).
 
 **Inherited members** (already in the digest or custody today): app
 authority domain; helper and profile ids; table, exact index, order,
@@ -536,7 +536,7 @@ not deliver:
   `resourceField == arg(resourceArg)` is identical for every room. Source:
   the LLP 0131-validated `input.args`, normalized over the declared
   argument order, after ingress validation (`validate_function_args`,
-  src/args_contract.rs, called from src/local.rs).
+  crates/snapback/src/args_contract.rs, called from crates/snapback/src/local.rs).
 - **the membership declaration stable id, resource field/argument, and
   canonical role set** (generation-time facts carried on the standard
   pattern).
@@ -544,11 +544,11 @@ not deliver:
   per-user permission-scope epochs bound today are explicitly *not* this:
   they are the legacy compatibility resync map, while LLP 0053's durable
   global `AuthorizationVersion` advances in the storage transaction hook
-  (src/local.rs:11035–11038; `AuthorizationVersion`, src/storage.rs:272,
+  (crates/snapback/src/local.rs:11035–11038; `AuthorizationVersion`, crates/snapback/src/storage.rs:272,
   read via the auth-stream snapshot readers). Membership writes advance
   the global pair, so stale-membership refusal requires binding it.
 - **the data-version stream** (`strict_current_data_version_stream`,
-  src/seed_identity.rs; rotated by reset — src/storage.rs), so a cursor
+  crates/snapback/src/seed_identity.rs; rotated by reset — crates/snapback/src/storage.rs), so a cursor
   cannot survive a receipted reset-install even if epochs coincide.
 - **exact active function/schema artifact identity and target profile**
   (the instance's loaded schema hash and function publication generation),
@@ -570,7 +570,7 @@ would not have established the stale-membership or artifact-identity
 guarantees. The generalization must:
 
 1. admit `membership-keyset-pages.v1` in the profile registry
-   (src/local.rs:21331 today refuses everything but the owned helper);
+   (crates/snapback/src/local.rs:21331 today refuses everything but the owned helper);
 2. extend the binding-digest builder with the five new-member groups above,
    each read from the seams named there (validated args; standard-pattern
    membership facts; the durable `AuthorizationVersion` snapshot — not the
@@ -665,7 +665,7 @@ nothing partial can ship while the owner works.
 
 **8a. Membership-visible search visibility — owner: LLP 0073 (dated
 amendment).** Today's search visibility union is closed to exactly
-`public-read` and `owner` (`SearchVisibilityV1`, src/search/types.rs;
+`public-read` and `owner` (`SearchVisibilityV1`, crates/snapback/src/search/types.rs;
 enforced again at authoring time in
 packages/snapback-codegen/define.mjs), so the ticketed org-wide
 member-visible search
@@ -682,7 +682,7 @@ packages/snapback-codegen/define.mjs:129).
 **How the resource is supplied is pinned, not left to the owner**
 *(v0.4, closing the round-2 residual)*. The wire request shape carries no
 resource today — `SearchRequestV1` is exactly `{query, limit?, after?}`
-(src/search/types.rs:268–274) — while the variant names only a
+(crates/snapback/src/search/types.rs:268–274) — while the variant names only a
 `resourceField` on indexed rows. The routed interface therefore requires
 a **required, equality-bound resource argument on the generated
 membership-visible search function**, exactly §4's `resourceArg` shape:
@@ -729,13 +729,13 @@ search behavior can exist until the amendment lands whole.
 composed with LLP 0056.** Today the sessions-mode versioned seed refuses
 any artifact that names a membership table
 (`SNAPBACK_SEED_MEMBERSHIP_BOOTSTRAP_UNSUPPORTED`,
-`validate_versioned_seed_request`, src/storage.rs), so a receipted reset
+`validate_versioned_seed_request`, crates/snapback/src/storage.rs), so a receipted reset
 restores app data while every runtime seat survives — reset cannot retire
 authority
 (`issues/20260801-0137-a3-membership-not-seedable-cleanup-cannot-retire-authority.md`).
 The carrier already exists: LLP 0056's
 closed writer enumeration includes `MembershipWriter::Seed` and
-`MembershipWriter::Import` (src/storage.rs), currently unreachable from
+`MembershipWriter::Import` (crates/snapback/src/storage.rs), currently unreachable from
 the receipted lane. The interface obligations this RFC pins for the 0109
 amendment: fixture seats are admitted only through `MembershipWriter::Seed`
 under full declaration validation (principal identity shape, declared role

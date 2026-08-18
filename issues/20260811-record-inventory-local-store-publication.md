@@ -20,8 +20,8 @@ date rotates.
 
 Registered frozen records:
 
-- `src/local-persistent-store-publication.v1.json`
-- `src/local-persistent-store-publication.anchor.v1.json`
+- `crates/snapback/src/local-persistent-store-publication.v1.json`
+- `crates/snapback/src/local-persistent-store-publication.anchor.v1.json`
 
 The carrier's relevant fields are content hashes
 (`qualificationReceiptSha256`, `supportingReceiptSha256`, source SHA-256 maps,
@@ -38,7 +38,7 @@ and the anchor's `carrierSha256`), which are suitable stable identities.
 - `tests/conformance/local-persistent-store-publication-v1.mjs` reads the
   2026-08-06 carrier receipt and fixed 2026-08-06 Fleet records while choosing
   the latest complete Triage pair by lexicographic date.
-- `src/manifest.rs` embeds the 2026-08-06 receipts.
+- `crates/snapback/src/manifest.rs` embeds the 2026-08-06 receipts.
 
 The registry can therefore report obsolete record custody while the generator,
 checker, and binary use a different epoch. Dates are not the semantic identity:

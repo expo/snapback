@@ -48,7 +48,7 @@ flagship feature precisely on its flagship workload.
   dedup guard on the credential path, or a mint/exchange coordinator
   holding something across a failed/duplicate attempt and never
   releasing it. The auth dispatcher's mint/exchange coordinators live in
-  `src/server.rs` (see `ab825e299` for landmarks; that commit is a
+  `crates/snapback/src/server.rs` (see `ab825e299` for landmarks; that commit is a
   test-stack fix, not this bug).
 - Grouping replay by persona and process phase avoided it (0079), which
   points at per-principal or per-connection serialized state rather

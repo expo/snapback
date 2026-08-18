@@ -40,7 +40,7 @@ result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle
 > built).** The `snapback` CLI and the host-ops HTTP endpoint
 > (`POST /_snapback/api/host-ops`, per-operation admin-gated and registered in the
 > LLP 0031 route registry) exist and share one `hostOpsResult` envelope
-> (`src/host_ops.rs` is the source of truth; the committed
+> (`crates/snapback/src/host_ops.rs` is the source of truth; the committed
 > `schemas/host-ops.result.schema.json` is generated from it per LLP 0037).
 > Per-verb status:
 >
@@ -54,7 +54,7 @@ result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle
 >   credential-proven stop/start composition, request id, and envelope),
 >   `app.inspect`, `app.reset` (with optional seed), `schema.load`,
 >   `functions.load`, `function.run` (queries and mutations; never actions)
->   — each as CLI verb + HTTP operation, tested in `tests/host_ops_v0.rs`.
+>   — each as CLI verb + HTTP operation, tested in `crates/snapback/tests/host_ops_v0.rs`.
 > - **Built in ENG-24596:** `auth.rescueCollidingTable`, and
 >   `auth.mintSession` behind its deliberate sessions-mode activation fence.
 >   Both use the shared HTTP `hostOpsResult` projection, require `AdminWrite`
@@ -659,7 +659,7 @@ envelope across CLI/HTTP/MCP") gains its frozen app-data form, per LLP
 `issues/20260801-0062-04-shared-result-core.md`; ENG-25406 lineage).
 
 **The core.** `AppDataResultCoreV1` is a Rust-owned serialized DTO
-(`src/app_data_result.rs`, committed schema
+(`crates/snapback/src/app_data_result.rs`, committed schema
 `schemas/app-data.result-core.schema.json`, LLP 0037 ownership: the Rust
 type is the shape authority; engines construct conforming documents and
 the drift gate holds the committed schema equal to the type). Closed
@@ -807,10 +807,10 @@ ruling record.
 Per LLP 0224 Phase 1 (accepted 2026-08-10), the surface gains one core fact
 and thin projections of it.
 
-**The core.** `OperationalReadinessV1` (`src/operational_readiness.rs`;
+**The core.** `OperationalReadinessV1` (`crates/snapback/src/operational_readiness.rs`;
 committed schema `schemas/operational-readiness.schema.json`; LLP 0037
 ownership — the Rust types are the source of truth and
-`tests/artifact_schemas_v0.rs` is the drift gate) is the server-owned
+`crates/snapback/tests/artifact_schemas_v0.rs` is the drift gate) is the server-owned
 evaluation of the launch-settlement predicate against a closed,
 launcher-declared `ExpectedActivationTargetV1`
 (`schemas/expected-activation-target.schema.json`). It reports `ready`,

@@ -299,7 +299,7 @@ gateway needs a single-form matcher rather than string equality.
 
 **What this costs, stated exactly.** LLP 0031's reserved-prefix property is not
 merely documented — it is enforced structurally in
-`RouteSpec::validate()` (`src/server.rs:7555`), where an `AppData` route whose
+`RouteSpec::validate()` (`crates/snapback/src/server.rs:7555`), where an `AppData` route whose
 path starts with `/_snapback/` is refused as "app-data route escaped the root
 namespace" (`:7566`) and a malformed policy tuple is a startup panic. Adopting
 fallback does **not** relax that check; reserved paths keep winning and keep
@@ -310,13 +310,13 @@ spent.
 
 ### Class B declaration — ratified 2026-08-08
 
-Class B is a **fifth `FunctionKind` variant** (`src/manifest.rs:7396`, today
+Class B is a **fifth `FunctionKind` variant** (`crates/snapback/src/manifest.rs:7396`, today
 `Query` / `Mutation` / `LiveQuery` / `Action`), not a `Query` carrying a route
 binding.
 
 Rationale: the enum is small and its match sites are exhaustive
-(`src/admin.rs:5375`, `:5393`, `:5423`; `src/bundle.rs:629`, `:1344`;
-`src/args_contract.rs:556`), so the compiler enumerates the adoption work rather
+(`crates/snapback/src/admin.rs:5375`, `:5393`, `:5423`; `crates/snapback/src/bundle.rs:629`, `:1344`;
+`crates/snapback/src/args_contract.rs:556`), so the compiler enumerates the adoption work rather
 than leaving it to be discovered. `RouteSpec`'s policy tuple also wants a
 distinct `RouteClass` for this surface regardless, and a distinct kind keeps the
 manifest legible to an agent reading it — LLP 0187's routing-over-coverage
@@ -341,12 +341,12 @@ against the application's own write path. This is the single most important
 constraint in the RFC.
 
 **On the local target this is enforced by the type system, not by review**
-(established by survey, 2026-08-08). `ReadLane` (`src/local.rs:24800`) is a
+(established by survey, 2026-08-08). `ReadLane` (`crates/snapback/src/local.rs:24800`) is a
 distinct type with its own manifests, reader pool, and admission controller,
 and it already "serves `/query` … without the global mutex" (`:24812`–`:24814`).
 It is an axum extractor — `impl FromRef<AppState> for ReadLane`
-(`src/admin.rs:3201`) — while the write lane is a separate acquisition,
-`state.snapback.clone().lock_owned().await` (`src/server.rs:323`).
+(`crates/snapback/src/admin.rs:3201`) — while the write lane is a separate acquisition,
+`state.snapback.clone().lock_owned().await` (`crates/snapback/src/server.rs:323`).
 
 A Class B handler is therefore specified to take `ReadLane` and **not**
 `SharedSnapback`. Such a handler is structurally incapable of reaching the write
@@ -468,10 +468,10 @@ protocol under D-7.
 2. **Does Class A justify a distinct `deliveryPosture` in LLP 0044**, or a
    separate build-owned byte store that merely reuses the content-addressing
    code? Note that today's static bytes are compile-time `include_str!`
-   (`src/admin.rs:102`, `:314`; `src/server.rs:8003`), which cannot serve
+   (`crates/snapback/src/admin.rs:102`, `:314`; `crates/snapback/src/server.rs:8003`), which cannot serve
    per-app per-release content — this is the one part of the RFC with no
    existing mechanism to extend.
-3. **Does the read lane's `AdmissionController`** (`src/local.rs:24810`) impose
+3. **Does the read lane's `AdmissionController`** (`crates/snapback/src/local.rs:24810`) impose
    limits Class B would hit under crawler-shaped load, and should Class B carry
    its own admission budget?
 4. **Where exactly is the EAS Hosting line** for hosted Snapback? §Non-goals

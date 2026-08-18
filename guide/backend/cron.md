@@ -4,7 +4,7 @@ id: backend.cron
 order: 4
 audience: agent-first
 capabilities: [backend.cron]
-authorities: [llp/0028-cron-scheduled-execution.rfc.md, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs, demos/_kit/server-process.mjs]
+authorities: [llp/0028-cron-scheduled-execution.rfc.md, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/cron.mjs, demos/_kit/server-process.mjs]
 examples: [demos/all-aboard]
 status: current
 targets: [local]

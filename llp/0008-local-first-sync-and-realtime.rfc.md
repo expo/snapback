@@ -306,7 +306,7 @@ LLP 0012 wire guardrail is recorded there.
 > - **Server** (`notify_live_subscriptions`): a subscription is delta-eligible
 >   iff its function is a `HostPlan` single-table `Query` (predicate directly
 >   available), the commit has changed rows, and `compute_live_delta`
->   (`src/live_matcher.rs`) returns `Delta` (not `Replace`). Eligible
+>   (`crates/snapback/src/live_matcher.rs`) returns `Delta` (not `Replace`). Eligible
 >   subscriptions get a `live_delta` payload built from the classified ops and
 >   the commit version; the server maintains that subscription's membership by
 >   applying the ops to its captured `Query` dependency's `rows` (and refreshing

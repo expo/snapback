@@ -647,7 +647,7 @@ and admission schema from drifting independently.
 ### S5.4 The no-branch gate
 
 A Phase A structural gate (extending the generated-artifact check family)
-asserts no production source under `src/`, `packages/snapback-client`,
+asserts no production source under `crates/snapback/src/`, `packages/snapback-client`,
 `packages/snapback-react`, or the harness glue reads `authoringProfile` to
 select behavior — allowlisting exactly the sanctioned sites: adapter
 front-ends, emitters, diagnostics/custody records, migration tooling, and

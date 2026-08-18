@@ -34,7 +34,7 @@ context.
   real-connection ephemeral scenario step. The one direct actor/observer
   issue match, `issues/20260804-0167-remaining-acceptance-corpus.md`, records
   its socket-level actor/observer witness as resolved by
-  `tests/network_profile_v1.rs` using real socket frames.
+  `crates/snapback/tests/network_profile_v1.rs` using real socket frames.
 - `issues/20260727-hosted-ephemeral-parity.md` requires a substantial real
   hosted two-client corpus. Its blockers are hosted authority, adapter, and
   target qualification; it does not identify the absence of a local scenario

@@ -2,7 +2,7 @@
 
 **Opened:** 2026-08-08 · **Severity:** P3 (hardening; both are currently deliberate, documented tradeoffs — not defects) · **Area:** admin / auth
 
-The admin console (`src/admin/setup.html`) reviewed clean on XSS: all rendering
+The admin console (`crates/snapback/src/admin/setup.html`) reviewed clean on XSS: all rendering
 goes through `textContent`/`setAttribute`, no `innerHTML`/`eval`/`document.write`,
 a CSP with a pinned inline-script hash (recomputed and verified),
 `frame-ancestors 'none'`, and a thorough client-side secret-redaction layer. The
@@ -12,7 +12,7 @@ revisit before the hosted/non-loopback posture widens.
 
 ## A) Derived admin bearer lives in localStorage on an origin shared with the app
 
-`src/admin/setup.html:90, 219, 244-249`. The server serves the app at `/` and
+`crates/snapback/src/admin/setup.html:90, 219, 244-249`. The server serves the app at `/` and
 admin at `/_snapback/*` on the **same origin**, and the console credential
 (`snapback_console_credential_v1`) is stored in `localStorage` and replayed as
 `x-snapback-console-credential` (accepted for AdminWrite,
@@ -27,8 +27,8 @@ distinct origin/port.
 
 ## B) Loopback binds expose admin *reads* to any localhost origin + DNS rebinding
 
-`src/admin.rs:3401-3431` (`evaluate_access`: read = `loopback || token_ok`);
-`src/server.rs:17374-17389` (`loopback_origin` reflects any
+`crates/snapback/src/admin.rs:3401-3431` (`evaluate_access`: read = `loopback || token_ok`);
+`crates/snapback/src/server.rs:17374-17389` (`loopback_origin` reflects any
 `localhost:*`/`127.0.0.1:*`/`[::1]:*` origin), 17280-17311 (CORS decorates,
 never rejects). Any page from any other localhost port gets a reflected
 `Access-Control-Allow-Origin` and can read `/_snapback/api/config/status`
@@ -44,7 +44,7 @@ reachability origins; optionally validate `Host`.
 
 ## C) App-manifest `acquisition.url` becomes an `<a href>` with no scheme allowlist
 
-`src/admin/setup.html:415-423`; `src/manifest.rs:8249-8252` carries it verbatim.
+`crates/snapback/src/admin/setup.html:415-423`; `crates/snapback/src/manifest.rs:8249-8252` carries it verbatim.
 A hostile manifest declaring `acquisition: { url: "javascript:…" }` is blocked
 today only by the page CSP (defense-in-depth); `linkify()` (setup.html:311-322)
 enforces `https?://` while this path enforces nothing. *Fix:* mirror `linkify`'s
@@ -57,7 +57,7 @@ confidence they're "wrong"), C is a small missing check with CSP backstop. File
 as a revisit anchor, not an urgent defect.
 
 ## Progress (2026-08-08 Lane J) — part C fixed
-Part C landed on main: src/admin/setup.html renders the app-manifest acquisition.url <a href> only for http(s) URLs (mirrors linkify), and src/server.rs SETUP_SCRIPT_SHA256 was recomputed so the CSP still matches (independently verified; CSP test passes). Parts A (app-origin console-credential custody) and B (loopback read exposure / DNS rebinding) remain OPEN as documented, author-gated hardening tradeoffs.
+Part C landed on main: crates/snapback/src/admin/setup.html renders the app-manifest acquisition.url <a href> only for http(s) URLs (mirrors linkify), and crates/snapback/src/server.rs SETUP_SCRIPT_SHA256 was recomputed so the CSP still matches (independently verified; CSP test passes). Parts A (app-origin console-credential custody) and B (loopback read exposure / DNS rebinding) remain OPEN as documented, author-gated hardening tradeoffs.
 
 ## Blast-radius note (2026-08-12 review)
 

@@ -473,8 +473,8 @@ Acceptance:
 
 **Landed 2026-07-02 (with Phase 2, as LLP 0032 L9).** `LocalEphemeralBackend`
 became an internally synchronized handle whose public API is the boundary
-(`src/ephemeral.rs`); `LocalSnapback` and the server consume it through the
-same surface (`EphemeralApi` in `src/local.rs`). All four acceptance items
+(`crates/snapback/src/ephemeral.rs`); `LocalSnapback` and the server consume it through the
+same surface (`EphemeralApi` in `crates/snapback/src/local.rs`). All four acceptance items
 verified: no code outside the module touches a room map, the `local_v0`
 ephemeral suite and the cursors-web browser acceptance (7/7) pass, and
 diagnostics keep every prior counter (plus the new `limit_rejections`).

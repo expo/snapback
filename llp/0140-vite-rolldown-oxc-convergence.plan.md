@@ -383,10 +383,10 @@ verified in code. Two halves:
 - Even when `implementationHash` does move, it is not the lifecycle carrier:
   the client sends only `intentPolicyHash`
   (`packages/snapback-client/assets.mjs:173`, `:180`, `:411`), admission
-  compares only the policy hash (`src/local.rs:5519`), generation is keyed and
-  bumped only by it (`src/assets.rs:958`), and finalization selects
+  compares only the policy hash (`crates/snapback/src/local.rs:5519`), generation is keyed and
+  bumped only by it (`crates/snapback/src/assets.rs:958`), and finalization selects
   current-versus-retained authorizer code by policy-hash equality alone
-  (`src/local.rs:7235`).
+  (`crates/snapback/src/local.rs:7235`).
 
 That contradicts LLP 0044's promise that a changed intent bumps its generation
 and that revalidation runs the frozen generation's code

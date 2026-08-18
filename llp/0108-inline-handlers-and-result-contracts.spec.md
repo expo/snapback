@@ -978,7 +978,7 @@ the shipped fresh-per-invocation lifecycle. The per-invocation cost of that
 duplication was measured against LLP 0035's fresh-invocation baseline on
 2026-07-31 and is noise-level; the receipts live in LLP 0118 open question 1
 and the `helper_splice` section of the `snapback-bench` harness
-(`src/bench.rs`).
+(`crates/snapback/src/bench.rs`).
 
 ### Identity: the v2 implementation-hash format
 

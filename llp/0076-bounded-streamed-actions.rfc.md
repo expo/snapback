@@ -45,7 +45,7 @@ and admission on BOTH arms refuses an experimental requirement the artifact
 does not list in `acknowledgedExperimentalCapabilities` (emitted by codegen
 alongside the requirement) — witnessed by the egress-enabled unacknowledged
 negative plus acknowledged positive through the real local loader
-(`tests/action_stream_envelope_v0.rs`), the registry unit witnesses, and the
+(`crates/snapback/tests/action_stream_envelope_v0.rs`), the registry unit witnesses, and the
 Miniflare egress acceptance (29/29, including the served-maturity honesty
 check; the Workerd unacknowledged-refusal negative is code-shared with the
 supported-set refusal and not separately deployable, a named witness
@@ -675,7 +675,7 @@ Posture caveat in every receipt: `SNAPBACK_PROFILE=test` with
 `--allow-insecure-dev-auth` behind the platform TLS edge — a drill posture the
 prod profile refuses. The drill surfaced and fixed two defects in the same
 landing: the serve path never installed `--allow-insecure-dev-auth` into
-request-path state (`src/cli.rs`, regression-tested), and the fixture's
+request-path state (`crates/snapback/src/cli.rs`, regression-tested), and the fixture's
 streamReply handler surfaced the durable-cancel-vs-progress-commit
 `SNAPBACK_MUTATION_CONFLICT` race as `failed` instead of reconciling (fixed
 under protocol amendment v0.7; the durable row was never wrong — the action
@@ -904,7 +904,7 @@ a fix before gate 2:
   result; a handler-authored throw that merely spells a stream code folds to
   `SNAPBACK_HANDLER_FAILED` (the settle wrapper trusts only the
   `__snapbackCode` brand) — both witnessed through the real HTTP action path
-  (`tests/action_stream_envelope_v0.rs`), along with the mutations-cannot-
+  (`crates/snapback/tests/action_stream_envelope_v0.rs`), along with the mutations-cannot-
   stream executed negative. Raw serde parser text no longer enters stream
   diagnostics. Residue: the Workerd handler transport still discards
   structured details (unlanded Workerd baseline), and per-family HTTP-path
@@ -933,7 +933,7 @@ on-machine dumps, Tigris backup byte-exact read-back, hosted-auth refusal
 witness; posture caveat recorded in every receipt), and Charlie Cheever
 ratified this RFC as **Accepted**. The registry flip to `stable` landed in
 the same change: `bounded_response_stream_v1` left the non-stable maturity
-table (src/manifest.rs), codegen's mirror set, the committed schemas
+table (crates/snapback/src/manifest.rs), codegen's mirror set, the committed schemas
 variants, the served Workerd manifest, and every regenerated demo artifact;
 the former unacknowledged-refusal integration witness was converted to the
 promotion regression (an unacknowledging artifact now admits), and the

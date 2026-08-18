@@ -202,7 +202,7 @@ The Plan begins from the following implemented LLP 0158 F0a/F0b baseline:
   refuses to boot on any incomplete cut. Local-evidence recovery
   (`instance_fork::recover`) exists and is unit-tested (execution note: it is
   now wired product-facing as `fork recover` — `ForkCommand::Recover` in
-  `src/cli/fork.rs` — per Phase 1);
+  `crates/snapback/src/cli/fork.rs` — per Phase 1);
 - a ready descriptor and app-row-only diff receipt;
 - registry-bound exact drop and injected-clock reaping; and
 - dated fleet evidence for two simultaneous function-divergent worktrees.
@@ -277,7 +277,7 @@ Make the existing capability usable without reading implementation source.
    requiring an external `--now-ms` invocation. This item gates Phase 2b and
    Phase 7 — neither may create forks on a path that still depends on someone
    remembering to run `snapback fork reap`.
-2. *(Implemented — `ForkCommand::Recover` in `src/cli/fork.rs`.)* Wire the tested
+2. *(Implemented — `ForkCommand::Recover` in `crates/snapback/src/cli/fork.rs`.)* Wire the tested
    local-evidence recovery primitive (`instance_fork::recover`) to an
    invocable surface (a `snapback fork recover` verb, or an equivalent host
    operation) so a quarantined fork can actually be repaired, not just

@@ -12,7 +12,7 @@ correct.
   the Increment 3 builder-parity gate) and regen-and-diff gated by
   `packages/snapback-codegen/data-tier-corpus.test.mjs` (`--write` to
   regenerate).
-- **Executed** by the Rust host runner `tests/data_tier_corpus_v0.rs`.
+- **Executed** by the Rust host runner `crates/snapback/tests/data_tier_corpus_v0.rs`.
 - **Published by pinned git checkout.** `schemas/data-tier.profile.json`
   declares the public repository, commit-addressed channel, schema path, and
   corpus path. `corpus.manifest.json` pins every case by SHA-256. A sibling

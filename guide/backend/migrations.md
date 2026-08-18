@@ -4,8 +4,8 @@ id: backend.migrations
 order: 30
 audience: agent-first
 capabilities: [backend.migrations]
-authorities: [llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, src/cli.rs, src/migration.rs, src/migration_presentation.rs, src/local.rs, tests/migration_cli_presentation_v1.rs, tests/migration_corpus_v0.rs]
-examples: [tests/migration_cli_presentation_v1.rs, tests/migration_corpus_v0.rs]
+authorities: [llp/0081-reviewed-storage-evolution-and-migrations.rfc.md, crates/snapback/src/cli.rs, crates/snapback/src/migration.rs, crates/snapback/src/migration_presentation.rs, crates/snapback/src/local.rs, crates/snapback/tests/migration_cli_presentation_v1.rs, crates/snapback/tests/migration_corpus_v0.rs]
+examples: [crates/snapback/tests/migration_cli_presentation_v1.rs, crates/snapback/tests/migration_corpus_v0.rs]
 status: current
 targets: [local]
 maturity: shipped
@@ -113,7 +113,7 @@ must be declared. The closed intent vocabulary:
 - `RetireField { table, field }`, `RetireTable { table }`, and
   `RetireGeneration { table, generation }`.
 
-```json fragment reason="illustrative intent file; CI constructs intents programmatically in tests/migration_cli_presentation_v1.rs"
+```json fragment reason="illustrative intent file; CI constructs intents programmatically in crates/snapback/tests/migration_cli_presentation_v1.rs"
 [
   {
     "AddRequiredField": {

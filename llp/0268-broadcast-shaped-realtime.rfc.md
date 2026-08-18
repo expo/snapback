@@ -9,7 +9,7 @@
 **Related:** LLP 0209, LLP 0200, LLP 0008, LLP 0170, LLP 0013, LLP 0090,
 LLP 0265,
 `issues/20260815-broadcast-shaped-realtime-commission.md`,
-`src/local.rs`, `src/live_matcher.rs`, `src/ephemeral.rs`, `src/server.rs`
+`crates/snapback/src/local.rs`, `crates/snapback/src/live_matcher.rs`, `crates/snapback/src/ephemeral.rs`, `crates/snapback/src/server.rs`
 
 ## 0. Charter and position
 
@@ -25,7 +25,7 @@ LLP 0209 §1. `LocalSnapback::notify_live_subscriptions_in_frame` currently
 selects affected subscriptions one by one; its delta fast path calls
 `try_live_delta_fanout` with each subscription's captured membership, while its
 auth-scoped replace path calls `invoke_authorization_resolution` for each
-subscription (`src/local.rs`). LLP 0209 §1 measured evaluation cost multiplied
+subscription (`crates/snapback/src/local.rs`). LLP 0209 §1 measured evaluation cost multiplied
 by subscriber count and found that the measured hot relational/auth-scoped
 queries produced only replace deliveries. This RFC removes that multiplication
 only where one result is mechanically proved safe to share.
@@ -192,13 +192,13 @@ This atomicity deliberately follows the shipped sessions-mode ephemeral
 precedent without using its data model. The load-bearing establishment path is
 `authorize_bound_ephemeral_room`: it acquires a `RoomAuthorityPermit`, resolves
 the durable room permission, and retains the permit across the lookup, caller's
-room act, and final transport boundary (`src/server.rs`;
-`RoomAuthorityPermit`, `src/ephemeral.rs`).
+room act, and final transport boundary (`crates/snapback/src/server.rs`;
+`RoomAuthorityPermit`, `crates/snapback/src/ephemeral.rs`).
 `subscribe_with_room_authority_and_effect_fence` then checks the already-loaded
 `AccessPolicy` with `ensure_authorized`, uses that exact permit, creates the
 outbox before visible insertion, and snapshots plus registers inside one room
 operation; a racing publish therefore cannot fall between them
-(`src/ephemeral.rs`). `ensure_authorized` alone is not the establishment
+(`crates/snapback/src/ephemeral.rs`). `ensure_authorized` alone is not the establishment
 precedent. The durable broadcast group requires the complete permit-backed join
 invariant at a durable committed cut.
 
@@ -243,8 +243,8 @@ creates no competing classifier and adopts these invariants:
 - fail-closed exclusion until a membership/semi-join evaluator is certified.
 
 Today `try_live_delta_fanout` rebuilds `prior_ids`, calls `compute_live_delta`,
-serializes, and advances dependencies per subscription (`src/local.rs`;
-`src/live_matcher.rs`). Its `compute_live_delta` ops carry the changed storage
+serializes, and advances dependencies per subscription (`crates/snapback/src/local.rs`;
+`crates/snapback/src/live_matcher.rs`). Its `compute_live_delta` ops carry the changed storage
 row, which is valid here only under the `documents(table)`
 document-equals-projection contract, not as a general graph payload rule. The
 distributor moves the eligible state to `BroadcastGroupKey`; G3 still grows
@@ -253,7 +253,7 @@ projection-aware eligibility node by node.
 An ordinary removal may be compact only if it carries LLP 0200 §2.4's
 witnessed-shrink obligation through revision-bound ACK. Today's auth-scoped
 DK-3 path falls back to replace when the classified ops include `Remove`
-(`try_live_delta_fanout`, `src/local.rs`).
+(`try_live_delta_fanout`, `crates/snapback/src/local.rs`).
 Until compact obligation carriage exists, use shared replacement. Permission
 removal is never admitted here; §4 owns it.
 
@@ -268,14 +268,14 @@ The ephemeral lane proves the pattern but is not the implementation carrier. Its
   `AccessPolicy::allows` per publish;
 - `RoomAuthorityRegistry` blocks protected acts/final sends across a permission-changing ticket; and
 - `complete_room_reauthorization` rechecks exact subscribers, removes denied ones, refreshes authorized
-  contexts, and publishes successor snapshots (`src/ephemeral.rs`).
+  contexts, and publishes successor snapshots (`crates/snapback/src/ephemeral.rs`).
 
 Those are the establishment, shared-payload, and transition patterns adopted. This RFC does **not** reuse
 `RoomState`, `EphemeralMessage`, room-local versions, TTL expiry, or `EphemeralLatest`: LLP 0013
 §§Semantics and Relationship to durable sync define those as lossy overlays, not durable query results.
 
 Implementation extends the DK-3/LLP 0209 durable lane with a **new group distributor** while reusing the
-neutral durable transport in `src/ephemeral.rs`: bounded outboxes, connection effect fences, final-send
+neutral durable transport in `crates/snapback/src/ephemeral.rs`: bounded outboxes, connection effect fences, final-send
 admission, notifier wake-up, and overflow-to-resync. Refactoring those utilities is allowed; routing
 durable result state through the ephemeral room store is not.
 
@@ -301,8 +301,8 @@ Restoration reruns establishment for every affected subscriber. A denial drops t
 broadcast group's fan-out set, but durable live keeps the `LiveSubscription` as the tombstone/ACK carrier:
 `fail_subscription_fanout_with_retry` raises `InvalidationDisposition::Delete`, issues
 `ResolutionKind::TerminalDelete`, and enqueues the invalidation frame without removing the subscription
-(`src/local.rs`). This differs from ephemeral `complete_room_reauthorization`, which removes a denied
-connection from `room.subscribers` (`src/ephemeral.rs`). An admit receives a successor-stamped full snapshot
+(`crates/snapback/src/local.rs`). This differs from ephemeral `complete_room_reauthorization`, which removes a denied
+connection from `room.subscribers` (`crates/snapback/src/ephemeral.rs`). An admit receives a successor-stamped full snapshot
 before later deltas. Class-1 proof permits one group snapshot computation, but permission resolution remains
 per subscriber.
 
@@ -353,7 +353,7 @@ The design closes each channel:
 - projection-only ops, with whole-document DK-3 limited to
   document-equals-projection contracts, prevent storage-column over-delivery;
 - per-subscription effect fences remain on enqueue/final send, so connection-id reuse is not continuity
-  (`ConnectionEffectFence` and guarded outbox drains, `src/ephemeral.rs`).
+  (`ConnectionEffectFence` and guarded outbox drains, `crates/snapback/src/ephemeral.rs`).
 
 Paired-world acceptance therefore does more than compare one hidden world with
 another. In each world, every compact `add`/`update` row is compared byte for

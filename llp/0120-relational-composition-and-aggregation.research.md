@@ -133,7 +133,7 @@ same-commit maintenance and a global fan-out proof. Aggregation, grouping,
 many-to-many fan-out, and recursive queries are enumerated Non-goals. The
 authoring builders are `defineRelationalQuery` and `defineMaintainedProjection`
 in `packages/snapback-codegen/define.mjs`; the capability registry lives in
-`src/manifest.rs`, where `relational_query_v1` takes the default `Stable`
+`crates/snapback/src/manifest.rs`, where `relational_query_v1` takes the default `Stable`
 maturity.
 
 **The experimental profiles.** LLP 0110 (Review) specifies
@@ -144,7 +144,7 @@ point-operation primary plan plus exactly one provenance-bearing activity
 insert, durable idempotency, a complete quantitative effect ceiling). Both
 builders exist in `packages/snapback-codegen/define.mjs`
 (`defineBoundedChildrenQuery`, `defineWriteWithActivity`), and
-`src/manifest.rs` pins `BoundedChildrenV1 | WriteActivityV1` to
+`crates/snapback/src/manifest.rs` pins `BoundedChildrenV1 | WriteActivityV1` to
 `CapabilityMaturity::Experimental` as a static code-owned constant. Runtime
 support is false until the LLP 0113 claim-family machinery verifies a
 qualified publication, ordinary artifacts must acknowledge the experimental
@@ -703,7 +703,7 @@ answer.
 ## Confidence
 
 High confidence in the repository facts: the builder and registry locations
-(`packages/snapback-codegen/define.mjs`, `src/manifest.rs`,
+(`packages/snapback-codegen/define.mjs`, `crates/snapback/src/manifest.rs`,
 `packages/snapback-harness/ctx-bootstrap.js`), the profile admission limits,
 the maturity model, and the Non-goal boundaries were verified against the
 current tree and the governing documents for this write-up. High confidence

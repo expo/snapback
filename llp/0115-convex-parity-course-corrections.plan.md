@@ -475,7 +475,7 @@ relational query exist — and the remainder is CV-8, not a rediscovery.
 | CV-7 | Helper reuse via revived bounded static bundling | C (P1) | 2 | 0108 follow-on | 0118 | L | Landed 2026-07-31 (`4d72c407`: full option-1a same-file slice — context-readers admitted per 0127 decision 6, splice emission, v2 named-helper-content hash, cross-helper adversarial fixtures, spliced-bytes capability rescan; ticket issues/20260730-move2-capability-free-helper-cut.md; benchmark receipts against LLP 0035's baseline still open) |
 | CV-8 | Relational shapes: promote what exists, decide aggregates | C (P1) | 6 | 0110, 0080, 0113 | 0120 | L | In flight (0110 in Review, re-verified 2026-07-31; decision 3: sequence primitive first, then 3a; stable-promotion design LANDED as LLP 0134, Accepted 2026-07-31 under SD-4; **promotion machinery LANDED 2026-08-02** with an `inline_handler_v1` day-one observation and real-id promotion/demotion acceptance; the intended relation/activity soak is blocked by filed carrier drift; no capability promoted; LLP 0134 records one pre-first-promotion digest-domain correction; sequence-primitive + 3a design passes LANDED as Accepted LLP 0135; **sequence substrate checkpoint LANDED 2026-08-02** with declared scope-bearing `ctx.sequence.allocate`, atomic replay-safe counters, UTF-8 order bounds, A6 evidence, generated `AllocateSequence`, and mutation-atomic lane-Q withholding, while `sequence_allocation_v1` remains unpublished/support-false pending full §5.1 qualification; **3a snapshot-batch LANDED 2026-08-03** on the contributor local target with codegen/host LLP 0157 identity parity, one pinned snapshot, exact `sbsb1`, sealed coordinated pages, and cursor-free-first-page `live_replace`; hosted/public-package publication remains a nonclaim) |
 | CV-9 | Transactional one-off scheduling (`runAfter`-class) | C (P1) | 3 | 0070 (primary) + 0028 test-seam amendment | 0121 | M | LANDED 2026-08-02: Wave-1 C2 (`e25ab2a3`, `804782a1`) already shipped the honest action-callee `runAfter` class — transactional delayed `ctx.jobs.enqueue`, rollback-schedules-nothing, fenced attempt receipts, injected-clock drain, declared status query, and experimental `jobs_one_off_v1`. The erg-01 reconciliation adds the missing file-backed crash/reopen witness: attempt 1 survives close/reopen, expires with `SNAPBACK_JOB_LEASE_EXPIRED`, attempt 2 advances the fence and succeeds, and the stale attempt cannot publish. No `ctx.scheduler` alias or production change; LLP 0070's complete profile stays unclaimed. Dispatch-arm rerun remains program measurement, not a primitive gap |
-| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | 4 (rider) | code fix (`src/search/sqlite.rs`, `src/storage.rs`) + one-line 0073 pin | — | S | Landed 2026-07-30 (`c57ef9cd`: canonical-digest recheck + storage normalization + 0073 pin; ticket closed) |
+| CV-10 | Numeric normalization at the search source/recheck boundary | D (P1) | 4 (rider) | code fix (`crates/snapback/src/search/sqlite.rs`, `crates/snapback/src/storage.rs`) + one-line 0073 pin | — | S | Landed 2026-07-30 (`c57ef9cd`: canonical-digest recheck + storage normalization + 0073 pin; ticket closed) |
 | CV-11 | Live/re-executing search story | D (P1) | 4 | 0073 + 0112/0114 | 0119 | L | Design half landed 2026-07-31 (LLP 0136, Accepted under SD-4: coarse re-execution on invalidation, non-auth-scoped v1, table-scoped ceilings, offer-gated negotiation); implementation + the 0114 rerun-arm prep remain open |
 | CV-12a | Portable range filters | D (P1) | 4 (rider) | 0073 (new design) | — | M | Open |
 | CV-12b | Search target expansion | D (P2) | 4 (rider) | 0073 §adapter sequence; PG blocked on LLP 0046 | 0124 | M | Open (roadmap exists; execution only) |
@@ -739,7 +739,7 @@ local receipt or refuses reuse — a running process cannot be re-qualified in
 place, and its recovery record says so). The 0123-gated precondition
 resolved as a documented finding: the landed CV-2 subcommand shape is
 posture-neutral by process isolation (LLP 0123 dated note 2026-07-31;
-regression `tests/runtime_qualify_posture_v0.rs`; the standing
+regression `crates/snapback/tests/runtime_qualify_posture_v0.rs`; the standing
 first-VM-only-Enforce fact goes to LLP 0009's owners via
 `issues/20260731-first-vm-only-strict-host-context.md`). Acceptance:
 `tests/runtime_readiness_receipt_v0.mjs`, receipt fixtures in
@@ -824,7 +824,7 @@ slice is startable today per 0127's closing accounting.
 v0.2 "one-emitter wiring" framing was wrong. The `unknown` is honest
 projection, not an emitter fallback: `defineSearchQuery` itself authors
 `query: v.json()`, and the contract projection faithfully emits what was
-declared. The Rust types derive `JsonSchema`, but `src/schema_export.rs`
+declared. The Rust types derive `JsonSchema`, but `crates/snapback/src/schema_export.rs`
 exports no search schema, and the generated client's `SearchQueryAstV1`/
 `SearchRequestV1` interfaces are hand-authored special cases rather than
 derived from a shared artifact. So the exported, drift-gated schema CV-5
@@ -1172,7 +1172,7 @@ is not a digest-canonicalization defect: both sides compute RFC 8785
 canonical digests that **agree** (integral `5` and `5.0` both spell `"5"`).
 What failed — fixed at the landing; v0.7 note below — was a
 representation-sensitive full struct equality
-(`source != authoritative`, `src/search/sqlite.rs:1731` at the pre-fix
+(`source != authoritative`, `crates/snapback/src/search/sqlite.rs:1731` at the pre-fix
 revision `01e94173`) between the
 in-memory insert-path document (which keeps serde_json integer `Number(5)`
 because `normalize_json_value` validates without normalizing) and the

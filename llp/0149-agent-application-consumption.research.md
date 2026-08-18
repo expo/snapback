@@ -170,7 +170,7 @@ than read as a defect.
 The tree already shows why one boolean cannot carry these facts: the
 generated catalog publishes `dryRunSupported: false`
 (`packages/snapback-cli/mcp-control.mjs:144`) while the runtime serves
-`mutationDryRun` on the operator plane only (`src/host_ops.rs:1686-1701`).
+`mutationDryRun` on the operator plane only (`crates/snapback/src/host_ops.rs:1686-1701`).
 For the scoped consuming agent both are honestly "unavailable" today — this
 is not a static/effective disagreement — but the flag cannot say which of
 runtime support, projection availability, target support, or
@@ -221,7 +221,7 @@ it cannot mint identity, authority, or safety facts.
 Snapback's mutation dry-run uses the real buffered execution and commit
 validation path, which is the correct foundation. It is also, today, an
 operator-plane affordance only: `function.explain` runs under host-ops
-dev-user authority (`src/host_ops.rs:1701`), LLP 0055 pins `dryRun: false`
+dev-user authority (`crates/snapback/src/host_ops.rs:1701`), LLP 0055 pins `dryRun: false`
 for agent principals in v1, and agent-principal dry-run is named future work
 in LLP 0062 — so any preview promised to a consuming agent has a prerequisite
 the corpus has named but not built. And a successful dry-run does

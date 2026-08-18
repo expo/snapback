@@ -37,7 +37,7 @@ prepared but unevidenced).
 
 ### Prerequisite: extract the store interface
 
-There is no storage abstraction in the code today. `src/storage.rs` is a
+There is no storage abstraction in the code today. `crates/snapback/src/storage.rs` is a
 ~2,300-line concrete rusqlite implementation — `rusqlite::Connection` in its
 imports, `sqlite_path` in its serialized info shape — with no trait boundary.
 LLP 0007 warns about exactly this in its Valet lessons: the single largest

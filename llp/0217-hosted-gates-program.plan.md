@@ -53,7 +53,7 @@ companion contract that LLP 0039 deliberately left open,"
 and a concrete admission profile is specified in LLP 0098 (Draft, with a
 real served-origin acceptance ledger,
 `llp/0098-hosted-edge-adapter.spec.md:4`, §8) and substantially implemented
-in `src/auth/hosted_edge.rs` and `src/auth/deployment.rs`. The program is
+in `crates/snapback/src/auth/hosted_edge.rs` and `crates/snapback/src/auth/deployment.rs`. The program is
 therefore not "write the contract"; it is **finish the admission machinery
 on one named hosted profile, build the scoped audit ledger, and land the
 named dated LLP 0055 amendment that un-refuses lanes against that
@@ -111,22 +111,22 @@ LLP 0042 carry the same two gates in their amendment text
   refusal, the target-owned capability descriptor, must-understand refusal
   of unsupported hosted composition, CSP headers, credential sentinels
   (ENG-24607, `llp/0060-hosted-auth-security.rfc.md:143-150`).
-- The Rust-side admission machinery: `src/auth/deployment.rs`
+- The Rust-side admission machinery: `crates/snapback/src/auth/deployment.rs`
   (target-owned facts; candidate artifacts and operator flags "cannot
-  assert any fact in this module", `src/auth/deployment.rs:1-5`;
+  assert any fact in this module", `crates/snapback/src/auth/deployment.rs:1-5`;
   `HostedAdmission`/envelope/key structures at `:251-341`) and the LLP 0098
   hosted-edge adapter for the `loopback-terminated-single-instance.v1`
   profile — Ed25519-signed admission envelopes against a release-bound
   key, re-derivation over belief, durable epoch watermarks, a capped 24 h
-  pre-signed window (`src/auth/hosted_edge.rs:1-47`).
+  pre-signed window (`crates/snapback/src/auth/hosted_edge.rs:1-47`).
 - Hosted serving posture enforcement in the server: when
   `hosted_serving` is active, the operator surface is a uniform 404 on the
   public origin (LLP 0060 C2) and the entire OAuth facade family is refused
-  without enumeration — `src/server.rs:12528-12545`, carrying
+  without enumeration — `crates/snapback/src/server.rs:12528-12545`, carrying
   `@ref LLP 0204#d8` ("the first OAuth facade is local-only and hosted
   serving refuses the whole family"). The facade routes also 404 unless
   `oauth_is_local` — not hosted, `AuthDeploymentTarget::Local`, loopback
-  (`src/server/oauth.rs:58-65`).
+  (`crates/snapback/src/server/oauth.rs:58-65`).
 - A served-origin acceptance ledger for the profile: LLP 0098 §8 records
   first-party served-origin runs (2026-07-25/27) including the sessions
   staged matrix and the plaintext-refusal close
@@ -232,7 +232,7 @@ routes but hosted granted lanes refuse).
 | 1 | `/api/v1` anonymous + declared-tier calls to the external anonymous set (D2/D7) | Refused only by missing plumbing — the lanes are gate-free by design (`0204:338-341`) | **Serve** only. No Gate A/B. |
 | 2 | `/api/v1` granted **reads** (delegated grants) | Refused wholesale (`0055:593-597`) | Serve + **Gate A** |
 | 3 | `/api/v1` granted **mutations** / externally effectful actions | Refused | Serve + **Gate A + Gate B** (`0204:344-351`) |
-| 4 | OAuth facade (discovery, DCR, authorize, token) + agent-management routes | Whole family refused on hosted (`src/server.rs:12537-12545`; `src/server/oauth.rs:58-65`; agent-management: `0055:143`) | **Gate A** (the facade mints/holds credentials — it *is* the credential-custody surface) |
+| 4 | OAuth facade (discovery, DCR, authorize, token) + agent-management routes | Whole family refused on hosted (`crates/snapback/src/server.rs:12537-12545`; `crates/snapback/src/server/oauth.rs:58-65`; agent-management: `0055:143`) | **Gate A** (the facade mints/holds credentials — it *is* the credential-custody surface) |
 | 5 | Remote MCP tool calls | Anonymous set only, "same as every other projection" (`0204:398-404`) | Granted tools: Serve + **Gate A**; mutating tools: + **Gate B** |
 | 6 | CLI `login` against a hosted app | Refused (rides the facade, D4) | **Gate A** (via lane 4) |
 | 7 | `ask` (D5) | Effectively unavailable — requires a granted read principal or caller-key billing; anonymous/declared refused (`0204:1071-1075`) | Serve + **Gate A** (read-only v1 needs no Gate B); **mutating `ask`** additionally Gate B (`0204:946-948`) |
@@ -333,7 +333,7 @@ control-plane signer and minting path in first-party deploy tooling
 serving loop (§5), effective-source under loopback termination (§6),
 throttle-config binding, replay-floor advancement at boot, and the
 operator-surface 404 + browser-seam exclusion already enforced at
-`src/server.rs:12528-12536`. The single-binary origin makes D3/D4 the
+`crates/snapback/src/server.rs:12528-12536`. The single-binary origin makes D3/D4 the
 degenerate single-instance cases and D6 trivially satisfied — which is
 exactly why this profile is first. Then land the **named dated LLP 0055
 amendment** (`0204:345-347`) un-refusing on that profile: the OAuth facade
@@ -382,7 +382,7 @@ for the Workers analogue). P5: workerd feature work across the board.
   consent state; the browser bearer remains honestly XSS-exposed (LLP 0060
   decision 3). The facade must never land on a target whose admission is
   not live — the current fail-closed shape (whole-family refusal,
-  `src/server.rs:12537-12545`) must be preserved as the default in every
+  `crates/snapback/src/server.rs:12537-12545`) must be preserved as the default in every
   new serving path. Sender-constrained v2 (LLP 0077, Draft) is the
   trajectory, and OQ-1 decides how much of it Gate A waits for.
 - **Overclaiming tamper evidence.** 0071 is explicit that the digest chain

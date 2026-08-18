@@ -256,7 +256,7 @@ Removal is a feature. Each of these currently costs agent attention or
 trains wrong behavior:
 
 1. **Bare `snapback` starting a foreground server.** A compatibility relic
-   (`src/cli.rs:727-729`) that hangs pty-attached agents. Bare invocation
+   (`crates/snapback/src/cli.rs:727-729`) that hangs pty-attached agents. Bare invocation
    prints help; serving requires `snapback start`.
 2. **The flat guide projection as a recommended entry point.** At ~1.8 MB
    and growing 2.5× past its own oversize ticket, it defeats its

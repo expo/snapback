@@ -143,7 +143,7 @@ hypothesized effects, each separately measurable:
    proof of server execution dependencies. Snapback *does* dynamically
    capture row/query read dependencies for Ibex handlers via `ctx.db` (the
    LLP 0020 Phase 3 substrate, one extractor shared by mutation isolation
-   and the realtime matcher; `src/runtime.rs` — the "no read-set
+   and the realtime matcher; `crates/snapback/src/runtime.rs` — the "no read-set
    extraction" framing in LLP 0008's Valet-era passage predates this), but
    capture is at row/range granularity: there is no *field-level
    source-to-output derivation lineage*, and an Ibex query may derive a
@@ -195,9 +195,9 @@ design (LLP 0056; LLP 0008) requires membership-gated (semi-join) queries to
 ride the conservative re-query/`live_replace` lane — explicitly **not**
 incremental deltas. As built, the delta path does not enforce that boundary:
 delta candidacy admits any `HostPlan` single-table query with changes
-(`src/local.rs`, `try_live_delta_fanout` call sites), row classification
+(`crates/snapback/src/local.rs`, `try_live_delta_fanout` call sites), row classification
 evaluates only ordinary `plan.filters` and never `plan.membership_filters`
-(`src/live_matcher.rs`, `row_matches_query_filters`), and the only
+(`crates/snapback/src/live_matcher.rs`, `row_matches_query_filters`), and the only
 authorization guard on the delta path routes an auth-scoped subscription's
 **Remove** ops back to the obligation-backed snapshot path (the as-built
 realization of LLP 0053's rule that negative deltas are obligations —
@@ -256,10 +256,10 @@ membership and authorization predicates as an explicit safety dependency:
 selection may only ever *narrow* delivery, never substitute for the
 membership/auth evaluation the conservative lane performs. `[confirmed
 2026-07-20 — code inspection at repo revision
-0c2ed650bcc947652ea5d3e5481eab17e827a711: src/local.rs (delta candidacy,
+0c2ed650bcc947652ea5d3e5481eab17e827a711: crates/snapback/src/local.rs (delta candidacy,
 `NoChange` handling, Remove-only auth guard, `already_resynced` exclusion),
-src/live_matcher.rs (`row_matches_query_filters`, `compute_live_delta`),
-src/storage/authorization.rs (membership writes as authorization events)]`
+crates/snapback/src/live_matcher.rs (`row_matches_query_filters`, `compute_live_delta`),
+crates/snapback/src/storage/authorization.rs (membership writes as authorization events)]`
 
 #### F2b. Prerequisite: the selection-identity fork
 
@@ -439,7 +439,7 @@ All `[inferred]`; benchmark-first, split by ownership.
 
 1. **Corpus reconciliation — landed 2026-07-21**: LLP 0000, LLP 0008
    (body + Revised header), LLP 0035 (a prominent superseded-fixtures
-   note), LLP 0034, LLP 0038, LLP 0051, and the `src/live_matcher.rs` doc
+   note), LLP 0034, LLP 0038, LLP 0051, and the `crates/snapback/src/live_matcher.rs` doc
    comment now qualify every pre-`37f1a2f` ceiling and the ~5 200× ratio
    as superseded fixture results, preserved as history. (LLP 0032's dated
    plan-ledger entries are left as history by design.) Corrected numbers

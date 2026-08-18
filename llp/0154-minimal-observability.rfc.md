@@ -269,7 +269,7 @@ separate)
 ## Summary
 
 Snapback today persists essentially no runtime telemetry: there is no
-`tracing`/`log` crate, `src/server.rs` contains two `eprintln!` calls in
+`tracing`/`log` crate, `crates/snapback/src/server.rs` contains two `eprintln!` calls in
 ~44k lines, and the only introspection is the LLP 0010 inspect loop, which
 its own spec frames as "not a production observability replacement."
 LLP 0000 lists Observability as a named, not-yet-drafted subsystem, and
@@ -398,7 +398,7 @@ exact values.
 - **C1 — The app write lane.** App-database writes go through one
   serialized write connection; mutation commits that change rows bump
   `_snapback_version`, append to `_snapback_changes`, and run the
-  live-query matcher (`src/storage.rs`, @ref LLP 0003#database-model; a
+  live-query matcher (`crates/snapback/src/storage.rs`, @ref LLP 0003#database-model; a
   few internal transaction paths, e.g. asset-system commits, bypass the
   journal). Telemetry written to the app database would contend for that
   writer on every request and — for declared tables — ride journaling and
@@ -431,7 +431,7 @@ exact values.
   seams are built once.
 - **C5 — Telemetry is identity-derived application data, out of band.**
   The store contains route paths, user agents, diagnostic details (which
-  per `src/diagnostic.rs` may carry source paths, handler text, and
+  per `crates/snapback/src/diagnostic.rs` may carry source paths, handler text, and
   arguments — operator-only context), captured `log` output, and later
   app-defined properties. It is **sensitive** under LLP 0031's
   classification (`SensitiveApplicationData` explicitly includes handler
@@ -494,7 +494,7 @@ Properties:
   chance of accidental inclusion by suffix-keyed tooling; the normative
   exclusions (below) do not depend on the name. The managed-sibling
   pattern follows the existing config-store precedent
-  (`dev.sqlite3.config.json`, `src/config.rs`).
+  (`dev.sqlite3.config.json`, `crates/snapback/src/config.rs`).
 - **Not** attached to app storage: telemetry tables do not appear in the
   schema surface, are not queryable by app functions or live queries, do
   not ride `_snapback_changes`, and are excluded from LLP 0007
@@ -516,7 +516,7 @@ Properties:
   - The app database already carries a durable incarnation rotated
     inside the reset transaction (the authorization-stream incarnation
     with its committed successor witness and publication fence,
-    `src/storage.rs` / `src/server.rs`). The telemetry generation is
+    `crates/snapback/src/storage.rs` / `crates/snapback/src/server.rs`). The telemetry generation is
     **bound to that authority**: a `telemetry_meta` table in the
     telemetry file persists the current `generation` together with the
     app-database incarnation identity it belongs to.
@@ -750,12 +750,12 @@ Phase-1 `kind` values, each mapped to one existing server seam:
 | `function_run`   | around handler invocation                   | queries, mutations, actions              |
 | `live_subscribe` | subscribe/resume admission                  | subscription lifecycle, not per-frame    |
 | `ws_connect`     | stream attach/detach                        | connect, disconnect, cause               |
-| `job_run`        | cron/job terminal seam (`src/cron.rs`)      | the existing terminal seam already       |
+| `job_run`        | cron/job terminal seam (`crates/snapback/src/cron.rs`)      | the existing terminal seam already       |
 |                  |                                             | carries identity/outcome/duration        |
 | `lifecycle`      | closed Phase-1 allowlist, below             | the deploy markers agents correlate      |
 |                  |                                             | regressions to                           |
 | `log`            | the existing `runtime.log` host call        | authored handler output, size-capped,    |
-|                  | (`src/runtime.rs`)                          | low priority, C5 operator-only           |
+|                  | (`crates/snapback/src/runtime.rs`)                          | low priority, C5 operator-only           |
 | `diagnostic`     | the **emission boundary** only              | see below                                |
 | `elevated_read`  | trusted `ctx.db.elevated` host read seam    | two point names: function and member; no handler arguments or row data |
 
@@ -773,7 +773,7 @@ owning span's `code`. A standalone `diagnostic` event exists only for
 Warning+ diagnostics not attached to any in-flight operation (background
 failures, terminal anomalies — e.g. today's two `eprintln!` sites).
 Severity names follow `DiagnosticSeverity` as it exists:
-`Info`/`Warning`/`Error`/`Fatal` (`src/diagnostic.rs`); the `min_level`
+`Info`/`Warning`/`Error`/`Fatal` (`crates/snapback/src/diagnostic.rs`); the `min_level`
 knob uses those names.
 
 **Operation-class exclusions.** The registry declares which classes count
@@ -1158,7 +1158,7 @@ is a projection of the same operations:
   when not a TTY).
 - **MCP**: the control MCP (`packages/snapback-cli/mcp-control.mjs`)
   projects host operations one-to-one; telemetry operations appear
-  there like every other operation. (`src/guide_mcp.rs` is deliberately
+  there like every other operation. (`crates/snapback/src/guide_mcp.rs` is deliberately
   a resources-only server and is not this seam.)
 - **Console**: Health and Logs render the same operations (D6).
 - **Hosted arms**: the target adapter / control plane serves the same
@@ -1452,7 +1452,7 @@ pattern: BigQuery export, log drains, log streams):
    generation protocol, buffer with priority classes, flusher,
    watermarked flush-path maintenance with the monotonic retention
    floor, tiered histogram rollups, both visibility views) + span seams
-   in `src/server.rs`/`src/cron.rs`/`src/jobs.rs`/`src/runtime.rs`
+   in `crates/snapback/src/server.rs`/`crates/snapback/src/cron.rs`/`crates/snapback/src/jobs.rs`/`crates/snapback/src/runtime.rs`
    (`log` capture); config knobs (`max_days`, `min_level`, buffer
    sizes, C8 caps) in the config store; reset/restore fence wired into
    the existing reset transition and its incarnation authority; the

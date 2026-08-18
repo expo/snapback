@@ -175,7 +175,7 @@ duplicate sockets, rooms, outboxes, asset tasks, or mutation identities.
 ### Portable descriptor document and typed binding
 
 > **Naming note.** This codebase already uses "manifest" for the generated
-> schema/function deployment manifest (`src/manifest.rs` and its 14+ guide
+> schema/function deployment manifest (`crates/snapback/src/manifest.rs` and its 14+ guide
 > references). Calling `AppDescriptor`'s portable wire form "the manifest" too
 > would recreate exactly the vocabulary collision that made
 > `useSnapbackPresence` undiscoverable from the schema's "ephemeral"

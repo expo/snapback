@@ -59,7 +59,7 @@ regeneration of the asserted identity fields rather than to "content-derived"
 identity, which blurred LLP 0058's distinction between deterministic derivation
 and receiver-computed content-address proof. Acceptance obligations both
 families named: land D4's dated LLP 0012 fresh-admission clarification together
-with the `src/manifest.rs` mutation-envelope comment correction, and D3's dated
+with the `crates/snapback/src/manifest.rs` mutation-envelope comment correction, and D3's dated
 LLP 0114 Micro-projection amendment. Loop record in
 `reviews/0147-compiled-microclient.super-refine.md`.)
 **Revised:** 2026-08-02 (ACCEPTED by Charlie Cheever in the 2026-08-02

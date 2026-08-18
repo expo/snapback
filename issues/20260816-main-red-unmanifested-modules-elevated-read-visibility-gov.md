@@ -12,11 +12,11 @@ ownership-gate fixtures fail on the ambient strays.
 
 ## Problem
 
-`src/elevated_read_trace.rs` and `src/visibility_governance.rs` exist as
+`crates/snapback/src/elevated_read_trace.rs` and `crates/snapback/src/visibility_governance.rs` exist as
 tracked files on `origin/main` but are absent from `ownership.manifest.json`,
 so `node scripts/check-module-ownership.mjs` refuses with
 `SNAPBACK_MODULE_OWNERSHIP_VIOLATION: manifest is missing Rust modules:
-src/elevated_read_trace.rs, src/visibility_governance.rs`. This turns five
+crates/snapback/src/elevated_read_trace.rs, crates/snapback/src/visibility_governance.rs`. This turns five
 `tests/drift_prone_gates_v0.mjs` cases red (they invoke the real ownership
 gate as a fixture precondition): missing-declared-deps, agent-safe checker,
 diary-identity backstop, boolean-inherited-red attribution, and the
@@ -42,42 +42,42 @@ and confirm the drift suite returns to green.
 
 ## Machine records — god-file drainage waivers (visibility_governance)
 
-src/visibility_governance.rs landed unmanifested (LLP 0234) and is imported by the
-src/local.rs god-file cluster. Assigned to shared-contract-types-leaf (its type is a
-contract embedded as a field in the leaf src/manifest.rs, so leaf keeps that edge
+crates/snapback/src/visibility_governance.rs landed unmanifested (LLP 0234) and is imported by the
+crates/snapback/src/local.rs god-file cluster. Assigned to shared-contract-types-leaf (its type is a
+contract embedded as a field in the leaf crates/snapback/src/manifest.rs, so leaf keeps that edge
 intra-owner). The two god-file import edges are frozen as bounded drainage waivers,
 the same pattern as the standing local.rs → leaf drainage set (worklist item 11).
 
-<!-- module-ownership-frozen-edge: {"fingerprint":"src/local.rs (unassigned) → src/visibility_governance.rs (shared-contract-types-leaf)","disposition":"time-bounded-waiver","observationRevision":"a509921612e3d86a1d445f7c64d80bc7ec148c67","provenance":"visibility_governance landed unmanifested (LLP 0234); assigning it to shared-contract-types-leaf freezes this pre-existing god-file import as a bounded LLP 0225 §2 drainage waiver, inverted when src/local.rs drains its activation-validation call to the generation-activation-coordinator.","inversionOwner":"generation-activation-coordinator","deadline":"2026-09-15"} -->
-<!-- module-ownership-frozen-edge: {"fingerprint":"src/local/tests.rs (unassigned) → src/visibility_governance.rs (shared-contract-types-leaf)","disposition":"time-bounded-waiver","observationRevision":"a509921612e3d86a1d445f7c64d80bc7ec148c67","provenance":"visibility_governance landed unmanifested (LLP 0234); assigning it to shared-contract-types-leaf freezes this pre-existing god-file import as a bounded LLP 0225 §2 drainage waiver, inverted when src/local.rs drains its activation-validation call to the generation-activation-coordinator.","inversionOwner":"generation-activation-coordinator","deadline":"2026-09-15"} -->
+<!-- module-ownership-frozen-edge: {"fingerprint":"crates/snapback/src/local.rs (unassigned) → crates/snapback/src/visibility_governance.rs (shared-contract-types-leaf)","disposition":"time-bounded-waiver","observationRevision":"a509921612e3d86a1d445f7c64d80bc7ec148c67","provenance":"visibility_governance landed unmanifested (LLP 0234); assigning it to shared-contract-types-leaf freezes this pre-existing god-file import as a bounded LLP 0225 §2 drainage waiver, inverted when crates/snapback/src/local.rs drains its activation-validation call to the generation-activation-coordinator.","inversionOwner":"generation-activation-coordinator","deadline":"2026-09-15"} -->
+<!-- module-ownership-frozen-edge: {"fingerprint":"crates/snapback/src/local/tests.rs (unassigned) → crates/snapback/src/visibility_governance.rs (shared-contract-types-leaf)","disposition":"time-bounded-waiver","observationRevision":"a509921612e3d86a1d445f7c64d80bc7ec148c67","provenance":"visibility_governance landed unmanifested (LLP 0234); assigning it to shared-contract-types-leaf freezes this pre-existing god-file import as a bounded LLP 0225 §2 drainage waiver, inverted when crates/snapback/src/local.rs drains its activation-validation call to the generation-activation-coordinator.","inversionOwner":"generation-activation-coordinator","deadline":"2026-09-15"} -->
 
 ## Inherited forbidden ownership edges — standing tracker
 
 Observed at `a509921612e3d86a1d445f7c64d80bc7ec148c67`. These forbidden module edges are inherited from prior
-landings (MediaProjection*V1 type imports from src/runtime.rs by storage, plus
+landings (MediaProjection*V1 type imports from crates/snapback/src/runtime.rs by storage, plus
 the standing god-file couplings). They were masked on `main` by the missing-module
 error above and surfaced once the three strays were manifested. They are inherited
 reds (LLP 0232 fix-forward), tracked here jointly with
 issues/20260810-main-module-ownership-red-jobs-edges.md; the MediaProjection edges
-invert by shaping those proof types down to src/contract_types.rs (leaf), owned by
+invert by shaping those proof types down to crates/snapback/src/contract_types.rs (leaf), owned by
 the assets/media lane (LLP 0239).
 
-- `src/local.rs (unassigned) → src/auth/identity_core.rs (shared-contract-types-leaf)`
-- `src/local/tests.rs (unassigned) → src/conformance.rs (storage-migration-kernel)`
-- `src/storage.rs (storage-migration-kernel) → src/runtime.rs (transport-adapters)`
-- `src/storage/membership_reads.rs (storage-migration-kernel) → src/membership_rules.rs (sync-realtime-engine)`
-- `src/storage/mutation_writes.rs (storage-migration-kernel) → src/runtime.rs (transport-adapters)`
-- `src/storage/tests.rs (storage-migration-kernel) → src/assets_cut.rs (background-services)`
-- `src/storage/tests.rs (storage-migration-kernel) → src/runtime.rs (transport-adapters)`
+- `crates/snapback/src/local.rs (unassigned) → crates/snapback/src/auth/identity_core.rs (shared-contract-types-leaf)`
+- `crates/snapback/src/local/tests.rs (unassigned) → crates/snapback/src/conformance.rs (storage-migration-kernel)`
+- `crates/snapback/src/storage.rs (storage-migration-kernel) → crates/snapback/src/runtime.rs (transport-adapters)`
+- `crates/snapback/src/storage/membership_reads.rs (storage-migration-kernel) → crates/snapback/src/membership_rules.rs (sync-realtime-engine)`
+- `crates/snapback/src/storage/mutation_writes.rs (storage-migration-kernel) → crates/snapback/src/runtime.rs (transport-adapters)`
+- `crates/snapback/src/storage/tests.rs (storage-migration-kernel) → crates/snapback/src/assets_cut.rs (background-services)`
+- `crates/snapback/src/storage/tests.rs (storage-migration-kernel) → crates/snapback/src/runtime.rs (transport-adapters)`
 
 ## Resolution (2026-08-16)
 
 Assigned the three strays (`dev_identity.rs` appeared after this ticket was
-filed): `src/dev_identity.rs` + `src/elevated_read_trace.rs` →
+filed): `crates/snapback/src/dev_identity.rs` + `crates/snapback/src/elevated_read_trace.rs` →
 `transport-adapters` (co-located with their `server.rs`/`runtime.rs` callers;
-deps are leaf/downward), `src/visibility_governance.rs` →
+deps are leaf/downward), `crates/snapback/src/visibility_governance.rs` →
 `shared-contract-types-leaf` (its type is embedded as a field in the leaf
-`src/manifest.rs`; leaf keeps that edge intra-owner). The two `local.rs`
+`crates/snapback/src/manifest.rs`; leaf keeps that edge intra-owner). The two `local.rs`
 god-file imports of `visibility_governance` are frozen as bounded drainage
 waivers (LLP 0225 §2), and the 7 standing inherited MediaProjection/god-file
 edges are jointly tracked here + in the jobs-edges ticket with an observed-at

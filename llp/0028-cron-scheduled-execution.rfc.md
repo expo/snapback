@@ -105,7 +105,7 @@ This RFC proposes the contract:
   changes on a schedule and fans out to clients**, distinct from client-driven
   mutations (todo) and connection-owned ephemeral state (cursors).
 - The generated manifest already reserves a `cron` capability flag
-  (`src/manifest.rs`), defaulting `false`. This RFC defines what fills it.
+  (`crates/snapback/src/manifest.rs`), defaulting `false`. This RFC defines what fills it.
 
 ## Scope
 
@@ -436,7 +436,7 @@ query and mutation. An action:
 - performs its side effects (fetch external data), then **commits durable writes
   by invoking mutations** (`ctx.runMutation(...)`), so every write still goes
   through the normal commit → validation → `notify_live_subscriptions` realtime
-  fan-out (`src/local.rs`);
+  fan-out (`crates/snapback/src/local.rs`);
 - has scoped access to **secrets** (e.g. the API-key pool), never client-visible
   and never written to durable rows in the clear;
 - is subject to **timeout and resource limits**, since it does I/O and may run
@@ -644,7 +644,7 @@ Critical, because All Aboard's acceptance is a frozen-clock determinism check.
 - The scheduler must be **test-drivable**: a "run now / advance" path so a test can
   tick a job without waiting wall-clock. This is an admin/test capability, not a
   client-visible API.
-- The clock is **injected** — the runtime already threads `now_ms` (`src/runtime.rs`
+- The clock is **injected** — the runtime already threads `now_ms` (`crates/snapback/src/runtime.rs`
   exposes `runtime.now`) rather than letting handlers read an ambient wall clock.
   A frozen clock + seed + manual tick must produce identical durable writes. This
   is the agent-DX/acceptance bar from
@@ -765,7 +765,7 @@ The scheduler is a target-abstraction seam — one of the seams
 ("scheduler/alarm behavior"):
 
 - **Local (Ibex + SQLite):** the Rust server owns an in-process scheduler — a
-  coarse timer beside the existing fast housekeeping tick in `src/server.rs` — and
+  coarse timer beside the existing fast housekeeping tick in `crates/snapback/src/server.rs` — and
   drives action execution in process. This is the reference target.
 - **Always-on VMs** (Hetzner, Fly, droplets): same in-process model.
 - **Cloudflare:** a *wakeup source* (Cron Trigger or Durable Object alarm) feeds a

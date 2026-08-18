@@ -31,7 +31,7 @@ successor RQS store's authoritative emitted code remains
 the owner-level semantic alias and remains emitted only by the predecessor
 localStorage adapter; no runtime rename or dual-emission.) 2026-08-04 (Move 2 Lane F publication reconciliation: the local
 contributor-source target now advertises `single_table_v1@1`, bound by
-`src/local-persistent-store-publication.v1.json` to the dated 2026-08-04
+`crates/snapback/src/local-persistent-store-publication.v1.json` to the dated 2026-08-04
 carrier-exit receipt at 16 PASS / 1 Fleet GAP / 0 skipped and the dated
 Triage Move-1 receipt at 8/8. The publication source carrier now pins the
 three runtime modules that own the split behavior. The superseding 2026-08-04
@@ -1477,7 +1477,7 @@ staged and fail-closed:
   now complete (refreshed 2026-08-06 at the Move-1 closure):
   `carrier-exit.2026-08-06.v1.json` records 17 PASS / 0 GAP / 0 skipped,
   the 2026-08-06 `move1-exit` receipts record Triage 8/8 and Fleet 8/8, and
-  `src/local-persistent-store-publication.v1.json` binds those receipts and
+  `crates/snapback/src/local-persistent-store-publication.v1.json` binds those receipts and
   their source pins into the local manifest projection. Remote-service and
   Cloudflare targets remain nonclaims.
 - **Legacy lease records: close-predecessor-first convergence only.** The
@@ -1930,7 +1930,7 @@ The dated 2026-08-06 carrier exit is 17 PASS / 0 GAP / 0 skipped. It consumes
 the dated Triage Move-1 8/8 receipt and qualified Fleet Move-1 8/8 receipt;
 the Fleet receipt also retains the frozen custody and hydration measurements.
 Those receipts satisfy the local publication predicate and are bound through
-`src/local-persistent-store-publication.v1.json`. This closes the Fleet row
+`crates/snapback/src/local-persistent-store-publication.v1.json`. This closes the Fleet row
 and Move 1 only: Experimental maturity is unchanged, and remote-service,
 Cloudflare, public-package, and hosted targets remain nonclaims.
 
@@ -2325,7 +2325,7 @@ The source-owned `local-persistent-store-publication.anchor.v1.json` is the
 only carrier selector: its closed `published` record names `single_table_v1`
 and SHA-binds the raw carrier bytes. Evidence refresh rotates the carrier's
 three receipt digests and then the anchor digest; unchanged code validates the
-anchor → carrier → receipts → source chain. Neither `src/manifest.rs` nor the
+anchor → carrier → receipts → source chain. Neither `crates/snapback/src/manifest.rs` nor the
 conformance test changes during that publication operation.
 
 When that carrier verifies, the local target may advertise the id at code-owned
@@ -2374,7 +2374,7 @@ review 2026-09-30) and supersedes this conjunction when it lands. Every
 0.1.11 staging lane is the first required mint.
 
 **Shipped 2026-08-06.** The mechanism landed the same day: the
-distribution-split predicate and receipt verification in `src/manifest.rs`,
+distribution-split predicate and receipt verification in `crates/snapback/src/manifest.rs`,
 the `snapback packaged-store-qualification-receipt` mint subcommand, the
 qualification-mode manifest marker, the co-installed-receipt loader seam in
 `@expo/snapback-cli`, and the end-to-end harness

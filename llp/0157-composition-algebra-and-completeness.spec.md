@@ -1763,7 +1763,7 @@ and the generation triple commit atomically.
 Ingestion admits only contract-validated frames. Current main's delta lane
 enters only when the result contract exactly equals the schema-derived
 `documents(table)` descriptor; narrowed contracts take the validated
-`live_replace` path, with regressions in `tests/live_delta_v0.rs`. Any future
+`live_replace` path, with regressions in `crates/snapback/tests/live_delta_v0.rs`. Any future
 widening reruns the adversarial ingestion cases before the widened frame may be
 retained.
 

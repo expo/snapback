@@ -4,8 +4,8 @@ id: operating.secrets-and-config
 order: 1
 audience: agent-first
 capabilities: [operating.secrets-config]
-authorities: [llp/0036-app-secrets-and-config.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
-examples: [demos/all-aboard, tests/config_set_cli_v0.rs]
+authorities: [llp/0036-app-secrets-and-config.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback/src/cli.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
+examples: [demos/all-aboard, crates/snapback/tests/config_set_cli_v0.rs]
 status: current
 targets: [local]
 maturity: shipped

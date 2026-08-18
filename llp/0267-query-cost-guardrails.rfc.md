@@ -201,7 +201,7 @@ Timing is lane-specific, never defined by mutex ownership:
   `enqueue_subscription_durable` custody, excluding scheduler queue and later transport. Custody is
   included because it blocks the next turn. Real and G1 memo-only turns write `evaluationTurnMs`
   and `memoDeliveryTurnMs`, respectively.
-- Nested `FUNCTION_QUERY duration_ms`, `src/server.rs::record_app_data_invocation`'s outer
+- Nested `FUNCTION_QUERY duration_ms`, `crates/snapback/src/server.rs::record_app_data_invocation`'s outer
   `function_id`/integer `duration_ms`, `LiveEvaluationStats`, and the spike trace remain diagnostics, not separate
   qualification profiles. The outer ring may include request-level work.
 

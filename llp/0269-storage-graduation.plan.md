@@ -54,23 +54,23 @@ them.
 ### 0.1 The implementation seam that exists today
 
 There is no backend-neutral authority-store trait in the current Rust code.
-`src/storage.rs` defines a concrete `LocalDatabase` over
+`crates/snapback/src/storage.rs` defines a concrete `LocalDatabase` over
 `rusqlite::Connection`; `MutationWritesKernel`, `QueryReadsKernel`, and
-`VersionsKernel` in `src/storage/{mutation_writes,query_reads,versions}.rs` are
+`VersionsKernel` in `crates/snapback/src/storage/{mutation_writes,query_reads,versions}.rs` are
 narrow typed views that still delegate to that database. This is the
 post-LLP-0225 module boundary, not yet a cross-engine adapter boundary. LLP
 0046 §Prerequisite accurately predicted that the store interface still had to
 be extracted.
 
-The ordinary commit implementation in `src/storage.rs` opens an immediate
+The ordinary commit implementation in `crates/snapback/src/storage.rs` opens an immediate
 SQLite transaction, reads and advances the head, validates read dependencies,
 writes rows and `_snapback_changes`, and commits through the authorization
 interlock. On identity-bearing covered ordinary lanes it additionally records
 settlement/envelope state in that transaction; the identityless ordinary seam
 passes `identity: None`, and both commit implementations guard that record with
-`if let Some(identity)`. `src/storage/versions.rs` exposes the head, journal,
+`if let Some(identity)`. `crates/snapback/src/storage/versions.rs` exposes the head, journal,
 replay floor, and resnapshot decision;
-`src/storage/auth_invalidation.rs::data_version_stream` owns the durable stream
+`crates/snapback/src/storage/auth_invalidation.rs::data_version_stream` owns the durable stream
 identity rotated by reset/import/restore.
 
 LLP 0163 §Contract summary additionally requires covered data changes, journal
@@ -113,17 +113,17 @@ latency number.
 
 ### 1.1 Extract the authority-store port without changing SQLite
 
-1. Freeze the port from the typed `src/storage/` kernels: snapshot reads; mutation prepare/commit; read-set validation; schema/migrations; seed/reset/import; stream/head; cursor replay and resnapshot; settlement; and typed system commits sharing app atomicity.
+1. Freeze the port from the typed `crates/snapback/src/storage/` kernels: snapshot reads; mutation prepare/commit; read-set validation; schema/migrations; seed/reset/import; stream/head; cursor replay and resnapshot; settlement; and typed system commits sharing app atomicity.
 2. Make it async and transaction/lease-aware per LLP 0007 §Export and Engine Graduation and LLP 0046 §Prerequisite. Transaction handles do not escape to domain services; backend-native types do not enter the contract leaf.
 3. Move `LocalDatabase` behind the port in owner-sized slices, preserving LLP 0225's kernel → domain service → adapter direction.
 4. Parameterize the SQLite behavior corpus before adding Postgres. SQLite-only tests must name a physical property such as WAL or authorizer behavior.
 5. Remove the process-wide writer gate from the concurrent Postgres mutation
    path, or narrow it so it cannot serialize work that Postgres is meant to run
-   concurrently. Today `src/server.rs` defines `SharedSnapback =
-   Arc<Mutex<LocalSnapback>>`; `src/server/writer_gate.rs::with_snapback` moves
+   concurrently. Today `crates/snapback/src/server.rs` defines `SharedSnapback =
+   Arc<Mutex<LocalSnapback>>`; `crates/snapback/src/server/writer_gate.rs::with_snapback` moves
    that owned global guard into each write-lane blocking task and says paths
    that can reach Hermes or rusqlite use it or the read lane; and
-   `src/bench.rs::Benchmarks::single_writer_mutations_per_sec` records that
+   `crates/snapback/src/bench.rs::Benchmarks::single_writer_mutations_per_sec` records that
    every mutation serializes on it. Refactor the instance into concurrency-safe
    services and resource-specific guards. SQLite may retain its physical
    single-writer serialization, and runtime resources may keep their proven
@@ -136,7 +136,7 @@ boundary. It does **not** claim that `MutationWritesKernel` or
 `VersionsKernel` is already implementable by Postgres: today each holds a
 `LocalDatabase` reference. Their kernel method signatures use domain types,
 not rusqlite types. A concrete kernel-surface backend-native leak is instead
-`DbRead::Pinned { conn: &rusqlite::Connection, ... }` in `src/storage.rs`,
+`DbRead::Pinned { conn: &rusqlite::Connection, ... }` in `crates/snapback/src/storage.rs`,
 which `QueryReadsKernel::with_pinned_read_view` exposes to read callbacks.
 
 ### 1.2 Implement the first Postgres authority
@@ -268,7 +268,7 @@ silently supersede that governing portability contract.
 
 ### 2.2 Add the placement declaration and proof
 
-The current `SchemaManifest` in `src/manifest.rs` has no locality/placement
+The current `SchemaManifest` in `crates/snapback/src/manifest.rs` has no locality/placement
 field. Phase 2 adds a new **closed app-level schema descriptor** that names:
 
 - the locality-root table and its id as the placement key;

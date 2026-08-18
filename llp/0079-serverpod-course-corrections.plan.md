@@ -40,7 +40,7 @@ which order, and how we know it's done*.
 | SC-2b | Dev-loop client-arm wiring | LLP 0041, LLP 0030 | M (code) | Landed 2026-07-23 (`snapback dev --client` + verb slice; Exact seam defined in LLP 0041) |
 | SC-3 | Doc-batch: constraints made standing | LLP 0037, LLP 0041/0003, LLP 0008/0012 | S (docs) | Landed 2026-07-23 (LLP 0037 amendment ratified by Charlie 2026-07-23) |
 | SC-4 | Embedded-Postgres option in LLP 0046 | LLP 0046, LLP 0007 | S (docs) | Landed 2026-07-23 |
-| SC-5 | Name-keying guard: semantic pin + dependency check | LLP 0037 | S–M (code) | Landed 2026-07-23 (`tests/name_keying_guard.rs`) |
+| SC-5 | Name-keying guard: semantic pin + dependency check | LLP 0037 | S–M (code) | Landed 2026-07-23 (`crates/snapback/tests/name_keying_guard.rs`) |
 
 ## Work items
 
@@ -82,7 +82,7 @@ documented); `ref-check` passes.
 
 The largest competitive gap LLP 0078 surfaced: none of LLP 0042 is
 implemented — the only MCP server in the repo is the read-only guide
-projection (`src/guide_mcp.rs`). Build the control-plane server per the
+projection (`crates/snapback/src/guide_mcp.rs`). Build the control-plane server per the
 amended RFC, reusing the CLI's existing process-lifecycle logic
 (`--ready-file` spawn, `HostReadyDescriptor` consumption, nonce-verified
 stop) rather than proxying HTTP, as the RFC already specifies.
@@ -99,7 +99,7 @@ construction.
 Two LLP 0042 open questions land on this item's executor on day one and are
 implementation-owned decisions: packaging (inside the `snapback` CLI vs a
 separate `@snapback/mcp` package — including whether the guide server's
-stdio transport in `src/guide_mcp.rs` is the substrate or the control-plane
+stdio transport in `crates/snapback/src/guide_mcp.rs` is the substrate or the control-plane
 server is separate) and static-vs-served app-data catalogs. The discretion
 is intentional, but not silent: whichever way each is decided, the decision
 must be recorded in LLP 0042 as a dated amendment before this item lands.
@@ -276,14 +276,14 @@ two-part:
    (lowercase variant names on the wire). A switch to ordinal encoding then
    fails regardless of mechanism — even one that updates both sides of the
    existing drift gate. This complements, not replaces, the artifact-schema
-   drift gate (`tests/artifact_schemas_v0.rs`,
+   drift gate (`crates/snapback/tests/artifact_schemas_v0.rs`,
    `dk7_committed_schemas_match_rust_types`).
 2. **Dependency/attribute guard (the tripwire):** fail if `serde_repr`
    appears among `Cargo.toml`'s direct dependencies or as a derive/attribute
-   in `src/`, unless allowlisted by an `@ref` comment adjacent to the use
+   in `crates/snapback/src/`, unless allowlisted by an `@ref` comment adjacent to the use
    naming the deciding document. Key the check on serialization derives,
    not bare `#[repr(...)]` — benign FFI `repr(C)`/`repr(transparent)` types
-   exist in `src/` and must not trip it.
+   exist in `crates/snapback/src/` and must not trip it.
 
 **Covered scope, stated honestly:** the guard covers Rust-owned encodings
 (the storage rows, wire enums, and manifest types the Rust core serializes)
@@ -335,6 +335,6 @@ stable ships or when LLP 0062's Cloudflare packaging is productized.
    still be deferred with a named reason. (Owner: LLP 0042 amendment,
    SC-1a, plus LLP 0024 if a new operation.)
 2. SC-1b packaging: inside the `snapback` CLI (possibly sharing the guide
-   server's stdio substrate in `src/guide_mcp.rs`) or a separate
+   server's stdio substrate in `crates/snapback/src/guide_mcp.rs`) or a separate
    `@snapback/mcp` package? Inherited from LLP 0042's open questions;
    implementation-owned unless the SC-1a amendment settles it.

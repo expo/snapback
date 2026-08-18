@@ -240,7 +240,7 @@ silent wedge trap (ENG-22659).
   digest-bound readiness receipt (`<binary>.runtime-readiness.json`) that
   doctor, the demo harness rungs, and `scripts/verify-local-proof` re-verify
   before trusting a served binary. On macOS the binary carries
-  an `LC_RPATH` emitted by `build.rs`, so `cargo run` finds
+  an `LC_RPATH` emitted by `crates/snapback/build.rs`, so `cargo run` finds
   `hermesvm.framework` without `DYLD_FRAMEWORK_PATH` even under SIP. Every
   bootstrap failure path fails with a stable `SNAPBACK_*` code (see LLP 0010,
   "Bootstrap diagnostic codes"): the submodule states, plus

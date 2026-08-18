@@ -4,7 +4,7 @@ id: backend.snapshot-batches
 order: 27
 audience: agent-first
 capabilities: [backend.snapshot-batch-v1]
-authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0166-local-persistent-store.spec.md, src/manifest.rs, src/local.rs, src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0166-local-persistent-store.spec.md, crates/snapback/src/manifest.rs, crates/snapback/src/local.rs, crates/snapback/src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/relation-activity-authoring.test.mjs, packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs, demos/fleet-observatory-move1]
 status: current
 targets: [local]

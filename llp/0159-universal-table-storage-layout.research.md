@@ -122,7 +122,7 @@ files]`:
 
 What LLP 0007 specifies and the SQLite implementation ships
 `[confirmed — LLP 0007 (Draft document; behavior shipped in
-`src/storage.rs`)]`:
+`crates/snapback/src/storage.rs`)]`:
 
 - Each declared table is a physical SQLite table; each portable field
   maps to exactly one physical column type via the single-sourced type

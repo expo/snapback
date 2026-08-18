@@ -37,7 +37,7 @@ implemented:
 - **Action egress** (outbound HTTP from app code) — *not* a from-scratch build.
   The Ibex runtime Snapback already links implements `fetch`, `http`/`https`, and
   WebSocket natively, behind a strict-mode `network:fetch` capability that Snapback
-  already installs (`src/runtime.rs` installs `Host::strict()`) and additionally
+  already installs (`crates/snapback/src/runtime.rs` installs `Host::strict()`) and additionally
   denies at the JS layer (`ambient_restriction_source`). The work is to *un-deny*
   `fetch` for a refresh/action execution class — what the reserved `outbound_actions`
   and `cron` manifest flags anticipate — keep it out of the transactional mutation
@@ -145,9 +145,9 @@ Governing constraints this demo must respect:
 
 Current implementation evidence:
 
-- `src/` contains the local server, durable storage, live matcher, and the
+- `crates/snapback/src/` contains the local server, durable storage, live matcher, and the
   ephemeral backend, but **no cron/scheduler module**, and the handler sandbox
-  **denies all ambient capabilities**: `src/runtime.rs` `ambient_restriction_source`
+  **denies all ambient capabilities**: `crates/snapback/src/runtime.rs` `ambient_restriction_source`
   hard-denies `fetch`, `WebSocket`, `setTimeout`, `setInterval`, `require`, and
   `process` before every handler runs. So Cron is genuinely net-new, but outbound
   HTTP is *already implemented in Ibex and merely switched off in Snapback* (see
@@ -156,7 +156,7 @@ Current implementation evidence:
   (`native_fetch_macos.mm` over NSURLSession, plus Linux/Windows) and registers
   `http`/`https` builtin modules. Outbound `fetch` is gated: the engine calls
   `checkCapability("network:fetch")` (`hermes_runtime_fetch.cc`) → the Rust
-  `CapabilityManager`, and Snapback runs it in **strict** mode (`src/runtime.rs`
+  `CapabilityManager`, and Snapback runs it in **strict** mode (`crates/snapback/src/runtime.rs`
   installs `Host::strict()`), so fetch is currently capability-denied as well as
   JS-denied. **Caveat — the allowlist is not what it looks like:** the capability
   layer *models* per-host grants (`network:fetch:<host>`, with base-grant fallback;
@@ -165,11 +165,11 @@ Current implementation evidence:
   enforced end-to-end** — egress is all-or-nothing per module until the engine
   fetch/ws/http functions thread the host into the check.
 - The manifest already reserves the matching capability flags `cron` and
-  `outbound_actions` (`src/manifest.rs`), both defaulting `false` — the design
+  `outbound_actions` (`crates/snapback/src/manifest.rs`), both defaulting `false` — the design
   anticipated this split between transactional handlers and outbound-capable
   actions.
 - The realtime push path is already implemented: a mutation commit calls
-  `notify_live_subscriptions` (`src/local.rs`), which the live matcher fans out to
+  `notify_live_subscriptions` (`crates/snapback/src/local.rs`), which the live matcher fans out to
   affected subscriptions. A refresh write through a mutation reuses this for free.
 - `demos/todo/` and `demos/todo-v2/` already run a working Contract/Exact surface
   over generated Snapback artifacts via `demos/_kit/`, so the Contract surface
@@ -445,7 +445,7 @@ real-time feed and a Maps API. The correction from this Plan's first draft —
 links already implements `fetch`, `http`/`https`, and WebSocket natively, behind
 a capability gate — though only a *coarse* `network:fetch` check is enforced, not
 a per-host allowlist (see below). What
-blocks it is Snapback's own sandbox: `src/runtime.rs` `ambient_restriction_source`
+blocks it is Snapback's own sandbox: `crates/snapback/src/runtime.rs` `ambient_restriction_source`
 is injected before every handler and hard-denies `fetch` (and `require`,
 `WebSocket`, timers). So the work is enablement and policy, not a networking
 layer:
@@ -455,7 +455,7 @@ layer:
   mutation). Add a third class — an *action*, the thing cron runs — that is
   granted `fetch` while ordinary query/mutation handlers keep the full deny. This
   is what the reserved `cron` and `outbound_actions` manifest flags
-  (`src/manifest.rs`) are for.
+  (`crates/snapback/src/manifest.rs`) are for.
 - **Keep egress out of the transactional path.** Load-bearing. Mutations run under
   snapshot isolation with commit-time read/write-set validation; a handler that
   blocks on a network round-trip mid-transaction breaks that model
@@ -814,17 +814,17 @@ one shared backend; acceptance is machine-checkable: headless 11/11, cron 7/7,
 egress 4/4, Contract browser 6/6, with the Rust suite green.
 
 - **Phases 0 + 2 (backend + cron)** landed with essentially no engine work: Cron
-  and the action→mutation path were **already implemented** (`src/cron.rs`,
+  and the action→mutation path were **already implemented** (`crates/snapback/src/cron.rs`,
   commit `1cb6bcb`), so the demo is Cron's first consumer, not its builder. The
   refresh is `defineCron` → action `refreshFeed` → `ctx.runMutation('applyFeedTick')`;
   the realtime delta falls out of the mutation commit. Predictions are computed at
   query/render time from the committed schedule + `trainStatus` delays + now, via a
   shared pure model (`snapback/shared/model.mjs`) used by both surface and tests.
 - One engine fix was required for the **demand-activation** story: `disconnect`
-  (`src/local.rs`) dropped only ephemeral state, so a `whileLive` job armed but never
+  (`crates/snapback/src/local.rs`) dropped only ephemeral state, so a `whileLive` job armed but never
   disarmed. Durable subscriptions for a departed connection are now dropped.
 - **Phase 3 (egress)** is an opt-in seam (`SNAPBACK_OUTBOUND_ACTIONS`,
-  `src/runtime.rs` + a matching codegen relaxation): with it on, an **action** keeps
+  `crates/snapback/src/runtime.rs` + a matching codegen relaxation): with it on, an **action** keeps
   `fetch`/timers and gets `ctx.secrets`; queries/mutations stay denied; the coarse
   Ibex `network:fetch` is granted only then. Default posture is unchanged. The
   Caltrain product path never calls `fetch` — it runs on the recorded feed — so the

@@ -4,7 +4,7 @@ id: auth.scoped-roles
 order: 5
 audience: agent-first
 capabilities: [auth.scoped-roles, authority.profile.v1, authority.custom.coarse-global, authority.inspection.v1]
-authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/admin.rs, src/manifest.rs, src/membership_rules.rs, src/runtime.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, tests/membership_principal_addressed_v0.rs]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, llp/0173-authorization-review-projection.rfc.md, llp/0240-application-authority-profiles.rfc.md, packages/snapback-codegen/authorization-review.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback/src/admin.rs, crates/snapback/src/manifest.rs, crates/snapback/src/membership_rules.rs, crates/snapback/src/runtime.rs, crates/snapback/src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs, demos/shindig/snapback/schema.mjs, demos/shindig/snapback/functions.mjs, crates/snapback/tests/membership_principal_addressed_v0.rs]
 examples: [demos/rbac, demos/shindig, demos/team-chat, packages/snapback-codegen/custom-authorization.test.mjs, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
@@ -641,7 +641,7 @@ other-principal removal transition — `from` omitted, so the transition
 covers every declared and pending target role (per-role coverage would let
 removal success/refusal read back a hidden role):
 
-```js fragment reason="authoring shape; runtime witnesses live in tests/membership_principal_addressed_v0.rs"
+```js fragment reason="authoring shape; runtime witnesses live in crates/snapback/tests/membership_principal_addressed_v0.rs"
 .membership({
   // existing fields...
   principalAddressedWrites: { remove: true },
@@ -661,7 +661,7 @@ commit-stage `lastHolder` check still runs but cannot become an oracle).
 
 The generated command takes the public address, never a roster id:
 
-```js fragment reason="handler shape; the same call is exercised end to end by tests/membership_principal_addressed_v0.rs"
+```js fragment reason="handler shape; the same call is exercised end to end by crates/snapback/tests/membership_principal_addressed_v0.rs"
 async ownerRemove(ctx, args) {
   const result = await ctx.membership.roomMembers.removePrincipal(
     args.roomId, args.targetPrincipal);

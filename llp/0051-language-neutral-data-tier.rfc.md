@@ -15,7 +15,7 @@ exact with complete ledgers, is the current corpus baseline.) 2026-08-02 (Accept
 are replay-stable settlement answers but never members of D1's ctx-answer
 ledger or capture environment); 2026-07-27 (the three D6 private marker envelopes are now
 IMPLEMENTED in D4's mechanism as served-shape authorities —
-`src/handler_wire.rs`, `handler.*` schemas, instances, drift gates, and
+`crates/snapback/src/handler_wire.rs`, `handler.*` schemas, instances, drift gates, and
 real-bytes validation on both arms; LLP 0094 §0F items 2–4 landed the
 kit-socket request grammar, the drain-response array, and the last
 standalone-schema gaps through the same export). 2026-07-21 (fan-out ratio marked superseded per the `37f1a2f` benchmark corrections — LLP 0035's 2026-07-21 note). 2026-07-15 (registers LLP 0060 D6's three private hosted marker
@@ -147,9 +147,9 @@ Exact owns the syntax; this RFC defines what Snapback executes).
 Facts this design stands on, with the deltas it proposes marked:
 
 - **The expression IR ships today.** `FunctionRuntime ∈ {HostPlan,
-  IbexModule}` (`src/manifest.rs:361-371`); `MutationPlan` steps are
+  IbexModule}` (`crates/snapback/src/manifest.rs:361-371`); `MutationPlan` steps are
   `Insert | Patch | Delete` over `ValueExpr ∈ {Arg, AuthUserId, Binding,
-  Literal, RuntimeId, RuntimeNow}` (`src/manifest.rs:774-815`), used
+  Literal, RuntimeId, RuntimeNow}` (`crates/snapback/src/manifest.rs:774-815`), used
   symmetrically by query filters (`FilterExpr`/`FilterOp`), mutation
   values, return values, and action steps. It is serde-defined,
   `schemars`-derived, committed at `schemas/functions.manifest.schema.json`,
@@ -177,17 +177,17 @@ Facts this design stands on, with the deltas it proposes marked:
   declared design: the V8 strip denies `Date.now`/`Math.random`/zero-arg
   `Date` at runtime, while Ibex leaves them reachable and relies on the
   LLP 0009 codegen ban — a declared engine fact the twin pins
-  (`tests/workerd_twin_v0.rs`
+  (`crates/snapback/tests/workerd_twin_v0.rs`
   `deterministic_member_denial_is_a_declared_engine_fact`; LLP 0048),
   kept because existing watchdog tests depend on handler-visible
   `Date.now`. `ctx.runtime.now()` returns a per-invocation frozen clock;
   `ctx.runtime.id()` returns a fresh UUIDv7 per call
-  (`src/runtime.rs:537,556`); cron already constructs the runtime with a
-  *supplied* clock (`now_ms: run.due_at_ms`, `src/runtime.rs:384`), so
+  (`crates/snapback/src/runtime.rs:537,556`); cron already constructs the runtime with a
+  *supplied* clock (`now_ms: run.due_at_ms`, `crates/snapback/src/runtime.rs:384`), so
   externally-answered time is proven plumbing, not a new mechanism.
   There is **no record/replay mechanism**; execution is
   server-authoritative; `optimistic_replay: false`
-  (`src/manifest.rs:1033`). LLP 0003:374-375 explicitly wants
+  (`crates/snapback/src/manifest.rs:1033`). LLP 0003:374-375 explicitly wants
   ids/timestamps "injectable so offline/replay semantics can be added
   without changing the handler API." **Delta: the ctx-answer ledger, and
   closing the Ibex deterministic-member gap for queries/mutations —
@@ -215,13 +215,13 @@ Facts this design stands on, with the deltas it proposes marked:
   data (IR + ledger), executor matrix grows.**
 - **Live wire kinds are hand-mirrored.** The outbound kinds are
   hand-written Rust with stringly-typed `kind` fields — `LiveUpdate`
-  (`src/local.rs:357-363`, constructed at `:1037/:3161/:3257`) and the
-  ephemeral lane's `json!` payloads (`src/ephemeral.rs`) — the socket
-  *client* messages are a local serde enum (`src/server.rs:2254`), and
+  (`crates/snapback/src/local.rs:357-363`, constructed at `:1037/:3161/:3257`) and the
+  ephemeral lane's `json!` payloads (`crates/snapback/src/ephemeral.rs`) — the socket
+  *client* messages are a local serde enum (`crates/snapback/src/server.rs:2254`), and
   the JS side string-dispatches on `kind`
   (`demos/_kit/client.mjs:734-777`); none appear in `schemas/`. The
   handler completion envelope is decoded twice (`parse_handler_output`
-  in `src/runtime.rs` and `packages/snapback-harness/envelope.mjs`) with
+  in `crates/snapback/src/runtime.rs` and `packages/snapback-harness/envelope.mjs`) with
   a strictness divergence documented at `envelope.mjs:8-15`. Codegen's
   own header names the valet trap this re-creates. **Delta: DK-7
   coverage for the live envelope.**
@@ -468,7 +468,7 @@ path.
   baseline remains the mechanism for plain plans, and accepting this
   RFC should be read as ratifying-and-extending E3, not reopening it.
   Implementation note: the E3 rationale comment at
-  `src/storage.rs:570-579` reasons from plans being *unconditional*
+  `crates/snapback/src/storage.rs:570-579` reasons from plans being *unconditional*
   write sequences — the day `Get` lands, that `@ref` must be updated
   with the code (LLP 0016 discipline).
 - **Analyzability is a preserved invariant, not a hope.** The op-log
@@ -514,7 +514,7 @@ judged against:
 | todo-v2 `createTodo`/`setCompleted`/`editTitle`/`setPriority`/`deleteTodo` | **IR today** — shipped plans (`demos/todo-v2/snapback/functions.mjs:47-84`) |
 | graffiti `paintCell` | **IR today** — shipped plan |
 | todo `editTitle` | **IR today** — shipped plan |
-| todo `setCompleted`, `deleteTodo` | **IR today** — the JS defensive-get idiom lowers to plain `Patch`/`Delete` + `ChangedCount` (missing row is a no-op with changed count 0, `src/storage.rs:618-646`; todo-v2 ships exactly this) |
+| todo `setCompleted`, `deleteTodo` | **IR today** — the JS defensive-get idiom lowers to plain `Patch`/`Delete` + `ChangedCount` (missing row is a no-op with changed count 0, `crates/snapback/src/storage.rs:618-646`; todo-v2 ships exactly this) |
 | todo `createTodo` | **v1 extension** — `Guard` + `trim` |
 | all-aboard `resetFeed` | **v1 extension** — six builder-unrolled `Patch` steps + `DeleteWhere` (empty filter) + constant `Literal` return |
 | all-aboard `applyFeedTick` | **v1 extension** — null-binding `Get` + `%`/`max` + string-template id + bracket-key access + record-constructor return; drops two defensive coercions (`Number.isInteger`, `Number()||0`) the schema/seed already guarantee — the corpus case pins that equivalence |
@@ -571,11 +571,11 @@ WasmModule { module_hash: String, export: String }
   exactly the D1/ctx surface — `db.*`, `runtime.now`, `runtime.id`,
   `auth` — as host functions speaking the same `dispatch_host_call` op
   set the Ibex FFI trampoline and the workerd loopback already serve
-  (`src/runtime.rs:880-909`). LLP 0048 built the proof that this seam
+  (`crates/snapback/src/runtime.rs:880-909`). LLP 0048 built the proof that this seam
   is engine-neutral and RPC-shaped; a WASM executor is its third
   consumer, not a new seam. (Naming care: this is the *handler* seam —
   distinct from the LLP 0024 "host ops" operating surface in
-  `src/host_ops.rs`, which is the admin/agent API. This RFC says "ctx
+  `crates/snapback/src/host_ops.rs`, which is the admin/agent API. This RFC says "ctx
   host-call op set" for the former, never "host-op table".)
 - **Execution environments:** local server — wasmtime-class runtime
   with fuel and memory caps; client processes (widgets, native apps) —
@@ -586,7 +586,7 @@ WasmModule { module_hash: String, export: String }
 - **Limit reporting stays honest — per artifact class, not by wishful
   target rows.** Wasmtime fuel makes *`WasmModule` invocations*
   CPU-cappable, but the local target's `cpu_budget` row
-  (`src/manifest.rs:1076-1079`, `Missing`) cannot flip to `Enforced`
+  (`crates/snapback/src/manifest.rs:1076-1079`, `Missing`) cannot flip to `Enforced`
   while `IbexModule` handlers — which this RFC keeps fully supported —
   remain uncappable under Hermes (LLP 0047's non-goal). So LLP 0047's
   accounting grows artifact-class granularity: a `WasmModule`-scoped
@@ -626,7 +626,7 @@ shapes DK-7 stopped short of:
   `resync_required`, `ping`/`pong`, the ephemeral kinds, and the
   `LiveSocketClientMessage` family) as serde types with `schemars`
   derives in one module; commit generated schemas at `schemas/`; extend
-  the `tests/artifact_schemas_v0.rs` drift gate and `snapback-schemagen`.
+  the `crates/snapback/tests/artifact_schemas_v0.rs` drift gate and `snapback-schemagen`.
 - The JS client and adapter validate against (or are generated from)
   those schemas, replacing string-dispatch drift with the same
   fail-closed posture codegen already applies to manifests.
@@ -653,11 +653,11 @@ shapes DK-7 stopped short of:
   positive/negative instances, and the shared drift gate. Being private makes
   them non-client-visible; it does not create a hand-mirror exemption.
   *As built (2026-07-27, LLP 0094 §0F item 1):* the three families are
-  schema-governed **as served today** — `src/handler_wire.rs` authorities,
+  schema-governed **as served today** — `crates/snapback/src/handler_wire.rs` authorities,
   `handler.invoke.input` / `handler.invoke.output` /
   `handler.host-call.input` committed schemas, instances in
-  `tests/artifact_schemas_v0.rs`, and real-bytes validation on both arms
-  (the local twin's capture seam in `tests/workerd_twin_v0.rs`; the hosted
+  `crates/snapback/tests/artifact_schemas_v0.rs`, and real-bytes validation on both arms
+  (the local twin's capture seam in `crates/snapback/tests/workerd_twin_v0.rs`; the hosted
   service-binding capture in `cloudflare/test/wire-schema-gate.mjs`). The
   local invoke request is serialized from the authority type itself. The D6
   versioned marker fields remain unimplemented; when 0060's rollout adds
@@ -954,7 +954,7 @@ disciplines.
    inventory (grants, receipts, HTTP envelopes, ephemeral frames)
    completes under the same mechanism before the non-JS-client claim
    is made.
-   *Status (2026-07-09, ENG-23891): landed.* `src/live_wire.rs` defines
+   *Status (2026-07-09, ENG-23891): landed.* `crates/snapback/src/live_wire.rs` defines
    the durable fan-out envelopes, both socket frame families, receipts,
    the polling wrapper, the connection grant, the error envelope, and
    the live HTTP outputs; ten generated schemas joined `schemas/` under
@@ -1007,8 +1007,8 @@ disciplines.
    `generatedIds` sequence with `runtime.id`, per LLP 0008's wire pin;
    cap `CTX_ANSWER_LEDGER_MAX_IDS = 1024`; divergence =
    `SNAPBACK_CTX_LEDGER_EXHAUSTED`, stale authority =
-   `SNAPBACK_AUTH_STALE_RESULT`. Tests: `tests/ctx_ledger_v0.rs`, twin
-   cases in `tests/workerd_twin_v0.rs`. One engine-side fix rode along:
+   `SNAPBACK_AUTH_STALE_RESULT`. Tests: `crates/snapback/tests/ctx_ledger_v0.rs`, twin
+   cases in `crates/snapback/tests/workerd_twin_v0.rs`. One engine-side fix rode along:
    the ibex `Event` constructor's `timeStamp` read now tolerates denied
    ambient clocks (ibex 0f2c865) — the `rejectionhandled` dispatch path
    threw through the new denial. In-repo busy-wait mutations (bench,
@@ -1021,10 +1021,10 @@ disciplines.
    gated) with the snapshot `DeleteWhere`/`InsertEach`/clamp cores as
    fragments; (c) `applyLiveFeedSnapshot` carries the class-specific
    `MUTATION_OUTGREW_IR: conditional writes` info diagnostic in its
-   generated manifest. One shared evaluator (`src/value_expr.rs`) serves
+   generated manifest. One shared evaluator (`crates/snapback/src/value_expr.rs`) serves
    mutations, the live matcher, and filter→SQL; the corpus stages at
    `tests/conformance/data-tier/` through the Rust runner
-   (`tests/data_tier_corpus_v0.rs`) pending the LLP 0010 format. Original
+   (`crates/snapback/tests/data_tier_corpus_v0.rs`) pending the LLP 0010 format. Original
    scope: `ValueExpr` expression set
    (including the record constructor), `Get`/`Guard`/`Let` steps with
    null-binding `Get`, `DeleteWhere`/`InsertEach`, expression-valued
@@ -1061,7 +1061,7 @@ disciplines.
    catalog is still unbuilt, the honest wire marker for "dry-run goes
    true" is `runtime.mutationDryRun` on the inspect payload; the
    per-function `dryRunSupported` bit rides the generated catalog when
-   LLP 0042 lands. Suite: `tests/dry_run_v0.rs`.
+   LLP 0042 lands. Suite: `crates/snapback/tests/dry_run_v0.rs`.
 5. **Parity slice (D6):** LLP 0043 M1+M2 with derived IR overlays in
    the JS client — the first Parity-class claim, gated on the replay
    corpus **and** on derived overlays passing the adapter's existing

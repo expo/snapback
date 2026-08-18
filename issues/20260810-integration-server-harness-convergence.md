@@ -34,10 +34,10 @@ ownership differences or force unrelated suites through a large migration.
 ## Related
 
 - `issues/closed/20260808-test-suite-flake-and-duplication-hardening.md`
-- `tests/admin_reachability_v0.rs`
-- `tests/admin_tailscale_v0.rs`
-- `tests/shutdown_wal_checkpoint_v0.rs`
-- `tests/config_set_cli_v0.rs`
-- `tests/admin_claim_link_v0.rs`
-- `tests/network_profile_v1.rs`
-- `tests/host_ops_v0.rs`
+- `crates/snapback/tests/admin_reachability_v0.rs`
+- `crates/snapback/tests/admin_tailscale_v0.rs`
+- `crates/snapback/tests/shutdown_wal_checkpoint_v0.rs`
+- `crates/snapback/tests/config_set_cli_v0.rs`
+- `crates/snapback/tests/admin_claim_link_v0.rs`
+- `crates/snapback/tests/network_profile_v1.rs`
+- `crates/snapback/tests/host_ops_v0.rs`

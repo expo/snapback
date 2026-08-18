@@ -4,7 +4,7 @@ id: backend.sequences
 order: 28
 audience: agent-first
 capabilities: [backend.sequences]
-authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, src/local-sequence-allocation-publication.v1.json, src/manifest.rs, src/runtime.rs, src/storage.rs, tests/conformance/sequence-allocation-publication-v1.receipt.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-contract/derived-overlay.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
+authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, crates/snapback/src/local-sequence-allocation-publication.v1.json, crates/snapback/src/manifest.rs, crates/snapback/src/runtime.rs, crates/snapback/src/storage.rs, tests/conformance/sequence-allocation-publication-v1.receipt.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-contract/derived-overlay.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
 examples: [demos/improvement-sweep/arms/a6-snapback-web/evidence/app]
 status: current
 targets: [local]

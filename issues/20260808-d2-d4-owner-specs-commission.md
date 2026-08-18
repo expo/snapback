@@ -50,7 +50,7 @@ lifecycle (what re-establishes liveness after a quarantine).
 evaluation scheduling explicitly or name the runtime owner.
 
 **D2-side (graph-profile Spec):** rung 2 — affected-read precision as
-*extend-and-measure* of `src/live_matcher.rs`'s captured-dependency
+*extend-and-measure* of `crates/snapback/src/live_matcher.rs`'s captured-dependency
 matching (widen to joins/ranges/windows/authority partitions; record
 match/skip/fallback decisions); rung 3 — same-authority-partition
 memoization first, cross-principal sharing only after an

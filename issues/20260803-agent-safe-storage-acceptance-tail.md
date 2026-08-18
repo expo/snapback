@@ -467,7 +467,7 @@ publish a capability on its own.
   fixture now exists at two levels —
   `instance_fork::tests::parent_commits_after_the_fork_point_are_invisible_to_the_published_fork`
   (module) and `live_parent_writes_after_fork_point_never_appear_in_the_fork`
-  (`tests/instance_fork_cli_v1.rs`, live-server bidirectional with diff
+  (`crates/snapback/tests/instance_fork_cli_v1.rs`, live-server bidirectional with diff
   attribution). Concurrent-lifecycle determinism (drop races one-winner,
   stale-registry completion, distinct-port simultaneous forks, SIGKILL and
   missing-ready outcomes) has dated tests in the same files.
@@ -478,7 +478,7 @@ publish a capability on its own.
   push-receipt maintenance on a ledger-bearing fork refuses before provider
   I/O (`instance_fork::tests::push_receipt_maintenance_...`), and real JS
   actions in the Hermes VM cannot `ctx.fetch`/`ctx.fetchStream` from a fork
-  (`tests/instance_fork_vm_egress_v1.rs` — the typed denial survives the VM
+  (`crates/snapback/tests/instance_fork_vm_egress_v1.rs` — the typed denial survives the VM
   boundary and both paths deny at `action.externalEffectBegin`).
   `CaptureOnly` remains unimplemented for this class.
 - **Row 7 (identity/authority):** live, stale, and revoked parent grant
@@ -524,7 +524,7 @@ publish a capability on its own.
   crash-recovery matrix; creation shares the renewal lifetime cap (author
   rulings 2026-08-05: limit constants ratified; integrated sandbox tier
   deferred until demand). Real disk pressure is now automated on macOS
-  (`tests/instance_fork_disk_pressure_v1.rs`: a copy onto a full RAM-disk
+  (`crates/snapback/tests/instance_fork_disk_pressure_v1.rs`: a copy onto a full RAM-disk
   volume fails closed with no bootable residue and recover reaps the staging
   exactly); other hosts rely on the 20-cut publication crash matrix.
   Digest-work/replay-floor legs stay with their owners above.
@@ -542,7 +542,7 @@ publish a capability on its own.
   publication gates.
 - LLP 0024/0030 fork-field stability re-verified against the Phase 0
   freeze: `schemas/host-ready.schema.json` is byte-unchanged since
-  `fbb596876`, and the only `src/host_ops.rs` change (`2af0dc9fc`) is an
+  `fbb596876`, and the only `crates/snapback/src/host_ops.rs` change (`2af0dc9fc`) is an
   operation-inventory documentation constant, not envelope fields.
 - Row-13 narrow-claim scope ruled (OQ6): fork lifecycle metrics only.
   Dated release-profile evidence recorded

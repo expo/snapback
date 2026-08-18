@@ -24,5 +24,5 @@ landed in between; likeliest suspect is the `snapback init` composition landing
 `volta run --node 24.18.0 node scripts/generate-diagnostics-registry.mjs` then
 `volta run --node 24.18.0 node scripts/generate-guide-manifest.mjs` and commit
 both projections (new codes may also need `NON_DIAGNOSTIC_SNAPBACK_LITERALS`
-classification in src/server/tests.rs per the s5_d10 gate). Close this ticket
+classification in crates/snapback/src/server/tests.rs per the s5_d10 gate). Close this ticket
 with the landing SHA.

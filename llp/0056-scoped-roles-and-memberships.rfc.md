@@ -658,7 +658,7 @@ mode-fragile existence check that would contradict dev impersonation (where the
 effective principal is a client-asserted string with no catalog row) or the
 shipped G1 code. Note the shipped gap this creates and the counterexample it
 admits until closed: **landed G1 excludes only deactivated principals and
-treats catalog-absence as eligible** (`src/storage/auth_agents.rs`,
+treats catalog-absence as eligible** (`crates/snapback/src/storage/auth_agents.rs`,
 `has_other_eligible_holder`), so a sessions resource held by active A and
 nonexistent B currently lets A be deactivated (B counts eligible), stranding the
 resource under a B that can never act. Making G1's check the durable-
@@ -722,11 +722,11 @@ Eligibility makes the invariant **two-legged**, and the second leg cannot ride
 the app's captured-dependency machinery: the counted principals' lifecycle rows
 live in the protected auth catalog (`_auth_users`, LLP 0055 agent records),
 which carry no app `_version` column and whose `Auth`-kind captures commit
-validation deliberately ignores (`src/storage.rs`, `CapturedReadKind::Auth`).
+validation deliberately ignores (`crates/snapback/src/storage.rs`, `CapturedReadKind::Auth`).
 So this is **not** "the same machinery, no new mechanism" — it is an
 **authoritative commit-stage evaluation** of the complete invariant inside the
 serialized auth transaction, exactly the shape the landed G1 deactivation check
-already uses (`src/storage/auth_agents.rs`, evaluated under an `IMMEDIATE` auth
+already uses (`crates/snapback/src/storage/auth_agents.rs`, evaluated under an `IMMEDIATE` auth
 transaction). Both writers evaluate the final-state predicate — remaining
 eligible holders of the protected role — at the serialized commit, so the
 two-step schedule cannot compress into a race: **deactivate A ∥ remove B** over
@@ -1915,7 +1915,7 @@ receipted:
   authority survives and keeps exercising the unchanged transition
   matrix.
 
-Witnesses live with LLP 0109's §18 amendment (src/storage.rs
+Witnesses live with LLP 0109's §18 amendment (crates/snapback/src/storage.rs
 `versioned_seed_membership_fixture_lane_*`); the §1-adjacent guide page
 (`guide/backend/versioned-seeds.md`) documents the lane and its
 boundary: product bootstrap remains `bootstrap()` under a real
@@ -1943,7 +1943,7 @@ handler visibility. This amendment covers that case:
 `bootstrap(resourceValues, initialMembers?)` atomically seats up to 64
 additional transition-checked members, each authorized as an ordinary declared
 `insert` from the creator's bootstrap role. The surface is implemented and
-shipped, not merely specified: `src/runtime.rs` validates the `initialMembers`
+shipped, not merely specified: `crates/snapback/src/runtime.rs` validates the `initialMembers`
 argument and carries the bootstrap-roster tests;
 `packages/snapback-codegen/index.mjs` generates the authoring surface;
 `guide/auth/scoped-roles.md` documents it; and the `auth.scoped-roles` and

@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Systems:** Live queries, Search, Wire Protocol, Realtime
-**Related:** LLP 0136 (Accepted 2026-07-31, design-only — src/live_matcher.rs
+**Related:** LLP 0136 (Accepted 2026-07-31, design-only — crates/snapback/src/live_matcher.rs
 has no search path; full_text_search_v1 ships non-live), LLP 0073, LLP 0091,
 LLP 0094 (its Appendix B wire amendments), LLP 0155 Move 1 (delta/replace
 classification vocabulary — coordinate)
@@ -18,7 +18,7 @@ At landing, apply the spec's own fold-ons: Appendix A's LLP 0073 amendment
 Appendix B's dated 0091/0094 wire amendments — coordinate with the hygiene
 ticket so they land exactly once.
 
-Collision note: this touches src/live_matcher.rs and the delivery
+Collision note: this touches crates/snapback/src/live_matcher.rs and the delivery
 classification machinery that 0155 Move 1 and the register-cliff ticket
 (20260802-convex-erg-04) also orbit — check both lanes' state before
 starting, and do not run this concurrently with erg-04.

@@ -1073,7 +1073,7 @@ later epoch cannot leap any lower nonclosed epoch. Terminal and pending writer
 insertion transactions re-run this retained classifier before publication, so
 a pre-handler lookup cannot authorize replay after reclamation. These are the
 constants and lifecycle rules exported by
-`src/operation_ledger.rs`; changing them requires another dated revision and
+`crates/snapback/src/operation_ledger.rs`; changing them requires another dated revision and
 updated lifecycle corpus.
 
 ### Dated C28 lifecycle reconciliation (2026-08-05)

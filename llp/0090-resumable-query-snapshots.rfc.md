@@ -88,7 +88,7 @@ Revision history); 2026-07-24 (v0.6 — see Revision history)
 Snapback's live-query wire protocol already models every query result as a
 snapshot with a durable cursor: `LiveEnvelope::LiveReplace { version, rows }`,
 version-stamped `LiveDelta` ops, and `ResyncRequired` as the level-triggered
-escape hatch (`src/live_wire.rs`). Today that primitive has exactly one
+escape hatch (`crates/snapback/src/live_wire.rs`). Today that primitive has exactly one
 delivery channel — a live WebSocket subscription — so every client boots
 against an empty store and pays a multi-round-trip waterfall before first
 useful paint.
@@ -242,7 +242,7 @@ currently have no sanctioned way to get current query results.
 
 The protocol work is tractable because much of the hard part already exists.
 The per-app commit-version counter is durable (`snapshotVersion` already
-appears in receipts in `src/live_wire.rs`), deltas are version-stamped, the
+appears in receipts in `crates/snapback/src/live_wire.rs`), deltas are version-stamped, the
 `_snapback_changes` journal retains post-images with a pruning floor and a
 `journal_resume_requires_resnapshot` check, and `ResyncRequired` plus the
 `AuthorizationInvalidation` frame already define what happens when a snapshot

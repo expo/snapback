@@ -790,7 +790,7 @@ the template; the owner re-credentials; the new template applies) and makes
 it, so its only re-credentialing path is the operator verb
 **`auth.mintAgentRecovery`** — gated `AdminWrite` **plus
 `ImpersonationCapability`** — the effect policy exists in the route registry
-today (`src/server.rs`), while the non-browser **carrier** it names (a 0600-mode
+today (`crates/snapback/src/server.rs`), while the non-browser **carrier** it names (a 0600-mode
 keyring read or a per-boot terminal secret; never the browser console credential)
 is specified by LLP 0039 and **not yet built**, so this RFC depends on it rather
 than assuming it — and **dev/test/demo only, refused on `prod`**, because it *is* the impersonation
@@ -1508,7 +1508,7 @@ no-resurrection acceptance coverage. Durability is also proven across restart.
   credential material, but several agent routes *receive* credentials,
   invitations, recovery secrets, or pairing codes in their JSON bodies while
   returning none. Every such field is carried by a typed, non-serializable,
-  zeroizing, redacted DTO (the shape LLP 0057's `src/auth/wire.rs` already uses),
+  zeroizing, redacted DTO (the shape LLP 0057's `crates/snapback/src/auth/wire.rs` already uses),
   and the route is marked request-secret so middleware body-buffering,
   diagnostics, logs, receipts, and debug formatting never capture it.
   Acceptance covers malformed and duplicate bodies, middleware peeking, and
@@ -2386,7 +2386,7 @@ commit-time validation obligations of the class are recorded in LLP
 0039's matching dated amendment; the classification here is the
 0039/0055-side prerequisite the ticket required before implementation.
 
-**Implemented 2026-08-04.** `src/storage/auth_asset_callbacks.rs` maintains one
+**Implemented 2026-08-04.** `crates/snapback/src/storage/auth_asset_callbacks.rs` maintains one
 protected-catalog agent principal per app and one immutable exact-function
 grant per callback mutation. It mints no user session, credential, scoped-token
 secret, or owner bearer. Fresh execution and commit both revalidate the app
@@ -2848,7 +2848,7 @@ rotating twice; a delegation-widening hole via `auth.isDelegated`; a **fail-open
 `isDirectHuman` created by a *previous* round's fix; an unsound
 "observationally identical projections" claim (an undeclared handler can detect
 delegation by reading `sessionId` alone); and the fact — verified in
-`src/admin.rs` — that a residual argument resting on "`app.reset` is equally
+`crates/snapback/src/admin.rs` — that a residual argument resting on "`app.reset` is equally
 reachable" was false, since `app.reset` is `NonProd`. Twice, both families
 independently converged on the same defect.
 

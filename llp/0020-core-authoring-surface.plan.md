@@ -212,7 +212,7 @@ Required changes:
 
 Acceptance gate:
 
-- no demo imports `src/manifest.rs` knowledge or redefines manifest JSON by
+- no demo imports `crates/snapback/src/manifest.rs` knowledge or redefines manifest JSON by
   hand;
 - the todo headless client consumes generated function references and generated
   types;

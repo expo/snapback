@@ -4,7 +4,7 @@ id: operating.agent-controls
 order: 1
 audience: agent-first
 capabilities: [operating.agent-controls]
-authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, src/control_catalog.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs]
+authorities: [llp/0184-agent-accessible-control-plane.rfc.md, llp/0031-server-route-taxonomy.spec.md, llp/0042-agent-mcp-surface.rfc.md, crates/snapback/src/control_catalog.rs, crates/snapback/src/cli.rs, packages/snapback-cli/mcp-control.mjs]
 examples: []
 status: current
 targets: [local]
@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **154 operations** at digest `sha256:3c9a270714142b94f80c6770375472916f35991d3029e38303c5f63c80666584`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **154 operations** at digest `sha256:788c7fc9ed048647240631d9497133c34090aecfb56ad2803849dd4ae96a24c9`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |

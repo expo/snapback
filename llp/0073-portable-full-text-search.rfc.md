@@ -940,7 +940,7 @@ applies to the new variant verbatim.
 ### The third visibility variant
 
 `SearchVisibilityV1` gains `{ kind: 'membership', declaration, resourceField,
-roles }` (src/search/types.rs; authoring surface
+roles }` (crates/snapback/src/search/types.rs; authoring surface
 `packages/snapback-codegen/define.mjs`, same closed-union gate). `declaration`
 names a resource-scoped LLP 0100 membership declaration; app-scoped
 declarations are refused at generation. `resourceField` names a required

@@ -35,7 +35,7 @@ passing:
   `packages/snapback-codegen/refusal-tracking-authoring.test.mjs` (a registered
   package test) and the declared/undeclared throw pair from
   `tests/conformance/twin-corpus.handlers.js` (compiled into
-  `tests/workerd_twin_v0.rs`).
+  `crates/snapback/tests/workerd_twin_v0.rs`).
 - A **decide what deserves a code** table routing each failure kind to its
   channel (declare it / `SNAPBACK_MUTATION_CONFLICT` / auth codes / leave it
   bare), plus the code grammar, the fold contract, and `trackedRefusals`.
@@ -75,7 +75,7 @@ lane, and both need an author ruling before implementation, not just code:
    "guard-shaped" means (validation vs. domain vs. invariant), then the
    heuristic in `packages/snapback-codegen`.
 2. **Dev-mode hint on `SNAPBACK_HANDLER_FAILED`.** The fold lives in
-   `admit_declared_refusal` / the generic fold in `src/runtime.rs`. The
+   `admit_declared_refusal` / the generic fold in `crates/snapback/src/runtime.rs`. The
    message string is asserted on by Rust unit tests, the conformance twin
    corpus, and the JS `packages/snapback-harness/envelope.mjs` leg, which
    must stay byte-identical across engines — so a hint has to be an added

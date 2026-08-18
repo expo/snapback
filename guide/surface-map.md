@@ -4,7 +4,7 @@ id: meta.surface-map
 order: 3
 audience: agent-first
 capabilities: []
-authorities: [llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0061-agent-first-snapback-guide.rfc.md, src/server.rs, src/admin.rs, src/admin_link.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0061-agent-first-snapback-guide.rfc.md, crates/snapback/src/server.rs, crates/snapback/src/admin.rs, crates/snapback/src/admin_link.rs]
 examples: []
 status: current
 targets: [all]

@@ -60,11 +60,11 @@ The current implementation provides two complementary inventories:
 
 | Current authority | What it proves today | Role in this Spec | Basis |
 | --- | --- | --- | --- |
-| `durable_state_members(db)` | The local file-backed store has database, folded SQLite sidecars, required/optional durable siblings, instance-local paths, and lineage-bearing refusal members. | Baseline physical-member discovery for the local target. Its six `MemberDisposition` values are discovery/copy roles, not the cross-operation custody vocabulary. | Current code: [`src/store_state.rs`](../src/store_state.rs); accepted decision: [LLP 0192 §D-1](./0192-store-durable-state-set.decision.md#d-1-the-durable-state-registry). |
-| `TABLE_CUSTODY` | Every occupied `_snapback_*` and `_auth_*` table audited by the fork path has a closed fork disposition; an unknown owned table refuses. | Baseline database-resident custody inventory and the fork profile's table authority. | Current code: [`src/instance_fork.rs`](../src/instance_fork.rs); [LLP 0158 §Design sketch](./0158-instance-forking.rfc.md#design-sketch). |
-| `SIDECAR_CUSTODY` | Fork sidecars are explicitly copied, scrubbed, or rotated; they are not inherited by directory convention. | Baseline sidecar vocabulary and the fork profile's sidecar authority. | Current code: [`src/instance_fork.rs`](../src/instance_fork.rs); [LLP 0158 §Design sketch](./0158-instance-forking.rfc.md#design-sketch). |
-| `snapback auth backup` / `auth restore` | Descriptor-bound SQLite backup, database/keyring verification, three-state publication, target reservation, restore declaration, and destructive auth cleanup exist for the auth unit. | Current partial witnesses for `snapshot/backup` and `restore`; not a whole-envelope implementation. | Current code: [`src/auth/backup.rs`](../src/auth/backup.rs) and [`src/cli.rs`](../src/cli.rs); [LLP 0057 §Physical backup and declared restore](./0057-auth-provider-protocol.spec.md#physical-backup-and-declared-restore). |
-| `snapback store describe` / `store export` | The local whole-store copy uses SQLite online backup, carries declared siblings, excludes instance-local state, refuses branch/fork lineage, scrubs push-token rows, and atomically publishes `store-export.json`. | Current partial `snapshot/backup` witness even though the command is named `export`; it is not this Spec's logical `export` profile. | Current code: [`src/store_state.rs`](../src/store_state.rs) and [`src/cli.rs`](../src/cli.rs); [LLP 0192 §D-2](./0192-store-durable-state-set.decision.md#d-2-the-store-export-verb). |
+| `durable_state_members(db)` | The local file-backed store has database, folded SQLite sidecars, required/optional durable siblings, instance-local paths, and lineage-bearing refusal members. | Baseline physical-member discovery for the local target. Its six `MemberDisposition` values are discovery/copy roles, not the cross-operation custody vocabulary. | Current code: [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs); accepted decision: [LLP 0192 §D-1](./0192-store-durable-state-set.decision.md#d-1-the-durable-state-registry). |
+| `TABLE_CUSTODY` | Every occupied `_snapback_*` and `_auth_*` table audited by the fork path has a closed fork disposition; an unknown owned table refuses. | Baseline database-resident custody inventory and the fork profile's table authority. | Current code: [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs); [LLP 0158 §Design sketch](./0158-instance-forking.rfc.md#design-sketch). |
+| `SIDECAR_CUSTODY` | Fork sidecars are explicitly copied, scrubbed, or rotated; they are not inherited by directory convention. | Baseline sidecar vocabulary and the fork profile's sidecar authority. | Current code: [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs); [LLP 0158 §Design sketch](./0158-instance-forking.rfc.md#design-sketch). |
+| `snapback auth backup` / `auth restore` | Descriptor-bound SQLite backup, database/keyring verification, three-state publication, target reservation, restore declaration, and destructive auth cleanup exist for the auth unit. | Current partial witnesses for `snapshot/backup` and `restore`; not a whole-envelope implementation. | Current code: [`crates/snapback/src/auth/backup.rs`](crates/snapback/src/auth/backup.rs) and [`crates/snapback/src/cli.rs`](crates/snapback/src/cli.rs); [LLP 0057 §Physical backup and declared restore](./0057-auth-provider-protocol.spec.md#physical-backup-and-declared-restore). |
+| `snapback store describe` / `store export` | The local whole-store copy uses SQLite online backup, carries declared siblings, excludes instance-local state, refuses branch/fork lineage, scrubs push-token rows, and atomically publishes `store-export.json`. | Current partial `snapshot/backup` witness even though the command is named `export`; it is not this Spec's logical `export` profile. | Current code: [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs) and [`crates/snapback/src/cli.rs`](crates/snapback/src/cli.rs); [LLP 0192 §D-2](./0192-store-durable-state-set.decision.md#d-2-the-store-export-verb). |
 | LTX restorable frontier | A retained transaction boundary is paired with the governing keyring snapshot and an explicit replication lineage; restored output stays non-servable until declared restore. | Admissible future capture discipline and restore input, subject to LLP 0188's own gates. | Design authority, not a current capability claim: [LLP 0188 §§2, 5–6](./0188-ltx-sqlite-replication.rfc.md#2-integration-point-the-whole-instance-database). |
 
 The local member registry currently classifies the following custody classes.
@@ -72,13 +72,13 @@ This table reports current code; it does not prescribe every profile's action:
 
 | Member class | Current local members | Current meaning | Basis |
 | --- | --- | --- | --- |
-| Database image | `<db>` | Captured with SQLite online backup. | Current code: `MemberDisposition::Database` in [`src/store_state.rs`](../src/store_state.rs). |
-| Folded transaction companions | `<db>-wal`, `<db>-shm`, `<db>-journal` | Never copied beside the image; the online backup folds committed state into the output database. | Current code: `MemberDisposition::Folded` in [`src/store_state.rs`](../src/store_state.rs) and `backup_database_image_into` in [`src/storage.rs`](../src/storage.rs). |
-| Required physical members | Auth, config, operation-detail, and completeness-proof keyrings; finalized asset blobs. | Physical state whose absence can invalidate authority or database references. | Current code: `MemberDisposition::Required` in [`src/store_state.rs`](../src/store_state.rs). |
-| Optional continuity members | Admin token, console credentials, resume keyring. | Reconstructible state whose presence can preserve live authority or continuity, so inclusion must be disclosed. | Current code: `MemberDisposition::Optional` and `StoreExportDeclaredProperties` in [`src/store_state.rs`](../src/store_state.rs). |
-| Instance-local members | Instance lock, target reservation, telemetry database and SQLite companions, asset staging, ready-file capability siblings. | Runtime ownership, incomplete work, or local observations excluded from the current physical copy. | Current code: `MemberDisposition::InstanceLocal` in [`src/store_state.rs`](../src/store_state.rs). |
-| Lineage/refusal members | Managed in-app branch workspace and derived-fork mint receipt. | Presence makes the current whole-store copy refuse rather than falsify lineage. | Current code: `MemberDisposition::Refuse` in [`src/store_state.rs`](../src/store_state.rs). |
-| Database-resident system state | The closed `_snapback_*` and `_auth_*` tables audited by the fork path. | Per-table `copy`, `scrub`, `rotate`, or `refuse` policy; unknown owned tables refuse. | Current code: `TABLE_CUSTODY` and `audit_connection` in [`src/instance_fork.rs`](../src/instance_fork.rs). |
+| Database image | `<db>` | Captured with SQLite online backup. | Current code: `MemberDisposition::Database` in [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs). |
+| Folded transaction companions | `<db>-wal`, `<db>-shm`, `<db>-journal` | Never copied beside the image; the online backup folds committed state into the output database. | Current code: `MemberDisposition::Folded` in [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs) and `backup_database_image_into` in [`crates/snapback/src/storage.rs`](crates/snapback/src/storage.rs). |
+| Required physical members | Auth, config, operation-detail, and completeness-proof keyrings; finalized asset blobs. | Physical state whose absence can invalidate authority or database references. | Current code: `MemberDisposition::Required` in [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs). |
+| Optional continuity members | Admin token, console credentials, resume keyring. | Reconstructible state whose presence can preserve live authority or continuity, so inclusion must be disclosed. | Current code: `MemberDisposition::Optional` and `StoreExportDeclaredProperties` in [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs). |
+| Instance-local members | Instance lock, target reservation, telemetry database and SQLite companions, asset staging, ready-file capability siblings. | Runtime ownership, incomplete work, or local observations excluded from the current physical copy. | Current code: `MemberDisposition::InstanceLocal` in [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs). |
+| Lineage/refusal members | Managed in-app branch workspace and derived-fork mint receipt. | Presence makes the current whole-store copy refuse rather than falsify lineage. | Current code: `MemberDisposition::Refuse` in [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs). |
+| Database-resident system state | The closed `_snapback_*` and `_auth_*` tables audited by the fork path. | Per-table `copy`, `scrub`, `rotate`, or `refuse` policy; unknown owned tables refuse. | Current code: `TABLE_CUSTODY` and `audit_connection` in [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs). |
 
 The successful shutdown checkpoint is useful operational hygiene, but it is not
 an admissible capture discipline. A capture remains correct after `SIGKILL`, a
@@ -86,7 +86,7 @@ checkpoint timeout, or a live writer because it uses SQLite's backup API, an
 LTX transaction boundary, or another independently qualified consistent-cut
 primitive. See the resolved
 [WAL-checkpoint prerequisite](../issues/closed/20260807-server-sigterm-strands-large-sqlite-wal.md)
-and [`LocalDatabase::shutdown_checkpoint`](../src/storage.rs).
+and [`LocalDatabase::shutdown_checkpoint`](crates/snapback/src/storage.rs).
 
 ## Normative vocabulary
 
@@ -113,15 +113,15 @@ and [`LocalDatabase::shutdown_checkpoint`](../src/storage.rs).
 
 These five actions are normative for all profiles. The definitions are a
 design decision generalizing the implemented fork vocabulary in
-[`src/instance_fork.rs`](../src/instance_fork.rs):
+[`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs):
 
 | Action | Required result | Basis |
 | --- | --- | --- |
-| `copy` | Carry the member's source meaning into the artifact or target, integrity-bound to the same capture. `copy` may use a semantic capture primitive; it never requires pathname-level byte copying. | Design decision generalized from LLP 0158; SQLite semantic copying is evidenced by [`src/store_state.rs`](../src/store_state.rs). |
-| `scrub` | Ensure the target/artifact contains neither the source bytes nor spendable meaning. Absence, deletion, irreversible redaction, and safe inert projection are allowed only when the profile names which one. | Design decision generalized from LLP 0158; current table deletion is in `scrub_and_mint_with_cut` in [`src/instance_fork.rs`](../src/instance_fork.rs). |
-| `rotate` | Mint independent target authority/identity and bind it before activation; the source value must not validate in the target. | Design decision generalized from LLP 0158; current auth/data streams and keyrings rotate in [`src/instance_fork.rs`](../src/instance_fork.rs). |
+| `copy` | Carry the member's source meaning into the artifact or target, integrity-bound to the same capture. `copy` may use a semantic capture primitive; it never requires pathname-level byte copying. | Design decision generalized from LLP 0158; SQLite semantic copying is evidenced by [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs). |
+| `scrub` | Ensure the target/artifact contains neither the source bytes nor spendable meaning. Absence, deletion, irreversible redaction, and safe inert projection are allowed only when the profile names which one. | Design decision generalized from LLP 0158; current table deletion is in `scrub_and_mint_with_cut` in [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs). |
+| `rotate` | Mint independent target authority/identity and bind it before activation; the source value must not validate in the target. | Design decision generalized from LLP 0158; current auth/data streams and keyrings rotate in [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs). |
 | `share` | Bind source and target to one deliberately shared external object under an explicit ownership, mutation, and GC policy. Shared path placement alone never counts. | Design decision; LLP 0158 names shared/content-addressed asset custody as follow-on rather than inferring it. |
-| `refuse` | Abort before publication or activation and name the unclassified/unsupported member. No partial target may become servable. | Design decision generalized from `audit_connection` and store-export refusal in [`src/instance_fork.rs`](../src/instance_fork.rs) and [`src/store_state.rs`](../src/store_state.rs). |
+| `refuse` | Abort before publication or activation and name the unclassified/unsupported member. No partial target may become servable. | Design decision generalized from `audit_connection` and store-export refusal in [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs) and [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs). |
 
 `Database`, `Folded`, `Required`, `Optional`, `InstanceLocal`, and `Refuse` in
 LLP 0192 remain local **inventory roles**. They are inputs to profile
@@ -152,8 +152,8 @@ The result MUST carry a versioned manifest with at least:
 
 This list is a **design decision**. Existing `StoreExportManifest` and
 `ForkMintReceiptV1` are evidence for the shape but do not yet conform to one
-shared schema ([`src/store_state.rs`](../src/store_state.rs),
-[`src/instance_fork.rs`](../src/instance_fork.rs)). The manifest MUST contain
+shared schema ([`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs),
+[`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs)). The manifest MUST contain
 no secret bytes, bearer values, plaintext configuration secrets, or decryption
 keys. Digests and non-secret key identifiers are allowed when they do not make
 low-entropy material guessable.
@@ -177,10 +177,10 @@ implemented local profile.
 
 | Profile | Identity intent | Authority rule | Publication / activation rule | Basis |
 | --- | --- | --- | --- | --- |
-| `snapshot/backup` | Recover the same instance at a declared capture boundary. | Copy exactly the profile-declared recovery authority; the auth keyring is mandatory when the captured catalog depends on it. Exclude instance-local runtime ownership. | Publish an inert, verified artifact; capture success never activates another writer. | Design decision from LLP 0191 §4; current partial evidence in [`src/store_state.rs`](../src/store_state.rs), [`src/auth/backup.rs`](../src/auth/backup.rs), and LLP 0188 §2. |
-| `restore` | Preserve the source instance identity or mint a declared successor, never infer the choice. | Consume the input manifest, then apply the selected target-identity policy's copy/scrub/rotate rules. | Verify first, prepare inactive, fence predecessor, cross one activation barrier, and receipt the outcome. | Design decision from LLP 0191 §4; current partial evidence in [`src/auth/backup.rs`](../src/auth/backup.rs), [`src/instance_lock.rs`](../src/instance_lock.rs), and LLP 0188 §6. |
-| `clone-for-test` | Create a non-production derived instance for testing. | A named authority policy is mandatory. V1 defines `isolated`: retain test-relevant identity records, scrub spendable credentials and pending consent, rotate stream/key authority, and refuse unclassified authority. | Target remains non-servable until isolation and effect quarantine verify. Authority inheritance is unsupported in v1 and therefore refuses rather than becoming a hidden default. | Design decision; the negative-authority and quarantine precedent is current in [`src/instance_fork.rs`](../src/instance_fork.rs). |
-| `fork` | Create LLP 0158's same-`appId`, independently owned, finite derived deployment. | Use LLP 0158's exact table and sidecar custody manifest, scrub-and-mint transaction, private asset cut, worker pause, and deny-all egress posture. | Use LLP 0158's S0–S5 crash-safe publication and lifecycle evidence. | Accepted owner and current code: [LLP 0158 §Design sketch](./0158-instance-forking.rfc.md#design-sketch) and [`src/instance_fork.rs`](../src/instance_fork.rs). |
+| `snapshot/backup` | Recover the same instance at a declared capture boundary. | Copy exactly the profile-declared recovery authority; the auth keyring is mandatory when the captured catalog depends on it. Exclude instance-local runtime ownership. | Publish an inert, verified artifact; capture success never activates another writer. | Design decision from LLP 0191 §4; current partial evidence in [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs), [`crates/snapback/src/auth/backup.rs`](crates/snapback/src/auth/backup.rs), and LLP 0188 §2. |
+| `restore` | Preserve the source instance identity or mint a declared successor, never infer the choice. | Consume the input manifest, then apply the selected target-identity policy's copy/scrub/rotate rules. | Verify first, prepare inactive, fence predecessor, cross one activation barrier, and receipt the outcome. | Design decision from LLP 0191 §4; current partial evidence in [`crates/snapback/src/auth/backup.rs`](crates/snapback/src/auth/backup.rs), [`crates/snapback/src/instance_lock.rs`](crates/snapback/src/instance_lock.rs), and LLP 0188 §6. |
+| `clone-for-test` | Create a non-production derived instance for testing. | A named authority policy is mandatory. V1 defines `isolated`: retain test-relevant identity records, scrub spendable credentials and pending consent, rotate stream/key authority, and refuse unclassified authority. | Target remains non-servable until isolation and effect quarantine verify. Authority inheritance is unsupported in v1 and therefore refuses rather than becoming a hidden default. | Design decision; the negative-authority and quarantine precedent is current in [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs). |
+| `fork` | Create LLP 0158's same-`appId`, independently owned, finite derived deployment. | Use LLP 0158's exact table and sidecar custody manifest, scrub-and-mint transaction, private asset cut, worker pause, and deny-all egress posture. | Use LLP 0158's S0–S5 crash-safe publication and lifecycle evidence. | Accepted owner and current code: [LLP 0158 §Design sketch](./0158-instance-forking.rfc.md#design-sketch) and [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs). |
 | `export` | Produce logical portable application/auth identity data for import under a separately chosen target identity. | Include declared logical records; exclude operational secrets and spendable/pending authority by construction. Physical keyrings and instance-control carriers never appear. | Publish a validated logical manifest/chunk set; activation belongs to the bulk import protocol, not this physical-envelope Spec. | Design decision from LLP 0191 §6 and [`issues/20260730-auth-logical-export-import.md`](../issues/20260730-auth-logical-export-import.md). |
 
 ### `snapshot/backup`
@@ -206,7 +206,7 @@ Optional continuity authority is never copied silently. For example, the
 current local store copy records whether it carries admin authority and live
 sessions in `StoreExportDeclaredProperties`; a conforming manifest must also
 record the per-member action that produced those facts
-([`src/store_state.rs`](../src/store_state.rs)).
+([`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs)).
 
 Capture publication inherits LLP 0057's three outcomes:
 `Unpublished`, `Published`, and `CommitAmbiguous`. A caller may advertise a
@@ -240,7 +240,7 @@ These policies are a **design decision**. Current `auth restore` implements
 part of `successor-instance`: a new target directory, target reservation,
 verified members, a restore declaration, session revocation, challenge purge,
 and further ReadyV2 authority cleanup
-([`src/auth/backup.rs`](../src/auth/backup.rs), LLP 0057 §Restore). LLP 0188's
+([`crates/snapback/src/auth/backup.rs`](crates/snapback/src/auth/backup.rs), LLP 0057 §Restore). LLP 0188's
 replication succession and lineage rules provide the off-host fencing
 precedent; they are not a current general restore implementation.
 
@@ -283,7 +283,7 @@ V1 specifies only `isolated`:
 
 This is a **design decision** modeled on the current fork policy in
 `TABLE_CUSTODY`, `SIDECAR_CUSTODY`, and `scrub_and_mint_with_cut`
-([`src/instance_fork.rs`](../src/instance_fork.rs)). There is no current
+([`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs)). There is no current
 standalone `clone-for-test` implementation or conformance claim. A future
 authority-inheriting test clone requires a separately named policy, threat
 model, and acceptance corpus; until then a request to inherit authority
@@ -364,8 +364,8 @@ or receipt for each case.
 1. **Inventory closure.** Plant every known table and external member; prove one
    manifest action each, then add an unknown owned member and prove refusal
    before publication. Local evidence should extend the divergence tests in
-   [`src/store_state.rs`](../src/store_state.rs) and custody audit tests in
-   [`src/instance_fork.rs`](../src/instance_fork.rs).
+   [`crates/snapback/src/store_state.rs`](crates/snapback/src/store_state.rs) and custody audit tests in
+   [`crates/snapback/src/instance_fork.rs`](crates/snapback/src/instance_fork.rs).
 2. **Consistent capture.** Capture under concurrent writes and with committed
    WAL state after unclean exit; prove one transaction boundary, standalone
    integrity, referenced asset completeness, and matching key custody. A clean

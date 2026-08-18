@@ -260,7 +260,7 @@ plus
 and
 [`operation.coverage-manifest-v1.schema.json`](../schemas/operation.coverage-manifest-v1.schema.json),
 all generated from
-[`src/commit_envelope.rs`](../src/commit_envelope.rs). Schema presence is an
+[`crates/snapback/src/commit_envelope.rs`](crates/snapback/src/commit_envelope.rs). Schema presence is an
 implementation substrate, not evidence that any lane has envelope coverage.
 
 ## Acceptance
@@ -324,7 +324,7 @@ Every related capability therefore remains `Missing`.
 
 ## Implementation record — 2026-08-03, durable storage slice
 
-[`src/operation_ledger.rs`](../src/operation_ledger.rs) now owns durable
+[`crates/snapback/src/operation_ledger.rs`](crates/snapback/src/operation_ledger.rs) now owns durable
 SQLite records for authenticated client and host epochs, finite client ranges,
 per-audience epoch floors, commit envelopes, suppression results, payload-free
 tombstones, and stream coverage manifests. `record_operation_in` deliberately
@@ -550,7 +550,7 @@ Draft and every related capability remains `Missing`.
 
 ## Implementation record — 2026-08-04, SQLite write-authority slice
 
-[`src/storage/write_authority.rs`](../src/storage/write_authority.rs) installs
+[`crates/snapback/src/storage/write_authority.rs`](crates/snapback/src/storage/write_authority.rs) installs
 one connection-local SQLite authorizer after boot and reconstructs its armed
 state from the durable stream coverage manifest. Its
 `GeneratedWriterTokenV1` constructor and fields are private to the closed

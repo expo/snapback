@@ -1833,13 +1833,13 @@ not invoke collision rescue; rescue succeeds only in `dev` or `test`.
 
 The expected code seams are:
 
-- `src/auth/{mod,crypto,keyring,mailbox}.rs` for the provider service;
-- `src/storage/auth.rs` for direct catalog/state transactions;
-- `src/admin_impersonation.rs` for the process-bound carrier;
-- `src/secure_file.rs` for the reusable fsyncing atomic-replace primitive;
-- `src/server.rs`, `src/host_ops.rs`, and `src/cli.rs` for registered
+- `crates/snapback/src/auth/{mod,crypto,keyring,mailbox}.rs` for the provider service;
+- `crates/snapback/src/storage/auth.rs` for direct catalog/state transactions;
+- `crates/snapback/src/admin_impersonation.rs` for the process-bound carrier;
+- `crates/snapback/src/secure_file.rs` for the reusable fsyncing atomic-replace primitive;
+- `crates/snapback/src/server.rs`, `crates/snapback/src/host_ops.rs`, and `crates/snapback/src/cli.rs` for registered
   projections;
-- `src/schema_export.rs` and committed `schemas/` for DTO authority; and
+- `crates/snapback/src/schema_export.rs` and committed `schemas/` for DTO authority; and
 - codegen/storage/auth integration suites for the acceptance above.
 
 Implementations may choose internal Rust type/module names and crate helpers.

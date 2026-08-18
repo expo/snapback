@@ -276,7 +276,7 @@ the shipped durable identity already binds more than the key: the
 function, the auth fingerprint, the authority-instance descriptor,
 and an input fingerprint over `{args, readSet, ctxLedger}`
 (`ClientMutationIdentity` / `mutation_input_fingerprint`,
-`src/storage.rs`). A duplicate submission with the identical identity
+`crates/snapback/src/storage.rs`). A duplicate submission with the identical identity
 republishes the stored settlement — never re-derives twice — and any
 mismatch fails closed today: `SNAPBACK_CLIENT_MUTATION_ID_REUSED` for
 function/input divergence, the `SNAPBACK_AUTH_STALE_RESULT` family

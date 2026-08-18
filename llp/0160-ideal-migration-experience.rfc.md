@@ -203,7 +203,7 @@ non-additive change, the refusal must carry the next step, not just a
 code. Today the applier's refusal family mostly names no
 migration-workflow next step — the required-backfill message reads as
 outright denial ("explicit drop/backfill migrations are not
-supported", `src/storage.rs`), while others suggest schema
+supported", `crates/snapback/src/storage.rs`), while others suggest schema
 workarounds ("add a new field instead") without ever mentioning the
 shipped reviewed workflow. G2's slice enumerates and fixes the family.
 Ideal: the refusal prints a one-paragraph summary of *why* this change

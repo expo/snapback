@@ -138,7 +138,7 @@ the existing `HandlerPlan::SearchQuery(SearchQueryPlanV1)` runtime. No new
 `FunctionKind` variant and no new `HandlerPlan` variant are minted.
 Rationale: the kind vocabulary `{Query, Mutation, LiveQuery, Action}` is a
 public closed carrier consumed by sync-class labels, retainability rules,
-and the wire (`src/manifest.rs`); a fifth kind would ripple through every
+and the wire (`crates/snapback/src/manifest.rs`); a fifth kind would ripple through every
 kind match for zero semantic gain — a live search function *is* a live
 query with a search plan. The manifest already holds both precedents
 (`RelationalQuery` admits under `Query | LiveQuery`,
@@ -148,7 +148,7 @@ anticipates nor forecloses the watch-gated option 1a.
 
 LLP 0119's integration-blockers inventory, addressed blocker by blocker:
 
-1. **Manifest admission** — `src/manifest.rs` admits `SearchQuery` plans
+1. **Manifest admission** — `crates/snapback/src/manifest.rs` admits `SearchQuery` plans
    only under `FunctionKind::Query`; other pairings fail as
    `SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH`. Change: add the
    `(LiveQuery, SearchQuery)` arm, validating with the same
@@ -157,7 +157,7 @@ LLP 0119's integration-blockers inventory, addressed blocker by blocker:
    `live_full_text_search_v1` (mirroring the relational-under-LiveQuery
    precedent).
 2. **Subscription admission** — `subscribe_live_prepared_with_invalidation`
-   in `src/local.rs` requires `FunctionKind::LiveQuery`. That check needs
+   in `crates/snapback/src/local.rs` requires `FunctionKind::LiveQuery`. That check needs
    no change: the live search function admits, and the ordinary search
    function keeps refusing with `SNAPBACK_FUNCTION_NOT_LIVE` — LLP 0073's
    pin preserved verbatim on exactly the functions it covers. Two
@@ -178,12 +178,12 @@ LLP 0119's integration-blockers inventory, addressed blocker by blocker:
    server-resolved authority, same cursor authority, same page assembly.
    The pushed page is the page the request path would have produced at
    that commit head.
-4. **The unreachable matcher arm** — `src/live_matcher.rs` already tests
+4. **The unreachable matcher arm** — `crates/snapback/src/live_matcher.rs` already tests
    `HandlerPlan::SearchQuery(plan)` table-granularly
    (`change.table == plan.table`) but no valid subscription can reach it.
    With blockers 1–3 resolved the arm becomes reachable unchanged; it is
    the v1 wake predicate.
-5. **The missing posting-key carrier** — `ChangedRow` in `src/storage.rs`
+5. **The missing posting-key carrier** — `ChangedRow` in `crates/snapback/src/storage.rs`
    carries table/id/op/row/changed-fields and no posting keys, so
    partition- or token-scoped wake precision is impossible without a new
    transaction-to-notification artifact. For option 4 this is no delivery
@@ -196,7 +196,7 @@ and C3; Codex 1, 5, and 6):
 6. **The `authorityIndependent` validator and codegen** — today
    `validate_authority_independent` admits only plain
    `HandlerPlan::Query` runtimes; every other HostPlan refuses at load
-   with `SNAPBACK_AUTHORITY_INDEPENDENT_INVALID` (`src/manifest.rs`).
+   with `SNAPBACK_AUTHORITY_INDEPENDENT_INVALID` (`crates/snapback/src/manifest.rs`).
    Public-read live search therefore needs a new validator arm
    admitting a `SearchQuery` plan exactly when the index's declared
    visibility is `public-read` (constant partition, no authority or
@@ -212,18 +212,18 @@ and C3; Codex 1, 5, and 6):
    any function with a valid `authorityIndependent` declaration), and
    v1 forecloses that — a search-plan function declaring `publicInline`
    refuses at load — until an inline-disclosure analysis earns it;
-   `is_protected_query` (`src/manifest.rs`) takes a valid-declaration
+   `is_protected_query` (`crates/snapback/src/manifest.rs`) takes a valid-declaration
    public-read live search out of the default-deny protected execution
    profile — the treatment plain authority-independent live queries
    already get, intended by symmetry, and fail-safe until the seam
    lands (an undeclarable function stays protected); the sessions-mode
    route-layer live gate (`session_live_protocol_refusal`,
-   `src/server.rs`, LLP 0058) passes a valid-declaration public-read
+   `crates/snapback/src/server.rs`, LLP 0058) passes a valid-declaration public-read
    live search on any sessions target and, until the seam lands,
    refuses it fail-closed as auth-scoped (its precedence interaction
    with the search-scope refusal is pinned in §Authorization
    composition); the register-child authorization-namespace matrix
-   (`src/local.rs`) is unreachable for search children by seam 7's
+   (`crates/snapback/src/local.rs`) is unreachable for search children by seam 7's
    exclusion; and the retention-validation interplay is moot — search
    runtimes refuse retention through the plan-shape gate regardless of
    the flag.
@@ -231,7 +231,7 @@ and C3; Codex 1, 5, and 6):
    derivation and its server-side routes validation test only that
    every child is a `LiveQuery` and every `$param`-mapped arg is
    string-typed (`packages/snapback-codegen/index.mjs`,
-   `src/local.rs`); a literal-AST live-search child would derive
+   `crates/snapback/src/local.rs`); a literal-AST live-search child would derive
    eligible the moment the pairing exists. V1 excludes it explicitly
    (§Client composition).
 8. **The cursor-aware client declaration** — the `LiveReplace` cursor
@@ -255,7 +255,7 @@ phantom, so the LLP 0114 hook admits it without a new reference class.
 
 **Wake.** The v1 wake predicate is the existing matcher arm, and its
 granularity is honestly table-wide: the matcher compares only
-`change.table == plan.table` (`src/live_matcher.rs`), so any commit
+`change.table == plan.table` (`crates/snapback/src/live_matcher.rs`), so any commit
 containing a `ChangedRow` on an indexed source table wakes every
 live-search subscription on **every** search index over that table —
 not merely the index whose postings changed — including commits
@@ -281,7 +281,7 @@ profiles every skip verdict is checked against a full re-execution.
 delivery is the engine's shipped shape:
 `notify_live_subscriptions_in_frame` re-executes every affected
 subscription synchronously inside the commit's notification frame
-(`src/local.rs`). There is no per-subscription in-flight state, no
+(`crates/snapback/src/local.rs`). There is no per-subscription in-flight state, no
 dirty flag, and no trailing-run scheduler, and v1 adds none: each
 observed commit re-runs each affected subscription once, so per-commit
 cost is exactly commit rate × affected subscriptions — bounded by
@@ -315,7 +315,7 @@ deliberately never reaches: auth-scoped subscriptions branch into
 `deliver_authorization_snapshot`, whose
 `AuthorizationInvalidationSnapshot` frame carries only
 subscription/function/version/rows and discards any cursor
-(`src/local.rs`, `src/live_wire.rs`); the v1 admission refusal
+(`crates/snapback/src/local.rs`, `crates/snapback/src/live_wire.rs`); the v1 admission refusal
 (§Authorization composition) is what keeps "every delivery rides
 `live_replace`" true rather than aspirational. Establishment inherits
 the existing subscribe path's no-missed-commit ordering between the
@@ -337,7 +337,7 @@ only wire tolerance (old decoders do not break on the unknown member —
 Admission therefore gates on a negotiated client declaration, and that
 declaration is the design's **second wire surface**, not a free rider:
 `liveSearchProtocol` is a new optional member of the closed
-(`deny_unknown_fields`) `OpenConnectionRequest` (`src/server.rs`),
+(`deny_unknown_fields`) `OpenConnectionRequest` (`crates/snapback/src/server.rs`),
 following the LLP 0094 §0C.5 offer matrix the DTO's existing offer
 fields already obey — a known value (`1`) binds the connection lineage
 (immutable across authenticated re-opens, the §0B.3 `wireVersion`
@@ -416,7 +416,7 @@ satisfiable in principle for this shape.
 search subscriptions are retention- and resume-ineligible: no RQS resume
 tokens are minted, and reconnect always produces a fresh authorized page.
 This needs no new enforcement — `rqs_eligible_digest_kind`
-(`src/manifest.rs`) already returns `None` for any runtime that is not a
+(`crates/snapback/src/manifest.rs`) already returns `None` for any runtime that is not a
 plain `HandlerPlan::Query`. The declared-dependence precondition for a
 future retention profile holds, but retention stays a nonclaim until that
 profile earns its own evidence (offline/retained search is already an
@@ -432,13 +432,13 @@ subscribe admission the auth-scope search guard runs *ahead of* the
 generic auth-invalidation gates — the installation check
 (`SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE`), the protocol-declaration
 checks (`SNAPBACK_AUTH_INVALIDATION_CLIENT_UNSUPPORTED`), and the
-namespace requirement (`src/local.rs`) — so a sessions-mode
+namespace requirement (`crates/snapback/src/local.rs`) — so a sessions-mode
 live-search subscribe that reaches admission always observes the
 search-scope code; steering a client toward negotiating or installing
 a protocol that cannot admit its subscription would be misleading. One
 earlier layer stays generic: on a sessions-mode target whose
 invalidation protocol is not ready, the route-layer live gate
-(`session_live_protocol_refusal`, `src/server.rs`, LLP 0058) refuses
+(`session_live_protocol_refusal`, `crates/snapback/src/server.rs`, LLP 0058) refuses
 all auth-scoped live work with
 `SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE` before admission is reached;
 v1 leaves that fail-closed gate unchanged, so the search-scope code is
@@ -505,7 +505,7 @@ existence channel — the acceptance suite proves this, not assumes it.
 - **Re-execution refusal fails closed on the shipped failure path.** If
   a wake's re-execution cannot release a page — work-ceiling overflow,
   index unavailable, corruption — the existing fan-out failure path
-  (`fail_subscription_fanout`, `src/local.rs`) records the structured
+  (`fail_subscription_fanout`, `crates/snapback/src/local.rs`) records the structured
   search diagnostic (`SNAPBACK_SEARCH_WORK_LIMIT`,
   `SNAPBACK_SEARCH_INDEX_UNAVAILABLE`,
   `SNAPBACK_SEARCH_INDEX_CORRUPT`) in the diagnostics ring and
@@ -623,7 +623,7 @@ search AST would derive eligible and enter the LLP 0090/0092
 register-mode bundle boot unanalyzed. V1 therefore adds the rule this
 Spec's v0.1 wrongly denied needing: the codegen derivation excludes
 any child whose function carries a search plan, and the server-side
-routes validation (`src/local.rs`) refuses a `registerGroupEligible`
+routes validation (`crates/snapback/src/local.rs`) refuses a `registerGroupEligible`
 route containing one — fail-closed on both sides, with a test
 asserting both refusals (seam 7, acceptance case 2). Whether a search
 child should ever join a registered boot — bundle-cut dispatch,
@@ -655,7 +655,7 @@ closed, optional member of the search declaration's limits family in
 `SearchIndexManifestV1`. The per-table aggregate ceiling is a
 table-scoped fact and gets a table-scoped carrier: a new closed,
 optional `searchLiveLimits` member of `TableManifest` beside
-`searchIndexes` (`src/manifest.rs`), carrying
+`searchIndexes` (`crates/snapback/src/manifest.rs`), carrying
 `maxLiveSubscriptionsPerTable` — declared at most once per table by
 construction, so no two indexes can assert conflicting table
 ceilings; the authoring surface accepts the value only at the table
@@ -672,7 +672,7 @@ declaring the live operation or its limits requires
 `live_full_text_search_v1`. Either way the ceilings are never
 silently dropped.
 `live_full_text_search_v1` joins the closed `TargetCapabilityId`
-vocabulary (`src/manifest.rs`) like every claimable id. Custody after
+vocabulary (`crates/snapback/src/manifest.rs`) like every claimable id. Custody after
 acceptance, revising LLP 0127's what-lands-where line by one clause:
 this Spec owns the live claim boundary and the
 `live_full_text_search_v1` id; LLP 0073 owns the shared

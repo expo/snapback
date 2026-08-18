@@ -47,7 +47,7 @@ landing; see Revision history)
 **Revised:** 2026-08-11 (o — §4 records the rqs contract-leaf repoint: sixteen
 frozen edges removed by naming the leaf a re-export already resolved to)
 **Revised:** 2026-08-11 (n — §4 rules the item-3 remainder: the split runs
-through `src/auth/provider.rs`, not `src/storage/auth_catalog_ops.rs`; see
+through `crates/snapback/src/auth/provider.rs`, not `crates/snapback/src/storage/auth_catalog_ops.rs`; see
 Revision history)
 **Revised:** 2026-08-13 (t — LLP 0232 optimistic-landing alignment: the
 ownership gate remains unconditionally selected and runs in strict mode and
@@ -89,7 +89,7 @@ partly in prose (0199), partly in machine state (`ownership.manifest.json`,
 This document consolidates all three into one governing record:
 
 - the **ownership manifest** exists, with seven owner ids and a full
-  assignment of every `src/**/*.rs` module (62+ modules at seeding, grown
+  assignment of every `crates/snapback/src/**/*.rs` module (62+ modules at seeding, grown
   since);
 - the **structural check** (`scripts/check-module-ownership.mjs`) is a
   registered drift-prone gate and, per the 2026-08-10 ruling closing
@@ -98,7 +98,7 @@ This document consolidates all three into one governing record:
   runs synchronously under explicit strict mode and under the scheduled
   backstop, and is listed in `driftFailClosedCoreGates`;
 - the **first slice — generation activation — is extracted and landed**
-  (`src/generation_activation.rs`, with the OQ3 composite-commit follow-up of
+  (`crates/snapback/src/generation_activation.rs`, with the OQ3 composite-commit follow-up of
   2026-08-09 recorded in 0199's revision history).
 
 Accepted 2026-08-10: this Decision becomes the **single amendment point** for the
@@ -140,25 +140,25 @@ canonical vocabulary; prose and `@ref`s should use them.
 | 3 | Durable sync and realtime engine | `sync-realtime-engine` | domain-service (2) | Subscriptions, version streams, outbox settlement, invalidation, fan-out — independent of HTTP handlers. |
 | 4 | Background/application services | `background-services` | domain-service (2) | Assets, jobs, push, forks, telemetry, replication. CPU/network preparation happens **outside** the global writer; results enter the kernel through narrow typed commit operations. |
 | 5 | Transport adapters | `transport-adapters` | adapter (3) | Local Axum, CLI, admin, hosted edge, bin harnesses. Compose the domain owners; never re-implement serving gates or wire shapes. Cloudflare is a target-local implementation sharing the *contract*, not code. |
-| 6 | Supported embedding façade | `embed-facade` | adapter (3) | `snapback::embed` + `src/lib.rs` (LLP 0141). Preserves the embed contract while internals become genuinely private, not merely `#[doc(hidden)]`, where the source-compatibility policy permits. |
-| — | — | `unassigned` | bookkeeping (—) | Not an owner. Holds the god-file residue (`src/local.rs` and its acceptance/test companions) until slices place it. May not be named as an allowed dependency, and unassigned modules may not add new edges into an unassigned god-file. |
+| 6 | Supported embedding façade | `embed-facade` | adapter (3) | `snapback::embed` + `crates/snapback/src/lib.rs` (LLP 0141). Preserves the embed contract while internals become genuinely private, not merely `#[doc(hidden)]`, where the source-compatibility policy permits. |
+| — | — | `unassigned` | bookkeeping (—) | Not an owner. Holds the god-file residue (`crates/snapback/src/local.rs` and its acceptance/test companions) until slices place it. May not be named as an allowed dependency, and unassigned modules may not add new edges into an unassigned god-file. |
 
 Two manifest refinements are part of this map, not workarounds of it:
 
 - **`mixedModuleScopes`** — a file the analyzer must treat as one owner can
-  declare its true multi-owner interior. `src/local.rs` declares its
+  declare its true multi-owner interior. `crates/snapback/src/local.rs` declares its
   generation-activation scope (owner 1, extracted) against its unassigned
-  remainder; `src/manifest.rs` declares its contract-leaf types (assigned)
+  remainder; `crates/snapback/src/manifest.rs` declares its contract-leaf types (assigned)
   against its subsystem-coupled residue (identity, vector, push, assets,
   auth) pending extraction to the owning services.
 - **`uncertainAssignments`** — provisional placements carry a substantive
-  note (e.g. `src/auth/lifecycle.rs` sits with background services but its
-  activation ordering may migrate to owner 1; `src/runtime.rs` sits with
+  note (e.g. `crates/snapback/src/auth/lifecycle.rs` sits with background services but its
+  activation ordering may migrate to owner 1; `crates/snapback/src/runtime.rs` sits with
   transport but a dedicated execution owner could claim it). These are
   invitations to re-decide at the owning slice, not licenses to ignore the
   gate.
 
-The declared `godFiles` are `src/local.rs`, `src/server.rs`, `src/storage.rs`
+The declared `godFiles` are `crates/snapback/src/local.rs`, `crates/snapback/src/server.rs`, `crates/snapback/src/storage.rs`
 — the modules whose *drainage* is the program's purpose. The no-growth rule,
 operationally: once a domain has an extracted owner module (a "chosen"
 domain — generation activation today; each §4 slice adds more), new feature
@@ -219,7 +219,7 @@ never freezable by note**: it is fixed before the re-baseline, or it carries
 an explicit **time-bounded waiver** — a worklist entry naming the edge, the
 inversion owner, and a deadline, referenced from this Decision's amendment
 record — matching LLP 0199 OQ5's accepted blocking rule. (The 2026-08-10
-`src/local.rs → src/connected_clients.rs` freeze predates this rule and is
+`crates/snapback/src/local.rs → crates/snapback/src/connected_clients.rs` freeze predates this rule and is
 reclassified as such a waiver — its formal record is worklist item 8 in
 `issues/20260809-0199-ownership-ratchet-worklist.md`, naming the edge, the
 inversion owner, and the bound; the parenthetical you are reading is a
@@ -245,7 +245,7 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
    writer and one commit primitive; every other owner
    commits by *composing* typed kernel operations
    (`CommitFunctionGeneration`, the classified mode-deployment commits, the
-   `*_in_tx` families as they relocate into `src/storage/`), never by opening
+   `*_in_tx` families as they relocate into `crates/snapback/src/storage/`), never by opening
    its own transaction against the store.
 2. **The generation-activation coordinator owns the atomic transition, not
    the transaction.** The minimum atomic set — the manifest/generation
@@ -290,7 +290,7 @@ incorporates 0199's OQ3 ruling and the implemented 2026-08-09 follow-up.
 ### First slice — generation activation (executed)
 
 The first slice is **generation activation**, as ruled, and it has landed:
-`src/generation_activation.rs` is a ~260-line coordinator owned by
+`crates/snapback/src/generation_activation.rs` is a ~260-line coordinator owned by
 `generation-activation-coordinator`, deliberately *not* a second storage
 implementation. The extraction boundary, concretely:
 
@@ -310,15 +310,15 @@ implementation. The extraction boundary, concretely:
   the same composite transaction.
 - The process generation marker installs only from a committed verdict; the
   P1-era clear-digest compensation has **no activation callers**.
-- The callers in `src/local.rs` shrank to composition calls; the remainder of
+- The callers in `crates/snapback/src/local.rs` shrank to composition calls; the remainder of
   `local.rs` stays `unassigned` with its activation scope recorded in
   `mixedModuleScopes` until later slices drain it.
 
 **Honest boundary disposition.** The first slice was *behavior* extraction,
 not yet a direction-clean boundary: the coordinator itself carries two frozen
-forbidden edges — `→ src/auth/admission.rs` (it imports the
+forbidden edges — `→ crates/snapback/src/auth/admission.rs` (it imports the
 `ModeCommitFailure` commit-verdict type from a sync-engine module; inversion:
-the verdict type belongs in the contract leaf) and `→ src/local.rs` (it holds
+the verdict type belongs in the contract leaf) and `→ crates/snapback/src/local.rs` (it holds
 the god-file handle directly; inversion: a coordinator-owned narrow port
 implemented above the service). The verdict-type edge inverts at the
 contract-leaf completion slice; the port edge inverts at the `local.rs`
@@ -368,8 +368,8 @@ pre-push promotion both predate this document), not after it.
 ### Second slice — the generation-commit kernel primitive (executed)
 
 The first §4-item-1 kernel typed-operation slice landed 2026-08-10: the
-composite generation-commit family moved out of `src/storage.rs` into the
-dedicated kernel module `src/storage/generation_commit.rs`
+composite generation-commit family moved out of `crates/snapback/src/storage.rs` into the
+dedicated kernel module `crates/snapback/src/storage/generation_commit.rs`
 (`CommitFunctionGeneration`, `FunctionGenerationRecord`,
 `commit_function_generation`, `function_generation_record`,
 `install_committed_sequence_declarations`, and the sequence-predecessor
@@ -385,19 +385,19 @@ commit-boundary contract is unaffected (this is surface narrowing, not a
 transaction-domain change).
 
 Baseline disposition, per §2's monotonic rule: one relocation re-key with
-provenance — `src/local.rs → src/storage/generation_commit.rs`
+provenance — `crates/snapback/src/local.rs → crates/snapback/src/storage/generation_commit.rs`
 (unassigned→kernel), the commit-primitive portion of the frozen
-`src/local.rs → src/storage.rs` coupling following the moved code — recorded
+`crates/snapback/src/local.rs → crates/snapback/src/storage.rs` coupling following the moved code — recorded
 in the ratchet worklist; the slice's other new edges are allowed downward
 edges. The same landing carried the unmanifested-module catch-up for the
-2026-08-10 auth-floor landing (`src/auth/identity_core.rs` → contract leaf,
-`src/storage/auth_identity.rs` → kernel; allowed edges only).
+2026-08-10 auth-floor landing (`crates/snapback/src/auth/identity_core.rs` → contract leaf,
+`crates/snapback/src/storage/auth_identity.rs` → kernel; allowed edges only).
 
 ### Owner-#5 seam slice — the server writer gate (executed)
 
 Landed 2026-08-10, same day as the second slice: the global-writer
-acquisition family moved out of the `src/server.rs` god file into the
-dedicated transport-owned module `src/server/writer_gate.rs` —
+acquisition family moved out of the `crates/snapback/src/server.rs` god file into the
+dedicated transport-owned module `crates/snapback/src/server/writer_gate.rs` —
 `with_snapback`, `with_snapback_then`, `lock_managed_snapback`,
 `with_snapback_authorization_write`,
 `with_snapback_staged_authorization_write`,
@@ -412,9 +412,9 @@ deferred asset render/canonicalize-outside-the-writer move recorded in
 `issues/20260808-assets-finalize-memory-and-cpu-under-global-lock.md`.
 
 Baseline disposition: one **time-bounded waiver** (§2) —
-`src/server/writer_gate.rs → src/local.rs` (transport→unassigned), the
+`crates/snapback/src/server/writer_gate.rs → crates/snapback/src/local.rs` (transport→unassigned), the
 pre-existing `LocalSnapback` coupling following the moved code while the
-predecessor `src/server.rs → src/local.rs` edge is retained by remaining
+predecessor `crates/snapback/src/server.rs → crates/snapback/src/local.rs` edge is retained by remaining
 references. This is an edge-key *split*, which the arm's strict `relocation`
 disposition cannot express
 (`issues/20260810-owngate-split-relocation-disposition-gap.md` routes the
@@ -444,17 +444,17 @@ non-leaf state stays up**, as a same-crate inherent `impl` block on the
 relocated type:
 
 - the step-up proof shapes (`StepUpProof`, `StepUpConsumption`,
-  `step_up_required_error`) moved to the leaf-owned `src/auth/crypto.rs`,
+  `step_up_required_error`) moved to the leaf-owned `crates/snapback/src/auth/crypto.rs`,
   whose module already defines every field type they carry, while
   `impl StepUpProof { reconcile_consumed_on, reconcile_unconsumed_on,
-  consume_on }` stayed in `src/auth/provider.rs` — those take a `&Connection`
+  consume_on }` stayed in `crates/snapback/src/auth/provider.rs` — those take a `&Connection`
   and are behavior, not shape;
 - the service-authority fence value shapes (`ServiceAuthorityDisposition`,
   `ServiceAuthorityWitness`, `ServiceAuthorityActResolution`,
   `ServiceAuthorityDeadlineTerminal`) moved to the new leaf module
-  `src/auth/service_authority_contract.rs`, while the fence traits,
+  `crates/snapback/src/auth/service_authority_contract.rs`, while the fence traits,
   publication, permits, terminal gate, and registry stayed in
-  `src/auth/service_fence.rs`.
+  `crates/snapback/src/auth/service_fence.rs`.
 
 Six frozen kernel→sync edges inverted:
 `storage/auth_agent_credentials → auth/service_fence`,
@@ -468,15 +468,15 @@ operation.
 One structural decision earned the clean result:
 `ServiceAuthorityWitness::from_resolved` became
 `ResolvedScopedToken::service_authority_witness` in
-`src/storage/auth_agent_credentials.rs`, where `ResolvedScopedToken` is
+`crates/snapback/src/storage/auth_agent_credentials.rs`, where `ResolvedScopedToken` is
 defined. The kernel owning the conversion from its own token type into a leaf
 shape is kernel→leaf; more importantly, callers now project the witness *by
-method* rather than naming the leaf module, which keeps `src/local/tests.rs`
+method* rather than naming the leaf module, which keeps `crates/snapback/src/local/tests.rs`
 off the new module entirely and avoids a second edge-key split.
 
 Baseline disposition: 7 frozen forbidden edges removed, 1 added — 388 → 382.
-The addition is `src/local.rs → src/auth/service_authority_contract.rs`, a
-**downward re-key** of the `src/local.rs → src/auth/service_fence.rs` edge the
+The addition is `crates/snapback/src/local.rs → crates/snapback/src/auth/service_authority_contract.rs`, a
+**downward re-key** of the `crates/snapback/src/local.rs → crates/snapback/src/auth/service_fence.rs` edge the
 same landing removes (local.rs genuinely matches on the resolution and
 disposition enums). It is recorded as a time-bounded waiver with inversion
 owner `transport-adapters` and deadline 2026-09-15 because the re-key changes
@@ -520,7 +520,7 @@ exposure. Transport owning the environment vocabulary that the kernel and the
 sync engine must both consult is precisely the inversion those items describe.
 
 The enum and its two pure methods (`as_str`, `allows_provisioning`) moved to
-`src/contract_types.rs`; `for_bind_ip` stayed in `src/admin.rs` as an inherent
+`crates/snapback/src/contract_types.rs`; `for_bind_ip` stayed in `crates/snapback/src/admin.rs` as an inherent
 impl block because it resolves `SNAPBACK_PROFILE` against the bind address —
 transport behavior, not shape. `admin.rs` keeps a `pub use` so the public
 `snapback::admin::ServerProfile` path (`pub mod admin` in `lib.rs`) is
@@ -529,11 +529,11 @@ re-key instead of resolving through the re-export.
 
 **12 frozen forbidden edges removed, none added — 382 → 370.** The cut reached
 twice its scoped six because `ServerProfile` was the *sole* admin import of six
-further modules: `src/auth/rehearsal.rs` and `src/data_patch.rs`
+further modules: `crates/snapback/src/auth/rehearsal.rs` and `crates/snapback/src/data_patch.rs`
 (**leaf→transport**, the direction §2 forbids most emphatically — the leaf is
-supposed to depend on nothing), `src/local.rs`, `src/local/tests.rs`, and
-`src/local/authorization_acceptance.rs` (unassigned→transport), and
-`src/push.rs` (background→transport). It also retires the kernel→transport half
+supposed to depend on nothing), `crates/snapback/src/local.rs`, `crates/snapback/src/local/tests.rs`, and
+`crates/snapback/src/local/authorization_acceptance.rs` (unassigned→transport), and
+`crates/snapback/src/push.rs` (background→transport). It also retires the kernel→transport half
 of ratchet waiver item 9 one day before that waiver's 2026-08-11 deadline.
 
 Baseline growth: **none**, and no disposition was needed. `contract_types.rs`
@@ -557,7 +557,7 @@ composition edges, and `storage/hosted_admission → auth/hosted_edge`.
 ### Item-3 second cut — `session_projection` value shapes (executed)
 
 Landed 2026-08-11, the third slice on this recipe. Five symbols moved from the
-sync-owned `src/auth/session_projection.rs` to `src/contract_types.rs` —
+sync-owned `crates/snapback/src/auth/session_projection.rs` to `crates/snapback/src/contract_types.rs` —
 `SESSION_TERMINAL_CAUSE_META_PREFIX`, `RevocationReason`,
 `PersistedSessionTerminalReason`, `SessionTerminalCauseRecord`, and
 `AuthorizationStreamIncarnation` — with **every `impl` block left behind**,
@@ -570,8 +570,8 @@ type, and a leaf struct may not hold a field owned by a sync module.
 **4 frozen forbidden edges removed, none added — 370 → 366**
 (`storage/auth_mode`, `storage/push_registry`, `storage/auth`,
 `storage/auth_catalog_ops`). Destination reasoning matched the previous cut:
-`src/local.rs` consumes `AuthorizationStreamIncarnation`, so the leaf had to be
-one it already depends on; `src/ids.rs` was rejected on charter (it is the
+`crates/snapback/src/local.rs` consumes `AuthorizationStreamIncarnation`, so the leaf had to be
+one it already depends on; `crates/snapback/src/ids.rs` was rejected on charter (it is the
 *prefixed*-identifier registry and this is a bare UUIDv7).
 
 `SessionProjection` deliberately stayed — 36 methods, and it is the behavior
@@ -582,7 +582,7 @@ edges; the survey initially predicted schema_seed would clear, which was wrong
 
 The remaining item-3 edges are **not** shape moves and should not be attempted
 as such: `storage/auth_catalog_ops.rs` calls 24 functions in
-`src/auth/provider.rs`, and `storage/auth_sender.rs` imports six more from
+`crates/snapback/src/auth/provider.rs`, and `storage/auth_sender.rs` imports six more from
 `sender_proof`. That was raised as an open ownership question and is now
 **ruled** — see the next section, which also corrects the premise this
 paragraph was written on.
@@ -599,11 +599,11 @@ that changes an assignment's meaning is a semantic slice and follows §4). The
 ruling **rejects the framing the question was filed under**, because reading
 the function *bodies* rather than the import list inverts the picture.
 
-**The corrected finding.** `src/storage/auth_catalog_ops.rs` is not "the SQL
+**The corrected finding.** `crates/snapback/src/storage/auth_catalog_ops.rs` is not "the SQL
 half of the provider's session lifecycle." It is the *transaction-scoping*
 half, and it is correctly kernel-owned: its operations open the connection or
 immediate transaction — §3.1's commit primitive — and hand the borrowed
-`&Transaction` to a function in `src/auth/provider.rs`. The SQL bodies are in
+`&Transaction` to a function in `crates/snapback/src/auth/provider.rs`. The SQL bodies are in
 the **sync-owned** module. `planned_revocation_transaction`,
 `plan_exchange_read`, `plan_session_issuance_read`,
 `lookup_presented_session`, `reconcile_planned_revocation` and their siblings
@@ -621,12 +621,12 @@ strictly worse on §3.1. Rewriting its wrappers into "typed kernel operations"
 (b) is the right *direction* stated at the wrong *module*: the wrappers are
 already typed kernel operations.
 
-**The ruling.** The split runs through `src/auth/provider.rs`, in three
+**The ruling.** The split runs through `crates/snapback/src/auth/provider.rs`, in three
 directions at once:
 
 1. **Behavior down.** A function whose body is SQL against the canonical
    auth store is a kernel commit primitive by §3.1 and moves into
-   `src/storage/`, co-located with the wrapper that scopes its transaction.
+   `crates/snapback/src/storage/`, co-located with the wrapper that scopes its transaction.
    The kernel then never calls up for it.
 2. **Shapes down.** The plan/outcome value types that cross the boundary
    (`ProviderRevocationPlan`, `PlannedRevocationCommit`, `SessionCandidate`,
@@ -647,7 +647,7 @@ facts it read, and `provider.rs` classifies them into the plan. That is what
 makes this a semantic slice with a characterization envelope rather than a
 relocation, and it is why it is sequenced rather than folded into a shape cut.
 
-`src/storage/auth_sender.rs` → `src/auth/sender_proof.rs` (six functions) is
+`crates/snapback/src/storage/auth_sender.rs` → `crates/snapback/src/auth/sender_proof.rs` (six functions) is
 the same class and takes the same ruling.
 
 **Sequence.** A1 shapes down (proven recipe; clears
@@ -672,14 +672,14 @@ edges removed, none added — 365 → 349, with no waiver and no manifest edit.*
 The lever is a property of the analyzer worth naming, because it generalizes:
 **for a re-exported symbol the extractor records BOTH edges** — the written
 module path and the resolved re-export target (§5, "transitively chained
-explicit/glob re-exports"). `src/rqs.rs` had carried
+explicit/glob re-exports"). `crates/snapback/src/rqs.rs` had carried
 `pub use crate::rqs_contract::{MintRefusal, jcs, sha256_identity};` since
 worklist item 2, so every consumer writing `crate::rqs::jcs` held a forbidden
-`→ src/rqs.rs` edge *and* an already-allowed `→ src/rqs_contract.rs` edge.
+`→ crates/snapback/src/rqs.rs` edge *and* an already-allowed `→ crates/snapback/src/rqs_contract.rs` edge.
 Eleven of the sixteen therefore cleared by **repointing the written path
 alone, with no code motion at all** — and cost nothing, because the leaf edge
 was already in the baseline for every consumer, including the unassigned
-`src/local.rs` / `src/local/tests.rs` that normally force a waiver on a leaf
+`crates/snapback/src/local.rs` / `crates/snapback/src/local/tests.rs` that normally force a waiver on a leaf
 move.
 
 This is not laundering. The dependency genuinely is on the leaf; the
@@ -695,12 +695,12 @@ helpers and tag constants, and `RESUME_KEYRING_FILE_NAME`. All are pure
 functions over `serde_json::Value` and `sha2`/`serde`/`base64` — RFC 8785
 canonicalization and content-digest framing are byte-exact language-neutral
 wire contracts shared with the JS arm, which is the leaf charter verbatim.
-`src/rqs_contract.rs` now holds **zero `crate::` references**.
+`crates/snapback/src/rqs_contract.rs` now holds **zero `crate::` references**.
 
-What stayed in `src/rqs.rs` is the resumable-query *engine*: token envelope,
+What stayed in `crates/snapback/src/rqs.rs` is the resumable-query *engine*: token envelope,
 MAC transcript, keyring custody, and the cursor mint/verify families, each of
-which needs `crate::auth::crypto`. `src/local.rs`, `src/local/tests.rs`,
-`src/instance_fork.rs`, `src/schema_export.rs`, and `src/storage/tests.rs`
+which needs `crate::auth::crypto`. `crates/snapback/src/local.rs`, `crates/snapback/src/local/tests.rs`,
+`crates/snapback/src/instance_fork.rs`, `crates/snapback/src/schema_export.rs`, and `crates/snapback/src/storage/tests.rs`
 keep their edges because they consume that engine; those clear when its
 consumers drain, not by a shape move.
 
@@ -734,7 +734,7 @@ high-water unchanged, and preserves the fence for a correct retry. Any pending
 projection publication still forces a real generation commit, preserving §3.2.
 
 The acceptance is seven file-backed, full-`LocalSnapback` witnesses in
-`src/local/tests.rs`: no-record reopen compatibility; committed-record serving
+`crates/snapback/src/local/tests.rs`: no-record reopen compatibility; committed-record serving
 fence; matching reload with the high-water asserted unchanged; different
 automatic reload advancing exactly once; explicit mismatch refusal with an
 unchanged high-water and retained fence; correct retry after refusal; and
@@ -749,17 +749,17 @@ revision (u) subsequently ended the separate stream-transcript split cut
 Landed 2026-08-11, the first stage of the ruled `provider.rs` split.
 **2 frozen forbidden edges removed, none added — 349 → 347**, no waiver and no
 manifest edit. Both were kernel→sync:
-`src/store_state.rs → src/auth/provider.rs` and
-`src/storage/auth_rehearsal.rs → src/auth/provider.rs`. The third,
-`src/storage/auth_catalog_ops.rs`, is A2's and deliberately remains.
+`crates/snapback/src/store_state.rs → crates/snapback/src/auth/provider.rs` and
+`crates/snapback/src/storage/auth_rehearsal.rs → crates/snapback/src/auth/provider.rs`. The third,
+`crates/snapback/src/storage/auth_catalog_ops.rs`, is A2's and deliberately remains.
 
-Two pure enums went to the contract leaf `src/contract_types.rs`:
+Two pure enums went to the contract leaf `crates/snapback/src/contract_types.rs`:
 `AuthProviderProfile` (deployment posture — the same shape and the same
 argument as the landed `ServerProfile` cut) with its pure `permits_capture`,
 and `PlannedIdentityState` (a cross-owner plan value with no policy or storage
 behavior). `impl From<AuthProviderProfile> for AuthBudgetDeploymentProfile`
 **stayed in `provider.rs`**, because it names kernel-owned
-`src/auth/throttle.rs` and a leaf may not: the familiar shape-down/behavior-up
+`crates/snapback/src/auth/throttle.rs` and a leaf may not: the familiar shape-down/behavior-up
 line, drawn by the dependency rather than by taste.
 
 The refusal pair is the part worth recording. `code_invalid()` and
@@ -768,7 +768,7 @@ they could not both go to the leaf: `code_invalid` is a plain `SnapbackError`,
 but `code_locked` names `AuthBudgetRefusal`/`AuthBudgetName`, which are
 kernel-owned. Splitting the pair by dependency would have scattered one
 compatibility refusal across two owners, so both moved to
-`src/auth/throttle.rs` instead — beside the `auth.guessing` budget rules that
+`crates/snapback/src/auth/throttle.rs` instead — beside the `auth.guessing` budget rules that
 give the locked refusal its structured details. Every edge that creates is
 allowed: kernel→kernel from `auth_rehearsal`, sync→kernel from `provider`,
 transport→kernel from `server.rs`. `provider.rs` keeps `code_invalid()` /
@@ -789,12 +789,12 @@ byte-identical to the merge-base with identical pass counts (449/0, 696/2,
 
 Landed 2026-08-11. **1 frozen forbidden edge removed, none added — 347 → 346**,
 no waiver and no manifest edit:
-`src/storage/auth_sender.rs → src/auth/sender_proof.rs`.
+`crates/snapback/src/storage/auth_sender.rs → crates/snapback/src/auth/sender_proof.rs`.
 
 **This stage is the worked example of the inversion §2 actually asks for, and
 the worklist's premise for it was wrong.** A3 was filed as "same class, same
 ruling, same method" — a body move of six functions. Measurement said
-otherwise: `src/auth/sender_proof.rs` is 3,711 lines with 25
+otherwise: `crates/snapback/src/auth/sender_proof.rs` is 3,711 lines with 25
 connection-taking functions and 76 SQL statements, with SQL and policy
 interleaved, and only four of the six imports (`sender_replay_epoch`,
 `rotate_sender_replay_epoch_for_stream_reset`,
@@ -823,7 +823,7 @@ delegated downward.
 
 The constraint that shaped the seam is the module's own invariant — "the server
 layer never receives a raw SQLite connection." It is preserved: the production
-`Connection` stays private inside `src/storage/auth_sender.rs`, and transport
+`Connection` stays private inside `crates/snapback/src/storage/auth_sender.rs`, and transport
 obtains a narrow `SenderProofAuthority` handle and passes *that* into the sync
 policy. Kernel→sync became sync→kernel without ever handing a connection
 upward, which is the pattern A2 will need at larger scale.
@@ -843,10 +843,10 @@ they are pre-existing main reds, not this slice's.
 
 Landed 2026-08-11. The last kernel→provider edge is gone and the direction is
 now sync→kernel:
-`src/storage/auth_catalog_ops.rs → src/auth/provider.rs`. **With A1, A3 and A2
+`crates/snapback/src/storage/auth_catalog_ops.rs → crates/snapback/src/auth/provider.rs`. **With A1, A3 and A2
 landed, ratchet worklist item 3 is closed.**
 
-Measured on `src/auth/provider.rs`, before → after:
+Measured on `crates/snapback/src/auth/provider.rs`, before → after:
 
 | | before | after |
 | --- | ---: | ---: |
@@ -854,7 +854,7 @@ Measured on `src/auth/provider.rs`, before → after:
 | connection/transaction-taking functions | 45 | **0** |
 | SQL operation sites | 51 | **0** |
 
-`src/storage/auth_catalog_ops.rs` no longer names `crate::auth::provider`.
+`crates/snapback/src/storage/auth_catalog_ops.rs` no longer names `crate::auth::provider`.
 
 A2 applies A3's typed-operation pattern at ~4× the scale. The kernel owns the
 durable operations for presented-session current/tombstone lookup; planned
@@ -904,7 +904,7 @@ byte-identical to the merge-base with identical pass counts (451/0, 709/2,
 **Baseline note — the count is 346 → 346, not 345, and that is provenance, not
 growth.** The regeneration removed A2's target fingerprint and in the same pass
 recorded a *previously unrecorded* pre-existing edge,
-`src/storage/auth_identity.rs → src/auth/sender_proof.rs`. That edge was
+`crates/snapback/src/storage/auth_identity.rs → crates/snapback/src/auth/sender_proof.rs`. That edge was
 introduced by `ef936353f`, which added the call without regenerating the
 baseline; A2 does not touch that call site. It is recorded and routed to its
 landing author in
@@ -918,7 +918,7 @@ per §2's requirement that every baseline growth event carry stated provenance.
    typed kernel operations, inverting the frozen kernel→sync/background
    edges as each slice touches them (worklist items 1–3).
 2. **Contract leaf completion:** move the shared wire/query/stream shapes
-   down (worklist items 2, 4–7); split `src/manifest.rs`'s types from its
+   down (worklist items 2, 4–7); split `crates/snapback/src/manifest.rs`'s types from its
    subsystem residue and reassign the residue to its owning services.
 3. **Sync/realtime engine consolidation:** outbox settlement (LLP 0218's
    contract), invalidation, and live fan-out behind owner 3, out of
@@ -1001,7 +1001,7 @@ requires its named worklist record in the same landing.
   under `tests/fixtures/module-ownership/` and execute via
   `scripts/check-module-ownership.test.mjs`. The re-derivation exposed 38
   pre-existing forbidden fingerprints — including
-  `src/auth/provider.rs`'s `super::lifecycle` / `super::mailbox` sideways
+  `crates/snapback/src/auth/provider.rs`'s `super::lifecycle` / `super::mailbox` sideways
   edges — frozen with analyzer-upgrade attribution in worklist item 12
   (renumbered from 9 at the merge-wave reconciliation), with twelve further
   merge-wave discoveries recorded under item 13. The completed gap record is
@@ -1046,8 +1046,8 @@ These are different activities and this Decision keeps them distinct:
   approved as background work **only** under 0199's OQ4 condition: each
   split co-migrates, in the same change, its file-path-keyed proof
   selectors, frozen-record drift gates, source-reading generators
-  (`scripts/guide-lib.mjs` reads `src/server.rs`;
-  `scripts/capability-maturity.mjs` reads `src/manifest.rs`), file-path
+  (`scripts/guide-lib.mjs` reads `crates/snapback/src/server.rs`;
+  `scripts/capability-maturity.mjs` reads `crates/snapback/src/manifest.rs`), file-path
   `@ref`s, **and its `ownership.manifest.json` entries** — the manifest is
   file-path-keyed, so a naive rename is itself a gate red. A cosmetic split
   never changes an owner assignment's meaning; if a split would, it is a
@@ -1067,7 +1067,7 @@ These are different activities and this Decision keeps them distinct:
 - **Not settled here:** the final owner map for the auth residue flagged in
   `uncertainAssignments`; which `manifest.rs` residues land in which
   services (per-slice decisions); any future dedicated execution owner for
-  `src/runtime.rs`.
+  `crates/snapback/src/runtime.rs`.
 
 ## Open questions for the author
 
@@ -1207,16 +1207,16 @@ so slices can follow product priorities.
   time-bounded waivers (so revision (k)'s "unadmitted" state ended there);
   the analyzer-discovery block was renumbered to worklist item 12, twelve
   merge-wave discoveries were recorded under item 13, and the jobs-wave
-  edges (`src/manifest.rs → src/storage/jobs.rs`,
-  `src/storage.rs → src/jobs.rs`) are the current unadmitted pair, tracked
+  edges (`crates/snapback/src/manifest.rs → crates/snapback/src/storage/jobs.rs`,
+  `crates/snapback/src/storage.rs → crates/snapback/src/jobs.rs`) are the current unadmitted pair, tracked
   by `issues/20260810-main-module-ownership-red-jobs-edges.md`. Waiver
   deadlines are escalation metadata: an expired deadline blocks only NEW
   admissions and never wedges parsing of committed snapshots.
 - **2026-08-11 (n).** §4 rules the item-3 remainder that revision (m) left
   open, and corrects the premise the question was filed under: reading the
-  function bodies (not the import list) shows `src/storage/auth_catalog_ops.rs`
+  function bodies (not the import list) shows `crates/snapback/src/storage/auth_catalog_ops.rs`
   is the *transaction-scoping* half — correctly kernel-owned under §3.1 — while
-  the canonical-store SQL lives in the sync-owned `src/auth/provider.rs`. Both
+  the canonical-store SQL lives in the sync-owned `crates/snapback/src/auth/provider.rs`. Both
   resolutions the question offered were therefore wrong, and their "opposite
   failure modes" were an artifact of the inverted premise. The ruling splits
   `provider.rs` three ways — SQL bodies down to the kernel, plan/outcome value
@@ -1237,7 +1237,7 @@ so slices can follow product priorities.
   digest/canonicalization primitives (`ContentDigest*`, `seq1_digest`,
   `projection_row_digest`, `row_hash`, `DigestKind`,
   `RESUME_KEYRING_FILE_NAME`, and their helpers) down beside them;
-  `src/rqs_contract.rs` now carries zero `crate::` references. The
+  `crates/snapback/src/rqs_contract.rs` now carries zero `crate::` references. The
   resumable-query engine — token envelope, MAC transcript, keyring custody,
   cursor mint/verify — stays with the sync owner because it needs
   `crate::auth::crypto`.
@@ -1250,19 +1250,19 @@ so slices can follow product priorities.
   stream-transcript split cut remains separate and open.
 - **2026-08-11 (q).** §4 records item-3 stage A1, the first stage of the ruled
   `provider.rs` split: `AuthProviderProfile` and `PlannedIdentityState` down to
-  `src/contract_types.rs`, and the `code_invalid()` / `code_locked()`
-  compatibility refusal pair to kernel-owned `src/auth/throttle.rs` beside the
+  `crates/snapback/src/contract_types.rs`, and the `code_invalid()` / `code_locked()`
+  compatibility refusal pair to kernel-owned `crates/snapback/src/auth/throttle.rs` beside the
   budget rules that give the locked refusal its details — because
   `code_locked` names kernel-owned budget vocabulary and could not follow its
   partner to a leaf, and splitting one compatibility pair across two owners
   would have been worse than moving both. `impl From<AuthProviderProfile> for
   AuthBudgetDeploymentProfile` stayed with the provider for the same
   dependency reason. 2 frozen forbidden edges removed, none added, 349 → 347,
-  no waiver; `src/storage/auth_catalog_ops.rs → src/auth/provider.rs` remains
+  no waiver; `crates/snapback/src/storage/auth_catalog_ops.rs → crates/snapback/src/auth/provider.rs` remains
   and is A2's.
 - **2026-08-11 (r).** §4 records item-3 stage A3, and corrects the worklist's
   premise for it: A3 was filed as a six-function body move, but
-  `src/auth/sender_proof.rs` measured 3,711 lines with 25 connection-taking
+  `crates/snapback/src/auth/sender_proof.rs` measured 3,711 lines with 25 connection-taking
   functions and 76 SQL statements, and the two `admit_sender_constrained_*`
   entry points carry LLP 0077 spelling policy, the anti-oracle
   cover-challenge posture, and revoked-family tombstones — policy the kernel
@@ -1275,9 +1275,9 @@ so slices can follow product priorities.
   example of the inversion A2 needs at larger scale.
 - **2026-08-11 (s).** §4 records item-3 stage A2, closing ratchet worklist
   item 3. The last kernel→provider edge is inverted to sync→kernel:
-  `src/auth/provider.rs` goes 9,606 → 7,191 lines with its 45
+  `crates/snapback/src/auth/provider.rs` goes 9,606 → 7,191 lines with its 45
   connection/transaction-taking functions and 51 SQL sites both reduced to
-  **zero**, and `src/storage/auth_catalog_ops.rs` no longer names the provider.
+  **zero**, and `crates/snapback/src/storage/auth_catalog_ops.rs` no longer names the provider.
   The three mixed read-and-classify functions were split so the kernel returns
   durable facts and sync classifies them. A verified regression is recorded
   with the slice because it is the program's characteristic hazard: relocating

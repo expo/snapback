@@ -31,7 +31,7 @@ observation, not an exactly-once-effects claim". Status stays Draft.)
 2026-08-01 (v2, round-1 review application: both round-1
 reviews applied — Fable READY with five minor findings, Codex NOT READY
 with three material and two lesser. Codex M1: idempotency scope and
-equivalence settled to what `src/jobs.rs`/`src/runtime.rs` actually do —
+equivalence settled to what `crates/snapback/src/jobs.rs`/`crates/snapback/src/runtime.rs` actually do —
 keys scoped to (queue, action), the identical-reuse fingerprint is the
 canonical-args digest plus `maxAttempts`, `delayMs`/`availableAt`
 deliberately excluded, a different action is a different scope and creates
@@ -137,7 +137,7 @@ and delivery limits.
 This section is normative for the implemented surface. It absorbs the dated
 2026-07-31 amendment note (now a tombstone pointer under `llp/tombstones/`)
 and reconciles it against everything that landed through 2026-08-01. The
-slice landed as e25ab2a3 (`src/jobs.rs`, storage/runtime/server wiring,
+slice landed as e25ab2a3 (`crates/snapback/src/jobs.rs`, storage/runtime/server wiring,
 codegen jobs authoring) and was completed by the 01ddd8e2 job-status
 boot-admission fix. The executable evidence maps as follows:
 
@@ -156,14 +156,14 @@ boot-admission fix. The executable evidence maps as follows:
   the projection serves live transitions.
 - **RV-A6-F2** (same capsule): the guide recipe, idempotent-enqueue
   dedup, and the secret-read-lease custody route.
-- **In-tree suites** (`src/jobs.rs`/`src/server.rs`/`src/local.rs` tests,
+- **In-tree suites** (`crates/snapback/src/jobs.rs`/`crates/snapback/src/server.rs`/`crates/snapback/src/local.rs` tests,
   `packages/snapback-codegen/jobs-authoring.test.mjs`): the state-machine
   and fault corpus, rollback-schedules-nothing, drain receipts, admission
   narrowness, and — later than the 0.1.8 pass — the platform-owned
   job-status result contract with zero degraded advisories.
 
 **2026-08-02 crash/reopen evidence.**
-`src/jobs.rs::tests::file_backed_crash_reopen_expires_attempt_and_fences_successor`
+`crates/snapback/src/jobs.rs::tests::file_backed_crash_reopen_expires_attempt_and_fences_successor`
 extends the first-slice fault corpus across a real SQLite close/reopen
 boundary. The fixture leaves attempt 1 claimed with no finish, proves the
 persisted lease remains exclusive until its exact boundary, then proves the

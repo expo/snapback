@@ -4,7 +4,7 @@ id: backend.external-api
 order: 19
 audience: agent-first
 capabilities: [api.external-exposure]
-authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/api_envelope.rs, src/ask.rs, src/server.rs, src/server/effects.rs, src/server/oauth.rs, src/storage/ask_spend.rs, src/storage/pending_effects.rs, src/storage/capability_links.rs, src/storage/auth_integrations.rs, src/storage/auth_agent_credentials.rs, src/auth/invocation.rs, src/telemetry.rs, src/telemetry_query.rs]
+authorities: [llp/0204-app-external-surfaces.rfc.md, llp/0031-server-route-taxonomy.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, crates/snapback/src/manifest.rs, crates/snapback/src/api_envelope.rs, crates/snapback/src/ask.rs, crates/snapback/src/server.rs, crates/snapback/src/server/effects.rs, crates/snapback/src/server/oauth.rs, crates/snapback/src/storage/ask_spend.rs, crates/snapback/src/storage/pending_effects.rs, crates/snapback/src/storage/capability_links.rs, crates/snapback/src/storage/auth_integrations.rs, crates/snapback/src/storage/auth_agent_credentials.rs, crates/snapback/src/auth/invocation.rs, crates/snapback/src/telemetry.rs, crates/snapback/src/telemetry_query.rs]
 examples: [packages/snapback-codegen/auth-artifacts.test.mjs]
 status: current
 targets: [local]

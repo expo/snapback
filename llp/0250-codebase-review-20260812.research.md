@@ -43,7 +43,7 @@ LLP 0231 / 0172 so visibility and function auth stop being warn-only.
 
 ## Method
 
-Primary sources: `src/`, `packages/snapback-{client,contract,react,cli,codegen,expo}/`,
+Primary sources: `crates/snapback/src/`, `packages/snapback-{client,contract,react,cli,codegen,expo}/`,
 `cloudflare/src/`, `llp/0009`, `llp/0060`, `llp/0047`, `llp/0216`, `llp/0231`,
 and the open `issues/` tree (to avoid duplicates). Provenance: `[observed]`
 for facts in this repository; `[inferred]` for reviewer judgment. The evidence
@@ -52,9 +52,9 @@ snapshot is repository commit
 anchors are the stable lookup keys below; any line number is only a hint within
 that snapshot.
 
-The four read-only passes were: auth (`src/auth/` plus server admission and
-routes); execution isolation (`src/runtime.rs`, local action hosts, Ibex and
-workerd/Cloudflare execution); storage/live/assets (`src/storage/`, live-query
+The four read-only passes were: auth (`crates/snapback/src/auth/` plus server admission and
+routes); execution isolation (`crates/snapback/src/runtime.rs`, local action hosts, Ibex and
+workerd/Cloudflare execution); storage/live/assets (`crates/snapback/src/storage/`, live-query
 matching, replication, and asset backends); and clients/CLI/Cloudflare
 (`packages/`, CLI surfaces, and `cloudflare/`). P1 means a shipped path can
 cause an authorization/confidentiality/integrity failure or duplicate external
@@ -162,7 +162,7 @@ Do not spend a landing on these as if they were missing:
 
 1. **Application/integration destination policy is several products.**
    Webhooks, local and Cloudflare action fetch, current Expo push, and
-   `src/ask.rs` each carry URL/transport rules. Ask accepts a manifest-selected
+   `crates/snapback/src/ask.rs` each carry URL/transport rules. Ask accepts a manifest-selected
    OpenAI-compatible base, sends a bearer credential, and disables redirects,
    but does not classify/pin DNS or refuse environment proxies. It belongs in
    [LLP 0251](./0251-outbound-destination-policy.rfc.md)'s shared floor because

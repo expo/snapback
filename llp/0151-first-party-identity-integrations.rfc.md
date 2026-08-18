@@ -109,7 +109,7 @@ welcome, hard dependency is not (Charlie, 2026-08-02).
 Nothing here changes LLP 0011's authorization model, its guest-claiming
 amendment, or LLP 0039's slice; where this RFC touches settled ground it
 adopts by reference. Today the only implemented mechanism is the built-in
-`email-code` provider (LLP 0057; `src/auth/provider.rs`); this RFC is the
+`email-code` provider (LLP 0057; `crates/snapback/src/auth/provider.rs`); this RFC is the
 roadmap for what stands beside it.
 
 ## Motivation
@@ -155,7 +155,7 @@ push with no identity counterpart.
   challenges are **explicitly outside** its durable outbox: plaintext codes
   are never durable intents, and a future provider adapter accepts only an
   ephemeral/capture-class payload handle at the delivery seam
-  (`llp/0045:24-29`; `src/auth/provider.rs` refuses production delivery
+  (`llp/0045:24-29`; `crates/snapback/src/auth/provider.rs` refuses production delivery
   until that adapter exists). This RFC's email and SMS mechanisms ride that
   *ephemeral challenge-delivery seam*, with 0045 owning transport adapters
   and vendor drivers, never challenge plaintext at rest.

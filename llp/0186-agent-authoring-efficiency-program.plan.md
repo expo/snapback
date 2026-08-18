@@ -394,7 +394,7 @@ Per-iteration costs, weighted by how many times an agent iterates:
   than paying Cargo cost per run: LANDED 2026-08-05 — the build-identity
   dirtiness fact is now scoped to the runtime binary's input set (shared
   pathspec definition in `scripts/runtime-build-inputs.txt`, read by
-  build.rs, verify-local-proof, bootstrap receipt reuse, and the kit's
+crates/snapback/build.rs, verify-local-proof, bootstrap receipt reuse, and the kit's
   expected-identity probes), so demo/doc edits no longer flip a
   `rerun-if-env-changed` input or forfeit the prebuilt rung
   (`issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md`).
@@ -813,14 +813,14 @@ landing change. The two affected rosetta records' `snapbackSources` were updated
 
 **`/llms.txt`: found already shipped, phasing defect corrected.** Contrary to this Plan's own W2
 text above ("there is no `/llms.txt`"), unrelated fleet work had already landed a working
-`GET /llms.txt` route (`src/server.rs`, `served_llms_txt`, covered by
-`tests/served_guide_v1.rs` and `tests/route_policy_v1.rs`) by the time this amendment was
+`GET /llms.txt` route (`crates/snapback/src/server.rs`, `served_llms_txt`, covered by
+`crates/snapback/tests/served_guide_v1.rs` and `crates/snapback/tests/route_policy_v1.rs`) by the time this amendment was
 written — the Plan's text was stale, not the repository. The shipped version, however, did not
 match this Plan's own phasing: it listed the complete flat single-file projection
 (`/_snapback/guide/flat.md`, 857 KB and growing) as its *first* link, ahead of the capability
 index, exactly the "pull the whole oversized corpus first" behavior W2's two-stage design exists
 to prevent — `issues/closed/20260806-guide-flat-projection-oversize.md` was then open, so the
-oversize condition this ordering risked was real. Corrected in `src/server.rs`'s `LLMS_TXT`
+oversize condition this ordering risked was real. Corrected in `crates/snapback/src/server.rs`'s `LLMS_TXT`
 constant to lead with the capability index and list the flat projection last, labeled as a large
 explicit fallback; `guide/index.md`'s description updated to match. The existing test only asserts
 substring presence of both links, not order, so no test needed to change; both still pass.

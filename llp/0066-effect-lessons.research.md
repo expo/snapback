@@ -97,7 +97,7 @@ discipline, not an execution requirement. Snapback's machinery is related but di
   `code`/`severity`/`details`, asserted on codes not prose
   (`guide/operating/diagnostics.md`). Codes are open strings and
   **multi-owner**: the framework emits `SNAPBACK_*` codes
-  (`src/diagnostic.rs`), while declarative mutations carry app-authored
+  (`crates/snapback/src/diagnostic.rs`), while declarative mutations carry app-authored
   typed failure codes (`elseError` / `guard` in
   `packages/snapback-codegen/define.mjs`) that the runtime emits verbatim.
   There is no generated, closed error union per operation (LLP 0004 types
@@ -129,7 +129,7 @@ Effect Schema derives encoder and decoder from one definition and turns
 parse failures into typed errors. Snapback applies the same
 single-source-of-truth principle to **Snapback-owned shared artifact
 shapes**: Rust types generate committed JSON Schemas with a CI drift gate
-(LLP 0037; `src/schema_export.rs`). Application data-model declarations are
+(LLP 0037; `crates/snapback/src/schema_export.rs`). Application data-model declarations are
 app-owned, source-authored JavaScript (`schema.mjs`, per
 `guide/getting-started/your-first-backend.md`), so the analogy is scoped —
 the systems enforce different things. The concrete difference `[inferred]`:
@@ -213,21 +213,21 @@ durable-operation scope, three mechanisms exist today:
 - **Cron re-runs** declare policy in the manifest: jobs carry `retryPolicy`
   (today `{ mode: 'NextTick' }` — advancing to the next nominal invocation —
   with unsupported modes rejected fail-closed at validation:
-  `SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED`, `src/cron.rs`;
+  `SNAPBACK_CRON_RETRY_MODE_UNIMPLEMENTED`, `crates/snapback/src/cron.rs`;
   `packages/snapback-codegen/index.mjs`; LLP 0028).
 - **Client mutation replay** is evidence-class-driven: connectivity
   ambiguity stays queued for redelivery under the same `clientMutationId`;
   a rejection carrying a **provider-core receipt** — origin response
   evidence within the active authority/trusted-origin context (LLP 0043),
   *not* transferable authenticity: `Receipt::Mutation` is Rust-typed with a
-  committed generated JSON Schema (`src/live_wire.rs`,
-  `src/schema_export.rs`) but carries no signature, and the local target
+  committed generated JSON Schema (`crates/snapback/src/live_wire.rs`,
+  `crates/snapback/src/schema_export.rs`) but carries no signature, and the local target
   has no public TLS edge (LLP 0000) — settles as failure
   (`packages/snapback-contract/index.mjs`). Replay preserves strict FIFO
   ordering and stops at unresolved ambiguity (LLP 0043).
 - **Non-retryable classes** are marked as such: the captured-read conflict
   path emits `SNAPBACK_MUTATION_CONFLICT` with a machine-readable
-  `retryPolicy: "reject"` detail (`src/storage.rs`; the explicit `readSet`
+  `retryPolicy: "reject"` detail (`crates/snapback/src/storage.rs`; the explicit `readSet`
   conflict path shares the code but not yet the detail field), and the
   guide documents conflicts as reconcile-don't-retry
   (`guide/backend/mutations.md`).
@@ -260,12 +260,12 @@ separate from scheduling. `[inferred]`
 Effect ships OpenTelemetry tracing as a first-class runtime concern.
 Snapback has `/inspect`, the admin console, and structured diagnostics, but
 **no OpenTelemetry or operational distributed-span instrumentation** (the
-`HostCallTrace` machinery in `src/runtime.rs` records V8/Ibex conformance
+`HostCallTrace` machinery in `crates/snapback/src/runtime.rs` records V8/Ibex conformance
 traces — a different purpose; LLP 0000 lists broader observability as future
 work). A correlation *substrate* exists as a **version-based contextual
 join**, not direct causal propagation: receipts carry mutation identity and
 snapshot version, live envelopes carry version without mutation identity
-(`src/live_wire.rs`), and the join holds only for confirmed,
+(`crates/snapback/src/live_wire.rs`), and the join holds only for confirmed,
 version-advancing mutations within one application version stream (rejected
 or no-op mutations need not produce fan-out). A future span model would
 strengthen these existing edges — e.g. propagating correlation identity

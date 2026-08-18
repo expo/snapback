@@ -12,7 +12,7 @@ remain evidence rather than enforced ceilings; source:
 `issues/20260802-author-decision-packet.md`). 2026-07-31 (v0.6, OQ1 answered with benchmark receipts — the
 same-file splice mechanism landed at `4d72c407` (normative text: LLP 0108
 §Same-file helper sharing), and the respecified benchmark ran twice on the
-real fresh-per-invocation runtime path (`helper_splice`, `src/bench.rs`)
+real fresh-per-invocation runtime path (`helper_splice`, `crates/snapback/src/bench.rs`)
 against LLP 0035's fresh-invocation metric: splice duplication is
 +0.5–3.1% p50 per invocation with cross-run rank inversion (noise-level)
 and retains no per-invocation memory; the dated answer with the table
@@ -35,7 +35,7 @@ accounting now includes bare `Date()` — codegen's static refusals cover
 `Math.random()`, `Date.now()`, and any-arity `new Date(...)` only, while
 the deterministic runtime's wrapped `Date` constructor denies bare
 `Date()` invocation and zero-arg `new Date()`
-(`DATE_CONSTRUCTOR_DENY_SOURCE`, `src/runtime.rs`), aliases falling
+(`DATE_CONSTRUCTOR_DENY_SOURCE`, `crates/snapback/src/runtime.rs`), aliases falling
 through to that boundary by design; actions retain both.)
 2026-07-30 (v0.4, round-3 delta review correction — Codex NOT
 READY on one fresh blocking item, the round-2 blocking and detail items
@@ -45,7 +45,7 @@ the v0.3 "flow-pure" lane rooted its taint analysis solely in
 context-derived capabilities, which cannot prove semantic purity — `Date`
 and `Math` are admitted globals, and the action tier deliberately retains
 their ambient clock/entropy members at runtime
-(`ambient_restriction_source`, `src/runtime.rs`: the deterministic tier
+(`ambient_restriction_source`, `crates/snapback/src/runtime.rs`: the deterministic tier
 denies `Date.now`/`Math.random`/zero-arg `new Date()`, actions keep the
 ambient-powered surface; codegen's static refusal covers direct spellings
 only, aliases falling through to that tiered boundary by design). The
@@ -70,8 +70,8 @@ code-verified, opaque-handler enforcement is keyed to the invocation's
 runtime kind and `uses` grant at the host boundary while declared
 reads/writes are unenforced evidence (declared-basis ceilings in
 `effect-ceiling.mjs`, `validate_effect_ceiling` returning without
-checking non-HostPlan runtimes in `src/manifest.rs`, no declared-table
-comparison in the `db.*` dispatch in `src/runtime.rs`) — so table-level
+checking non-HostPlan runtimes in `crates/snapback/src/manifest.rs`, no declared-table
+comparison in the `db.*` dispatch in `crates/snapback/src/runtime.rs`) — so table-level
 caller ceilings are recosted as a new mechanism and the axis extended to
 mutation, action/egress, and aliased-capability helper classes; Finding
 11, open question 7, and §Confidence carry the correction. Codex detail:
@@ -88,7 +88,7 @@ reviews in `reviews/0118-handler-composition-and-helper-reuse.fable.md` and
 READY; ten distinct concerns, all verified against the tree and applied,
 none refuted. Load-bearing: option 1's costs/risks, Finding 7, and open
 question 1 redone under the shipped VM lifecycle — LLP 0009 retired DK-4
-warm reuse on 2026-07-27 and `src/warm_vm.rs` ships a no-op pool, so the
+warm reuse on 2026-07-27 and `crates/snapback/src/warm_vm.rs` ships a no-op pool, so the
 group-bundle trade is re-analyzed for fresh-per-invocation and for the
 conditional return of pooling; option 1a (same-file lexical helper closure)
 added as a staged slice — both motivating instances are same-file, so it can
@@ -221,7 +221,7 @@ dependencies, which is why every sharing option below that changes executable
 bytes is a v2 hash format, not an extractor tweak.
 
 The runtime backstop is independent of the static closure: handlers execute in
-the restricted no-eval VM (`ex_hermes_create_no_eval`, `src/runtime.rs`), and
+the restricted no-eval VM (`ex_hermes_create_no_eval`, `crates/snapback/src/runtime.rs`), and
 the runtime probes constructor-walk escapes (`Object.constructor.constructor`,
 `Reflect.apply(Function)`, `Reflect.construct(Function)`, the AsyncFunction
 constructor) before application source evaluates.
@@ -231,9 +231,9 @@ analysis below, and it changed three days before this document was first
 authored: LLP 0009 retired DK-4 warm-VM reuse on 2026-07-27 because current
 upstream Ibex binds evaluation, async-failure inspection, value release, and
 destruction to the creating OS thread while Snapback's blocking workers may
-change threads between invocations. `src/warm_vm.rs` now ships `WarmVmPool`
+change threads between invocations. `crates/snapback/src/warm_vm.rs` now ships `WarmVmPool`
 as an explicit no-op (`enabled()` returns `false`), the capability manifest
-reports `vmLifecycle: "fresh-per-invocation"` (`src/manifest.rs`; the old
+reports `vmLifecycle: "fresh-per-invocation"` (`crates/snapback/src/manifest.rs`; the old
 `warm-pooled-reset` survives only as a recognized historical string), and the
 former four-VM pool bound lives in 0009's section marked "Historical /
 retired 2026-07-27." The hosted posture was always fresh per invocation, and
@@ -415,7 +415,7 @@ invocation at any arity and zero-arg `new Date()` while keeping
 explicit-timestamp construction and the `Date.parse`/`Date.UTC` statics,
 all with `SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED`
 (`DATE_CONSTRUCTOR_DENY_SOURCE`/`ambient_restriction_source`,
-`src/runtime.rs`; the workerd strip denies the same surface on the V8
+`crates/snapback/src/runtime.rs`; the workerd strip denies the same surface on the V8
 leg), while actions keep the ambient-powered, nondeterministic surface by
 design — the denial block is guarded on non-action mode. A
 context-capability-free helper that reaches an aliased clock or entropy
@@ -464,11 +464,11 @@ opaque handlers `basis: 'declared'` — author declarations restated,
 expressly without static proof
 (`packages/snapback-codegen/effect-ceiling.mjs`); load-time ceiling
 validation returns without checking non-HostPlan runtimes
-(`validate_effect_ceiling`, `src/manifest.rs`); and the dispatcher parses
+(`validate_effect_ceiling`, `crates/snapback/src/manifest.rs`); and the dispatcher parses
 the handler-supplied query plan and executes it — capturing OCC read
 dependencies — without comparing the plan's table, or the targets of
 `db.insert`/`db.patch`/`db.delete`, against the operation's declared read
-and write sets (`handle_host_call`, `src/runtime.rs`). Two consequences
+and write sets (`handle_host_call`, `crates/snapback/src/runtime.rs`). Two consequences
 follow. Kind- and grant-scoped sharing has a shipped backstop: because
 enforcement keys on the invocation, a shared helper inherits its
 *consumer's* boundaries automatically — a write inside a helper invoked
@@ -913,7 +913,7 @@ jointly with 0120's frame, not as an eighth option in this one.
    option 4 is an evidence regression even where arguably security-adequate.
 7. Option 1's group-bundle emission was designed for a VM lifecycle that no
    longer ships: LLP 0009 retired DK-4 warm reuse on 2026-07-27, the pool is
-   a code-verified no-op (`src/warm_vm.rs`), and no current profile — local,
+   a code-verified no-op (`crates/snapback/src/warm_vm.rs`), and no current profile — local,
    hosted, or workerd twin — retains warm module reuse. Under the real
    fresh-per-invocation lifecycle the group bundle keeps its
    implementation-identity blast radius (one helper edit re-hashes every
@@ -967,7 +967,7 @@ jointly with 0120's frame, not as an eighth option in this one.
     and `Math` are admitted globals whose ambient surface (`Date.now`,
     `Math.random`, bare `Date()` invocation, zero-arg `new Date()`) is
     runtime-denied only in the deterministic tier — actions retain it by
-    design (`src/runtime.rs`) — so an ambient-reading helper passes the
+    design (`crates/snapback/src/runtime.rs`) — so an ambient-reading helper passes the
     gate yet is nondeterministic under action consumers. Second,
     capability flow rules out no side effect: a passing helper can still
     mutate its arguments, captured bindings, or module-level state in
@@ -997,15 +997,15 @@ dependency-graph-free v1 implementation hash
 module-graph resolver, its refusal codes, its esbuild-hosted fail-closed
 plugin structure, and the `DEFINITION_PACKAGE_IMPORTS` two-entry allowlist;
 the no-eval VM constructor and runtime constructor-walk probes
-(`src/runtime.rs`); the opaque-handler enforcement facts in §the
+(`crates/snapback/src/runtime.rs`); the opaque-handler enforcement facts in §the
 cross-cutting axis — declared-basis effect ceilings without static proof
 for JS/Ibex handlers (`packages/snapback-codegen/effect-ceiling.mjs`),
 load-time ceiling validation returning without checking non-HostPlan
-runtimes (`validate_effect_ceiling`, `src/manifest.rs`), and mode-keyed
+runtimes (`validate_effect_ceiling`, `crates/snapback/src/manifest.rs`), and mode-keyed
 host-call enforcement with no declared-table comparison for
 `db.query`/`db.insert`/`db.patch`/`db.delete`, plus the per-invocation
 `uses` grant and its `SNAPBACK_CONFIG_UNDECLARED` refusal
-(`handle_host_call`, `src/runtime.rs`); the tiered ambient-nondeterminism
+(`handle_host_call`, `crates/snapback/src/runtime.rs`); the tiered ambient-nondeterminism
 surface — `Date` and `Math` on the extractor's `ALLOWED_GLOBALS`,
 codegen's kind-blind static refusal of the direct
 `Math.random()`/`Date.now()`/any-arity `new Date(...)` spellings (bare
@@ -1018,11 +1018,11 @@ bare `Date()` invocation and zero-arg `new Date()` while keeping
 explicit-timestamp construction and `Date.parse`/`Date.UTC`, actions
 retaining the ambient surface
 (`DATE_CONSTRUCTOR_DENY_SOURCE`/`ambient_restriction_source`,
-`src/runtime.rs`; the matching wrapper and member denials in
+`crates/snapback/src/runtime.rs`; the matching wrapper and member denials in
 `packages/snapback-harness/workerd/strip.mjs`); the retired warm pool —
 `WarmVmPool` as a no-op
-(`src/warm_vm.rs`) with its `@ref` to LLP 0009's DK-4 retirement — and the
-manifest's `vmLifecycle: "fresh-per-invocation"` default (`src/manifest.rs`);
+(`crates/snapback/src/warm_vm.rs`) with its `@ref` to LLP 0009's DK-4 retirement — and the
+manifest's `vmLifecycle: "fresh-per-invocation"` default (`crates/snapback/src/manifest.rs`);
 LLP 0010's single-file legacy handler profile.
 
 **Diary-reported** (primary observational evidence, not independently rerun):
@@ -1068,7 +1068,7 @@ a small increment while near-identical detection is not (option 5).
    landed at `4d72c407` (LLP 0127 decision 6; normative text in LLP 0108
    §Same-file helper sharing). The empirical question: the respecified
    benchmark ran as the `helper_splice` section of the LLP 0035 harness
-   (`src/bench.rs`, `snapback-bench`), on the real fresh-per-invocation
+   (`crates/snapback/src/bench.rs`, `snapback-bench`), on the real fresh-per-invocation
    runtime path — real Hermes create+eval through `LocalSnapback`,
    pooling disabled, per-invocation `Instant` samples — over three
    per-operation modules in the exact splice-emitted byte shape (the

@@ -819,7 +819,7 @@ because there are no elements. What remains is a domain predicate, and this
 RFC already has the right home for it.
 
 **The `FieldType` extension.** `FieldType::Enum { values }` joins the closed
-vocabulary in `src/manifest.rs`. It is a distinct variant rather than a
+vocabulary in `crates/snapback/src/manifest.rs`. It is a distinct variant rather than a
 `String` carrying a constraint because the retype gates compare `FieldType`
 values, and the transitions below have to be distinguishable from each other.
 Codegen emits `{"Enum": {"values": ["crew", "user"]}}` in the schema manifest;

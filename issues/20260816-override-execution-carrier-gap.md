@@ -9,12 +9,12 @@ e2e deliverable stopped on the brief's real-defect rule rather than paper over t
 ## Facts (verified in this landing's lane)
 
 - `VisibilityGovernanceActivationV1` carries only program/baseline digests,
-  fixture-profile tuples, and production windows (`src/visibility_governance.rs` ~48-64);
+  fixture-profile tuples, and production windows (`crates/snapback/src/visibility_governance.rs` ~48-64);
   it has no normalized alternate row scope, no override-id→operation binding, and no
   authority-mode admission carrier.
 - Codegen keeps normalized overrides in the `visibilityOverrides` projection only
   (`packages/snapback-codegen/visibility-governance.mjs` ~2009-2029); the executable
-  manifest never receives them, per `src/manifest.rs` ~738-748's review-facts boundary.
+  manifest never receives them, per `crates/snapback/src/manifest.rs` ~738-748's review-facts boundary.
 - The host validates at activation/admin only; there is no override-backed read dispatch
   and no per-read expiry or fixture-fence check.
 

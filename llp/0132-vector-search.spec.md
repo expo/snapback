@@ -902,7 +902,7 @@ drift quarantines the index and fails closed.
 
 Executable evidence retained by this landing includes:
 
-- `src/vector/sqlite.rs` tests the Research Room-shaped 32-dimensional
+- `crates/snapback/src/vector/sqlite.rs` tests the Research Room-shaped 32-dimensional
   public/owner fixture end to end, both metrics and tie directions, declared
   filters and stored fields, cross-owner noninterference counters, mutation
   freshness, transfer and corpus overflow rollback, activation/classification

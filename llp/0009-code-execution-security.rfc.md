@@ -150,7 +150,7 @@ the floor at the result channel instead of assuming it: the invoke IIFE
 resolves to a tagged `{"r": …}` envelope constructed only after the awaited
 handler value exists, and an untagged output is a failed invocation —
 `SNAPBACK_HANDLER_DID_NOT_SETTLE`, nothing committed (ENG-23430; pinned by
-`tests/handler_settlement_v0.rs`).
+`crates/snapback/tests/handler_settlement_v0.rs`).
 V8 passes natively. Absent a host meeting that floor, "pluggable runtime, one
 programming model" is not true — which is exactly what bit Valet, and which the
 `0003` execution-boundary revision now addresses at the integration level.
@@ -217,7 +217,7 @@ Why defer rather than build now:
 
 **Capability truthfulness note.** `async_handler_completion: Available` is a
 constant in the capability report, *verified by the conformance-floor tests*
-(the async-handler suites in `tests/local_v0.rs`) rather than computed at
+(the async-handler suites in `crates/snapback/tests/local_v0.rs`) rather than computed at
 report time. Computed-not-asserted limit fields land with whichever V8
 runtime ships first; until then the suite-verified constant plus the
 Missing-declared limits are the honest posture.
@@ -417,8 +417,8 @@ claims do not describe the current runtime.
 > **Historical / retired 2026-07-27.** The gated leg once shipped. This
 > subsection records that former design: what the warm path reused, what
 > proved the VM clean between invocations, and — most importantly — the
-> limits stated honestly. The implementation lived in `src/warm_vm.rs`
-> (pool, setup/reset sources) and `src/runtime.rs` (the warm orchestration
+> limits stated honestly. The implementation lived in `crates/snapback/src/warm_vm.rs`
+> (pool, setup/reset sources) and `crates/snapback/src/runtime.rs` (the warm orchestration
 > inside `run_ibex_handler_with_context`).
 
 **Scope fences.** Warm VMs serve **query and mutation** invocations of
@@ -717,7 +717,7 @@ poisoned VM never sits in the pool.
   tagged as the quiescence phase. A malformed report or a vendored-runtime
   upgrade that makes detection unsupported fails the invocation closed. A VM
   with any unhandled rejection is burned instead of returned to the warm pool.
-  `tests/unhandled_rejection_v0.rs` and the adversarial twin tests pin warm,
+  `crates/snapback/tests/unhandled_rejection_v0.rs` and the adversarial twin tests pin warm,
   fresh, action, hostile-reason, safe-rendering, native-await, adoption,
   combinator, constructor-capability, and Proxy-receiver behavior (ENG-24559).
   Every continuation that does run therefore runs inside
@@ -1151,7 +1151,7 @@ half that was silently weakening the gate.
 The effective enforcement surface is unchanged, and was never solely the Ibex
 gate: JS ambient denial shadowing, the no-eval constructor, and
 `snapback_host_call` as the only host dispatcher all held on every VM (pinned
-by `tests/runtime_qualify_posture_v0.rs`). This amendment restores the
+by `crates/snapback/tests/runtime_qualify_posture_v0.rs`). This amendment restores the
 defense-in-depth layer beneath them, and
 `runtime::strict_host_context_tests::every_vm_claims_its_own_strict_context`
 pins the claim itself — the observable that distinguishes a claimed strict

@@ -4,7 +4,7 @@
 
 ## What
 
-`src/local.rs:10105-10145, 10192-10196, 10341, 10401`; `src/assets_store.rs:59`
+`crates/snapback/src/local.rs:10105-10145, 10192-10196, 10341, 10401`; `crates/snapback/src/assets_store.rs:59`
 (`read → Vec<u8>`).
 
 Finalize reads the full staging object into a `Vec<u8>` for strip/inspect, again
@@ -48,6 +48,6 @@ Streaming copy_from_staging added and used for primary publication; buffered ima
 
 ## Remainder (2026-08-12 review) — S3 never got the streaming copy
 
-Local FS overrides `copy_from_staging` with a streaming copy (`src/assets_store.rs:283-300`). S3 does not (`src/assets_s3.rs` has no override), so Phase B uses the trait default: `read` → `Vec<u8>` → `put_blob_idempotent` (`src/assets_store.rs:86-96`). S3 `read` is a full GET. A multi-hundred-MB video still peaks at ~1× object RSS on the unlocked prepare **and** again on the put. The 256 MiB buffered-finalizer ceiling only applies when a location policy is set.
+Local FS overrides `copy_from_staging` with a streaming copy (`crates/snapback/src/assets_store.rs:283-300`). S3 does not (`crates/snapback/src/assets_s3.rs` has no override), so Phase B uses the trait default: `read` → `Vec<u8>` → `put_blob_idempotent` (`crates/snapback/src/assets_store.rs:86-96`). S3 `read` is a full GET. A multi-hundred-MB video still peaks at ~1× object RSS on the unlocked prepare **and** again on the put. The 256 MiB buffered-finalizer ceiling only applies when a location policy is set.
 
 *Fix:* S3 server-side copy (or streamed GET→PUT) for `copy_from_staging`. Keep the hash-verify step.

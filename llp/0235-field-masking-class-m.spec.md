@@ -78,7 +78,7 @@ or relationship-row contents.
 Class M **wraps and nests** `TableVisibilityV1`; it does not structurally extend
 that deny-unknown-fields enum and is not a second policy system. The `rows`
 member holds the existing Rust-owned closed union unchanged
-(`src/manifest.rs:1256-1276`), while `relations` and `fields` are siblings in one
+(`crates/snapback/src/manifest.rs:1256-1276`), while `relations` and `fields` are siblings in one
 versioned table-policy carrier at the existing `.visibility(...)` locus. Class R
 still decides whether the row exists before class M decides which cells are
 disclosed. Reads and the deferred write sibling consume that one carrier, so
@@ -89,11 +89,11 @@ The shipped direct-plan carrier is not yet sufficient. Codegen copies only a
 restricted table policy and omits `tableVisibility` for `public-read` tables
 (`packages/snapback-codegen/index.mjs:2888-2893`); activation likewise compares
 only policies for which `is_restricted()` is true
-(`src/local.rs:27405-27425`). Class M requires field treatments on every table,
+(`crates/snapback/src/local.rs:27405-27425`). Class M requires field treatments on every table,
 public tables included. Its versioned plan carrier must therefore carry the
 complete schema-derived table policy for public and restricted tables alike,
 and activation must compare that complete class-R/M carrier before storage
-lowers row visibility (`src/storage.rs:9475-9489`). Historical omission of a
+lowers row visibility (`crates/snapback/src/storage.rs:9475-9489`). Historical omission of a
 public row predicate may remain a legacy plan encoding, but such a plan is not
 class-M activatable.
 
@@ -185,7 +185,7 @@ an unreadable related row as proof.
 
 Class M deliberately has a policy-condition AST rather than reusing a
 `FilterExpr` fragment. `FilterExpr` is selection syntax with `Eq`, `In`, and
-ordered comparisons (`src/manifest.rs:8901-8916`) over a broader query-value
+ordered comparisons (`crates/snapback/src/manifest.rs:8901-8916`) over a broader query-value
 vocabulary; class M needs sealed principal and declared-relation operands while
 excluding query arguments, ranges, and other ambient expression forms. Reusing
 the query type would couple future query-operator growth to disclosure authority.
@@ -280,7 +280,7 @@ joined row's `revealed` field cannot prove the declared
 `votes.roundId → rounds._id` reveal arm. This rule applies to the arbitrary
 one-to-four equality pairs admitted by `RelationalQueryPlan`; syntactic equality
 of `rounds.revealed == true` is insufficient
-(`src/manifest.rs:7662-7715`).
+(`crates/snapback/src/manifest.rs:7662-7715`).
 
 For disclosure condition `D` with branches `D1..Dn` and composed selection
 predicate `P` with satisfiable branches `P1..Pm`, generation proves disclosure
@@ -337,7 +337,7 @@ query returning the same rows may count them and paginate them normally. It may
 not filter, group, order, aggregate, pick an index, or choose a fast path based
 on hidden values. Row suppression is not a class-M fallback. The current
 `ctx.db.patch` spelling accepts an object of values rather than a patch-operation
-language (`src/runtime.rs:1732-1745`); adding copy/move later would be a new
+language (`crates/snapback/src/runtime.rs:1732-1745`); adding copy/move later would be a new
 position-10 operator and would default to refusal.
 
 Constraints are an outcome channel, not merely an error-text channel. A unique
@@ -355,7 +355,7 @@ conflicting row is proved disclosed to the caller before the conflict outcome is
 observable. The shipped `.index(..., { unique: true })` is author-declarable
 (`packages/snapback-codegen/define.mjs:855-863`), and the current SQLite mapper
 adds the raw engine message as public `error` detail
-(`src/storage.rs:13821-13846`); that detail and the current unguarded outcome are
+(`crates/snapback/src/storage.rs:13821-13846`); that detail and the current unguarded outcome are
 not class-M conforming.
 
 **Version/time carriers are positions too.** Raw row `_version`, `_updatedAt`,
@@ -378,18 +378,18 @@ floors can reveal that a hidden-only write occurred. Class M separates them:
   without advancing it when the visible result is byte-identical.
 
 The server currently returns the pinned database's current version in an Ibex
-query output (`src/runtime.rs:662-668`), so that carrier is not yet conforming
+query output (`crates/snapback/src/runtime.rs:662-668`), so that carrier is not yet conforming
 for class M. Until the client and target negotiate the view-revision carrier,
 admission fails with `SNAPBACK_FIELD_MASK_VIEW_VERSION_UNAVAILABLE`.
 
 The current plan space already demonstrates why the inventory is per class.
 `QueryPlan` contains filters, `membership_filters`, order, limit and an index
-hint (`src/manifest.rs:8604-8638`). The membership predicates are especially
+hint (`crates/snapback/src/manifest.rs:8604-8638`). The membership predicates are especially
 relevant to §2.1 because they add an opaque narrowing node to the composed
 selection predicate. Relational plans add join keys, two source
 visibility lists, projection, ordering and two access indexes
-(`src/manifest.rs:7662-7715`). Bounded-children adds a relationship lookup,
-order, take and two projections (`src/manifest.rs:7717-7755`). None inherits a
+(`crates/snapback/src/manifest.rs:7662-7715`). Bounded-children adds a relationship lookup,
+order, take and two projections (`crates/snapback/src/manifest.rs:7717-7755`). None inherits a
 class-M claim merely because single-table queries are certified.
 
 ### 2.3 The optimizer is inside the security boundary
@@ -440,17 +440,17 @@ conservative executor whose access path is selected by Snapback, not by the
 database optimizer.
 
 On the current SQLite path, `validate_query_index` verifies only that an authored
-index name exists (`src/storage.rs:9267-9297`), while `build_query_sql` emits SQL
-and lets SQLite choose execution (`src/storage.rs:9300-9333`). Ordering is then
-lowered directly over the raw field (`src/storage.rs:9525-9547`). These paths do
+index name exists (`crates/snapback/src/storage.rs:9267-9297`), while `build_query_sql` emits SQL
+and lets SQLite choose execution (`crates/snapback/src/storage.rs:9300-9333`). Ordering is then
+lowered directly over the raw field (`crates/snapback/src/storage.rs:9525-9547`). These paths do
 not constitute a class-M certificate. An implementation must add the physical
 fence at this storage/target seam; a codegen-only authored-AST check is
 non-conforming.
 
 Activation re-runs both the logical walker and the physical certificate check.
 The existing activation preflight already compares a direct plan's exact
-schema-derived class-R policy (`src/local.rs:27405-27425`) and validates filter
-and order field references (`src/local.rs:27461-27497`). Class M extends that
+schema-derived class-R policy (`crates/snapback/src/local.rs:27405-27425`) and validates filter
+and order field references (`crates/snapback/src/local.rs:27461-27497`). Class M extends that
 preflight rather than trusting generated artifacts alone.
 
 ## 3. JS handlers and `ctx.db`
@@ -469,8 +469,8 @@ their declared treatment; no stored field is silently omitted. Related-row
 condition lookups execute in the host against the invocation's pinned persisted
 snapshot and enter the captured dependency set. They never read the buffered
 write overlay. The current host seam dispatches `db.query` and `db.get` before
-serializing their results to JS (`src/runtime.rs:1623-1701`,
-`src/runtime.rs:1703-1714`); that is the required masking locus.
+serializing their results to JS (`crates/snapback/src/runtime.rs:1623-1701`,
+`crates/snapback/src/runtime.rs:1703-1714`); that is the required masking locus.
 
 This is a deliberate exception to ordinary handler read-your-writes. The row
 query/get result may include the existing buffered overlay, but every class-M
@@ -485,7 +485,7 @@ declassification operation; class M alone does not infer write authority or
 make a speculative overlay an authorization fact. If the source row or a
 condition input exists only in the overlay, it establishes no disclosure arm.
 The existing runtime applies buffered writes before returning `db.query` and
-`db.get` rows (`src/runtime.rs:1641-1690`, `src/runtime.rs:1711-1714`), so an
+`db.get` rows (`crates/snapback/src/runtime.rs:1641-1690`, `crates/snapback/src/runtime.rs:1711-1714`), so an
 implementation must keep condition evaluation explicitly outside that merge.
 
 Masking after a handler-authored database filter would still be too late.
@@ -530,7 +530,7 @@ replacement-style.
   never to the output property name or operation style.
 
 Today `ctx.db.patch` reads the stored row, overlays only the authored patch, and
-buffers the patch (`src/runtime.rs:1732-1745`); this supports preserve-on-
+buffers the patch (`crates/snapback/src/runtime.rs:1732-1745`); this supports preserve-on-
 omission but does not yet carry the explicit intent needed to write a field
 masked from the handler. This Spec does not grant write authority.
 Insert/update/delete, post-update checks and egress remain the one-IR write
@@ -539,13 +539,13 @@ sibling required by LLP 0231 §D6.
 ### 3.2 Composition with the protected-query profile
 
 The protected-query allowlist already admits captured `db.query`/`db.get` and
-rejects unclassified host operations (`src/runtime.rs:1577-1615`). Class-M
+rejects unclassified host operations (`crates/snapback/src/runtime.rs:1577-1615`). Class-M
 condition reads and relation lookups are `DatabaseCaptured`: they share the
 invocation's pinned snapshot, appear in the captured read/dependency witness,
 and are replayed identically on rerun. No new mutable host-input class is added.
 Actions use their existing host locking policy, but their `ctx.db` reads receive
 the same class-R/M handler view; “action” is not a raw-data authority
-(`src/storage.rs:6013-6029`).
+(`crates/snapback/src/storage.rs:6013-6029`).
 
 ## 4. Field addition fails closed
 
@@ -804,7 +804,7 @@ acceptance retains those checks and adds:
 declares it today (`demos/pointing-room/snapback/functions.mjs:37-53`); codegen
 validates only that its named fields exist in the result contract
 (`packages/snapback-codegen/index.mjs:4230-4241`), and the runtime manifest says
-it carries no noninterference guarantee (`src/manifest.rs:7353-7361`).
+it carries no noninterference guarantee (`crates/snapback/src/manifest.rs:7353-7361`).
 
 Retirement is staged and fail-closed:
 
@@ -1001,7 +1001,7 @@ Class M is not implemented or claimable until all of the following pass:
    a decidable implication procedure and new optimizer fixtures. It must not
    widen the v1 parser by accepting arbitrary expressions first.
 5. **Aggregate APIs.** The current core `QueryPlan` has no grouping/aggregate
-   nodes (`src/manifest.rs:8604-8638`), but other/future surfaces do. Should a
+   nodes (`crates/snapback/src/manifest.rs:8604-8638`), but other/future surfaces do. Should a
    separate aggregate plan class support only count-over-row-membership while
    refusing every masked-field input, or wait for a broader provenance model?
 6. **Exact timing proof.** What test harness and deployment envelope are strong

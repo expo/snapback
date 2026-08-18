@@ -198,7 +198,7 @@ lift it without a second migration.
   like.
 - **The pieces this seam composes with have landed — with one corrected
   claim.** The `ctx.fetch` → `host.fetch` action egress seam is in the
-  runtime (src/runtime.rs, LLP 0049 §Action Egress); declared config
+  runtime (crates/snapback/src/runtime.rs, LLP 0049 §Action Egress); declared config
   grants exist (LLP 0036 `uses` + `ctx.secrets`); cron actions exist
   (LLP 0028); the shipped one-off scheduling surface is the
   mutation-produced `ctx.jobs.enqueue` whose v1 executes callees as
@@ -890,7 +890,7 @@ lane without widening custody:
   bounded HTTP-200 response that passes the receipt parser. The seventh lost
   poll remains durably due so the next sweep terminalizes it rather than
   stranding it.
-- `src/push/fake_expo.rs` is the shared deterministic carrier. Its acceptance
+- `crates/snapback/src/push/fake_expo.rs` is the shared deterministic carrier. Its acceptance
   uses the production HTTP function for a mixed ticket batch and receipt poll,
   proves both provider retirement stages, dedupe and zero-target behavior,
   direct authorization refusal, and a socket close after request bytes. The

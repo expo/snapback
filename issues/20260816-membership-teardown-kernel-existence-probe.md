@@ -6,7 +6,7 @@ xhigh check-order enumeration, latent flag; no production caller today) ·
 
 **Related:** LLP 0240 D3 landing (ordering-oracle closure), LLP 0056
 
-The kernel-only `plan_membership_teardown` (src/storage/membership_plans.rs
+The kernel-only `plan_membership_teardown` (crates/snapback/src/storage/membership_plans.rs
 ~:1437-1452 at review time) reads resource existence with no caller role
 admission. Every production and generated path was proven oracle-free by the
 22-entry-point check-order enumeration; this kernel has no production caller,

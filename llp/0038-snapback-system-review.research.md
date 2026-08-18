@@ -57,7 +57,7 @@ returns. Detailed findings and ranked recommendations follow.
 
 This review was produced in one session on 2026-07-05 from primary sources in
 this repository: the full LLP corpus (0000–0037, reviews, tombstones), the Rust
-implementation (`src/`, `build.rs`, `tests/`), the JS surface (`packages/`,
+implementation (`crates/snapback/src/`, `build.rs`, `tests/`), the JS surface (`packages/`,
 `demos/`, `schemas/`, `admin-ui/`, `scripts/`, CI workflows), all eleven demo
 diaries, and a sampling of the cross-family review corpus. Portions of the
 reading were performed by parallel sub-agent passes; every load-bearing claim
@@ -70,7 +70,7 @@ numbers cite [LLP 0035](./0035-local-target-benchmarks.research.md) and carry
 its caveats (one developer machine, order-of-magnitude confidence).
 
 Scale of the artifact under review `[observed]`: ~21,000 lines of Rust
-(`src/`), ~26,000 lines of JS across packages and demos, ~21,000 lines of LLP
+(`crates/snapback/src/`), ~26,000 lines of JS across packages and demos, ~21,000 lines of LLP
 design documents (38 documents), 11 diaries, 48 review documents, 216 Rust test
 functions, 225 commits over ten calendar days, one human author/ratifier plus
 agent labor.
@@ -170,7 +170,7 @@ stays fresh-per-invocation by policy.
 
 What the runtime cannot do is as load-bearing as what it can `[observed]`: the
 local engine has **no enforceable wall-clock or CPU limit** — the capability
-manifest reports `wall_clock_timeout` Missing, and `src/config.rs` documents
+manifest reports `wall_clock_timeout` Missing, and `crates/snapback/src/config.rs` documents
 "the local runtime has no handler timeout at all yet." Valet shipped fictional
 timeout claims; Snapback reports the gap honestly, which is better, but the gap
 is still open (see Part 4).
@@ -269,7 +269,7 @@ absorbed its asks `[confirmed - diaries 0006/0011]`.
 
 ### What exists versus what is design
 
-The capability-gap list in `src/manifest.rs` is the honest inventory
+The capability-gap list in `crates/snapback/src/manifest.rs` is the honest inventory
 `[observed]`. Built and real on the local target: the server + SQLite core,
 both function styles, captured-read concurrency, matched live queries with
 `live_delta`, the multiplexed wire protocol, ephemeral realtime, cron, secrets,
@@ -501,7 +501,7 @@ Ranked by expected impact on the thesis, not by ease of fix.
 5. **No handler timeout + actions hold the global write mutex.** A hung
    outbound `fetch` in an action wedges all mutations, cron, and (for
    in-memory DBs) all queries, indefinitely; only the file-backed read lane
-   and ephemeral stay alive `[observed — src/config.rs:20-25 admits the gap;
+   and ephemeral stay alive `[observed — crates/snapback/src/config.rs:20-25 admits the gap;
    /action/{name} runs under with_snapback]`. This is simultaneously the
    worst availability property and a known, documented, capability-reported
    gap. It converts one slow third-party API into a dead app.
@@ -510,13 +510,13 @@ Ranked by expected impact on the thesis, not by ease of fix.
    `GET /outbox/{connection_id}` is classified Public and
    `GET /live/{connection_id}/stream` upgrades with no check, so knowledge of
    a connection id suffices to drain another client's live results
-   `[observed — src/server.rs:225-234, 1561-1575]`. Public `/inspect` also
+   `[observed — crates/snapback/src/server.rs:225-234, 1561-1575]`. Public `/inspect` also
    returns complete JS module source. Loopback CORS deliberately echoes any
    localhost origin and allowlists the admin-token header, so any local web
    page can drive a token-less loopback admin API `[observed]`. All of this
    is defensible *only* under "trusted local, loopback bind" — and the
    admin-token comparison is non-constant-time (`c == p`,
-   `src/admin.rs:387`). The moment any bind leaves loopback, this posture is
+   `crates/snapback/src/admin.rs:387`). The moment any bind leaves loopback, this posture is
    fatal; the mitigation today is documentation and defaults, not
    enforcement.
 7. **The fan-out cliff outside the delta subset.** Ibex-executed live queries

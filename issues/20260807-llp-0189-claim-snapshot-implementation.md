@@ -73,7 +73,7 @@ landing without rotation.
 
 Pieces 1 and 2 are implemented in the publication oracle. A v3 qualification
 digest binds a canonical `implementationScope` from the receipt itself; the
-derived-fork scope is `src/`, Cargo/build/submodule authority, and the two
+derived-fork scope is `crates/snapback/src/`, Cargo/build/submodule authority, and the two
 publication-checker modules. Ambient v2 receipts remain readable while
 withheld, but cannot publish without a fresh scoped qualification.
 
@@ -91,7 +91,7 @@ transfer to registered canonical gates:
 The transfer validator refuses a missing or falsely named gate. Combined-tree
 evaluation now returns `stands` with enumerated out-of-scope drift, or
 `invalid` with enumerated scoped drift. Fixtures prove both directions and
-reproduce all nine wave changes standing while a one-byte `src/` change
+reproduce all nine wave changes standing while a one-byte `crates/snapback/src/` change
 refuses.
 
 Piece 3 (battery-red ticket automation) remains open. The live storage and
@@ -169,7 +169,7 @@ qualification C. The oracle now keeps that record published and returns
 automation can ticket the next natural requalification cycle.
 
 This supersedes the earlier piece-2 fixture expectation that one changed
-`src/` byte immediately makes the published record invalid. The replacement
+`crates/snapback/src/` byte immediately makes the published record invalid. The replacement
 fixture proves that one-byte evolution stands with typed requalification due,
 and a companion fixture proves that publication-chain tampering still refuses
 while that state is pending. Qualification-C digest and scope mismatches,
@@ -281,7 +281,7 @@ The first maturity repair added a generic five-path D-4 authority floor before
 trusting a receipt's scope, shared codegen's closed target-profile population,
 required every supporting profile, and resolved each unrelated-red reference
 to an open signature-keyed battery ticket at the candidate parent. That floor
-closed only the reported `README.md`/`src/manifest.rs` probe; it was not a
+closed only the reported `README.md`/`crates/snapback/src/manifest.rs` probe; it was not a
 complete per-capability surface. The delta review correctly retained one
 MATERIAL: a floor-only receipt could still omit runtime modules, semantic
 checkers, conformance inputs, and capability manifests. LLP 0134's staged-audit
@@ -306,7 +306,7 @@ the capability's own authority:
 
 The relation/activity pair is the first registry-backed entry. Its required
 surface is derived from
-`src/local-relation-activity-publication.v1.json` (including `src/local.rs`
+`crates/snapback/src/local-relation-activity-publication.v1.json` (including `crates/snapback/src/local.rs`
 and the schema-source modules), its conformance receipt/vectors/checker, the
 maturity semantic checker, and both E2 capability manifests. A receipt that
 names only the five generic paths now refuses and lists the omitted runtime and

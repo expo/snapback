@@ -25,7 +25,7 @@ this feature:
    corpus," so the guide MCP-resource shas cannot be refreshed to match this
    slice's diagnostics regen. The `guide` drift gate fails at baseline and is
    attribution-non-blocking.
-2. **local-store-publication** will flag `src/local.rs` again (it is in the
+2. **local-store-publication** will flag `crates/snapback/src/local.rs` again (it is in the
    hashed publication carrier; this slice adds provenance accessors). As with
    slice 1, a concurrent `chore(authorities): reconcile` is expected to
    re-measure and clear it automatically; if not, run

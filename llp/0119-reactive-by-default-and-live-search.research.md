@@ -20,7 +20,7 @@ Diary 0030 diagnosis question); option 4 gains a current-integration-
 blockers inventory — the `SearchQuery` matcher arm is unreachable through
 any valid subscription today — and "mostly composition" is reclassified as
 the option's hypothesis (Finding 4 likewise); option 5's posting-union
-claim corrected to what `src/search/sqlite.rs` computes, with the missing
+claim corrected to what `crates/snapback/src/search/sqlite.rs` computes, with the missing
 notification carrier and precision case list added; the Convex internal
 mechanism narrowed to the documented contract with the sharper account
 marked inference; settled-sounding judgments ("tiny server cost", "remove
@@ -107,19 +107,19 @@ boot.
 ## What Snapback does today
 
 **The classification.** Snapback functions carry an explicit kind —
-`FunctionKind { Query, Mutation, LiveQuery, Action }` in `src/manifest.rs` —
+`FunctionKind { Query, Mutation, LiveQuery, Action }` in `crates/snapback/src/manifest.rs` —
 and the authoring surface exposes the split directly: `defineQuery`,
 `defineLiveQuery`, and `defineJsLiveQuery` in
 `packages/snapback-codegen/define.d.ts`. Subscription admission enforces it
 at runtime: `subscribe_live` and the `subscribe_live_prepared_with_invalidation`
-path in `src/local.rs` refuse any function whose kind is not `LiveQuery`
+path in `crates/snapback/src/local.rs` refuse any function whose kind is not `LiveQuery`
 with the stable `SNAPBACK_FUNCTION_NOT_LIVE` diagnostic. The Pantry rerun
 proved that refusal deliberately as one of its acceptance checks (Diary
 0037, check 6).
 
 **The live machinery behind the subset.** For functions that are classified
 live, the invalidation machinery is real and reasonably precise.
-`src/live_matcher.rs` captures read dependencies from executed query plans
+`crates/snapback/src/live_matcher.rs` captures read dependencies from executed query plans
 (auth facts, point rows, and predicate-described range reads), proves
 disjointness to skip wakes, and computes exact row deltas where honesty
 permits (`compute_live_delta`) — falling back to a conservative
@@ -131,7 +131,7 @@ already have conservative table-granular arms in the affected-subscription
 matcher, even though search functions cannot currently be subscribed at all.
 
 Authorization invalidation is a separate obligation channel (LLP 0053; the
-obligation/resolution machinery lives in `src/local.rs`): when
+obligation/resolution machinery lives in `crates/snapback/src/local.rs`): when
 authority-relevant state changes, the protected sink is quarantined and a
 fresh authorized snapshot resolves the obligation. Diary 0030 observed the
 felt cost of the conservative version: "Protected JS live queries were
@@ -310,7 +310,7 @@ plan is static and reviewable, unlike inferring behavior from handler source,
 but the distinction must be argued explicitly. For JS (Ibex) queries the
 argument has a carrier question the static-plan defense does not settle: the
 matcher rides both a *declared* table-granular `read_set_summary` and
-dependencies *captured at runtime* (`src/live_matcher.rs`). Only the
+dependencies *captured at runtime* (`crates/snapback/src/live_matcher.rs`). Only the
 declared summary is a static, reviewable artifact; runtime-captured reads
 are exactly the handler-behavior evidence LLP 0108's no-inference invariants
 forbid as a classification input. Option 2's inference is admissible for the
@@ -344,16 +344,16 @@ not address: the mixed-route register cliff and quarantine flicker.
 Give `defineSearchQuery` a live-capable path: a subscribed search re-executes
 when any commit touches its index's source table, and the subscriber receives
 a full `Replace` page. Real ingredients exist: the matcher in
-`src/live_matcher.rs` contains a table-granular test for
+`crates/snapback/src/live_matcher.rs` contains a table-granular test for
 `HandlerPlan::SearchQuery`, and search execution is bounded, deterministic,
-and authorization-rechecked per page (`src/search/sqlite.rs`), with the
+and authorization-rechecked per page (`crates/snapback/src/search/sqlite.rs`), with the
 rank/highlight/cursor contract unchanged.
 
 *Current integration blockers.* That matcher arm is unreachable through any
 valid subscription today. Manifest validation admits `SearchQuery` plans
-only under `FunctionKind::Query` (`src/manifest.rs`; any other pairing fails
+only under `FunctionKind::Query` (`crates/snapback/src/manifest.rs`; any other pairing fails
 as `SNAPBACK_FUNCTION_KIND_RUNTIME_MISMATCH`), subscription admission
-requires `FunctionKind::LiveQuery` (`src/local.rs`), and query execution
+requires `FunctionKind::LiveQuery` (`crates/snapback/src/local.rs`), and query execution
 dispatches search only through its `(Query, SearchQuery)` arm. Option 4
 therefore requires coordinated changes to manifest admission, codegen and
 function identity, execution dispatch, subscription result/cursor semantics,
@@ -391,10 +391,10 @@ wake only genuine candidates. The maintenance transaction touches the exact
 union of old/new postings but does not compute it today: the synchronous
 path counts the old postings for the old-plus-new work ceiling and deletes
 them without materializing their keys, computing only the new token set
-(`src/search/sqlite.rs`). Capturing the old-key half needs an additional
+(`crates/snapback/src/search/sqlite.rs`). Capturing the old-key half needs an additional
 read of the old posting set before deletion — and no posting-delta carrier
 reaches the live notification path at all: `ChangedRow` carries only
-table/id/op/row/changed-fields (`src/storage.rs`), so precision needs a new
+table/id/op/row/changed-fields (`crates/snapback/src/storage.rs`), so precision needs a new
 transaction-to-notification artifact or an equivalent reconstruction.
 
 *Benefits.* Precise wakes; re-execution cost scales with relevance rather
@@ -453,7 +453,7 @@ must not re-conflate:
 - **Authorization-event suppression already exists.** A known, nonempty
   changed-field set wholly disjoint from a permission-backing table's
   `permissionFields` suppresses the authorization event
-  (`src/storage/authorization.rs`), and non-permission-backing tables never
+  (`crates/snapback/src/storage/authorization.rs`), and non-permission-backing tables never
   produce one; under 0053's acceptance, an ordinary write creates no
   authorization-event/global quarantine obligation.
 - **The conservative obligation guards shrinkage, not auth inputs.** 0053
@@ -542,9 +542,9 @@ to the revocation path.
 ## Confidence
 
 High: every diary-attributed claim above was read from the cited diary during
-this research, and the code claims (`FunctionKind` in `src/manifest.rs`, the
-`SNAPBACK_FUNCTION_NOT_LIVE` refusal in `src/local.rs`, the matcher arms and
-`compute_live_delta` lanes in `src/live_matcher.rs`, the authoring split in
+this research, and the code claims (`FunctionKind` in `crates/snapback/src/manifest.rs`, the
+`SNAPBACK_FUNCTION_NOT_LIVE` refusal in `crates/snapback/src/local.rs`, the matcher arms and
+`compute_live_delta` lanes in `crates/snapback/src/live_matcher.rs`, the authoring split in
 `packages/snapback-codegen/define.d.ts`) were spot-checked against current
 main on 2026-07-30.
 

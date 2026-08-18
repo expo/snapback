@@ -87,7 +87,7 @@ anything CV-14.) 2026-08-03 (D1 first-tranche implementation record 2026-08-03 (
 (`issues/20260803-0146-d1-d3-tranche.md`): D1 surfaces 1 and 3 are
 implemented on the local target — the per-invocation class-tagged report
 with per-class provenance lands on the admin runner's `FunctionRunResult`
-(`src/conformance.rs`, `src/local.rs`) and on the `function.run` envelope
+(`crates/snapback/src/conformance.rs`, `crates/snapback/src/local.rs`) and on the `function.run` envelope
 and `app.inspect` recent-invocation ring, scoped to host-op invocations as
 this decision's stated v0 fallback (the app-data plane is not wired into
 the ring); the `function.run` mutation envelope seam reports `incomplete`
@@ -98,8 +98,8 @@ query/mutation runtime seams before any result handoff or durable effect,
 refusing with the two LLP 0010-discipline platform codes
 `SNAPBACK_HANDLER_UNDECLARED_READ`/`SNAPBACK_HANDLER_UNDECLARED_WRITE`
 naming function, table, and declaration source span
-(`src/runtime.rs`, `src/auth/invocation.rs`). Acceptance obligations
-decidable at this slice are tests in `tests/conformance_v0.rs` and
+(`crates/snapback/src/runtime.rs`, `crates/snapback/src/auth/invocation.rs`). Acceptance obligations
+decidable at this slice are tests in `crates/snapback/tests/conformance_v0.rs` and
 `packages/snapback-codegen/authoring-validation.test.mjs`. Not claimed:
 D1 surface 2 (`verify` coverage — D2), D2, D3, the per-dependency-class
 escape hatch, Cloudflare-arm enforcement or capture authority (OQ14), and
@@ -186,7 +186,7 @@ surface (LLP 0024), its three projections — CLI, HTTP, MCP (LLP 0042) —
 an agent-first guide with a witness-bearing capability index (LLP 0061),
 agent principals with scoped grants (LLP 0055), and a generated per-app
 CLI (LLP 0062). Mutation dry-run is implemented as the one served
-`function.explain` kind (`src/host_ops.rs:1686-1725`). LLP 0019's
+`function.explain` kind (`crates/snapback/src/host_ops.rs:1686-1725`). LLP 0019's
 recommended sequence is *partly* executed: its steps 1 and 2 are built,
 step 4's dry-run half is built, and its explain-denial half
 (`llp/0019:333`) is not.
@@ -261,24 +261,24 @@ turn out to be projections over facts Snapback already computes.
 
 | Affordance | Status | Witness |
 | --- | --- | --- |
-| Host-op core with CLI/HTTP/MCP projections | Shipped | `src/host_ops.rs`; LLP 0024 |
-| Mutation dry-run through the real buffered path | Shipped | `dry_run` in `src/host_ops.rs`, `src/auth/invocation.rs` |
-| Query explain (`queryPlan`) | **Pinned, unbuilt** | `SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED`, `src/host_ops.rs:1717-1721`; `guide/operating/host-ops.md:66` |
+| Host-op core with CLI/HTTP/MCP projections | Shipped | `crates/snapback/src/host_ops.rs`; LLP 0024 |
+| Mutation dry-run through the real buffered path | Shipped | `dry_run` in `crates/snapback/src/host_ops.rs`, `crates/snapback/src/auth/invocation.rs` |
+| Query explain (`queryPlan`) | **Pinned, unbuilt** | `SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED`, `crates/snapback/src/host_ops.rs:1717-1721`; `guide/operating/host-ops.md:66` |
 | Explain-denial (`permissionAllow`/`permissionDeny`/`capabilityGap`) | **Pinned, unbuilt** | same refusal arm; LLP 0019 step 4 half |
-| Quiesced backup and restore | Shipped (operator, not agent-facing) | `AuthCommand::Backup`/`Restore`, `src/cli.rs:900-907` |
+| Quiesced backup and restore | Shipped (operator, not agent-facing) | `AuthCommand::Backup`/`Restore`, `crates/snapback/src/cli.rs:900-907` |
 | Agent principals and scoped grants | Shipped | route `/auth/agents/pair`; LLP 0055 |
 | Agent-first guide with witness-bearing capability index | Shipped | `guide/capabilities.md`; LLP 0061 |
 | Generated per-app CLI | Partial | `snapback-app` in `packages/snapback-app-cli/cli.mjs`; LLP 0062 |
 | Stable diagnostic codes | Shipped | `SNAPBACK_*`; LLP 0010 "Bootstrap diagnostic codes" |
 | Declared app refusal codes | Review | LLP 0144 |
-| Bounded recent-invocation ring in `app.inspect` | Shipped — **host operations only** | `RECENT_INVOCATIONS_CAPACITY = 128`, `src/host_ops.rs:57-105` |
+| Bounded recent-invocation ring in `app.inspect` | Shipped — **host operations only** | `RECENT_INVOCATIONS_CAPACITY = 128`, `crates/snapback/src/host_ops.rs:57-105` |
 | `acceptance.run` host operation | **Pinned but unbuilt** | `guide/operating/host-ops.md:72` |
-| Captured read/write dependencies beside declared ones | Shipped, unchecked | `FunctionRunResult` in `src/local.rs:1449` |
+| Captured read/write dependencies beside declared ones | Shipped, unchecked | `FunctionRunResult` in `crates/snapback/src/local.rs:1449` |
 
 The last row is the leverage: Snapback already computes *both* the declared
 and the observed dependency sets — on the supported successful query and
 mutation paths — and never compares them. (Not on *every* handler: actions
-construct empty captured sets by design, `src/local.rs:1705-1740`, which is
+construct empty captured sets by design, `crates/snapback/src/local.rs:1705-1740`, which is
 why D1 carries a provenance state rather than assuming a capture exists.)
 
 `acceptance.run` is also a named hole in a ratified contract, but v0.2
@@ -321,7 +321,7 @@ sets D1's priority.
 
 The local matcher prefers captured dependencies and consults declarations
 only when the captured set cannot summarise the handler's reads.
-`live_subscription_may_be_affected` (`src/live_matcher.rs:129`) first calls
+`live_subscription_may_be_affected` (`crates/snapback/src/live_matcher.rs:129`) first calls
 `live_subscription_may_be_affected_by_dependencies` (`:195`), which answers
 from `CapturedReadDependency` values — `Row`/`MissingRow` facts by exact
 `(table, id)`, `Query` facts by replaying the captured predicate through
@@ -331,7 +331,7 @@ But that helper returns `None` when **no `Query` dependency was captured**,
 with its own comment stating why: "the captured reads do not summarize the
 handler's full read set (e.g. a handler that never ran, or captured
 nothing); fall back to the conservative read-set-summary arm"
-(`src/live_matcher.rs:229-233`). The fallback for an inline JS handler is:
+(`crates/snapback/src/live_matcher.rs:229-233`). The fallback for an inline JS handler is:
 
 ```rust
 FunctionRuntime::IbexModule(_) => {
@@ -345,7 +345,7 @@ So a declared table set *does* reach the local delivery decision, on a
 named path. Two qualifications keep the hazard correctly sized:
 
 - **An empty declared set is the safe direction.** `tables.is_empty()`
-  passes every change through the filter (`src/live_matcher.rs:151`), so an
+  passes every change through the filter (`crates/snapback/src/live_matcher.rs:151`), so an
   undeclared handler is woken by everything. Only a **non-empty wrong** set
   can suppress delivery.
 - **The fallback is reachable on success, not only on failure.** The
@@ -356,8 +356,8 @@ named path. Two qualifications keep the hazard correctly sized:
   on the declared arm too.
 Mutation commit validation is on firmer ground: it validates
 `executed.reads`, the runtime-captured set, forwarded from
-`src/local.rs:11111`, `:11568`, `:11797` and reaching the validator at
-`src/storage.rs:4454-4457`.
+`crates/snapback/src/local.rs:11111`, `:11568`, `:11797` and reaching the validator at
+`crates/snapback/src/storage.rs:4454-4457`.
 
 ### Cloudflare arm — historical declared-table-only fan-out
 
@@ -395,16 +395,16 @@ recover it, not how to restore correctness.
 - **Relational and bounded-children queries** never consult captured deps
   for invalidation; they are deliberately table-granular over the *plan's*
   declared sources (`plan.root`/`plan.joined`,
-  `plan.parent_table`/`plan.child_table` — `src/live_matcher.rs:170-179`).
+  `plan.parent_table`/`plan.child_table` — `crates/snapback/src/live_matcher.rs:170-179`).
   Because those tables come from the generated plan rather than a
   hand-written declaration, an agent cannot under-declare them; LLP 0080 §4
   records the table-granularity as intentional.
 - **Search is not live at all.** Search executes as a one-shot
   `FunctionKind::Query` over `HandlerPlan::SearchQuery`
-  (`src/local.rs:22591`), so it has no invalidation path to get wrong. It
+  (`crates/snapback/src/local.rs:22591`), so it has no invalidation path to get wrong. It
   does capture a `Query` dependency without a predicate, which — were it
   ever passed to the matcher — yields a conservative `Some(true)` before any
-  plan-table arm is reached (`src/live_matcher.rs:237-257`). v0.2 grouped it
+  plan-table arm is reached (`crates/snapback/src/live_matcher.rs:237-257`). v0.2 grouped it
   with plan-table live invalidation; that was inaccurate.
 - **Offline/RQS retention has a verified current disposition, and it is
   "no effect."** Two distinct gates reach the same conclusion, and they
@@ -412,10 +412,10 @@ recover it, not how to restore correctness.
   - **Declared retainable admission** (`validate_retainable_query`) is the
     *erroring* gate. It admits a `HostPlan(Query)` with a plan-consistent
     single-table summary **and** a qualifying `HostPlan(RelationalQuery)`
-    with a two-table relational summary (`src/manifest.rs:2891-2971`), and
+    with a two-table relational summary (`crates/snapback/src/manifest.rs:2891-2971`), and
     refuses anything else — opaque JavaScript included — with
     `undeclarable_retention(function, "opaqueJavaScript")`
-    (`src/manifest.rs:2981`).
+    (`crates/snapback/src/manifest.rs:2981`).
   - **RQS eligibility** (`rqs_eligible_digest_kind`, `:2299-2353`) is the
     *non-erroring* derived predicate, requiring the single-table
     `HostPlan(Query)` profile; its own doc comment says a query failing the
@@ -431,11 +431,11 @@ recover it, not how to restore correctness.
 ### What is common to every target
 
 - Declared and captured sets are carried side by side on
-  `FunctionRunResult` (`src/local.rs:1449-1458`), with a doc comment naming
+  `FunctionRunResult` (`crates/snapback/src/local.rs:1449-1458`), with a doc comment naming
   the mismatch as the Valet "counts stuck at zero" failure class.
 - **Nothing compares them.** The only consumers of `captured_reads` outside
   `local.rs` are secret-scope wideners — `function_run_secret_scopes`
-  (`src/admin.rs:1774`) and its host-ops sibling (`src/host_ops.rs:1444`) —
+  (`crates/snapback/src/admin.rs:1774`) and its host-ops sibling (`crates/snapback/src/host_ops.rs:1444`) —
   which union both sets to widen a lease, never to check one against the
   other.
 - Declarations are documented as "evidence, not enforced ceilings"
@@ -466,7 +466,7 @@ provenance state:
 
 **The deltas must preserve the read/write class.** `FunctionRunResult`
 carries four separate collections — declared reads, declared writes,
-captured reads, captured writes (`src/local.rs:1449-1458`) — and collapsing
+captured reads, captured writes (`crates/snapback/src/local.rs:1449-1458`) — and collapsing
 them into one table union lets a read/write swap cancel out: a handler
 declaring read A and write B while observably reading B and writing A has
 identical untagged unions on both sides despite two violations. So the
@@ -483,12 +483,12 @@ readProvenance / writeProvenance: complete | incomplete | unsupported
 ```
 
 `incomplete` and `unsupported` are not decoration. Successful action results
-carry empty captured sets by construction (`src/local.rs:1705-1740`) and are
+carry empty captured sets by construction (`crates/snapback/src/local.rs:1705-1740`) and are
 therefore honestly `unsupported`; an action that throws executed partially and
 is `incomplete`, as are refusal paths with no complete dependency witness. The
 local matcher itself
 distinguishes "captured reads summarise the handler" from "they do not"
-(`src/live_matcher.rs:229-233`). A conformance surface that reports
+(`crates/snapback/src/live_matcher.rs:229-233`). A conformance surface that reports
 `conformant` from an empty capture would manufacture exactly the false
 confidence it exists to remove.
 
@@ -738,15 +738,15 @@ summary for dense manifests," open and claimed by no move
 already exists: `MigrationIntent` derivation over a predecessor/successor
 `SchemaManifest` pair, total over unambiguous semantics-free diffs and
 refusing everything else with `SNAPBACK_MIGRATION_PLAN_INVALID`
-(`src/migration.rs:896-923`, LLP 0081 §2), exposed as a migration preview
-(`src/cli.rs:779-813`). D4 **extends** that derivation to the
+(`crates/snapback/src/migration.rs:896-923`, LLP 0081 §2), exposed as a migration preview
+(`crates/snapback/src/cli.rs:779-813`). D4 **extends** that derivation to the
 function/contract/authority/capability axes rather than reimplementing the
 schema axis beside it.
 
 Given two artifact generations, emit a stable semantic diff:
 
 - tables, fields, indexes added, removed, or narrowed *(reuses
-  `src/migration.rs`)*
+  `crates/snapback/src/migration.rs`)*
 - migration required versus additive reload *(same)*
 - functions added or removed
 - argument or result contract changes (LLP 0131, LLP 0108)
@@ -822,9 +822,9 @@ conditional uniqueness.
 **Two classes v0.1 listed are withdrawn, because they already ship.**
 Protected-last-member is enforced today: demotion out of a protected role
 captures the survivor so two concurrent demotions of the final two cannot
-both commit (`src/storage.rs:13192-13203`), and `plan_membership_remove`
+both commit (`crates/snapback/src/storage.rs:13192-13203`), and `plan_membership_remove`
 "refuses removing the final eligible holder of a protected role"
-(`src/storage.rs:13220-13263`). Membership existence is likewise covered by
+(`crates/snapback/src/storage.rs:13220-13263`). Membership existence is likewise covered by
 the existing resource-existence checks. Claiming them as new vocabulary
 would have duplicated shipped behaviour while obscuring what is genuinely
 new. If D5 later wants to *generalise* `membership.lastHolder` beyond
@@ -839,7 +839,7 @@ invariant is decorative.
 **Disposition against the bounded-relation family (LLP 0110/0134/0135).**
 That family already declares relations in the manifest
 (`RelationIncarnation { foreign_key_field, parent_table }`,
-`src/manifest.rs:836-840`) and deliberately declines this ground:
+`crates/snapback/src/manifest.rs:836-840`) and deliberately declines this ground:
 `hide-orphans.v1` is its *only* parent-deletion policy (`llp/0110:169`,
 `:329-333`), and it explicitly excludes "referential constraints, cascade
 deletion, or orphan cleanup" (`llp/0110:917`). `onTargetDelete: 'restrict'`
@@ -854,7 +854,7 @@ incarnation. That names the wrong side of the relationship: a
 `RelationIncarnation` is a protected *field on the child/source row*,
 paired with a required foreign-key field, and "the paired required
 foreign-key field is the complete relationship declaration"
-(`src/manifest.rs:829-840`).
+(`crates/snapback/src/manifest.rs:829-840`).
 
 v0.3's replacement was better but still ill-typed: it asked whether
 `sourceFields` coincides with the `foreign_key_field`/`parent_table` pair,
@@ -1074,8 +1074,8 @@ miss identities, caps repeat counts, and tells an agent when it is repeating
 the same miss; no rejected identifier, application value, or secret is
 serialized. Direct HTTP, host-operation/CLI, and generated app-data MCP tests
 pin the projection, disclosure negatives, and authorization-before-existence
-ordering (`src/authoring_suggestion.rs`, `src/args_contract.rs`,
-`tests/host_ops_v0.rs`, `packages/snapback-cli/mcp-control.test.mjs`).
+ordering (`crates/snapback/src/authoring_suggestion.rs`, `crates/snapback/src/args_contract.rs`,
+`crates/snapback/tests/host_ops_v0.rs`, `packages/snapback-cli/mcp-control.test.mjs`).
 
 The data-only draft registry and schema are checked in as
 `schemas/remediation-kinds.v0.{registry,schema}.json`, explicitly marked
@@ -1389,7 +1389,7 @@ that artifact remains open in the D1–D3 tranche ticket.
     or supersede the shipped rule?
 12. **Offline/RQS arm, if eligibility expands.** The current disposition is
     verified and closed: retention refuses opaque JavaScript
-    (`src/manifest.rs:2981`), which is the only shape where hand-authored
+    (`crates/snapback/src/manifest.rs:2981`), which is the only shape where hand-authored
     drift can occur, so drift has no retention effect today. The open part
     is conditional — if eligibility ever admits opaque handlers, does
     retention consume captured dependencies, declarations, or refuse?

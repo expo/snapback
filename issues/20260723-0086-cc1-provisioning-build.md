@@ -30,4 +30,4 @@ than written: 0089 review + the LLP 0082 evidence gate. Also note LLP
 0105 (Accepted 2026-07-28) records 0089 as contract authority with
 Universe/hosted as implementation authority for hosted operations — the
 hosted half's shape moved since this ticket was filed. No provisioning
-surface exists in code (profile gating only, src/cli.rs).
+surface exists in code (profile gating only, crates/snapback/src/cli.rs).

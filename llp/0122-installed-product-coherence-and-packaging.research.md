@@ -436,7 +436,7 @@ Per artifact, three shapes each (0041 §Open Questions):
   One boundary fact frames every shape: the credential authority is
   server-side — tokens are validated by the server under all of the
   shapes below, and the served `/_snapback/admin/client.mjs` is the
-  same package file byte-for-byte (`src/admin.rs` embeds it with
+  same package file byte-for-byte (`crates/snapback/src/admin.rs` embeds it with
   `include_str!`) — so no custody choice moves the authority; what the
   shapes vary is discoverability, typing, and where the privileged
   client code is resolvable from. The shapes: (a) admit
@@ -459,7 +459,7 @@ Per artifact, three shapes each (0041 §Open Questions):
   admin operations need a running server anyway; the sharper limit is
   tooling that wants types or imports at build time). The
   implementation already describes the served path as an
-  external-tooling surface (`src/admin.rs`); the custody decision is
+  external-tooling surface (`crates/snapback/src/admin.rs`); the custody decision is
   whether that implementation intent becomes a normatively endorsed
   public contract.
 - *Test helpers (`demos/_kit/server-process.mjs`, `harness.mjs`):* first,

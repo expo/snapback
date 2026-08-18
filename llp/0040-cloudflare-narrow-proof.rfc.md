@@ -415,7 +415,7 @@ survived mid-subscription, and billing-surface observed-zero estimates over both
   freshly-evicted object rehydrates from rows. The object uses no
   `setTimeout`/`setInterval`; the live path pushes from the commit.
 - **Capability manifest.** `CapabilityManifest::cloudflare_do_sqlite_v8`
-  (emitted by `src/bin/snapback-cf-manifest.rs`) serves
+  (emitted by `crates/snapback/src/bin/snapback-cf-manifest.rs`) serves
   `cloudflare-do-sqlite-v8`, validates against the generated JSON Schema, and
   names the missing features honestly — `code_hot_load` (deploy-time bundling,
   no runtime eval), ephemeral realtime, cron, external auth, assets,
@@ -554,12 +554,12 @@ gaps; all are fixed and regression-pinned by the Miniflare acceptance suite:
 - **Version contract** (ENG-23583): the commit advances `_snapback_version`
   only when the effective changeset is non-empty — patches on missing rows,
   empty-values patches, and deletes of missing rows are commit no-ops,
-  matching `src/storage.rs`.
+  matching `crates/snapback/src/storage.rs`.
 - **Fan-out delivery** (ENG-23576): `fanOut` is awaited by the mutation
   response; floating post-response work is not a delivery contract on real
   Workers. Push failures are diagnostics, never mutation failures.
 - **Host-op parity** (ENG-23582): the JS op table now mirrors
-  `src/runtime.rs` point-for-point — patch-on-missing stays a miss, query
+  `crates/snapback/src/runtime.rs` point-for-point — patch-on-missing stays a miss, query
   overlays re-fetch full stored rows, the overlay stamps the frozen handler
   clock, and point reads are captured on patch/delete.
 - **Schema boundary** (ENG-23578): handler-provided table names pass a
@@ -570,9 +570,9 @@ gaps; all are fixed and regression-pinned by the Miniflare acceptance suite:
   with dedicated unknown-field/index diagnostics.
 - **Envelope taxonomy** (ENG-23586): the coordinator decodes handler
   envelopes through the shared `packages/snapback-harness/envelope.mjs`,
-  which mirrors `handler_envelope_code` in `src/runtime.rs`, and fails
+  which mirrors `handler_envelope_code` in `crates/snapback/src/runtime.rs`, and fails
   closed when the harness reports `rejectionDetectionSupported: false` —
-  the same refusal as `src/workerd_exec.rs`. Rejection reasons ride
+  the same refusal as `crates/snapback/src/workerd_exec.rs`. Rejection reasons ride
   `details.rejections`.
 - **Platform-limit envelopes** (ENG-23849): row JSON is byte-checked against
   the generated capability manifest's `runtimeFacts.maxRowBytes` inside the

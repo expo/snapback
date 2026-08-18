@@ -38,7 +38,7 @@ Valet's experience with two hand-synced protocol files.
 ## Context
 
 - The Rust server is the component that *ingests* the manifests
-  (`src/manifest.rs`: `SchemaManifest`, `TableManifest`, `FieldManifest`,
+  (`crates/snapback/src/manifest.rs`: `SchemaManifest`, `TableManifest`, `FieldManifest`,
   `IndexManifest`, `FunctionManifest`, `CapabilityManifest`) and fails closed
   on what it does not understand. Whatever any other artifact claims, the
   serde shapes are what the system accepts. Authority already lives there in
@@ -149,9 +149,9 @@ surviving edits. Enum-like values, fields, columns, and variant tags remain
 name-keyed; a future by-index encoding requires an explicit recorded decision.
 LLP 0078 F2c records the motivating corruption history in Serverpod.
 
-`tests/name_keying_guard.rs` pins representative Rust-owned unit and
+`crates/snapback/tests/name_keying_guard.rs` pins representative Rust-owned unit and
 data-bearing encodings and rejects an unreferenced `serde_repr` dependency or
-derive in `src/`. The standing rule also applies beyond the mechanical guard,
+derive in `crates/snapback/src/`. The standing rule also applies beyond the mechanical guard,
 including client decoders and handwritten SQL encodings.
 
 ## Dated amendments: prior-art absorptions (2026-07-23)
@@ -261,7 +261,7 @@ Implementation lands via LLP 0032 P2/P3.
 Snapback-owned serde types carry `schemars::JsonSchema`; a single generator,
 `snapback::schema_export::artifact_schemas`, is written to
 `schemas/*.schema.json` by the `snapback-schemagen` bin and diffed by the drift
-gate `tests/artifact_schemas_v0.rs` (`dk7_committed_schemas_match_rust_types`) —
+gate `crates/snapback/tests/artifact_schemas_v0.rs` (`dk7_committed_schemas_match_rust_types`) —
 one generator, two callers, so the committed files cannot diverge from the
 checker. A representative value of each artifact round-trips through serde and
 validates against its committed schema

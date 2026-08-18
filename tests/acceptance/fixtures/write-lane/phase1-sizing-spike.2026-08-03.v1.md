@@ -72,15 +72,15 @@ existing committed Rust runner is cited below as the comparison target.
 ### Real grammar
 
 The authoritative grammar is `MutationPlan { steps, return_value }`
-(`src/manifest.rs:6845`). Its complete current step set is:
+(`crates/snapback/src/manifest.rs:6845`). Its complete current step set is:
 
 `AllocateSequence`, `Insert`, `Patch`, `Delete`, `Get`, `Guard`,
 `AssertCurrentRelation`, `Let`, `DeleteWhere`, `InsertEach`, and
-`AssertSourceChanged` (`src/manifest.rs:6862`). Returns are `Literal`,
-`Binding`, `Document`, `ChangedCount`, or `Expr` (`src/manifest.rs:6944`).
-The closed expression grammar begins at `src/manifest.rs:6958`; binary and
-unary operators are enumerated at `src/manifest.rs:7176` and
-`src/manifest.rs:7193`.
+`AssertSourceChanged` (`crates/snapback/src/manifest.rs:6862`). Returns are `Literal`,
+`Binding`, `Document`, `ChangedCount`, or `Expr` (`crates/snapback/src/manifest.rs:6944`).
+The closed expression grammar begins at `crates/snapback/src/manifest.rs:6958`; binary and
+unary operators are enumerated at `crates/snapback/src/manifest.rs:7176` and
+`crates/snapback/src/manifest.rs:7193`.
 
 The current latency-Kanban fixture establishes the indexed presentation shape:
 the board is ordered by `(columnKey, rank)` using `by_column_rank`
@@ -155,8 +155,8 @@ builtin (`measure.mjs:37`).
    implements the relevant steps (`packages/snapback-contract/derived-overlay.mjs:614`),
    and turns a local evaluation failure into “no overlay” rather than a write
    (`packages/snapback-contract/derived-overlay.mjs:693`). The server remains
-   the authoritative transactional executor (`src/storage.rs:4270`) and
-   validates the plan before steps run (`src/storage.rs:4338`).
+   the authoritative transactional executor (`crates/snapback/src/storage.rs:4270`) and
+   validates the plan before steps run (`crates/snapback/src/storage.rs:4338`).
 2. **Canonical values.** Args and ledger envelopes need the finite
    `CanonicalClientValueV1` grammar and ceilings
    (`packages/snapback-client/canonical-client-value.mjs:7` and `:106`). The
@@ -167,10 +167,10 @@ builtin (`measure.mjs:37`).
 3. **Ctx-answer ledger.** The browser consumes ordered `ids` and frozen `now`,
    enforcing version, count, id alphabet, timestamp, exhaustion, and exact
    consumption (`browser-evaluator.mjs:128`). This mirrors the server ledger
-   shape/limits (`src/manifest.rs:7633`) and exact-consumption errors
-   (`src/storage.rs:18097`). The result is explicitly a
+   shape/limits (`crates/snapback/src/manifest.rs:7633`) and exact-consumption errors
+   (`crates/snapback/src/storage.rs:18097`). The result is explicitly a
    `labeled-client-claim`, never authority (`browser-evaluator.mjs:169`). Reads
-   are not ledgered (`src/manifest.rs:7633`).
+   are not ledgered (`crates/snapback/src/manifest.rs:7633`).
 4. **Materialization answer and admission.** The browser needs a successfully
    fenced `readRenderable` result, the QMK answer class, generated exact field
    coverage, and the operation's generated point-read requirements. The landed
@@ -194,7 +194,7 @@ builtin (`measure.mjs:37`).
 | `AllocateSequence` | `server-only` | reads and advances server-owned sequence state |
 | `AssertCurrentRelation` | `server-only` | transaction-local current-parent/incarnation assertion |
 | `AssertSourceChanged` | `server-only` | inspects provisional authoritative transaction changes |
-| `MembershipExists` | `server-only` | authoritative storage semi-join; the grammar itself says it cannot run in the pure evaluator (`src/manifest.rs:7031`) |
+| `MembershipExists` | `server-only` | authoritative storage semi-join; the grammar itself says it cannot run in the pure evaluator (`crates/snapback/src/manifest.rs:7031`) |
 | `AuthUserId`, `AuthKind`, `AuthActorKind`, `AuthActivityActorKind`, `AuthActorUserId`, `AuthGrantId`, `ClientMutationDigest`, `AuthIsDelegated` | `server-only` in this Candidate-A class | D1 says principal/authority is not a ledger answer (`llp/0051-language-neutral-data-tier.rfc.md:261`), and Move 3 forbids ambient auth authority (`llp/0155-local-sync-product-direction.rfc.md:856`). `AuthUserId` could become an admitted labeled input only after an owner pins its provenance; the sizing gate does not assume that decision. |
 | required point row or required projected field not available from an authoritative materialization | `server-only` | missing is unhydrated, not absent |
 | non-authoritative/unknown retained source, cross-authority merge, or contradictory occurrences | `server-only` | no locally authoritative workspace can be assembled |
@@ -299,7 +299,7 @@ Those should become a thin D5/local-admission envelope rather than a fork of the
 - The corpus schema promises plan/rows/result/changed-count/error data
   (`tests/conformance/data-tier/README.md:25`), and the Rust runner checks the
   exact host result, changed count, and all expected tables
-  (`tests/data_tier_corpus_v0.rs:194`).
+  (`crates/snapback/tests/data_tier_corpus_v0.rs:194`).
 - The JS runner checks predicted rows or expression-only results. For most
   rejection plans it requires only unchanged rows; it compares the exact typed
   code only for expression-only rejection cases

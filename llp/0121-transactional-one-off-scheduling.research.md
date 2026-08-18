@@ -116,11 +116,11 @@ force-tick seam."
 ## What Snapback does today
 
 **Recurring cron is real and strong.** LLP 0028 is Accepted and shipped: the
-scheduler and run ledger live in `src/cron.rs` (`claim_due_runs` takes an
+scheduler and run ledger live in `crates/snapback/src/cron.rs` (`claim_due_runs` takes an
 injected `now_ms`, so due-ness is a pure function of a supplied clock), the
 admin forced tick is served at `/_snapback/api/cron/tick` from
-`src/admin.rs`, and the `SNAPBACK_CRON_DISABLED` switch parsed in
-`src/server.rs` runs the server with the scheduler inert while the manual
+`crates/snapback/src/admin.rs`, and the `SNAPBACK_CRON_DISABLED` switch parsed in
+`crates/snapback/src/server.rs` runs the server with the scheduler inert while the manual
 tick keeps claiming and executing due runs. The acceptance kit wires this as
 a first-class option: `demos/_kit/server-process.mjs` exposes `cronDisabled`,
 sets the environment variable, and suites drive ticks deterministically
@@ -138,7 +138,7 @@ transaction rolls back, no job exists." It further specifies `availableAt`
 jitter, scoped idempotency keys with fail-closed reuse, immutable jobs with
 append-only attempt receipts, fenced claims, atomic terminal publication, and
 a capability-class ladder (`Missing` → `CaptureOnly` → `SingleProcess` → …).
-None of it exists in code: a sweep of `src/` finds no jobs/enqueue machinery
+None of it exists in code: a sweep of `crates/snapback/src/` finds no jobs/enqueue machinery
 — cron is the only scheduled-work subsystem. LLP 0070 remains Draft, and its
 2026-07-30 revision designates the `runAfter` case as the first
 implementation slice, with two recorded gaps: a deterministic injected-clock
@@ -383,7 +383,7 @@ in the mutation's own receipt. Today's surfaces, named precisely:
 `MutationOutput` carries `version` plus an opaque `receipt` object
 (`packages/snapback-client/index.d.mts`), and the retention-ring mutation
 receipt carries `mutationId` and — when confirmed — the committed
-`snapshotVersion` (`src/live_wire.rs`, LLP 0034 §3.2); "commit version" is
+`snapshotVersion` (`crates/snapback/src/live_wire.rs`, LLP 0034 §3.2); "commit version" is
 informal, and `snapshotVersion` is the actual field. The direct shape: that
 receipt would also carry `{ jobId, reference, availableAt }` for every
 enqueue in its transaction, making rollback-atomicity not just true but
@@ -530,8 +530,8 @@ will feel worse than tests do.
    policy, and a receipt family; no new RFC is needed. What is needed is
    implementation plus 0070's two recorded decisions (drain seam, callee
    class) plus an inspection-surface position no document currently takes.
-3. Nothing is implemented: `src/` contains cron only (`src/cron.rs`,
-   `src/admin.rs`, `src/server.rs` carry the scheduler, forced tick, and
+3. Nothing is implemented: `crates/snapback/src/` contains cron only (`crates/snapback/src/cron.rs`,
+   `crates/snapback/src/admin.rs`, `crates/snapback/src/server.rs` carry the scheduler, forced tick, and
    disable switch); no jobs/enqueue machinery exists anywhere in the tree.
 4. Cron structurally cannot host the primitive. The run ledger's identity
    model rejects runtime-created entries and its persisted state sits
@@ -589,7 +589,7 @@ will feel worse than tests do.
 
 High confidence: the contents of LLP 0028, 0070, and 0115 and the four
 diaries (read directly for this document); the code facts (cron surfaces in
-`src/cron.rs`, `src/admin.rs`, `src/server.rs`, `demos/_kit/`, and the
+`crates/snapback/src/cron.rs`, `crates/snapback/src/admin.rs`, `crates/snapback/src/server.rs`, `demos/_kit/`, and the
 absence of any jobs implementation, verified by search on 2026-07-30).
 Medium-to-high confidence: the general-Convex background (scheduler API
 shape, schedulable callee classes, system-table states, seven-day result

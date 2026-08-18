@@ -13,7 +13,7 @@ rerun — LLP 0067 Recommendation 1). 2026-07-13 (§Current measurement contract
 ## Summary
 
 This is the artifact of [LLP 0032](./0032-decision-and-implementation-hardening.plan.md)
-**M1**: the in-repo benchmark harness (`src/bench.rs`, run by the
+**M1**: the in-repo benchmark harness (`crates/snapback/src/bench.rs`, run by the
 `snapback-bench` bin) and its first numbers over the canonical local target
 (Ibex + in-memory SQLite). It turns the corpus's named unknowns into measured
 numbers so the deferred decisions can be made on evidence rather than intuition.
@@ -321,7 +321,7 @@ this section is the local target's entry.
 2. **Live fan-out is catastrophically VM-bound.** Each affected subscription
    costs ~4.9 ms because the current design **re-runs the subscription's query
    in a fresh VM on every commit** (`invoke_query_with_dependencies` inside the
-   fan-out loop, `src/local.rs`). So one commit with 100 watchers costs ~half a
+   fan-out loop, `crates/snapback/src/local.rs`). So one commit with 100 watchers costs ~half a
    second of pure VM time, and the ceiling within a 10 ms latency budget is only
    ~2 watchers. The matcher that *decides* whether to re-run is ~2 700× cheaper
    than the re-run itself. This is the sharpest result in the set.

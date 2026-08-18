@@ -9,9 +9,9 @@ sessions battery in demos/messaging-snapback
 
 When a member is removed from a membership-backed protected room, the server
 side is correct: survivors receive `RemoveReason::AuthRevoked`
-(src/ephemeral.rs:~5702) and the removed subscriber receives a terminal
+(crates/snapback/src/ephemeral.rs:~5702) and the removed subscriber receives a terminal
 `PermissionDenied` error frame with no further delivery
-(src/ephemeral.rs:~5757; the battery pins `postTerminalFrames: 0`).
+(crates/snapback/src/ephemeral.rs:~5757; the battery pins `postTerminalFrames: 0`).
 
 The client never surfaces that terminal:
 

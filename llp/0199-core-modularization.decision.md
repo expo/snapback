@@ -29,10 +29,10 @@ The Rust core has four oversized core modules (three god-object hubs plus the
 
 | module | total lines | production lines (before the in-file test module) | commits touching it since 2026-07-01 |
 | --- | ---: | ---: | ---: |
-| `src/local.rs` | 59,297 | ~31,345 | 366 |
-| `src/server.rs` | 50,573 | ~26,565 | 459 |
-| `src/storage.rs` | 36,359 | tests interspersed | 244 |
-| `src/manifest.rs` | 16,633 | tests interspersed | 226 |
+| `crates/snapback/src/local.rs` | 59,297 | ~31,345 | 366 |
+| `crates/snapback/src/server.rs` | 50,573 | ~26,565 | 459 |
+| `crates/snapback/src/storage.rs` | 36,359 | tests interspersed | 244 |
+| `crates/snapback/src/manifest.rs` | 16,633 | tests interspersed | 226 |
 
 The coupling is not cosmetic. Since 2026-07-01, **192** commits changed both
 `local.rs` and `server.rs`, **122** changed both `local.rs` and `storage.rs`,
@@ -183,7 +183,7 @@ that answer made explicit and enforced by the characterization tests.
 - No big-bang N-crate decomposition. The receipt/gate machinery binds to concrete
   paths (`runtime-build-inputs.txt`, digest-bound readiness receipts,
   `cargo clean -p snapback` pinned by a proof-gate regex, drift gates keyed to
-  files), and the LLP corpus cites `src/` paths in hundreds of `@ref`s guarded by
+  files), and the LLP corpus cites `crates/snapback/src/` paths in hundreds of `@ref`s guarded by
   `./ref-check`; a long-lived restructuring branch would starve against `main`'s
   velocity (the exact hazard CLAUDE.md warns about). Extractions land in small
   steps that carry their file-path-keyed gates and citations with them (see
@@ -201,16 +201,16 @@ conflated:
   preserves the Rust *module* paths (`snapback::server::…`) and symbol/module
   `@ref`s, so the API and module-path citations are stable — but it changes
   **file** paths, and non-trivial machinery keys on file paths: the local-proof
-  selection policy names `src/local.rs` / `src/storage.rs` / `src/manifest.rs`
+  selection policy names `crates/snapback/src/local.rs` / `crates/snapback/src/storage.rs` / `crates/snapback/src/manifest.rs`
   explicitly, frozen drift gates are file-keyed, and source-reading generators read
-  exact files (`scripts/guide-lib.mjs` reads `src/server.rs`;
-  `scripts/capability-maturity.mjs` reads `src/manifest.rs`). A cosmetic split is
+  exact files (`scripts/guide-lib.mjs` reads `crates/snapback/src/server.rs`;
+  `scripts/capability-maturity.mjs` reads `crates/snapback/src/manifest.rs`). A cosmetic split is
   therefore only safe if it
   **co-migrates those selectors, frozen-record gates, source-reading generators,
   and any file-path `@ref`s in the same change** (LLP 0189 D-4: a gate must stay
   attached to its governed code). Done that way it relieves merge-conflict and
   review pressure at low risk; done naively it silently detaches gates from their
-  code. `src/local/` and `src/push/` already exist as precedents; LLP 0141 proved
+  code. `crates/snapback/src/local/` and `crates/snapback/src/push/` already exist as precedents; LLP 0141 proved
   the public surface can be re-shaped behind a façade.
 - **Semantic (do deliberately, behind characterization tests):** the ownership
   map above. Start with generation activation.

@@ -56,7 +56,7 @@ table write-policy enforcement.
 - On 2026-08-16 the experimental `.data()` / `lowerDataResourceV1` doorway was
   withdrawn by commit `7b40f3caa`; `defineOwnedCrud` remains the shipped
   compatibility wedge and positive owner-write fixture.
-- `IbexHostContext::handle_host_call` in `src/runtime.rs` buffers `db.insert`
+- `IbexHostContext::handle_host_call` in `crates/snapback/src/runtime.rs` buffers `db.insert`
   after schema/value validation without resolving table visibility or
   stamping an owner. Its `db.patch` and `db.delete` arms call
   `read_table_visibility_point` and `effective_point_is_visible`, so an
@@ -68,7 +68,7 @@ table write-policy enforcement.
   central membership gate separately refuses raw membership writes. There is
   no one policy-locus rule covering every generic authority-table write.
 - `Storage::execute_mutation_plan_with_lifecycle_and_settlement_time` in
-  `src/storage.rs` refuses generic HostPlan writes to membership and
+  `crates/snapback/src/storage.rs` refuses generic HostPlan writes to membership and
   framework-owned asset-collection tables, but ordinary `Insert`, `Patch`,
   `Delete`, `DeleteWhere`, and `InsertEach` steps do not consult the table's
   visibility policy. `DeleteWhere` constructs its scan with

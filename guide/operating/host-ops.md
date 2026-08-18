@@ -4,7 +4,7 @@ id: operating.host-ops
 order: 2
 audience: agent-first
 capabilities: [operating.host-ops]
-authorities: [llp/0024-agent-operating-surface.spec.md, src/cli.rs, src/host_ops.rs, src/server.rs, src/admin_secret_read.rs, packages/snapback-cli/mcp-control.mjs, tests/host_ops_v0.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, crates/snapback/src/cli.rs, crates/snapback/src/host_ops.rs, crates/snapback/src/server.rs, crates/snapback/src/admin_secret_read.rs, packages/snapback-cli/mcp-control.mjs, crates/snapback/tests/host_ops_v0.rs]
 examples: [demos/todo]
 status: current
 targets: [local]
@@ -28,7 +28,7 @@ registry instead of inheriting one overly broad HTTP policy.
 
 A request names `operation` plus its typed fields:
 
-```json source=tests/host_ops_v0.rs
+```json source=crates/snapback/tests/host_ops_v0.rs
         json!({
             "operation": "function.run",
             "function": "createTodo",

@@ -180,10 +180,10 @@ choice-blocking in the diaries.
 
 Nothing ships. The generated capability manifest
 (`schemas/capability.manifest.local-dev-sqlite-ibex.json`, hard-coded in
-`src/manifest.rs`) reports `"assetUpload": false` and lists `"assets"` in
+`crates/snapback/src/manifest.rs`) reports `"assetUpload": false` and lists `"assets"` in
 `capabilityGaps` — a machine-readable nonclaim on every target. There is no
 asset route in the LLP 0031 route registry, no asset host-op, and no asset
-code in `src/` or `packages/`.
+code in `crates/snapback/src/` or `packages/`.
 
 The guide's capability index carries the owned GAP row (`backend.assets`):
 
@@ -255,8 +255,8 @@ semantic/vector search are separate future profiles," and extensions "such
 as stemming, typo tolerance, **vectors**, or provider ranking are separate
 named capabilities and cannot change the base profile silently." The
 shipped search RFC reserves the slot and the admission rule but contains no
-vector design. A grep of `src/` finds no embedding, ANN, or similarity
-code; `src/search/` is the FTS implementation only. The closest fragment is
+vector design. A grep of `crates/snapback/src/` finds no embedding, ANN, or similarity
+code; `crates/snapback/src/search/` is the FTS implementation only. The closest fragment is
 negative evidence done right — Diary 0031's Snapback arm: "Stored
 deterministic 32-dimensional fixtures were not mislabeled as
 semantic/vector retrieval."
@@ -643,7 +643,7 @@ unscheduled," so the GAP row names a design rather than an unmade decision.
 
 1. **Neither capability has moved since the July bakeoffs.** As of
    2026-07-30, `assetUpload: false` and the `assets` gap are hard-coded in
-   `src/manifest.rs`; no asset or vector code exists in `src/` or
+   `crates/snapback/src/manifest.rs`; no asset or vector code exists in `crates/snapback/src/` or
    `packages/`; both guide rows read `targets: none`,
    `maturity: design-only`.
 2. **Ownership is asymmetric.** File storage has a real Draft owner

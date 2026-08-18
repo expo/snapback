@@ -4,7 +4,7 @@ id: backend.runtime-values
 order: 24
 audience: agent-first
 capabilities: [backend.runtime-values, backend.mutation-settlement-identity]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/index.mjs, tests/mutation_settlement_identity_v0.rs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-codegen/index.mjs, crates/snapback/tests/mutation_settlement_identity_v0.rs]
 examples: [demos/competitive-checkpoint/snapback/handlers.mjs, demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json]
 status: current
 targets: [local]

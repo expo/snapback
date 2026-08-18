@@ -41,7 +41,7 @@ Summary's constructor list had not received the four-constructor
 correction applied to §Current state and D4, and D7's heading still read
 "decide two" against a D1/D4/D5 decision set. Fable additionally found
 the `handle_host_call` range citation overshooting by six lines; the
-function closes at `src/runtime.rs:2124`. No new design finding in either
+function closes at `crates/snapback/src/runtime.rs:2124`. No new design finding in either
 family; both report the surviving text settled.)
 2026-08-02 (implementation — Charlie Cheever asked to implement the RFC's
 proposed scope. D1 lands as the documented `snapback::embed` façade with the
@@ -49,7 +49,7 @@ existing 48 modules retained under `#[doc(hidden)]` for source compatibility;
 the `0.x` promise is patch-compatible/minor-breaking and is independent of
 `wire_version`. D4 lands as `embed::production(include_bytes!(…))`, feeding the
 baked closed artifact carrier into the exact CLI-owned auth, worker, readiness,
-listener, and shutdown lifecycle, plus `examples/embedded_todo.rs`. D5 lands as
+listener, and shutdown lifecycle, plus `crates/snapback/examples/embedded_todo.rs`. D5 lands as
 a fixed `SelfHostedSingleTenant` native-code posture with no hosted-admission,
 route-registration, or native-operation controls on the façade. D2/D3 remain
 demand-gated and unbuilt; D6 remains a separate blocking distribution program,
@@ -73,7 +73,7 @@ deferred with them.
 Four findings drive the design.
 
 1. **An embedding seam already exists and is already load-bearing.** Snapback
-   builds a `[lib]` target, `src/main.rs` is four lines, and
+   builds a `[lib]` target, `crates/snapback/src/main.rs` is four lines, and
    `server::app(state)` returns a `tower::Service` that Rust integration tests
    drive in-process; `.bind(listener).serve()` is the network path LLP 0060 §D1
    names as *"the public embedded network path."* Four public constructors
@@ -154,7 +154,7 @@ was re-verified during the round-1 reconciliation; the first draft got four of
 them wrong.
 
 **The lib target existed but had no curated surface.** `Cargo.toml` declares
-`[lib] name = "snapback"`, and `src/lib.rs` exports **48 `pub mod`
+`[lib] name = "snapback"`, and `crates/snapback/src/lib.rs` exports **48 `pub mod`
 declarations** with five `pub(crate)` exceptions and no `#[doc(hidden)]`
 discipline. This does not make every internal type public — `server.rs` contains
 hundreds of private items, and `RegisteredRoute`, `router_from_registrations`,
@@ -162,9 +162,9 @@ and `all_route_registrations` are all `pub(crate)`. The accurate claim is that
 **every `pub` item inside 48 public modules is externally addressable**, with no
 stated stability boundary.
 
-**The embedding path is real and specified.** `src/server.rs:13940` exposes
+**The embedding path is real and specified.** `crates/snapback/src/server.rs:13940` exposes
 `pub fn app(state: AppState) -> SnapbackApp`. `SnapbackApp`
-(`src/server.rs:13823`) implements `tower::Service<Request<Body>>` for
+(`crates/snapback/src/server.rs:13823`) implements `tower::Service<Request<Body>>` for
 in-process dispatch and offers `bind(listener) -> BoundSnapbackApp`, whose
 `serve()` / `serve_with_graceful_shutdown()` run the network path. LLP 0060 §D1
 names `server::app(state).bind(listener)` *"the public embedded network path"*
@@ -172,13 +172,13 @@ and specifies its posture semantics, including that a detached or `Unknown`
 posture fails closed for sessions.
 
 **Construction was partly public already.** `AppState::new`
-(`src/admin.rs:827`) takes `SharedSnapback`, `ReadLane`, `EphemeralApi`, and
+(`crates/snapback/src/admin.rs:827`) takes `SharedSnapback`, `ReadLane`, `EphemeralApi`, and
 more — but four public constructors already exist and are what the test suite
 uses: `AppState::from_snapback(LocalSnapback, ServerContext)`
-(`src/admin.rs:1392`), `AppState::from_snapback_with_secret_read_operator`
+(`crates/snapback/src/admin.rs:1392`), `AppState::from_snapback_with_secret_read_operator`
 (`:1399`, doc-commented "Trusted embedding variant that retains the non-network
 minting seam"), `AppState::detached` (`:1408`), and `LocalSnapback::open(path)`
-(`src/local.rs:3281`). The gap is not "a constructor", and it is not the
+(`crates/snapback/src/local.rs:3281`). The gap is not "a constructor", and it is not the
 secret-read seam either — that seam is already public. It is the *composed
 production-posture* constructor (§D4).
 
@@ -189,14 +189,14 @@ and the `tests/acceptance/*.mjs` suites drive a **spawned** server binary over
 the network. The first draft's claim that "the entire acceptance suite drives it
 in-process" was false.
 
-**The router is private on purpose.** The doc comment at `src/server.rs:13815`
+**The router is private on purpose.** The doc comment at `crates/snapback/src/server.rs:13815`
 is explicit: keeping the inner `Router` private *"prevents the former accidental
 composition where a context derived from one listener was served on another."*
 LLP 0060 §D1 pins the rule it protects — transport posture derives from the
 actual bound socket or an unforgeable listener-construction token, **never from
 a caller-supplied boolean**.
 
-**Every route carries a policy row.** `RouteSpec` (`src/server.rs:6989`) has
+**Every route carries a policy row.** `RouteSpec` (`crates/snapback/src/server.rs:6989`) has
 eleven fields: `method`, `path`, `class`, `path_policy`, `policy`,
 `credential_resolution`, `invocation_authority`, `legacy_body_policy`,
 `effect_policy`, `response_sensitivity`, `session_overlay`. They are **not
@@ -221,7 +221,7 @@ embedder cannot register a route today at all**.
 
 **There are two distinct native extension seams.**
 
-- *Handler capability bridge* — `handle_host_call` (`src/runtime.rs:1273–2124`)
+- *Handler capability bridge* — `handle_host_call` (`crates/snapback/src/runtime.rs:1273–2124`)
   dispatches what JS handlers reach through `ctx.*`. The inventory is **21
   behaviour arms accepting 22 operation names, across eight namespaces**
   (`action.externalEffectBegin` and `action.externalEffectInitiated` share one
@@ -237,7 +237,7 @@ embedder cannot register a route today at all**.
   four whole namespaces; v0.2 corrected the namespaces but still missed the
   aliased name — which is the argument for D3a's reservation-by-mechanism twice
   over.
-- *Host operation registry* — `execute_host_op` (`src/host_ops.rs:927`)
+- *Host operation registry* — `execute_host_op` (`crates/snapback/src/host_ops.rs:927`)
   dispatches operator- and tooling-facing operations (`app.inspect`,
   `app.reset`, `schema.load`, `functions.load`, `function.run`, the `asset.*`
   family, `auth.mintSession`) reached over HTTP, catalogued in
@@ -249,7 +249,7 @@ An earlier reading treated `host_ops` as the handler capability surface. It is
 not; the two seams have different callers, threat models, and obligations.
 
 **The handler bridge already fails closed on unknown operations.**
-`src/runtime.rs:1276` gates the protected-query profile with a closed allowlist
+`crates/snapback/src/runtime.rs:1276` gates the protected-query profile with a closed allowlist
 and an explicit default-deny comment: *"Every other current/future host
 operation is a denied mutable non-database input until the registry explicitly
 classifies it"* (`SNAPBACK_AUTH_MUTABLE_INPUT_DENIED`). Unknown ops error in all
@@ -288,7 +288,7 @@ becomes a breaking change to an API Snapback never intended to offer.
 
 **Decision:** introduce `snapback::embed` as the sole supported embedding
 façade, re-exporting what an embedder legitimately needs, and demote the rest —
-either by narrowing `src/lib.rs` to `pub(crate) mod` where in-repo consumers
+either by narrowing `crates/snapback/src/lib.rs` to `pub(crate) mod` where in-repo consumers
 allow, or, if that is too invasive to land at once, by `#[doc(hidden)]` plus a
 crate-level statement that **nothing outside `snapback::embed` carries a
 stability promise**. Either way the boundary must be written down.
@@ -296,7 +296,7 @@ stability promise**. Either way the boundary must be written down.
 What the promise *is* — and how a `0.x` crate version relates to the LLP 0093
 wire protocol and `wire_version` — is OQ16.
 
-**As built (2026-08-02):** `src/embed.rs` is the sole documented façade. It
+**As built (2026-08-02):** `crates/snapback/src/embed.rs` is the sole documented façade. It
 exports the composed production builder and the evidenced low-level
 test/tooling seam (`LocalSnapback`, `AppState`, `server::app`, and the bound app
 types). The 48 legacy public modules remain addressable but carry
@@ -440,7 +440,7 @@ the same carrier from the ordinary generated schema/functions pair (the normal
 ownership, auth provider and mode activation, config/function publication,
 revocation/coordinator/invalidation/lease readiness, critical workers,
 listener-derived transport posture, readiness publication, and graceful
-shutdown remain one code path. `examples/embedded_todo.rs` is the documented
+shutdown remain one code path. `crates/snapback/examples/embedded_todo.rs` is the documented
 branded-binary template. The builder can select database, listener, readiness,
 and declared-restore inputs; it cannot select hosted admission or omit the
 production workers.

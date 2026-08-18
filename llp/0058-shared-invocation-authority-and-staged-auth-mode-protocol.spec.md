@@ -435,7 +435,7 @@ authority is Draft and whose conformance is incomplete.)*
 The registry gains a second code-owned dimension beside the support
 predicate: each `TargetCapabilityId` carries a **maturity** from the closed
 vocabulary `proposed` / `experimental` / `stable`
-(`TargetCapabilityId::maturity` in `src/manifest.rs`). Maturity is a fact
+(`TargetCapabilityId::maturity` in `crates/snapback/src/manifest.rs`). Maturity is a fact
 about the id's governing contract, not about a runtime instance, so it
 lives on the registry itself; candidate artifacts can neither assert nor
 upgrade it, exactly like support.
@@ -1121,7 +1121,7 @@ invariant-satisfying state.
 ### Five internal type layers
 
 The five names below count **type layers**, not authority variants. The names are
-normative. The existing room-permission `AuthContext` in `src/ephemeral.rs` is
+normative. The existing room-permission `AuthContext` in `crates/snapback/src/ephemeral.rs` is
 not reused. LLP 0055's dated amendment is authoritative for the current sealed
 resolved-authority variants and handler projection where it extends the item-4
 baseline below.
@@ -1556,7 +1556,7 @@ facts pin LLP 0053's protocol constants (`defaultMs`/`hardMaxMs` 86400000, the
 clamp order, renewal/time-basis/rollback strings) with only `configuredMs`
 variable. A shared corpus
 (`tests/conformance/auth-session-parity.corpus.json`) is executed against both
-the committed schema (`tests/artifact_schemas_v0.rs`) and the shipped kit
+the committed schema (`crates/snapback/tests/artifact_schemas_v0.rs`) and the shipped kit
 validator (`demos/_kit/tests/auth-session-schema-parity.mjs`) and must produce
 identical structural accept/reject verdicts. The one contextual exception is
 `deploymentIdentity.appId`: the reusable schema requires a non-empty string,
@@ -2060,15 +2060,15 @@ all fail without minting. Rescue remains dev/test-only.
 
 Expected seams are:
 
-- `src/auth/mode.rs` for durable records, transition preflight, and startup
+- `crates/snapback/src/auth/mode.rs` for durable records, transition preflight, and startup
   consume;
-- `src/auth/invocation.rs` for the five type layers, current six-variant
+- `crates/snapback/src/auth/invocation.rs` for the five type layers, current six-variant
   resolved authority, sealed handler projections, and shared gate;
-- `src/manifest.rs`, codegen, and committed schemas for closed manifest fields;
-- `src/storage.rs` for four-key atomic reads/writes and poison;
-- `src/server.rs`, `src/live_wire.rs`, and `src/ephemeral.rs` for registered
+- `crates/snapback/src/manifest.rs`, codegen, and committed schemas for closed manifest fields;
+- `crates/snapback/src/storage.rs` for four-key atomic reads/writes and poison;
+- `crates/snapback/src/server.rs`, `crates/snapback/src/live_wire.rs`, and `crates/snapback/src/ephemeral.rs` for registered
   ingress and owner replacement;
-- `src/cli.rs` for the three pre-bind flags and carrier validation; and
+- `crates/snapback/src/cli.rs` for the three pre-bind flags and carrier validation; and
 - `demos/_kit/client.mjs` plus generated DTO schemas for handshake ordering.
 
 Internal Rust module names may vary. Durable keys, wire spellings, identity
@@ -2333,7 +2333,7 @@ requires or fail before a handler marker is reached.
 
 LLP 0224's operational predicate binds to this Spec's existing settlement
 facts as a read-only consumer. The application-level readiness fact
-(`OperationalReadinessV1`, `src/operational_readiness.rs`) is `ready` only
+(`OperationalReadinessV1`, `crates/snapback/src/operational_readiness.rs`) is `ready` only
 when the exact mode-state record is settled — `active == desired`,
 `modeState == settled`, `appDataAvailability == available`,
 `requestedDeployment == null`, `quarantine == null` — and, when the active

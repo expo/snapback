@@ -175,7 +175,7 @@ SSRF/egress seam owned by [LLP 0009](./0009-code-execution-security.rfc.md).
 ### G4 — Secrets seam is a static env blob
 
 **What & evidence.** `ctx.secrets` is populated from `SNAPBACK_ACTION_SECRETS`
-(a JSON object parsed once, `src/runtime.rs`). It has no rotation, no per-action
+(a JSON object parsed once, `crates/snapback/src/runtime.rs`). It has no rotation, no per-action
 scoping, and no real store — LLP 0027 wants a *pool of keys rotated across requests*
 to respect feed rate limits.
 
@@ -197,7 +197,7 @@ the setup wizard. All Aboard declares `caltrainFeed` (with `refreshFeed`
 carrying the grant), the egress-probe fixture declares its `feedKeys` pool,
 and `SNAPBACK_ACTION_SECRETS` is a deprecated one-time import source.
 Verified by `demos/all-aboard/tests/acceptance/egress.mjs` (14 checks) and
-`tests/config_v0.rs`.
+`crates/snapback/tests/config_v0.rs`.
 
 **Effort.** M. **Owner.** [LLP 0036](./0036-app-secrets-and-config.rfc.md)
 (design), on the [LLP 0009](./0009-code-execution-security.rfc.md) security
@@ -232,7 +232,7 @@ That limitation is now called out in `demo.snapback.json`.
 
 ### G6 — Cron run duration always 0
 
-**What & evidence.** In `execute_cron_claims` (`src/local.rs`) the finished
+**What & evidence.** In `execute_cron_claims` (`crates/snapback/src/local.rs`) the finished
 timestamp is set to the claim's start (`finished_at_ms = claim.started_at_ms`), and
 `startedAt`/`dueAt` collapse to claim time, so `durationMs` is always 0 and the
 ledger's timing is placeholder.
@@ -253,7 +253,7 @@ wall-clock around the run; test `s5_d8_cron_run_records_nonzero_duration`.
 ### G7 — Stale-read / demand catch-up trigger unbuilt
 
 **What & evidence.** `CronRunTrigger::Recovery` and `CronRunTrigger::DemandCatchUp`
-are defined but never constructed (`src/cron.rs`); only `Scheduled` and `Manual`
+are defined but never constructed (`crates/snapback/src/cron.rs`); only `Scheduled` and `Manual`
 runs exist. The "first subscriber after a long idle triggers one immediate,
 collapsed catch-up refresh" that LLP 0027's read-through model describes is not
 wired — `whileLive` only gates the *scheduled* poll.

@@ -58,7 +58,7 @@ at flush. `SNAPBACK_LIVE_COALESCE_DISABLED=1` restores strict per-commit
 fan-out for A/B runs.
 
 Evidence (synthetic, zb5-hot shape at reduced scale —
-`tests/live_coalesce_v0.rs`, `bench_synthetic_burst_coalescing`, run with
+`crates/snapback/tests/live_coalesce_v0.rs`, `bench_synthetic_burst_coalescing`, run with
 `--ignored --nocapture`): 30k rows, six ordered 1,000-row-window observers
 (replace/re-query lane), 16-mutation burst:
 
@@ -134,7 +134,7 @@ Code-level follow-up resolving the spike's two open "why"s (trace evidence:
 
 1. **Commit plus fan-out is one exclusive write turn.**
    `dispatch_live_data_fanout` runs inside the commit path's `&mut self`
-   turn (`src/local.rs` ~22820–22856), so with six auth-scoped observers a
+   turn (`crates/snapback/src/local.rs` ~22820–22856), so with six auth-scoped observers a
    frame costs ~5–6 s of serial evaluations and the next mutation's
    **commit** — not merely its response — waits. Trace: burst-on commits
    6212–6219 became durable at 6.6/16.5/18.2/18.4/28.2/29.0/36.8/50.4 s for
@@ -151,7 +151,7 @@ Code-level follow-up resolving the spike's two open "why"s (trace evidence:
    replace branch, `subscription.authorization.is_some()` routes every
    re-evaluation through `invoke_authorization_resolution` +
    `deliver_authorization_snapshot`, emitting `authorization_invalidation`
-   envelopes (`src/local.rs` ~24447–24560). On a sessions-mode store that
+   envelopes (`crates/snapback/src/local.rs` ~24447–24560). On a sessions-mode store that
    is *every* subscription — hence 75/84 auth-lane frames — so the
    coalescer's authorization-lane exclusion covers ~90% of this workload.
    Not a misrouting defect: it is the designed auth-mode delivery envelope.

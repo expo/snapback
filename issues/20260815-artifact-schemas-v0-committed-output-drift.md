@@ -68,7 +68,7 @@ the same day; the stale committed projections predate both lanes.
 
 The suite stopped compiling at ce30ee99e (LLP 0240 D3, 2026-08-16, which
 added `MutationResponse.authority_transitions`;
-`tests/artifact_schemas_v0.rs:3152` was not updated), so the drift above
+`crates/snapback/tests/artifact_schemas_v0.rs:3152` was not updated), so the drift above
 was masked by a compile error. The slice-2 landing fixes the initializer
 (one field, `authority_transitions: Vec::new()`). With the suite compiling
 again the current state is **35 passed, 1 failed**:
@@ -80,7 +80,7 @@ again the current state is **35 passed, 1 failed**:
   red (reproduces with the compile fix alone on the c19c3f3a6 base).
   Regeneration alone will NOT fix it: `dk7_committed_schemas_match_rust_types`
   passes, so the committed schema matches schemars. The defect is the
-  serde/schemars contract on `PublicSchemaManifest` (src/manifest.rs:~1690):
+  serde/schemars contract on `PublicSchemaManifest` (crates/snapback/src/manifest.rs:~1690):
   empty vecs are omitted during serialization while the generated schema
   marks `identityBindingTables`/`assetCollections` required. Reconcile the
   Rust serde/schemars contract (serialize empty arrays, or mark the fields

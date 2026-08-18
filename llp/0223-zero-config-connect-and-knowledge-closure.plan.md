@@ -168,7 +168,7 @@ sufficient for this tranche.
   Generic existing-Expo-project onboarding is the already-recorded
   `clients.compose-existing-app` GAP (an idempotent `snapback init --expo`
   installing plugin/provider, not a URL) and stays on its own ticket.
-- **Mint self-description.** `MintSessionRequest` (`src/auth/wire.rs` ~344)
+- **Mint self-description.** `MintSessionRequest` (`crates/snapback/src/auth/wire.rs` ~344)
   stays the type authority. Populate the ControlCatalog `inputSchema` for
   `auth.mintSession`: the per-entry field is authored through the catalog
   generator's overrides (`scripts/generate-control-catalog.mjs` ~269);
@@ -177,14 +177,14 @@ sufficient for this tranche.
   `auth.mintSession` entry has none. Point the entry's `guide` anchor at
   the new mint section through the same overrides file. (This is the
   catalog entry field, not
-  the route-level `inputSchema` in `src/schema_export.rs`'s
+  the route-level `inputSchema` in `crates/snapback/src/schema_export.rs`'s
   `http_routes_artifact`, where the shared host-ops route is honestly
   null.) In `auth_host_operation_input`
-  (`src/server.rs` ~19709), make the mint-path failure include safe
+  (`crates/snapback/src/server.rs` ~19709), make the mint-path failure include safe
   contextual details — `operation`, `expectedArgumentContract`, a resolving
   anchor — preserving the stable code. The documented body is the shipped
   CLI projection, `{"operation":"auth.mintSession","args":{"email":"…"}}`
-  (`mint_session_request`, `src/cli.rs` ~3861); document the exact
+  (`mint_session_request`, `crates/snapback/src/cli.rs` ~3861); document the exact
   headers/body and the HTTP-200 `hostOpsResult` envelope in
   `guide/operating/host-ops.md`, linked from `guide/auth/native-apps.md`,
   keeping admin/impersonation authority server-side and the operation
@@ -204,7 +204,7 @@ sufficient for this tranche.
 2. **Make `auth.mintSession` self-describing.** Catalog `inputSchema`,
    contextual mint refusal details, host-ops guide section with exact HTTP
    request/response, linked from auth/native-apps. Proof: valid + invalid
-   HTTP cases pinned in `tests/host_ops_v0.rs`, including secret-negative
+   HTTP cases pinned in `crates/snapback/tests/host_ops_v0.rs`, including secret-negative
    assertions; the invalid-mint case asserts the refusal's `details` carry
    `operation: "auth.mintSession"`, the expected argument contract, and a
    relative anchor that resolves in the served guide. Supplemental
@@ -301,7 +301,7 @@ but it must then re-open this Plan's Decision, not land silently beside it.
    `guide/operating/host-ops.md` (sessions-and-principals now points at it;
    native-apps links it); the mint-path `SNAPBACK_AUTH_REQUEST_INVALID`
    refusal carries `operation`, the expected argument contract, and a
-   resolving anchor; HTTP cases pinned in `tests/host_ops_v0.rs`;
+   resolving anchor; HTTP cases pinned in `crates/snapback/tests/host_ops_v0.rs`;
    `snapback guide SNAPBACK_AUTH_REQUEST_INVALID` now lists every
    registry anchor (reference-lookup prints the flat `guideAnchors`
    array, not just the first).

@@ -71,7 +71,7 @@ LLP 0168/0169.
 ### F1 — the embedding seam already exists, and this is the load-bearing one
 
 [LLP 0141](./0141-embeddable-rust-library.rfc.md) is **Implemented**. Snapback
-builds a `[lib]` target, `src/main.rs` is four lines, and `server::app(state)`
+builds a `[lib]` target, `crates/snapback/src/main.rs` is four lines, and `server::app(state)`
 returns a `tower::Service` that Rust integration tests already drive
 **in-process**; `.bind(listener).serve()` is a separate network path.
 
@@ -86,7 +86,7 @@ existing test suite on every run.
 ### F2 — the JavaScript engine is already a manifest variant, not an assumption
 
 ```rust
-pub enum FunctionRuntime {   // src/manifest.rs
+pub enum FunctionRuntime {   // crates/snapback/src/manifest.rs
     HostPlan(HandlerPlan),
     IbexModule(IbexModule),
 }
@@ -137,7 +137,7 @@ Two consequences worth stating plainly:
 This finding was revised during the conversation that produced this document,
 and the revision is the useful part.
 
-`src/` carries roughly 100 uses of `std::thread`/`spawn_blocking`, and the read
+`crates/snapback/src/` carries roughly 100 uses of `std::thread`/`spawn_blocking`, and the read
 lane runs a `ReaderPool` of WAL reader connections on blocking threads.
 `wasm32-unknown-unknown` has no threads. The initial reading was that this made
 a browser build a different architecture. That overstated it.
@@ -212,7 +212,7 @@ but it touches many call sites and interacts with F4.
 [LLP 0046](./0046-postgres-graduation-path.rfc.md) names the absent
 async/transaction-aware store trait as its largest single engineering cost, and
 the coupling has grown: `rusqlite` is imported across roughly fifty files in
-`src/`.
+`crates/snapback/src/`.
 
 A browser build keeps SQLite, so it does not need the seam the way a Postgres
 graduation does. But any browser-*specific* persistence would hit the same wall,
@@ -358,6 +358,6 @@ nothing has been compiled for `wasm32`.
 ## Status
 
 Draft. Feasibility research from a design conversation on 2026-08-08; no
-implementation, no target profile, and no capability claim. Every `src/`
+implementation, no target profile, and no capability claim. Every `crates/snapback/src/`
 observation is reproducible from `b60e477e5`; the LLP 0035 latency figures are
 quoted from that document and were not re-measured.

@@ -225,7 +225,7 @@ is the *rendering*, chosen by content negotiation:
   same discovery information.
 
 The browser rendering has one implementation: **the embedded page**
-(`src/server/instance_home.html`). It is a single self-contained file (inline
+(`crates/snapback/src/server/instance_home.html`). It is a single self-contained file (inline
 styles, inline brand SVG, no external assets) rendered by the Rust server, so a
 bare binary serves the page with no Exact, Vite, dist directory, or native
 surface dependency. That is intentional: `/` is a recovery/status and launch
@@ -870,7 +870,7 @@ before it is risky — and it stops short of the privileged-write surfaces.
 Landed (steps 1–7 of the sketch):
 
 - the reserved `/_snapback/*` namespace, served by the same Rust server beside
-  the v0 routes as aliases (`src/server.rs`, `src/admin.rs`);
+  the v0 routes as aliases (`crates/snapback/src/server.rs`, `crates/snapback/src/admin.rs`);
 - the admin shell route at `/_snapback/admin`, which serves the built
   Contract/Exact dist when available and otherwise reports
   `SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING`;
@@ -1099,7 +1099,7 @@ where possible.
   shapes), committed typed schemas for both payloads
   (`schemas/inspect.admin.schema.json`, `schemas/inspect.public.schema.json`,
   drift-gated per LLP 0037), and pinned casing with
-  `tests/inspect_casing_v0.rs`; and (b) whether the
+  `crates/snapback/tests/inspect_casing_v0.rs`; and (b) whether the
   **native macOS shell** actually renders the static snapshot end-to-end (the
   artifacts now emit; loading them in ExactAppMac is the open verification —
   currently also blocked upstream at Exact HEAD, ENG-22578).

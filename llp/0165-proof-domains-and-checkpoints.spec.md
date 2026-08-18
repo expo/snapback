@@ -201,7 +201,7 @@ generated per LLP 0037.
 ### Concrete v1 digest preimages and derivations — 2026-08-03
 
 The Rust source of truth is
-[`src/proof_checkpoint.rs`](../src/proof_checkpoint.rs). Generated schemas are
+[`crates/snapback/src/proof_checkpoint.rs`](crates/snapback/src/proof_checkpoint.rs). Generated schemas are
 committed for `PromotionDigestHeaderV1`, `PromotionApprovedWriteV1`,
 `CheckpointDigestHeaderV1`, `BoundaryDigestV1`, and `BoundaryProofV1`; the
 executable, drift-gated vectors are
@@ -481,7 +481,7 @@ parallel corpus here.
 2. *(Executed 2026-08-03.)* Concrete per-domain preimage field lists and
    golden vectors are recorded above and generated from the Rust implementation.
 3. This Spec owns the global write-authority choke point. Both decided controls
-   landed in [`src/storage/write_authority.rs`](../src/storage/write_authority.rs):
+   landed in [`crates/snapback/src/storage/write_authority.rs`](crates/snapback/src/storage/write_authority.rs):
    the generated transaction API holds the unforgeable lane-writer token, and
    registered writable connections verify defensive mode and install the
    deny-by-default SQLite authorizer. LLP 0163
@@ -503,7 +503,7 @@ parallel corpus here.
 ## Dated OQ13 spike record — 2026-08-03
 
 The reproducible runner is
-[`examples/snapshot_pinning_spike.rs`](../examples/snapshot_pinning_spike.rs);
+[`crates/snapback/examples/snapshot_pinning_spike.rs`](../crates/snapback/examples/snapshot_pinning_spike.rs);
 the raw dated record is
 [`tests/acceptance/fixtures/agent-safe-storage/oq13-snapshot-pinning.2026-08-03.v1.json`](../tests/acceptance/fixtures/agent-safe-storage/oq13-snapshot-pinning.2026-08-03.v1.json).
 The fixed fixture uses SQLite 3.45.0 in WAL mode, 4,096 rows with 512-byte

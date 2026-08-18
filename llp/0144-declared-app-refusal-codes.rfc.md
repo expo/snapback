@@ -43,7 +43,7 @@ union grammar and the wire carrier key. Status stays Draft; a narrow
 Codex round 4 closes.) 2026-08-01 (v3, round-2 verify-then-fix: the floor's
 admission story narrowed again after Fable M-R2-1 proved it short an
 ENGINE LEG, not just a host — the only `admit_declared_refusal` call
-site is the local Ibex leg (src/runtime.rs:2726) and the workerd-v8
+site is the local Ibex leg (crates/snapback/src/runtime.rs:2726) and the workerd-v8
 twin path returns before it (:2682, plain `parse_handler_output` at
 workerd_exec.rs:874), so undeclared `ctx.refuse` survives on the local
 host under the LLP 0048 twin; floor fact 3 rewritten as a
@@ -132,7 +132,7 @@ resolved or absorbed, define the wall:
   (a4-f5): the sibling PLATFORM leg — a nested mutation's trusted
   `SNAPBACK_AUTH_PERMISSION_DENIED` collapsing through the action
   boundary — fixed by the witness-gated restore (`denial_witness` +
-  `restore_denial_witness`, src/runtime.rs; LLP 0053's dated 2026-08-01
+  `restore_denial_witness`, crates/snapback/src/runtime.rs; LLP 0053's dated 2026-08-01
   note). The fix is deliberately inapplicable to app-minted codes: an
   app refusal has no host-produced witness to corroborate.
 - `issues/closed/20260801-0137-a3-restart-evolution-refusal-misattributed-diagnostic.md`:
@@ -167,7 +167,7 @@ variants", owner: the LLP 0108 family — this document).
 Recorded here as settled; nothing below re-opens it. Authority:
 LLP 0108 §"Declared application refusals"; implementation:
 `admit_declared_refusal` and `parse_handler_output_with_claim`
-(src/runtime.rs), `validate_declared_refusals` (src/manifest.rs),
+(crates/snapback/src/runtime.rs), `validate_declared_refusals` (crates/snapback/src/manifest.rs),
 `define.mjs` codegen validation, and both envelope decoders (Rust
 `handler_envelope_code`; JS `packages/snapback-harness/envelope.mjs`).
 
@@ -210,7 +210,7 @@ LLP 0108 §"Declared application refusals"; implementation:
    effect purposes: a refusing mutation commits nothing.
 6. **Enumerability — deliberately absent from the protocol surface.**
    `PublicFunctionDefinition` drops `refusals` on purpose ("the public
-   identity descriptor does not restate it", src/manifest.rs:4582–4585)
+   identity descriptor does not restate it", crates/snapback/src/manifest.rs:4582–4585)
    while the generated functions manifest carries it
    (packages/snapback-codegen/index.mjs). The vocabulary therefore
    reaches codegen consumers but is **not enumerable from the served
@@ -380,7 +380,7 @@ discriminated valid-payload/dropped-payload pair and makes
   `SNAPBACK_ACTION_REPLAY_DIVERGED`,
   `SNAPBACK_FUNCTION_KIND_MISMATCH`,
   `SNAPBACK_TEST_CRON_ACTION_INTERRUPTED` —
-  src/runtime.rs:3794–3848 vs envelope.mjs:16–60, whose header claims
+  crates/snapback/src/runtime.rs:3794–3848 vs envelope.mjs:16–60, whose header claims
   it "mirrors" the Rust leg). The refusal-branch narrow alignment this
   RFC's floor claims is true; the wide divergence needs a ruling —
   intentional per-engine difference or drift (OQ8).
@@ -483,11 +483,11 @@ but the answer is not open).** Today the composition is **total
 collapse — regardless of what the action declares**, which is neither
 F1 nor F2: (1) the interior refusal is admitted against the interior
 declaration and propagates out of `action.runMutation`
-(src/runtime.rs:1922–1941); (2) it crosses the host-call FFI as a bare
+(crates/snapback/src/runtime.rs:1922–1941); (2) it crosses the host-call FFI as a bare
 `"CODE: message"` string — `SnapbackError`'s `Display` carries code and
-message only (src/diagnostic.rs:189–197, via `c_host_response`,
-src/runtime.rs:3351–3355; the workerd leg likewise sends only
-`{ok:false, code, message}`, src/workerd_exec.rs:1185–1192) — so
+message only (crates/snapback/src/diagnostic.rs:189–197, via `c_host_response`,
+crates/snapback/src/runtime.rs:3351–3355; the workerd leg likewise sends only
+`{ok:false, code, message}`, crates/snapback/src/workerd_exec.rs:1185–1192) — so
 `appCode`/`appDetails` **never cross the FFI**; (3) `host()` rebrands
 the thrown error with only `__snapbackCode` parsed from the message
 (ctx-bootstrap.js:558–573); (4) the settle encoder emits `appCode` only

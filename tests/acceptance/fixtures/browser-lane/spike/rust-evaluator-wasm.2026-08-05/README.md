@@ -1,7 +1,7 @@
 # Rust evaluator WASM size witness (2026-08-05)
 
 This bounded proof-of-concept path-imports the exact pure Rust evaluators from
-`src/value_expr.rs` and `src/result_transform.rs`. Its local shims reproduce
+`crates/snapback/src/value_expr.rs` and `crates/snapback/src/result_transform.rs`. Its local shims reproduce
 only the manifest types and diagnostic methods those files require. It does
 not include Hermes, Ibex, SQLite, a `FunctionRuntime::WasmModule` variant, a
 ctx host-call bridge, a browser loader, or a production ABI.

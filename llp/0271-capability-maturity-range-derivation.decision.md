@@ -47,7 +47,7 @@ defeat had the same shape: the property that decided whether a range was clean
 was ultimately **read from a self-declaration** — a receipt field, an earlier
 receipt, an author-written descriptor row, or the promotion commit's own mutable
 derivation code. The final Spec revision tried to remove every such lever by
-deriving a conservative surface `Σ` from code and git (the whole of `src/`, the
+deriving a conservative surface `Σ` from code and git (the whole of `crates/snapback/src/`, the
 codegen package, all capability manifests, and the conformance roots), executing
 the derivation from the trusted base revision, and requiring the candidate
 evidence to cover `Σ`. Two more reviews (round 2) found that even that revision
@@ -69,9 +69,9 @@ not. `scripts/runtime-build-inputs.txt` enumerates real runtime/build inputs
 that sit **outside** any tractable curated surface: `build.rs`, `Cargo.toml` /
 `Cargo.lock`, `rust-toolchain.toml`, `vendor/ibex`, `guide/`, `brand/`,
 `packages/snapback-harness/`, `packages/snapback-admin-client/`,
-`tests/conformance/`, plus the `src/*.rs` `include_str!` embeds of those trees.
-Concretely: `src/runtime.rs` embeds files from `packages/snapback-harness/`,
-`src/admin.rs` embeds `packages/snapback-admin-client/index.mjs`, `src/manifest.rs`
+`tests/conformance/`, plus the `crates/snapback/src/*.rs` `include_str!` embeds of those trees.
+Concretely: `crates/snapback/src/runtime.rs` embeds files from `packages/snapback-harness/`,
+`crates/snapback/src/admin.rs` embeds `packages/snapback-admin-client/index.mjs`, `crates/snapback/src/manifest.rs`
 embeds conformance receipts outside `tests/acceptance/`, and `build.rs` consumes
 the guide, schemas, packages, tests, vendored Ibex, environment, and git
 metadata. A promotion could change `packages/snapback-harness/allowlist.json`,
@@ -114,7 +114,7 @@ contract that was never built (REVIEW-R2-CODEX §MATERIAL 4; REVIEW-R2-GROK §3 
 ### 2. Low value even in the sound form
 
 Even the conservative-surface sound form admits a range only when **no entry** of
-`Σ` changed across the range — i.e. when the range touched none of `src/`, the
+`Σ` changed across the range — i.e. when the range touched none of `crates/snapback/src/`, the
 codegen package, the capability manifests, the conformance roots, or (to be
 sound) the build inputs of (a). On a repository whose `main` moves continuously
 for days, that window is nearly never open. The feature would therefore deliver

@@ -256,7 +256,7 @@ retagging the record.
 
 The origin is not part of server duplicate identity. `clientMutationId` is.
 The complete server identity is built by `ClientMutationIdentity` in
-`src/storage.rs` and compares:
+`crates/snapback/src/storage.rs` and compares:
 
 - `clientMutationId`;
 - function;

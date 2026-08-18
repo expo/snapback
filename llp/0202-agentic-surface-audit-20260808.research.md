@@ -148,7 +148,7 @@ invocation recipe. `snapback controls list --intent "slow network"` — LLP
 
 ### 2. Post-0184 projection drift
 
-The `host.restart` HTTP refusal (`src/host_ops.rs:1968`) says the shipped
+The `host.restart` HTTP refusal (`crates/snapback/src/host_ops.rs:1968`) says the shipped
 `snapback restart` CLI does not exist; the catalog records `auth.mintSession`
 as `apiOnly` though `snapback session mint` shipped 2026-08-05 (the
 generator's `CLI_PROJECTIONS` map was never updated). Both are exactly the

@@ -760,7 +760,7 @@ must report that retained rows and durable intent are unavailable.
   schema-exact `documents(table)` contract, with every other contract shape
   taking the validated re-query + `live_replace` path
   (`issues/closed/20260801-live-delta-frames-bypass-result-contract-validation.md`,
-  regression in `tests/live_delta_v0.rs`). That resolution is a worked
+  regression in `crates/snapback/tests/live_delta_v0.rs`). That resolution is a worked
   example of exactly this guardrail's fail-closed posture — refuse the
   lane rather than trust the frame. The obligation survives the ticket: if
   delta candidacy is ever re-widened (e.g., per-operation validation), the

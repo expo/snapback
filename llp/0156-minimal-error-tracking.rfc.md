@@ -38,7 +38,7 @@ JS envelope carrying only code/message, so settle-path stack capture
 is a real carrier deliverable with a poisoned-getter trust design, not
 a free decode; **fingerprints are versioned** (a normalizer change
 would otherwise orphan every issue and break regression detection);
-issue ids are **minted, not derived** (`src/ids.rs` has no Derived
+issue ids are **minted, not derived** (`crates/snapback/src/ids.rs` has no Derived
 body; determinism moves to a unique fingerprint key); the store splits
 physically into **classification-only groups + raw-tier exemplars**
 (both families: retained message/stack snapshots violated the
@@ -311,7 +311,7 @@ Sentry** — phased:
   deterministic whole-record byte allocator inside 0154's 8 KiB
   `details` cap. The async-failure seam is the cheap half: the Hermes
   FFI already returns the stack to `render_async_failure`
-  (`src/runtime.rs`) and the current code frees it unread.
+  (`crates/snapback/src/runtime.rs`) and the current code frees it unread.
 - **Phase E1 — issues.** Eligible failures — already classified and
   fingerprinted at emission under a **versioned scheme** — are folded
   in the **flush transaction** into a bounded, **classification-only**
@@ -381,7 +381,7 @@ workflow, no source-map management in E1.
 1. **The typed-refusal head start.** Sentry's entire grouping-heuristics
    apparatus exists because arbitrary exceptions are all it has.
    Snapback's failure paths overwhelmingly terminate in `Diagnostic`
-   values with stable `code`s (`src/diagnostic.rs`) and, since LLP
+   values with stable `code`s (`crates/snapback/src/diagnostic.rs`) and, since LLP
    0108, declared application refusals with manifest-declared,
    grammar-validated `appCode`s — pre-grouped at the source. Grouping
    here is mostly bookkeeping, not heuristics; that asymmetry is why
@@ -666,7 +666,7 @@ Two capture seams exist today, with very different costs:
 
 - **Async-failure seam (cheap half):** the Hermes FFI's safe-throw
   metadata call already returns error class, message, *and stack* to
-  `render_async_failure` (`src/runtime.rs`); the current code decodes
+  `render_async_failure` (`crates/snapback/src/runtime.rs`); the current code decodes
   the message and frees the stack unread. The class here is a **closed
   host-side enum** already. E0 decodes what is already returned, under
   the existing 16 KiB safe-text bound at extraction.
@@ -681,7 +681,7 @@ Two capture seams exist today, with very different costs:
   `stack`, extracted under the same discipline already applied to
   `message` (`__snapbackSafeString`-class access — `error.stack` and
   `error.name` can be poisoned getters), and extends the Rust decoder
-  (`src/runtime.rs`) to carry them into the terminal row instead of
+  (`crates/snapback/src/runtime.rs`) to carry them into the terminal row instead of
   folding everything to `SNAPBACK_HANDLER_FAILED` with no class.
 
 **`errorClass` is grammar-validated, not trusted (normative).** A
@@ -823,7 +823,7 @@ stay consistent because they commit together.
 
 **Issue identity (normative).** `iss_` ids are **minted with
 `TimeOrdered` bodies** under the LLP 0148 grammar — 0148 reserves
-`Random` for `usr_`, and `src/ids.rs` offers exactly
+`Random` for `usr_`, and `crates/snapback/src/ids.rs` offers exactly
 `TimeOrdered`/`Random`; a time-ordered handle also sorts pleasantly —
 with determinism carried by the unique key:
 `UNIQUE(generation, fp_version, fp_hash)` on `error_groups`.
@@ -1616,7 +1616,7 @@ bundle:
 The enforcement is a fixture matrix, not a review convention, in the
 existing seeded-secret pattern
 (`staged_secret_values_are_scrubbed_from_stream_error_envelopes`,
-`tests/action_stream_envelope_v0.rs`):
+`crates/snapback/tests/action_stream_envelope_v0.rs`):
 
 - **Seeded-sentinel scrub matrix:** distinct sentinel values are seeded
   into every input source that feeds bundle assembly — staged config
@@ -1757,7 +1757,7 @@ amendment with its own review, not an extension of this one.
   store. Agents consume `errors.*` through admin host operations; apps
   wanting public status views project their own safe domain state.
 - **Derived issue-id bodies.** Rejected for v1 (rounds 1–2, both
-  families' inputs reconciled): `src/ids.rs` has only
+  families' inputs reconciled): `crates/snapback/src/ids.rs` has only
   `TimeOrdered`/`Random` bodies, 0148 reserves `Random` for `usr_`,
   and determinism is fully served by the
   `(generation, fp_version, fp_hash)` unique key. A LLP 0148 `Derived`

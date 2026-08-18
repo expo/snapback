@@ -568,7 +568,7 @@ allowlisted socket.** `/live/{id}/stream` is an app route the default proxy
 forwards, and the proxy must upgrade it to a WebSocket — but that socket carries a
 message protocol, not a single operation. Snapback's `/live/*` stream today
 accepts `ephemeral_publish`, `ephemeral_subscribe`, and `ephemeral_delete`
-messages (`src/server.rs` `handle_live_socket_text`), and LLP 0031 (D1) classifies
+messages (`crates/snapback/src/server.rs` `handle_live_socket_text`), and LLP 0031 (D1) classifies
 all three as app-data — `ephemeral_delete` enforces the same `publish` check as its
 HTTP twin — so the proxied socket carries no system authority today and transport
 parity holds. The residual obligation is forward-looking and server-side: a
@@ -837,7 +837,7 @@ ordinary auth, not the local managed-server path.
   discipline: owner-only mode, atomic rename, removal before work on every
   launch/reload/restart/dev-fresh reset, and `startupNonce` binding
   verified before any strict sibling read (LLP 0224 Phase 1 proof:
-  `tests/wait_cli_v1.rs`, `packages/snapback-cli/application-ready.test.mjs`).
+  `crates/snapback/tests/wait_cli_v1.rs`, `packages/snapback-cli/application-ready.test.mjs`).
 - Core Snapback tests still run without Exact, Vite, or this plugin installed.
 
 ## Alternatives considered
@@ -913,7 +913,7 @@ Draft. **The host side of the handshake shipped 2026-07-02 (LLP 0032 P6):**
 descriptor this RFC asked for (shape: `schemas/host-ready.schema.json`,
 generated from the Rust `HostReadyDescriptor` per LLP 0037; attach-side
 validation is `HostReadyDescriptor::validate`, tested in
-`tests/host_ops_v0.rs`), the `snapback` CLI performs
+`crates/snapback/tests/host_ops_v0.rs`), the `snapback` CLI performs
 `stop/inspect/reset/load/run` against a running instance, and one-shot
 backend setup from generated artifacts exists as both `scripts/demo-setup`
 and CLI verbs — so the managed/attach plugin can now be a thin consumer.

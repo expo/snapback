@@ -16,7 +16,7 @@ The s5_d10 pair red means an evening landing introduced SNAPBACK_* codes
 without classifying them in the reviewed HTTP tables (same class as the
 three same-day precedents, all fixed same-day). served_http_refusals is the
 long-listed pre-existing red now joined by the grammar test. Attribution not
-bisected here — owners of this evening's src/server + manifest landings
+bisected here — owners of this evening's crates/snapback/src/server + manifest landings
 should claim; per the 2026-08-10 sitting convention, unclaimed for 24h →
 fix-forward by anyone.
 

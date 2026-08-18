@@ -483,14 +483,14 @@ isolation is not progress if the fixture still needs the same workaround.
   hand-built. The underlying mechanism is verified, cited source, not an
   inference, and a round-2 delta review's precision correction is folded in
   here — the two gates below are separately established facts, not one
-  conflated claim: `auth.mintSession` is a real host-op (`src/host_ops.rs`'s
-  `HOST_OPS` table; dispatched at `src/server.rs:17691-17740`). First,
-  `src/admin.rs`'s `operation_profile` maps `"auth.mintSession"` to
+  conflated claim: `auth.mintSession` is a real host-op (`crates/snapback/src/host_ops.rs`'s
+  `HOST_OPS` table; dispatched at `crates/snapback/src/server.rs:17691-17740`). First,
+  `crates/snapback/src/admin.rs`'s `operation_profile` maps `"auth.mintSession"` to
   `OperationProfileRequirement::NonProd`, refusing it outside dev/demo/test —
   the same `NonProd` requirement class `"asset.put"` and its sibling
   operator/asset operations map to in the same match, though this document
   does not independently verify those two operations share every additional
-  check `auth.mintSession` carries beyond that class. Second, `src/cli.rs`
+  check `auth.mintSession` carries beyond that class. Second, `crates/snapback/src/cli.rs`
   tests separately assert that a `auth.mintSession` host-op call carries the
   impersonation-capability header; this document does not have a citation
   establishing that the *same* header-level requirement applies to
@@ -499,10 +499,10 @@ isolation is not progress if the fixture still needs the same workaround.
   actually shown. Its handler takes a `MintSessionRequest { email, .. }`,
   calls the real auth provider's ordinary `admit_email` admission path, and
   mints a session through the same `coordinated_mint_session` machinery a
-  genuine user's sign-in would use (`src/server.rs:17716-17740`) — not a
+  genuine user's sign-in would use (`crates/snapback/src/server.rs:17716-17740`) — not a
   distinct or weaker authority class, and only reachable when the app is
   already running in settled, available Sessions auth mode
-  (`src/server.rs:17691-17701`).
+  (`crates/snapback/src/server.rs:17691-17701`).
   A thin CLI wrapper over exactly this host-op — invocable only by a local
   process that already holds the impersonation capability, returning *only*
   the minted ordinary session to its caller, never that capability itself —
@@ -798,8 +798,8 @@ commands admission`. The engine is
 [`packages/snapback-client/commands.mjs`](../packages/snapback-client/commands.mjs)
 with the `@expo/snapback-client/commands` subpath, `useSnapbackCommand` and
 `surface.commands.<name>` ride LLP 0114 §Named projections, and the runtime
-admits `AssetRef` argument contracts at mutation ingress (`src/manifest.rs`,
-`src/args_contract.rs`) so the ordinary declarative mutation remains the sole
+admits `AssetRef` argument contracts at mutation ingress (`crates/snapback/src/manifest.rs`,
+`crates/snapback/src/args_contract.rs`) so the ordinary declarative mutation remains the sole
 commit-bound attachment check. The Expo golden-path fixture gained
 `sendMessage` + the upload intent + the `send` command with real-runtime
 acceptance in

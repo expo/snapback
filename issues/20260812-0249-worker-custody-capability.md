@@ -4,7 +4,7 @@
 **Severity:** P1
 **Systems:** Runtime, worker custody, manifest capability, operational readiness
 **Date:** 2026-08-12
-**Related:** LLP 0249 rollout 3; `src/manifest.rs:10197-10500`; `archive/spike-isolated-node-action/RESULTS-20260812.md`
+**Related:** LLP 0249 rollout 3; `crates/snapback/src/manifest.rs:10197-10500`; `archive/spike-isolated-node-action/RESULTS-20260812.md`
 
 ## Scope
 
@@ -23,7 +23,7 @@ but explicitly did not qualify OS isolation or production custody.
 
 ## Capability-mint checklist
 
-Use the capability-mint discipline at `src/manifest.rs:10197-10500`. The
+Use the capability-mint discipline at `crates/snapback/src/manifest.rs:10197-10500`. The
 experimental row must bind at least:
 
 - the closed authoring/source profile and dependency-closure identity;

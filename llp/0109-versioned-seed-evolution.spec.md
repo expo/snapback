@@ -1743,7 +1743,7 @@ retires the first-landing narrowing:
   `MembershipWriter::Seed` primitive is now real on the install path:
   every fixture row on a membership table is stamped with per-row `seed`
   writer provenance in the same transaction
-  (`seed_rows_into_transaction`, src/storage.rs). Host-managed provenance
+  (`seed_rows_into_transaction`, crates/snapback/src/storage.rs). Host-managed provenance
   columns are not app-declared fields, so a fixture row that names one
   refuses as an undeclared field — spoofing fails closed.
 - **Validation is the §8 stack, unchanged.** The same-transaction
@@ -1773,7 +1773,7 @@ retires the first-landing narrowing:
   (out-of-vocabulary role; provenance spoof), and
   `versioned_seed_conformance_empty_target_and_sessions_membership_lane`
   (sessions-mode admission of a named membership table; undeclared table
-  still refused) — src/storage.rs and src/seed_identity.rs. The
+  still refused) — crates/snapback/src/storage.rs and src/seed_identity.rs. The
   conformance manifest case `sessions-membership-refusal` is renamed
   `sessions-membership-fixture-lane` with the new witnessed semantics.
 

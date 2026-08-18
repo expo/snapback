@@ -266,11 +266,11 @@ breakdown: the fingerprinting surface stays one bit per probe.
 
 ### Implementation sketch (repo-verified)
 
-- New `src/connected_clients.rs`: a bounded per-authority witness index
+- New `crates/snapback/src/connected_clients.rs`: a bounded per-authority witness index
   keyed by exact transport-binding identity `(connectionId, grantId,
   socketGeneration)` (poll witnesses key on their subscription's
   connection-grant identity), with reverse-principal and expiry indexes.
-  Wire it in `src/server.rs` alongside the existing lifecycle: register
+  Wire it in `crates/snapback/src/server.rs` alongside the existing lifecycle: register
   after `DeliveryNotifier::register_bound` in the live-stream attach path
   and in the authenticated live-poll fetch path (symbol
   anchors, not line numbers — main moves too fast for the latter);
@@ -287,7 +287,7 @@ breakdown: the fingerprinting surface stays one bit per probe.
   Expiry uses monotonic host time, not `ctx.runtime.now()` (cron's trusted
   clock may be bound to nominal schedule time, LLP 0028).
 - Host op `realtime.hasFreshClient` on `IbexActionHost` and the detached
-  action host (`src/runtime.rs`); the lookup takes neither SQLite nor
+  action host (`crates/snapback/src/runtime.rs`); the lookup takes neither SQLite nor
   `LocalSnapback`.
 - Generated surface: an action-only `RealtimeContext` emitted as a
   **conditional `ActionContext` intersection slot parallel to

@@ -20,7 +20,7 @@ live-child identity proof. It does not seal the binary/Hermes pair, qualify
 package-production behavior, or solve attestation custody.) 2026-07-31 (dated note in Option 2: the landed CV-2
 qualification shape — a separate-process `snapback runtime-qualify`
 subcommand — is posture-neutral toward serving processes by process
-isolation, pinned by `tests/runtime_qualify_posture_v0.rs`; the standing
+isolation, pinned by `crates/snapback/tests/runtime_qualify_posture_v0.rs`; the standing
 first-VM-only-Enforce fact is ticketed with LLP 0009's owners as
 `issues/20260731-first-vm-only-strict-host-context.md`, and an
 in-serving-process boot witness still requires a ratified mitigation
@@ -162,7 +162,7 @@ is a real architecture dividend, and the rerun priced it.
 ### Why the native runtime lane exists
 
 Snapback links the vendored `ibex-runtime` crate and drives a Hermes VM
-through a C ABI (`src/runtime.rs`): `ex_hermes_create_no_eval()` creates
+through a C ABI (`crates/snapback/src/runtime.rs`): `ex_hermes_create_no_eval()` creates
 the restricted no-eval VM `RuntimeGuard::create` wraps,
 `ex_hermes_watch_time_limit`/`ex_hermes_interrupt_eval` enforce bounded
 execution, and `ex_hermes_take_async_failure_event` backs the
@@ -187,7 +187,7 @@ actions: JS live queries exist (`defineJsLiveQuery`,
 `packages/snapback-codegen/define.mjs`), execute as
 `FunctionKind::LiveQuery` through the same query-execution path, and
 reach `RuntimeGuard::create()` like every other JS handler
-(`src/runtime.rs`), so a JS live query is exactly as dead in this state
+(`crates/snapback/src/runtime.rs`), so a JS live query is exactly as dead in this state
 as a JS mutation. That boundary both shrank the blast radius and delayed
 detection — nothing before the first JS invocation exercises the VM.
 
@@ -287,7 +287,7 @@ The 2026-07-30 incident is the newest member of a family:
 The structural difference is not engine quality; VM-creation cost was
 never the incident's cause — roughly 2 ms when coherent, ~55 % of the
 ~2,700–3,900 µs fresh-invocation cost (LLP 0035 §M2, measured by
-`bench_runtime_create_us` in `src/runtime.rs`). It is that the tested
+`bench_runtime_create_us` in `crates/snapback/src/runtime.rs`). It is that the tested
 Convex workflow exposes no user-managed engine/server coherence boundary
 (the sealed-artifact account behind that is labeled inference above),
 while Snapback's local lane composes **two independently
@@ -358,7 +358,7 @@ one trivial function), surface the verdict on `/health` beside the
 ENG-22798 build-identity block, and either refuse to serve or serve
 loudly degraded when it fails. Today `/health` carries identity and
 capability *presence* only — `ibex_available` reports CLI/bridge
-availability and `binary` reports the build stamp (`src/server.rs`;
+availability and `binary` reports the build stamp (`crates/snapback/src/server.rs`;
 LLP 0031 §Server-binary identity) — and nothing in the payload has ever
 created a VM, which is why the incident's defining sentence — servers
 "launched and served `/health`" while every JS handler was dead — was
@@ -377,7 +377,7 @@ share one behavioral check.
 "Create and destroy the same VM" is not posture-neutral as drafted,
 because the strict Host handoff is one-shot. `ensure_host_installed()`
 installs `Host::strict()` (`SecurityMode::Enforce`, default-deny)
-exactly once per process behind a `std::sync::Once` (`src/runtime.rs`);
+exactly once per process behind a `std::sync::Once` (`crates/snapback/src/runtime.rs`);
 `install_host` publishes the policy and retains a thread-bound,
 single-use pending creation token (`PENDING_HOST_CONTEXT`,
 `vendor/ibex/src/host/abi.rs`); `ex_hermes_create_no_eval()` claims and
@@ -399,7 +399,7 @@ shapes:
 - **Per-creation strict reinstallation** — install the strict Host (or
   re-arm the pending token) before every VM construction, so probe and
   serving VMs claim equivalent strict contexts. Revisits the
-  install-once caching `src/runtime.rs` documents as a deliberate
+  install-once caching `crates/snapback/src/runtime.rs` documents as a deliberate
   M2-era optimization (LLP 0009), and changes the posture of today's
   second-and-later invocation VMs — which is why the fix belongs with
   the owners, not here.
@@ -426,7 +426,7 @@ process isolation — code-verified while executing LLP 0115 CV-3.** The
 hazard above was written against a probe running *inside a serving
 process*. The qualification that actually landed (`814acd77`) is a CLI
 subcommand: `snapback runtime-qualify` runs `qualify_handler_vm()` in
-its own short-lived process (`src/cli.rs` `HostCommand::RuntimeQualify`;
+its own short-lived process (`crates/snapback/src/cli.rs` `HostCommand::RuntimeQualify`;
 the only caller of `qualify_handler_vm`), and every consumer —
 `qualifyRuntimeBinary` (`packages/snapback-cli/runtime-recovery.mjs`,
 `spawnSync`), `scripts/runtime-link-smoke.mjs`, bootstrap, doctor,
@@ -439,7 +439,7 @@ still claims its own freshly armed strict token exactly as before the
 landing. This is effectively the "qualify through the same handoff
 path" shape realized at process granularity, with no re-arm step needed
 because the probe never shares a process with serving. The required
-post-probe test exists: `tests/runtime_qualify_posture_v0.rs` runs the
+post-probe test exists: `crates/snapback/tests/runtime_qualify_posture_v0.rs` runs the
 qualification exactly as consumers do, then proves the current
 process's first (strict-claimed) and second (diagnostic-fallback)
 handler VMs present identical fail-closed ambient enforcement. Two
@@ -455,7 +455,7 @@ neutrality does not transfer to an in-process probe.
 The companion sub-option is invocation-error fidelity.
 `SNAPBACK_RUNTIME_CREATE_FAILED` today carries only the fixed strings
 "Ibex runtime could not be created" / "Ibex runtime identity could not
-be captured" (`src/runtime.rs`); the native refusal reason ("Armed
+be captured" (`crates/snapback/src/runtime.rs`); the native refusal reason ("Armed
 startup refused: Hermes promise rejection checkpoint tracking is
 unavailable") reached the operator only through inherited stderr, which
 is why diagnosis needed a parallel lane's cross-observation. Carrying
@@ -651,7 +651,7 @@ receipts or option 4's content addressing.
 ### Option 6 — Alternative or additional JS engine (risk analysis only)
 
 What actually depends on Hermes specifics? Two boundaries, not one. At
-the `src/runtime.rs` C ABI the load-bearing contracts are: (a) the
+the `crates/snapback/src/runtime.rs` C ABI the load-bearing contracts are: (a) the
 restricted **no-eval constructor**; (b) the **time-limit
 watch/interrupt** surface; (c) the **async-failure checkpoint** —
 `ex_hermes_eval` reaching a full microtask checkpoint so
@@ -665,7 +665,7 @@ sqlite, debugger, console, IPC, worklets, runtime extensions, ABI
 checks, and per-platform code (`vendor/ibex/build.rs`) — and any engine
 strategy inherits a decision about how much of that host surface moves
 with it. In-tree prior art bounds the question empirically: Snapback
-already carries a **Workerd/V8 execution twin** (`src/workerd_exec.rs`,
+already carries a **Workerd/V8 execution twin** (`crates/snapback/src/workerd_exec.rs`,
 LLP 0048) that runs non-action handlers through the same host-op
 protocol in a local workerd process, opt-in per run — proof that part of
 the semantics is portable, and a marker for what is not (actions stay on
@@ -853,16 +853,16 @@ ergonomics by weakening an evidence boundary — applied per option:
 - **High:** the incident mechanism, timeline, and tool behaviors — read
   directly from six diaries, the issue's code trace, and the scripts
   (`bootstrap-ibex-runtime`, `ibex-doctor`, `runtime-link-smoke.mjs`,
-  `runtime-recovery.mjs`, `build.rs`, `src/runtime.rs`). Also
+  `runtime-recovery.mjs`, `build.rs`, `crates/snapback/src/runtime.rs`). Also
   code-verified in v0.2: the JS-live-query execution path
   (`define.mjs` → `FunctionKind::LiveQuery` → `RuntimeGuard::create`),
   the Workerd/V8 twin's existence and non-action scope
-  (`src/workerd_exec.rs`), the runtime packages' assembly and test
+  (`crates/snapback/src/workerd_exec.rs`), the runtime packages' assembly and test
   behavior (prepare/test scripts), the `/health` payload contents
-  (`src/server.rs`), and Ibex's portable-engine selector machinery
+  (`crates/snapback/src/server.rs`), and Ibex's portable-engine selector machinery
   (`vendor/ibex/build.rs`, `build_support/`). Code-verified in v0.3:
   the one-shot strict-Host handoff behind Option 2's hazard —
-  `ensure_host_installed()`'s `Once` (`src/runtime.rs`),
+  `ensure_host_installed()`'s `Once` (`crates/snapback/src/runtime.rs`),
   `install_host`/`claim_pending_host_context` and the
   `SecurityMode::Audit` fallback (`vendor/ibex/src/host/abi.rs`),
   `ex_hermes_create_no_eval()`'s claim of the diagnostic context

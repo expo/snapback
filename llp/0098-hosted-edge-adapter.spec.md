@@ -455,7 +455,7 @@ under which a stale projection would serve.
 ## 6. Effective source under this topology
 
 LLP 0060 D2 requires one canonical effective source, and the shipped code has
-none: `src/server.rs` reads the raw peer socket address. Under loopback
+none: `crates/snapback/src/server.rs` reads the raw peer socket address. Under loopback
 termination that address is *always* the loopback terminator, which would
 collapse every per-source throttle bucket into one — turning D3's five-bucket
 set into a global bucket and making per-source limiting a fiction. So the
@@ -697,7 +697,7 @@ the refusal axes).
 
 **A third attested-but-unenforced fact, and it was mine.** The matrix found
 that `effectiveSource: "trusted"` was attested while
-`src/auth/effective_source.rs` — written with ten passing unit tests in this
+`crates/snapback/src/auth/effective_source.rs` — written with ten passing unit tests in this
 same program — **was never referenced by the request path**. The origin still
 read the raw peer socket address, so under the profile's own
 loopback-terminated topology every per-source throttle bucket collapsed onto

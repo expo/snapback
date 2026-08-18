@@ -2397,9 +2397,9 @@ owns.
 The store interface this RFC enumerates is now a real seam: every
 production asset path — transfer, finalization custody, write-ahead
 publication, delivery streaming, GC, reset — runs through the
-store-agnostic `AssetStore` trait (`src/assets_store.rs`), with the
+store-agnostic `AssetStore` trait (`crates/snapback/src/assets_store.rs`), with the
 filesystem store proven behavior-identical (the full asset suite ran
-unmoved through the refactor). `AssetS3Store` (`src/assets_s3.rs`)
+unmoved through the refactor). `AssetS3Store` (`crates/snapback/src/assets_s3.rs`)
 implements the S3-compatible seam: hand-rolled SigV4 over the in-tree
 crypto, path-style addressing, a prefix-scoped instance keyspace whose
 reset is a bounded prefix wipe, `If-None-Match` idempotent publication
@@ -2442,7 +2442,7 @@ writes the manifest plus digest-verified blob objects from one pinned
 read transaction; `asset.importCut` validates refuse-partial and, under
 `SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1`, restores onto an empty asset
 state with fresh opaque keys, epoch-bumped generations, and imported
-tombstones (`src/assets_cut.rs`, host-ops + `snapback assets
+tombstones (`crates/snapback/src/assets_cut.rs`, host-ops + `snapback assets
 export-cut/import-cut`, receipts `CutExported` /
 `CutImportValidated` / `CutImported`). The e2e suite proves the round
 trip (restored bytes serve through ordinary delivery), the epoch fence,

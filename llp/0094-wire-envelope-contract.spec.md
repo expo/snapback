@@ -150,7 +150,7 @@ are file + symbol, line numbers as courtesy, pinned against origin/main
 
 ## 0A — Arm × route matrix
 
-The two served arms are **local** (`src/server.rs` router, built from the
+The two served arms are **local** (`crates/snapback/src/server.rs` router, built from the
 LLP 0031 route registry) and **hosted** (the Cloudflare gateway Worker
 `cloudflare/src/gateway.js` fronting the coordinator Durable Object
 `cloudflare/src/coordinator.js`).
@@ -178,7 +178,7 @@ means the LLP 0031 `ConnectionAuth` policy (the
 | `/health` | GET | Public | public metadata + server-binary identity (LLP 0031 §Server-binary identity) | public metadata + deployment identity (`coordinator.js` `route` `/health`) |
 | `/inspect` | GET | Public | typed public identity projection (`inspect.public.schema.json`) | **capability manifest** (`gateway.js` — same payload as `/capability`; a different shape from the local `/inspect`) |
 | `/capability` | GET | Public | not served under this name (the manifest rides `/inspect`/`/`) | capability manifest (`capability.manifest.schema.json`) |
-| `/connection/open` | POST | Public credential; `auth/rr` offer required in sessions mode (grants, never exercises) | closed DTO `OpenConnectionRequest` (`src/server.rs:4081-4094`) | open decoder `kitOpenConnection` (`coordinator.js:4196`) — see §0C.3 |
+| `/connection/open` | POST | Public credential; `auth/rr` offer required in sessions mode (grants, never exercises) | closed DTO `OpenConnectionRequest` (`crates/snapback/src/server.rs:4081-4094`) | open decoder `kitOpenConnection` (`coordinator.js:4196`) — see §0C.3 |
 | `/query/{name}` | POST | app auth (mode-dependent, LLP 0031 matrix) | served | served (`kitQuery`) |
 | `/mutation/{name}` | POST | app auth | served | served (`kitMutation`) — emits the committed `mutation.output.schema.json` envelope including the required `receipt` (§0C.6 item 1, converged 2026-07-27) |
 | `/action/{name}` | POST | app auth | served | served (`executeAction`) |
@@ -192,7 +192,7 @@ means the LLP 0031 `ConnectionAuth` policy (the
 | `/live/authorization-invalidation/acknowledge`, `/manual-retry` | POST | Conn + exact negotiated invalidation protocol | served | **not served** |
 | `/ephemeral/publish`, `/subscribe`, `/delete` | POST | Conn | served (LLP 0013) | **not served** (`ephemeral_realtime` manifest gap) |
 | `/ephemeral/collections/ensure` | POST | Public (validate-only, identity-free) | served | **not served** |
-| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`), schema-governed by `live.kit-socket-request.schema.json` (Rust authority `KitSocketRequestFrame`, `src/live_wire.rs`; verdict parity with the served validator proven by `cloudflare/test/wire-schema-gate.mjs`); **no ephemeral kinds**. Reply grammar is **kit dialect throughout** (§0C.6 item 6, converged and schema-governed 2026-07-27 by `live.kit-socket-reply.schema.json`, Rust authority `KitSocketReplyFrame`): ping → `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → `kind: "snapshot"` with the kit frames' snake_case members (`subscription_id`, `function`, `version`, `rows`, optional `resume`/`resumeRefusal`; no proof `connectionKey`); every error → `kind: "error"` with the full committed `Diagnostic`; unsubscribe → session-scoped delete, **no reply frame**. Positive/negative Rust instances and real served-frame validation for all four reply variants live in the shared schema gates. The row is conformance-claimable; no first-party client currently sends in-band durable frames |
+| WS message kinds on the kit stream | — | bound socket (LLP 0031 operation registry) | the `type`-tagged `LiveSocketClientMessage` family: `ephemeral_subscribe\|ephemeral_publish\|ephemeral_delete\|ephemeral_unsubscribe\|ping` (registry operation names prefix-map these; `ping` registers as `live_ping`); **no in-band durable subscribe/unsubscribe** — durable lifecycle is HTTP-only on this arm | request grammar `subscribe\|unsubscribe\|ping` (`webSocketMessage` → `validateLiveSocketFrame`, `coordinator.js`), schema-governed by `live.kit-socket-request.schema.json` (Rust authority `KitSocketRequestFrame`, `crates/snapback/src/live_wire.rs`; verdict parity with the served validator proven by `cloudflare/test/wire-schema-gate.mjs`); **no ephemeral kinds**. Reply grammar is **kit dialect throughout** (§0C.6 item 6, converged and schema-governed 2026-07-27 by `live.kit-socket-reply.schema.json`, Rust authority `KitSocketReplyFrame`): ping → `kind: "pong"` with `requestId` echo; subscribe with `resumeFromToken` answering rung 1 → `kind: "current_as_of"` (the one LLP 0091 step-5-contracted reply); plain subscribe → `kind: "snapshot"` with the kit frames' snake_case members (`subscription_id`, `function`, `version`, `rows`, optional `resume`/`resumeRefusal`; no proof `connectionKey`); every error → `kind: "error"` with the full committed `Diagnostic`; unsubscribe → session-scoped delete, **no reply frame**. Positive/negative Rust instances and real served-frame validation for all four reply variants live in the shared schema gates. The row is conformance-claimable; no first-party client currently sends in-band durable frames |
 | `/app/ensure` | POST | LLP 0012/0031 intent family | intent family (attest/provision/legacy) | deploy-identity compare + seed-if-empty (`kitEnsureApp`) — provisioning is compile-time |
 | `/app/bundle` | POST | LLP 0031 dated amendment (0090) | read + register modes | **read mode only** (register deferred, LLP 0092 step-4 amendment) |
 | `/query`, `/mutation` (root, un-named) | POST | LLP 0040 proof protocol | not served | served (`handleQuery`/`handleMutation`, `coordinator.js`; gateway forwards) — **LLP 0040 pinned proof surface, outside wire v1**; presence recorded per §0A.0, protocol specified by LLP 0040 |
@@ -215,7 +215,7 @@ old grant continues to serve the old identity by design.
 The local arm's admin/testing seams a client-side test author needs are
 LLP 0031's rows; the deterministic cron seams called out by LLP 0093 D3.1
 are `POST /_snapback/api/cron/tick` and `POST /_snapback/api/cron/{name}/run`
-(`src/admin.rs`, AdminWrite). The full local system surface is LLP 0031's
+(`crates/snapback/src/admin.rs`, AdminWrite). The full local system surface is LLP 0031's
 matrix and is not restated here.
 
 ### 0A.3 Hosted-arm system seams (migrated under `/_snapback/*`)
@@ -248,7 +248,7 @@ handler harness) and was repointed in the same change. The hosted
 `/host-call` path is shared with the local workerd harness
 (`packages/snapback-harness/workerd/handler-server.mjs` →
 `http://snapback-host/_snapback/host-call`), so the local private
-loopback listener (`src/workerd_exec.rs`) accepts the same path — one
+loopback listener (`crates/snapback/src/workerd_exec.rs`) accepts the same path — one
 seam, one path, both arms. The shared Cloudflare deployment still serves
 the old paths until redeploy (recorded in the closed ticket; redeploy
 needs fleet coordination).
@@ -269,11 +269,11 @@ Added 2026-07-25 from the P-2 clean-room defect ledger
 (`issues/20260725-0093-p2-spec-defect-drain-response-shape.md`): the
 documents named the drain's *semantics* (LLP 0095 T-DRAIN) but never its
 *wire shape*, forcing a clean-room implementer to guess. Normative, audited
-against `drain_outbox` (`src/server.rs`):
+against `drain_outbox` (`crates/snapback/src/server.rs`):
 
 - **The response body is a bare JSON array of `RealtimeEnvelope`** —
   `drain_outbox` serves the transparent authority type
-  `OutboxDrainOutput(Vec<RealtimeEnvelope>)` (`src/live_wire.rs`). Not
+  `OutboxDrainOutput(Vec<RealtimeEnvelope>)` (`crates/snapback/src/live_wire.rs`). Not
   NDJSON, not an object wrapper (`{"batch": …}` does not exist). The array
   may be empty. Each element is governed by
   `realtime.envelope.schema.json`; the array wrapper is machine-governed
@@ -283,7 +283,7 @@ against `drain_outbox` (`src/server.rs`):
   drain is validated against the same schema by
   `cloudflare/test/wire-schema-gate.mjs`, and the positive instances
   (empty array; the synthesized `unknown_or_reaped` batch below) are
-  pinned in `tests/artifact_schemas_v0.rs`.
+  pinned in `crates/snapback/tests/artifact_schemas_v0.rs`.
 - **Unknown or reaped connections answer in-band, not with an HTTP
   error.** When the connection grant still admits the request but the
   outbox registry no longer holds an active connection (the
@@ -369,7 +369,7 @@ shared Cloudflare deployment until its post-B1 redeploy, executed
 2026-07-30).
 
 - **Local socket lane:** `stream_live` calls
-  `.protocols([LIVE_STREAM_SUBPROTOCOL])` (`src/server.rs`, constant at
+  `.protocols([LIVE_STREAM_SUBPROTOCOL])` (`crates/snapback/src/server.rs`, constant at
   `:5467`, upgrade at `:16966`): axum echoes `snapback.v1` when
   offered and **admits offerless upgrades**.
 - **Hosted socket lane:** `acceptKitSocket` echoes only when offered —
@@ -378,7 +378,7 @@ shared Cloudflare deployment until its post-B1 redeploy, executed
   and likewise admits offerless upgrades.
 - **HTTP lane:** `POST /connection/open` carries one protocol offer
   today, `authInvalidationProtocol` (`OpenConnectionRequest`,
-  `src/server.rs:4081-4094`), whose unknown values silently degrade to
+  `crates/snapback/src/server.rs:4081-4094`), whose unknown values silently degrade to
   legacy (`:4727-4728`); the hosted `kitOpenConnection` ignores the field
   entirely (§0C.3).
 - The JS kit always offers `snapback.v1` on the socket (with the bearer
@@ -417,7 +417,7 @@ rules; ineligible for offer-gated envelope kinds). No re-open changes
 the state — the only way to a different binding (or from legacy to
 explicit) is a fresh connection. Rationale: local and hosted re-open
 both preserve the connection id and token
-(`ConnectionRegistry::open_prepared`, `src/server.rs`;
+(`ConnectionRegistry::open_prepared`, `crates/snapback/src/server.rs`;
 `kitOpenConnection`, `coordinator.js`) and neither retires a live
 socket, so any mid-lineage change would put two versions inside one
 connection-scoped surface.
@@ -470,7 +470,7 @@ offers, the server selects at most one). Classify each entry in order:
 Then apply the first matching row (precedence is this table order —
 "bound version present wins"; classification precedes equality, so an
 offer set with no known candidate can never be a mismatch). Refusals in
-the must-understand style of `src/auth/handshake.rs` (pre-upgrade HTTP
+the must-understand style of `crates/snapback/src/auth/handshake.rs` (pre-upgrade HTTP
 responses):
 
 | Offer set (after classification) | Server behavior | Enforced from |
@@ -539,11 +539,11 @@ field-admitting servers never cross a repo state where one exists without
 the other:
 
 - **B1** on both arms — local `OpenConnectionRequest.wire_version` +
-  registry lineage binding (`src/server.rs`), hosted `kitOpenConnection`
+  registry lineage binding (`crates/snapback/src/server.rs`), hosted `kitOpenConnection`
   reading the member and persisting the binding in a
   `_snapback_connections.wire_version` column (`coordinator.js`); the
   `ConnectionGrant.wireVersion` echo on both; the §0B.4 present-offer
-  socket refusals (shared predicate: `src/wire_version.rs`,
+  socket refusals (shared predicate: `crates/snapback/src/wire_version.rs`,
   `classifySocketWireVersionOffer` in `coordinator.js`); and the §0C.5
   alignment. Re-open immutability is enforced in the registry/DO re-open
   branch.
@@ -582,7 +582,7 @@ A pre-B1 local server rejects a `wireVersion`-carrying open as a body
 decode failure (closed DTO). The pinned client rule — the trigger is
 exact, not heuristic: a **decode-class rejection** is
 `SNAPBACK_REQUEST_JSON_INVALID` (HTTP 400; `ApiError::request_json_invalid`,
-minted by `parse_optional_json`, `src/server.rs`) **and** the
+minted by `parse_optional_json`, `crates/snapback/src/server.rs`) **and** the
 differential — the rejection disappears when the offer member alone is
 removed. That code also fires for missing `Content-Type` and non-object
 bodies, which is what the differential re-try disambiguates. No other
@@ -641,7 +641,7 @@ enumerable population of the repo's own socket consumers:
   compliant.
 - `demos/_kit/tests/regression-reconnect-nuke.mjs`: raw socket, offers
   `['snapback.v1', 'snapback.connection-token.<token>']` — compliant.
-- Rust in-crate socket tests (`src/server.rs` test modules): offer
+- Rust in-crate socket tests (`crates/snapback/src/server.rs` test modules): offer
   `LIVE_STREAM_SUBPROTOCOL` — compliant.
 - `cloudflare/test/acceptance.remote.mjs`, `measure.remote.mjs`,
   `cloudflare/test/harness.mjs:364`: offerless, but on the **proof
@@ -669,10 +669,10 @@ and must find zero offerless callers before absent may refuse.
 re-run before turning on the absent-class socket refusal, with one
 **correction to the record above**: the claim that the Rust in-crate
 socket tests were compliant was **wrong** — ten offerless kit-stream
-upgrade constructions existed (`src/server.rs`: the protected-room,
-pressure-eviction, and terminal-socket tests; `tests/admin_v0.rs` ×4
-including the header-transport probe; `tests/concurrency_v0.rs` ×1;
-`tests/route_policy_v1.rs` ×1), and the hosted suites held eleven more
+upgrade constructions existed (`crates/snapback/src/server.rs`: the protected-room,
+pressure-eviction, and terminal-socket tests; `crates/snapback/tests/admin_v0.rs` ×4
+including the header-transport probe; `crates/snapback/tests/concurrency_v0.rs` ×1;
+`crates/snapback/tests/route_policy_v1.rs` ×1), and the hosted suites held eleven more
 (`cloudflare/test/acceptance.security-hardening.mjs` ×8,
 `acceptance.protocol-hardening.mjs` ×1, `acceptance.rqs.mjs` ×1, plus the
 kit-socket probe the wire-version suite itself adds). All were brought
@@ -711,18 +711,18 @@ feature-off).
 
 | Family | Decoder (local arm) | Schema | Decided posture |
 | --- | --- | --- | --- |
-| `OpenConnectionRequest` (`src/server.rs:4081-4094`) | **closed** | `connection.open.input.schema.json`, closed | stays closed; the §0B.5 B1 member and LLP 0136's staged `liveSearchProtocol` member are sanctioned gated evolution paths |
-| `AuthorizationInvalidationAckInput` (`src/local/live_protocol.rs`) | **closed** | closed | stays closed |
-| manual-retry input (`src/local/live_protocol.rs`, `AuthorizationInvalidationManualRetryInput`) | **closed** | closed | stays closed |
-| `SessionLiveSocketClientMessage` (`src/server.rs`, sessions-mode socket) | **closed** (auth-mode-dependent third family) | `live.socket-client.sessions.schema.json`, closed (committed 2026-07-27, closing the §0F item-4 gap) | stays closed |
-| `LiveSubscribeInput` / `LiveResumeInput` / `LiveUnsubscribeInput` (`src/local/live_protocol.rs`) | **open** | open | **stays open** — LLP 0091's `resumeFromToken` rides the open subscribe body as its compatible fallback, and closing an open decoder changes observable behavior for every deployed caller; the silent-feature-off hazard is mitigated by response witnesses: `resumeRefusal` for token resume, and `superseded` or `supersessionRefusal` for every presented `supersedes` id |
-| `HandlerInput` (`src/manifest.rs`) | **open** | open (`query.input` / `mutation.input`) | stays open (it is the app-args carrier; the sessions-mode body-auth **rejection family** of LLP 0031 is the enforced closed subset — auth-bearing members are rejected, not ignored) |
-| dev-mode socket client message (`LiveSocketClientMessage`, `src/live_wire.rs`) | **open** | `live.socket-client.schema.json` | stays open in dev mode; sessions mode already substitutes the closed family above |
-| `AuthorizedLeaseQueryRequest` (`src/server.rs`) | **closed** | `authorized-lease.query.input.schema.json`, closed | stays closed (exact-protocol lease surface, LLP 0043/0053) |
+| `OpenConnectionRequest` (`crates/snapback/src/server.rs:4081-4094`) | **closed** | `connection.open.input.schema.json`, closed | stays closed; the §0B.5 B1 member and LLP 0136's staged `liveSearchProtocol` member are sanctioned gated evolution paths |
+| `AuthorizationInvalidationAckInput` (`crates/snapback/src/local/live_protocol.rs`) | **closed** | closed | stays closed |
+| manual-retry input (`crates/snapback/src/local/live_protocol.rs`, `AuthorizationInvalidationManualRetryInput`) | **closed** | closed | stays closed |
+| `SessionLiveSocketClientMessage` (`crates/snapback/src/server.rs`, sessions-mode socket) | **closed** (auth-mode-dependent third family) | `live.socket-client.sessions.schema.json`, closed (committed 2026-07-27, closing the §0F item-4 gap) | stays closed |
+| `LiveSubscribeInput` / `LiveResumeInput` / `LiveUnsubscribeInput` (`crates/snapback/src/local/live_protocol.rs`) | **open** | open | **stays open** — LLP 0091's `resumeFromToken` rides the open subscribe body as its compatible fallback, and closing an open decoder changes observable behavior for every deployed caller; the silent-feature-off hazard is mitigated by response witnesses: `resumeRefusal` for token resume, and `superseded` or `supersessionRefusal` for every presented `supersedes` id |
+| `HandlerInput` (`crates/snapback/src/manifest.rs`) | **open** | open (`query.input` / `mutation.input`) | stays open (it is the app-args carrier; the sessions-mode body-auth **rejection family** of LLP 0031 is the enforced closed subset — auth-bearing members are rejected, not ignored) |
+| dev-mode socket client message (`LiveSocketClientMessage`, `crates/snapback/src/live_wire.rs`) | **open** | `live.socket-client.schema.json` | stays open in dev mode; sessions mode already substitutes the closed family above |
+| `AuthorizedLeaseQueryRequest` (`crates/snapback/src/server.rs`) | **closed** | `authorized-lease.query.input.schema.json`, closed | stays closed (exact-protocol lease surface, LLP 0043/0053) |
 | client-mutation acknowledge input (`client-mutation.ack.input.schema.json`) | **closed** | closed | stays closed |
-| `/app/ensure` intent body (`EnsureAppInput` / `EnsureAppExplicitInput`, `src/local.rs`) | **closed** (`deny_unknown_fields` on the legacy struct and every intent variant) | `app.ensure.input.schema.json`, closed definitions | stays closed (v0.2 misclassified this row open — corrected; the closed-family gating rule applies to any addition). Hosted `kitEnsureApp` decodes it open, per §0C.3 |
+| `/app/ensure` intent body (`EnsureAppInput` / `EnsureAppExplicitInput`, `crates/snapback/src/local.rs`) | **closed** (`deny_unknown_fields` on the legacy struct and every intent variant) | `app.ensure.input.schema.json`, closed definitions | stays closed (v0.2 misclassified this row open — corrected; the closed-family gating rule applies to any addition). Hosted `kitEnsureApp` decodes it open, per §0C.3 |
 | `/app/bundle` request (`app.bundle.input.schema.json`) | **open** | open | stays open (LLP 0090's dated amendment owns evolution) |
-| ephemeral HTTP requests (`PublishRequest`/`SubscribeRequest`/`DeleteRequest`, `src/ephemeral.rs`) | **open** | `ephemeral.publish.input` / `ephemeral.subscribe.input` / `ephemeral.delete.input` schemas (committed 2026-07-27; the dev wire shape — sessions mode substitutes the closed identity-free `Session*` DTOs per §0A.7) | stays open |
+| ephemeral HTTP requests (`PublishRequest`/`SubscribeRequest`/`DeleteRequest`, `crates/snapback/src/ephemeral.rs`) | **open** | `ephemeral.publish.input` / `ephemeral.subscribe.input` / `ephemeral.delete.input` schemas (committed 2026-07-27; the dev wire shape — sessions mode substitutes the closed identity-free `Session*` DTOs per §0A.7) | stays open |
 
 ### 0C.2 Server→client families
 
@@ -738,20 +738,20 @@ clients are not proven tolerant needs capability gating or a new token
 | `LiveEnvelope` (`live.envelope.schema.json`) | closed `oneOf` over the current kind set | new kinds always offer-gated (LLP 0091 `CurrentAsOf` is the pattern); `resync_required.reason` is the open-string escape hatch. Casing follows each serde DTO: outer durable fields are generally snake_case, but the `authorization_invalidation` obligation/resolution/scope/namespace/snapshot subtree is camelCase |
 | `LiveSocketServerFrame` (`live.socket-server.schema.json`) | closed `oneOf` | `durable_bytes` carries the required recovery transition (LLP 0093 D3 fact 2b) |
 | `Receipt` (`receipt.schema.json`) | closed variants | §0D ratifies its appearance on subscribe/unsubscribe outputs as typed |
-| `AuthorizationInvalidationSnapshot` (`src/live_wire.rs:128-136`) | **closed** (`additionalProperties: false`) | additions need gating per the rule above |
-| `AuthorizationInvalidationAckOutput` (`src/local/live_protocol.rs`) | **closed** | same |
+| `AuthorizationInvalidationSnapshot` (`crates/snapback/src/live_wire.rs:128-136`) | **closed** (`additionalProperties: false`) | additions need gating per the rule above |
+| `AuthorizationInvalidationAckOutput` (`crates/snapback/src/local/live_protocol.rs`) | **closed** | same |
 | `LiveSubscribeOutput` / `LiveUnsubscribeOutput` / `LiveResumeOutput` | open objects | additive optional fields are the sanctioned in-v1 evolution (server→client direction). Exercised 2026-07-30: subscribe/resume outputs gained optional `attribution` (the LLP 0055 §Audit block, same `FunctionAttribution` type as the finite envelopes) — establishment-derived, immutable subscription metadata re-answered unchanged on resume; schemas regenerated under the LLP 0051 §D4 drift gates |
 | `RealtimeEnvelope` drain wrapper (`realtime.envelope.schema.json`) | closed | lane-P framing only |
 | `RealtimeEnvelope::EphemeralAck` | nominally closed variant with a flattened ack payload | deliberate unknown-field-detection exception: serde `flatten` consumes extra top-level members into the ack payload, so a generic closed-envelope decoder cannot distinguish a future wrapper field. Do not seed an unknown-field tolerance fixture for this variant until the payload is typed or flattening is removed |
 | `ConnectionGrant` (`connection.grant.schema.json`) | open object | the §0B.3 `wireVersion` echo lands here as the sanctioned additive member |
 | `ErrorResponse` (`error.response.schema.json`) | **versioned, forward-additive v1** | required `formatVersion: "snapback.error-response.v1"` and `diagnostic`; optional `receipt`/`attribution`/`ephemeralAuthorityInstance`; receivers reject an unknown format version but ignore unknown top-level members of v1. The inner `Diagnostic` remains closed and requires `code`/`severity`/`subsystem`/`message`/`details` — see §0C.7 |
 | `MutationResponse` (`mutation.output.schema.json`) | **closed** | `attribution` is admitted explicitly since the §0C.6 item-4 convergence (2026-07-27): the type carries `Option<FunctionAttribution>` directly and the schema is regenerated from the served envelope |
-| `QueryOutput` / action output (`QueryOutput` in `src/manifest.rs`; the action route serves `FunctionResponse<FunctionRunResult>`, `src/local.rs`) | open | `query.output.schema.json` / `action.output.schema.json` (committed 2026-07-27); open families, so the served `FunctionResponse` attribution flatten validates |
-| `/app/ensure` outcomes (`EnsureAppAttestOutcome` / `EnsureAppProvisionOutcome` / legacy `EnsureAppOutcome`, `src/local.rs`) | **closed** (`deny_unknown_fields`; `additionalProperties: false` in `app.ensure.output.schema.json`) | closed-family rule: additions need gating or a new token (v0.2 misclassified this row open — corrected) |
+| `QueryOutput` / action output (`QueryOutput` in `crates/snapback/src/manifest.rs`; the action route serves `FunctionResponse<FunctionRunResult>`, `crates/snapback/src/local.rs`) | open | `query.output.schema.json` / `action.output.schema.json` (committed 2026-07-27); open families, so the served `FunctionResponse` attribution flatten validates |
+| `/app/ensure` outcomes (`EnsureAppAttestOutcome` / `EnsureAppProvisionOutcome` / legacy `EnsureAppOutcome`, `crates/snapback/src/local.rs`) | **closed** (`deny_unknown_fields`; `additionalProperties: false` in `app.ensure.output.schema.json`) | closed-family rule: additions need gating or a new token (v0.2 misclassified this row open — corrected) |
 | `/app/bundle` output (`app.bundle.output.schema.json`) | open object | additive-optional evolution, same rule as the live outputs |
 | `AuthorizedLeaseQueryResponse` / lease envelope (`authorized-lease.*` schemas) | **closed** | exact-protocol surface; evolution under LLP 0043/0053, cited not restated |
 | client-mutation acknowledge output (`client-mutation.ack.output.schema.json`) | **closed** | stays closed |
-| ephemeral HTTP outcomes (`src/ephemeral.rs`) | open | `ephemeral.publish.output` (`PublishOutcome`) / `ephemeral.subscribe.output` (`EphemeralMessage`) / `ephemeral.delete.output` (nullable `EphemeralMessage`) schemas, committed 2026-07-27 |
+| ephemeral HTTP outcomes (`crates/snapback/src/ephemeral.rs`) | open | `ephemeral.publish.output` (`PublishOutcome`) / `ephemeral.subscribe.output` (`EphemeralMessage`) / `ephemeral.delete.output` (nullable `EphemeralMessage`) schemas, committed 2026-07-27 |
 
 ### 0C.7 ErrorResponse format version and forward skew (2026-08-08)
 
@@ -830,10 +830,10 @@ inside otherwise-open decoders, not a closure.
 ### 0C.5 `authInvalidationProtocol`: decided, not inherited
 
 Before B1 an **unknown** `authInvalidationProtocol` value silently
-degraded to a legacy connection (`src/server.rs` — exact-match-v1 else
+degraded to a legacy connection (`crates/snapback/src/server.rs` — exact-match-v1 else
 `None`), the opposite of §0B.3's unknown-refuses rule for the adjacent
 field. Decision: **aligned to refuse** — implemented 2026-07-27 with B1
-on both arms (`open_connection`, `src/server.rs`; `kitOpenConnection`,
+on both arms (`open_connection`, `crates/snapback/src/server.rs`; `kitOpenConnection`,
 `coordinator.js`, which reads the member for exactly this refusal while
 still implementing no invalidation surface). From stage B1, both offer fields
 on `/connection/open` follow one matrix — known binds, unknown refuses
@@ -902,7 +902,7 @@ wire-version probes recorded in
    `server`, `storage`, `auth`, default `runtime`) and always emits
    `details` (`{}` when empty, the local default).
 4. **Local function responses** rode `FunctionResponse<T>`
-   (`src/server.rs`), which serde-flattened an optional `attribution`
+   (`crates/snapback/src/server.rs`), which serde-flattened an optional `attribution`
    member onto the output; `mutation.output.schema.json` is closed and
    did not admit it, so a sessions-mode mutation response with
    attribution violated the committed schema on the **local** arm — the
@@ -983,7 +983,7 @@ with this convergence. Nothing in this ledger is an evolution precedent.
 ## 0D — Subscription receipt typing (implemented)
 
 `LiveSubscribeOutput.receipt` and `LiveUnsubscribeOutput.receipt` were
-`Option<serde_json::Value>` (`src/local.rs:674,774` at `e1edbbc1`) — the
+`Option<serde_json::Value>` (`crates/snapback/src/local.rs:674,774` at `e1edbbc1`) — the
 untyped compatibility seam LLP 0093's version-domain section names. With
 this spec they are `Option<crate::live_wire::Receipt>`:
 
@@ -994,7 +994,7 @@ this spec they are `Option<crate::live_wire::Receipt>`:
   `live.unsubscribe.output.schema.json` are regenerated in the same
   change (`cargo run --bin snapback-schemagen`), so the `receipt` member
   now references the `Receipt` union definition instead of `true`;
-- the `tests/artifact_schemas_v0.rs` instance test upgrades its
+- the `crates/snapback/tests/artifact_schemas_v0.rs` instance test upgrades its
   hand-written `json!({ "kind": "subscription" })` receipt to a full
   typed instance, and the JS gate
   (`demos/_kit/tests/live-wire-schema.mjs`) continues to pass unchanged
@@ -1052,9 +1052,9 @@ a resume/reattach-only concern: explicit unsubscribe
 (`unsubscribe_live_prepared`), the `supersedes` replacement check on
 subscribe (known foreign owners fail closed), resume/reattach, and
 authorization-invalidation manual retry all mint it through
-`live_owner_mismatch` / the same ownership predicate (`src/local.rs`;
+`live_owner_mismatch` / the same ownership predicate (`crates/snapback/src/local.rs`;
 predicate `LiveSubscription::is_owned_by` →
-`RetainedLiveAuthority::matches`, `src/auth/invocation.rs` — resolved
+`RetainedLiveAuthority::matches`, `crates/snapback/src/auth/invocation.rs` — resolved
 authority identity plus exact connection grant). The name is historical
 (first minted for resume, LLP 0032 S2); sharing one code across the
 live-ownership checks is intentional. The client-side consequence is LLP
@@ -1069,7 +1069,7 @@ from a presented-but-wrong owner without disclosing either identity.
 ## 0F — Remaining hand-mirrored frames (LLP 0051 §D4)
 
 Audit at `6fe11376` of what remained outside the schema drift gates
-(`tests/artifact_schemas_v0.rs` + `demos/_kit/tests/live-wire-schema.mjs`);
+(`crates/snapback/tests/artifact_schemas_v0.rs` + `demos/_kit/tests/live-wire-schema.mjs`);
 items 1–4 were **executed 2026-07-27** under the item-1 ticket
 (`issues/20260725-0093-p0-marker-envelope-schemas.md`):
 
@@ -1078,14 +1078,14 @@ items 1–4 were **executed 2026-07-27** under the item-1 ticket
    response envelope, and the handler→host call body, live on both arms
    (`packages/snapback-harness/workerd/handler-server.mjs`,
    `cloudflare/src/coordinator.js` `serveHostCall` / `invokeHandler`,
-   `src/workerd_exec.rs` loopback transport) and previously
+   `crates/snapback/src/workerd_exec.rs` loopback transport) and previously
    hand-mirrored JS↔JS↔Rust; being private is not a hand-mirror
    exemption. **Implemented 2026-07-27**: Rust authorities in
-   `src/handler_wire.rs` (`HandlerInvokeRequest` /
+   `crates/snapback/src/handler_wire.rs` (`HandlerInvokeRequest` /
    `HandlerInvokeResponse` / `HandlerHostCallRequest`), committed as
    `handler.invoke.input` / `handler.invoke.output` /
    `handler.host-call.input` schemas with positive/negative instances in
-   `tests/artifact_schemas_v0.rs`. The schemas contract the envelopes
+   `crates/snapback/tests/artifact_schemas_v0.rs`. The schemas contract the envelopes
    **as served today** (closed emission; tolerant field-pluck
    receivers): the D6 `SNAPBACK_AUTH_HANDLER_V1` versioned marker set is
    still unimplemented on every arm, and its semantics, rollout, and
@@ -1093,7 +1093,7 @@ items 1–4 were **executed 2026-07-27** under the item-1 ticket
    bytes are validated on both arms: the local twin serializes the
    authority type and validates workerd-produced response/host-call
    bytes through a capture seam
-   (`tests/workerd_twin_v0.rs::handler_boundary_wire_bytes_validate_against_committed_schemas`),
+   (`crates/snapback/tests/workerd_twin_v0.rs::handler_boundary_wire_bytes_validate_against_committed_schemas`),
    and the hosted arm's service-binding bytes are captured and
    validated by `cloudflare/test/wire-schema-gate.mjs`.
 2. **The hosted in-band socket frame grammar** — one validator,
@@ -1111,13 +1111,13 @@ items 1–4 were **executed 2026-07-27** under the item-1 ticket
    in-band request grammar** (`subscribe`/`unsubscribe`/`ping`) is
    **inside wire v1** — **implemented 2026-07-27** as
    `live.kit-socket-request.schema.json` (authority
-   `KitSocketRequestFrame`, `src/live_wire.rs`), with verdict parity
+   `KitSocketRequestFrame`, `crates/snapback/src/live_wire.rs`), with verdict parity
    between the served validator and the schema proven over a shared
-   corpus (Rust fixtures in `tests/artifact_schemas_v0.rs`; served-arm
+   corpus (Rust fixtures in `crates/snapback/tests/artifact_schemas_v0.rs`; served-arm
    corpus in `wire-schema-gate.mjs`). The in-band **reply** grammar
    converged to kit dialect the same day (§0C.6 item 6) and is
    **implemented** as `live.kit-socket-reply.schema.json` (authority
-   `KitSocketReplyFrame`, `src/live_wire.rs`). Positive/negative Rust
+   `KitSocketReplyFrame`, `crates/snapback/src/live_wire.rs`). Positive/negative Rust
    instances cover the closed grammar, and `wire-schema-gate.mjs`
    validates real served `pong`, `snapshot`, `current_as_of`, and `error`
    frames against it. Schematizing the previously mixed as-built replies
@@ -1164,7 +1164,7 @@ capture test (`workerd_twin_v0`), and
 `local-suite-manifest.mjs`). The §0B/§0C.5 server changes land under their ticket
 with: offer-matrix acceptance fixtures on both arms (known/unknown/absent
 × open/socket), the socket-refusal style test mirroring
-`src/auth/handshake.rs`, and a re-run of the §0B.7 enumeration recorded
+`crates/snapback/src/auth/handshake.rs`, and a re-run of the §0B.7 enumeration recorded
 in the landing commit. The §0C.6 convergence lands under its own ticket
 with hosted response-schema assertions in the Cloudflare acceptance
 suite for each ledger item. The §0F item-2 reply residual extends the

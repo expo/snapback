@@ -4,8 +4,8 @@ id: operating.backup-and-copy
 order: 9
 audience: agent-first
 capabilities: [operating.store-durable-state]
-authorities: [llp/0192-store-durable-state-set.decision.md, llp/0057-auth-provider-protocol.spec.md, src/store_state.rs, src/cli.rs, src/auth/backup.rs, src/auth/runtime.rs]
-examples: [src/store_state.rs]
+authorities: [llp/0192-store-durable-state-set.decision.md, llp/0057-auth-provider-protocol.spec.md, crates/snapback/src/store_state.rs, crates/snapback/src/cli.rs, crates/snapback/src/auth/backup.rs, crates/snapback/src/auth/runtime.rs]
+examples: [crates/snapback/src/store_state.rs]
 status: current
 targets: [local]
 maturity: partial

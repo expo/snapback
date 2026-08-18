@@ -55,7 +55,7 @@ an agent can check.
 The findings below come from a whole-repo architecture review conducted
 2026-07-01 by Claude (Fable 5) with Charlie Cheever: four parallel survey
 passes (core-architecture LLPs; newer LLPs plus all eight diaries; the Rust
-core under `src/` and `tests/`; the JS estate under `demos/_kit/`,
+core under `crates/snapback/src/` and `tests/`; the JS estate under `demos/_kit/`,
 `packages/`, `admin-ui/`, and the demos), synthesized into a ranked review.
 This plan is the durable artifact of that review; the registers in it are
 self-contained so the plan can be executed without the conversation that
@@ -292,7 +292,7 @@ ships with a regression test and, where user-visible, a diagnostic code.
 - **S0 — Close the live destructive hole first.** The root `/admin/reset`,
   `/admin/schema`, `/admin/functions`, `/admin/seed` aliases are ungated on
   **any** bind even when `SNAPBACK_ADMIN_TOKEN` is set — the token guards
-  only `/_snapback/*` (`src/server.rs:48-76` vs `src/admin.rs:232-261`)
+  only `/_snapback/*` (`crates/snapback/src/server.rs:48-76` vs `crates/snapback/src/admin.rs:232-261`)
   [confirmed]. Do not wait for the full 0031 program: gate these four
   handlers behind the same `authorize()` policy as their `/_snapback/*`
   twins now. (There is no route middleware today — gating is per-handler
@@ -301,7 +301,7 @@ ships with a regression test and, where user-visible, a diagnostic code.
   fails closed on loopback and on non-loopback with a token set, with a
   regression test that stays green through S1's alias retirement.
   **Landed 2026-07-01** — the four alias handlers call the shared
-  `authorize()` write gate; `s0_*` tests in `tests/admin_v0.rs` cover
+  `authorize()` write gate; `s0_*` tests in `crates/snapback/tests/admin_v0.rs` cover
   token-required-on-loopback, disabled/gated non-loopback, and the
   preserved open-loopback default.
 - **S1 — Implement [LLP 0031](./0031-server-route-taxonomy.spec.md) D1–D5.**
@@ -329,7 +329,7 @@ ships with a regression test and, where user-visible, a diagnostic code.
 - **S2 — Subscription ownership.** Subscription ids are sequential (`sub_1`,
   `sub_2`, …) and `resume_live` performs no ownership check, so any caller
   can re-point another subscription's stream to its own connection
-  (`src/local.rs:433-434`, `454-514`) [confirmed]. Make ids unguessable and
+  (`crates/snapback/src/local.rs:433-434`, `454-514`) [confirmed]. Make ids unguessable and
   bind resume (and any future per-subscription op) to the owning
   connection/principal. **Done when:** a hijack test fails closed with a
   structured diagnostic. **Landed 2026-07-01** — ids are UUIDv7 bearer
@@ -338,7 +338,7 @@ ships with a regression test and, where user-visible, a diagnostic code.
   `s2_resume_live_fails_closed_for_a_different_principal`.
 - **S3 — WebSocket sender binding.** WS `ephemeral_publish` frames carry a
   client-chosen `connection_id` that is never checked against the socket's
-  own connection (`src/server.rs:474-534`) [confirmed]. Bind frames to the
+  own connection (`crates/snapback/src/server.rs:474-534`) [confirmed]. Bind frames to the
   socket identity. **Done when:** a spoofed-connection publish test fails
   closed. **Landed 2026-07-01** — all three WS message kinds bind to the
   socket's connection (`SNAPBACK_WEBSOCKET_SENDER_MISMATCH`); test
@@ -372,12 +372,12 @@ Each fix lands with a failing-then-passing test named for the step id.
 
 - **S5.D1 — Nested Ibex re-entry nulls the host-call context** [analysis].
   `run_ibex_handler_with_context` sets a thread-local pointer and
-  unconditionally nulls it after eval (`src/runtime.rs:518-524`). An Ibex
+  unconditionally nulls it after eval (`crates/snapback/src/runtime.rs:518-524`). An Ibex
   *action* whose `ctx.runMutation` targets an Ibex *mutation* re-enters, and
   the inner call's cleanup strands the outer action — any later host call
   fails with `SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT`. The only existing
   nesting test ends with a host-plan mutation, so the path is untested
-  (`tests/local_v0.rs:888-904`, `2018-2037`). Fix: save/restore semantics
+  (`crates/snapback/tests/local_v0.rs:888-904`, `2018-2037`). Fix: save/restore semantics
   (a stack), plus the reproducing test — which must make a host call *after*
   the nested call returns; a test that merely ends with `ctx.runMutation`
   passes even on broken code. The nested entry also replaces the
@@ -412,7 +412,7 @@ Each fix lands with a failing-then-passing test named for the step id.
   (`s5_d3` × 5), proven against HEAD.
 - **S5.D4 — Post-commit fan-out failures are misreported** [confirmed].
   `notify_permission_resyncs(...)?` / `notify_live_subscriptions(...)?` run
-  after the mutation committed (`src/local.rs:411-412`); a live-query re-run
+  after the mutation committed (`crates/snapback/src/local.rs:411-412`); a live-query re-run
   failure returns an *error* to a caller whose write *persisted*, and the
   fan-out loop aborts mid-iteration, silently starving remaining
   subscribers. Fix: fan-out errors are per-subscription diagnostics (and
@@ -440,7 +440,7 @@ Each fix lands with a failing-then-passing test named for the step id.
 - **S5.D5 — WS drain-then-send loses messages on send failure** [analysis].
   Messages are drained from the outbox under the lock, then written to the
   socket; a send error discards the failing message and everything drained
-  after it (`src/server.rs:436-446`) — and the loop then breaks into
+  after it (`crates/snapback/src/server.rs:436-446`) — and the loop then breaks into
   `disconnect`, which deletes the whole outbox, so requeue-on-failure is
   meaningless unless the outbox survives socket close. Fix: drain-after-ack
   or requeue-on-failure — pick the one consistent with the L1
@@ -456,7 +456,7 @@ Each fix lands with a failing-then-passing test named for the step id.
   kill-socket leg; contract recorded in LLP 0008 §Realtime Delivery.
 - **S5.D6 — Ephemeral rate-bucket leak on disconnect** [confirmed].
   `disconnect` removes outboxes and subscribers but never `rate_buckets`
-  keyed by `(ConnectionId, collection)` (`src/ephemeral.rs:832-876`).
+  keyed by `(ConnectionId, collection)` (`crates/snapback/src/ephemeral.rs:832-876`).
   (Wholesale clears exist on schema reload/reset; the missing piece is
   per-connection removal.) **Landed 2026-07-01** — `disconnect` retains only
   other connections' buckets; test `s5_d6_disconnect_clears_rate_buckets`.
@@ -472,21 +472,21 @@ Each fix lands with a failing-then-passing test named for the step id.
   a trailing close cannot mask an earlier failure; tests
   `demos/_kit/tests/client-errors.mjs` (`s5_d7` × 3), proven against HEAD.
 - **S5.D8 — Cron run durations always record zero** [confirmed].
-  `finished_at_ms = claim.started_at_ms` (`src/local.rs:784-786`). Already
+  `finished_at_ms = claim.started_at_ms` (`crates/snapback/src/local.rs:784-786`). Already
   registered as [LLP 0029](./0029-all-aboard-gap-closure.plan.md) G6 —
   schedule it here, semantics owned there. **Landed 2026-07-01** — duration is
   measured from real wall-clock around the run (finished = logical start +
   elapsed); test `s5_d8_cron_run_records_nonzero_duration`.
 - **S5.D9 — Silent empty result on non-array Ibex query returns**
   [confirmed]. `as_array().cloned().unwrap_or_default()`
-  (`src/runtime.rs:125`) converts a handler returning a non-array into
+  (`crates/snapback/src/runtime.rs:125`) converts a handler returning a non-array into
   `rows: []` with no diagnostic — a silent-drop-class violation of the
   corpus's own cardinal rule. Fail with a structured
   `SNAPBACK_HANDLER_RESULT_INVALID`-family diagnostic. **Landed 2026-07-01** —
   `invoke_ibex_query_with_reads` fails closed on a non-array result; test
   `s5_d9_non_array_query_result_fails_closed`.
 - **S5.D10 — No 5xx class** [confirmed]. Every unrecognized error, including
-  internal SQLite failures, maps to HTTP 400 (`src/server.rs:688-699`).
+  internal SQLite failures, maps to HTTP 400 (`crates/snapback/src/server.rs:688-699`).
   Introduce an internal-error class so clients and agents can distinguish
   "you erred" from "the server erred". **Landed 2026-07-01** —
   `status_for_diagnostic_code` initially mapped `SNAPBACK_SQLITE_ERROR`/
@@ -496,7 +496,7 @@ Each fix lands with a failing-then-passing test named for the step id.
   or future server faults from silently inheriting HTTP 400. Test
   `s5_d10_internal_errors_map_to_5xx` pins both sides.
 - **S5.D11 — Cron ticker swallows its own errors** [confirmed].
-  `let _ = snapback.tick_cron(...)` every second (`src/server.rs:273`);
+  `let _ = snapback.tick_cron(...)` every second (`crates/snapback/src/server.rs:273`);
   claim/persistence failures vanish. (Failed cron *runs* already record
   diagnostics inside `execute_cron_claims` — the gap is the tick machinery's
   own errors.) Route into the diagnostics ring with a counter. **Landed
@@ -524,17 +524,17 @@ read-your-writes-consistent buffered `ctx.db`, and commit-time read-set
 validation. The implementation diverges [confirmed]:
 
 - No snapshot exists: handler reads are bare autocommit reads on the live
-  connection (`src/runtime.rs:270-331`), and consistency comes from the
+  connection (`crates/snapback/src/runtime.rs:270-331`), and consistency comes from the
   global mutex, not a pinned snapshot.
 - No read-your-writes: buffered writes are invisible to later reads in the
   same handler — insert-then-query misses the insert; `patch` after a
   buffered insert reports `existed: false`.
 - Validation is two-tier: Ibex handlers get automatic capture; host-plan
   mutations capture nothing and validate only the *client-supplied* read set
-  (`src/storage.rs:557`).
+  (`crates/snapback/src/storage.rs:557`).
 - Query-shaped dependencies validate at whole-table granularity via
   `MAX(version) FROM _snapback_changes WHERE table_name = ?`
-  (`src/storage.rs:1015-1103`) — effectively table-level locking with
+  (`crates/snapback/src/storage.rs:1015-1103`) — effectively table-level locking with
   retries, wearing fine-grained-OCC clothing. The captured predicate and
   boundary metadata is stored but used only by the live matcher, never by
   validation.
@@ -551,7 +551,7 @@ recommended staging:
   LLP 0000. E2/E5/E6 landed; E3's mechanism is pinned as part of DK-1 (see the
   E3 finding below); E4 stays pending M1.
 - **E2 — Read-your-writes overlay.** `ctx.db` reads consult the buffered
-  write set layered over storage (`src/runtime.rs:270-331`). **Done when:**
+  write set layered over storage (`crates/snapback/src/runtime.rs:270-331`). **Done when:**
   insert-then-query sees the row; patch-after-buffered-insert reports
   `existed: true`; delete-then-get misses. **Landed 2026-07-01** — reads fold
   this invocation's buffered writes over storage (`apply_buffered_to_point`,
@@ -568,7 +568,7 @@ recommended staging:
   passes with no client-supplied `read_set`") was refuted by the Finding below.
   **Finding (2026-07-01), sequenced with DK-1's design:** host-plan
   `MutationPlan`s are *unconditional* write sequences that execute reads and
-  writes in **one transaction** (`src/storage.rs` `execute_mutation`) under the
+  writes in **one transaction** (`crates/snapback/src/storage.rs` `execute_mutation`) under the
   global instance mutex, so a server-captured read cannot be stale relative to
   the commit — there is no read-then-commit window to validate. Detecting the
   intended conflict (a client that optimistically read stale state) therefore
@@ -611,7 +611,7 @@ recommended staging:
   outcome instead and keep the honest docs. Note Row/MissingRow captured
   reads already validate per-row; the whole-table check is specifically the
   Query-kind arm — and MissingRow mixes the table version into its check too
-  (`src/storage.rs:1054-1055`), so point-miss reads inherit table-granularity
+  (`crates/snapback/src/storage.rs:1054-1055`), so point-miss reads inherit table-granularity
   conflicts; include them in the narrowing. **Done when:** the
   disjoint-write no-conflict test passes (or DK-1 records the measured
   accept). **Landed 2026-07-01** (after M1) — the Query arm reuses the live
@@ -625,7 +625,7 @@ recommended staging:
   no-conflict, matching write conflicts). This unblocks the L6 concurrent-writer
   arc.
 - **E5 — `indexed_by` becomes real or goes away.** The query builder accepts
-  and stores index hints but never uses them (`src/storage.rs:895-985`)
+  and stores index hints but never uses them (`crates/snapback/src/storage.rs:895-985`)
   [confirmed]; at minimum, validate that a declared index exists and emit a
   diagnostic when it doesn't. **Done when:** unknown-index queries fail
   closed at codegen or load time. **Landed 2026-07-01** — `validate_query_index`
@@ -633,9 +633,9 @@ recommended staging:
   authoritative backstop); a codegen-time check remains available as
   defense-in-depth. Test `e5_unknown_index_fails_closed`.
 - **E6 — Document the frozen per-invocation clock.** `ctx.runtime.now()` is
-  frozen at handler start (`src/runtime.rs:237,333`) — correct for replay
+  frozen at handler start (`crates/snapback/src/runtime.rs:237,333`) — correct for replay
   determinism, surprising for long handlers. Actions freeze it to the run's
-  `due_at_ms` (`src/runtime.rs:257`) — not even invocation wall-clock. One
+  `due_at_ms` (`crates/snapback/src/runtime.rs:257`) — not even invocation wall-clock. One
   paragraph in LLP 0004 covering both. **Landed 2026-07-01** — LLP 0004
   §First-Slice API Decisions documents both.
 
@@ -647,7 +647,7 @@ decision (the atomic-host-plan finding above), not a mechanical step, and is now
 baseline by design; zero code change), pending Charlie's ratification nod. With
 that, all of Phase 2's execution-semantics legs are closed and DK-1 is fully
 resolved (E2/E3/E4). **Phase 2 Done when:** the semantics described in
-LLP 0003/0004/0007 §§ are the semantics `tests/local_v0.rs` demonstrates (now
+LLP 0003/0004/0007 §§ are the semantics `crates/snapback/tests/local_v0.rs` demonstrates (now
 holds for every leg), and DK-1's outcome is ledgered (done).
 
 ## Phase 3 — Lifecycle and resource hardening
@@ -657,7 +657,7 @@ change the concurrency architecture and should land as one reviewed arc.
 
 - **L1 — Bound the durable outboxes.** The per-connection durable `VecDeque`
   is unbounded — the 1,024 cap applies only to the coalesced ephemeral map
-  (`src/ephemeral.rs:568-570`, `886-892`) [confirmed]. A subscriber that
+  (`crates/snapback/src/ephemeral.rs:568-570`, `886-892`) [confirmed]. A subscriber that
   never drains accumulates full query-result payloads per matching commit,
   forever. The `resync` deque in the same queue is unbounded too — bound
   both; overflow converts to a `ResyncRequired`-class signal (never a
@@ -676,7 +676,7 @@ change the concurrency architecture and should land as one reviewed arc.
   every handle on the connection — `demos/_kit/client.mjs` `applyDurable`.)*
 - **L2 — Connection/subscription reaping.** No TTL or heartbeat exists;
   abandoned connections and their subscriptions live forever
-  (`src/local.rs:169`) [confirmed]. (WS-attached connections do reap on
+  (`crates/snapback/src/local.rs:169`) [confirmed]. (WS-attached connections do reap on
   socket close; the leak is HTTP-polling connections that vanish without
   calling disconnect.) Add heartbeat/expiry with counters.
   **Done when:** an abandoned-connection test shows reap, and counters
@@ -730,7 +730,7 @@ change the concurrency architecture and should land as one reviewed arc.
 - **L3 — Change-journal retention.** `_snapback_changes` grows without bound
   (pruned only by `reset`) and its per-query
   `MAX(version) WHERE table_name = ?` check is a full scan — the only index
-  is `(version, id)` (`src/storage.rs:705-716`, `1156-1172`) [confirmed].
+  is `(version, id)` (`crates/snapback/src/storage.rs:705-716`, `1156-1172`) [confirmed].
   Implement LLP 0008 §Retention (version-and-time-bounded, forced resnapshot
   below the floor), add the `(table_name, version)` index, and a prune job.
   **Done when:** a growth test bounds journal size; resume-below-floor
@@ -753,7 +753,7 @@ change the concurrency architecture and should land as one reviewed arc.
   has no client caller yet; recorded in LLP 0008 §Retention.
 - **L4 — Incremental ephemeral counters.** `refresh_counts` recomputes
   diagnostics over all rooms, entries, and outboxes after every publish,
-  subscribe, delete, and disconnect (`src/ephemeral.rs:1212-1249`)
+  subscribe, delete, and disconnect (`crates/snapback/src/ephemeral.rs:1212-1249`)
   [confirmed] — quadratic at cursor rates. Maintain counters incrementally;
   keep the full recompute as a debug-assert parity check. **Done when:**
   per-op cost is O(1) and the parity test passes. **Landed 2026-07-01** —
@@ -765,7 +765,7 @@ change the concurrency architecture and should land as one reviewed arc.
   sites. Test `l4_gauges_are_accurate_on_demand`.
 - **L5 — Idle means idle.** The cron ticker takes the global lock and
   persists the full cron-state JSON to SQLite every second even with no due
-  jobs (`src/server.rs:267-276`, `src/local.rs:700-707`) [confirmed] — at
+  jobs (`crates/snapback/src/server.rs:267-276`, `crates/snapback/src/local.rs:700-707`) [confirmed] — at
   odds with scale-to-zero and with
   [LLP 0028](./0028-cron-scheduled-execution.rfc.md)'s own honesty about
   idle cost. Persist only on state change; skip work when nothing is due or
@@ -782,9 +782,9 @@ change the concurrency architecture and should land as one reviewed arc.
   `l5_cron_activity_flag_tracks_arming`.
 - **L6 — Reader pool.** LLP 0003 §Database Model designed a WAL reader pool;
   the implementation serializes even read-only queries on the single
-  `tokio::Mutex<LocalSnapback>` (`src/server.rs:23`, `378`) [confirmed].
+  `tokio::Mutex<LocalSnapback>` (`crates/snapback/src/server.rs:23`, `378`) [confirmed].
   Give queries read connections with snapshot-pinned version reads (the
-  current version-after-rows read at `src/storage.rs:334-337` is safe only
+  current version-after-rows read at `crates/snapback/src/storage.rs:334-337` is safe only
   under the mutex — pin inside a read transaction instead). **Done when:**
   concurrent reads proceed during a long write in a test, and the
   version/rows consistency test passes. **Deferred to a dedicated arc
@@ -827,7 +827,7 @@ change the concurrency architecture and should land as one reviewed arc.
   runtime thread for the VM, which S5.D1's context work may want anyway).
   **Done when:** no `ex_hermes_eval` or rusqlite call executes on a tokio
   worker (enforced by a debug assertion or lint note), and the busy-loop
-  handler test (`tests/local_v0.rs:1770-1790`) no longer stalls *other*
+  handler test (`crates/snapback/tests/local_v0.rs:1770-1790`) no longer stalls *other*
   endpoints. Full preemption/limits remain owned by
   [LLP 0009](./0009-code-execution-security.rfc.md) — this step is
   scheduling hygiene, not a security claim. **Deferred to a dedicated arc
@@ -843,7 +843,7 @@ change the concurrency architecture and should land as one reviewed arc.
   `l7_busy_mutation_does_not_stall_other_endpoints` proves `/health` and
   `/query` respond in <500 ms while a 900 ms busy mutation holds the write
   lane (possible only because L6 reads bypass the mutex — the coupling the
-  note below predicted). Enforcement is `src/exec_guard.rs`: a debug-build
+  note below predicted). Enforcement is `crates/snapback/src/exec_guard.rs`: a debug-build
   assertion at the Hermes-eval and storage chokepoints panics if blocking
   work reaches a **multi-thread** tokio worker without the offload helpers'
   thread-local sanction (current-thread test runtimes are exempt — blocking
@@ -966,7 +966,7 @@ change the concurrency architecture and should land as one reviewed arc.
   inspect endpoints still queue behind a busy write. Concurrent writers stay
   out: single writer is the design.
 - **L8 — Event-driven delivery.** The WS path polls each connection's outbox
-  every 25ms under the global lock (`src/server.rs:419`, `437-446`)
+  every 25ms under the global lock (`crates/snapback/src/server.rs:419`, `437-446`)
   [confirmed] — a ~25ms latency floor and idle lock traffic linear in
   connections. Replace with wakeup notification (the change-notification
   seam LLP 0008 already declares swappable); keep poll as a fallback lane.
@@ -1040,13 +1040,13 @@ L6–L8.
   change-journal size, ephemeral publish rate. Named outputs, each a number
   with method: single-writer breaking point; fan-out ceiling (subscriptions
   × write rate at target latency); per-invocation VM cost (create + install
-  + eval overhead — `src/runtime.rs:515`, `183-204`); matcher cost per
+  + eval overhead — `crates/snapback/src/runtime.rs:515`, `183-204`); matcher cost per
   commit; read-set validation cost; spurious-conflict rate under concurrent
   disjoint-row writers at table granularity (the number DK-1/E4 actually
   turns on); ephemeral publish cost at 20–60 Hz.
   **Done when:** results are committed as a Research LLP with methodology,
   and CI runs a smoke-scale variant to catch order-of-magnitude regressions.
-  **Landed 2026-07-01** — harness in `src/bench.rs` (bin `snapback-bench`,
+  **Landed 2026-07-01** — harness in `crates/snapback/src/bench.rs` (bin `snapback-bench`,
   `--json`); first numbers + methodology committed as
   [LLP 0035](./0035-local-target-benchmarks.research.md); CI smoke lane is the
   `m1_bench_smoke` lib test (tiny scale, 10× threshold headroom). **Headline:**
@@ -1089,7 +1089,7 @@ L6–L8.
   fail-closed); a MEDIUM (shallow reset root-set) by broadening the sweep to
   the iterator/generator prototypes and all constructors with restore-or-burn;
   a read-lane check-in race by a pool generation counter. The proven-reset gate
-  is the `dk4_*` leak suite (`tests/warm_vm_dk4.rs` + `src/warm_vm.rs` unit
+  is the `dk4_*` leak suite (`crates/snapback/tests/warm_vm_dk4.rs` + `crates/snapback/src/warm_vm.rs` unit
   tests), including the cross-invocation regression test that fails against the
   pre-guard code. Measured
   ([LLP 0035](./0035-local-target-benchmarks.research.md) §After warm VM, two
@@ -1103,7 +1103,7 @@ L6–L8.
   [LLP 0009](./0009-code-execution-security.rfc.md) §DK-4 as-built.
 - **M3 — Decide DK-3 (delta shape and read lane) on M1 + LLP 0022 evidence.**
   Whole-document `live_replace` per affected subscription per commit
-  (`src/local.rs:887-948`) versus op-log deltas, and the stateful-WS-only
+  (`crates/snapback/src/local.rs:887-948`) versus op-log deltas, and the stateful-WS-only
   read path versus an Electric-style cacheable HTTP read lane — 0022 calls
   the latter "the most actionable single idea" and it is hard to retrofit
   after LLP 0012's capability classes and the wire protocol harden. This
@@ -1207,7 +1207,7 @@ drop is recorded by the *next* demo's diary.
   `CODEGEN_CAPABILITY_MANIFEST_{MISSING,INVALID,MISMATCH}` diagnostics, file
   content folded into `inputsHash`), and the JS literal is deleted. The
   drift the step predicted was real: the literal had never learned
-  `vmLifecycle`. Parity tests in `tests/capability_v0.rs`:
+  `vmLifecycle`. Parity tests in `crates/snapback/tests/capability_v0.rs`:
   committed-file == declaration, and live `/inspect` == declaration modulo
   the two documented instance-live fields (`vmLifecycle`, `ibex_cli` gap).
   Demo artifacts regenerated — each `capability.manifest.json` is now
@@ -1229,7 +1229,7 @@ drop is recorded by the *next* demo's diary.
   `schemars::JsonSchema`; one generator
   (`snapback::schema_export::artifact_schemas`) is written to
   `schemas/*.schema.json` by the `snapback-schemagen` bin and diffed by the
-  drift gate `tests/artifact_schemas_v0.rs`
+  drift gate `crates/snapback/tests/artifact_schemas_v0.rs`
   (`dk7_committed_schemas_match_rust_types`); a representative value of each
   artifact round-trips through serde and validates against its committed schema
   (`dk7_representative_values_validate_against_committed_schemas`, proving the
@@ -1262,7 +1262,7 @@ drop is recorded by the *next* demo's diary.
   the three manifests are committed at `schemas/*.schema.json` with a
   Rust snapshot drift gate, every committed demo manifest validates against
   them (`jsonschema` dev-dependency) and parses through the runtime structs
-  (`tests/artifact_schemas_v0.rs`, in `cargo test`). Typing gaps closed:
+  (`crates/snapback/tests/artifact_schemas_v0.rs`, in `cargo test`). Typing gaps closed:
   `defineJsQuery`/`defineJsLiveQuery` accept a declared `result` row
   validator (todo's `listTodos` declares one; its emitted shape is
   byte-identical to the old guess), and undeclared JS-handler results are
@@ -1362,7 +1362,7 @@ drop is recorded by the *next* demo's diary.
   `@ccheever/snapback-*`, because `@snapback/cli` is an unrelated live package
   and this project has no recorded authority over that scope; staged npm alias
   dependencies keep authored imports stable (LLP 0021). Host-ops:
-  `src/host_ops.rs` is the envelope source of truth
+  `crates/snapback/src/host_ops.rs` is the envelope source of truth
   (committed `schemas/host-ops.result.schema.json` +
   `schemas/host-ready.schema.json` per LLP 0037, drift-gated); the gated
   `POST /_snapback/api/host-ops` endpoint (route-registry entry) serves
@@ -1375,7 +1375,7 @@ drop is recorded by the *next* demo's diary.
   signal), `inspect`, `reset [--seed]`, `load
   --schema/--functions`, and `run <function> [--args] [--user]`, printing
   one envelope per op with exit-code projection over `ok`. Proof:
-  `tests/host_ops_v0.rs` (served-op round trip, fail-closed matrix,
+  `crates/snapback/tests/host_ops_v0.rs` (served-op round trip, fail-closed matrix,
   ready-file write + attach validation + tamper rejection) and a live
   end-to-end CLI run (start → load → reset+seed → run query/mutation →
   inspect → stop, ready file cleaned up). 0024's banner flipped per verb;
@@ -1439,7 +1439,7 @@ drop is recorded by the *next* demo's diary.
   had drifted from — aliases keep old spellings parsing); the embedded v0
   artifacts keep their LLP 0012-pinned shapes as the documented exception;
   committed schemas `inspect.admin.schema.json` + `inspect.public.schema.json`
-  ride the LLP 0037 drift gate; `tests/inspect_casing_v0.rs` walks both real
+  ride the LLP 0037 drift gate; `crates/snapback/tests/inspect_casing_v0.rs` walks both real
   payloads. All 188 Rust tests green; every touched JS suite green.
 
 ## Phase 6 — Strategic derisking
@@ -1475,9 +1475,9 @@ design-first.
   envelopes. DK-2 ledgered in LLP 0000.
 - **X2 — Decide DK-5; if "now", build the V8 conformance twin.** The
   runtime-conformance floor is ratified but `async_handler_completion:
-  Available` is a hardcoded constant (`src/runtime.rs:76`), the canonical
+  Available` is a hardcoded constant (`crates/snapback/src/runtime.rs:76`), the canonical
   engine cannot enforce CPU/wall-clock limits (self-declared Missing,
-  `src/manifest.rs:745-753` — the vendored watchdog hook is cooperative and
+  `crates/snapback/src/manifest.rs:745-753` — the vendored watchdog hook is cooperative and
   cannot preempt a busy loop), and a `while(true){}` handler wedges the
   whole process while holding the global lock — the hosted story hangs on a
   V8 path with a Valet history of designed-never-built. Candidate: the
@@ -1485,7 +1485,7 @@ design-first.
   existing Ibex test suite behind a feature flag — conformance only, not
   hosted isolation. **The DK-5 decision gates this program; the build lands
   per its outcome.** **Done when:** DK-5 is ledgered; if "twin now", the
-  same `tests/local_v0.rs` handler tests pass on both engines in CI and the
+  same `crates/snapback/tests/local_v0.rs` handler tests pass on both engines in CI and the
   capability report's enforced/advisory limit fields are *computed*, not
   asserted; if "defer", the revisit trigger is named in LLP 0009.
   **Decided 2026-07-02 — defer, with four named revisit triggers**
@@ -1561,7 +1561,7 @@ revisit triggers).
 | DK-4 | VM lifecycle (trusted local) | Warm VM per bundle hash local-only; fresh always | M1 VM-cost numbers; LLP 0009 constraints unchanged | LLP 0009 | **Decided 2026-07-01; gated leg landed 2026-07-02** — warm VM pool + verified per-invocation reset shipped behind the `dk4_*` leak suite (LLP 0009 §DK-4 as-built; numbers in LLP 0035 §After warm VM) |
 | DK-5 | V8 twin timing | Conformance twin now (X2); defer until hosted work | none (strategic) | LLP 0009/0000 §Implementation order | **Decided 2026-07-02 — defer**, four named revisit triggers (X3 start; hosted/untrusted work; observed engine divergence; limits gap user-facing). LLP 0009 §Decision DK-5 |
 | DK-6 | Cron DOM/DOW semantics | POSIX OR (match user expectation, breaking); keep AND and document loudly | none | LLP 0028 | **Decided 2026-07-02 — POSIX OR; landed with cron test-debt closure; ratified by Charlie same day, ledgered in LLP 0000** |
-| DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | **Decided 2026-07-02 — Rust-first** ([LLP 0037](./0037-schema-source-of-truth.decision.md)); **P3(c) landed** — `schemars`-derived schemas at `schemas/`, drift gate `tests/artifact_schemas_v0.rs`, codegen emit-time validation; P2 consumes `schemas/capability.manifest.schema.json` |
+| DK-7 | Single source-of-truth schema | Rust types → generated JSON Schema consumed by JS/tools; hand-maintained schema repo; TS-first | none (blocks P3c) | new Decision LLP (0016/0020/0024 all block on it) | **Decided 2026-07-02 — Rust-first** ([LLP 0037](./0037-schema-source-of-truth.decision.md)); **P3(c) landed** — `schemars`-derived schemas at `schemas/`, drift gate `crates/snapback/tests/artifact_schemas_v0.rs`, codegen emit-time validation; P2 consumes `schemas/capability.manifest.schema.json` |
 | DK-8 | MIT free-riding exposure | MIT eyes-open (recorded); MIT + trademark policy; FSL-style restriction (conflicts with LLP 0000 "truly open") | none | new Decision LLP (R5) | Decided 2026-07-01 — MIT eyes-open (LLP 0033) |
 | DK-9 | Client local-store mandate | Store-agnostic interface, SQLite reference impl; mandated SQLite everywhere | none (cheap now) | LLP 0008 §Local Store | **Decided 2026-07-02 — store-agnostic interface, SQLite reference impl** (LLP 0008 §Decision DK-9) |
 | DK-10 | Adapter live-push architecture | Adapter owns the live subscription; separate live-provider seam beside the boundary | prototype in P5 | LLP 0021/0029 | **Decided 2026-07-02 — adapter-owned live push** (proved by the LLP 0034 D1/C1 implementation; single- and multi-query modes; `store.mjs` dead; the P5 close-out — generic `@snapback/contract` defaults and the `contract-live.mjs` acceptance, LLP 0029 G2 — re-landed 2026-07-03, ENG-22680) |
@@ -1575,7 +1575,7 @@ silently grow the acceptance gate.
 
 - Calendar cron: parser, `next_calendar_nominal_after`, civil-date math,
   DOM/DOW semantics, and the unsatisfiable-expression scan bound. **Closed
-  2026-07-02 with DK-6:** `src/cron.rs` gained an in-file unit-test module
+  2026-07-02 with DK-6:** `crates/snapback/src/cron.rs` gained an in-file unit-test module
   (parser grammar, DOM/DOW OR matrix, month-boundary and leap-day
   `next_calendar_nominal_after`, civil-date round-trips); the ~527k-iteration
   minute scan is now a day-stepping scan bounded at 3,000 days, and an
@@ -1591,11 +1591,11 @@ silently grow the acceptance gate.
   L2; `_snapback_changes` growth and resume-below-floor → L3.
 - `resume_live` hijack/ownership → S2; WS publish spoofing → S3.
 - Schema evolution: `ALTER TABLE ADD COLUMN` against existing data
-  (`src/storage.rs:817-857`) — no test exercises additive migration on a
+  (`crates/snapback/src/storage.rs:817-857`) — no test exercises additive migration on a
   populated DB.
 - Seed with duplicate `_id`s; function-manifest reload while subscriptions
   exist.
-- CORS middleware behavior (`src/server.rs:278-320`).
+- CORS middleware behavior (`crates/snapback/src/server.rs:278-320`).
 - Cron retry: `CronRetryMode::Backoff` parses but is unimplemented
   [confirmed] — and no mode has retry logic today (`NextTick` has no
   explicit handling to match), so retry semantics are net-new. **Closed
@@ -1625,9 +1625,9 @@ silently grow the acceptance gate.
 Fold into whichever step touches the file; do not schedule independently:
 `now_millis` duplicated six times across modules; the near-duplicate
 120-line step loops in `execute_mutation` vs `commit_buffered_writes`
-(`src/storage.rs:423-559`, `561-675`); the two parallel read-capture
-implementations that must stay in sync (`src/live_matcher.rs:12-84` vs
-`src/runtime.rs:436-491` — E3/E4 should unify them per LLP 0020's one
+(`crates/snapback/src/storage.rs:423-559`, `561-675`); the two parallel read-capture
+implementations that must stay in sync (`crates/snapback/src/live_matcher.rs:12-84` vs
+`crates/snapback/src/runtime.rs:436-491` — E3/E4 should unify them per LLP 0020's one
 extractor); `eval_expr` vs `eval_action_expr`; identical
 `entry_key_for_publish`/`entry_key_for_delete`; the
 `*mut LocalSnapback`/`*const LocalDatabase` aliasing in the action host
@@ -1635,10 +1635,10 @@ extractor); `eval_expr` vs `eval_action_expr`; identical
 db pointer from the same provenance root as the `*mut`, per this arc's
 review; retiring the pattern outright remains open); per-invocation
 process-global host install and the `"*"` fetch
-grant under `SNAPBACK_OUTBOUND_ACTIONS` (`src/runtime.rs:189-193`,
+grant under `SNAPBACK_OUTBOUND_ACTIONS` (`crates/snapback/src/runtime.rs:189-193`,
 `690-709` — revisit with X2); linear function-manifest lookup per invocation
-(`src/manifest.rs:204-208`); O(n²) read-dep dedup (`src/runtime.rs:493-497`);
-per-change plan re-deserialization in the matcher (`src/live_matcher.rs:193`).
+(`crates/snapback/src/manifest.rs:204-208`); O(n²) read-dep dedup (`crates/snapback/src/runtime.rs:493-497`);
+per-change plan re-deserialization in the matcher (`crates/snapback/src/live_matcher.rs:193`).
 
 ## Sequencing, dependencies, and sizing
 

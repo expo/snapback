@@ -12,7 +12,7 @@ LLP 0225 §2 and §5
 Give the ownership gate a sound way to carry a predecessor disposition and
 its obligations across any justified fingerprint-changing transition,
 including god-file edge-key splits and owner reassignment. This is needed to
-make continued `src/local.rs` drainage and owner re-keying describe
+make continued `crates/snapback/src/local.rs` drainage and owner re-keying describe
 pre-existing coupling honestly without weakening the ownership ratchet.
 
 No `split-relocation` disposition is currently accepted or implemented. Until

@@ -35,6 +35,6 @@ deploy downtime), and any change to the §5 health-withdrawal path.
 Still valid and agent-executable (D3 was already Charlie's
 decision). LLP 0098 remains Draft, so its §8 negative-ledger row cannot
 be filed until the spec advances; no Machines-count admission check
-exists in src/ (only the singleInstanceContainerVm deploy-profile field,
-src/deploy.rs:104). Work stays latent until a production globallyFenced
+exists in crates/snapback/src/ (only the singleInstanceContainerVm deploy-profile field,
+crates/snapback/src/deploy.rs:104). Work stays latent until a production globallyFenced
 profile exists — only the drill profile does today.
