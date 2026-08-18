@@ -12,7 +12,8 @@
     "local-proof-inventory",
     "affected-selector-fixtures",
     "authoring-profile-branches",
-    "package-test-inventory"
+    "package-test-inventory",
+    "scripts-test-inventory"
   ],
   "dependencyOverrides": {
     "snapback-cli-real-server": [
@@ -54,7 +55,8 @@
       "rustfmt"
     ],
     "javascriptDependencies": [
-      "package-readme-funnel"
+      "package-readme-funnel",
+      "publication-script-fixtures"
     ]
   },
   "driftAlwaysRunGates": [
@@ -641,6 +643,7 @@
       "files": [
         ".github/workflows/local-proof.yml",
         "scripts/check-local-proof-gates.mjs",
+        "scripts/check-scripts-test-inventory.mjs",
         "scripts/lib/proof-runner.sh",
         "scripts/local-proof-selection-policy.v1.json",
         "scripts/select-local-proof.mjs",
@@ -787,6 +790,7 @@
         "packages/snapback-codegen/README.md",
         "packages/snapback-contract/README.md",
         "packages/snapback-expo-custody/README.md",
+        "packages/snapback-expo-dev-identity/README.md",
         "packages/snapback-expo/README.md",
         "packages/snapback-react/README.md",
         "packages/snapback-runtime-darwin-arm64/README.md",
@@ -935,6 +939,42 @@
       ]
     },
     {
+      "id": "scripts-guide-freshness",
+      "groups": [
+        "guide"
+      ],
+      "files": [
+        "scripts/guide-freshness.test.mjs",
+        "scripts/migrate-guide-review-digests.mjs"
+      ]
+    },
+    {
+      "id": "scripts-publication-store-fixtures",
+      "groups": [
+        "publication",
+        "packaging"
+      ],
+      "files": [
+        "scripts/packaged-store-qualification.mjs",
+        "scripts/packaged-store-qualification.test.mjs",
+        "scripts/snapback-prior-default-closure.mjs",
+        "scripts/snapback-prior-default-closure.test.mjs"
+      ]
+    },
+    {
+      "id": "scripts-symbol-lifecycle",
+      "groups": [
+        "guide",
+        "publication",
+        "packaging"
+      ],
+      "files": [
+        "scripts/generate-symbol-registry.mjs",
+        "scripts/symbol-lifecycle.mjs",
+        "scripts/symbol-lifecycle.test.mjs"
+      ]
+    },
+    {
       "id": "known-publication-scripts",
       "groups": [
         "publication",
@@ -1053,6 +1093,7 @@
         "generated-artifacts",
         "guide-published-closure-fixtures",
         "guide-shell-command-fixtures",
+        "guide-freshness-fixtures",
         "guide"
       ]
     },
@@ -1081,6 +1122,7 @@
         "snapshot-batch-v2-parity",
         "result-transform-ship-gate",
         "promotion-fixtures",
+        "publication-script-fixtures",
         "latest-proof-plan-generator-fixtures",
         "prior-vector-observer-fixtures",
         "github-latest-proof-fixtures",
@@ -1218,12 +1260,14 @@
         "github-latest-proof-fixtures",
         "hermes-carrier-staging-fixtures",
         "js-production-audit",
+        "linux-runtime-release-fixtures",
         "local-source-package-closure",
         "package-cold-install-fixtures",
         "package-export-types",
         "package-export-types-fixtures",
         "package-readme-funnel",
         "promotion-fixtures",
+        "publication-script-fixtures",
         "latest-proof-plan-generator-fixtures",
         "prior-vector-observer-fixtures",
         "qualified-staging-ledger-fixtures",

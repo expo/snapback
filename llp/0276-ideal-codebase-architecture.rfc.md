@@ -432,6 +432,16 @@ four, one documented release state machine instead of ~30 scripts — are
 likewise firm follow-ons (Decision D5), each deserving its own reviewed
 design.
 
+**Phase 0 lane P0-C implementation note (2026-08-17).**
+`scripts/check-scripts-test-inventory.mjs` now holds the exact reviewed
+inventory of root `scripts/*.test.mjs` files. Each entry declares either a
+runner joined back to its live mechanism or a reason plus open burn-down ticket
+for an `unrun` disposition; no entry currently uses `unrun`. The checker is an
+always-run canonical gate and is also part of `scripts/check-inventories.mjs`.
+The six formerly unbound files execute through the Guide-freshness,
+Linux-runtime-release, or publication-script fixture gates, with path selection
+following their owning surfaces.
+
 ### Docs, apps, skills, vendor
 
 `guide/`, `llp/`, `issues/`, `diaries/`, `admin-ui/`, `website/` (now owning

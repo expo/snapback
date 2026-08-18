@@ -39,7 +39,7 @@ export function parseGateCalls(source) {
   return calls;
 }
 
-function commandSourcePaths(command) {
+export function commandSourcePaths(command) {
   return [...command.matchAll(/(?:^|\s)((?:demos|tests|packages|scripts)\/[A-Za-z0-9_./-]+\.(?:mjs|js))/gu)]
     .map((match) => match[1]);
 }
@@ -62,6 +62,7 @@ export function validateGateCalls(calls, {
 
   const requiredEdges = new Map([
     ['native-runtime-bootstrap', ['toolchain-authority']],
+    ['publication-script-fixtures', ['toolchain-authority']],
     ['ibex-doctor', ['native-runtime-bootstrap']],
     ['current-binary-build', ['native-runtime-bootstrap']],
     ['current-binary-readiness', ['current-binary-build']],

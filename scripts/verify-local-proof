@@ -241,6 +241,9 @@ run module-ownership -- node scripts/check-module-ownership.mjs
 run module-ownership-fixtures -- node --test scripts/check-module-ownership.test.mjs
 run authoring-profile-branches -- node scripts/check-authoring-profile-branches.mjs
 run package-test-inventory -- node scripts/check-package-test-inventory.mjs
+# @ref LLP 0276#scripts — the Phase 0 scripts-test inventory is a cheap
+# fail-closed join between every root scripts/*.test.mjs file and its runner.
+run scripts-test-inventory -- node scripts/check-scripts-test-inventory.mjs
 run diary-identity -- node scripts/check-diary-identity.mjs --strict
 # Root production dependencies include the published workspace closure. This
 # gate is deliberately independent of the separately selected admin-ui audit.
@@ -346,6 +349,17 @@ run contract-meta-fixtures --requires contract-meta -- node scripts/check-contra
 # @ref LLP 0010#ci-and-review-gates — establish the exact compiler/runtime
 # identities before any native producer.
 run toolchain-authority -- node scripts/check-toolchain-authority.mjs
+# @ref LLP 0276#scripts — bind the six formerly ungated scripts tests at the
+# cadence of their owning Guide, Linux-release, and publication surfaces.
+run linux-runtime-release-fixtures -- node --test \
+    scripts/build-linux-runtime-release.test.mjs
+run guide-freshness-fixtures -- node --test \
+    scripts/guide-freshness.test.mjs
+run publication-script-fixtures --requires toolchain-authority -- node --test \
+    scripts/packaged-store-qualification.test.mjs \
+    scripts/published-closure-rehearsal.test.mjs \
+    scripts/snapback-prior-default-closure.test.mjs \
+    scripts/symbol-lifecycle.test.mjs
 # @ref LLP 0175#d31-suppress-the-disposable-doctor-link-after-an-authoritative-build
 # — produce and qualify the ordinary target once, then let doctor consume the
 # digest-bound receipt instead of compiling into a disposable target.

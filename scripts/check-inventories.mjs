@@ -5,6 +5,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { auditPackageTestInventories } from './check-package-test-inventory.mjs';
+import {
+  auditScriptsTestInventory,
+  scriptsTestInventoryDriftLines,
+} from './check-scripts-test-inventory.mjs';
 import { auditGuideManifestInventory } from './guide-lib.mjs';
 import { auditDemoCatalog } from './demo-catalog.mjs';
 import { auditDemoInventory } from '../tests/demo_setup_v0.mjs';
@@ -42,6 +46,7 @@ function packageDriftLines(audit) {
 export function runInventoryChecks({
   root = ROOT,
   packageOptions = {},
+  scriptsTestOptions = {},
   demoOptions = {},
   demoCatalogOptions = {},
   publicationOptions = {},
@@ -68,6 +73,27 @@ export function runInventoryChecks({
       lines: [`  ${error.message}`],
       registration:
         'repair the package test command and expectedFiles entry in scripts/check-package-test-inventory.mjs',
+    });
+  }
+
+  try {
+    const audit = auditScriptsTestInventory({ root, ...scriptsTestOptions });
+    counts.scriptsTests = audit.count;
+    const lines = scriptsTestInventoryDriftLines(audit).map((line) => `  ${line}`);
+    if (lines.length > 0) {
+      failures.push({
+        id: 'scripts-test',
+        lines,
+        registration:
+          'add each root scripts/*.test.mjs file to SCRIPTS_TEST_INVENTORY with a reality-checked runner, or an open ticket plus reason for an unrun disposition',
+      });
+    }
+  } catch (error) {
+    failures.push({
+      id: 'scripts-test',
+      lines: [`  ${error.message}`],
+      registration:
+        'repair scripts/check-scripts-test-inventory.mjs and its canonical proof runner joins',
     });
   }
 
@@ -173,6 +199,7 @@ export function printInventoryCheckResult(result, output = process) {
   if (result.failures.length === 0) {
     output.stdout.write(
       `[check-inventories] PASS: ${result.counts.packageTests} package tests; `
+        + `${result.counts.scriptsTests} scripts tests; `
         + `${result.counts.demos} demos/${result.counts.demoCatalog} catalog entries; `
         + `${result.counts.publicationLeaves} publication leaves; `
         + `${result.counts.guidePages} guide pages/${result.counts.guideSnippets} snippets\n`,

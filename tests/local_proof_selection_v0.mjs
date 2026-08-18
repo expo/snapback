@@ -48,6 +48,7 @@ test('the policy classifies every canonical gate and keeps docs/guide fast', () 
     'ref-check',
     'affected-selector-fixtures',
     'package-test-inventory',
+    'scripts-test-inventory',
   ]);
   assert.equal(docs.selectedGates.includes('rustfmt'), false);
   assert.equal(docs.selectedGates.includes('package-readme-funnel'), false);
@@ -146,6 +147,24 @@ test('package owners select their direct package and harness fixtures', () => {
     'the live registry canary belongs only to complete scheduled/on-demand proof',
   );
   includesAll(planSelection({ cadence: 'complete' }), ['template-registry-canary']);
+});
+
+test('scripts test subjects select their bound fixture gates', () => {
+  const guide = select(['scripts/guide-lib.mjs']);
+  includesAll(guide, ['guide-freshness-fixtures']);
+  assert.equal(guide.selectedGates.includes('publication-script-fixtures'), false);
+
+  includesAll(select(['scripts/build-linux-runtime-release']), [
+    'linux-runtime-release-fixtures',
+  ]);
+  for (const publicationSubject of [
+    'scripts/packaged-store-qualification.mjs',
+    'scripts/published-closure-rehearsal.test.mjs',
+    'scripts/snapback-prior-default-closure.mjs',
+    'scripts/symbol-lifecycle.mjs',
+  ]) {
+    includesAll(select([publicationSubject]), ['publication-script-fixtures']);
+  }
 });
 
 test('root production audit selection does not depend on Exact/admin baseline gates', () => {

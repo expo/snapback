@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { generatedPublicationPathsOnDisk } from '../scripts/check-agent-safe-publication.mjs';
 import { auditDemoCatalog } from '../scripts/demo-catalog.mjs';
 import { runInventoryChecks } from '../scripts/check-inventories.mjs';
+import { auditScriptsTestInventory } from '../scripts/check-scripts-test-inventory.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -26,6 +27,8 @@ test('fast inventory checker catches synthetic drift in every inventory class', 
     }));
     write(join(scratch, 'tests/registered.test.mjs'), '');
     write(join(scratch, 'tests/synthetic.test.mjs'), '');
+    write(join(scratch, 'scripts/registered.test.mjs'), '');
+    write(join(scratch, 'scripts/synthetic.test.mjs'), '');
     for (const id of ['registered-demo', 'synthetic-demo']) {
       write(join(scratch, `demos/${id}/demo.snapback.json`), JSON.stringify({ id }));
     }
@@ -49,6 +52,18 @@ test('fast inventory checker catches synthetic drift in every inventory class', 
         }],
         expectedTotal: 2,
       },
+      scriptsTestOptions: {
+        root: scratch,
+        inventory: [{
+          file: 'scripts/registered.test.mjs',
+          disposition: 'run',
+          runner: { mechanism: 'verify-local-proof', gateId: 'synthetic-script-fixtures' },
+        }],
+        proofSource: 'run synthetic-script-fixtures -- node --test scripts/registered.test.mjs\n',
+        packageInventories: [],
+        cloudflareSuites: [],
+        selectionPolicy: { driftProneGates: {} },
+      },
       demoOptions: { root: scratch, expectedIds: ['registered-demo'] },
       publicationOptions: { generated },
       guideOptions: {
@@ -66,16 +81,77 @@ test('fast inventory checker catches synthetic drift in every inventory class', 
       result.failures.map(({ id }) => id),
       [
         'package-test',
+        'scripts-test',
         'demo-materialization',
         'agent-safe-publication-leaf-set',
         'guide-manifest',
       ],
     );
     assert.match(result.failures[0].lines.join('\n'), /synthetic\.test\.mjs/u);
-    assert.match(result.failures[1].lines.join('\n'), /synthetic-demo/u);
-    assert.match(result.failures[2].lines.join('\n'), /synthetic-inventory-drift\.ts/u);
-    assert.match(result.failures[3].lines.join('\n'), /guide source error|guide-manifest\.generated\.json/u);
+    assert.match(result.failures[1].lines.join('\n'), /scripts\/synthetic\.test\.mjs/u);
+    assert.match(result.failures[2].lines.join('\n'), /synthetic-demo/u);
+    assert.match(result.failures[3].lines.join('\n'), /synthetic-inventory-drift\.ts/u);
+    assert.match(result.failures[4].lines.join('\n'), /guide source error|guide-manifest\.generated\.json/u);
     for (const failure of result.failures) assert.match(failure.registration, /\S/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('scripts test inventory rejects a missing local-proof gate', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-gate-drift-'));
+  try {
+    write(join(scratch, 'scripts/registered.test.mjs'), '');
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [{
+        file: 'scripts/registered.test.mjs',
+        disposition: 'run',
+        runner: { mechanism: 'verify-local-proof', gateId: 'missing-fixtures' },
+      }],
+      proofSource: 'run other-fixtures -- node --test scripts/registered.test.mjs\n',
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(audit.errors.join('\n'), /gate missing-fixtures does not exist/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('same-named package test cannot cover a root scripts test', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-package-name-collision-'));
+  try {
+    write(join(scratch, 'scripts/packaged-store-qualification.test.mjs'), '');
+    write(join(scratch, 'packages/snapback-cli/packaged-store-qualification.test.mjs'), '');
+    write(join(scratch, 'packages/snapback-cli/package.json'), JSON.stringify({
+      scripts: { test: 'node packaged-store-qualification.test.mjs' },
+    }));
+    const packageInventory = {
+      id: '@expo/snapback-cli',
+      packageDir: 'packages/snapback-cli',
+      testDir: '.',
+      suffix: '.test.mjs',
+      expectedFiles: ['packaged-store-qualification.test.mjs'],
+    };
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [{
+        file: 'scripts/packaged-store-qualification.test.mjs',
+        disposition: 'run',
+        runner: {
+          mechanism: 'package-inventory',
+          inventoryId: '@expo/snapback-cli',
+          expectedFile: 'packaged-store-qualification.test.mjs',
+        },
+      }],
+      proofSource: '',
+      packageInventories: [packageInventory],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(audit.errors.join('\n'), /does not name this exact file/u);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }
