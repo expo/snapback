@@ -352,6 +352,7 @@ fn ordinary_handler_cannot_write_declared_identity_binding_table() {
             name,
             FunctionKind::Mutation,
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                owner_write_checks: Vec::new(),
                 steps: vec![step],
                 return_value: None,
             })),
