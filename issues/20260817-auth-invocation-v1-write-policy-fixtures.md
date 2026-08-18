@@ -1,53 +1,78 @@
-# `auth_invocation_v1` write-policy fixtures mask two auth assertions after LLP 0264
+# Identity-binding refusal loses precedence to generic write policy on the JS handler path
 
 **Status:** Open
 **Filed:** 2026-08-17
+**Revised:** 2026-08-18 (recharacterized after dual review — this is a product
+refusal-order question, **not** the fixture-drift issue the first draft
+described; two independent reviewers flagged that framing as the defect)
 **Systems:** Auth, Security/authorization, Testing
-**Related:** LLP 0264, LLP 0214,
+**Related:** LLP 0264, LLP 0214 §5.9,
 `issues/closed/20260817-rust-tests-gate-red-auth-invocation-v1.md`, `4fe648fd0`
 
-## Finding
+## Two separate things, previously conflated
 
-After repairing the integration target's missing `MutationPlan` field,
-`CARGO_PROFILE_DEV_DEBUG=0 cargo test --test auth_invocation_v1` reports two
-LLP 0264 integration failures:
+Repairing the `MutationPlan` compile hole made
+`cargo test --test auth_invocation_v1` runnable again. It reports two LLP 0264
+failures. The first draft of this ticket called both "fixture drift." Only one
+of them is.
 
-- `nested_mutation_inherits_outer_authority_and_action_errors_stay_enveloped`
-  expects the authenticated nested mutation to succeed, but its `records`
-  table still has `visibility: None`; the allowed action now fails with
-  `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED`.
-- `ordinary_handler_cannot_write_declared_identity_binding_table` expects
-  `SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN`, but the first buffered handler write
-  instead fails with `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED` because the
-  `identityBindings` table also has `visibility: None`.
+### 1. Genuine fixture drift (safe to fix as written)
 
-The second failure aborts the test before its buffered batch assertion and the
-five-form HostPlan loop run. The test therefore does not currently prove the
-complete LLP 0214 identity-binding seal it names, even though the plan helper's
-empty `owner_write_checks` value is correct: an identity-binding table is not
-an owner-policy point-write carrier.
+`nested_mutation_inherits_outer_authority_and_action_errors_stay_enveloped`
+expects an authenticated nested mutation to succeed, but its `records` table
+still carries `visibility: None`, so after `4fe648fd0` the allowed action now
+fails with `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED`. The fixture predates the
+staged migration window and should declare a policy.
 
-## Required repair
+Fix: give `records` an explicit policy per LLP 0264 D3 (`owner` + `Principal`,
+omitting the authored owner). **Trap:** setting `owner` on `principal` without
+also dropping `principal:` from `createBinding` yields
+`SNAPBACK_AUTH_OWNER_INPUT_REFUSED`, not the code the sibling test asserts.
 
-Adapt both fixtures to honest explicit table policies while preserving their
-auth assertions. For the principal-bearing `records` fixture, prefer a real
-owner policy, a `Principal` owner field, and host-stamped insertion rather than
-using Phase 1a `public-read` migration behavior merely to make the test pass.
-For the sealed identity-binding table, decide and document the honest read
-policy and verify that specialized binding refusal has the intended precedence
-for buffered and all five HostPlan generic forms.
+### 2. A refusal-order regression — do NOT "fix" this with a fixture edit
 
-Do not add an `OwnerWriteCheckV1` to the identity-binding plans: LLP 0264 D4
-allows that carrier only for owner-policy `Patch`/`Delete`, and storage rejects
-a check bound to any other step/policy.
+`ordinary_handler_cannot_write_declared_identity_binding_table` expects
+`SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN` and instead gets
+`SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED`.
 
-## Acceptance
+The cause is ordering, not the fixture. On the JavaScript handler path,
+`ctx.db.insert` resolves **generic** write policy at `src/runtime.rs:3902` and
+returns the undeclared-table refusal *before* the write is buffered and
+therefore before the identity-binding seal at `src/storage.rs:4674` can fire.
+LLP 0214 §5.9 specifies the specialized binding refusal as
+**policy-independent**, so a generic policy outcome should not be able to
+preempt it.
 
-- The nested action still proves anonymous denial, zero denied effects,
-  inherited authenticated authority, and a host-stamped owner.
-- Buffered single and batch identity-binding writes, plus HostPlan
-  `Insert`/`Patch`/`Delete`/`DeleteWhere`/`InsertEach`, all reach the exact
-  specialized `SNAPBACK_AUTH_BINDING_WRITE_FORBIDDEN` assertion.
-- No fixture assertion is weakened to accept `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED`.
-- The selected tests pass independently; the complete integration target may
-  remain red only for separately ticketed failures.
+The HostPlan path already implements the intended order: the binding seal runs
+at `src/storage.rs:3038`, ahead of owner-check validation at
+`src/storage.rs:3167`. So the two paths disagree with each other, which is the
+clearest evidence that this is a defect rather than a deliberate choice.
+
+**Why a fixture edit is the wrong fix, and dangerous:** changing the fixture to
+`public-read` makes the assertion pass while leaving the precedence inversion in
+place — the test would then assert nothing about ordering. Switching it to an
+`owner` policy masks it differently, with an owner-input refusal. Either way a
+real authorization-ordering bug becomes invisible. Do not treat "add some
+visibility until `BINDING_FORBIDDEN` appears" as proof of precedence.
+
+## Disposition — needs a ruling
+
+Two defensible outcomes; pick one deliberately rather than by fixture:
+
+- **(a) Fix the ordering (recommended).** Enforce the identity-binding seal
+  before generic-policy resolution in all three handler write arms, matching the
+  HostPlan path and LLP 0214 §5.9. Add precedence coverage across undeclared,
+  non-owner, and owner policies so the ordering is pinned rather than incidental.
+- **(b) Ratify the current behavior.** Classify identity-binding like LLP 0264
+  D6 so the JS fence does not emit `UNDECLARED` for these tables, or amend
+  LLP 0214 §5.9 to state that `UNDECLARED` is the intended code when visibility
+  is omitted. If this path is chosen, the LLP must say so explicitly — today the
+  spec and the code disagree.
+
+## Provenance
+
+Found while repairing the `rust-tests` compile hole during LLP 0276 Phase 1
+verification: the assertion had been unreachable for ~36 hours because the
+target would not compile, so `4fe648fd0` landed this ordering change without the
+test that covers it ever running. Recharacterized after two independent reviews
+(codex gpt-5.6-sol, grok-4.6) both rejected the fixture-drift framing.
