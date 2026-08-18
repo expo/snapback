@@ -42,7 +42,6 @@ getrandom = "0.3"
 hkdf = "0.12"
 hmac = "0.12"
 http-body = "1"
-ibex-runtime = { path = "../../vendor/ibex" }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 # Default features pull remote-$ref HTTP/TLS dependencies. Ask validates only
 # caller-supplied in-memory schemas, so keep the file-only resolver.
@@ -73,15 +72,10 @@ zeroize = "1.8"
 snapback-types = { path = "../snapback-types" }
 snapback-kernel = { path = "../snapback-kernel" }
 snapback-auth = { path = "../snapback-auth" }
+snapback-runtime = { path = "../snapback-runtime" }
 
 [build-dependencies]
 sha2 = "0.10"
-
-# @ref LLP 0041#runtime-distribution — the published Linux runtime must not
-# depend on the builder's shared libcurl (absent on stock consumer hosts).
-# sfe-static-network links ibex's pinned static curl + vendored static OpenSSL.
-[target.'cfg(target_os = "linux")'.dependencies]
-ibex-runtime = { path = "../../vendor/ibex", features = ["sfe-static-network"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [
@@ -95,6 +89,7 @@ windows-sys = { version = "0.61.2", features = [
 [dev-dependencies]
 snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
+snapback-runtime = { path = "../snapback-runtime", features = ["test-support"] }
 syn = { version = "2.0", features = ["full", "visit"] }
 # test-util enables tokio's paused clock so the admitted-body ingest deadline
 # (LLP 0058#admitted-body-ingestion) is testable without a 20-second wait.

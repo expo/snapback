@@ -13925,19 +13925,18 @@ impl LocalSnapback {
                     (execution.commit, ledger, diagnostics)
                 })
             }
-            FunctionRuntime::IbexModule(module) => self
-                .runtime
-                .dry_run_ibex_mutation_prepared(
-                    module,
-                    input.clone(),
-                    &prepared,
-                    &mut self.db,
-                    Some(&self.warm_vms),
-                )
-                .map(|mut commit| {
-                    let ledger = commit.output.ctx_ledger.take();
-                    (commit, ledger, Vec::new())
-                }),
+            FunctionRuntime::IbexModule(module) => crate::runtime::dry_run_ibex_mutation_prepared(
+                &self.runtime,
+                module,
+                input.clone(),
+                &prepared,
+                &mut self.db,
+                Some(&self.warm_vms),
+            )
+            .map(|mut commit| {
+                let ledger = commit.output.ctx_ledger.take();
+                (commit, ledger, Vec::new())
+            }),
             _ => unreachable!("tier matched above"),
         };
         let execution = execution.and_then(|tuple| {
@@ -23160,8 +23159,8 @@ impl LocalSnapback {
                             == AuthMode::Sessions,
                         _marker: PhantomData,
                     };
-                    runtime.invoke_ibex_action_prepared(
-                        module, input, &prepared, metadata, &mut host, grants, None,
+                    crate::runtime::invoke_ibex_action_prepared(
+                        &runtime, module, input, &prepared, metadata, &mut host, grants, None,
                     )
                 }
                 _ => Err(SnapbackError::error(

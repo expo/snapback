@@ -13,22 +13,23 @@
 /// Per-instance lifecycle policy handle. It intentionally contains no
 /// runtimes, which makes sharing it across Snapback worker threads safe.
 #[derive(Default)]
-pub(crate) struct WarmVmPool;
+#[doc(hidden)]
+pub struct WarmVmPool;
 
 impl WarmVmPool {
-    pub(crate) fn from_env() -> Self {
+    pub fn from_env() -> Self {
         Self
     }
 
     /// Warm reuse is unavailable while Ibex runtimes are owner-thread-affine.
-    pub(crate) fn enabled(&self) -> bool {
+    pub fn enabled(&self) -> bool {
         false
     }
 
     /// Retained as the benchmark/test control seam. Enabling is deliberately a
     /// no-op rather than an unsafe escape hatch.
-    pub(crate) fn set_enabled(&self, _enabled: bool) {}
+    pub fn set_enabled(&self, _enabled: bool) {}
 
     /// There are no retained runtimes to invalidate.
-    pub(crate) fn clear(&self) {}
+    pub fn clear(&self) {}
 }

@@ -1,0 +1,36 @@
+[package]
+name = "snapback-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+build = "build.rs"
+
+[lib]
+name = "snapback_runtime"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Remainder unit tests retain their existing runtime capability-gap seam after
+# the crate boundary. Production dependencies never enable this feature.
+test-support = []
+
+[dependencies]
+ibex-runtime = { path = "../../vendor/ibex" }
+libc = "0.2"
+schemars = "1.2.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+snapback-types = { path = "../snapback-types" }
+ureq = { version = "2", features = ["json"] }
+uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
+
+# @ref LLP 0041#runtime-distribution — the published Linux runtime must not
+# depend on the builder's shared libcurl (absent on stock consumer hosts).
+# sfe-static-network links ibex's pinned static curl + vendored static OpenSSL.
+[target.'cfg(target_os = "linux")'.dependencies]
+ibex-runtime = { path = "../../vendor/ibex", features = ["sfe-static-network"] }
+
+[lints]
+workspace = true

@@ -30,10 +30,19 @@ Cargo.toml
 Cargo.lock
 crates/snapback/Cargo.toml
 crates/snapback/build.rs
+crates/snapback-auth/Cargo.toml
+crates/snapback-kernel/Cargo.toml
+crates/snapback-runtime/Cargo.toml
+crates/snapback-runtime/build.rs
+crates/snapback-types/Cargo.toml
 rust-toolchain.toml
 
 # Crate sources (includes crates/snapback/src/**/*.html and other include_str! assets)
 crates/snapback/src
+crates/snapback-auth/src
+crates/snapback-kernel/src
+crates/snapback-runtime/src
+crates/snapback-types/src
 
 # Vendored runtime crate that links into the binary (submodule pathspec:
 # reports new commits / modified tracked content; prepared Hermes artifacts

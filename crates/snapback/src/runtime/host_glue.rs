@@ -1,6 +1,4 @@
-use super::core::*;
 use crate::auth::admission::{AdmissionLease, CancellationRegistration};
-use crate::auth::invocation::MembershipWriterResolvedExt;
 #[cfg(test)]
 use crate::auth::invocation::ResolvedAppAuthority;
 use crate::auth::invocation::{HandlerAuthProjection, PreparedInvocation};
@@ -32,6 +30,7 @@ use libc::{c_char, c_void};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
+use snapback_runtime::runtime::*;
 use snapback_types::runtime::*;
 use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
@@ -666,23 +665,22 @@ fn normalize_media_value(
 // stay with host glue because their existing signatures and bodies directly
 // carry PreparedInvocation, DbRead/LocalDatabase, admission, conformance,
 // jobs, assets, and membership policy. Moving them into the runtime core would
-// require a second semantic port inversion; this in-place split deliberately
-// preserves those bodies and leaves that inversion to the later engine/runtime
-// crate seam.
-impl RuntimeManager {
-    /// Dry-run an Ibex-module mutation (LLP 0051 D8): the handler runs for
-    /// real against the buffered ctx — recording its ctx-answer ledger —
-    /// and the buffered writes are validated and applied through the same
-    /// path as a commit, then rolled back. Same fidelity, no durable effect.
-    pub(crate) fn dry_run_ibex_mutation_prepared(
-        &self,
-        module: &IbexModule,
-        input: HandlerInput,
-        prepared: &PreparedInvocation,
-        db: &mut LocalDatabase,
-        pool: Option<&WarmVmPool>,
-    ) -> SnapbackResult<MutationCommit> {
-        let mut invocation = IbexHostContext::new_with_projection(
+// require a second semantic port inversion. They are free functions rather
+// than inherent methods because `RuntimeManager` now belongs to the lower
+// runtime crate; the bodies and authority inputs remain unchanged here.
+/// Dry-run an Ibex-module mutation (LLP 0051 D8): the handler runs for
+/// real against the buffered ctx — recording its ctx-answer ledger —
+/// and the buffered writes are validated and applied through the same
+/// path as a commit, then rolled back. Same fidelity, no durable effect.
+pub(crate) fn dry_run_ibex_mutation_prepared(
+    _runtime: &RuntimeManager,
+    module: &IbexModule,
+    input: HandlerInput,
+    prepared: &PreparedInvocation,
+    db: &mut LocalDatabase,
+    pool: Option<&WarmVmPool>,
+) -> SnapbackResult<MutationCommit> {
+    let mut invocation = IbexHostContext::new_with_projection(
             DbRead::Live(db),
             input.clone(),
             prepared.projection().clone(),
@@ -694,96 +692,89 @@ impl RuntimeManager {
             true,
             prepared.authority().elevated_database_allowed(),
         )?;
-        invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
-        invocation.declared_refusals = prepared.declared_refusals().to_vec();
-        invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
-        invocation.declared_sequences = prepared.sequences().to_vec();
-        invocation.generated_authority_operation =
-            prepared.generated_authority_operation().cloned();
-        let result = run_ibex_handler_with_context(module, &mut invocation, pool);
-        // A terminal role denial fails the (dry-run) mutation and never commits,
-        // preserving the trusted brand regardless of a handler catch.
-        if let Some(denial) = invocation.take_terminal_denial() {
-            return Err(denial);
-        }
-        let mut result = result?;
-        let media_projection = invocation.normalize_media_result(&mut result, prepared)?;
-        let expected_media_projection_binding = media_projection
-            .as_ref()
-            .map(|staging| {
-                expected_media_projection_proof_binding(prepared, &input, &staging.scope)
-            })
-            .transpose()?;
-        let ctx_ledger = invocation.take_ctx_ledger()?;
-        let IbexHostContext {
-            writes,
-            sequence_allocations,
-            job_enqueues,
-            membership_commands,
-            mut reads,
-            asset_admissions,
-            asset_grant_ops,
-            ..
-        } = invocation;
-        let membership_plans =
-            authorize_invocation_membership_commands(db, membership_commands, &mut reads)?;
-        db.mutation_writes().dry_run_buffered_writes_with_jobs(
-            &input,
-            writes,
-            sequence_allocations,
-            membership_plans,
-            reads,
-            result,
-            ctx_ledger,
-            job_enqueues,
-            Some(crate::jobs::JobProducer {
-                mutation_id: crate::ids::mint_time_ordered(crate::ids::Kind::DryRun),
-                function: "mutationDryRun".to_owned(),
-                principal: input.auth.user_id.clone(),
-            }),
-            asset_admissions,
-            asset_grant_ops,
-            media_projection.as_ref().map(|staging| &staging.proof),
-            expected_media_projection_binding.as_ref(),
-        )
+    invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
+    invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
+    invocation.declared_sequences = prepared.sequences().to_vec();
+    invocation.generated_authority_operation = prepared.generated_authority_operation().cloned();
+    let result = run_ibex_handler_with_context(module, &mut invocation, pool);
+    // A terminal role denial fails the (dry-run) mutation and never commits,
+    // preserving the trusted brand regardless of a handler catch.
+    if let Some(denial) = invocation.take_terminal_denial() {
+        return Err(denial);
     }
-
-    // This is the explicit runtime boundary: keeping the independently named
-    // authority, cron, host, grant, and deadline inputs avoids hiding a
-    // capability in a catch-all carrier merely to meet Clippy's default of 7.
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn invoke_ibex_action_prepared(
-        &self,
-        module: &IbexModule,
-        input: HandlerInput,
-        prepared: &PreparedInvocation,
-        run: CronRunMetadata,
-        host: &mut dyn IbexActionHost,
-        grants: Value,
-        deadline: Option<Instant>,
-    ) -> SnapbackResult<Value> {
-        let mut invocation = IbexHostContext::new_action_with_projection(
-            input,
-            prepared.projection().clone(),
-            prepared.admission_lease().clone(),
-            run,
-            host,
-            grants,
-        )?;
-        invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
-        invocation.declared_refusals = prepared.declared_refusals().to_vec();
-        invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
-        // Actions always run fresh by the DK-4 scope fence. Per-invocation
-        // config grants therefore cannot leak through a pooled VM.
-        run_ibex_handler_with_context_until(module, &mut invocation, None, deadline)
-    }
+    let mut result = result?;
+    let media_projection = invocation.normalize_media_result(&mut result, prepared)?;
+    let expected_media_projection_binding = media_projection
+        .as_ref()
+        .map(|staging| expected_media_projection_proof_binding(prepared, &input, &staging.scope))
+        .transpose()?;
+    let ctx_ledger = invocation.take_ctx_ledger()?;
+    let IbexHostContext {
+        writes,
+        sequence_allocations,
+        job_enqueues,
+        membership_commands,
+        mut reads,
+        asset_admissions,
+        asset_grant_ops,
+        ..
+    } = invocation;
+    let membership_plans =
+        authorize_invocation_membership_commands(db, membership_commands, &mut reads)?;
+    db.mutation_writes().dry_run_buffered_writes_with_jobs(
+        &input,
+        writes,
+        sequence_allocations,
+        membership_plans,
+        reads,
+        result,
+        ctx_ledger,
+        job_enqueues,
+        Some(crate::jobs::JobProducer {
+            mutation_id: crate::ids::mint_time_ordered(crate::ids::Kind::DryRun),
+            function: "mutationDryRun".to_owned(),
+            principal: input.auth.user_id.clone(),
+        }),
+        asset_admissions,
+        asset_grant_ops,
+        media_projection.as_ref().map(|staging| &staging.proof),
+        expected_media_projection_binding.as_ref(),
+    )
 }
 
-impl RuntimeGuard {
-    pub(crate) fn interrupt_on(&self, admission: &AdmissionLease) -> CancellationRegistration {
-        let interrupt = self.interrupt.clone();
-        admission.register_cancellation_hook(move || interrupt.signal())
-    }
+// This is the explicit runtime boundary: keeping the independently named
+// authority, cron, host, grant, and deadline inputs avoids hiding a
+// capability in a catch-all carrier merely to meet Clippy's default of 7.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn invoke_ibex_action_prepared(
+    _runtime: &RuntimeManager,
+    module: &IbexModule,
+    input: HandlerInput,
+    prepared: &PreparedInvocation,
+    run: CronRunMetadata,
+    host: &mut dyn IbexActionHost,
+    grants: Value,
+    deadline: Option<Instant>,
+) -> SnapbackResult<Value> {
+    let mut invocation = IbexHostContext::new_action_with_projection(
+        input,
+        prepared.projection().clone(),
+        prepared.admission_lease().clone(),
+        run,
+        host,
+        grants,
+    )?;
+    invocation.rehearsal_provenance = prepared.authority().rehearsal_provenance().cloned();
+    invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.tracked_refusals = prepared.tracked_refusals().to_vec();
+    // Actions always run fresh by the DK-4 scope fence. Per-invocation
+    // config grants therefore cannot leak through a pooled VM.
+    run_ibex_handler_with_context_until(module, &mut invocation, None, deadline)
+}
+
+fn interrupt_on(runtime: &RuntimeGuard, admission: &AdmissionLease) -> CancellationRegistration {
+    admission.register_cancellation_hook(runtime.cancellation_hook())
 }
 
 pub(crate) fn execute_ibex_mutation_prepared(
@@ -5104,10 +5095,10 @@ fn run_ibex_handler_with_context_until_with_exposure(
             Some(deadline) => {
                 let timeout_ms = u64::from(remaining_deadline_ms(deadline)?);
                 crate::workerd_exec::with_wall_clock_timeout_ms(timeout_ms, || {
-                    crate::workerd_exec::run_handler_workerd(module, invocation)
+                    run_handler_workerd(module, invocation)
                 })
             }
-            None => crate::workerd_exec::run_handler_workerd(module, invocation),
+            None => run_handler_workerd(module, invocation),
         };
         invocation
             .admission
@@ -5139,6 +5130,45 @@ fn run_ibex_handler_with_context_until_with_exposure(
     // applying these empty-witness seams after the join is harmless for V8.
     let result = restore_denial_witness(invocation, claimed_code.as_deref(), result);
     restore_stream_refusal(invocation, result)
+}
+
+/// Adapt the kernel-free workerd transport to the engine's existing private
+/// host implementation and failure-admission seam. The closure is the only
+/// value crossing down that can perform host operations; the runtime crate
+/// neither owns nor exposes the admission and commit capabilities it uses.
+fn run_handler_workerd(
+    module: &IbexModule,
+    invocation: &mut IbexHostContext<'_>,
+) -> SnapbackResult<(SnapbackResult<Value>, Option<String>)> {
+    let transport_input = snapback_runtime::workerd_exec::WorkerdInvocationInput {
+        args_json: serde_json::to_string(&invocation.input().args).unwrap_or_else(|_| "{}".into()),
+        auth_json: serde_json::to_string(&invocation.input().auth).unwrap_or_else(|_| "{}".into()),
+        mode: invocation.mode_str().to_owned(),
+        epoch: invocation.epoch(),
+    };
+    let output = snapback_runtime::workerd_exec::run_handler_workerd_transport(
+        module,
+        &transport_input,
+        &mut |op, args| dispatch_host_call(invocation, op, args).map_err(Into::into),
+    )?;
+    match output {
+        snapback_runtime::workerd_exec::WorkerdRunOutput::HandlerError(error) => {
+            Ok((Err(error.into()), None))
+        }
+        snapback_runtime::workerd_exec::WorkerdRunOutput::UnhandledRejections(messages) => Ok((
+            Err(unhandled_rejection_error(
+                module,
+                messages
+                    .iter()
+                    .map(|message| extract_failure_carrier(None, Some(message), None))
+                    .collect(),
+            )),
+            None,
+        )),
+        snapback_runtime::workerd_exec::WorkerdRunOutput::Envelope(envelope) => {
+            Ok(parse_handler_output_with_claim(module, envelope))
+        }
+    }
 }
 
 /// Restore a host-produced diagnostic only when the handler's final envelope
@@ -5386,8 +5416,8 @@ fn run_handler_ibex_engine_until(
     // target always takes the fresh path.
     let _ = pool;
 
-    let runtime = RuntimeGuard::create()?;
-    let cancellation = runtime.interrupt_on(&invocation.admission);
+    let runtime = RuntimeGuard::create(snapback_host_call)?;
+    let cancellation = interrupt_on(&runtime, &invocation.admission);
     let time_limit = deadline
         .map(|deadline| runtime.watch_until(deadline))
         .transpose()?;
@@ -5528,7 +5558,7 @@ pub(crate) fn prepare_ibex_module(
         module.source,
         probe,
     );
-    let runtime = RuntimeGuard::create()?;
+    let runtime = RuntimeGuard::create(snapback_host_call)?;
     let output = eval(runtime.ptr(), &module.export, &source)?;
     let rejections = inspect_unhandled_rejections(runtime.ptr())?;
     if !rejections.is_empty() {

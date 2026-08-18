@@ -16,15 +16,10 @@
 //! invocation with it, and a killed mutation commits nothing because its
 //! buffered writes die with the errored invocation.
 
-use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::error_tracking::extract_failure_carrier;
-use crate::manifest::IbexModule;
-use crate::runtime::{
-    IbexHostContext, dispatch_host_call, parse_handler_output_with_claim, unhandled_rejection_error,
-};
-use crate::server::constant_time_str_eq;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use snapback_types::diagnostic::{SnapbackError, SnapbackResult};
+use snapback_types::manifest::IbexModule;
 use std::cell::{Cell, RefCell};
 use std::env;
 use std::fs::File;
@@ -73,7 +68,8 @@ pub fn with_forced_backend<T>(backend: HandlerBackend, f: impl FnOnce() -> T) ->
     result
 }
 
-pub(crate) fn selected_backend() -> HandlerBackend {
+#[doc(hidden)]
+pub fn selected_backend() -> HandlerBackend {
     if let Some(forced) = FORCED_BACKEND.with(|slot| slot.get()) {
         return forced;
     }
@@ -190,7 +186,7 @@ pub fn default_wall_clock_timeout_ms() -> u64 {
     wall_clock_timeout_ms()
 }
 
-pub(crate) fn wall_clock_timeout_ms() -> u64 {
+fn wall_clock_timeout_ms() -> u64 {
     if let Some(forced) = WALL_CLOCK_OVERRIDE_MS.with(|slot| slot.get()) {
         return forced;
     }
@@ -348,17 +344,17 @@ const mainWorker :Workerd.Worker = (
     )
 }
 
-pub(crate) const HARNESS_ENTRY_SOURCE: &str =
+const HARNESS_ENTRY_SOURCE: &str =
     include_str!("../../../packages/snapback-harness/workerd/entry.mjs");
-pub(crate) const HARNESS_SERVER_SOURCE: &str =
+const HARNESS_SERVER_SOURCE: &str =
     include_str!("../../../packages/snapback-harness/workerd/handler-server.mjs");
-pub(crate) const HARNESS_STRIP_SOURCE: &str =
+const HARNESS_STRIP_SOURCE: &str =
     include_str!("../../../packages/snapback-harness/workerd/strip.mjs");
-pub(crate) const HARNESS_ALLOWLIST_INSTALL_SOURCE: &str =
+const HARNESS_ALLOWLIST_INSTALL_SOURCE: &str =
     include_str!("../../../packages/snapback-harness/allowlist-install.js");
-pub(crate) const HARNESS_CTX_BOOTSTRAP_SOURCE: &str =
+const HARNESS_CTX_BOOTSTRAP_SOURCE: &str =
     include_str!("../../../packages/snapback-harness/ctx-bootstrap.js");
-pub(crate) const HARNESS_ALLOWLIST_JSON: &str =
+const HARNESS_ALLOWLIST_JSON: &str =
     include_str!("../../../packages/snapback-harness/allowlist.json");
 
 fn allowlist_module_source() -> String {
@@ -478,6 +474,25 @@ struct InvokeResponse {
     fatal: Option<String>,
 }
 
+/// Engine-prepared inputs for one workerd invocation. Admission and commit
+/// authority remain in the engine's private host-call closure; this carrier
+/// contains only the bytes already destined for the handler boundary.
+#[doc(hidden)]
+pub struct WorkerdInvocationInput {
+    pub args_json: String,
+    pub auth_json: String,
+    pub mode: String,
+    pub epoch: u64,
+}
+
+/// Raw executor result returned to the engine's existing admission seam.
+#[doc(hidden)]
+pub enum WorkerdRunOutput {
+    HandlerError(SnapbackError),
+    UnhandledRejections(Vec<String>),
+    Envelope(String),
+}
+
 /// Execute one query/mutation handler invocation in a fresh workerd process.
 ///
 /// The calling thread serves the invocation's host calls (each one dispatched
@@ -485,11 +500,13 @@ struct InvokeResponse {
 /// blocking invoke request. On wall-clock expiry the process is killed —
 /// nothing commits, because the buffered writes belong to the errored
 /// invocation.
-pub(crate) fn run_handler_workerd(
+#[doc(hidden)]
+pub fn run_handler_workerd_transport(
     module: &IbexModule,
-    invocation: &mut IbexHostContext<'_>,
-) -> SnapbackResult<(SnapbackResult<Value>, Option<String>)> {
-    crate::exec_guard::debug_assert_off_async_worker("workerd_invocation");
+    invocation: &WorkerdInvocationInput,
+    host_call: &mut dyn FnMut(&str, Value) -> SnapbackResult<Value>,
+) -> SnapbackResult<WorkerdRunOutput> {
+    snapback_types::exec_guard::debug_assert_off_async_worker("workerd_invocation");
     let workerd = detect_workerd_binary().ok_or_else(workerd_missing_error)?;
     let compat = compat_config()?;
     let timeout_ms = wall_clock_timeout_ms();
@@ -697,32 +714,35 @@ pub(crate) fn run_handler_workerd(
     // config instead).
     // @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —
     //   the private marker envelopes ride the same generated-schema mechanism.
-    let mut invoke_body = serde_json::to_string(&crate::handler_wire::HandlerInvokeRequest {
-        export: module.export.clone(),
-        args_json: serde_json::to_string(&invocation.input().args).unwrap_or_else(|_| "{}".into()),
-        auth_json: serde_json::to_string(&invocation.input().auth).unwrap_or_else(|_| "{}".into()),
-        mode: crate::handler_wire::HandlerInvocationMode::from_mode_str(invocation.mode_str())
+    let mut invoke_body =
+        serde_json::to_string(&snapback_types::handler_wire::HandlerInvokeRequest {
+            export: module.export.clone(),
+            args_json: invocation.args_json.clone(),
+            auth_json: invocation.auth_json.clone(),
+            mode: snapback_types::handler_wire::HandlerInvocationMode::from_mode_str(
+                &invocation.mode,
+            )
             .ok_or_else(|| {
                 runner_error(
                     "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
                     "the invocation mode is outside the closed handler-invoke wire set",
-                    json!({ "mode": invocation.mode_str() }),
+                    json!({ "mode": invocation.mode }),
                 )
             })?,
-        run_json: None,
-        secrets_json: None,
-        epoch: invocation.epoch().to_string(),
-        token: None,
-        settlement_timeout_ms: remaining_timeout_ms,
-        host_headers: None,
-    })
-    .map_err(|error| {
-        runner_error(
-            "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
-            "could not serialize the handler invocation request",
-            json!({ "error": error.to_string() }),
-        )
-    })?;
+            run_json: None,
+            secrets_json: None,
+            epoch: invocation.epoch.to_string(),
+            token: None,
+            settlement_timeout_ms: remaining_timeout_ms,
+            host_headers: None,
+        })
+        .map_err(|error| {
+            runner_error(
+                "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
+                "could not serialize the handler invocation request",
+                json!({ "error": error.to_string() }),
+            )
+        })?;
     capture_wire(|capture| capture.invoke_request = Some(invoke_body.clone()));
     let invoke_url = format!("http://{worker_addr}/invoke");
     let request_timeout = Duration::from_millis(timeout_ms + 2_000);
@@ -838,7 +858,7 @@ pub(crate) fn run_handler_workerd(
                     // invocation deadline.
                     held_host_call_connections.push(stream);
                 } else {
-                    serve_host_call_connection(stream, invocation, &host_token);
+                    serve_host_call_connection(stream, invocation.epoch, host_call, &host_token);
                 }
             }
             Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
@@ -882,30 +902,19 @@ pub(crate) fn run_handler_workerd(
                 "structured harness settlement deadline",
             )
         };
-        return Ok((
-            Err(
-                SnapbackError::error("SNAPBACK_HANDLER_DID_NOT_SETTLE", "runtime", message)
-                    .with_details(json!({
-                        "function": module.export,
-                        "engine": "workerd-v8",
-                        "phase": phase,
-                        "signal": signal,
-                    })),
-            ),
-            None,
+        return Ok(WorkerdRunOutput::HandlerError(
+            SnapbackError::error("SNAPBACK_HANDLER_DID_NOT_SETTLE", "runtime", message)
+                .with_details(json!({
+                    "function": module.export,
+                    "engine": "workerd-v8",
+                    "phase": phase,
+                    "signal": signal,
+                })),
         ));
     }
     if !response.unhandled_rejections.is_empty() {
-        return Ok((
-            Err(unhandled_rejection_error(
-                module,
-                response
-                    .unhandled_rejections
-                    .iter()
-                    .map(|message| extract_failure_carrier(None, Some(message), None))
-                    .collect(),
-            )),
-            None,
+        return Ok(WorkerdRunOutput::UnhandledRejections(
+            response.unhandled_rejections,
         ));
     }
     if !response.rejection_detection_supported {
@@ -917,7 +926,7 @@ pub(crate) fn run_handler_workerd(
         ));
     }
     let envelope = response.envelope.unwrap_or_default();
-    Ok(parse_handler_output_with_claim(module, envelope))
+    Ok(WorkerdRunOutput::Envelope(envelope))
 }
 
 fn read_authenticated_response(
@@ -960,6 +969,15 @@ fn read_authenticated_response(
         return Err(format!("{role} response exceeded the transport limit"));
     }
     String::from_utf8(bytes).map_err(|_| format!("{role} response was not valid UTF-8"))
+}
+
+/// Constant-time token comparison (length is public: tokens are fixed-form).
+fn constant_time_str_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
 fn startup_failure(stderr_path: &Path, timeout_ms: u64, secrets: &[&str]) -> SnapbackError {
@@ -1175,7 +1193,12 @@ fn write_json_response(mut stream: TcpStream, status: u16, response: Value) {
     let _ = stream.flush();
 }
 
-fn serve_host_call_connection(stream: TcpStream, ctx: &mut IbexHostContext<'_>, token: &str) {
+fn serve_host_call_connection(
+    stream: TcpStream,
+    expected_epoch: u64,
+    host_call: &mut dyn FnMut(&str, Value) -> SnapbackResult<Value>,
+    token: &str,
+) {
     let _ = stream.set_nonblocking(false);
     let _ = stream.set_read_timeout(Some(Duration::from_millis(2_000)));
     let _ = stream.set_write_timeout(Some(Duration::from_millis(2_000)));
@@ -1194,14 +1217,18 @@ fn serve_host_call_connection(stream: TcpStream, ctx: &mut IbexHostContext<'_>, 
             .host_call_bodies
             .push(String::from_utf8_lossy(&body).into_owned());
     });
-    let response = host_call_response(ctx, &body);
+    let response = host_call_response(expected_epoch, host_call, &body);
     write_json_response(reader.into_inner(), 200, response);
 }
 
 /// Decode one host call and dispatch it into the shared op table with the
 /// same epoch discipline as the Ibex FFI trampoline: every legitimate call is
 /// `"<epoch>|<op>"`, and a mismatched epoch is a stale continuation.
-fn host_call_response(ctx: &mut IbexHostContext<'_>, body: &[u8]) -> Value {
+fn host_call_response(
+    expected_epoch: u64,
+    host_call: &mut dyn FnMut(&str, Value) -> SnapbackResult<Value>,
+    body: &[u8],
+) -> Value {
     let parsed: Value = match serde_json::from_slice(body) {
         Ok(value) => value,
         Err(error) => {
@@ -1232,7 +1259,7 @@ fn host_call_response(ctx: &mut IbexHostContext<'_>, body: &[u8]) -> Value {
             "message": "handler host call carried an unparseable invocation epoch",
         });
     };
-    if call_epoch != ctx.epoch() {
+    if call_epoch != expected_epoch {
         return json!({
             "ok": false,
             "code": "SNAPBACK_HANDLER_STALE_CONTINUATION",
@@ -1250,7 +1277,7 @@ fn host_call_response(ctx: &mut IbexHostContext<'_>, body: &[u8]) -> Value {
             });
         }
     };
-    match dispatch_host_call(ctx, op, args) {
+    match host_call(op, args) {
         Ok(value) => json!({ "ok": true, "value": value }),
         Err(error) => json!({
             "ok": false,

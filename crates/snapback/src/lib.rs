@@ -200,12 +200,21 @@ pub use snapback_types::telemetry_contract;
 pub mod telemetry_query;
 #[doc(hidden)]
 pub use snapback_kernel::vector;
+pub(crate) use snapback_runtime::warm_vm;
 #[doc(hidden)]
 pub use snapback_types::value_expr;
-pub(crate) mod warm_vm;
 #[doc(hidden)]
 pub mod wire_fixtures;
 #[doc(hidden)]
 pub use snapback_types::wire_version;
 #[doc(hidden)]
-pub mod workerd_exec;
+pub mod workerd_exec {
+    pub(crate) use snapback_runtime::workerd_exec::selected_backend;
+    pub use snapback_runtime::workerd_exec::{
+        CapturedHandlerWire, CompatConfig, HandlerBackend, HostCallTestMode, InvokeAuthTestMode,
+        compat_config, default_wall_clock_timeout_ms, detect_workerd_binary, refuse_node_compat,
+        with_forced_backend, with_handler_wire_capture, with_host_call_test_mode,
+        with_invoke_auth_test_mode, with_wall_clock_timeout_ms, workerd_missing_error,
+        workerd_version,
+    };
+}

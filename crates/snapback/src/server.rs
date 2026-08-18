@@ -2726,7 +2726,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                         correlation,
                         redactor.clone(),
                         || {
-                            runtime.invoke_ibex_action_prepared(
+                            crate::runtime::invoke_ibex_action_prepared(
+                                &runtime,
                                 &module,
                                 input,
                                 &invocation,
