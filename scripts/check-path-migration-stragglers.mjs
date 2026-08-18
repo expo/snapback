@@ -3,6 +3,17 @@
 // @ref LLP 0276#phases — the checked Phase 0 manifest advances through
 // explicit migration epochs; each move activates its stale-path families in
 // the same series, while pre-flip proof remains non-vacuously schema-checked.
+//
+// Coverage boundary: this deterministic lexical gate is a backstop behind the
+// checked manifest, not a completeness proof. It intentionally does not catch
+// arbitrary composed paths such as concatenation across lines, separator
+// variables, derived template roots, or helpers defined in another file.
+// `crate::` module paths are out of scope; the compiler and workspace-graph
+// gate own that coverage. Epoch-assignment validation proves only "not too
+// early", not that every assignment is otherwise correct. The 207-row source
+// manifest was sampled by the two final blind reviews (16 and 19 rows), not
+// independently re-verified row by row. The battery's fail-closed inventories
+// remain the net behind this bounded scanner.
 
 import {
   existsSync,
@@ -18,6 +29,21 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST_PATH = 'scripts/path-migration-manifest.v1.json';
 const DIAGNOSTIC = 'PATH_MIGRATION_STRAGGLER';
+const UNEXEMPTABLE_FILES = new Set(['tests/ci_workflows_v0.mjs']);
+const EXTRACTED_WORKSPACE_MEMBERS = [
+  'crates/snapback-activation',
+  'crates/snapback-auth',
+  'crates/snapback-cli',
+  'crates/snapback-conformance',
+  'crates/snapback-engine',
+  'crates/snapback-kernel',
+  'crates/snapback-runtime',
+  'crates/snapback-server',
+  'crates/snapback-services',
+  'crates/snapback-sync',
+  'crates/snapback-tools',
+  'crates/snapback-types',
+];
 
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -25,6 +51,14 @@ function compareText(left, right) {
 
 function normalizeRepoPath(path) {
   return path.split(sep).join('/').replace(/^\.\//u, '');
+}
+
+function normalizeLexicalSeparators(value) {
+  return value
+    .replace(/%2f/giu, '/')
+    .replace(/\\\//gu, '/')
+    .replace(/\\+/gu, '/')
+    .replace(/\/{2,}/gu, '/');
 }
 
 function isExactRepositoryFilePath(path) {
@@ -168,6 +202,10 @@ function validateManifest(manifest) {
     for (const projection of pattern?.projections ?? []) {
       expect(projectionIds.has(projection), `pattern ${pattern?.id} names unknown projection ${projection}`);
     }
+    expect(Array.isArray(pattern?.destinationForms) && pattern.destinationForms.length > 0, `pattern ${pattern?.id} has no destinationForms`);
+    for (const destination of pattern?.destinationForms ?? []) {
+      expect(typeof destination === 'string' && destination.length > 0, `pattern ${pattern?.id} has an invalid destination form`);
+    }
     try {
       new RegExp(pattern?.regex, pattern?.flags ?? 'u');
     } catch (error) {
@@ -186,7 +224,24 @@ function validateManifest(manifest) {
   expect(!topLevelFixtureRule?.pattern && !topLevelFixtureRule?.prefix, 'top-level-test-fixture-builders must not use a pattern or prefix');
   for (const repositoryPath of topLevelFixtureRule?.files ?? []) {
     expect(isExactRepositoryFilePath(repositoryPath), `top-level-test-fixture-builders has non-file entry ${repositoryPath}`);
-    expect(repositoryPath !== 'tests/ci_workflows_v0.mjs', 'tests/ci_workflows_v0.mjs must not be exempt');
+  }
+  const scriptFixtureRule = (manifest?.exceptions?.namedNegativeFixtures ?? [])
+    .find((entry) => entry.id === 'script-negative-fixture-tests');
+  expect(Array.isArray(scriptFixtureRule?.files) && scriptFixtureRule.files.length > 0, 'script-negative-fixture-tests must enumerate exact files');
+  expect(!scriptFixtureRule?.pattern && !scriptFixtureRule?.prefix, 'script-negative-fixture-tests must not use a pattern or prefix');
+  for (const repositoryPath of scriptFixtureRule?.files ?? []) {
+    expect(isExactRepositoryFilePath(repositoryPath), `script-negative-fixture-tests has non-file entry ${repositoryPath}`);
+  }
+  const allExceptionRules = [
+    ...(manifest?.exceptions?.immutableProvenanceCategories ?? []),
+    ...(manifest?.exceptions?.namedNegativeFixtures ?? []),
+    ...(manifest?.exceptions?.namedDatedEvidence ?? []),
+  ];
+  for (const repositoryPath of UNEXEMPTABLE_FILES) {
+    expect(
+      !allExceptionRules.some((rule) => matchesRule(repositoryPath, rule)),
+      `${repositoryPath} is structurally unexemptable`,
+    );
   }
   expect((manifest?.exceptions?.namedDatedEvidence ?? []).length === 4, 'namedDatedEvidence must preserve the four surveyed evidence categories');
   expect((manifest?.surveySpotChecks ?? []).length >= 15, 'surveySpotChecks must retain at least 15 repository checks');
@@ -234,32 +289,133 @@ function validateEpochAssignments(manifest) {
   return errors.sort(compareText);
 }
 
+function workspaceMembers(root) {
+  let source;
+  try {
+    source = readFileSync(join(root, 'Cargo.toml'), 'utf8');
+  } catch {
+    return [];
+  }
+  const workspace = source.match(/^\s*\[workspace\]\s*$([\s\S]*)/mu)?.[1] ?? '';
+  const members = workspace.match(/^\s*members\s*=\s*\[([\s\S]*?)\]/mu)?.[1] ?? '';
+  return [...members.matchAll(/["']([^"']+)["']/gu)].map((match) => match[1]).sort(compareText);
+}
+
+function workspaceIncludesMember(members, repositoryPath) {
+  return members.includes(repositoryPath)
+    || members.some((entry) => entry.endsWith('/*') && repositoryPath.startsWith(entry.slice(0, -1)));
+}
+
+function hasRemainderConfinementExemption(root) {
+  try {
+    const source = readFileSync(join(root, 'crates/allowed-dependencies.v1.json'), 'utf8');
+    return /remainder[\s_-]*(?:confinement[\s_-]*)?exemption/iu.test(source);
+  } catch {
+    return false;
+  }
+}
+
 function validateEpochShape(epoch, root = ROOT) {
   const isDirectory = (repositoryPath) => {
     const absolute = join(root, repositoryPath);
     return existsSync(absolute) && statSync(absolute).isDirectory();
   };
   const errors = [];
+  const members = workspaceMembers(root);
   const requireDirectory = (repositoryPath) => {
     if (!isDirectory(repositoryPath)) errors.push(`${epoch} requires directory ${repositoryPath}/`);
   };
   const forbidDirectory = (repositoryPath) => {
     if (isDirectory(repositoryPath)) errors.push(`${epoch} forbids directory ${repositoryPath}/`);
   };
+  const requireFile = (repositoryPath) => {
+    const absolute = join(root, repositoryPath);
+    if (!existsSync(absolute) || !statSync(absolute).isFile()) errors.push(`${epoch} requires file ${repositoryPath}`);
+  };
+  const forbidFile = (repositoryPath) => {
+    const absolute = join(root, repositoryPath);
+    if (existsSync(absolute) && statSync(absolute).isFile()) errors.push(`${epoch} forbids file ${repositoryPath}`);
+  };
+  const requireWorkspaceMember = (repositoryPath) => {
+    if (!workspaceIncludesMember(members, repositoryPath)) errors.push(`${epoch} requires workspace member ${repositoryPath}`);
+  };
+  const forbidWorkspaceMember = (repositoryPath) => {
+    if (workspaceIncludesMember(members, repositoryPath)) errors.push(`${epoch} forbids workspace member ${repositoryPath}`);
+  };
+  const requireRemainderExemption = () => {
+    if (!hasRemainderConfinementExemption(root)) errors.push(`${epoch} requires the named remainder-confinement exemption`);
+  };
+  const forbidRemainderExemption = () => {
+    if (hasRemainderConfinementExemption(root)) errors.push(`${epoch} forbids the remainder-confinement exemption`);
+  };
 
   if (epoch === 'pre-flip') {
     requireDirectory('src');
+    requireDirectory('cloudflare');
+    requireDirectory('tools/agent-safe-baseline-worker');
+    requireDirectory('examples');
     forbidDirectory('crates/snapback/src');
-  } else if (epoch === 'phase-1' || epoch === 'phase-2') {
+    forbidDirectory('crates/snapback-tools');
+    forbidDirectory('crates/snapback/examples');
+    forbidDirectory('targets/cloudflare');
+    forbidFile('crates/allowed-dependencies.v1.json');
+    forbidWorkspaceMember('crates/snapback');
+  } else if (epoch === 'phase-1') {
     requireDirectory('crates/snapback/src');
     forbidDirectory('src');
     requireDirectory('cloudflare');
     forbidDirectory('targets/cloudflare');
-  } else if (epoch === 'phase-3' || epoch === 'post-migration') {
+    requireDirectory('tools/agent-safe-baseline-worker');
+    requireDirectory('examples');
+    forbidDirectory('crates/snapback-tools');
+    forbidDirectory('crates/snapback/examples');
+    requireFile('crates/allowed-dependencies.v1.json');
+    requireFile('scripts/check-module-ownership.mjs');
+    requireWorkspaceMember('crates/snapback');
+    for (const member of EXTRACTED_WORKSPACE_MEMBERS) forbidWorkspaceMember(member);
+    requireRemainderExemption();
+  } else if (epoch === 'phase-2') {
+    requireDirectory('crates/snapback/src');
+    forbidDirectory('src');
+    requireDirectory('cloudflare');
+    forbidDirectory('targets/cloudflare');
+    forbidDirectory('tools/agent-safe-baseline-worker');
+    forbidDirectory('examples');
+    requireDirectory('crates/snapback-tools');
+    requireDirectory('crates/snapback/examples');
+    requireFile('crates/allowed-dependencies.v1.json');
+    requireFile('scripts/check-module-ownership.mjs');
+    requireWorkspaceMember('crates/snapback');
+    for (const member of EXTRACTED_WORKSPACE_MEMBERS) requireWorkspaceMember(member);
+    requireRemainderExemption();
+  } else if (epoch === 'phase-3') {
     requireDirectory('crates/snapback/src');
     forbidDirectory('src');
     requireDirectory('targets/cloudflare');
     forbidDirectory('cloudflare');
+    forbidDirectory('tools/agent-safe-baseline-worker');
+    forbidDirectory('examples');
+    requireDirectory('crates/snapback-tools');
+    requireDirectory('crates/snapback/examples');
+    requireFile('crates/allowed-dependencies.v1.json');
+    requireFile('scripts/check-module-ownership.mjs');
+    requireWorkspaceMember('crates/snapback');
+    for (const member of EXTRACTED_WORKSPACE_MEMBERS) requireWorkspaceMember(member);
+    requireRemainderExemption();
+  } else if (epoch === 'post-migration') {
+    requireDirectory('crates/snapback/src');
+    forbidDirectory('src');
+    requireDirectory('targets/cloudflare');
+    forbidDirectory('cloudflare');
+    forbidDirectory('tools/agent-safe-baseline-worker');
+    forbidDirectory('examples');
+    requireDirectory('crates/snapback-tools');
+    requireDirectory('crates/snapback/examples');
+    requireFile('crates/allowed-dependencies.v1.json');
+    forbidFile('scripts/check-module-ownership.mjs');
+    requireWorkspaceMember('crates/snapback');
+    for (const member of EXTRACTED_WORKSPACE_MEMBERS) requireWorkspaceMember(member);
+    forbidRemainderExemption();
   }
   return errors.sort(compareText);
 }
@@ -303,7 +459,59 @@ function exactExisting(paths) {
   return paths.filter((path) => existsSync(join(ROOT, path))).sort(compareText);
 }
 
-function projectionFiles() {
+function projectionsForRepositoryPath(repositoryPath) {
+  const projections = new Set();
+  if (/\.(?:mjs|js|cjs|mts|ts|tsx|swift|sh|txt)$/u.test(repositoryPath)
+    || /^scripts\/.+\.(?:json|jsonc|yaml|yml)$/u.test(repositoryPath)
+    || /^scripts\/[^/.]+$/u.test(repositoryPath)
+    || repositoryPath === 'ref-check'
+    || /^\.githooks\/[^/]+$/u.test(repositoryPath)) {
+    projections.add('scripts');
+  }
+  if (/\.ya?ml$/u.test(repositoryPath)
+    || repositoryPath === 'tests/ci_workflows_v0.mjs') projections.add('workflow-yaml');
+  if (repositoryPath === 'package.json'
+    || /(?:^|\/)package(?:-lock)?\.json$/u.test(repositoryPath)
+    || /(?:^|\/)bun\.lock$/u.test(repositoryPath)
+    || /\.jsonc?$/u.test(repositoryPath)) projections.add('policy-record-json');
+  if (repositoryPath === 'Cargo.toml'
+    || /(?:^|\/)Cargo\.toml$/u.test(repositoryPath)) projections.add('cargo-manifests');
+  if (/\.rs$/u.test(repositoryPath)) projections.add('rust-source');
+  if (/^guide\/.+\.md$/u.test(repositoryPath) && !repositoryPath.endsWith('.generated.md')) projections.add('guide');
+  if (repositoryPath === 'AGENTS.md'
+    || /^(?:skills|llp|issues)\//u.test(repositoryPath)
+    || /\.md$/u.test(repositoryPath)) projections.add('docs-process');
+  return projections;
+}
+
+function consumerPathsDue(manifest, epochIndex) {
+  const paths = [];
+  for (const consumer of manifest.consumers) {
+    if (manifest.epoch.order.indexOf(consumer.applyByEpoch) > epochIndex) continue;
+    for (const field of ['consumerFiles', 'targetFiles']) {
+      for (const repositoryPath of consumer[field] ?? []) {
+        paths.push({ consumer: consumer.id, field, repositoryPath });
+      }
+    }
+  }
+  return paths.sort((left, right) => compareText(left.consumer, right.consumer)
+    || compareText(left.field, right.field)
+    || compareText(left.repositoryPath, right.repositoryPath));
+}
+
+function validateConsumerProjections(manifest, epochIndex) {
+  const errors = [];
+  for (const { consumer, field, repositoryPath } of consumerPathsDue(manifest, epochIndex)) {
+    if (projectionsForRepositoryPath(repositoryPath).size === 0) {
+      errors.push(
+        `consumer ${consumer} due at ${manifest.epoch.order[epochIndex]} has unprojectable ${field} entry ${repositoryPath}`,
+      );
+    }
+  }
+  return errors.sort(compareText);
+}
+
+function projectionFiles(manifest, epochIndex) {
   const files = new Map();
   const add = (projection, paths) => {
     for (const path of paths) {
@@ -313,12 +521,21 @@ function projectionFiles() {
       files.set(path, projections);
     }
   };
+  const addClassified = (paths) => {
+    for (const repositoryPath of paths) {
+      for (const projection of projectionsForRepositoryPath(repositoryPath)) add(projection, [repositoryPath]);
+    }
+  };
 
   add('scripts', walkFiles('scripts', (path) => /\.(?:mjs|sh|txt|json)$/u.test(path)));
   add('scripts', exactExisting(['ref-check']));
   add('scripts', walkFiles('.githooks', () => true));
+  addClassified(walkFiles('cloudflare', (path) => /\.(?:mjs|js|cjs|mts|ts|tsx|swift|rs|sh|md|json|jsonc|yaml|yml)$/u.test(path)));
+  addClassified(walkFiles('targets', (path) => /\.(?:mjs|js|cjs|mts|ts|tsx|swift|rs|sh|md|json|jsonc|yaml|yml)$/u.test(path)));
+  addClassified(walkFiles('clients', (path) => /\.(?:mjs|js|cjs|mts|ts|tsx|swift|rs|sh|md|json|jsonc|yaml|yml)$/u.test(path)));
+  addClassified(exactExisting(['package.json']));
 
-  add('workflow-yaml', walkFiles('.github/workflows', (path) => path.endsWith('.yml')));
+  add('workflow-yaml', walkFiles('.github/workflows', (path) => /\.ya?ml$/u.test(path)));
   add('workflow-yaml', exactExisting(['tests/ci_workflows_v0.mjs']));
 
   add('policy-record-json', exactExisting([
@@ -360,6 +577,12 @@ function projectionFiles() {
     readdirSync(join(ROOT, 'issues')).filter((name) => name.endsWith('.md')).map((name) => `issues/${name}`).sort(compareText),
   );
 
+  for (const { repositoryPath } of consumerPathsDue(manifest, epochIndex)) {
+    if (existsSync(join(ROOT, repositoryPath)) && statSync(join(ROOT, repositoryPath)).isFile()) {
+      addClassified([repositoryPath]);
+    }
+  }
+
   return files;
 }
 
@@ -372,6 +595,7 @@ function matchesRule(repositoryPath, rule) {
 }
 
 function exemptionFor(repositoryPath, manifest) {
+  if (UNEXEMPTABLE_FILES.has(repositoryPath)) return null;
   const groups = [
     ['immutable-provenance', manifest.exceptions.immutableProvenanceCategories],
     ['negative-fixture', manifest.exceptions.namedNegativeFixtures],
@@ -388,15 +612,7 @@ function exemptionFor(repositoryPath, manifest) {
 function targetedProjection(repositoryPath, allProjectionFiles) {
   const projections = allProjectionFiles.get(repositoryPath);
   if (projections) return projections;
-  const result = new Set();
-  if (/^scripts\/.+\.(?:mjs|sh|txt|json)$/u.test(repositoryPath) || repositoryPath === 'ref-check' || /^\.githooks\/[^/]+$/u.test(repositoryPath)) result.add('scripts');
-  if (/^\.github\/workflows\/[^/]+\.yml$/u.test(repositoryPath) || repositoryPath === 'tests/ci_workflows_v0.mjs') result.add('workflow-yaml');
-  if (repositoryPath === 'Cargo.toml' || /^crates\/[^/]+\/Cargo\.toml$/u.test(repositoryPath) || /^tools\/.+\/Cargo\.toml$/u.test(repositoryPath)) result.add('cargo-manifests');
-  if (/^(?:src|crates\/.+)\/.+\.rs$/u.test(repositoryPath)) result.add('rust-source');
-  if (/^guide\/.+\.md$/u.test(repositoryPath) && !repositoryPath.endsWith('.generated.md')) result.add('guide');
-  if (repositoryPath === 'AGENTS.md' || /^skills\//u.test(repositoryPath) || /^llp\/\d+.*\.md$/u.test(repositoryPath) || /^issues\/[^/]+\.md$/u.test(repositoryPath)) result.add('docs-process');
-  if (/^(?:tests\/(?:acceptance|conformance)\/.+\.(?:json|md)|ownership\..+\.json|(?:cloudflare|targets\/cloudflare)\/generated\/deployment-identity\..+\.json)$/u.test(repositoryPath)) result.add('policy-record-json');
-  return result;
+  return projectionsForRepositoryPath(repositoryPath);
 }
 
 function historicalLineStates(lines, markers, repositoryPath) {
@@ -450,6 +666,49 @@ function historicalLineStates(lines, markers, repositoryPath) {
   return { skipped, findings };
 }
 
+function lexicalCandidates(line) {
+  const normalizedLine = normalizeLexicalSeparators(line);
+  const candidates = [normalizedLine.replace(/(["'])\s*\+\s*(["'])/gu, '')];
+  const callRegex = /(?:\b(?:join|resolve)\s*\(|\bnew\s+URL\s*\()([^)]*)\)/gu;
+  for (const call of normalizedLine.matchAll(callRegex)) {
+    const components = [...call[1].matchAll(/(["'`])([^"'`]*)\1/gu)]
+      .map((match) => normalizeLexicalSeparators(match[2]).replace(/^\/+|\/+$/gu, ''))
+      .filter((component) => component.length > 0);
+    if (components.length > 0) candidates.push(components.join('/'));
+  }
+  return [...new Set(candidates)];
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function withoutDestinationForms(candidate, pattern) {
+  let masked = candidate;
+  for (const destination of pattern.destinationForms ?? []) {
+    const normalized = normalizeLexicalSeparators(destination);
+    const destinationRegex = new RegExp(
+      `(^|[^a-zA-Z0-9_./-])((?:\\.{1,2}/)*)${escapeRegex(normalized)}`,
+      'gu',
+    );
+    masked = masked.replace(destinationRegex, '$1$2<destination>');
+  }
+  return masked;
+}
+
+function candidateMatchesPattern(candidate, pattern) {
+  const source = withoutDestinationForms(candidate, pattern);
+  if (pattern.matcher === 'normalized-root-path') {
+    const tokenRegex = /(?:^|[^a-zA-Z0-9_./-])((?:\.{1,2}\/)*src\/)/gu;
+    return [...source.matchAll(tokenRegex)].some((match) => {
+      const normalized = match[1].replace(/^(?:\.{1,2}\/)+/u, '');
+      return normalized.startsWith('src/');
+    });
+  }
+  const regex = new RegExp(pattern.regex, pattern.flags ?? 'u');
+  return regex.test(source);
+}
+
 function scanCommonPatterns({ source, repositoryPath, projection, patterns, manifest, epochIndex }) {
   const lines = source.split(/\r?\n/u);
   const historical = historicalLineStates(lines, manifest.exceptions.historicalSections, repositoryPath);
@@ -461,18 +720,7 @@ function scanCommonPatterns({ source, repositoryPath, projection, patterns, mani
       if (!pattern.projections.includes(projection)) continue;
       if (epochIndex < manifest.epoch.order.indexOf(pattern.activeFrom)) continue;
       if (pattern.fileSuffixes && !pattern.fileSuffixes.some((suffix) => repositoryPath.endsWith(suffix))) continue;
-      let matches = false;
-      if (pattern.matcher === 'normalized-root-path') {
-        const joinedStringFragments = line.replace(/(["'])\s*\+\s*(["'])/gu, '');
-        const tokenRegex = /(?:^|[^a-zA-Z0-9_./-])((?:\.{1,2}\/)*src\/)/gu;
-        matches = [...joinedStringFragments.matchAll(tokenRegex)].some((match) => {
-          const normalized = match[1].replace(/^(?:\.{1,2}\/)+/u, '');
-          return normalized.startsWith('src/');
-        });
-      } else {
-        const regex = new RegExp(pattern.regex, pattern.flags ?? 'u');
-        matches = regex.test(line);
-      }
+      const matches = lexicalCandidates(line).some((candidate) => candidateMatchesPattern(candidate, pattern));
       if (matches) {
         findings.push({
           path: repositoryPath,
@@ -647,6 +895,13 @@ function findingComparator(left, right) {
     || compareText(left.snippet, right.snippet);
 }
 
+function readFailureSnippet(error) {
+  const code = typeof error?.code === 'string' && /^[A-Z0-9_]+$/u.test(error.code)
+    ? error.code
+    : 'UNKNOWN';
+  return `read failed (${code})`;
+}
+
 function main() {
   let arguments_;
   try {
@@ -696,7 +951,13 @@ function main() {
     process.exit(2);
   }
 
-  const allProjectionFiles = projectionFiles();
+  const consumerProjectionErrors = validateConsumerProjections(manifest, epochIndex);
+  if (consumerProjectionErrors.length > 0) {
+    for (const error of consumerProjectionErrors) process.stderr.write(`${DIAGNOSTIC}_MANIFEST_INVALID: ${error}\n`);
+    process.exit(1);
+  }
+
+  const allProjectionFiles = projectionFiles(manifest, epochIndex);
   const selectedFiles = new Map();
   let exemptFiles = 0;
   let authorityFiles = 0;
@@ -720,7 +981,7 @@ function main() {
       }
       const projections = targetedProjection(repositoryPath, allProjectionFiles);
       if (projections.size === 0) {
-        process.stderr.write(`${DIAGNOSTIC}_USAGE: --path is outside the seven checked projections: ${repositoryPath}\n`);
+        process.stderr.write(`${DIAGNOSTIC}_USAGE: --path is outside the checked projections: ${repositoryPath}\n`);
         process.exit(2);
       }
       selectedFiles.set(repositoryPath, projections);
@@ -741,7 +1002,7 @@ function main() {
     try {
       source = readFileSync(join(ROOT, repositoryPath), 'utf8');
     } catch (error) {
-      findings.push({ path: repositoryPath, line: 1, projection: 'file-read', pattern: 'unreadable', snippet: error.message });
+      findings.push({ path: repositoryPath, line: 1, projection: 'file-read', pattern: 'unreadable', snippet: readFailureSnippet(error) });
       continue;
     }
     for (const projection of [...projections].sort(compareText)) {
@@ -796,8 +1057,10 @@ if (isMainModule()) main();
 export {
   scanCommonPatterns,
   scanRustSource,
+  readFailureSnippet,
   validateConsumerFiles,
   validateEpochAssignments,
   validateEpochShape,
+  validateConsumerProjections,
   validateManifest,
 };

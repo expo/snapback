@@ -97,15 +97,17 @@
       "selectors": [
         "scripts/**/*.{mjs,sh,txt,json}",
         "ref-check",
-        ".githooks/*"
+        ".githooks/*",
+        "consumerFiles with script/source extensions under cloudflare/, targets/, and clients/"
       ],
       "scanner": "common stale-path patterns plus bare src pathspec lines in .txt files"
     },
     {
       "id": "workflow-yaml",
       "selectors": [
-        ".github/workflows/*.yml",
-        "tests/ci_workflows_v0.mjs"
+        ".github/workflows/*.{yml,yaml}",
+        "tests/ci_workflows_v0.mjs",
+        "declared consumer *.yaml files"
       ],
       "scanner": "common stale-path patterns, including paths: filter entries"
     },
@@ -119,7 +121,8 @@
         "scripts/js-production-audit-dispositions.v1.json",
         "tests/acceptance/**/*.{json,md}",
         "tests/conformance/**/*.{json,md}",
-        "guide/published-closure.json"
+        "guide/published-closure.json",
+        "root package.json and declared consumer JSON/JSONC/lock files"
       ],
       "scanner": "common stale-path patterns after category and dated-evidence exemptions"
     },
@@ -170,7 +173,10 @@
       ],
       "regex": "(?:^|[^a-zA-Z0-9_./-])(?:\\.{1,2}/)*src/",
       "flags": "u",
-      "matcher": "normalized-root-path"
+      "matcher": "normalized-root-path",
+      "destinationForms": [
+        "crates/snapback/src/"
+      ]
     },
     {
       "id": "root-rust-integration-test",
@@ -182,7 +188,10 @@
         "docs-process"
       ],
       "regex": "(^|[^./])tests/[a-z_0-9]+\\.rs",
-      "flags": "u"
+      "flags": "u",
+      "destinationForms": [
+        "crates/snapback/tests/"
+      ]
     },
     {
       "id": "cloudflare-root",
@@ -194,7 +203,10 @@
         "docs-process"
       ],
       "regex": "\\bcloudflare/",
-      "flags": "u"
+      "flags": "u",
+      "destinationForms": [
+        "targets/cloudflare/"
+      ]
     },
     {
       "id": "agent-safe-tools-root",
@@ -206,7 +218,10 @@
         "docs-process"
       ],
       "regex": "\\btools/agent-safe",
-      "flags": "u"
+      "flags": "u",
+      "destinationForms": [
+        "crates/snapback-tools/"
+      ]
     },
     {
       "id": "root-rust-example",
@@ -218,7 +233,10 @@
         "docs-process"
       ],
       "regex": "\\bexamples/[a-z_]+\\.rs",
-      "flags": "u"
+      "flags": "u",
+      "destinationForms": [
+        "crates/snapback/examples/"
+      ]
     },
     {
       "id": "root-build-script",
@@ -230,7 +248,10 @@
         "docs-process"
       ],
       "regex": "(^|\\s|'|\")build\\.rs",
-      "flags": "u"
+      "flags": "u",
+      "destinationForms": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "bare-src-pathspec",
@@ -242,6 +263,9 @@
       "flags": "u",
       "fileSuffixes": [
         ".txt"
+      ],
+      "destinationForms": [
+        "crates/snapback/src"
       ]
     }
   ],
@@ -280,10 +304,10 @@
         "files": [
           "tests/agent_safe_publication_checker_v1.mjs",
           "tests/capability-maturity.test.mjs",
-        "tests/drift_prone_gates_v0.mjs",
-        "tests/local_proof_selection_v0.mjs",
-        "tests/path_migration_stragglers_v0.mjs",
-        "tests/prepared_runtime_reuse_v0.mjs"
+          "tests/drift_prone_gates_v0.mjs",
+          "tests/local_proof_selection_v0.mjs",
+          "tests/path_migration_stragglers_v0.mjs",
+          "tests/prepared_runtime_reuse_v0.mjs"
         ]
       },
       {
@@ -292,7 +316,12 @@
       },
       {
         "id": "script-negative-fixture-tests",
-        "pattern": "^scripts/[^/]+\\.test\\.mjs$"
+        "files": [
+          "scripts/check-module-ownership.test.mjs",
+          "scripts/generate-control-catalog.test.mjs",
+          "scripts/telemetry-phase1-evidence.test.mjs",
+          "scripts/telemetry-release-gate.test.mjs"
+        ]
       }
     ],
     "namedDatedEvidence": [
@@ -3276,6 +3305,20 @@
       "changeKind": "update",
       "applyByEpoch": "phase-3",
       "surveyCitation": "path-migration-manifest.md:275"
+    },
+    {
+      "id": "s09-r005a",
+      "category": "source-reading-checkers",
+      "consumer": "scripts/generate-search-unicode.mjs:168",
+      "consumerFiles": [
+        "scripts/generate-search-unicode.mjs"
+      ],
+      "currentPathExpression": "resolve(import.meta.dirname, '..', 'src', 'search', 'unicode17_generated.rs')",
+      "targetExpression": "resolve(import.meta.dirname, '..', 'crates', 'snapback', 'src', 'search', 'unicode17_generated.rs')",
+      "verification": "path-migration straggler composed-path regression plus Unicode generator drift check",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "final blind-review correction A4, 2026-08-17"
     },
     {
       "id": "s09-r006",
