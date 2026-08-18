@@ -1,19 +1,17 @@
 use super::*;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum DiagnosticBoundary {
-    Attached,
-    Standalone,
-}
+pub(crate) use snapback_activation::generation_activation::{
+    ActivationHost, DiagnosticBoundary, order_field_bounds_from_functions,
+};
 
-impl LocalSnapback {
-    pub(crate) fn generation_commit_ops(
+impl ActivationHost for LocalSnapback {
+    fn generation_commit_ops(
         &mut self,
     ) -> crate::storage::generation_commit::GenerationCommitOps<'_> {
         self.db.generation_commit_ops()
     }
 
-    pub(crate) fn publish_generation_ephemeral_collections(&mut self) {
+    fn publish_generation_ephemeral_collections(&mut self) {
         let ephemeral = self.ephemeral.clone();
         let ephemeral_collections =
             served_ephemeral_collections(&self.db.schema().ephemeral_collections, &self.functions);
@@ -24,7 +22,7 @@ impl LocalSnapback {
         });
     }
 
-    pub(crate) fn compose_function_generation_successor(
+    fn compose_function_generation_successor(
         &mut self,
         manifest: FunctionManifest,
         order_field_bounds: BTreeMap<(String, String), u64>,
@@ -40,7 +38,7 @@ impl LocalSnapback {
         self.db.set_order_field_bounds(order_field_bounds);
     }
 
-    pub(crate) fn install_process_generation_marker(&mut self, generation: u64) {
+    fn install_process_generation_marker(&mut self, generation: u64) {
         self.app_generation = generation;
         self.app_generation_fence
             .store(generation, Ordering::SeqCst);
@@ -51,7 +49,7 @@ impl LocalSnapback {
         self.rqs_generation = None;
     }
 
-    pub(crate) fn post_install_function_generation(
+    fn post_install_function_generation(
         &mut self,
         diagnostics: &mut Vec<Diagnostic>,
         validate_routes_after_install: bool,
@@ -119,7 +117,7 @@ impl LocalSnapback {
         }
     }
 
-    pub(crate) fn record_generation_activation_diagnostics(
+    fn record_generation_activation_diagnostics(
         &mut self,
         diagnostics: Vec<Diagnostic>,
         boundary: DiagnosticBoundary,
@@ -127,12 +125,21 @@ impl LocalSnapback {
         self.record_diagnostics_at_boundary(diagnostics, boundary);
     }
 
-    pub(crate) fn function_generation_recovery_state(
+    fn function_generation_recovery_state(
         &self,
     ) -> &crate::generation_activation::FunctionGenerationRecoveryState {
         &self.function_generation_recovery_state
     }
 
+    fn set_function_generation_recovery_state(
+        &mut self,
+        state: crate::generation_activation::FunctionGenerationRecoveryState,
+    ) {
+        self.function_generation_recovery_state = state;
+    }
+}
+
+impl LocalSnapback {
     /// Reports the reopened generation's observable recovery posture without
     /// making unassigned acceptance callers depend on the coordinator type.
     ///
@@ -165,117 +172,4 @@ impl LocalSnapback {
             | crate::generation_activation::FunctionGenerationRecoveryState::Resolved => None,
         }
     }
-
-    pub(crate) fn set_function_generation_recovery_state(
-        &mut self,
-        state: crate::generation_activation::FunctionGenerationRecoveryState,
-    ) {
-        self.function_generation_recovery_state = state;
-    }
-}
-
-/// Reconcile authored order uses into the one schema-level UTF-8 ceiling for
-/// each `(table, field)`. The authoring member lives on `OrderExpr` because a
-/// cursor profile is what needs the bound, but storage must never receive two
-/// competing answers for the same string-encoded column.
-///
-/// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
-///   snapshot-batch string and application-id order values share one positive,
-///   write-enforced, single-valued bound per table/field.
-pub(crate) fn order_field_bounds_from_functions(
-    manifest: &FunctionManifest,
-    schema: &SchemaManifest,
-) -> SnapbackResult<BTreeMap<(String, String), u64>> {
-    let mut bounds = BTreeMap::new();
-    let mut register = |table_name: &str,
-                        order: &[crate::manifest::OrderExpr]|
-     -> SnapbackResult<()> {
-        let table = schema.table(table_name).ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                "runtime",
-                format!("order-field bound references unknown table {table_name}"),
-            )
-        })?;
-        for declaration in order {
-            let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
-                continue;
-            };
-            let field = table.field(&declaration.field).ok_or_else(|| {
-                SnapbackError::error(
-                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                    "runtime",
-                    format!(
-                        "order-field bound references unknown field {table_name}.{}",
-                        declaration.field
-                    ),
-                )
-            })?;
-            if max_encoded_bytes == 0
-                || max_encoded_bytes > 9_007_199_254_740_991
-                || !matches!(
-                    &field.field_type,
-                    crate::manifest::FieldType::String
-                        | crate::manifest::FieldType::Enum { .. }
-                        | crate::manifest::FieldType::Id { .. }
-                )
-            {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                    "runtime",
-                    format!(
-                        "order-field maxEncodedBytes requires a positive bound on string or id field {table_name}.{}",
-                        declaration.field
-                    ),
-                ));
-            }
-            let key = (table_name.to_owned(), declaration.field.clone());
-            if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
-                && previous != max_encoded_bytes
-            {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                    "runtime",
-                    format!(
-                        "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
-                        key.0, key.1
-                    ),
-                ));
-            }
-        }
-        Ok(())
-    };
-
-    for function in &manifest.functions {
-        match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
-                register(&plan.table, &plan.order)?;
-            }
-            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
-                register(&plan.root, &plan.order)?;
-            }
-            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
-                register(&plan.child_table, &plan.order)?;
-            }
-            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
-                for node in &plan.nodes {
-                    register(&node.child_table, &node.order)?;
-                }
-            }
-            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
-                for node in &plan.nodes {
-                    match node {
-                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
-                            register(&node.child_table, &node.order)?;
-                        }
-                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
-                            register(&node.root, &node.order)?;
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-    Ok(bounds)
 }

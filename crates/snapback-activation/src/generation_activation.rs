@@ -8,9 +8,11 @@
 use crate::auth::admission::ModeCommitFailure;
 use crate::auth::mode::DeploymentIdentity;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
-use crate::local::{DiagnosticBoundary, LocalSnapback};
-use crate::manifest::{FunctionManifest, SchemaManifest, SeedData, SequenceDeclaration};
+use crate::manifest::{
+    FunctionManifest, FunctionRuntime, HandlerPlan, SchemaManifest, SeedData, SequenceDeclaration,
+};
 use crate::storage::auth_mode::{DurableModeCommit, NetworkDeploymentCommit};
+use crate::storage::generation_commit::GenerationCommitOps;
 use crate::storage::{
     CommitFunctionGeneration, FunctionGenerationRecord, PendingProjectionPublication,
 };
@@ -26,14 +28,14 @@ use std::time::Instant;
 ///   transaction authority into the coordinator or treating a process fence
 ///   as durable truth.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum FunctionGenerationRecoveryState {
+pub enum FunctionGenerationRecoveryState {
     NoCommittedGeneration,
     AwaitingReload(FunctionGenerationRecord),
     Resolved,
 }
 
 impl FunctionGenerationRecoveryState {
-    pub(crate) fn from_record(record: Option<FunctionGenerationRecord>) -> Self {
+    pub fn from_record(record: Option<FunctionGenerationRecord>) -> Self {
         match record {
             Some(record) => Self::AwaitingReload(record),
             None => Self::NoCommittedGeneration,
@@ -46,7 +48,7 @@ impl FunctionGenerationRecoveryState {
     /// @ref LLP 0225#open-questions-for-the-author — OQ-C requires serving to
     ///   remain inert by function name until verified rehydration or a
     ///   committed successor resolves the reopened generation.
-    pub(crate) fn ensure_invocation_ready(&self, name: &str) -> SnapbackResult<()> {
+    pub fn ensure_invocation_ready(&self, name: &str) -> SnapbackResult<()> {
         let Self::AwaitingReload(record) = self else {
             return Ok(());
         };
@@ -72,7 +74,7 @@ impl FunctionGenerationRecoveryState {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum FunctionGenerationActivationIntent {
+pub enum FunctionGenerationActivationIntent {
     Automatic,
     RehydrateCommittedGeneration,
 }
@@ -83,25 +85,67 @@ struct CandidateGenerationDigests {
 }
 
 /// Inputs already admitted by the caller's artifact/capability preflight.
-pub(crate) struct FunctionGenerationActivation {
-    pub(crate) manifest: FunctionManifest,
-    pub(crate) generation: u64,
-    pub(crate) order_field_bounds: BTreeMap<(String, String), u64>,
-    pub(crate) sequence_declarations: BTreeMap<String, SequenceDeclaration>,
-    pub(crate) trusted_active_generation: bool,
-    pub(crate) publish_ephemeral_collections: bool,
-    pub(crate) validate_routes_after_install: bool,
-    pub(crate) inject_publication_warning: bool,
-    pub(crate) diagnostic_boundary: DiagnosticBoundary,
-    pub(crate) diagnostics: Vec<Diagnostic>,
-    pub(crate) intent: FunctionGenerationActivationIntent,
+pub struct FunctionGenerationActivation {
+    pub manifest: FunctionManifest,
+    pub generation: u64,
+    pub order_field_bounds: BTreeMap<(String, String), u64>,
+    pub sequence_declarations: BTreeMap<String, SequenceDeclaration>,
+    pub trusted_active_generation: bool,
+    pub publish_ephemeral_collections: bool,
+    pub validate_routes_after_install: bool,
+    pub inject_publication_warning: bool,
+    pub diagnostic_boundary: DiagnosticBoundary,
+    pub diagnostics: Vec<Diagnostic>,
+    pub intent: FunctionGenerationActivationIntent,
 }
 
 /// The durable same-mode cut plus the process publication it authorized.
-pub(crate) struct SameModeNetworkActivation {
-    pub(crate) commit: NetworkDeploymentCommit,
-    pub(crate) committed_at: Instant,
-    pub(crate) diagnostics: Vec<Diagnostic>,
+pub struct SameModeNetworkActivation {
+    pub commit: NetworkDeploymentCommit,
+    pub committed_at: Instant,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DiagnosticBoundary {
+    Attached,
+    Standalone,
+}
+
+/// Engine-owned effects required by the generation activation coordinator.
+///
+/// @ref LLP 0276#phases — the lower activation owner declares this port and
+///   the higher engine remainder implements it, so activation never depends
+///   upward on `LocalSnapback`.
+pub trait ActivationHost {
+    fn generation_commit_ops(&mut self) -> GenerationCommitOps<'_>;
+
+    fn publish_generation_ephemeral_collections(&mut self);
+
+    fn post_install_function_generation(
+        &mut self,
+        diagnostics: &mut Vec<Diagnostic>,
+        validate_routes_after_install: bool,
+        inject_publication_warning: bool,
+    );
+
+    fn install_process_generation_marker(&mut self, generation: u64);
+
+    fn record_generation_activation_diagnostics(
+        &mut self,
+        diagnostics: Vec<Diagnostic>,
+        boundary: DiagnosticBoundary,
+    );
+
+    fn function_generation_recovery_state(&self) -> &FunctionGenerationRecoveryState;
+
+    fn compose_function_generation_successor(
+        &mut self,
+        manifest: FunctionManifest,
+        order_field_bounds: BTreeMap<(String, String), u64>,
+    );
+
+    fn set_function_generation_recovery_state(&mut self, state: FunctionGenerationRecoveryState);
 }
 
 /// Owns compose -> install -> post-install ordering for one app generation.
@@ -110,21 +154,18 @@ pub(crate) struct SameModeNetworkActivation {
 /// coordinator): one domain owner composes the generation successor
 ///   and the storage kernel's commit primitives without exposing a new public
 ///   wire or embedding surface.
-pub(crate) struct GenerationActivation<'a> {
-    snapback: &'a mut LocalSnapback,
+pub struct GenerationActivation<'a, H: ActivationHost + ?Sized> {
+    snapback: &'a mut H,
 }
 
-impl<'a> GenerationActivation<'a> {
-    pub(crate) fn new(snapback: &'a mut LocalSnapback) -> Self {
+impl<'a, H: ActivationHost + ?Sized> GenerationActivation<'a, H> {
+    pub fn new(snapback: &'a mut H) -> Self {
         Self { snapback }
     }
 
     /// Compose and publish a function generation with the legacy observable
     /// ordering preserved exactly.
-    pub(crate) fn activate_functions(
-        self,
-        activation: FunctionGenerationActivation,
-    ) -> Vec<Diagnostic> {
+    pub fn activate_functions(self, activation: FunctionGenerationActivation) -> Vec<Diagnostic> {
         let FunctionGenerationActivation {
             manifest,
             generation,
@@ -338,7 +379,7 @@ impl<'a> GenerationActivation<'a> {
     /// activation owner. Storage remains the transaction authority; the
     /// coordinator decides that the process successor may install only from a
     /// classified committed result.
-    pub(crate) fn activate_same_mode_network_generation(
+    pub fn activate_same_mode_network_generation(
         self,
         deployment: DeploymentIdentity,
         schema: SchemaManifest,
@@ -367,9 +408,8 @@ impl<'a> GenerationActivation<'a> {
             .collect::<BTreeSet<_>>();
         let sequence_declarations =
             crate::storage::sequence_declarations_from_function_manifest(&functions);
-        let order_field_bounds =
-            crate::local::order_field_bounds_from_functions(&functions, &schema)
-                .map_err(ModeCommitFailure::RolledBack)?;
+        let order_field_bounds = order_field_bounds_from_functions(&functions, &schema)
+            .map_err(ModeCommitFailure::RolledBack)?;
         let committed = self
             .snapback
             .generation_commit_ops()
@@ -418,12 +458,12 @@ impl<'a> GenerationActivation<'a> {
     /// Install the process-local fence only after the owning durable operation
     /// has committed. The fence is never a crash-recovery authority: complete
     /// pair recovery reads storage's persisted generation record.
-    pub(crate) fn install_process_generation(snapback: &mut LocalSnapback, generation: u64) {
+    pub fn install_process_generation(snapback: &mut H, generation: u64) {
         snapback.install_process_generation_marker(generation);
     }
 
     fn materialize_projection_publications(
-        snapback: &mut LocalSnapback,
+        snapback: &mut H,
         manifest: &FunctionManifest,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<Vec<PendingProjectionPublication>, crate::diagnostic::SnapbackError> {
@@ -458,4 +498,110 @@ impl<'a> GenerationActivation<'a> {
             ),
         )
     }
+}
+
+/// Reconcile authored order uses into the one schema-level UTF-8 ceiling for
+/// each `(table, field)`. The authoring member lives on `OrderExpr` because a
+/// cursor profile is what needs the bound, but storage must never receive two
+/// competing answers for the same string-encoded column.
+///
+/// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+///   snapshot-batch string and application-id order values share one positive,
+///   write-enforced, single-valued bound per table/field.
+pub fn order_field_bounds_from_functions(
+    manifest: &FunctionManifest,
+    schema: &SchemaManifest,
+) -> SnapbackResult<BTreeMap<(String, String), u64>> {
+    let mut bounds = BTreeMap::new();
+    let mut register = |table_name: &str,
+                        order: &[crate::manifest::OrderExpr]|
+     -> SnapbackResult<()> {
+        let table = schema.table(table_name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!("order-field bound references unknown table {table_name}"),
+            )
+        })?;
+        for declaration in order {
+            let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
+                continue;
+            };
+            let field = table.field(&declaration.field).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field bound references unknown field {table_name}.{}",
+                        declaration.field
+                    ),
+                )
+            })?;
+            if max_encoded_bytes == 0
+                || max_encoded_bytes > 9_007_199_254_740_991
+                || !matches!(
+                    &field.field_type,
+                    crate::manifest::FieldType::String
+                        | crate::manifest::FieldType::Enum { .. }
+                        | crate::manifest::FieldType::Id { .. }
+                )
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field maxEncodedBytes requires a positive bound on string or id field {table_name}.{}",
+                        declaration.field
+                    ),
+                ));
+            }
+            let key = (table_name.to_owned(), declaration.field.clone());
+            if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
+                && previous != max_encoded_bytes
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
+                        key.0, key.1
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    };
+
+    for function in &manifest.functions {
+        match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
+                register(&plan.table, &plan.order)?;
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+                register(&plan.root, &plan.order)?;
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
+                register(&plan.child_table, &plan.order)?;
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
+                for node in &plan.nodes {
+                    register(&node.child_table, &node.order)?;
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                for node in &plan.nodes {
+                    match node {
+                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                            register(&node.child_table, &node.order)?;
+                        }
+                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            register(&node.root, &node.order)?;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(bounds)
 }

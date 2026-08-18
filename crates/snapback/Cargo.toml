@@ -73,6 +73,7 @@ zeroize = "1.8"
 snapback-types = { path = "../snapback-types" }
 snapback-kernel = { path = "../snapback-kernel" }
 snapback-auth = { path = "../snapback-auth" }
+snapback-activation = { path = "../snapback-activation" }
 
 [build-dependencies]
 sha2 = "0.10"
