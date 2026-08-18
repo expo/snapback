@@ -8,6 +8,7 @@ import {
   existsSync,
   lstatSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   statSync,
 } from 'node:fs';
@@ -24,6 +25,16 @@ function compareText(left, right) {
 
 function normalizeRepoPath(path) {
   return path.split(sep).join('/').replace(/^\.\//u, '');
+}
+
+function isExactRepositoryFilePath(path) {
+  if (typeof path !== 'string' || path.length === 0) return false;
+  return path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..')
+    && !path.startsWith('/')
+    && !path.startsWith('../')
+    && !path.includes('\\')
+    && !/[{}*…]/u.test(path)
+    && !path.endsWith('/');
 }
 
 function lineNumberAt(source, offset) {
@@ -95,6 +106,12 @@ function validateManifest(manifest) {
   const consumers = Array.isArray(manifest?.consumers) ? manifest.consumers : [];
   expect(consumers.length > 0, 'consumers must not be empty');
   const consumerIds = new Set();
+  const consumerFileMoves = (repositoryPath) => repositoryPath === 'build.rs'
+    || repositoryPath.startsWith('src/')
+    || /^tests\/[^/]+\.rs$/u.test(repositoryPath)
+    || repositoryPath.startsWith('examples/')
+    || repositoryPath.startsWith('tools/agent-safe-baseline-worker/')
+    || repositoryPath.startsWith('cloudflare/');
   for (const [index, consumer] of consumers.entries()) {
     const label = consumer?.id ?? `index ${index}`;
     expect(typeof consumer?.id === 'string' && consumer.id.length > 0, `consumer ${label} has no stable id`);
@@ -102,6 +119,18 @@ function validateManifest(manifest) {
     consumerIds.add(consumer?.id);
     expect(categoryIds.has(consumer?.category), `consumer ${label} has unknown category ${consumer?.category}`);
     expect(Array.isArray(consumer?.consumerFiles) && consumer.consumerFiles.length > 0, `consumer ${label} has no consumerFiles`);
+    for (const repositoryPath of consumer?.consumerFiles ?? []) {
+      expect(isExactRepositoryFilePath(repositoryPath), `consumer ${label} has non-file consumerFiles entry ${repositoryPath}`);
+    }
+    if (consumer?.targetFiles !== undefined) {
+      expect(Array.isArray(consumer.targetFiles), `consumer ${label} targetFiles must be an array`);
+      for (const repositoryPath of consumer?.targetFiles ?? []) {
+        expect(isExactRepositoryFilePath(repositoryPath), `consumer ${label} has non-file targetFiles entry ${repositoryPath}`);
+      }
+    }
+    if ((consumer?.consumerFiles ?? []).some(consumerFileMoves)) {
+      expect(Array.isArray(consumer?.targetFiles) && consumer.targetFiles.length > 0, `consumer ${label} moves a consumer file but has no targetFiles`);
+    }
     for (const field of ['consumer', 'currentPathExpression', 'targetExpression', 'verification', 'surveyCitation']) {
       expect(typeof consumer?.[field] === 'string' && consumer[field].length > 0, `consumer ${label} has no ${field}`);
     }
@@ -151,10 +180,87 @@ function validateManifest(manifest) {
     expect(immutableIds.has(id), `missing immutable provenance exception ${id}`);
   }
   expect((manifest?.exceptions?.namedNegativeFixtures ?? []).length === 4, 'namedNegativeFixtures must preserve the four surveyed fixture categories');
+  const topLevelFixtureRule = (manifest?.exceptions?.namedNegativeFixtures ?? [])
+    .find((entry) => entry.id === 'top-level-test-fixture-builders');
+  expect(Array.isArray(topLevelFixtureRule?.files) && topLevelFixtureRule.files.length > 0, 'top-level-test-fixture-builders must enumerate exact files');
+  expect(!topLevelFixtureRule?.pattern && !topLevelFixtureRule?.prefix, 'top-level-test-fixture-builders must not use a pattern or prefix');
+  for (const repositoryPath of topLevelFixtureRule?.files ?? []) {
+    expect(isExactRepositoryFilePath(repositoryPath), `top-level-test-fixture-builders has non-file entry ${repositoryPath}`);
+    expect(repositoryPath !== 'tests/ci_workflows_v0.mjs', 'tests/ci_workflows_v0.mjs must not be exempt');
+  }
   expect((manifest?.exceptions?.namedDatedEvidence ?? []).length === 4, 'namedDatedEvidence must preserve the four surveyed evidence categories');
   expect((manifest?.surveySpotChecks ?? []).length >= 15, 'surveySpotChecks must retain at least 15 repository checks');
   expect(Array.isArray(manifest?.surveyCorrections), 'surveyCorrections must be an array');
 
+  return errors.sort(compareText);
+}
+
+function validateConsumerFiles(manifest, root = ROOT) {
+  const errors = [];
+  for (const consumer of manifest.consumers) {
+    for (const repositoryPath of consumer.consumerFiles) {
+      const absolute = join(root, repositoryPath);
+      if (!existsSync(absolute)) {
+        errors.push(`consumer ${consumer.id} consumerFiles entry does not exist pre-flip: ${repositoryPath}`);
+      } else if (!statSync(absolute).isFile()) {
+        errors.push(`consumer ${consumer.id} consumerFiles entry is not a file: ${repositoryPath}`);
+      }
+    }
+  }
+  return errors.sort(compareText);
+}
+
+function validateEpochAssignments(manifest) {
+  const errors = [];
+  const epochIndex = new Map(manifest.epoch.order.map((epoch, index) => [epoch, index]));
+  const earliestTargetEpoch = (repositoryPath) => {
+    if (/^targets\/cloudflare\//u.test(repositoryPath)) return 'phase-3';
+    if (/^crates\/(?!snapback\/(?:src|tests)\/|snapback\/(?:Cargo\.toml|build\.rs)$)/u.test(repositoryPath)
+      || /^crates\/snapback\/examples\//u.test(repositoryPath)) return 'phase-2';
+    if (/^crates\/snapback\/(?:src|tests)\//u.test(repositoryPath)
+      || /^crates\/snapback\/(?:Cargo\.toml|build\.rs)$/u.test(repositoryPath)) return 'phase-1';
+    return 'pre-flip';
+  };
+  for (const consumer of manifest.consumers) {
+    for (const repositoryPath of consumer.targetFiles ?? []) {
+      const earliest = earliestTargetEpoch(repositoryPath);
+      if (epochIndex.get(consumer.applyByEpoch) < epochIndex.get(earliest)) {
+        errors.push(
+          `consumer ${consumer.id} applies at ${consumer.applyByEpoch} before target file ${repositoryPath} can exist (${earliest})`,
+        );
+      }
+    }
+  }
+  return errors.sort(compareText);
+}
+
+function validateEpochShape(epoch, root = ROOT) {
+  const isDirectory = (repositoryPath) => {
+    const absolute = join(root, repositoryPath);
+    return existsSync(absolute) && statSync(absolute).isDirectory();
+  };
+  const errors = [];
+  const requireDirectory = (repositoryPath) => {
+    if (!isDirectory(repositoryPath)) errors.push(`${epoch} requires directory ${repositoryPath}/`);
+  };
+  const forbidDirectory = (repositoryPath) => {
+    if (isDirectory(repositoryPath)) errors.push(`${epoch} forbids directory ${repositoryPath}/`);
+  };
+
+  if (epoch === 'pre-flip') {
+    requireDirectory('src');
+    forbidDirectory('crates/snapback/src');
+  } else if (epoch === 'phase-1' || epoch === 'phase-2') {
+    requireDirectory('crates/snapback/src');
+    forbidDirectory('src');
+    requireDirectory('cloudflare');
+    forbidDirectory('targets/cloudflare');
+  } else if (epoch === 'phase-3' || epoch === 'post-migration') {
+    requireDirectory('crates/snapback/src');
+    forbidDirectory('src');
+    requireDirectory('targets/cloudflare');
+    forbidDirectory('cloudflare');
+  }
   return errors.sort(compareText);
 }
 
@@ -240,6 +346,7 @@ function projectionFiles() {
   add('cargo-manifests', walkFiles('tools', (path) => /\/Cargo\.toml$/u.test(path)));
 
   add('rust-source', walkFiles('crates', (path) => path.endsWith('.rs')));
+  add('rust-source', walkFiles('src', (path) => path.endsWith('.rs')));
   add('guide', walkFiles('guide', (path) => path.endsWith('.md') && !path.endsWith('.generated.md')));
 
   add('docs-process', exactExisting(['AGENTS.md']));
@@ -258,6 +365,7 @@ function projectionFiles() {
 
 function matchesRule(repositoryPath, rule) {
   if (rule.file && repositoryPath === rule.file) return true;
+  if (rule.files && rule.files.includes(repositoryPath)) return true;
   if (rule.prefix && repositoryPath.startsWith(rule.prefix)) return true;
   if (rule.pattern && new RegExp(rule.pattern, 'u').test(repositoryPath)) return true;
   return false;
@@ -284,7 +392,7 @@ function targetedProjection(repositoryPath, allProjectionFiles) {
   if (/^scripts\/.+\.(?:mjs|sh|txt|json)$/u.test(repositoryPath) || repositoryPath === 'ref-check' || /^\.githooks\/[^/]+$/u.test(repositoryPath)) result.add('scripts');
   if (/^\.github\/workflows\/[^/]+\.yml$/u.test(repositoryPath) || repositoryPath === 'tests/ci_workflows_v0.mjs') result.add('workflow-yaml');
   if (repositoryPath === 'Cargo.toml' || /^crates\/[^/]+\/Cargo\.toml$/u.test(repositoryPath) || /^tools\/.+\/Cargo\.toml$/u.test(repositoryPath)) result.add('cargo-manifests');
-  if (/^crates\/.+\.rs$/u.test(repositoryPath)) result.add('rust-source');
+  if (/^(?:src|crates\/.+)\/.+\.rs$/u.test(repositoryPath)) result.add('rust-source');
   if (/^guide\/.+\.md$/u.test(repositoryPath) && !repositoryPath.endsWith('.generated.md')) result.add('guide');
   if (repositoryPath === 'AGENTS.md' || /^skills\//u.test(repositoryPath) || /^llp\/\d+.*\.md$/u.test(repositoryPath) || /^issues\/[^/]+\.md$/u.test(repositoryPath)) result.add('docs-process');
   if (/^(?:tests\/(?:acceptance|conformance)\/.+\.(?:json|md)|ownership\..+\.json|(?:cloudflare|targets\/cloudflare)\/generated\/deployment-identity\..+\.json)$/u.test(repositoryPath)) result.add('policy-record-json');
@@ -353,8 +461,19 @@ function scanCommonPatterns({ source, repositoryPath, projection, patterns, mani
       if (!pattern.projections.includes(projection)) continue;
       if (epochIndex < manifest.epoch.order.indexOf(pattern.activeFrom)) continue;
       if (pattern.fileSuffixes && !pattern.fileSuffixes.some((suffix) => repositoryPath.endsWith(suffix))) continue;
-      const regex = new RegExp(pattern.regex, pattern.flags ?? 'u');
-      if (regex.test(line)) {
+      let matches = false;
+      if (pattern.matcher === 'normalized-root-path') {
+        const joinedStringFragments = line.replace(/(["'])\s*\+\s*(["'])/gu, '');
+        const tokenRegex = /(?:^|[^a-zA-Z0-9_./-])((?:\.{1,2}\/)*src\/)/gu;
+        matches = [...joinedStringFragments.matchAll(tokenRegex)].some((match) => {
+          const normalized = match[1].replace(/^(?:\.{1,2}\/)+/u, '');
+          return normalized.startsWith('src/');
+        });
+      } else {
+        const regex = new RegExp(pattern.regex, pattern.flags ?? 'u');
+        matches = regex.test(line);
+      }
+      if (matches) {
         findings.push({
           path: repositoryPath,
           line: index + 1,
@@ -403,7 +522,7 @@ function scanRustSource(source, repositoryPath, epochIndex, manifest) {
   const findings = [];
   const rootCorpora = [
     'admin-ui', 'brand', 'cloudflare', 'control-catalog', 'demos', 'guide',
-    'issues', 'node_modules', 'packages', 'schemas', 'target', 'tests',
+    'issues', 'node_modules', 'packages', 'schemas', 'target', 'tests', 'vendor',
   ];
   const rootAlternation = rootCorpora.join('|');
   const includeRegex = new RegExp(
@@ -436,6 +555,48 @@ function scanRustSource(source, repositoryPath, epochIndex, manifest) {
       pattern: 'cargo-manifest-dir-root-hop',
       snippet: match[0].replace(/\s+/gu, ' ').trim().slice(0, 240),
     });
+  }
+
+  const helperRegex = /\bfn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*->\s*(?:(?:std::path::)?PathBuf)\s*\{([^}]*?CARGO_MANIFEST_DIR[^}]*)\}/gu;
+  for (const helper of source.matchAll(helperRegex)) {
+    const helperName = helper[1];
+    const escapedHelper = helperName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+    const addHelperMatches = (regex) => {
+      for (const match of source.matchAll(regex)) {
+        findings.push({
+          path: repositoryPath,
+          line: lineNumberAt(source, match.index),
+          projection: 'rust-source',
+          pattern: 'manifest-dir-helper-root-hop',
+          snippet: match[0].replace(/\s+/gu, ' ').trim().slice(0, 240),
+        });
+      }
+    };
+    addHelperMatches(new RegExp(
+      `\\b${escapedHelper}\\s*\\(\\s*\\)[^;]{0,120}?\\.join\\(\\s*["'](?:${rootAlternation})(?:\\/|["'])`,
+      'gu',
+    ));
+    const bindingRegex = new RegExp(
+      `\\blet\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*=\\s*${escapedHelper}\\s*\\(\\s*\\)\\s*;`,
+      'gu',
+    );
+    for (const binding of source.matchAll(bindingRegex)) {
+      const variable = binding[1].replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+      const tail = source.slice(binding.index + binding[0].length);
+      const useRegex = new RegExp(
+        `\\b${variable}\\.join\\(\\s*["'](?:${rootAlternation})(?:\\/|["'])`,
+        'gu',
+      );
+      for (const use of tail.matchAll(useRegex)) {
+        findings.push({
+          path: repositoryPath,
+          line: lineNumberAt(source, binding.index + binding[0].length + use.index),
+          projection: 'rust-source',
+          pattern: 'manifest-dir-helper-root-hop',
+          snippet: use[0].replace(/\s+/gu, ' ').trim().slice(0, 240),
+        });
+      }
+    }
   }
   return findings;
 }
@@ -506,6 +667,26 @@ function main() {
   if (manifestErrors.length > 0) {
     for (const error of manifestErrors) process.stderr.write(`${DIAGNOSTIC}_MANIFEST_INVALID: ${error}\n`);
     process.exit(1);
+  }
+
+  const assignmentErrors = validateEpochAssignments(manifest);
+  if (assignmentErrors.length > 0) {
+    for (const error of assignmentErrors) process.stderr.write(`${DIAGNOSTIC}_MANIFEST_INVALID: ${error}\n`);
+    process.exit(1);
+  }
+
+  const epochShapeErrors = validateEpochShape(manifest.epoch.current);
+  if (epochShapeErrors.length > 0) {
+    for (const error of epochShapeErrors) process.stderr.write(`${DIAGNOSTIC}_EPOCH_SHAPE_INVALID: ${error}\n`);
+    process.exit(1);
+  }
+
+  if (manifest.epoch.current === 'pre-flip') {
+    const consumerFileErrors = validateConsumerFiles(manifest);
+    if (consumerFileErrors.length > 0) {
+      for (const error of consumerFileErrors) process.stderr.write(`${DIAGNOSTIC}_MANIFEST_INVALID: ${error}\n`);
+      process.exit(1);
+    }
   }
 
   const epoch = arguments_.epoch ?? manifest.epoch.current;
@@ -601,4 +782,22 @@ function main() {
   );
 }
 
-main();
+function isMainModule() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) main();
+
+export {
+  scanCommonPatterns,
+  scanRustSource,
+  validateConsumerFiles,
+  validateEpochAssignments,
+  validateEpochShape,
+  validateManifest,
+};

@@ -17,7 +17,7 @@
       "post-migration"
     ],
     "cliOverride": "--epoch",
-    "contract": "The committed current epoch is authoritative for canonical proof. Phase 1, Phase 2, and Phase 3 advance it in the same series as their moves. --epoch is an explicit diagnostic override and never inferred from wall-clock time or Git history."
+    "contract": "The committed current epoch is authoritative for canonical proof and must agree with the checked repository shape. Phase 1, Phase 2, and Phase 3 advance it in the same series as their moves. --epoch is a diagnostic scan override; it never overrides committed-epoch shape validation and is never inferred from wall-clock time or Git history."
   },
   "categories": [
     {
@@ -135,9 +135,10 @@
     {
       "id": "rust-source",
       "selectors": [
+        "src/**/*.rs before the Phase 1 move",
         "crates/**/*.rs"
       ],
-      "scanner": "file-relative include escapes and CARGO_MANIFEST_DIR joins to repository-root corpora"
+      "scanner": "file-relative include escapes, direct CARGO_MANIFEST_DIR joins, and helper-derived manifest-directory roots that reach repository-root corpora"
     },
     {
       "id": "guide",
@@ -167,8 +168,9 @@
         "policy-record-json",
         "docs-process"
       ],
-      "regex": "(^|[^a-zA-Z0-9_./-])src/",
-      "flags": "u"
+      "regex": "(?:^|[^a-zA-Z0-9_./-])(?:\\.{1,2}/)*src/",
+      "flags": "u",
+      "matcher": "normalized-root-path"
     },
     {
       "id": "root-rust-integration-test",
@@ -275,7 +277,14 @@
       },
       {
         "id": "top-level-test-fixture-builders",
-        "pattern": "^tests/[^/]+\\.mjs$"
+        "files": [
+          "tests/agent_safe_publication_checker_v1.mjs",
+          "tests/capability-maturity.test.mjs",
+        "tests/drift_prone_gates_v0.mjs",
+        "tests/local_proof_selection_v0.mjs",
+        "tests/path_migration_stragglers_v0.mjs",
+        "tests/prepared_runtime_reuse_v0.mjs"
+        ]
       },
       {
         "id": "demo-kit-fixture-builders",
@@ -505,10 +514,24 @@
         "scripts/verify-telemetry-phase1-proof"
       ],
       "currentPathExpression": "cargo test --locked --features telemetry-phase1-proof --lib",
-      "targetExpression": "must gain -p snapback (feature lives on the snapback crate); if the telemetry_bench module later moves, repoint",
+      "targetExpression": "gain -p snapback when the root becomes a workspace in Phase 1",
       "verification": "telemetry-latest-main.yml runs --full",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:55"
+    },
+    {
+      "id": "s01-r007-p2",
+      "category": "executable-entry-points",
+      "consumer": "scripts/verify-telemetry-phase1-proof:68,81",
+      "consumerFiles": [
+        "scripts/verify-telemetry-phase1-proof"
+      ],
+      "currentPathExpression": "the Phase 1 -p snapback telemetry proof command",
+      "targetExpression": "repoint any telemetry-bench-specific invocation to snapback-tools after the bin and feature move",
+      "verification": "telemetry-latest-main.yml runs --full",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
       "surveyCitation": "path-migration-manifest.md:55"
     },
     {
@@ -522,7 +545,7 @@
       "targetExpression": "splits once snapback-telemetry-bench moves to snapback-tools (feature + dep:tower + src/telemetry_bench.rs module must move together; a single --features invocation cannot span two packages cleanly)",
       "verification": "same workflow; see bin-mapping flags (§13)",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
+      "applyByEpoch": "phase-2",
       "surveyCitation": "path-migration-manifest.md:56"
     },
     {
@@ -715,7 +738,21 @@
         "package.json"
       ],
       "currentPathExpression": "cargo run --bin snapback-conformance-twin -- --out cloudflare/generated/conformance-twin-report.json",
-      "targetExpression": "cargo run -p snapback-conformance --bin snapback-conformance-twin -- --out targets/cloudflare/generated/… (two updates: package pin after Phase 2 bin move, output path after Phase 3 cloudflare move)",
+      "targetExpression": "cargo run -p snapback-conformance --bin snapback-conformance-twin -- --out cloudflare/generated/conformance-twin-report.json",
+      "verification": "cf twin conformance runs; ci_workflows check indirectly",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
+      "surveyCitation": "path-migration-manifest.md:70"
+    },
+    {
+      "id": "s01-r022-p3",
+      "category": "executable-entry-points",
+      "consumer": "Root package.json cf:twin",
+      "consumerFiles": [
+        "package.json"
+      ],
+      "currentPathExpression": "the Phase 2 package-pinned cf:twin command still writes under cloudflare/generated/",
+      "targetExpression": "keep the Phase 2 package pin and write targets/cloudflare/generated/conformance-twin-report.json",
       "verification": "cf twin conformance runs; ci_workflows check indirectly",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
@@ -788,7 +825,7 @@
       "targetExpression": "root-manifest check must accept the [workspace] form; globs become crates//src//*.rs, crates//tests//*.rs, crates//examples//*.rs, crates//build.rs",
       "verification": "rustfmt gate in local proof",
       "changeKind": "update",
-      "applyByEpoch": "phase-2",
+      "applyByEpoch": "phase-1",
       "surveyCitation": "path-migration-manifest.md:75"
     },
     {
@@ -830,7 +867,7 @@
       "targetExpression": "script path unchanged; but that script's CONFIG_PATH = 'visibility-governance.config.json' (line 43) must repoint when the config moves to scripts/governance/ in Phase 0",
       "verification": "hook self-refuses if scripts missing; visibility-governance workflows",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
+      "applyByEpoch": "pre-flip",
       "surveyCitation": "path-migration-manifest.md:83"
     },
     {
@@ -937,15 +974,27 @@
       "category": "generated-frozen-records",
       "consumer": "ownership.manifest.json (godFiles, modulesByOwner, mixedModuleScopes keys src/local.rs, src/manifest.rs, uncertainAssignments)",
       "consumerFiles": [
-        "ownership.manifest.json",
-        "src/local.rs",
-        "src/manifest.rs"
+        "ownership.manifest.json"
       ],
       "currentPathExpression": "every module key is src/….rs",
-      "targetExpression": "Phase 1: remap wholesale to crates/snapback/src/….rs (RFC's \"single moved crate root\" remap); dies at the Phase 3 flip",
+      "targetExpression": "remap every module key wholesale to crates/snapback/src/….rs in Phase 1",
       "verification": "module-ownership drift gate (driftAlwaysRunGates); check-module-ownership.mjs",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:100"
+    },
+    {
+      "id": "s03-r001-p3",
+      "category": "generated-frozen-records",
+      "consumer": "ownership.manifest.json (godFiles, modulesByOwner, mixedModuleScopes keys src/local.rs, src/manifest.rs, uncertainAssignments)",
+      "consumerFiles": [
+        "ownership.manifest.json"
+      ],
+      "currentPathExpression": "the Phase 1-remapped ownership.manifest.json",
+      "targetExpression": "delete the manifest behind the checked workspace-graph flip predicate",
+      "verification": "module-ownership drift gate (driftAlwaysRunGates); check-module-ownership.mjs",
+      "changeKind": "retire",
+      "applyByEpoch": "phase-3",
       "surveyCitation": "path-migration-manifest.md:100"
     },
     {
@@ -956,10 +1005,24 @@
         "ownership.baseline.json"
       ],
       "currentPathExpression": "4,282 src/ occurrences, ~366 KiB of edges/frozen-forbidden edges",
-      "targetExpression": "same remap; retired at flip",
+      "targetExpression": "apply the same crates/snapback/src/ wholesale remap as ownership.manifest.json",
       "verification": "same gate",
-      "changeKind": "verify-unchanged",
-      "applyByEpoch": "pre-flip",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:101"
+    },
+    {
+      "id": "s03-r002-p3",
+      "category": "generated-frozen-records",
+      "consumer": "ownership.baseline.json",
+      "consumerFiles": [
+        "ownership.baseline.json"
+      ],
+      "currentPathExpression": "the Phase 1-remapped ownership.baseline.json",
+      "targetExpression": "delete the frozen module baseline behind the checked workspace-graph flip predicate",
+      "verification": "same gate",
+      "changeKind": "retire",
+      "applyByEpoch": "phase-3",
       "surveyCitation": "path-migration-manifest.md:101"
     },
     {
@@ -969,9 +1032,23 @@
       "consumerFiles": [
         "scripts/local-proof-selection-policy.v1.json"
       ],
-      "currentPathExpression": "50 \"src/… strings, 61 \"tests/…, 8 \"cloudflare/…, plus build.rs/Cargo.toml/Cargo.lock/rust-toolchain.toml (see §6 for the rule-level detail)",
-      "targetExpression": "rules rewritten in the same Phase 1 series",
+      "currentPathExpression": "50 src/ strings, 61 root tests/ strings, plus build.rs/Cargo.toml/Cargo.lock/rust-toolchain.toml (see §6 for the rule-level detail)",
+      "targetExpression": "rewrite the source, test, build-script, and workspace rules in the Phase 1 series",
       "verification": "local-proof-inventory + affected-selector-fixtures gates; tests/local_proof_selection_v0.mjs (10 src/ fixture strings must be updated in lockstep)",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:102"
+    },
+    {
+      "id": "s03-r003-p3",
+      "category": "generated-frozen-records",
+      "consumer": "scripts/local-proof-selection-policy.v1.json",
+      "consumerFiles": [
+        "scripts/local-proof-selection-policy.v1.json"
+      ],
+      "currentPathExpression": "8 cloudflare/ strings in the path rules and frozen-record gate metadata",
+      "targetExpression": "rewrite only those entries to targets/cloudflare/ in the Phase 3 series",
+      "verification": "local-proof-inventory + affected-selector-fixtures gates",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
       "surveyCitation": "path-migration-manifest.md:102"
@@ -981,7 +1058,7 @@
       "category": "generated-frozen-records",
       "consumer": "src/local-persistent-store-publication.v1.json, .anchor.v1.json, src/local-relation-activity-publication.v1.json, src/local-sequence-allocation-publication.v1.json",
       "consumerFiles": [
-        ".anchor.v1.json",
+        "src/local-persistent-store-publication.anchor.v1.json",
         "src/local-persistent-store-publication.v1.json",
         "src/local-relation-activity-publication.v1.json",
         "src/local-sequence-allocation-publication.v1.json"
@@ -991,22 +1068,36 @@
       "verification": "relation-activity-publication, sequence-allocation-publication, local-store-publication drift gates",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:103"
+      "surveyCitation": "path-migration-manifest.md:103",
+      "targetFiles": [
+        "crates/snapback/src/local-persistent-store-publication.anchor.v1.json",
+        "crates/snapback/src/local-persistent-store-publication.v1.json",
+        "crates/snapback/src/local-relation-activity-publication.v1.json",
+        "crates/snapback/src/local-sequence-allocation-publication.v1.json"
+      ]
     },
     {
       "id": "s03-r005",
       "category": "generated-frozen-records",
       "consumer": "src/local-agent-safe-storage-publication.{anchor,carrier}.json, src/local-agent-safe-derived-deployment-fork-publication.{anchor,carrier}.json",
       "consumerFiles": [
-        "src/local-agent-safe-derived-deployment-fork-publication.{anchor,carrier}.json",
-        "src/local-agent-safe-storage-publication.{anchor,carrier}.json"
+        "src/local-agent-safe-derived-deployment-fork-publication.anchor.json",
+        "src/local-agent-safe-derived-deployment-fork-publication.carrier.json",
+        "src/local-agent-safe-storage-publication.anchor.json",
+        "src/local-agent-safe-storage-publication.carrier.json"
       ],
       "currentPathExpression": "same pattern; embedded by src/agent_safe_publication.rs:117-128 (file-relative, fine) but named literally in build.rs:575-578 and scripts/check-agent-safe-publication.mjs:436-439,518-526",
       "targetExpression": "move + literal updates",
       "verification": "agent-safe-publication-fixtures drift gate",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:104"
+      "surveyCitation": "path-migration-manifest.md:104",
+      "targetFiles": [
+        "crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json",
+        "crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json",
+        "crates/snapback/src/local-agent-safe-storage-publication.anchor.json",
+        "crates/snapback/src/local-agent-safe-storage-publication.carrier.json"
+      ]
     },
     {
       "id": "s03-r006",
@@ -1016,11 +1107,31 @@
         "build.rs"
       ],
       "currentPathExpression": "\"Cargo.toml\",\"Cargo.lock\",\"build.rs\",\".gitmodules\",\"src\",\"packages/snapback-codegen\",\"packages/snapback-contract\",\"tests\",\"scripts/check-agent-safe-publication.mjs\",\"scripts/generated-artifact-policy.mjs\"",
-      "targetExpression": "pathspecs must name the new tree (crates/snapback/... or the crate-set equivalents once the digest job moves to snapback-tools in Phase 3); note ls-tree pathspec resolution is cwd-prefix-sensitive once manifest_dir ≠ repo root; digest domain string (agent-safe-implementation-tree:v2, build.rs:517) should bump to v3",
+      "targetExpression": "in Phase 1, make every digest pathspec repo-root-relative after build.rs moves under crates/snapback and bump the digest domain to v3",
       "verification": "tests/agent_safe_publication_checker_v1.mjs:2509 reads build.rs bytes and pins this list — it fails closed",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:105"
+      "surveyCitation": "path-migration-manifest.md:105",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
+    },
+    {
+      "id": "s03-r006-p3",
+      "category": "generated-frozen-records",
+      "consumer": "build.rs:474-483 (agent-safe digest ls-tree pathspecs)",
+      "consumerFiles": [
+        "build.rs"
+      ],
+      "currentPathExpression": "the agent-safe digest computation hosted by crates/snapback/build.rs after Phase 1",
+      "targetExpression": "move the digest implementation to crates/snapback-tools/src/agent_safe_digest.rs with the same repo-root-relative pathspec vocabulary",
+      "verification": "tests/agent_safe_publication_checker_v1.mjs:2509 reads build.rs bytes and pins this list — it fails closed",
+      "changeKind": "update",
+      "applyByEpoch": "phase-3",
+      "surveyCitation": "path-migration-manifest.md:105",
+      "targetFiles": [
+        "crates/snapback-tools/src/agent_safe_digest.rs"
+      ]
     },
     {
       "id": "s03-r007",
@@ -1034,22 +1145,29 @@
       "verification": "same checker",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:106"
+      "surveyCitation": "path-migration-manifest.md:106",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s03-r008",
       "category": "generated-frozen-records",
       "consumer": "cloudflare/generated/deployment-identity.all-aboard.json + .notes.json (inputs arrays)",
       "consumerFiles": [
-        ".notes.json",
-        "cloudflare/generated/deployment-identity.all-aboard.json"
+        "cloudflare/generated/deployment-identity.all-aboard.json",
+        "cloudflare/generated/deployment-identity.notes.json"
       ],
       "currentPathExpression": "keyed by cloudflare/app/…, cloudflare/src/…, cloudflare/generated/…, packages/snapback-harness/compat.json",
       "targetExpression": "regenerate with targets/cloudflare/… keys in the Phase 3 move series (node …/generate-deployment-identity.mjs)",
       "verification": "deployment-identity drift gate + deployment-identity.yml --check",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
-      "surveyCitation": "path-migration-manifest.md:107"
+      "surveyCitation": "path-migration-manifest.md:107",
+      "targetFiles": [
+        "targets/cloudflare/generated/deployment-identity.all-aboard.json",
+        "targets/cloudflare/generated/deployment-identity.notes.json"
+      ]
     },
     {
       "id": "s03-r009",
@@ -1073,10 +1191,10 @@
         "tests/acceptance/telemetry-phase1-evidence.v1.json"
       ],
       "currentPathExpression": "frozen evidence enumerating src/….rs file lists",
-      "targetExpression": "dated evidence bound to its commit — candidate for the straggler gate's *named exemption* list, but telemetry-receipt-check + scripts/telemetry-release-gate.mjs compute staleness from changed paths vs proofSourcePathspecs (§5) — those pathspecs must move or the gate silently stops seeing runtime changes",
+      "targetExpression": "retain as immutable dated evidence; update the live proofSourcePathspecs in s05-r004 instead",
       "verification": "telemetry-receipt-check drift gate",
-      "changeKind": "update",
-      "applyByEpoch": "phase-1",
+      "changeKind": "verify-unchanged",
+      "applyByEpoch": "pre-flip",
       "surveyCitation": "path-migration-manifest.md:109"
     },
     {
@@ -1084,8 +1202,8 @@
       "category": "generated-frozen-records",
       "consumer": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json:8, carrier-exit.2026-08-06.v1.json:21",
       "consumerFiles": [
-        "carrier-exit.2026-08-06.v1.json",
-        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json"
+        "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json",
+        "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json"
       ],
       "currentPathExpression": "reference cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
       "targetExpression": "receipts regenerate via node tests/acceptance/local-store-carrier-exit-v1.mjs after the Phase 3 cloudflare move",
@@ -1119,7 +1237,7 @@
       "targetExpression": "list updates when ownership records move/retire",
       "verification": "itself (fail-closed)",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
+      "applyByEpoch": "phase-3",
       "surveyCitation": "path-migration-manifest.md:112"
     },
     {
@@ -1133,7 +1251,7 @@
       "targetExpression": "regenerated in Phase 0",
       "verification": "guide-published-closure.test.mjs",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
+      "applyByEpoch": "pre-flip",
       "surveyCitation": "path-migration-manifest.md:113"
     },
     {
@@ -1144,11 +1262,31 @@
         "Cargo.toml"
       ],
       "currentPathExpression": "ibex-runtime = { path = \"vendor/ibex\" }",
-      "targetExpression": "moves to the runtime-linking crate's manifest as path = \"../../vendor/ibex\" (Phase 1: crates/snapback/Cargo.toml; Phase 2: crates/snapback-runtime/Cargo.toml)",
+      "targetExpression": "move the dependency to crates/snapback/Cargo.toml with path = \"../../vendor/ibex\" in Phase 1",
       "verification": "cargo build; runtime-link smoke",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:121"
+      "surveyCitation": "path-migration-manifest.md:121",
+      "targetFiles": [
+        "crates/snapback/Cargo.toml"
+      ]
+    },
+    {
+      "id": "s04-r001-p2",
+      "category": "build-time-embed-link-paths",
+      "consumer": "Cargo.toml:44",
+      "consumerFiles": [
+        "Cargo.toml"
+      ],
+      "currentPathExpression": "ibex-runtime in crates/snapback/Cargo.toml after Phase 1",
+      "targetExpression": "move the sole ibex-runtime dependency to crates/snapback-runtime/Cargo.toml with path = \"../../vendor/ibex\"",
+      "verification": "cargo build; runtime-link smoke",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
+      "surveyCitation": "path-migration-manifest.md:121",
+      "targetFiles": [
+        "crates/snapback-runtime/Cargo.toml"
+      ]
     },
     {
       "id": "s04-r002",
@@ -1158,11 +1296,31 @@
         "Cargo.toml"
       ],
       "currentPathExpression": "[target.'cfg(target_os=\"linux\")'.dependencies] ibex-runtime = { path = \"vendor/ibex\", features = [\"sfe-static-network\"] }",
-      "targetExpression": "same relocation — do not lose the Linux static-network feature form (LLP 0041 reference)",
+      "targetExpression": "preserve the Linux static-network feature form in crates/snapback/Cargo.toml with path = \"../../vendor/ibex\"",
       "verification": "linux-runtime-package.yml",
-      "changeKind": "verify-unchanged",
-      "applyByEpoch": "pre-flip",
-      "surveyCitation": "path-migration-manifest.md:122"
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:122",
+      "targetFiles": [
+        "crates/snapback/Cargo.toml"
+      ]
+    },
+    {
+      "id": "s04-r002-p2",
+      "category": "build-time-embed-link-paths",
+      "consumer": "Cargo.toml:79-80",
+      "consumerFiles": [
+        "Cargo.toml"
+      ],
+      "currentPathExpression": "the Phase 1 Linux ibex-runtime dependency in crates/snapback/Cargo.toml",
+      "targetExpression": "move the Linux feature form with the sole dependency to crates/snapback-runtime/Cargo.toml",
+      "verification": "linux-runtime-package.yml",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
+      "surveyCitation": "path-migration-manifest.md:122",
+      "targetFiles": [
+        "crates/snapback-runtime/Cargo.toml"
+      ]
     },
     {
       "id": "s04-r003",
@@ -1172,11 +1330,31 @@
         "Cargo.toml"
       ],
       "currentPathExpression": "celld-ltx = { path = \"vendor/celld-ltx\" }",
-      "targetExpression": "../../vendor/celld-ltx in the consuming crate (services per confinement)",
+      "targetExpression": "in Phase 1 move the dependency into crates/snapback/Cargo.toml with path = \"../../vendor/celld-ltx\"",
       "verification": "ltx-conformance + build",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:123"
+      "surveyCitation": "path-migration-manifest.md:123",
+      "targetFiles": [
+        "crates/snapback/Cargo.toml"
+      ]
+    },
+    {
+      "id": "s04-r003-p2",
+      "category": "build-time-embed-link-paths",
+      "consumer": "Cargo.toml:35",
+      "consumerFiles": [
+        "Cargo.toml"
+      ],
+      "currentPathExpression": "the Phase 1 celld-ltx dependency in crates/snapback/Cargo.toml",
+      "targetExpression": "move the dependency to the consuming services crate with path = \"../../vendor/celld-ltx\"",
+      "verification": "ltx-conformance + build",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
+      "surveyCitation": "path-migration-manifest.md:123",
+      "targetFiles": [
+        "crates/snapback-services/Cargo.toml"
+      ]
     },
     {
       "id": "s04-r004",
@@ -1190,7 +1368,10 @@
       "verification": "cargo build",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:124"
+      "surveyCitation": "path-migration-manifest.md:124",
+      "targetFiles": [
+        "crates/snapback/Cargo.toml"
+      ]
     },
     {
       "id": "s04-r005",
@@ -1200,11 +1381,31 @@
         "Cargo.toml"
       ],
       "currentPathExpression": "[[bin]] snapback-telemetry-bench with required-features = [\"telemetry-phase1-proof\"]",
-      "targetExpression": "moves with the bin (see §13)",
+      "targetExpression": "move the [[bin]] entry unchanged into crates/snapback/Cargo.toml in Phase 1",
       "verification": "verify-telemetry-phase1-proof",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:125"
+      "surveyCitation": "path-migration-manifest.md:125",
+      "targetFiles": [
+        "crates/snapback/Cargo.toml"
+      ]
+    },
+    {
+      "id": "s04-r005-p2",
+      "category": "build-time-embed-link-paths",
+      "consumer": "Cargo.toml:22-25",
+      "consumerFiles": [
+        "Cargo.toml"
+      ],
+      "currentPathExpression": "the Phase 1 snapback-telemetry-bench [[bin]] entry and required-features metadata",
+      "targetExpression": "move the bin metadata with the source and feature to crates/snapback-tools/Cargo.toml",
+      "verification": "verify-telemetry-phase1-proof",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
+      "surveyCitation": "path-migration-manifest.md:125",
+      "targetFiles": [
+        "crates/snapback-tools/Cargo.toml"
+      ]
     },
     {
       "id": "s04-r006",
@@ -1232,7 +1433,10 @@
       "verification": "agent-safe baseline recipe gate",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:127"
+      "surveyCitation": "path-migration-manifest.md:127",
+      "targetFiles": [
+        "crates/snapback-tools/Cargo.toml"
+      ]
     },
     {
       "id": "s04-r008",
@@ -1245,8 +1449,11 @@
       "targetExpression": "if it joins the workspace, binaries land in <root>/target/release → ../../vendor/ibex/ios/Frameworks (2 levels)",
       "verification": "worker launch during paired runs",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:128"
+      "applyByEpoch": "phase-2",
+      "surveyCitation": "path-migration-manifest.md:128",
+      "targetFiles": [
+        "crates/snapback-tools/build.rs"
+      ]
     },
     {
       "id": "s04-r009",
@@ -1260,7 +1467,10 @@
       "verification": "served_guide_v1.rs staleness checks",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:134"
+      "surveyCitation": "path-migration-manifest.md:134",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s04-r010",
@@ -1274,7 +1484,10 @@
       "verification": "build fails loudly (guide files required)",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:135"
+      "surveyCitation": "path-migration-manifest.md:135",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s04-r011",
@@ -1288,7 +1501,10 @@
       "verification": "same",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:136"
+      "surveyCitation": "path-migration-manifest.md:136",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s04-r012",
@@ -1302,7 +1518,10 @@
       "verification": "rpath probe below",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:137"
+      "surveyCitation": "path-migration-manifest.md:137",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s04-r013",
@@ -1316,7 +1535,10 @@
       "verification": "bootstrap launch check; runtime-link smoke",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:138"
+      "surveyCitation": "path-migration-manifest.md:138",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s04-r014",
@@ -1330,7 +1552,10 @@
       "verification": "agent_safe_publication_checker_v1.mjs",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:139"
+      "surveyCitation": "path-migration-manifest.md:139",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s04-r015",
@@ -1344,7 +1569,10 @@
       "verification": "same checker",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:140"
+      "surveyCitation": "path-migration-manifest.md:140",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s04-r016",
@@ -1368,11 +1596,14 @@
         "src/admin.rs"
       ],
       "currentPathExpression": "../packages/snapback-admin-client/index.mjs",
-      "targetExpression": "After the Phase 1 move, add two parent hops so the include resolves from crates/snapback back to the named repository-root corpus; preserve later target moves such as targets/cloudflare.",
+      "targetExpression": "After the Phase 2 examples move, add two parent hops so the include resolves from crates/snapback back to the named repository-root corpus.",
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:154"
+      "surveyCitation": "path-migration-manifest.md:154",
+      "targetFiles": [
+        "crates/snapback/src/admin.rs"
+      ]
     },
     {
       "id": "s04-r018",
@@ -1386,7 +1617,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:155"
+      "surveyCitation": "path-migration-manifest.md:155",
+      "targetFiles": [
+        "crates/snapback/src/runtime.rs"
+      ]
     },
     {
       "id": "s04-r019",
@@ -1400,7 +1634,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:156"
+      "surveyCitation": "path-migration-manifest.md:156",
+      "targetFiles": [
+        "crates/snapback/src/workerd_exec.rs"
+      ]
     },
     {
       "id": "s04-r020",
@@ -1414,7 +1651,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:157"
+      "surveyCitation": "path-migration-manifest.md:157",
+      "targetFiles": [
+        "crates/snapback/src/embed.rs"
+      ]
     },
     {
       "id": "s04-r021",
@@ -1428,7 +1668,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:158"
+      "surveyCitation": "path-migration-manifest.md:158",
+      "targetFiles": [
+        "crates/snapback/src/seed_identity.rs"
+      ]
     },
     {
       "id": "s04-r022",
@@ -1442,7 +1685,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:159"
+      "surveyCitation": "path-migration-manifest.md:159",
+      "targetFiles": [
+        "crates/snapback/src/storage/tests.rs"
+      ]
     },
     {
       "id": "s04-r023",
@@ -1456,7 +1702,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:160"
+      "surveyCitation": "path-migration-manifest.md:160",
+      "targetFiles": [
+        "crates/snapback/src/manifest.rs"
+      ]
     },
     {
       "id": "s04-r024",
@@ -1470,7 +1719,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:161"
+      "surveyCitation": "path-migration-manifest.md:161",
+      "targetFiles": [
+        "crates/snapback/src/manifest.rs"
+      ]
     },
     {
       "id": "s04-r025",
@@ -1480,11 +1732,31 @@
         "src/manifest.rs"
       ],
       "currentPathExpression": "../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8{,.all-aboard}.json — double move: ../../../targets/cloudflare/… after Phase 3",
-      "targetExpression": "After the Phase 1 move, add two parent hops so the include resolves from crates/snapback back to the named repository-root corpus; preserve later target moves such as targets/cloudflare.",
+      "targetExpression": "after the Phase 1 crate move, add the two parent hops while the target still lives under cloudflare/generated/",
+      "verification": "Rust compilation of every moved crate and integration-test target.",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:162",
+      "targetFiles": [
+        "crates/snapback/src/manifest.rs"
+      ]
+    },
+    {
+      "id": "s04-r025-p3",
+      "category": "build-time-embed-link-paths",
+      "consumer": "src/manifest.rs:15975,15981",
+      "consumerFiles": [
+        "src/manifest.rs"
+      ],
+      "currentPathExpression": "the Phase 1-adjusted includes of cloudflare/generated capability manifests",
+      "targetExpression": "repoint the includes to targets/cloudflare/generated/ in the Phase 3 move",
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
-      "surveyCitation": "path-migration-manifest.md:162"
+      "surveyCitation": "path-migration-manifest.md:162",
+      "targetFiles": [
+        "crates/snapback-types/src/manifest.rs"
+      ]
     },
     {
       "id": "s04-r026",
@@ -1498,7 +1770,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:163"
+      "surveyCitation": "path-migration-manifest.md:163",
+      "targetFiles": [
+        "crates/snapback/src/server.rs"
+      ]
     },
     {
       "id": "s04-r027",
@@ -1512,7 +1787,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:164"
+      "surveyCitation": "path-migration-manifest.md:164",
+      "targetFiles": [
+        "crates/snapback/src/server/instance_home.rs"
+      ]
     },
     {
       "id": "s04-r028",
@@ -1526,7 +1804,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:165"
+      "surveyCitation": "path-migration-manifest.md:165",
+      "targetFiles": [
+        "crates/snapback/src/server/tests.rs"
+      ]
     },
     {
       "id": "s04-r029",
@@ -1540,7 +1821,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:166"
+      "surveyCitation": "path-migration-manifest.md:166",
+      "targetFiles": [
+        "crates/snapback/src/config.rs"
+      ]
     },
     {
       "id": "s04-r030",
@@ -1554,7 +1838,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:167"
+      "surveyCitation": "path-migration-manifest.md:167",
+      "targetFiles": [
+        "crates/snapback/src/migration_presentation.rs"
+      ]
     },
     {
       "id": "s04-r031",
@@ -1568,7 +1855,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:168"
+      "surveyCitation": "path-migration-manifest.md:168",
+      "targetFiles": [
+        "crates/snapback/src/bin/snapback-conformance-twin.rs"
+      ]
     },
     {
       "id": "s04-r032",
@@ -1582,7 +1872,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:169"
+      "surveyCitation": "path-migration-manifest.md:169",
+      "targetFiles": [
+        "crates/snapback/src/control_catalog.rs"
+      ]
     },
     {
       "id": "s04-r033",
@@ -1596,7 +1889,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:170"
+      "surveyCitation": "path-migration-manifest.md:170",
+      "targetFiles": [
+        "crates/snapback/src/telemetry_bench.rs"
+      ]
     },
     {
       "id": "s04-r034",
@@ -1610,7 +1906,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:171"
+      "surveyCitation": "path-migration-manifest.md:171",
+      "targetFiles": [
+        "crates/snapback/examples/embedded_todo.rs"
+      ]
     },
     {
       "id": "s04-r035",
@@ -1624,7 +1923,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:172"
+      "surveyCitation": "path-migration-manifest.md:172",
+      "targetFiles": [
+        "crates/snapback/tests/admin_v0.rs"
+      ]
     },
     {
       "id": "s04-r036",
@@ -1639,7 +1941,11 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:173"
+      "surveyCitation": "path-migration-manifest.md:173",
+      "targetFiles": [
+        "crates/snapback/tests/embeddable_library_v0.rs",
+        "crates/snapback/tests/local_v0.rs"
+      ]
     },
     {
       "id": "s04-r037",
@@ -1653,7 +1959,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:174"
+      "surveyCitation": "path-migration-manifest.md:174",
+      "targetFiles": [
+        "crates/snapback/tests/served_guide_v1.rs"
+      ]
     },
     {
       "id": "s04-r038",
@@ -1667,7 +1976,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:175"
+      "surveyCitation": "path-migration-manifest.md:175",
+      "targetFiles": [
+        "crates/snapback/tests/telemetry_projection_fixtures_v1.rs"
+      ]
     },
     {
       "id": "s04-r039",
@@ -1681,7 +1993,10 @@
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:176"
+      "surveyCitation": "path-migration-manifest.md:176",
+      "targetFiles": [
+        "crates/snapback/tests/workerd_twin_v0.rs"
+      ]
     },
     {
       "id": "s04-r040",
@@ -1695,7 +2010,10 @@
       "verification": "workerd_twin/conformance gates at runtime",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:182"
+      "surveyCitation": "path-migration-manifest.md:182",
+      "targetFiles": [
+        "crates/snapback/src/workerd_exec.rs"
+      ]
     },
     {
       "id": "s04-r041",
@@ -1709,7 +2027,10 @@
       "verification": "runtime capability detection tests",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:183"
+      "surveyCitation": "path-migration-manifest.md:183",
+      "targetFiles": [
+        "crates/snapback/src/runtime.rs"
+      ]
     },
     {
       "id": "s04-r042",
@@ -1723,7 +2044,10 @@
       "verification": "admin_v0 / admin console serving",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:184"
+      "surveyCitation": "path-migration-manifest.md:184",
+      "targetFiles": [
+        "crates/snapback/src/admin.rs"
+      ]
     },
     {
       "id": "s04-r043",
@@ -1737,7 +2061,10 @@
       "verification": "visibility-governance tests",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:185"
+      "surveyCitation": "path-migration-manifest.md:185",
+      "targetFiles": [
+        "crates/snapback/src/visibility_governance.rs"
+      ]
     },
     {
       "id": "s04-r044",
@@ -1746,12 +2073,32 @@
       "consumerFiles": [
         "src/bin/snapback-conformance-twin.rs"
       ],
-      "currentPathExpression": "join(\"cloudflare/test/twin-engine.mjs\"), repo_root for node_modules/.bin/workerd",
-      "targetExpression": "double move: ../../targets/cloudflare/test/twin-engine.mjs + node_modules hop",
+      "currentPathExpression": "src/bin/snapback-conformance-twin.rs manifest-dir assumptions for cloudflare/test and node_modules",
+      "targetExpression": "after the Phase 1 move, resolve the repository root with two parent hops while cloudflare/ remains at the root",
+      "verification": "twin conformance run",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:186",
+      "targetFiles": [
+        "crates/snapback/src/bin/snapback-conformance-twin.rs"
+      ]
+    },
+    {
+      "id": "s04-r044-p3",
+      "category": "build-time-embed-link-paths",
+      "consumer": "src/bin/snapback-conformance-twin.rs:681-682,761,977",
+      "consumerFiles": [
+        "src/bin/snapback-conformance-twin.rs"
+      ],
+      "currentPathExpression": "the Phase 2 conformance-crate runner path to cloudflare/test/twin-engine.mjs",
+      "targetExpression": "repoint the runner to targets/cloudflare/test/twin-engine.mjs; preserve the repo-root node_modules resolution",
       "verification": "twin conformance run",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
-      "surveyCitation": "path-migration-manifest.md:186"
+      "surveyCitation": "path-migration-manifest.md:186",
+      "targetFiles": [
+        "crates/snapback-conformance/src/bin/snapback-conformance-twin.rs"
+      ]
     },
     {
       "id": "s04-r045",
@@ -1765,7 +2112,10 @@
       "verification": "schema drift gate (LLP 0037)",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:187"
+      "surveyCitation": "path-migration-manifest.md:187",
+      "targetFiles": [
+        "crates/snapback/src/bin/snapback-schemagen.rs"
+      ]
     },
     {
       "id": "s04-r046",
@@ -1773,14 +2123,20 @@
       "consumer": "src/bin/snapback-sbsb2-vectors.rs:16-17, src/snapshot_batch_cursor{,_v2}.rs:607,1088",
       "consumerFiles": [
         "src/bin/snapback-sbsb2-vectors.rs",
-        "src/snapshot_batch_cursor{,_v2}.rs"
+        "src/snapshot_batch_cursor.rs",
+        "src/snapshot_batch_cursor_v2.rs"
       ],
       "currentPathExpression": "join(\"tests/fixtures/snapshot-batch-…json\")",
       "targetExpression": "root tests/fixtures stays → ../../tests/fixtures/…",
       "verification": "sbsb parity tests",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:188"
+      "surveyCitation": "path-migration-manifest.md:188",
+      "targetFiles": [
+        "crates/snapback/src/bin/snapback-sbsb2-vectors.rs",
+        "crates/snapback/src/snapshot_batch_cursor.rs",
+        "crates/snapback/src/snapshot_batch_cursor_v2.rs"
+      ]
     },
     {
       "id": "s04-r047",
@@ -1794,7 +2150,10 @@
       "verification": "rust-tests",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:189"
+      "surveyCitation": "path-migration-manifest.md:189",
+      "targetFiles": [
+        "crates/snapback/src/server/tests.rs"
+      ]
     },
     {
       "id": "s04-r048",
@@ -1808,7 +2167,10 @@
       "verification": "effect-ceiling subset test",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:190"
+      "surveyCitation": "path-migration-manifest.md:190",
+      "targetFiles": [
+        "crates/snapback/src/local/tests.rs"
+      ]
     },
     {
       "id": "s04-r049",
@@ -1817,40 +2179,84 @@
       "consumerFiles": [
         "tests/capability_v0.rs"
       ],
-      "currentPathExpression": "joins schemas/, cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json, tests/acceptance/capability-{maturity.experimental,registry.ids}.json",
-      "targetExpression": "../../schemas, ../../targets/cloudflare/… (double move), ../../tests/acceptance/…",
+      "currentPathExpression": "tests/capability_v0.rs joins schemas/, cloudflare/generated/, and root tests/ from CARGO_MANIFEST_DIR",
+      "targetExpression": "add the Phase 1 parent hops for schemas/, cloudflare/generated/, and root tests/ while Cloudflare remains at the root",
+      "verification": "capability_v0",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:191",
+      "targetFiles": [
+        "crates/snapback/tests/capability_v0.rs"
+      ]
+    },
+    {
+      "id": "s04-r049-p3",
+      "category": "build-time-embed-link-paths",
+      "consumer": "tests/capability_v0.rs:24-40",
+      "consumerFiles": [
+        "tests/capability_v0.rs"
+      ],
+      "currentPathExpression": "the Phase 1-adjusted capability_v0 Cloudflare manifest path",
+      "targetExpression": "repoint only the Cloudflare manifest path to targets/cloudflare/generated/",
       "verification": "capability_v0",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
-      "surveyCitation": "path-migration-manifest.md:191"
+      "surveyCitation": "path-migration-manifest.md:191",
+      "targetFiles": [
+        "crates/snapback/tests/capability_v0.rs"
+      ]
     },
     {
       "id": "s04-r050",
       "category": "build-time-embed-link-paths",
       "consumer": "tests/{artifact_schemas_v0.rs:491,716,2720, wire_fixtures_v1.rs:24-26, workerd_twin_v0.rs:1522-1524}",
       "consumerFiles": [
-        "tests/{artifact_schemas_v0.rs"
+        "tests/artifact_schemas_v0.rs",
+        "tests/wire_fixtures_v1.rs",
+        "tests/workerd_twin_v0.rs"
       ],
       "currentPathExpression": "join schemas/, tests/conformance/…",
       "targetExpression": "../../…",
       "verification": "respective suites",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:192"
+      "surveyCitation": "path-migration-manifest.md:192",
+      "targetFiles": [
+        "crates/snapback/tests/artifact_schemas_v0.rs",
+        "crates/snapback/tests/wire_fixtures_v1.rs",
+        "crates/snapback/tests/workerd_twin_v0.rs"
+      ]
     },
     {
       "id": "s04-r051",
       "category": "build-time-embed-link-paths",
       "consumer": "tests/{dry_run_v0.rs:16-18, host_ops_v0.rs:173-175,667, inspect_casing_v0.rs:25-27, offline_replay_v0.rs:30-32, operational_readiness_v1.rs:33-35, wait_cli_v1.rs:28-30, instance_fork_cli_v1.rs:197,918,1503,2643, instance_fork_bench_v1.rs:179,262}",
       "consumerFiles": [
-        "tests/{dry_run_v0.rs"
+        "tests/dry_run_v0.rs",
+        "tests/host_ops_v0.rs",
+        "tests/inspect_casing_v0.rs",
+        "tests/instance_fork_bench_v1.rs",
+        "tests/instance_fork_cli_v1.rs",
+        "tests/offline_replay_v0.rs",
+        "tests/operational_readiness_v1.rs",
+        "tests/wait_cli_v1.rs"
       ],
       "currentPathExpression": "join demos/… (todo, todo-v2) and tests/acceptance/fixtures/…",
       "targetExpression": "../../demos/…, ../../tests/acceptance/…",
       "verification": "respective suites",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:193"
+      "surveyCitation": "path-migration-manifest.md:193",
+      "targetFiles": [
+        "crates/snapback/tests/dry_run_v0.rs",
+        "crates/snapback/tests/host_ops_v0.rs",
+        "crates/snapback/tests/inspect_casing_v0.rs",
+        "crates/snapback/tests/instance_fork_bench_v1.rs",
+        "crates/snapback/tests/instance_fork_cli_v1.rs",
+        "crates/snapback/tests/offline_replay_v0.rs",
+        "crates/snapback/tests/operational_readiness_v1.rs",
+        "crates/snapback/tests/wait_cli_v1.rs"
+      ]
     },
     {
       "id": "s04-r052",
@@ -1864,21 +2270,31 @@
       "verification": "host_ops_v0",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:194"
+      "surveyCitation": "path-migration-manifest.md:194",
+      "targetFiles": [
+        "crates/snapback/tests/host_ops_v0.rs"
+      ]
     },
     {
       "id": "s04-r053",
       "category": "build-time-embed-link-paths",
       "consumer": "tests/{local_v0.rs:135-137, rqs_routes_manifest_v0.rs:792-794, control_catalog_registry_export.rs:94-95}",
       "consumerFiles": [
-        "tests/{local_v0.rs"
+        "tests/control_catalog_registry_export.rs",
+        "tests/local_v0.rs",
+        "tests/rqs_routes_manifest_v0.rs"
       ],
       "currentPathExpression": "join packages/snapback-codegen/{index,define}.mjs, packages/snapback-cli/control-plane-registry.json",
       "targetExpression": "../../packages/…",
       "verification": "respective suites",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:195"
+      "surveyCitation": "path-migration-manifest.md:195",
+      "targetFiles": [
+        "crates/snapback/tests/control_catalog_registry_export.rs",
+        "crates/snapback/tests/local_v0.rs",
+        "crates/snapback/tests/rqs_routes_manifest_v0.rs"
+      ]
     },
     {
       "id": "s04-r054",
@@ -1892,21 +2308,29 @@
       "verification": "sender-proof suite",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:196"
+      "surveyCitation": "path-migration-manifest.md:196",
+      "targetFiles": [
+        "crates/snapback/tests/sender_proof_cross_language.rs"
+      ]
     },
     {
       "id": "s04-r055",
       "category": "build-time-embed-link-paths",
       "consumer": "tests/{wait_cli_v1.rs:208,236, operational_readiness_v1.rs:330}",
       "consumerFiles": [
-        "tests/{wait_cli_v1.rs"
+        "tests/operational_readiness_v1.rs",
+        "tests/wait_cli_v1.rs"
       ],
       "currentPathExpression": "CARGO_MANIFEST_DIR/target",
       "targetExpression": "breaks silently-ish: workspace target dir is at the root — use CARGO_TARGET_DIR/metadata or ../../target",
       "verification": "wait_cli/operational-readiness suites",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:197"
+      "surveyCitation": "path-migration-manifest.md:197",
+      "targetFiles": [
+        "crates/snapback/tests/operational_readiness_v1.rs",
+        "crates/snapback/tests/wait_cli_v1.rs"
+      ]
     },
     {
       "id": "s04-r056",
@@ -1920,21 +2344,33 @@
       "verification": "that suite",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:198"
+      "surveyCitation": "path-migration-manifest.md:198",
+      "targetFiles": [
+        "crates/snapback/tests/relational_migration_coupled_suite_v0.rs"
+      ]
     },
     {
       "id": "s04-r057",
       "category": "build-time-embed-link-paths",
       "consumer": "tests/{relational_corpus_v0.rs:30-33, rqs_digest_parity_v0.rs:21,156,165, data_tier_corpus_v0.rs:33-35, result_transform_corpus_v1.rs:25-27}",
       "consumerFiles": [
-        "tests/{relational_corpus_v0.rs"
+        "tests/data_tier_corpus_v0.rs",
+        "tests/relational_corpus_v0.rs",
+        "tests/result_transform_corpus_v1.rs",
+        "tests/rqs_digest_parity_v0.rs"
       ],
       "currentPathExpression": "consts tests/conformance/…, tests/fixtures/… joined to manifest dir",
       "targetExpression": "corpora stay at root tests/ → ../../tests/…",
       "verification": "respective suites",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:199"
+      "surveyCitation": "path-migration-manifest.md:199",
+      "targetFiles": [
+        "crates/snapback/tests/data_tier_corpus_v0.rs",
+        "crates/snapback/tests/relational_corpus_v0.rs",
+        "crates/snapback/tests/result_transform_corpus_v1.rs",
+        "crates/snapback/tests/rqs_digest_parity_v0.rs"
+      ]
     },
     {
       "id": "s04-r058",
@@ -1950,7 +2386,12 @@
       "verification": "rust-tests",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:200"
+      "surveyCitation": "path-migration-manifest.md:200",
+      "targetFiles": [
+        "crates/snapback/tests/artifact_schemas_v0.rs",
+        "crates/snapback/tests/name_keying_guard.rs",
+        "crates/snapback/tests/replication_sustained_v0.rs"
+      ]
     },
     {
       "id": "s04-r059",
@@ -2035,7 +2476,10 @@
       "verification": "agent_safe_publication_checker_v1.mjs:2509",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:216"
+      "surveyCitation": "path-migration-manifest.md:216",
+      "targetFiles": [
+        "crates/snapback/build.rs"
+      ]
     },
     {
       "id": "s05-r003",
@@ -2049,6 +2493,20 @@
       "verification": "agent-safe-publication-fixtures drift gate",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:217"
+    },
+    {
+      "id": "s05-r003-p2",
+      "category": "digest-pathspecs",
+      "consumer": "scripts/check-agent-safe-publication.mjs:179-526",
+      "consumerFiles": [
+        "scripts/check-agent-safe-publication.mjs"
+      ],
+      "currentPathExpression": "the Phase 1 crates/snapback/src path literals in the agent-safe publication checker",
+      "targetExpression": "re-home each literal to the exact owner crate selected by the Phase 2 carve",
+      "verification": "agent-safe-publication-fixtures drift gate",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
       "surveyCitation": "path-migration-manifest.md:217"
     },
     {
@@ -2156,8 +2614,22 @@
       "consumerFiles": [
         "scripts/local-proof-selection-policy.v1.json"
       ],
-      "currentPathExpression": "as listed",
-      "targetExpression": "src/… → crates/snapback/src/…; cloudflare/… → targets/cloudflare/…",
+      "currentPathExpression": "driftProneGates source-root entries: module-ownership, guide, auth-invalidation, and the local publication carrier/reader lists",
+      "targetExpression": "rewrite src/ entries to crates/snapback/src/ in the Phase 1 series",
+      "verification": "tests/local_proof_selection_v0.mjs, tests/local_proof_inventory_v0.mjs, and tests/drift_prone_gates_v0.mjs.",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:235"
+    },
+    {
+      "id": "s06-r006-p3",
+      "category": "selection-policy-path-rules",
+      "consumer": "driftProneGates (18 gates) — module-ownership, guide (prefix src/), auth-invalidation-report (17 src/… entries), relation-activity-publication, sequence-allocation-publication, local-store-publication (each with src/… carrier + reader lists), control-catalog + deployment-identity (cloudflare/…), result-transform-ship-gate (regenerateCommand)",
+      "consumerFiles": [
+        "scripts/local-proof-selection-policy.v1.json"
+      ],
+      "currentPathExpression": "driftProneGates Cloudflare entries for control-catalog and deployment-identity",
+      "targetExpression": "rewrite cloudflare/ entries to targets/cloudflare/ in the Phase 3 series",
       "verification": "tests/local_proof_selection_v0.mjs, tests/local_proof_inventory_v0.mjs, and tests/drift_prone_gates_v0.mjs.",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
@@ -2266,9 +2738,9 @@
       "category": "ci-workflows",
       "consumer": "all-aboard-cold-clone.yml, telemetry-latest-main.yml, local-proof.yml cache keys",
       "consumerFiles": [
-        "all-aboard-cold-clone.yml",
-        "local-proof.yml",
-        "telemetry-latest-main.yml"
+        ".github/workflows/all-aboard-cold-clone.yml",
+        ".github/workflows/local-proof.yml",
+        ".github/workflows/telemetry-latest-main.yml"
       ],
       "currentPathExpression": "vendor/ibex/…, vendor/ibex/Cargo.toml",
       "targetExpression": "unchanged",
@@ -2282,9 +2754,11 @@
       "category": "ci-workflows",
       "consumer": "public-package-proof.yml, ref-check.yml, required-surface-builds.yml, visibility-governance-{observer,reconciler}.yml",
       "consumerFiles": [
-        "public-package-proof.yml",
-        "ref-check.yml",
-        "required-surface-builds.yml"
+        ".github/workflows/public-package-proof.yml",
+        ".github/workflows/ref-check.yml",
+        ".github/workflows/required-surface-builds.yml",
+        ".github/workflows/visibility-governance-observer.yml",
+        ".github/workflows/visibility-governance-reconciler.yml"
       ],
       "currentPathExpression": "no src//tests//cloudflare/ path references found",
       "targetExpression": "no change",
@@ -2427,10 +2901,207 @@
       "category": "documented-commands",
       "consumer": "Active llp/ normative text",
       "consumerFiles": [
-        "llp/"
+        "llp/0004-application-data-api.rfc.md",
+        "llp/0008-local-first-sync-and-realtime.rfc.md",
+        "llp/0009-code-execution-security.rfc.md",
+        "llp/0017-admin-console-inspection-surface.rfc.md",
+        "llp/0020-core-authoring-surface.plan.md",
+        "llp/0024-agent-operating-surface.spec.md",
+        "llp/0026-ephemeral-backend-abstraction.plan.md",
+        "llp/0027-all-aboard-caltrain-demo.plan.md",
+        "llp/0028-cron-scheduled-execution.rfc.md",
+        "llp/0029-all-aboard-gap-closure.plan.md",
+        "llp/0030-managed-snapback-vite-dev.rfc.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0032-decision-and-implementation-hardening.plan.md",
+        "llp/0034-contract-source-seam-provider-side.rfc.md",
+        "llp/0035-local-target-benchmarks.research.md",
+        "llp/0036-app-secrets-and-config.rfc.md",
+        "llp/0037-schema-source-of-truth.decision.md",
+        "llp/0038-snapback-system-review.research.md",
+        "llp/0039-auth-vertical-slice.rfc.md",
+        "llp/0040-cloudflare-narrow-proof.rfc.md",
+        "llp/0042-agent-mcp-surface.rfc.md",
+        "llp/0043-offline-replay-retention.rfc.md",
+        "llp/0044-asset-storage-pipeline.rfc.md",
+        "llp/0046-postgres-graduation-path.rfc.md",
+        "llp/0048-v8-conformance-twin.rfc.md",
+        "llp/0051-language-neutral-data-tier.rfc.md",
+        "llp/0052-contract-update-economy-and-host-state.rfc.md",
+        "llp/0053-authorization-invalidation.rfc.md",
+        "llp/0054-tigerbeetle-lessons-for-snapback.research.md",
+        "llp/0055-agent-principals-and-scoped-grants.rfc.md",
+        "llp/0056-scoped-roles-and-memberships.rfc.md",
+        "llp/0057-auth-provider-protocol.spec.md",
+        "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
+        "llp/0061-agent-first-snapback-guide.rfc.md",
+        "llp/0066-effect-lessons.research.md",
+        "llp/0067-fate-lessons.research.md",
+        "llp/0070-durable-background-work.rfc.md",
+        "llp/0073-portable-full-text-search.rfc.md",
+        "llp/0076-bounded-streamed-actions.rfc.md",
+        "llp/0077-sender-constrained-browser-auth.spec.md",
+        "llp/0078-serverpod-lessons.research.md",
+        "llp/0079-serverpod-course-corrections.plan.md",
+        "llp/0082-instantdb.research.md",
+        "llp/0084-triplit-ditto.research.md",
+        "llp/0087-facets-hosted-adoption.plan.md",
+        "llp/0088-record-history-and-branching.rfc.md",
+        "llp/0089-agent-provisioning-surface.rfc.md",
+        "llp/0090-resumable-query-snapshots.rfc.md",
+        "llp/0091-rqs-token-and-wire-contract.spec.md",
+        "llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md",
+        "llp/0093-client-protocol-and-native-clients.rfc.md",
+        "llp/0094-wire-envelope-contract.spec.md",
+        "llp/0095-client-lifecycle-and-conformance.spec.md",
+        "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "llp/0097-ephemeral-data-branches-and-effect-isolation.rfc.md",
+        "llp/0098-hosted-edge-adapter.spec.md",
+        "llp/0100-membership-addressed-operations-and-pages.rfc.md",
+        "llp/0103-expo-hosted-snapback.rfc.md",
+        "llp/0106-agent-native-expo-account-bootstrap.rfc.md",
+        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
+        "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "llp/0109-versioned-seed-evolution.spec.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0115-convex-parity-course-corrections.plan.md",
+        "llp/0117-typescript-type-flow-parity.research.md",
+        "llp/0118-handler-composition-and-helper-reuse.research.md",
+        "llp/0119-reactive-by-default-and-live-search.research.md",
+        "llp/0120-relational-composition-and-aggregation.research.md",
+        "llp/0121-transactional-one-off-scheduling.research.md",
+        "llp/0122-installed-product-coherence-and-packaging.research.md",
+        "llp/0123-runtime-readiness-and-operational-edges.research.md",
+        "llp/0124-product-breadth-storage-and-vector-search.research.md",
+        "llp/0125-concurrency-and-conflict-ergonomics.research.md",
+        "llp/0126-local-first-and-local-sync.research.md",
+        "llp/0129-local-first-program.plan.md",
+        "llp/0131-structured-argument-contracts.spec.md",
+        "llp/0132-vector-search.spec.md",
+        "llp/0133-local-settlement.spec.md",
+        "llp/0134-capability-maturity-promotion.spec.md",
+        "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
+        "llp/0136-live-search.spec.md",
+        "llp/0140-vite-rolldown-oxc-convergence.plan.md",
+        "llp/0141-embeddable-rust-library.rfc.md",
+        "llp/0143-expo-push-notification-seam.rfc.md",
+        "llp/0144-declared-app-refusal-codes.rfc.md",
+        "llp/0146-agentic-authoring-affordances.rfc.md",
+        "llp/0147-compiled-microclient.rfc.md",
+        "llp/0148-prefixed-identifiers.decision.md",
+        "llp/0149-agent-application-consumption.research.md",
+        "llp/0151-first-party-identity-integrations.rfc.md",
+        "llp/0154-minimal-observability.rfc.md",
+        "llp/0156-minimal-error-tracking.rfc.md",
+        "llp/0158-instance-forking.rfc.md",
+        "llp/0159-universal-table-storage-layout.research.md",
+        "llp/0160-ideal-migration-experience.rfc.md",
+        "llp/0161-agent-optimized-storage-engine.research.md",
+        "llp/0162-agent-safe-storage-profile.rfc.md",
+        "llp/0163-operation-identity-and-commit-envelope.spec.md",
+        "llp/0164-fork-and-promotion.spec.md",
+        "llp/0165-proof-domains-and-checkpoints.spec.md",
+        "llp/0166-local-persistent-store.spec.md",
+        "llp/0167-network-condition-profiles.rfc.md",
+        "llp/0168-browser-carrier-dev-edge.research.md",
+        "llp/0170-authorization-obligation-feasibility.research.md",
+        "llp/0174-authoring-incidents-at-security-fences.research.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
+        "llp/0177-chat-aggregate-and-first-related-row-demand.research.md",
+        "llp/0179-generated-app-descriptor-and-surfaces.rfc.md",
+        "llp/0182-zerobugs-snapback-parity.research.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "llp/0185-instance-forking-productization.plan.md",
+        "llp/0186-agent-authoring-efficiency-program.plan.md",
+        "llp/0187-agent-discoverability-routing.rfc.md",
+        "llp/0188-ltx-sqlite-replication.rfc.md",
+        "llp/0191-scale-architecture-revisits.research.md",
+        "llp/0192-store-durable-state-set.decision.md",
+        "llp/0193-errors-as-docs-completeness.plan.md",
+        "llp/0199-core-modularization.decision.md",
+        "llp/0202-agentic-surface-audit-20260808.research.md",
+        "llp/0203-agent-native-surface-principles.rfc.md",
+        "llp/0205-browser-wasm-target.research.md",
+        "llp/0206-app-owned-http-surfaces.rfc.md",
+        "llp/0209-live-graph-profile.spec.md",
+        "llp/0216-untrusted-code-execution-launch.research.md",
+        "llp/0217-hosted-gates-program.plan.md",
+        "llp/0220-recipient-bound-asset-grants.plan.md",
+        "llp/0221-offline-search-parity.rfc.md",
+        "llp/0222-connected-client-predicate.rfc.md",
+        "llp/0223-zero-config-connect-and-knowledge-closure.plan.md",
+        "llp/0224-prepared-standalone-operation.rfc.md",
+        "llp/0225-core-modularization.decision.md",
+        "llp/0226-identity-architecture.decision.md",
+        "llp/0228-state-capture-custody.spec.md",
+        "llp/0234-visibility-override-governance.rfc.md",
+        "llp/0235-field-masking-class-m.spec.md",
+        "llp/0244-media-ref-projection.spec.md",
+        "llp/0250-codebase-review-20260812.research.md",
+        "llp/0251-outbound-destination-policy.rfc.md",
+        "llp/0253-familiar-profile-v1-api.spec.md",
+        "llp/0257-activity-scoped-presence-convenience.rfc.md",
+        "llp/0264-table-write-policy.spec.md",
+        "llp/0267-query-cost-guardrails.rfc.md",
+        "llp/0268-broadcast-shaped-realtime.rfc.md",
+        "llp/0269-storage-graduation.plan.md",
+        "llp/0271-capability-maturity-range-derivation.decision.md",
+        "llp/0272-verified-provisioning-writer-lane.spec.md",
+        "llp/0273-sound-ownership-disposition-derivation.decision.md",
+        "llp/0276-ideal-codebase-architecture.rfc.md"
       ],
-      "currentPathExpression": "149 active numbered docs mention src/; 36 mention cloudflare/",
-      "targetExpression": "Phase 4 docs series + straggler gate scope (checked, per the RFC); tombstones/reviews exempt",
+      "currentPathExpression": "active numbered LLP documents containing root src/ path tokens",
+      "targetExpression": "rewrite normative root src/ references for the Phase 1 crate move; use marked historical sections only where the text is genuinely historical",
+      "verification": "straggler gate (§14)",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:264"
+    },
+    {
+      "id": "s08-r007-p3",
+      "category": "documented-commands",
+      "consumer": "Active llp/ normative text",
+      "consumerFiles": [
+        "llp/0000-snapback.explainer.md",
+        "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0028-cron-scheduled-execution.rfc.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0036-app-secrets-and-config.rfc.md",
+        "llp/0040-cloudflare-narrow-proof.rfc.md",
+        "llp/0048-v8-conformance-twin.rfc.md",
+        "llp/0049-all-aboard-cloudflare-live.plan.md",
+        "llp/0050-cloudflare-proof-remote-benchmarks.research.md",
+        "llp/0051-language-neutral-data-tier.rfc.md",
+        "llp/0053-authorization-invalidation.rfc.md",
+        "llp/0066-effect-lessons.research.md",
+        "llp/0083-cloudflare-do-d1-prior-art.research.md",
+        "llp/0086-prior-art-course-corrections.plan.md",
+        "llp/0087-facets-hosted-adoption.plan.md",
+        "llp/0088-record-history-and-branching.rfc.md",
+        "llp/0089-agent-provisioning-surface.rfc.md",
+        "llp/0090-resumable-query-snapshots.rfc.md",
+        "llp/0091-rqs-token-and-wire-contract.spec.md",
+        "llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md",
+        "llp/0093-client-protocol-and-native-clients.rfc.md",
+        "llp/0094-wire-envelope-contract.spec.md",
+        "llp/0095-client-lifecycle-and-conformance.spec.md",
+        "llp/0096-auth-profiles-for-protocol-clients.spec.md",
+        "llp/0097-ephemeral-data-branches-and-effect-isolation.rfc.md",
+        "llp/0140-vite-rolldown-oxc-convergence.plan.md",
+        "llp/0144-declared-app-refusal-codes.rfc.md",
+        "llp/0146-agentic-authoring-affordances.rfc.md",
+        "llp/0167-network-condition-profiles.rfc.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "llp/0193-errors-as-docs-completeness.plan.md",
+        "llp/0202-agentic-surface-audit-20260808.research.md",
+        "llp/0216-untrusted-code-execution-launch.research.md",
+        "llp/0217-hosted-gates-program.plan.md",
+        "llp/0250-codebase-review-20260812.research.md",
+        "llp/0276-ideal-codebase-architecture.rfc.md"
+      ],
+      "currentPathExpression": "active numbered LLP documents containing root cloudflare/ path tokens",
+      "targetExpression": "rewrite normative root cloudflare/ references to targets/cloudflare/ in Phase 3",
       "verification": "straggler gate (§14)",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
@@ -2441,7 +3112,51 @@
       "category": "documented-commands",
       "consumer": "Open issues/",
       "consumerFiles": [
-        "issues/"
+        "issues/20260723-0086-cc1-provisioning-build.md",
+        "issues/20260727-hosted-ephemeral-parity.md",
+        "issues/20260729-external-package-lifecycle-gaps.md",
+        "issues/20260730-0098-single-instance-enforcement.md",
+        "issues/20260802-exact-production-runtime-breaks-contract-routes.md",
+        "issues/20260802-wave1-0136-live-search.md",
+        "issues/20260803-0146-d1-d3-tranche.md",
+        "issues/20260803-agent-safe-storage-acceptance-tail.md",
+        "issues/20260804-tunnelled-loopback-server-keeps-dev-profile.md",
+        "issues/20260807-llp-0189-claim-snapshot-implementation.md",
+        "issues/20260808-admin-console-origin-hardening-revisit.md",
+        "issues/20260808-assets-finalize-memory-and-cpu-under-global-lock.md",
+        "issues/20260808-d2-d4-owner-specs-commission.md",
+        "issues/20260808-guide-gap-declared-refusals-discoverability.md",
+        "issues/20260808-integration-coverage-gaps.md",
+        "issues/20260808-live-query-reevaluation-cost-at-scale.md",
+        "issues/20260809-0199-ownership-ratchet-worklist.md",
+        "issues/20260809-mutate-stage-turn-cost-bisect.md",
+        "issues/20260810-guide-corpus-and-publication-drift-0213-sliceB.md",
+        "issues/20260810-main-module-ownership-red-jobs-edges.md",
+        "issues/20260810-main-red-lib-quad-evening-landings.md",
+        "issues/20260810-main-rustfmt-drift-under-1-9-0.md",
+        "issues/20260810-owngate-split-relocation-disposition-gap.md",
+        "issues/20260811-ios-physical-device-dev-carrier-decision-packet.packet.md",
+        "issues/20260811-record-inventory-local-store-publication.md",
+        "issues/20260811-record-inventory-summary.md",
+        "issues/20260812-0249-egress-admission-v1-design.md",
+        "issues/20260812-0249-worker-custody-capability.md",
+        "issues/20260812-drift-gate-bypass-local-store-publication-unrepairable.md",
+        "issues/20260815-artifact-schemas-v0-committed-output-drift.md",
+        "issues/20260815-auth-churn-backend-stall.md",
+        "issues/20260815-coterie-exact-native-controlled-input-clear.md",
+        "issues/20260816-0214-persistent-store-receipt-remint-blocked-secret.md",
+        "issues/20260816-competitive-checkpoint-projection-rebuild-offload-panic.md",
+        "issues/20260816-diagnostics-registry-stale-main.md",
+        "issues/20260816-exact-declared-error-code-envelope.md",
+        "issues/20260816-llp-0258-capability-offer-evidence.md",
+        "issues/20260816-main-red-unmanifested-modules-elevated-read-visibility-gov.md",
+        "issues/20260816-membership-teardown-kernel-existence-probe.md",
+        "issues/20260816-override-execution-carrier-gap.md",
+        "issues/20260816-split-relocation-disposition-needs-sound-evidence.md",
+        "issues/20260817-coterie-feed-pagination-third-page-stall.md",
+        "issues/20260817-coterie-message-envelope-growth.md",
+        "issues/20260817-ephemeral-overlay-missing-error-arm.md",
+        "issues/20260817-llp0276-rfc-reality-corrections.md"
       ],
       "currentPathExpression": "44 open tickets mention src/",
       "targetExpression": "checked by the straggler gate per the RFC (\"open issues … checked\") — expect ticket-by-ticket touch-ups or explicit historical marking",
@@ -2458,10 +3173,24 @@
         "scripts/guide-lib.mjs"
       ],
       "currentPathExpression": "src/server.rs (route registries, host ops) and src/admin.rs (admin routes)",
-      "targetExpression": "crates/snapback/src/{server.rs,admin.rs}; after the server carve, crates/snapback-server/src/…",
+      "targetExpression": "repoint source readers to crates/snapback/src/{server.rs,admin.rs} in Phase 1",
       "verification": "guide gate (check-guide.mjs) fails loudly (\"route extraction failed\")",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:271"
+    },
+    {
+      "id": "s09-r001-p2",
+      "category": "source-reading-checkers",
+      "consumer": "scripts/guide-lib.mjs:651-652,678",
+      "consumerFiles": [
+        "scripts/guide-lib.mjs"
+      ],
+      "currentPathExpression": "the Phase 1 guide-lib readers of crates/snapback/src/server.rs and admin.rs",
+      "targetExpression": "repoint both readers to crates/snapback-server/src/ after the server carve",
+      "verification": "guide gate (check-guide.mjs) fails loudly (\"route extraction failed\")",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
       "surveyCitation": "path-migration-manifest.md:271"
     },
     {
@@ -2486,10 +3215,24 @@
         "scripts/check-guide-shell-commands.mjs"
       ],
       "currentPathExpression": "join(ROOT,'src','cli.rs') (clap tree parse)",
-      "targetExpression": "crates/snapback/src/cli.rs → later crates/snapback-cli/src/…",
+      "targetExpression": "repoint the clap-tree reader to crates/snapback/src/cli.rs in Phase 1",
       "verification": "guide shell-commands gate fails loudly",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:273"
+    },
+    {
+      "id": "s09-r003-p2",
+      "category": "source-reading-checkers",
+      "consumer": "scripts/check-guide-shell-commands.mjs:69",
+      "consumerFiles": [
+        "scripts/check-guide-shell-commands.mjs"
+      ],
+      "currentPathExpression": "the Phase 1 clap-tree reader of crates/snapback/src/cli.rs",
+      "targetExpression": "repoint the reader to crates/snapback-cli/src/ after the CLI carve",
+      "verification": "guide shell-commands gate fails loudly",
+      "changeKind": "update",
+      "applyByEpoch": "phase-2",
       "surveyCitation": "path-migration-manifest.md:273"
     },
     {
@@ -2513,8 +3256,22 @@
       "consumerFiles": [
         "scripts/generate-control-catalog.mjs"
       ],
-      "currentPathExpression": "cloudflare/hosted-adapter-manifest.json, cloudflare/gateway-paths.inventory.json, cloudflare/src/gateway.js (+ metadata strings src/host_ops.rs, src/server.rs … at 360,413,523,676)",
-      "targetExpression": "targets/cloudflare/…; metadata strings updated (they are published catalog provenance)",
+      "currentPathExpression": "published catalog provenance strings naming src/host_ops.rs and src/server.rs at 360,413,523,676",
+      "targetExpression": "rewrite the provenance strings to their Phase 1 crates/snapback/src/ paths",
+      "verification": "control-catalog drift gate",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:275"
+    },
+    {
+      "id": "s09-r005-p3",
+      "category": "source-reading-checkers",
+      "consumer": "scripts/generate-control-catalog.mjs:63-65",
+      "consumerFiles": [
+        "scripts/generate-control-catalog.mjs"
+      ],
+      "currentPathExpression": "cloudflare/hosted-adapter-manifest.json, cloudflare/gateway-paths.inventory.json, and cloudflare/src/gateway.js",
+      "targetExpression": "repoint the three source readers to targets/cloudflare/ in Phase 3",
       "verification": "control-catalog drift gate",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
@@ -2528,10 +3285,24 @@
         "scripts/check-module-ownership.mjs"
       ],
       "currentPathExpression": "ownership.{manifest,baseline}.json at ROOT; globSync('src//*.rs'); strips the src/ prefix; watched-path list ['src','ownership.manifest.json',…]",
-      "targetExpression": "Phase 1: glob + prefix become the moved crate root (LLP 0225 §5 operational scope); Phase 3: retired behind the flip predicate",
+      "targetExpression": "remap the glob, stripped prefix, and watched path to crates/snapback/src while the analyzer overlaps the workspace gate",
       "verification": "module-ownership gate + check-module-ownership.test.mjs + tests/fixtures/module-ownership/ fixtures",
-      "changeKind": "operational",
-      "applyByEpoch": "pre-flip",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:276"
+    },
+    {
+      "id": "s09-r006-p3",
+      "category": "source-reading-checkers",
+      "consumer": "scripts/check-module-ownership.mjs:20-21,150,746,1061",
+      "consumerFiles": [
+        "scripts/check-module-ownership.mjs"
+      ],
+      "currentPathExpression": "the Phase 1-remapped module ownership checker",
+      "targetExpression": "retire it only behind the checked workspace-graph flip predicate",
+      "verification": "module-ownership gate + check-module-ownership.test.mjs + tests/fixtures/module-ownership/ fixtures",
+      "changeKind": "retire",
+      "applyByEpoch": "phase-3",
       "surveyCitation": "path-migration-manifest.md:276"
     },
     {
@@ -2553,14 +3324,27 @@
       "category": "source-reading-checkers",
       "consumer": "tests/agent_safe_publication_checker_v1.mjs:2509 (+ 32 src/ literals)",
       "consumerFiles": [
-        "src/",
         "tests/agent_safe_publication_checker_v1.mjs"
       ],
       "currentPathExpression": "reads root build.rs bytes; pins the agent-safe leaf set",
-      "targetExpression": "reads crates/snapback/build.rs (Phase 1) then the tools-crate home of the digest job (Phase 3); leaf set regenerated via scripts/update-agent-safe-publication-leaf-set.mjs",
+      "targetExpression": "read crates/snapback/build.rs and regenerate the crates/snapback/src leaf paths in Phase 1",
       "verification": "itself (fail-closed)",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:278"
+    },
+    {
+      "id": "s09-r008-p3",
+      "category": "source-reading-checkers",
+      "consumer": "tests/agent_safe_publication_checker_v1.mjs:2509 (+ 32 src/ literals)",
+      "consumerFiles": [
+        "tests/agent_safe_publication_checker_v1.mjs"
+      ],
+      "currentPathExpression": "the Phase 1 build-script and leaf-set assertions in the publication checker",
+      "targetExpression": "repoint the digest-job assertion to crates/snapback-tools/src/agent_safe_digest.rs and regenerate the final owner-crate leaf set",
+      "verification": "itself (fail-closed)",
+      "changeKind": "update",
+      "applyByEpoch": "phase-3",
       "surveyCitation": "path-migration-manifest.md:278"
     },
     {
@@ -2575,7 +3359,10 @@
       "verification": "rust-tests",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:279"
+      "surveyCitation": "path-migration-manifest.md:279",
+      "targetFiles": [
+        "crates/snapback/src/server/tests.rs"
+      ]
     },
     {
       "id": "s09-r010",
@@ -2592,8 +3379,15 @@
       "targetExpression": "unchanged (move with crate)",
       "verification": "compilation",
       "changeKind": "verify-unchanged",
-      "applyByEpoch": "pre-flip",
-      "surveyCitation": "path-migration-manifest.md:280"
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:280",
+      "targetFiles": [
+        "crates/snapback/src/admin.rs",
+        "crates/snapback/src/cli/tests.rs",
+        "crates/snapback/src/fork_promotion.rs",
+        "crates/snapback/src/local/tests.rs",
+        "crates/snapback/src/server/tests.rs"
+      ]
     },
     {
       "id": "s10-r001",
@@ -2670,9 +3464,9 @@
       "category": "guide-snippet-transclusions",
       "consumer": "(regenerate) guide/guide-flat.generated.md, guide-flat.backend.generated.md, guide-flat.deploying.generated.md, guide-flat.operating.generated.md",
       "consumerFiles": [
-        "guide-flat.backend.generated.md",
-        "guide-flat.deploying.generated.md",
-        "guide-flat.operating.generated.md",
+        "guide/guide-flat.backend.generated.md",
+        "guide/guide-flat.deploying.generated.md",
+        "guide/guide-flat.operating.generated.md",
         "guide/guide-flat.generated.md"
       ],
       "currentPathExpression": "12 mirrored occurrences",
@@ -2687,7 +3481,7 @@
       "category": "repo-root-resolution",
       "consumer": "clients/swift/…/snapback-prove/main.swift:45,88-99",
       "consumerFiles": [
-        "clients/swift/…/snapback-prove/main.swift"
+        "clients/swift/SnapbackClient/Sources/snapback-prove/main.swift"
       ],
       "currentPathExpression": "demos/todo/snapback/…, schemas/live.wire-fixtures.v1.json",
       "targetExpression": "none — neither tree moves; verify, don't edit",
@@ -2701,7 +3495,7 @@
       "category": "repo-root-resolution",
       "consumer": "clients/swift/…/FixtureConformanceTests.swift:159-160",
       "consumerFiles": [
-        "clients/swift/…/FixtureConformanceTests.swift"
+        "clients/swift/SnapbackClient/Tests/SnapbackClientTests/FixtureConformanceTests.swift"
       ],
       "currentPathExpression": "schemas/live.wire-fixtures.v1.json",
       "targetExpression": "none",
@@ -2732,7 +3526,60 @@
       "category": "repo-root-resolution",
       "consumer": "Node scripts' root anchor",
       "consumerFiles": [
-        "scripts/"
+        "scripts/cargo-target-headroom.mjs",
+        "scripts/check-agent-safe-publication.mjs",
+        "scripts/check-artifact-path-hygiene.mjs",
+        "scripts/check-authoring-profile-branches.mjs",
+        "scripts/check-authorization-review.mjs",
+        "scripts/check-contract-meta.mjs",
+        "scripts/check-data-tier-corpus-exemplar.mjs",
+        "scripts/check-diary-identity.mjs",
+        "scripts/check-guide-shell-commands.mjs",
+        "scripts/check-hermes-intrinsics.mjs",
+        "scripts/check-inventories.mjs",
+        "scripts/check-js-production-audit.mjs",
+        "scripts/check-local-proof-gates.mjs",
+        "scripts/check-module-ownership.mjs",
+        "scripts/check-package-export-types.mjs",
+        "scripts/check-package-test-inventory.mjs",
+        "scripts/check-path-migration-stragglers.mjs",
+        "scripts/check-required-surface-builds.mjs",
+        "scripts/check-rustfmt.mjs",
+        "scripts/check-toolchain-authority.mjs",
+        "scripts/check-visibility-governance.mjs",
+        "scripts/client-bundle-metrology.mjs",
+        "scripts/drift-prone-gates.mjs",
+        "scripts/ensure-workspace-hoist.mjs",
+        "scripts/generate-app-api-md.mjs",
+        "scripts/generate-control-catalog.mjs",
+        "scripts/generate-control-catalog.test.mjs",
+        "scripts/generate-diagnostics-registry.mjs",
+        "scripts/install-local-snapback-packages.mjs",
+        "scripts/local-source-package-closure.test.mjs",
+        "scripts/package-readme-funnel.test.mjs",
+        "scripts/packaged-store-qualification.mjs",
+        "scripts/prove-template-front-door.mjs",
+        "scripts/published-closure-rehearsal.test.mjs",
+        "scripts/qualified-staging-store-qualification.mjs",
+        "scripts/refresh-publication-carrier.mjs",
+        "scripts/runtime-link-smoke.mjs",
+        "scripts/select-local-proof.mjs",
+        "scripts/snapback-fastpath-release.mjs",
+        "scripts/snapback-generate-latest-proof-plan.mjs",
+        "scripts/snapback-generate-latest-proof-plan.test.mjs",
+        "scripts/snapback-github-latest-proof.mjs",
+        "scripts/snapback-observe-prior-vector.mjs",
+        "scripts/snapback-package-cold-install.mjs",
+        "scripts/snapback-promote.mjs",
+        "scripts/snapback-publish.mjs",
+        "scripts/stage-linux-hermes-release.mjs",
+        "scripts/stage-linux-hermes-release.test.mjs",
+        "scripts/telemetry-phase1-evidence.mjs",
+        "scripts/telemetry-phase1-evidence.test.mjs",
+        "scripts/telemetry-phase1-idle-proof.mjs",
+        "scripts/telemetry-release-gate.mjs",
+        "scripts/telemetry-release-gate.test.mjs",
+        "scripts/verify-generated-review-surface.mjs"
       ],
       "currentPathExpression": "resolve(dirname(fileURLToPath(import.meta.url)), '..') from scripts/",
       "targetExpression": "none (scripts/ does not move in-window)",
@@ -2746,7 +3593,8 @@
       "category": "repo-root-resolution",
       "consumer": "demos/_kit root anchor",
       "consumerFiles": [
-        "demos/_kit"
+        "demos/_kit/provenance.mjs",
+        "demos/_kit/server-process.mjs"
       ],
       "currentPathExpression": "cwd-based; reads scripts/runtime-build-inputs.txt, target/debug/…",
       "targetExpression": "content-level updates only (§5)",
@@ -2760,34 +3608,128 @@
       "category": "repo-root-resolution",
       "consumer": "Rust repo-root anchor",
       "consumerFiles": [
-        "src/"
+        "src/admin.rs",
+        "src/bin/snapback-conformance-twin.rs",
+        "src/bin/snapback-sbsb2-vectors.rs",
+        "src/bin/snapback-schemagen.rs",
+        "src/bounded_children_cursor.rs",
+        "src/control_catalog.rs",
+        "src/embed.rs",
+        "src/local/tests.rs",
+        "src/runtime.rs",
+        "src/server/tests.rs",
+        "src/snapshot_batch_cursor.rs",
+        "src/snapshot_batch_cursor_v2.rs",
+        "src/telemetry_bench.rs",
+        "src/visibility_governance.rs",
+        "src/workerd_exec.rs"
       ],
       "currentPathExpression": "env!(\"CARGO_MANIFEST_DIR\") — the *actual* migration-sensitive root idiom",
       "targetExpression": "see §4d — this, not SNAPBACK_REPO_ROOT, is where root resolution breaks",
       "verification": "compile + suite runs",
       "changeKind": "update",
       "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:316"
+      "surveyCitation": "path-migration-manifest.md:316",
+      "targetFiles": [
+        "crates/snapback/src/admin.rs",
+        "crates/snapback/src/bin/snapback-conformance-twin.rs",
+        "crates/snapback/src/bin/snapback-sbsb2-vectors.rs",
+        "crates/snapback/src/bin/snapback-schemagen.rs",
+        "crates/snapback/src/bounded_children_cursor.rs",
+        "crates/snapback/src/control_catalog.rs",
+        "crates/snapback/src/embed.rs",
+        "crates/snapback/src/local/tests.rs",
+        "crates/snapback/src/runtime.rs",
+        "crates/snapback/src/server/tests.rs",
+        "crates/snapback/src/snapshot_batch_cursor.rs",
+        "crates/snapback/src/snapshot_batch_cursor_v2.rs",
+        "crates/snapback/src/telemetry_bench.rs",
+        "crates/snapback/src/visibility_governance.rs",
+        "crates/snapback/src/workerd_exec.rs"
+      ]
     },
     {
       "id": "s12-r001",
       "category": "target-client-roots",
       "consumer": "cloudflare/ internal escapes (53 measured, excluding spikes) — e.g. cloudflare/app/all-aboard.app.js:18-20 (../../demos/all-aboard/…), cloudflare/app/twin.app.js:20 (../../tests/conformance/twin-corpus.handlers.js), cloudflare/test/*.mjs (../../packages/…, ../../demos/_kit/client.mjs, ../../tests/conformance/…), cloudflare/test/harness.mjs:18-20 (repoRoot = resolve(root,'..') + packages/snapback-harness/compat.json), cloudflare/scripts/generate-deployment-identity.mjs:20 (repoRoot = resolve(cloudflareRoot,'..'))",
       "consumerFiles": [
-        "cloudflare/",
+        "cloudflare/README.md",
         "cloudflare/app/all-aboard.app.js",
+        "cloudflare/app/notes.app.js",
         "cloudflare/app/twin.app.js",
-        "cloudflare/scripts/generate-deployment-identity.mjs",
-        "cloudflare/test/*.mjs",
-        "cloudflare/test/harness.mjs",
-        "packages/snapback-harness/compat.json"
+        "cloudflare/deploy.sh",
+        "cloudflare/src/coordinator.js",
+        "cloudflare/src/gateway.js",
+        "cloudflare/src/handler-worker.js",
+        "cloudflare/src/rqs-host.mjs",
+        "cloudflare/test/acceptance.action-timeout.mjs",
+        "cloudflare/test/acceptance.all-aboard.mjs",
+        "cloudflare/test/acceptance.built-client.all-aboard.mjs",
+        "cloudflare/test/acceptance.cron-recovery.mjs",
+        "cloudflare/test/acceptance.cron.mjs",
+        "cloudflare/test/acceptance.egress.mjs",
+        "cloudflare/test/acceptance.live-and-diagnostics-hardening.mjs",
+        "cloudflare/test/acceptance.mjs",
+        "cloudflare/test/acceptance.protocol-hardening.mjs",
+        "cloudflare/test/acceptance.remote.all-aboard.mjs",
+        "cloudflare/test/acceptance.rqs.mjs",
+        "cloudflare/test/acceptance.secrets.mjs",
+        "cloudflare/test/acceptance.security-hardening.mjs",
+        "cloudflare/test/acceptance.wire-shapes.mjs",
+        "cloudflare/test/action-denial-witness.mjs",
+        "cloudflare/test/config-set.mjs",
+        "cloudflare/test/cron-utils.mjs",
+        "cloudflare/test/deployment-identity.mjs",
+        "cloudflare/test/index-scaling.mjs",
+        "cloudflare/test/local-suite.mjs",
+        "cloudflare/test/outbound-destination.mjs",
+        "cloudflare/test/proof-runtime.mjs",
+        "cloudflare/test/target-admission.mjs",
+        "cloudflare/test/wire-schema-gate.mjs",
+        "cloudflare/wrangler.all-aboard.jsonc"
       ],
       "currentPathExpression": "one .. short after nesting under targets/",
       "targetExpression": "every ../../ → ../../../; both repoRoot = resolve(…,'..') computations → '../..'",
       "verification": "cloudflare-local-suite gate (verify-local-proof:657), deployment-identity gate, workerd twin",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:322"
+      "applyByEpoch": "phase-3",
+      "surveyCitation": "path-migration-manifest.md:322",
+      "targetFiles": [
+        "targets/cloudflare/README.md",
+        "targets/cloudflare/app/all-aboard.app.js",
+        "targets/cloudflare/app/notes.app.js",
+        "targets/cloudflare/app/twin.app.js",
+        "targets/cloudflare/deploy.sh",
+        "targets/cloudflare/src/coordinator.js",
+        "targets/cloudflare/src/gateway.js",
+        "targets/cloudflare/src/handler-worker.js",
+        "targets/cloudflare/src/rqs-host.mjs",
+        "targets/cloudflare/test/acceptance.action-timeout.mjs",
+        "targets/cloudflare/test/acceptance.all-aboard.mjs",
+        "targets/cloudflare/test/acceptance.built-client.all-aboard.mjs",
+        "targets/cloudflare/test/acceptance.cron-recovery.mjs",
+        "targets/cloudflare/test/acceptance.cron.mjs",
+        "targets/cloudflare/test/acceptance.egress.mjs",
+        "targets/cloudflare/test/acceptance.live-and-diagnostics-hardening.mjs",
+        "targets/cloudflare/test/acceptance.mjs",
+        "targets/cloudflare/test/acceptance.protocol-hardening.mjs",
+        "targets/cloudflare/test/acceptance.remote.all-aboard.mjs",
+        "targets/cloudflare/test/acceptance.rqs.mjs",
+        "targets/cloudflare/test/acceptance.secrets.mjs",
+        "targets/cloudflare/test/acceptance.security-hardening.mjs",
+        "targets/cloudflare/test/acceptance.wire-shapes.mjs",
+        "targets/cloudflare/test/action-denial-witness.mjs",
+        "targets/cloudflare/test/config-set.mjs",
+        "targets/cloudflare/test/cron-utils.mjs",
+        "targets/cloudflare/test/deployment-identity.mjs",
+        "targets/cloudflare/test/index-scaling.mjs",
+        "targets/cloudflare/test/local-suite.mjs",
+        "targets/cloudflare/test/outbound-destination.mjs",
+        "targets/cloudflare/test/proof-runtime.mjs",
+        "targets/cloudflare/test/target-admission.mjs",
+        "targets/cloudflare/test/wire-schema-gate.mjs",
+        "targets/cloudflare/wrangler.all-aboard.jsonc"
+      ]
     },
     {
       "id": "s12-r002",
@@ -2800,8 +3742,11 @@
       "targetExpression": "\"../../demos/…\"",
       "verification": "wrangler deploy dry-run (Phase 4 witness)",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:323"
+      "applyByEpoch": "phase-3",
+      "surveyCitation": "path-migration-manifest.md:323",
+      "targetFiles": [
+        "targets/cloudflare/wrangler.all-aboard.jsonc"
+      ]
     },
     {
       "id": "s12-r003",
@@ -2814,59 +3759,113 @@
       "targetExpression": "cd ../../demos/…",
       "verification": "deploy dry-run",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:324"
+      "applyByEpoch": "phase-3",
+      "surveyCitation": "path-migration-manifest.md:324",
+      "targetFiles": [
+        "targets/cloudflare/deploy.sh"
+      ]
     },
     {
       "id": "s12-r004",
       "category": "target-client-roots",
       "consumer": "Wrangler configs (5): cloudflare/wrangler{,.handler,.all-aboard,.all-aboard.handler,.all-aboard.action-handler}.jsonc + wrangler.lock.json",
       "consumerFiles": [
-        "cloudflare/wrangler{,.handler,.all-aboard,.all-aboard.handler,.all-aboard.action-handler}.jsonc",
-        "wrangler.lock.json"
+        "cloudflare/wrangler.all-aboard.action-handler.jsonc",
+        "cloudflare/wrangler.all-aboard.handler.jsonc",
+        "cloudflare/wrangler.all-aboard.jsonc",
+        "cloudflare/wrangler.handler.jsonc",
+        "cloudflare/wrangler.jsonc",
+        "cloudflare/wrangler.lock.json"
       ],
       "currentPathExpression": "compat pins checked against packages/snapback-harness/compat.json",
       "targetExpression": "files move wholesale; pins unchanged",
       "verification": "scripts/cf-check-compat:10-28 (its own path list $repo_root/cloudflare/… → $repo_root/targets/cloudflare/…)",
       "changeKind": "update",
-      "applyByEpoch": "phase-1",
-      "surveyCitation": "path-migration-manifest.md:325"
+      "applyByEpoch": "phase-3",
+      "surveyCitation": "path-migration-manifest.md:325",
+      "targetFiles": [
+        "targets/cloudflare/wrangler.all-aboard.action-handler.jsonc",
+        "targets/cloudflare/wrangler.all-aboard.handler.jsonc",
+        "targets/cloudflare/wrangler.all-aboard.jsonc",
+        "targets/cloudflare/wrangler.handler.jsonc",
+        "targets/cloudflare/wrangler.jsonc",
+        "targets/cloudflare/wrangler.lock.json"
+      ]
     },
     {
       "id": "s12-r005",
       "category": "target-client-roots",
       "consumer": "packages/snapback-harness/compat.json consumers",
       "consumerFiles": [
-        "packages/snapback-harness/compat.json"
+        "scripts/cf-check-compat",
+        "src/workerd_exec.rs",
+        "tests/workerd_config_v0.rs"
       ],
-      "currentPathExpression": "src/workerd_exec.rs:265 (include, §4c), tests/workerd_config_v0.rs:9, cloudflare/test/harness.mjs:20, cloudflare/test/deployment-identity.mjs:24, cloudflare/scripts/generate-deployment-identity.mjs:109, scripts/cf-check-compat:10",
-      "targetExpression": "compat.json itself does not move; the *reachers* update per their rows",
+      "currentPathExpression": "pre-flip Rust and root-script reachers of packages/snapback-harness/compat.json",
+      "targetExpression": "add the Phase 1 crate-root hops for the moved Rust consumers; the root script remains unchanged",
+      "verification": "cf-check-compat + workerd_config_v0",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "path-migration-manifest.md:326",
+      "targetFiles": [
+        "scripts/cf-check-compat",
+        "crates/snapback/src/workerd_exec.rs",
+        "crates/snapback/tests/workerd_config_v0.rs"
+      ]
+    },
+    {
+      "id": "s12-r005-p3",
+      "category": "target-client-roots",
+      "consumer": "packages/snapback-harness/compat.json consumers",
+      "consumerFiles": [
+        "cloudflare/scripts/generate-deployment-identity.mjs",
+        "cloudflare/test/deployment-identity.mjs",
+        "cloudflare/test/harness.mjs"
+      ],
+      "currentPathExpression": "Cloudflare-relative reachers of packages/snapback-harness/compat.json",
+      "targetExpression": "add one parent hop after the consumers move under targets/cloudflare/",
       "verification": "cf-check-compat + workerd_config_v0",
       "changeKind": "update",
       "applyByEpoch": "phase-3",
-      "surveyCitation": "path-migration-manifest.md:326"
+      "surveyCitation": "path-migration-manifest.md:326",
+      "targetFiles": [
+        "targets/cloudflare/scripts/generate-deployment-identity.mjs",
+        "targets/cloudflare/test/deployment-identity.mjs",
+        "targets/cloudflare/test/harness.mjs"
+      ]
     },
     {
       "id": "s12-r006",
       "category": "target-client-roots",
       "consumer": "Cloudflare install root",
       "consumerFiles": [
-        "cloudflare/"
+        "bun.lock",
+        "package.json",
+        "src/bin/snapback-conformance-twin.rs",
+        "src/workerd_exec.rs"
       ],
       "currentPathExpression": "no cloudflare/package.json exists — miniflare/workerd/wrangler resolve from the ROOT workspace node_modules (root package.json devDependencies; src/workerd_exec.rs:218 and the twin bin resolve node_modules/.bin/workerd from the repo root)",
       "targetExpression": "decision needed: either targets/cloudflare/ gains its own install root (matching the RFC's stated posture) or the root install root is kept and documented — today's reality contradicts the RFC (see Reality vs RFC)",
       "verification": "cloudflare-local-suite + twin runs",
       "changeKind": "decision-required",
       "applyByEpoch": "phase-3",
-      "surveyCitation": "path-migration-manifest.md:327"
+      "surveyCitation": "path-migration-manifest.md:327",
+      "targetFiles": [
+        "bun.lock",
+        "package.json",
+        "crates/snapback-conformance/src/bin/snapback-conformance-twin.rs",
+        "crates/snapback-runtime/src/workerd_exec.rs"
+      ]
     },
     {
       "id": "s12-r007",
       "category": "target-client-roots",
       "consumer": "admin-ui/, website/, per-demo roots",
       "consumerFiles": [
-        "admin-ui/",
-        "website/"
+        "admin-ui/bun.lock",
+        "admin-ui/package.json",
+        "website/package-lock.json",
+        "website/package.json"
       ],
       "currentPathExpression": "own lockfiles, unaffected",
       "targetExpression": "none",
@@ -2887,7 +3886,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:340"
+      "surveyCitation": "path-migration-manifest.md:340",
+      "targetFiles": [
+        "crates/snapback-conformance/src/bin/snapback-conformance-twin.rs"
+      ]
     },
     {
       "id": "s13-r002",
@@ -2901,7 +3903,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:341"
+      "surveyCitation": "path-migration-manifest.md:341",
+      "targetFiles": [
+        "crates/snapback-conformance/src/bin/snapback-sbsb2-vectors.rs"
+      ]
     },
     {
       "id": "s13-r003",
@@ -2915,7 +3920,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:342"
+      "surveyCitation": "path-migration-manifest.md:342",
+      "targetFiles": [
+        "crates/snapback-conformance/src/bin/snapback-cf-manifest.rs"
+      ]
     },
     {
       "id": "s13-r004",
@@ -2929,7 +3937,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:343"
+      "surveyCitation": "path-migration-manifest.md:343",
+      "targetFiles": [
+        "crates/snapback-tools/src/bin/snapback-agent-safe-candidate.rs"
+      ]
     },
     {
       "id": "s13-r005",
@@ -2943,7 +3954,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:344"
+      "surveyCitation": "path-migration-manifest.md:344",
+      "targetFiles": [
+        "crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs"
+      ]
     },
     {
       "id": "s13-r006",
@@ -2957,7 +3971,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:345"
+      "surveyCitation": "path-migration-manifest.md:345",
+      "targetFiles": [
+        "crates/snapback-tools/src/bin/snapback-agent-safe-step0.rs"
+      ]
     },
     {
       "id": "s13-r007",
@@ -2971,7 +3988,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:346"
+      "surveyCitation": "path-migration-manifest.md:346",
+      "targetFiles": [
+        "crates/snapback-tools/src/bin/snapback-bench.rs"
+      ]
     },
     {
       "id": "s13-r008",
@@ -2985,7 +4005,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:347"
+      "surveyCitation": "path-migration-manifest.md:347",
+      "targetFiles": [
+        "crates/snapback-tools/src/bin/snapback-fork-promotion-bench.rs"
+      ]
     },
     {
       "id": "s13-r009",
@@ -2999,7 +4022,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:348"
+      "surveyCitation": "path-migration-manifest.md:348",
+      "targetFiles": [
+        "crates/snapback-tools/src/bin/snapback-telemetry-bench.rs"
+      ]
     },
     {
       "id": "s13-r010",
@@ -3013,7 +4039,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:349"
+      "surveyCitation": "path-migration-manifest.md:349",
+      "targetFiles": [
+        "crates/snapback-server/src/bin/snapback-hosted-admission.rs"
+      ]
     },
     {
       "id": "s13-r011",
@@ -3027,7 +4056,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:350"
+      "surveyCitation": "path-migration-manifest.md:350",
+      "targetFiles": [
+        "crates/snapback/src/bin/snapback-local.rs"
+      ]
     },
     {
       "id": "s13-r012",
@@ -3041,7 +4073,10 @@
       "verification": "Cargo workspace build/test for the owning crate plus the bin-specific proof named in the path-sensitive notes.",
       "changeKind": "update",
       "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:351"
+      "surveyCitation": "path-migration-manifest.md:351",
+      "targetFiles": [
+        "crates/snapback-types/src/bin/snapback-schemagen.rs"
+      ]
     }
   ]
 }
