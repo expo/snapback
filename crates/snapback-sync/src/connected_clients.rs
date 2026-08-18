@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 /// The wire contract's fixed freshness budget.
-pub(crate) const CONNECTED_CLIENT_FRESHNESS: Duration = Duration::from_secs(15);
+pub const CONNECTED_CLIENT_FRESHNESS: Duration = Duration::from_secs(15);
 
 // One grant may momentarily own both an HTTP-poll witness and a managed socket
 // witness while a client changes transport. The server caps grants at 16,384.
@@ -64,12 +64,12 @@ struct ConnectedClientState {
 /// @ref LLP 0222#decision — the answer is an advisory, session-authenticated,
 /// fixed-budget transport witness, never a durable presence record.
 #[derive(Clone, Default)]
-pub(crate) struct ConnectedClientRegistry {
+pub struct ConnectedClientRegistry {
     state: Arc<Mutex<ConnectedClientState>>,
 }
 
 impl ConnectedClientRegistry {
-    pub(crate) fn register_managed_websocket(
+    pub fn register_managed_websocket(
         &self,
         principal_id: &str,
         connection_id: &str,
@@ -118,7 +118,7 @@ impl ConnectedClientRegistry {
         Ok(())
     }
 
-    pub(crate) fn refresh_managed_websocket(
+    pub fn refresh_managed_websocket(
         &self,
         connection_id: &str,
         grant_id: &str,
@@ -142,7 +142,7 @@ impl ConnectedClientRegistry {
     ///
     /// @ref LLP 0222#open-questions — transport widening remains explicit in
     /// the manifest's semanticsVersion and transport list.
-    pub(crate) fn register_or_refresh_authenticated_poll(
+    pub fn register_or_refresh_authenticated_poll(
         &self,
         principal_id: &str,
         connection_id: &str,
@@ -159,7 +159,7 @@ impl ConnectedClientRegistry {
         )
     }
 
-    pub(crate) fn remove_managed_websocket(
+    pub fn remove_managed_websocket(
         &self,
         connection_id: &str,
         grant_id: &str,
@@ -175,7 +175,7 @@ impl ConnectedClientRegistry {
     }
 
     /// Exact grant retirement removes both transport kinds immediately.
-    pub(crate) fn remove_grant(&self, connection_id: &str, grant_id: &str) {
+    pub fn remove_grant(&self, connection_id: &str, grant_id: &str) {
         let mut state = self.lock();
         let keys = state
             .by_grant
@@ -187,7 +187,7 @@ impl ConnectedClientRegistry {
         }
     }
 
-    pub(crate) fn has_fresh_client(&self, principal_id: &str, now: Instant) -> bool {
+    pub fn has_fresh_client(&self, principal_id: &str, now: Instant) -> bool {
         let mut state = self.lock();
         state.prune(now);
         state
@@ -196,7 +196,7 @@ impl ConnectedClientRegistry {
             .is_some_and(|keys| !keys.is_empty())
     }
 
-    pub(crate) fn clear(&self) {
+    pub fn clear(&self) {
         *self.lock() = ConnectedClientState::default();
     }
 

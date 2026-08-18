@@ -9,16 +9,16 @@
 //! @ref LLP 0059#two-phase-mutation-protocol — unique tickets, rather than a
 //! saved session snapshot, own every reversible pre-commit marker.
 
-pub(crate) use snapback_kernel::auth::session_projection::{
+pub use snapback_kernel::auth::session_projection::{
     AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamRecord, ProjectionIdentityRow,
     ProjectionSessionRow, ProjectionSource, ProjectionTokenRow, ProjectionUserRow,
 };
-pub(crate) use snapback_auth::auth::lock_rank::{
+pub use snapback_auth::auth::lock_rank::{
     AUTH_LOCK_RANK_CONNECTION_REGISTRY, AUTH_LOCK_RANK_MODE_ADMISSION, AUTH_LOCK_RANK_SESSION,
     AUTH_LOCK_RANK_STREAM, AUTH_LOCK_RANK_TOPOLOGY, AuthLockRankGuard, RankedMutexGuard,
     ranked_mutex_lock, ranked_mutex_lock_unpoisoned,
 };
-pub(crate) use snapback_types::auth::session_projection::{
+pub use snapback_types::auth::session_projection::{
     ProjectedSessionInsert, TERMINAL_CLOSE_GRACE,
 };
 use crate::contract_types::{
@@ -43,7 +43,7 @@ const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
 const MAX_IN_FLIGHT_AUTHORITY_WORK: usize = 4_096;
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) struct MutationTicket {
+pub struct MutationTicket {
     startup_id: String,
     sequence: NonZeroU64,
 }
@@ -100,7 +100,7 @@ pub(crate) enum ProjectedSessionState {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum PendingMutationKind {
+pub enum PendingMutationKind {
     Revoke {
         reason: RevocationReason,
     },
@@ -138,7 +138,7 @@ struct ProjectedSession {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ProjectedSessionAuthority {
+pub struct ProjectedSessionAuthority {
     pub session_id: String,
     pub user_id: String,
     pub provider: String,
@@ -154,7 +154,7 @@ pub(crate) struct ProjectedSessionAuthority {
 ///
 /// @ref LLP 0059#grant-shape — every grant identity field participates in the
 /// revalidation comparison; the mutable deadline is deliberately excluded.
-pub(crate) struct BoundConnectionSessionIdentity<'a> {
+pub struct BoundConnectionSessionIdentity<'a> {
     expected_incarnation: &'a AuthorizationStreamIncarnation,
     session_id: &'a str,
     user_id: &'a str,
@@ -163,7 +163,7 @@ pub(crate) struct BoundConnectionSessionIdentity<'a> {
 }
 
 impl<'a> BoundConnectionSessionIdentity<'a> {
-    pub(crate) fn new(
+    pub fn new(
         expected_incarnation: &'a AuthorizationStreamIncarnation,
         session_id: &'a str,
         user_id: &'a str,
@@ -181,7 +181,7 @@ impl<'a> BoundConnectionSessionIdentity<'a> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ExpiredSession {
+pub struct ExpiredSession {
     pub authorization_stream_incarnation: String,
     pub session_id: String,
     pub generation: u64,
@@ -192,7 +192,7 @@ pub(crate) struct ExpiredSession {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct DueExpiryBatch {
+pub struct DueExpiryBatch {
     sampled_epoch_ms: u64,
     sampled_monotonic: Instant,
     durable_frontier_ms: u64,
@@ -200,7 +200,7 @@ pub(crate) struct DueExpiryBatch {
 }
 
 impl DueExpiryBatch {
-    pub(crate) fn durable_frontier_ms(&self) -> u64 {
+    pub fn durable_frontier_ms(&self) -> u64 {
         self.durable_frontier_ms
     }
 }
@@ -214,39 +214,39 @@ struct SampledDueExpiry {
 }
 
 #[derive(Debug)]
-pub(crate) struct PremarkedDueExpiry {
-    pub(crate) ticket: MutationTicket,
-    pub(crate) session_id: String,
-    pub(crate) drain: AuthorityWorkDrain,
+pub struct PremarkedDueExpiry {
+    pub ticket: MutationTicket,
+    pub session_id: String,
+    pub drain: AuthorityWorkDrain,
     generation: u64,
     deadline: DeadlinePair,
     close_by: Instant,
 }
 
 #[derive(Debug)]
-pub(crate) struct PremarkedDueExpiryBatch {
-    pub(crate) entries: Vec<PremarkedDueExpiry>,
+pub struct PremarkedDueExpiryBatch {
+    pub entries: Vec<PremarkedDueExpiry>,
     sampled_epoch_ms: u64,
     sampled_monotonic: Instant,
 }
 
 #[derive(Debug)]
-pub(crate) struct DueExpiryFinalization {
+pub struct DueExpiryFinalization {
     expired: Vec<ExpiredSession>,
     failed_closed: bool,
 }
 
 impl DueExpiryFinalization {
-    pub(crate) fn failed_closed(&self) -> bool {
+    pub fn failed_closed(&self) -> bool {
         self.failed_closed
     }
 
-    pub(crate) fn into_parts(self) -> (Vec<ExpiredSession>, bool) {
+    pub fn into_parts(self) -> (Vec<ExpiredSession>, bool) {
         (self.expired, self.failed_closed)
     }
 
-    #[cfg(test)]
-    pub(crate) fn failed_for_test(expired: Vec<ExpiredSession>) -> Self {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn failed_for_test(expired: Vec<ExpiredSession>) -> Self {
         Self {
             expired,
             failed_closed: true,
@@ -255,7 +255,7 @@ impl DueExpiryFinalization {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum ProjectedTokenResolution {
+pub enum ProjectedTokenResolution {
     Current(ProjectedSessionAuthority),
     Superseded {
         authority: ProjectedSessionAuthority,
@@ -272,7 +272,7 @@ pub(crate) enum ProjectedTokenResolution {
 /// while its leaf is blocked. The key is used only for the per-session local
 /// throttle; a blocked or terminal leaf never produces grant authority.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum ProjectedConnectionTokenResolution {
+pub enum ProjectedConnectionTokenResolution {
     Current(ProjectedSessionAuthority),
     Superseded(ProjectedSessionAuthority),
     Unavailable { session_id: String, generation: u64 },
@@ -281,7 +281,7 @@ pub(crate) enum ProjectedConnectionTokenResolution {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(clippy::large_enum_variant)] // transient resolution value; boxing the hot arm buys nothing
-pub(crate) enum ProjectedBoundSessionResolution {
+pub enum ProjectedBoundSessionResolution {
     Current(ProjectedSessionAuthority),
     Terminal { reason: RevocationReason },
     Unavailable,
@@ -422,7 +422,7 @@ impl StreamFence {
 /// held. The closure must only perform a bounded nonblocking in-memory handoff;
 /// it must never enter SQLite/provider state, await, or perform socket I/O.
 #[derive(Clone, Debug)]
-pub(crate) struct FencedPublication {
+pub struct FencedPublication {
     expected_incarnation: AuthorizationStreamIncarnation,
     stream: Arc<StreamFence>,
     session: Option<SessionPublicationFence>,
@@ -433,9 +433,20 @@ pub(crate) struct FencedPublication {
 /// under the same fence locks and refuses while the matching counter is
 /// nonzero. Releasing the proof is intentionally lock-free so callers may
 /// carry it across work that must not acquire authorization locks.
+///
+/// Callers cannot mint this admission proof:
+///
+/// ```compile_fail
+/// use snapback_sync::auth::session_projection::FencedAuthorityWorkPermit;
+///
+/// let _forged = FencedAuthorityWorkPermit {
+///     stream: todo!(),
+///     session: None,
+/// };
+/// ```
 #[derive(Debug)]
 #[must_use = "dropping the permit releases its authority-work reservation"]
-pub(crate) struct FencedAuthorityWorkPermit {
+pub struct FencedAuthorityWorkPermit {
     stream: Arc<StreamFence>,
     session: Option<Arc<SessionFence>>,
 }
@@ -450,14 +461,14 @@ struct AuthorityWorkCounter {
 /// new reservations. Waiting owns no topology or leaf guard and never blocks
 /// a Tokio worker thread.
 #[derive(Clone, Debug)]
-pub(crate) struct AuthorityWorkDrain {
+pub struct AuthorityWorkDrain {
     counter: Arc<AuthorityWorkCounter>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct PremarkedAuthorityMutation {
-    pub(crate) ticket: MutationTicket,
-    pub(crate) drain: AuthorityWorkDrain,
+pub struct PremarkedAuthorityMutation {
+    pub ticket: MutationTicket,
+    pub drain: AuthorityWorkDrain,
 }
 
 impl Deref for PremarkedAuthorityMutation {
@@ -483,11 +494,11 @@ impl PartialEq for PremarkedAuthorityMutation {
 impl Eq for PremarkedAuthorityMutation {}
 
 impl AuthorityWorkDrain {
-    pub(crate) fn is_drained(&self) -> bool {
+    pub fn is_drained(&self) -> bool {
         self.counter.active.load(Ordering::SeqCst) == 0
     }
 
-    pub(crate) async fn wait(self) {
+    pub async fn wait(self) {
         loop {
             let notified = self.counter.drained.notified();
             tokio::pin!(notified);
@@ -547,14 +558,14 @@ struct SessionPublicationFence {
 /// publication is the sole pending-ticket exception and remains bound to the
 /// exact finalized successor and authenticated-use deadline.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct FinalizedRotationPublicationCut {
+pub struct FinalizedRotationPublicationCut {
     generation: u64,
     successor_digest: TokenDigest,
     authenticated_use_deadline: DeadlinePair,
 }
 
 impl FencedPublication {
-    pub(crate) fn authorization_stream_incarnation(&self) -> &str {
+    pub fn authorization_stream_incarnation(&self) -> &str {
         self.expected_incarnation.as_str()
     }
 
@@ -563,7 +574,7 @@ impl FencedPublication {
     ///
     /// @ref LLP 0059#act-time-validation — stream/session validation and the
     /// leaf publication are one guarded operation, never check-then-act.
-    pub(crate) fn try_publish<T>(
+    pub fn try_publish<T>(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -589,7 +600,7 @@ impl FencedPublication {
     /// @ref LLP 0059#operation-specific-publication — the committed winner's
     /// fixed credential response remains fenced against every mutation that
     /// can still change authority.
-    pub(crate) fn try_publish_committed_rotation<T>(
+    pub fn try_publish_committed_rotation<T>(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -645,7 +656,7 @@ impl FencedPublication {
     /// authority is current. The returned permit retains that authorization
     /// cut after the guards are released; a matching terminal mutation cannot
     /// install its durable premark until the permit is dropped.
-    pub(crate) fn try_reserve_work(
+    pub fn try_reserve_work(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -699,7 +710,7 @@ impl FencedPublication {
     /// Return the exact committed session cause that made this publication
     /// stale. Pending mutations and stream replacement intentionally have no
     /// session cause yet; callers must use the non-destructive fallback.
-    pub(crate) fn session_terminal_reason(
+    pub fn session_terminal_reason(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -725,7 +736,7 @@ impl FencedPublication {
         Ok(None)
     }
 
-    pub(crate) fn anonymous_for_unmanaged_dev_connection() -> (String, Self) {
+    pub fn anonymous_for_unmanaged_dev_connection() -> (String, Self) {
         static TEST_STREAM: std::sync::OnceLock<(
             AuthorizationStreamIncarnation,
             Arc<StreamFence>,
@@ -756,7 +767,7 @@ enum TicketOwner {
 /// The detached topology object. Integration wraps this in the coordinator's
 /// topology mutex; session and stream fence arcs are then cloned into grants.
 #[derive(Debug)]
-pub(crate) struct SessionProjection {
+pub struct SessionProjection {
     format_version: u32,
     incarnation: AuthorizationStreamIncarnation,
     projection_startup_id: String,
@@ -773,7 +784,7 @@ pub(crate) struct SessionProjection {
 impl SessionProjection {
     /// Build from a complete detached source. Nothing externally reachable is
     /// mutated if any validation fails.
-    pub(crate) fn rebuild(
+    pub fn rebuild(
         source: ProjectionSource,
         projection_startup_id: &str,
         epoch_now_ms: u64,
@@ -1024,7 +1035,7 @@ impl SessionProjection {
         Ok(projection)
     }
 
-    pub(crate) fn rebuild_with_fresh_startup_id(
+    pub fn rebuild_with_fresh_startup_id(
         source: ProjectionSource,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1037,7 +1048,7 @@ impl SessionProjection {
         )
     }
 
-    pub(crate) fn incarnation(&self) -> &AuthorizationStreamIncarnation {
+    pub fn incarnation(&self) -> &AuthorizationStreamIncarnation {
         &self.incarnation
     }
 
@@ -1051,7 +1062,7 @@ impl SessionProjection {
             .map(|session| Arc::clone(&session.fence))
     }
 
-    pub(crate) fn session_publication_fence(
+    pub fn session_publication_fence(
         &self,
         session_id: &str,
         expected_generation: u64,
@@ -1079,7 +1090,7 @@ impl SessionProjection {
     /// predecessor are admitted as harmless pending work after this ticket
     /// wins. Ticket identity remains intact so each losing owner still exact-
     /// unmarks itself after its durable CAS reports `PredecessorChanged`.
-    pub(crate) fn prepare_rotation_response_publication(
+    pub fn prepare_rotation_response_publication(
         &self,
         ticket: &MutationTicket,
         session_id: &str,
@@ -1127,7 +1138,7 @@ impl SessionProjection {
         ))
     }
 
-    pub(crate) fn anonymous_publication_fence(&self) -> FencedPublication {
+    pub fn anonymous_publication_fence(&self) -> FencedPublication {
         FencedPublication {
             expected_incarnation: self.incarnation.clone(),
             stream: Arc::clone(&self.stream_fence),
@@ -1138,7 +1149,7 @@ impl SessionProjection {
     /// Capture one immutable due set and its complete durable frontier. The
     /// caller persists that frontier before returning this exact batch for
     /// terminal publication; later clock movement cannot enlarge the batch.
-    pub(crate) fn sample_due_expiries(
+    pub fn sample_due_expiries(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -1193,7 +1204,7 @@ impl SessionProjection {
     /// Terminalize only the sampled predecessors whose complete deadline
     /// frontier has already been persisted. An extended/revoked replacement
     /// is skipped; it is never confused with the sampled generation/deadline.
-    pub(crate) fn begin_sampled_due_expiries(
+    pub fn begin_sampled_due_expiries(
         &mut self,
         batch: DueExpiryBatch,
     ) -> SnapbackResult<PremarkedDueExpiryBatch> {
@@ -1240,7 +1251,7 @@ impl SessionProjection {
         })
     }
 
-    pub(crate) fn finalize_sampled_due_expiries(
+    pub fn finalize_sampled_due_expiries(
         &mut self,
         batch: PremarkedDueExpiryBatch,
     ) -> DueExpiryFinalization {
@@ -1344,8 +1355,8 @@ impl SessionProjection {
             && session.deadline == entry.deadline)
     }
 
-    #[cfg(test)]
-    pub(crate) fn expire_sampled_due(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn expire_sampled_due(
         &mut self,
         batch: DueExpiryBatch,
     ) -> SnapbackResult<Vec<ExpiredSession>> {
@@ -1374,7 +1385,7 @@ impl SessionProjection {
 
     /// Expiry scheduling never sleeps more than one second, so a forward wall
     /// jump is observed and permanently terminalized within the protocol bound.
-    pub(crate) fn expiry_scan_delay(&self, monotonic_now: Instant) -> Duration {
+    pub fn expiry_scan_delay(&self, monotonic_now: Instant) -> Duration {
         let until_first = self
             .deadline_index
             .iter()
@@ -1392,7 +1403,7 @@ impl SessionProjection {
     /// returned authority is bearer-free and retains the internal
     /// `authority_instance_id` needed to construct `ResolvedAppAuthority`;
     /// connection grants intentionally omit that field later.
-    pub(crate) fn resolve_token(
+    pub fn resolve_token(
         &self,
         digest: &TokenDigest,
         epoch_now_ms: u64,
@@ -1481,7 +1492,7 @@ impl SessionProjection {
     /// @ref LLP 0059#reuse-and-mismatch — every canonical open is indexed in
     /// the process projection and current, superseded, blocked, and unknown
     /// tokens consume their specified independent buckets.
-    pub(crate) fn classify_connection_token(
+    pub fn classify_connection_token(
         &self,
         digest: &TokenDigest,
         epoch_now_ms: u64,
@@ -1537,7 +1548,7 @@ impl SessionProjection {
     /// connection grant. Every grant identity field is compared before that
     /// internal value is returned, and the same stream/session locks prove
     /// the exact generation is still available at this preparation point.
-    pub(crate) fn resolve_bound_connection_session(
+    pub fn resolve_bound_connection_session(
         &self,
         identity: BoundConnectionSessionIdentity<'_>,
         epoch_now_ms: u64,
@@ -1601,7 +1612,7 @@ impl SessionProjection {
     /// write or the provider's no-write fast path. The exact stale deadline is
     /// replaced under topology-then-session order; a concurrent terminal or
     /// pending mutation merely loses the extension and cannot revive access.
-    pub(crate) fn publish_authenticated_use_deadline(
+    pub fn publish_authenticated_use_deadline(
         &mut self,
         session_id: &str,
         expected_generation: u64,
@@ -1674,7 +1685,7 @@ impl SessionProjection {
     /// Fail one affected session closed when a known commit cannot be
     /// published exactly. The caller then requires controlled rebuild before
     /// treating the durable/projection relationship as healthy again.
-    pub(crate) fn mark_session_uncertain(
+    pub fn mark_session_uncertain(
         &mut self,
         ticket: &MutationTicket,
         session_id: &str,
@@ -1717,7 +1728,7 @@ impl SessionProjection {
     /// Reserve the exact new session/token identity before its durable insert.
     /// This ticket blocks reset but no existing session leaf, so unrelated
     /// finite acts remain independent while the SQLite transaction runs.
-    pub(crate) fn begin_issuance(
+    pub fn begin_issuance(
         &mut self,
         insert: ProjectedSessionInsert,
     ) -> SnapbackResult<MutationTicket> {
@@ -1764,7 +1775,7 @@ impl SessionProjection {
         Ok(ticket)
     }
 
-    pub(crate) fn compare_unmark_issuance(
+    pub fn compare_unmark_issuance(
         &mut self,
         ticket: &MutationTicket,
         expected_session_id: &str,
@@ -1787,7 +1798,7 @@ impl SessionProjection {
         Ok(true)
     }
 
-    pub(crate) fn finalize_issuance(
+    pub fn finalize_issuance(
         &mut self,
         ticket: &MutationTicket,
         expected_session_id: &str,
@@ -1873,7 +1884,7 @@ impl SessionProjection {
 
     /// Install a unique marker in both topology and leaf indexes. A sibling
     /// marker is allowed; it cannot be erased by this ticket's rollback.
-    pub(crate) fn begin_session_mutation(
+    pub fn begin_session_mutation(
         &mut self,
         session_id: &str,
         expected_generation: u64,
@@ -2022,7 +2033,7 @@ impl SessionProjection {
     /// Remove only the marker still owned by this exact ticket. Generation or
     /// terminal changes caused by a sibling do not make the operation restore
     /// an old whole-session snapshot.
-    pub(crate) fn compare_unmark_session(
+    pub fn compare_unmark_session(
         &mut self,
         ticket: &MutationTicket,
         expected_session_id: &str,
@@ -2059,7 +2070,7 @@ impl SessionProjection {
         Ok(true)
     }
 
-    pub(crate) fn finalize_revocation(
+    pub fn finalize_revocation(
         &mut self,
         ticket: &MutationTicket,
         session_id: &str,
@@ -2207,7 +2218,7 @@ impl SessionProjection {
         Ok(())
     }
 
-    pub(crate) fn finalize_token_rotation(
+    pub fn finalize_token_rotation(
         &mut self,
         ticket: &MutationTicket,
         session_id: &str,
@@ -2292,7 +2303,7 @@ impl SessionProjection {
         })
     }
 
-    pub(crate) fn begin_stream_mutation(
+    pub fn begin_stream_mutation(
         &mut self,
         successor: AuthorizationStreamIncarnation,
     ) -> SnapbackResult<PremarkedAuthorityMutation> {
@@ -2326,7 +2337,7 @@ impl SessionProjection {
         })
     }
 
-    pub(crate) fn compare_unmark_stream(
+    pub fn compare_unmark_stream(
         &mut self,
         ticket: &MutationTicket,
     ) -> SnapbackResult<bool> {
@@ -2348,7 +2359,7 @@ impl SessionProjection {
     /// Finalize reset/restore on the existing shared stream-fence arc. Any
     /// predecessor grant that retained that arc now observes the successor
     /// incarnation and fails exact-incarnation validation.
-    pub(crate) fn finalize_stream_rotation(
+    pub fn finalize_stream_rotation(
         &mut self,
         ticket: &MutationTicket,
     ) -> SnapbackResult<()> {
@@ -2379,7 +2390,7 @@ impl SessionProjection {
         Ok(())
     }
 
-    pub(crate) fn check_invariants(&self) -> SnapbackResult<()> {
+    pub fn check_invariants(&self) -> SnapbackResult<()> {
         if self.format_version != SESSION_PROJECTION_FORMAT_VERSION {
             return Err(projection_corrupt("projection format is unsupported"));
         }
@@ -2619,8 +2630,8 @@ impl SessionProjection {
         self.next_ticket = sequence;
     }
 
-    #[cfg(test)]
-    pub(crate) fn pending_kind_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn pending_kind_for_test(
         &self,
         session_id: &str,
         ticket: &MutationTicket,

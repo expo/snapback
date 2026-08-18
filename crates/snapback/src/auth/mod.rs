@@ -42,6 +42,6 @@ mod sender_proof_tests;
 pub(crate) use snapback_types::auth::service_authority_contract;
 pub(crate) use snapback_auth::auth::service_fence;
 #[allow(dead_code)] // Published by the ENG-24603 coordinator integration lane.
-pub(crate) mod session_projection;
+pub(crate) use snapback_sync::auth::session_projection;
 pub(crate) use snapback_kernel::auth::throttle;
 pub use snapback_types::auth::wire;

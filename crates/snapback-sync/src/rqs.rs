@@ -42,7 +42,7 @@ pub use crate::rqs_contract::{MintRefusal, jcs, sha256_identity};
 // @ref LLP 0225#1-ownership-map — retain the crate-internal compatibility
 //   path while all implementation consumers depend directly on the leaf.
 #[allow(unused_imports)]
-pub(crate) use crate::rqs_contract::projection_row_digest;
+pub use crate::rqs_contract::projection_row_digest;
 use crate::rqs_contract::{
     CONTENT_DIGEST_TRAILER_DOMAIN, cmp_utf16, hex, jcs_escape_into, jcs_into, sha256_tagged,
 };
@@ -976,7 +976,7 @@ impl ResumeKeyring {
     /// Strict, non-creating parse check used by derived-deployment boot evidence.
     /// Ordinary resume-key loss is availability-only and may self-heal, but a
     /// fork's mint receipt must never outlive a missing or truncated keyring.
-    pub(crate) fn persisted_file_has_active_key(path: &Path) -> bool {
+    pub fn persisted_file_has_active_key(path: &Path) -> bool {
         let Ok(bytes) = crate::secure_file::read_owner_only(path) else {
             return false;
         };
@@ -1101,7 +1101,7 @@ impl ResumeKeyring {
     ///
     /// @ref LLP 0073#ranking-order-and-cursors — current plus explicitly
     /// overlapping predecessors, never the full RQS retention window.
-    pub(crate) fn search_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
+    pub fn search_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
         let mut keys = self
             .keys
             .iter()
@@ -1130,7 +1130,7 @@ impl ResumeKeyring {
     /// Root material for the purpose-derived bounded-children AEAD. The
     /// cursor lifetime never exceeds the resume ring's retired-key overlap,
     /// so routine rotation preserves availability without widening custody.
-    pub(crate) fn bounded_children_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
+    pub fn bounded_children_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
         let mut keys = self
             .keys
             .iter()
@@ -1167,7 +1167,7 @@ impl ResumeKeyring {
     ///   keyring custody with a distinct purpose and 14-day verification
     ///   overlap.
     #[cfg_attr(not(test), allow(dead_code))] // Consumed by the snapshot-batch runtime lane.
-    pub(crate) fn snapshot_batch_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
+    pub fn snapshot_batch_cursor_materials(&self, now_ms: u64) -> Vec<(String, [u8; 32])> {
         let mut keys = self
             .keys
             .iter()
@@ -1203,7 +1203,7 @@ impl ResumeKeyring {
     /// @ref LLP 0157#sbsb2-plaintext-and-budget — `sbsb2` is a separate
     ///   purpose domain with the same bounded verification overlap as `sbsb1`.
     #[cfg_attr(not(test), allow(dead_code))] // Consumed by the v2 executor lane.
-    pub(crate) fn snapshot_batch_cursor_v2_materials(
+    pub fn snapshot_batch_cursor_v2_materials(
         &self,
         now_ms: u64,
     ) -> Vec<(String, [u8; 32])> {

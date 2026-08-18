@@ -73,6 +73,7 @@ zeroize = "1.8"
 snapback-types = { path = "../snapback-types" }
 snapback-kernel = { path = "../snapback-kernel" }
 snapback-auth = { path = "../snapback-auth" }
+snapback-sync = { path = "../snapback-sync" }
 
 [build-dependencies]
 sha2 = "0.10"
@@ -95,6 +96,7 @@ windows-sys = { version = "0.61.2", features = [
 [dev-dependencies]
 snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
+snapback-sync = { path = "../snapback-sync", features = ["test-support"] }
 syn = { version = "2.0", features = ["full", "visit"] }
 # test-util enables tokio's paused clock so the admitted-body ingest deadline
 # (LLP 0058#admitted-body-ingestion) is testable without a 20-second wait.

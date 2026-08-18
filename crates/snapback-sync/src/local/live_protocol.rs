@@ -1,4 +1,13 @@
-use super::*;
+use crate::auth::invalidation::{
+    AuthorizationInvalidationProjection, QueryNamespace, ScopeId, ScopeRetirement,
+};
+use crate::auth::invocation::FunctionAttribution;
+use crate::live_wire::{Receipt, ResumeFromToken, ResumeWire};
+use crate::manifest::{
+    ArtifactGeneration, AuthInput, FunctionInvocationFacts, HandlerInput, QueryOutput,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeInput {
@@ -157,9 +166,9 @@ pub struct LiveSubscribeOutput {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct LiveTransportPublication<T> {
-    pub(crate) output: T,
-    pub(crate) authorization: Option<crate::storage::AuthorizationVersion>,
+pub struct LiveTransportPublication<T> {
+    pub output: T,
+    pub authorization: Option<crate::storage::AuthorizationVersion>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

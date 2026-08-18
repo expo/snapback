@@ -99,10 +99,6 @@ pub(super) mod activation;
 use snapback_types::local::config_types;
 #[path = "inspection.rs"]
 mod inspection;
-#[path = "live_protocol.rs"]
-mod live_protocol;
-#[path = "receipt_log.rs"]
-mod receipt_log;
 
 pub use crate::realtime::{
     AuthorizationBlastRadiusCounters, AuthorizationBlastRadiusStats, LiveDeliveryStats,
@@ -127,14 +123,14 @@ pub use inspection::{
     PublicIbexSubmoduleCapability, PublicInspect, PublicRuntimeCapabilities, PublicStorageInfo,
     PublicSubscriptionInfo,
 };
-pub(crate) use live_protocol::LiveTransportPublication;
-pub use live_protocol::{
+pub(crate) use snapback_sync::local::live_protocol::LiveTransportPublication;
+pub use snapback_sync::local::live_protocol::{
     AuthorizationInvalidationAckInput, AuthorizationInvalidationAckOutput,
     AuthorizationInvalidationManualRetryInput, AuthorizationInvalidationManualRetryOutput,
     LiveResumeInput, LiveResumeOutput, LiveSubscribeInput, LiveSubscribeOutput,
     LiveSubscribeRequest, LiveUnsubscribeInput, LiveUnsubscribeOutput,
 };
-use receipt_log::ReceiptLog;
+use snapback_sync::local::receipt_log::ReceiptLog;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
 const MAINTENANCE_DIAGNOSTIC_MIN_INTERVAL_MS: u64 = 60_000;
