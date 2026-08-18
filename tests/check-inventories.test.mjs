@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -115,6 +122,72 @@ test('scripts test inventory rejects a missing local-proof gate', () => {
       selectionPolicy: { driftProneGates: {} },
     });
     assert.match(audit.errors.join('\n'), /gate missing-fixtures does not exist/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('scripts test inventory rejects a pathname argument to a non-Node command', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-no-op-bypass-'));
+  try {
+    write(join(scratch, 'scripts/symbol-lifecycle.test.mjs'), '');
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [{
+        file: 'scripts/symbol-lifecycle.test.mjs',
+        disposition: 'run',
+        runner: { mechanism: 'verify-local-proof', gateId: 'no-op-fixtures' },
+      }],
+      proofSource: 'run no-op-fixtures -- true scripts/symbol-lifecycle.test.mjs\n',
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(audit.errors.join('\n'), /gate no-op-fixtures does not run this file/u);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('scripts test inventory rejects a symlinked root test', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-symlink-bypass-'));
+  try {
+    write(join(scratch, 'fixture-target.mjs'), '');
+    mkdirSync(join(scratch, 'scripts'));
+    symlinkSync('../fixture-target.mjs', join(scratch, 'scripts/zzz-probe.test.mjs'));
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [],
+      proofSource: '',
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(
+      audit.errors.join('\n'),
+      /scripts\/zzz-probe\.test\.mjs: scripts test inventory requires a regular file, found symlink/u,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('scripts test inventory rejects a nested test outside its root-only scope', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-scripts-nested-bypass-'));
+  try {
+    write(join(scratch, 'scripts/zzz-nested-probe/zzz-probe.test.mjs'), '');
+    const audit = auditScriptsTestInventory({
+      root: scratch,
+      inventory: [],
+      proofSource: '',
+      packageInventories: [],
+      cloudflareSuites: [],
+      selectionPolicy: { driftProneGates: {} },
+    });
+    assert.match(
+      audit.errors.join('\n'),
+      /scripts\/zzz-nested-probe\/zzz-probe\.test\.mjs: nested scripts test files are outside the root scripts\/\*\.test\.mjs inventory scope/u,
+    );
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

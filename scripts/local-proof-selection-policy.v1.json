@@ -790,7 +790,6 @@
         "packages/snapback-codegen/README.md",
         "packages/snapback-contract/README.md",
         "packages/snapback-expo-custody/README.md",
-        "packages/snapback-expo-dev-identity/README.md",
         "packages/snapback-expo/README.md",
         "packages/snapback-react/README.md",
         "packages/snapback-runtime-darwin-arm64/README.md",

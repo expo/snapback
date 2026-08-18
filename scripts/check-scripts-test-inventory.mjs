@@ -10,7 +10,7 @@ import {
   PACKAGE_TEST_INVENTORIES,
   auditInventory as auditPackageInventory,
 } from './check-package-test-inventory.mjs';
-import { commandSourcePaths, parseGateCalls } from './check-local-proof-gates.mjs';
+import { parseGateCalls } from './check-local-proof-gates.mjs';
 
 // @ref LLP 0276#scripts — Phase 0 makes every root scripts/*.test.mjs file
 // declare a checked runner or an explicit ticketed unrun disposition.
@@ -20,6 +20,7 @@ import { commandSourcePaths, parseGateCalls } from './check-local-proof-gates.mj
 const ROOT = resolve(import.meta.dirname, '..');
 const PROOF_PATH = 'scripts/verify-local-proof';
 const POLICY_PATH = 'scripts/local-proof-selection-policy.v1.json';
+const ROOT_SCRIPTS_TEST_PATTERN = /^scripts\/[^/]+\.test\.mjs$/u;
 
 export const SCRIPTS_TEST_INVENTORY = Object.freeze([
   {
@@ -172,17 +173,62 @@ function difference(left, right) {
   return [...new Set(left)].filter((value) => !rightSet.has(value)).sort();
 }
 
+function directoryEntryKind(entry) {
+  if (entry.isSymbolicLink()) return 'symlink';
+  if (entry.isDirectory()) return 'directory';
+  if (entry.isFIFO()) return 'FIFO';
+  if (entry.isSocket()) return 'socket';
+  if (entry.isBlockDevice()) return 'block device';
+  if (entry.isCharacterDevice()) return 'character device';
+  return 'non-regular entry';
+}
+
 function discoverScriptsTests(root) {
-  return readdirSync(resolve(root, 'scripts'), { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.test.mjs'))
-    .map((entry) => `scripts/${entry.name}`)
-    .sort();
+  const files = [];
+  const errors = [];
+
+  function walk(relativeDirectory) {
+    const entries = readdirSync(resolve(root, relativeDirectory), { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      const relativePath = posix.join(relativeDirectory, entry.name);
+      if (entry.name.endsWith('.test.mjs')) {
+        if (relativeDirectory !== 'scripts') {
+          errors.push(
+            `${relativePath}: nested scripts test files are outside the root scripts/*.test.mjs inventory scope`,
+          );
+        } else if (!entry.isFile()) {
+          errors.push(
+            `${relativePath}: scripts test inventory requires a regular file, found ${directoryEntryKind(entry)}`,
+          );
+        } else {
+          files.push(relativePath);
+        }
+      }
+      if (entry.isDirectory()) walk(relativePath);
+    }
+  }
+
+  walk('scripts');
+  return { files: files.sort(), errors: errors.sort() };
+}
+
+function nodeCommandRunsFile(command, file) {
+  const words = command.trim().split(/\s+/u);
+  if (words[0] !== 'node') return false;
+  if (words.length === 2) return words[1] === file;
+  if (words[1] !== '--test') return false;
+
+  const targets = words.slice(2);
+  return targets.length > 0
+    && targets.every((target) => ROOT_SCRIPTS_TEST_PATTERN.test(target))
+    && targets.includes(file);
 }
 
 function commandRunsFile(calls, gateId, file) {
   return calls
     .filter((call) => call.gateId === gateId)
-    .some((call) => commandSourcePaths(call.command).includes(file));
+    .some((call) => nodeCommandRunsFile(call.command, file));
 }
 
 function validateRunEntry(entry, context, errors) {
@@ -262,7 +308,8 @@ export function auditScriptsTestInventory({
   cloudflareSuites = LOCAL_SUITES,
   selectionPolicy = JSON.parse(readFileSync(resolve(root, POLICY_PATH), 'utf8')),
 } = {}) {
-  const discovered = discoverScriptsTests(root);
+  const discovery = discoverScriptsTests(root);
+  const discovered = discovery.files;
   const expected = inventory.map(({ file }) => file).sort();
   const calls = parseGateCalls(proofSource);
   const context = {
@@ -273,11 +320,11 @@ export function auditScriptsTestInventory({
     cloudflareSuites,
     selectionPolicy,
   };
-  const errors = [];
+  const errors = [...discovery.errors];
 
   if (new Set(expected).size !== expected.length) errors.push('inventory contains duplicate file entries');
   for (const entry of inventory) {
-    if (!/^scripts\/[^/]+\.test\.mjs$/u.test(entry.file ?? '')) {
+    if (!ROOT_SCRIPTS_TEST_PATTERN.test(entry.file ?? '')) {
       errors.push(`${entry.file ?? '(missing file)'}: inventory path must be a root scripts/*.test.mjs file`);
       continue;
     }
