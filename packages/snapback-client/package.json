@@ -279,7 +279,7 @@
     }
   },
   "dependencies": {
-    "@expo/snapback-contract": "0.1.0"
+    "@expo/snapback-contract": "workspace:*"
   },
   "publishConfig": {
     "access": "public"

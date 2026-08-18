@@ -1,6 +1,7 @@
 {
   "name": "@expo/snapback-hosted-supervisor",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "description": "Fail-closed single-writer supervisor for Snapback hosted targets.",
   "license": "MIT",

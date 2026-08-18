@@ -788,7 +788,6 @@
         "packages/snapback-contract/README.md",
         "packages/snapback-expo-custody/README.md",
         "packages/snapback-expo/README.md",
-        "packages/snapback-hosted-supervisor/README.md",
         "packages/snapback-react/README.md",
         "packages/snapback-runtime-darwin-arm64/README.md",
         "packages/snapback-runtime-linux-x64/README.md",

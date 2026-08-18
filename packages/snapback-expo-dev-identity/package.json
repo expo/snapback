@@ -1,6 +1,7 @@
 {
   "name": "@expo/snapback-expo-dev-identity",
   "version": "0.1.0",
+  "private": true,
   "description": "First-party native launch checkout reader for supervised Snapback Expo development clients.",
   "license": "MIT",
   "repository": {
