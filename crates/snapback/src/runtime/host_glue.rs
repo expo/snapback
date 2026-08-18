@@ -44,21 +44,14 @@ use std::sync::{Mutex as StdMutex, OnceLock};
 use std::time::Instant;
 
 #[derive(Clone)]
-struct TelemetryRuntimeLogSink {
+struct RuntimeLogSink {
     telemetry: crate::telemetry::Telemetry,
     correlation: Option<String>,
     redactor: SecretRedactor,
 }
 
-impl RuntimeLogSink for TelemetryRuntimeLogSink {
-    fn runtime_log(&self, level: &str, message: &Value) {
-        self.telemetry
-            .runtime_log(level, message, self.correlation.as_deref());
-    }
-}
-
 thread_local! {
-    static RUNTIME_LOG_SINKS: RefCell<Vec<TelemetryRuntimeLogSink>> = const { RefCell::new(Vec::new()) };
+    static RUNTIME_LOG_SINKS: RefCell<Vec<RuntimeLogSink>> = const { RefCell::new(Vec::new()) };
     #[cfg(test)]
     static TEST_HANDLER_CONSOLE_STDERR: RefCell<Vec<Vec<String>>> = const { RefCell::new(Vec::new()) };
 }
@@ -103,7 +96,7 @@ pub(crate) fn with_runtime_log_telemetry_redactor<T>(
     run: impl FnOnce() -> T,
 ) -> T {
     RUNTIME_LOG_SINKS.with(|sinks| {
-        sinks.borrow_mut().push(TelemetryRuntimeLogSink {
+        sinks.borrow_mut().push(RuntimeLogSink {
             telemetry,
             correlation,
             redactor,
@@ -130,7 +123,8 @@ fn capture_runtime_log(level: &str, message: Value) -> Value {
     // messages pass through Telemetry's strict details allowlist and caps.
     RUNTIME_LOG_SINKS.with(|sinks| {
         if let Some(sink) = sinks.borrow().last() {
-            sink.runtime_log(level, &message);
+            sink.telemetry
+                .runtime_log(level, &message, sink.correlation.as_deref());
         }
     });
     message
@@ -5398,7 +5392,7 @@ fn run_handler_ibex_engine_until(
     // target always takes the fresh path.
     let _ = pool;
 
-    let runtime = RuntimeGuard::create_with_host_call(snapback_host_call)?;
+    let runtime = RuntimeGuard::create()?;
     let cancellation = runtime.interrupt_on(&invocation.admission);
     let time_limit = deadline
         .map(|deadline| runtime.watch_until(deadline))
@@ -5540,7 +5534,7 @@ pub(crate) fn prepare_ibex_module(
         module.source,
         probe,
     );
-    let runtime = RuntimeGuard::create_with_host_call(snapback_host_call)?;
+    let runtime = RuntimeGuard::create()?;
     let output = eval(runtime.ptr(), &module.export, &source)?;
     let rejections = inspect_unhandled_rejections(runtime.ptr())?;
     if !rejections.is_empty() {

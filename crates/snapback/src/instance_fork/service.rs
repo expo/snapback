@@ -9,7 +9,6 @@
 //! recovery. Splitting those phases further would divide one commit protocol.
 
 use super::contract::*;
-use super::fork_host::ForkHost;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
@@ -1660,15 +1659,13 @@ fn sync_sqlite_files(database_path: &Path, cut_at: Option<PublicationCut>) -> Sn
 /// @ref LLP 0158#design-sketch — parent credentials are deleted (hash lookup
 /// makes rotation insufficient), while both stream identities and signing
 /// authority rotate before the lineage stamp becomes permanent.
-pub fn scrub_and_mint_with_host(
-    host: &impl ForkHost,
+pub fn scrub_and_mint(
     database_path: &Path,
     app_id: &str,
     parent_instance_id: &str,
     now_ms: u64,
 ) -> SnapbackResult<ForkMintReceiptV1> {
     scrub_and_mint_with_cut(
-        host,
         database_path,
         app_id,
         parent_instance_id,
@@ -1680,7 +1677,6 @@ pub fn scrub_and_mint_with_host(
 }
 
 fn scrub_and_mint_with_cut(
-    host: &impl ForkHost,
     database_path: &Path,
     app_id: &str,
     parent_instance_id: &str,
@@ -1733,7 +1729,7 @@ fn scrub_and_mint_with_cut(
         })?
         .to_owned();
 
-    let admin_path = host.admin_token_sibling(database_path);
+    let admin_path = crate::admin::admin_token_sibling(database_path);
     let auth_keyring_path = crate::auth::keyring::AuthKeyringStore::keyring_path(database_path);
     let resume_path = database_path.with_file_name(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
     let operation_detail_path = crate::operation_detail::keyring_path(database_path);
@@ -1747,7 +1743,7 @@ fn scrub_and_mint_with_cut(
             "fork replacement sidecars must be minted into an empty staging namespace",
         ));
     }
-    let admin_token = host.mint_admin_token();
+    let admin_token = crate::admin::mint_admin_token();
     crate::secure_file::write_new_owner_only(&admin_path, format!("{admin_token}\n").as_bytes())
         .map_err(|error| io_error("mint fork admin token", error))?;
     sync_file(&admin_path, "sync fork admin token")?;
@@ -1757,8 +1753,8 @@ fn scrub_and_mint_with_cut(
         .map_err(|error| fork_error("SNAPBACK_FORK_KEYRING_MINT_FAILED", error.to_string()))?;
     sync_file(&auth_keyring_path, "sync fork auth keyring")?;
     maybe_cut(cut_at, PublicationCut::AfterAuthSidecar)?;
-    let _resume = host.mint_resume_keyring(resume_path.clone(), now_ms);
-    if !host.resume_keyring_has_active_key(&resume_path) {
+    let _resume = crate::rqs::ResumeKeyring::load_or_create(resume_path.clone(), now_ms);
+    if !crate::rqs::ResumeKeyring::persisted_file_has_active_key(&resume_path) {
         return Err(fork_error(
             "SNAPBACK_FORK_KEYRING_MINT_FAILED",
             "fork resume keyring was not durably minted",
@@ -1883,15 +1879,8 @@ pub(crate) fn scrub_copied_authority_for_in_app_branch(
     Ok(())
 }
 
-#[cfg(test)]
-#[path = "tests.rs"]
-mod tests;
-
-pub fn inspect_boot_with_host(
-    host: &impl ForkHost,
-    database_path: &Path,
-) -> SnapbackResult<Option<DerivedForkRuntime>> {
-    inspect_boot_at_with_host(host, database_path, wall_clock_now_ms())
+pub fn inspect_boot(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
+    inspect_boot_at(database_path, wall_clock_now_ms())
 }
 
 /// Inspect a database for serving at an injected portable clock. Lifecycle
@@ -1899,12 +1888,11 @@ pub fn inspect_boot_with_host(
 /// expired fork remains provable and therefore safely removable.
 // @ref LLP 0185#authority-and-boundaries — finite expiry is server boot
 // authority, not advisory metadata that only an invoked reaper observes.
-pub fn inspect_boot_at_with_host(
-    host: &impl ForkHost,
+pub fn inspect_boot_at(
     database_path: &Path,
     now_ms: u64,
 ) -> SnapbackResult<Option<DerivedForkRuntime>> {
-    let runtime = inspect_published_evidence(host, database_path)?;
+    let runtime = inspect_published_evidence(database_path)?;
     if let Some(runtime) = runtime.as_ref()
         && let Some(expires_at_ms) = runtime.lineage.expires_at_ms
         && expires_at_ms <= now_ms
@@ -2025,10 +2013,7 @@ pub(crate) fn arm_open_derived_fork_app_row_coverage(
     Ok(receipt)
 }
 
-fn inspect_published_evidence(
-    host: &impl ForkHost,
-    database_path: &Path,
-) -> SnapbackResult<Option<DerivedForkRuntime>> {
+fn inspect_published_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
     let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
     if directory.join(STAGING_SENTINEL).exists() {
         return Err(fork_error(
@@ -2036,13 +2021,10 @@ fn inspect_published_evidence(
             "fork publication is incomplete; run `snapback fork recover` for the exact destination",
         ));
     }
-    inspect_evidence(host, database_path)
+    inspect_evidence(database_path)
 }
 
-fn inspect_evidence(
-    host: &impl ForkHost,
-    database_path: &Path,
-) -> SnapbackResult<Option<DerivedForkRuntime>> {
+fn inspect_evidence(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
     let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
     if !database_path.exists() {
         return Ok(None);
@@ -2111,7 +2093,7 @@ fn inspect_evidence(
                     "fork lineage and mint receipt do not identify the same non-promotable instance",
                 ));
             }
-            validate_minted_sidecars(host, database_path)?;
+            validate_minted_sidecars(database_path)?;
             Ok(Some(DerivedForkRuntime {
                 database_path: database_path.to_path_buf(),
                 lineage,
@@ -2124,7 +2106,7 @@ fn inspect_evidence(
     }
 }
 
-fn validate_minted_sidecars(host: &impl ForkHost, database_path: &Path) -> SnapbackResult<()> {
+fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
     fn require_regular(path: &Path, sidecar: &'static str) -> SnapbackResult<()> {
         let metadata = fs::symlink_metadata(path).map_err(|error| {
             if error.kind() == ErrorKind::NotFound {
@@ -2147,7 +2129,7 @@ fn validate_minted_sidecars(host: &impl ForkHost, database_path: &Path) -> Snapb
         Ok(())
     }
 
-    let admin_path = host.admin_token_sibling(database_path);
+    let admin_path = crate::admin::admin_token_sibling(database_path);
     require_regular(&admin_path, "admin-token")?;
     let admin = crate::secure_file::read_owner_only(&admin_path).map_err(|_| {
         fork_error(
@@ -2185,7 +2167,7 @@ fn validate_minted_sidecars(host: &impl ForkHost, database_path: &Path) -> Snapb
         })?;
     let resume_path = database_path.with_file_name(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
     require_regular(&resume_path, "resume-keyring")?;
-    if !host.resume_keyring_has_active_key(&resume_path) {
+    if !crate::rqs::ResumeKeyring::persisted_file_has_active_key(&resume_path) {
         return Err(fork_error(
             "SNAPBACK_FORK_SIDECAR_MALFORMED",
             "minted resume-keyring sidecar has no active key",
@@ -2329,8 +2311,7 @@ fn reconcile_registry(parent: &Path, destination: &Path, receipt: &ForkMintRecei
 ///
 /// @ref LLP 0158#design-sketch — S0-S5 local evidence is authoritative;
 /// registry state is reconciled bookkeeping and never boot authority.
-pub fn publish_with_host(
-    host: &impl ForkHost,
+pub fn publish(
     source_database: &Path,
     destination: &Path,
     app_id: &str,
@@ -2339,7 +2320,6 @@ pub fn publish_with_host(
     cut_at: Option<PublicationCut>,
 ) -> SnapbackResult<ForkMintReceiptV1> {
     publish_with_options(
-        host,
         source_database,
         destination,
         app_id,
@@ -2359,8 +2339,7 @@ pub fn publish_with_host(
 // @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 — F0b
 // packages F0a with a finite TTL and optional, explicit config inheritance.
 #[allow(clippy::too_many_arguments)]
-pub fn publish_managed_with_host(
-    host: &impl ForkHost,
+pub fn publish_managed(
     source_database: &Path,
     destination: &Path,
     expected: &ExpectedForkAppV1,
@@ -2369,8 +2348,7 @@ pub fn publish_managed_with_host(
     expires_at_ms: u64,
     with_secrets: bool,
 ) -> SnapbackResult<ForkMintReceiptV1> {
-    publish_managed_with_base_and_host(
-        host,
+    publish_managed_with_base(
         source_database,
         destination,
         expected,
@@ -2386,8 +2364,7 @@ pub fn publish_managed_with_host(
 /// local target's chosen substrate for the exact net diff. Retention doubles
 /// the fork's byte footprint; creation admission accounts for it.
 #[allow(clippy::too_many_arguments)]
-pub fn publish_managed_with_base_and_host(
-    host: &impl ForkHost,
+pub fn publish_managed_with_base(
     source_database: &Path,
     destination: &Path,
     expected: &ExpectedForkAppV1,
@@ -2419,7 +2396,6 @@ pub fn publish_managed_with_base_and_host(
         })));
     }
     publish_with_options(
-        host,
         source_database,
         destination,
         &expected.app_id,
@@ -2436,14 +2412,13 @@ pub fn publish_managed_with_base_and_host(
 /// Attach the independently written runtime handshake to advisory lifecycle
 /// bookkeeping. The fork remains self-authenticating from its local evidence;
 /// this update exists for list/drop/reap ergonomics only.
-pub fn record_managed_runtime_with_host(
-    host: &impl ForkHost,
+pub fn record_managed_runtime(
     fork_root: &Path,
     fork_id: &str,
     ready_file: &Path,
     expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<ForkRegistryEntryV1> {
-    let target = managed_target_with_host(host, fork_root, fork_id, expected)?;
+    let target = managed_target(fork_root, fork_id, expected)?;
     let path = registry_path(fork_root, fork_id);
     let mut entry = target.entry;
     let destination = target.destination;
@@ -2515,26 +2490,24 @@ pub fn managed_registry_ids(fork_root: &Path) -> SnapbackResult<Vec<String>> {
     Ok(ids)
 }
 
-pub fn list_managed_with_host(
-    host: &impl ForkHost,
+pub fn list_managed(
     fork_root: &Path,
     expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
     let mut entries = Vec::new();
     for recorded_id in managed_registry_ids(fork_root)? {
-        entries.push(managed_target_with_host(host, fork_root, &recorded_id, expected)?.entry);
+        entries.push(managed_target(fork_root, &recorded_id, expected)?.entry);
     }
     entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
     Ok(entries)
 }
 
-pub fn managed_entry_with_host(
-    host: &impl ForkHost,
+pub fn managed_entry(
     fork_root: &Path,
     fork_id: &str,
     expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<ForkRegistryEntryV1> {
-    Ok(managed_target_with_host(host, fork_root, fork_id, expected)?.entry)
+    Ok(managed_target(fork_root, fork_id, expected)?.entry)
 }
 
 fn validate_fork_id(fork_id: &str) -> SnapbackResult<()> {
@@ -2669,11 +2642,7 @@ fn validate_registry_app_binding(
 /// lineage before any read, signal, deletion, or expiry decision.
 // @ref LLP 0158#design-sketch — registry state is advisory bookkeeping; local
 // S0-S5 evidence is the authority for a derived deployment.
-fn managed_target_evidence(
-    host: &impl ForkHost,
-    fork_root: &Path,
-    fork_id: &str,
-) -> SnapbackResult<ManagedForkTargetV1> {
+fn managed_target_evidence(fork_root: &Path, fork_id: &str) -> SnapbackResult<ManagedForkTargetV1> {
     let root = fs::canonicalize(fork_root)
         .map_err(|error| io_error("resolve managed fork root", error))?;
     let entry = load_registry_entry(&root, fork_id)?;
@@ -2759,7 +2728,7 @@ fn managed_target_evidence(
             "fork mint receipt is malformed",
         )
     })?;
-    let runtime = inspect_published_evidence(host, &database)?.ok_or_else(|| {
+    let runtime = inspect_published_evidence(&database)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
             "registered fork has no authoritative local lineage",
@@ -2837,8 +2806,7 @@ fn managed_target_evidence(
 /// remain distinct; either the canonical root or logical id mismatch refuses.
 // @ref LLP 0158#open-questions — OQ9 requires exact instance selection and
 // rejects app-id-only control in every multi-instance lifecycle operation.
-pub fn managed_target_with_host(
-    host: &impl ForkHost,
+pub fn managed_target(
     fork_root: &Path,
     fork_id: &str,
     expected: &ExpectedForkAppV1,
@@ -2848,7 +2816,7 @@ pub fn managed_target_with_host(
         .map_err(|error| io_error("resolve managed fork root", error))?;
     let registry_entry = load_registry_entry(&root, fork_id)?;
     validate_registry_app_binding(&registry_entry, expected)?;
-    let target = managed_target_evidence(host, fork_root, fork_id)?;
+    let target = managed_target_evidence(fork_root, fork_id)?;
     let expected_root = expected.canonical_app_root.to_str().ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_APP_ROOT_INVALID",
@@ -2913,14 +2881,13 @@ impl ForkCleanupLock {
 /// Remove exactly one registry-bound fork directory. Callers stop a live
 /// child first; path validation prevents registry corruption from widening the
 /// deletion target.
-pub fn drop_managed_with_host(
-    host: &impl ForkHost,
+pub fn drop_managed(
     fork_root: &Path,
     fork_id: &str,
     expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<ForkRegistryEntryV1> {
     let lock = lock_cleanup(fork_root, fork_id)?;
-    let entry = drop_managed_locked_with_host(host, fork_root, fork_id, expected)?;
+    let entry = drop_managed_locked(fork_root, fork_id, expected)?;
     lock.dispose();
     Ok(entry)
 }
@@ -2928,13 +2895,12 @@ pub fn drop_managed_with_host(
 /// The teardown body. Callers must hold this fork's [`ForkCleanupLock`];
 /// re-binding evidence under the lock is what makes concurrent cleanup
 /// observe all-or-nothing states.
-pub fn drop_managed_locked_with_host(
-    host: &impl ForkHost,
+pub fn drop_managed_locked(
     fork_root: &Path,
     fork_id: &str,
     expected: &ExpectedForkAppV1,
 ) -> SnapbackResult<ForkRegistryEntryV1> {
-    let target = managed_target_with_host(host, fork_root, fork_id, expected)?;
+    let target = managed_target(fork_root, fork_id, expected)?;
     let entry = target.entry;
     // A concurrent drop/reap may win the directory removal between the
     // evidence re-bind above and this call. Duplicate cleanup of the same
@@ -3031,22 +2997,20 @@ fn maybe_renew_cut(cut_at: Option<RenewCut>, point: RenewCut) -> SnapbackResult<
 /// three expiry carriers (database lineage, mint receipt, registry entry)
 /// update behind a staging sentinel plus a renewal-intent file so a crash at
 /// any point recovers to one consistent expiry via [`recover`].
-pub fn renew_managed_with_host(
-    host: &impl ForkHost,
+pub fn renew_managed(
     fork_root: &Path,
     fork_id: &str,
     expected: &ExpectedForkAppV1,
     now_ms: u64,
     ttl_ms: u64,
 ) -> SnapbackResult<ForkRenewReceiptV1> {
-    renew_managed_with_cut_and_host(host, fork_root, fork_id, expected, now_ms, ttl_ms, None)
+    renew_managed_with_cut(fork_root, fork_id, expected, now_ms, ttl_ms, None)
 }
 
 /// Deterministic crash-cut entry used by the executable acceptance corpus.
 /// Product callers use [`renew_managed`].
 #[doc(hidden)]
-pub fn renew_managed_with_crash_cut_for_test_and_host(
-    host: &impl ForkHost,
+pub fn renew_managed_with_crash_cut_for_test(
     fork_root: &Path,
     fork_id: &str,
     expected: &ExpectedForkAppV1,
@@ -3054,19 +3018,10 @@ pub fn renew_managed_with_crash_cut_for_test_and_host(
     ttl_ms: u64,
     cut: RenewCut,
 ) -> SnapbackResult<ForkRenewReceiptV1> {
-    renew_managed_with_cut_and_host(
-        host,
-        fork_root,
-        fork_id,
-        expected,
-        now_ms,
-        ttl_ms,
-        Some(cut),
-    )
+    renew_managed_with_cut(fork_root, fork_id, expected, now_ms, ttl_ms, Some(cut))
 }
 
-fn renew_managed_with_cut_and_host(
-    host: &impl ForkHost,
+fn renew_managed_with_cut(
     fork_root: &Path,
     fork_id: &str,
     expected: &ExpectedForkAppV1,
@@ -3075,7 +3030,7 @@ fn renew_managed_with_cut_and_host(
     cut_at: Option<RenewCut>,
 ) -> SnapbackResult<ForkRenewReceiptV1> {
     let _lock = lock_cleanup(fork_root, fork_id)?;
-    let target = managed_target_with_host(host, fork_root, fork_id, expected)?;
+    let target = managed_target(fork_root, fork_id, expected)?;
     let lineage = target.receipt.lineage.clone();
     let previous_expires_at_ms = lineage.expires_at_ms.ok_or_else(|| {
         fork_error(
@@ -3567,15 +3522,11 @@ fn admit_creation_with_timeout(
 /// Re-read the lineage currently persisted in a fork database, ignoring the
 /// staging sentinel. The serving watchdog uses this at its expiry deadline so
 /// a completed renewal extends the running server instead of being ignored.
-pub fn refreshed_lineage_with_host(
-    host: &impl ForkHost,
-    database_path: &Path,
-) -> SnapbackResult<Option<DerivedForkLineageV1>> {
-    Ok(inspect_evidence(host, database_path)?.map(|runtime| runtime.lineage))
+pub fn refreshed_lineage(database_path: &Path) -> SnapbackResult<Option<DerivedForkLineageV1>> {
+    Ok(inspect_evidence(database_path)?.map(|runtime| runtime.lineage))
 }
 
-pub fn expired_managed_with_host(
-    host: &impl ForkHost,
+pub fn expired_managed(
     fork_root: &Path,
     expected: &ExpectedForkAppV1,
     now_ms: u64,
@@ -3586,7 +3537,7 @@ pub fn expired_managed_with_host(
             "reap clock exceeds the portable timestamp range",
         ));
     }
-    Ok(list_managed_with_host(host, fork_root, expected)?
+    Ok(list_managed(fork_root, expected)?
         .into_iter()
         .filter(|entry| {
             entry
@@ -3654,25 +3605,21 @@ fn diff_commit_boundaries(
 /// Render the app-row-only inspection artifact promised by LLP 0158 with the
 /// default diff-work bound. The explicit omissions are part of the contract,
 /// not documentation garnish.
-pub fn diff_receipt_with_host(
-    host: &impl ForkHost,
-    database_path: &Path,
-) -> SnapbackResult<ForkDiffReceiptV3> {
-    diff_receipt_bounded_with_host(host, database_path, FORK_DIFF_MAX_ROWS)
+pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV3> {
+    diff_receipt_bounded(database_path, FORK_DIFF_MAX_ROWS)
 }
 
 /// [`diff_receipt`] with an explicit diff-work limit (LLP 0185 Phase 3 item
 /// 7): a journal span larger than `max_rows` refuses deterministically with
 /// the observed row count instead of materializing an unbounded receipt.
-pub fn diff_receipt_bounded_with_host(
-    host: &impl ForkHost,
+pub fn diff_receipt_bounded(
     database_path: &Path,
     max_rows: u64,
 ) -> SnapbackResult<ForkDiffReceiptV3> {
     // Diff is an offline lifecycle inspection surface, not serving admission.
     // It must remain available to explain or clean up an expired fork even
     // though LocalDatabase::open refuses to boot that same database.
-    let runtime = inspect_published_evidence(host, database_path)?.ok_or_else(|| {
+    let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
             "diff requires a minted derived deployment",
@@ -3892,11 +3839,10 @@ fn verified_fork_app_row_coverage(
 /// Re-read both durable coverage carriers and the active manifest through a
 /// read-only lifecycle handle. Fork creation uses this after readiness so its
 /// response never trusts the mere presence of the child-written receipt file.
-pub fn verified_derived_fork_app_row_coverage_with_host(
-    host: &impl ForkHost,
+pub fn verified_derived_fork_app_row_coverage(
     database_path: &Path,
 ) -> SnapbackResult<Option<ForkAppRowCoverageReceiptV1>> {
-    let runtime = inspect_published_evidence(host, database_path)?.ok_or_else(|| {
+    let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         writer_coverage_invalid("writer coverage verification requires a minted derived fork")
     })?;
     let conn = open_fork_connection_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -3981,13 +3927,11 @@ impl NetDiffWorkV1 {
 /// journal is then cross-checked against it (every net-changed row must be
 /// explained by a journal entry) wherever retention still covers the fork
 /// point. A fork created without a retained base refuses deterministically.
-pub fn net_diff_receipt_with_host(
-    host: &impl ForkHost,
+pub fn net_diff_receipt(
     database_path: &Path,
     max_rows: u64,
 ) -> SnapbackResult<ForkNetDiffReceiptV3> {
-    net_diff_receipt_with_limits_and_host(
-        host,
+    net_diff_receipt_with_limits(
         database_path,
         NetDiffWorkLimitsV1 {
             max_journal_rows: max_rows,
@@ -3998,12 +3942,11 @@ pub fn net_diff_receipt_with_host(
     )
 }
 
-fn net_diff_receipt_with_limits_and_host(
-    host: &impl ForkHost,
+fn net_diff_receipt_with_limits(
     database_path: &Path,
     limits: NetDiffWorkLimitsV1,
 ) -> SnapbackResult<ForkNetDiffReceiptV3> {
-    let runtime = inspect_published_evidence(host, database_path)?.ok_or_else(|| {
+    let runtime = inspect_published_evidence(database_path)?.ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
             "net diff requires a minted derived deployment",
@@ -4656,7 +4599,6 @@ fn verify_bounded_row_serialization(
 
 #[allow(clippy::too_many_arguments)]
 fn publish_with_options(
-    host: &impl ForkHost,
     source_database: &Path,
     destination: &Path,
     app_id: &str,
@@ -4674,7 +4616,7 @@ fn publish_with_options(
             "fork destination already exists",
         ));
     }
-    if inspect_boot_with_host(host, source_database)?.is_some() {
+    if inspect_boot(source_database)?.is_some() {
         return Err(fork_error(
             "SNAPBACK_FORK_NESTED_REFUSED",
             "v1 does not fork a derived deployment",
@@ -4726,13 +4668,14 @@ fn publish_with_options(
         maybe_cut(cut_at, PublicationCut::AfterClone)?;
 
         if with_secrets {
-            let source_config = host.config_sidecar(source_database);
+            let source_config = crate::config::ConfigStore::path_for_database(source_database);
             if source_config.exists() {
                 let bytes =
                     crate::secure_file::read_owner_only(&source_config).map_err(|error| {
                         io_error("read parent config for explicit fork copy", error)
                     })?;
-                let target_config = host.config_sidecar(&staging_database);
+                let target_config =
+                    crate::config::ConfigStore::path_for_database(&staging_database);
                 crate::secure_file::write_new_owner_only(&target_config, &bytes)
                     .map_err(|error| io_error("copy config into fork staging", error))?;
                 sync_file(&target_config, "sync copied fork config")?;
@@ -4740,7 +4683,6 @@ fn publish_with_options(
         }
 
         let receipt = scrub_and_mint_with_cut(
-            host,
             &staging_database,
             app_id,
             parent_instance_id,
@@ -5113,8 +5055,7 @@ fn validate_destination_app_binding(
 /// Product recovery validates the invoking app before completing or reaping
 /// any exact destination or staging publication. Unknown legacy staging is
 /// left untouched and refused rather than becoming cross-root cleanup.
-pub fn recover_bound_with_host(
-    host: &impl ForkHost,
+pub fn recover_bound(
     parent: &Path,
     destination: &Path,
     expected: &ExpectedForkAppV1,
@@ -5153,18 +5094,14 @@ pub fn recover_bound_with_host(
             }
         }
     }
-    recover_with_host(host, parent, destination)
+    recover(parent, destination)
 }
 
 /// Recover solely from local staging/published evidence after the product
 /// caller has established app-root authority. A missing or corrupt advisory
 /// registry is deliberately ignored.
 #[doc(hidden)]
-pub fn recover_with_host(
-    host: &impl ForkHost,
-    parent: &Path,
-    destination: &Path,
-) -> SnapbackResult<()> {
+pub fn recover(parent: &Path, destination: &Path) -> SnapbackResult<()> {
     if destination.exists() && destination.join(STAGING_SENTINEL).exists() {
         let receipt_path = destination.join(MINT_RECEIPT_FILE);
         let receipt: ForkMintReceiptV1 = serde_json::from_slice(
@@ -5212,7 +5149,7 @@ pub fn recover_with_host(
                 ));
             }
             apply_renewal(parent, destination, &database, &intent, None)?;
-            if inspect_evidence(host, &database)?.is_none() {
+            if inspect_evidence(&database)?.is_none() {
                 return Err(fork_error(
                     "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
                     "renewed fork lost its local lineage evidence",
@@ -5224,7 +5161,7 @@ pub fn recover_with_host(
         // present through the complete local-evidence check; a recovery crash
         // must never expose a bootable derived deployment.
         let sentinel = destination.join(STAGING_SENTINEL);
-        match inspect_evidence(host, &database) {
+        match inspect_evidence(&database) {
             Ok(Some(_)) => {
                 reconcile_registry(parent, destination, &receipt);
                 fs::remove_file(&sentinel)
@@ -5282,3 +5219,7 @@ pub fn recover_with_host(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "tests.rs"]
+mod tests;

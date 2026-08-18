@@ -1,5 +1,4 @@
 use super::*;
-use super::super::server_host::*;
 
 #[test]
 fn json_publication_hides_the_final_path_until_synced_temp_is_complete() {
@@ -1996,8 +1995,7 @@ fn renewal_crash_matrix_recovers_to_one_consistent_expiry() {
         let fork_id = receipt.lineage.fork_id.clone();
         let database = destination.join("app.sqlite3");
 
-        let error = renew_managed_with_cut_and_host(
-            &ServerForkHost,
+        let error = renew_managed_with_cut(
             &root,
             &fork_id,
             &managed_expected(&root),
@@ -2675,8 +2673,7 @@ fn net_diff_streaming_limits_refuse_unchanged_revert_heavy_and_byte_heavy_work()
         true,
     )
     .unwrap();
-    let error = net_diff_receipt_with_limits_and_host(
-        &ServerForkHost,
+    let error = net_diff_receipt_with_limits(
         &unchanged.join("app.sqlite3"),
         NetDiffWorkLimitsV1 {
             max_journal_rows: 100,
@@ -2741,8 +2738,7 @@ fn net_diff_streaming_limits_refuse_unchanged_revert_heavy_and_byte_heavy_work()
         .unwrap();
     tx.commit().unwrap();
     drop(conn);
-    let error = net_diff_receipt_with_limits_and_host(
-        &ServerForkHost,
+    let error = net_diff_receipt_with_limits(
         &revert.join("app.sqlite3"),
         NetDiffWorkLimitsV1 {
             max_journal_rows: 5,
@@ -2756,8 +2752,7 @@ fn net_diff_streaming_limits_refuse_unchanged_revert_heavy_and_byte_heavy_work()
     assert_eq!(error.diagnostic.details["limitKind"], "journal-rows");
     assert_eq!(error.diagnostic.details["journalRows"], 6);
 
-    let error = net_diff_receipt_with_limits_and_host(
-        &ServerForkHost,
+    let error = net_diff_receipt_with_limits(
         &revert.join("app.sqlite3"),
         NetDiffWorkLimitsV1 {
             max_journal_rows: 100,

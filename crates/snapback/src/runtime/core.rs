@@ -1,3 +1,4 @@
+use super::host_glue::snapback_host_call;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use libc::{c_char, c_int, size_t};
 use serde::{Deserialize, Serialize};
@@ -9,13 +10,6 @@ use std::process::Command;
 use std::ptr;
 use std::sync::{Arc, Mutex as StdMutex, OnceLock, PoisonError};
 use std::time::Instant;
-
-/// Observation port supplied by the engine around one synchronous handler
-/// dispatch. The runtime owns when logs cross the boundary; composition owns
-/// where they are retained.
-pub trait RuntimeLogSink {
-    fn runtime_log(&self, level: &str, message: &Value);
-}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -287,12 +281,6 @@ fn arm_strict_host_context() -> u64 {
 
 impl RuntimeGuard {
     pub(crate) fn create() -> SnapbackResult<Self> {
-        Self::create_with_host_call(runtime_host_call_unavailable)
-    }
-
-    pub(super) fn create_with_host_call(
-        host_call: extern "C" fn(*const c_char, *const c_char) -> *mut c_char,
-    ) -> SnapbackResult<Self> {
         let host_context_id = arm_strict_host_context();
         // @ref LLP 0009#supply-chain-and-generated-bundles — application code
         // is exactly the selected manifest bundle; fetched or constructed
@@ -315,7 +303,7 @@ impl RuntimeGuard {
                 "Ibex runtime identity could not be captured",
             ));
         }
-        unsafe { ex_hermes_set_host_call(runtime, host_call) };
+        unsafe { ex_hermes_set_host_call(runtime, snapback_host_call) };
         Ok(Self {
             runtime,
             interrupt: Arc::new(RuntimeInterrupt {
@@ -347,15 +335,6 @@ impl RuntimeGuard {
         }
         Ok(RuntimeTimeLimit { runtime: self })
     }
-}
-
-extern "C" fn runtime_host_call_unavailable(
-    _op: *const c_char,
-    _args_json: *const c_char,
-) -> *mut c_char {
-    CString::new("-SNAPBACK_HANDLER_HOST_CALL_WITHOUT_CONTEXT")
-        .expect("static runtime host-call refusal")
-        .into_raw()
 }
 
 pub(super) struct RuntimeTimeLimit<'a> {

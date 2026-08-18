@@ -7,14 +7,10 @@
 //! but the production `Command`/spawn/readiness/kill loop lives in
 //! `cli/fork.rs`. The server-aware code found here was confined to the inline
 //! test module; it remains a test sibling because it exercises private fork
-//! hooks. Production host-owned sidecars are isolated behind [`ForkHost`].
+//! hooks.
 
 mod contract;
-mod fork_host;
-mod server_host;
 mod service;
 
 pub use contract::*;
-pub use fork_host::ForkHost;
-pub use server_host::*;
 pub use service::*;
