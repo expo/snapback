@@ -74,3 +74,8 @@ demos/all-aboard/tests/egress-probe/generated/*
 # The prebuilt Dockerfile verifies their source revision and every checksum;
 # qualification receipts retain the deployed image/source identity.
 /demos/competitive-checkpoint/acceptance/drill/prebuilt/
+
+# LLP 0276 repository-root rule: orchestration outputs belong under the
+# gitignored runs/<date>-<slug>/ hierarchy, never loose at the repository root.
+/*.log
+/runs/
