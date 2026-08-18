@@ -908,22 +908,22 @@ mod tests {
     fn golden(name: &str, actual: String) {
         let expected = match name {
             "plan-review" => {
-                include_str!("../tests/fixtures/migration-presentation/plan-review.txt")
+                include_str!("../../../tests/fixtures/migration-presentation/plan-review.txt")
             }
             "plan-narration" => {
-                include_str!("../tests/fixtures/migration-presentation/plan-narration.txt")
+                include_str!("../../../tests/fixtures/migration-presentation/plan-narration.txt")
             }
             "plan-estimate-absent" => {
-                include_str!("../tests/fixtures/migration-presentation/plan-estimate-absent.txt")
+                include_str!("../../../tests/fixtures/migration-presentation/plan-estimate-absent.txt")
             }
             "plan-narrow" => {
-                include_str!("../tests/fixtures/migration-presentation/plan-narrow.txt")
+                include_str!("../../../tests/fixtures/migration-presentation/plan-narrow.txt")
             }
             "approval-review" => {
-                include_str!("../tests/fixtures/migration-presentation/approval-review.txt")
+                include_str!("../../../tests/fixtures/migration-presentation/approval-review.txt")
             }
             "receipt-narration" => {
-                include_str!("../tests/fixtures/migration-presentation/receipt-narration.txt")
+                include_str!("../../../tests/fixtures/migration-presentation/receipt-narration.txt")
             }
             _ => unreachable!(),
         };

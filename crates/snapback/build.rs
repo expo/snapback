@@ -20,8 +20,8 @@ use std::{fs, io::Write};
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=HERMES_LIB_DIR");
-    println!("cargo:rerun-if-changed=guide");
-    println!("cargo:rerun-if-changed=schemas/http.routes.v1.json");
+    println!("cargo:rerun-if-changed=../../guide");
+    println!("cargo:rerun-if-changed=../../schemas/http.routes.v1.json");
 
     // @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:
     // every binary carries the checked guide snapshot; eval evidence is not
@@ -49,7 +49,7 @@ fn main() {
 
     // Re-run if the prepared framework dir appears or changes (bootstrap copies
     // it in), so a first build after bootstrap picks up the real location.
-    println!("cargo:rerun-if-changed=vendor/ibex/ios/Frameworks");
+    println!("cargo:rerun-if-changed=../../vendor/ibex/ios/Frameworks");
 
     if target_os != "macos" {
         // Only macOS resolves Hermes through an @rpath-relative framework; other
@@ -68,7 +68,7 @@ fn main() {
     // name regardless of which framework name/layout ibex-runtime linked.
     let lib_root = std::env::var_os("HERMES_LIB_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| manifest_dir.join("vendor/ibex/ios/Frameworks"));
+        .unwrap_or_else(|| manifest_dir.join("../../vendor/ibex/ios/Frameworks"));
 
     let candidates = [
         lib_root.clone(),
@@ -110,7 +110,7 @@ fn emit_embedded_guide() {
     let manifest_dir = PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
     );
-    let guide_dir = manifest_dir.join("guide");
+    let guide_dir = manifest_dir.join("../../guide");
     let mut files = Vec::new();
     collect_guide_files(&guide_dir, &guide_dir, &mut files).expect("walk the checked guide corpus");
     files.sort();
@@ -208,7 +208,7 @@ fn emit_embedded_guide() {
             )
             .expect("write build-bound embedded guide manifest entry");
         } else {
-            let include_suffix = format!("/guide/{path}");
+            let include_suffix = format!("/../../guide/{path}");
             writeln!(
                 output,
                 "    EmbeddedGuideFile {{ path: {path:?}, bytes: include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), {include_suffix:?})), content_type: {content_type:?} }},"
@@ -294,6 +294,7 @@ fn emit_build_identity() {
     let manifest_dir = PathBuf::from(
         std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"),
     );
+    let repo_root = manifest_dir.join("../..");
 
     // The stamp must track the binary's *real* inputs, not just git metadata:
     // cargo replays cached `rustc-env` output unless a tracked input changes, so
@@ -303,30 +304,30 @@ fn emit_build_identity() {
     // Directory paths are scanned recursively by cargo. Derive this set from
     // the same source used by the dirty probe so newly embedded runtime inputs
     // cannot silently miss build-script invalidation.
-    if let Some(pathspecs) = runtime_input_pathspecs(&manifest_dir) {
+    if let Some(pathspecs) = runtime_input_pathspecs(&repo_root) {
         for pathspec in pathspecs {
-            println!("cargo:rerun-if-changed={pathspec}");
+            println!("cargo:rerun-if-changed=../../{pathspec}");
         }
     }
 
     // These additional paths feed the agent-safe implementation digest below.
-    println!("cargo:rerun-if-changed=packages/snapback-codegen");
-    println!("cargo:rerun-if-changed=packages/snapback-contract");
-    println!("cargo:rerun-if-changed=tests");
-    println!("cargo:rerun-if-changed=scripts/check-agent-safe-publication.mjs");
-    println!("cargo:rerun-if-changed=scripts/generated-artifact-policy.mjs");
-    println!("cargo:rerun-if-changed=.gitmodules");
+    println!("cargo:rerun-if-changed=../../packages/snapback-codegen");
+    println!("cargo:rerun-if-changed=../../packages/snapback-contract");
+    println!("cargo:rerun-if-changed=../../tests");
+    println!("cargo:rerun-if-changed=../../scripts/check-agent-safe-publication.mjs");
+    println!("cargo:rerun-if-changed=../../scripts/generated-artifact-policy.mjs");
+    println!("cargo:rerun-if-changed=../../.gitmodules");
     // The agent-safe digest binds vendored Ibex source and submodule state,
     // so Snapback's build script must rerun whenever Cargo may rebuild that
     // path dependency. Tracking only the parent gitlink is insufficient for
     // an incremental build whose checked-out submodule changes in place.
-    if manifest_dir.join("vendor/ibex").exists() {
+    if repo_root.join("vendor/ibex").exists() {
         // Cargo scans directory inputs recursively. Ibex's build consumes
         // build_support, capsec, schemas, native tests, public headers, and
         // vendored-generated inputs in addition to its Rust source.
-        println!("cargo:rerun-if-changed=vendor/ibex");
+        println!("cargo:rerun-if-changed=../../vendor/ibex");
     }
-    let ibex_dir = manifest_dir.join("vendor/ibex");
+    let ibex_dir = repo_root.join("vendor/ibex");
     if let Some(ibex_git_dir) = resolve_git_dir(&ibex_dir) {
         for relative in ["HEAD", "index", "commondir"] {
             let path = ibex_git_dir.join(relative);
@@ -347,19 +348,19 @@ fn emit_build_identity() {
     // carriers bind one canonical implementation-tree digest. The source-owned
     // anchor/carrier bytes are deliberately outside that tree, breaking the
     // publication cycle without letting the receipt omit implementation code.
-    if let Some(digest) = agent_safe_implementation_tree_sha256(&manifest_dir) {
+    if let Some(digest) = agent_safe_implementation_tree_sha256(&repo_root) {
         println!("cargo:rustc-env=SNAPBACK_AGENT_SAFE_IMPLEMENTATION_SHA256={digest}");
     }
     // The dirty probe below is scoped by this shared definition; a changed
     // definition must re-run the probe.
-    println!("cargo:rerun-if-changed=scripts/runtime-build-inputs.txt");
+    println!("cargo:rerun-if-changed=../../scripts/runtime-build-inputs.txt");
 
     // Re-stamp when the git side moves: HEAD and the index live in the
     // (possibly per-worktree) git dir; the branch-tip ref store lives in the
     // *common* git dir. Tracking refs/heads + packed-refs catches ref-only
     // moves (`git reset --soft`, `git update-ref`) that touch neither HEAD —
     // still the same symbolic ref — nor the index (ENG-23365).
-    if let Some(git_dir) = resolve_git_dir(&manifest_dir) {
+    if let Some(git_dir) = resolve_git_dir(&repo_root) {
         let common_dir = resolve_common_dir(&git_dir);
         let inputs = [
             git_dir.join("HEAD"),
@@ -377,7 +378,7 @@ fn emit_build_identity() {
     }
 
     let commit = env_nonempty("SNAPBACK_BUILD_GIT_COMMIT")
-        .or_else(|| git(&manifest_dir, &["rev-parse", "HEAD"]));
+        .or_else(|| git(&repo_root, &["rev-parse", "HEAD"]));
     if let Some(commit) = commit {
         println!("cargo:rustc-env=SNAPBACK_BUILD_GIT_COMMIT={commit}");
     }
@@ -406,12 +407,12 @@ fn emit_build_identity() {
                 "--porcelain".to_owned(),
                 "--ignore-submodules=untracked".to_owned(),
             ];
-            if let Some(pathspecs) = runtime_input_pathspecs(&manifest_dir) {
+            if let Some(pathspecs) = runtime_input_pathspecs(&repo_root) {
                 args.push("--".to_owned());
                 args.extend(pathspecs);
             }
             let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
-            git_output(&manifest_dir, &arg_refs).map(|s| !s.is_empty())
+            git_output(&repo_root, &arg_refs).map(|s| !s.is_empty())
         });
     // Only a proven-clean tree emits "false"; an unknown result stays unset and
     // the runtime defaults it to dirty (conservative: no reuse on doubt).
@@ -436,22 +437,22 @@ fn emit_build_identity() {
     println!("cargo:rustc-env=SNAPBACK_BUILD_DISTRIBUTION={distribution}");
 }
 
-fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> {
+fn agent_safe_implementation_tree_sha256(repo_root: &Path) -> Option<String> {
     // This authority is stricter than the general diagnostic build identity:
     // callers may override SNAPBACK_BUILD_GIT_DIRTY for deterministic build
     // stamping, but they may not override the bytes that authorize a public
     // capability. Untracked source can participate in Rust module resolution,
     // so require the complete contributor worktree to be clean.
     if !git_output(
-        manifest_dir,
+        repo_root,
         &["status", "--porcelain", "--untracked-files=all"],
     )?
     .is_empty()
     {
         return None;
     }
-    let ibex_dir = manifest_dir.join("vendor/ibex");
-    let parent_ibex_gitlink = git(manifest_dir, &["rev-parse", "HEAD:vendor/ibex"])?;
+    let ibex_dir = repo_root.join("vendor/ibex");
+    let parent_ibex_gitlink = git(repo_root, &["rev-parse", "HEAD:vendor/ibex"])?;
     let checked_out_ibex_head = git_output(&ibex_dir, &["rev-parse", "HEAD"])?;
     if checked_out_ibex_head != parent_ibex_gitlink
         || !git_output(
@@ -464,7 +465,7 @@ fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> 
     }
 
     let listed = git_output_bytes(
-        manifest_dir,
+        repo_root,
         &[
             "ls-tree",
             "-r",
@@ -473,9 +474,11 @@ fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> 
             "--",
             "Cargo.toml",
             "Cargo.lock",
-            "build.rs",
+            "crates/snapback/Cargo.toml",
+            "crates/snapback/build.rs",
             ".gitmodules",
-            "src",
+            "crates/snapback/src",
+            "crates/snapback/tests",
             "packages/snapback-codegen",
             "packages/snapback-contract",
             "tests",
@@ -491,7 +494,7 @@ fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> 
         .collect::<Option<Vec<_>>>()?;
     entries.retain(|entry| !agent_safe_publication_cycle_path(&entry.path));
     let ibex_entries = String::from_utf8(git_output_bytes(
-        manifest_dir,
+        repo_root,
         &["ls-tree", "-z", "HEAD", "--", "vendor/ibex"],
     )?)
     .ok()?
@@ -514,10 +517,10 @@ fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> 
     }
 
     let mut digest = Sha256::new();
-    digest.update(b"snapback:agent-safe-implementation-tree:v2\n");
+    digest.update(b"snapback:agent-safe-implementation-tree:v4\n");
     for entry in entries {
         let bytes = if entry.object_type == "blob" {
-            git_output_bytes(manifest_dir, &["cat-file", "blob", &entry.oid])?
+            git_output_bytes(repo_root, &["cat-file", "blob", &entry.oid])?
         } else if entry.object_type == "commit" && entry.mode == "160000" {
             entry.oid.as_bytes().to_vec()
         } else {
@@ -572,10 +575,10 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
     // canonical, receipt-bound publication-cycle artifacts mirrored here.
     matches!(
         path,
-        "src/local-agent-safe-storage-publication.anchor.json"
-            | "src/local-agent-safe-storage-publication.carrier.json"
-            | "src/local-agent-safe-derived-deployment-fork-publication.anchor.json"
-            | "src/local-agent-safe-derived-deployment-fork-publication.carrier.json"
+        "crates/snapback/src/local-agent-safe-storage-publication.anchor.json"
+            | "crates/snapback/src/local-agent-safe-storage-publication.carrier.json"
+            | "crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json"
+            | "crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json"
             | "tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json"
             | "tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json"
             | "tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json"
@@ -599,8 +602,8 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
             | "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json"
             | "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json"
             | "tests/acceptance/local-store-carrier-exit-v1-evidence.md"
-            | "src/local-persistent-store-publication.anchor.v1.json"
-            | "src/local-persistent-store-publication.v1.json"
+            | "crates/snapback/src/local-persistent-store-publication.anchor.v1.json"
+            | "crates/snapback/src/local-persistent-store-publication.v1.json"
     )
 }
 
@@ -613,8 +616,8 @@ fn env_nonempty(name: &str) -> Option<String> {
 /// `#` comments). `None` — file missing, unreadable, or empty — means "no
 /// scoped definition"; callers fall back to whole-tree status, which can only
 /// over-report dirtiness.
-fn runtime_input_pathspecs(manifest_dir: &Path) -> Option<Vec<String>> {
-    let content = fs::read_to_string(manifest_dir.join("scripts/runtime-build-inputs.txt")).ok()?;
+fn runtime_input_pathspecs(repo_root: &Path) -> Option<Vec<String>> {
+    let content = fs::read_to_string(repo_root.join("scripts/runtime-build-inputs.txt")).ok()?;
     let pathspecs: Vec<String> = content
         .lines()
         .map(str::trim)

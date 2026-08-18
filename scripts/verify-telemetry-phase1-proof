@@ -65,7 +65,7 @@ case "$PROOF_MODE" in
         prepare_rust_test_fixtures
         scripts/bootstrap-ibex-runtime
         node --check scripts/telemetry-phase1-idle-proof.mjs
-        cargo test --locked --features telemetry-phase1-proof --lib \
+        cargo test --locked -p snapback --features telemetry-phase1-proof --lib \
             telemetry::phase1_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
             -- --exact
         ;;
@@ -78,10 +78,10 @@ case "$PROOF_MODE" in
         PROOF_REVISION="$(git rev-parse HEAD)"
         prepare_rust_test_fixtures
         scripts/bootstrap-ibex-runtime
-        cargo test --locked --features telemetry-phase1-proof --lib \
+        cargo test --locked -p snapback --features telemetry-phase1-proof --lib \
             telemetry::phase1_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
             -- --exact
-        cargo build --locked --release --features telemetry-phase1-proof \
+        cargo build --locked --release -p snapback --features telemetry-phase1-proof \
             --bin snapback --bin snapback-telemetry-bench
         node packages/snapback-cli/runtime-readiness.mjs issue \
             --binary "$PROOF_ROOT/target/release/snapback" \

@@ -1005,7 +1005,7 @@ mod tests {
         // package projection, while this owning Rust test pins that projection
         // to the model and ceiling enforced by the activation authority.
         let projection: serde_json::Value = serde_json::from_str(include_str!(
-            "../packages/snapback-cli/network-profile-authority.json"
+            "../../../packages/snapback-cli/network-profile-authority.json"
         ))
         .expect("network-profile MCP authority projection is JSON");
         assert_eq!(

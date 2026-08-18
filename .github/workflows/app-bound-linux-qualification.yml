@@ -12,11 +12,11 @@ on:
       - .node-version
       - Cargo.lock
       - Cargo.toml
-      - build.rs
+      - crates/snapback/build.rs
       - bun.lock
       - package.json
       - rust-toolchain.toml
-      - src/**
+      - crates/**
       - packages/snapback-app-cli/**
       - packages/snapback-cli/**
       - packages/snapback-client/**

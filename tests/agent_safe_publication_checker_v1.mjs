@@ -65,8 +65,8 @@ const leafSetOnly = invoked && process.argv.includes('--leaf-set-only');
 const test = invoked && !leafSetOnly ? nodeTest : () => {};
 const storage = {
   id: 'agent_safe_storage_v1',
-  anchor: 'src/local-agent-safe-storage-publication.anchor.json',
-  carrier: 'src/local-agent-safe-storage-publication.carrier.json',
+  anchor: 'crates/snapback/src/local-agent-safe-storage-publication.anchor.json',
+  carrier: 'crates/snapback/src/local-agent-safe-storage-publication.carrier.json',
   receipt: 'tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json',
   components: [
     'ordinaryMutationHostPlanEnvelope',
@@ -79,8 +79,8 @@ const storage = {
 };
 const derived = {
   id: 'agent_safe_derived_deployment_fork_v1',
-  anchor: 'src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
-  carrier: 'src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+  anchor: 'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+  carrier: 'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
   receipt: 'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
   components: ['derivedDeploymentForkSafetyV1'],
 };
@@ -406,10 +406,10 @@ function qualifiedImplementationScopeFixture() {
   execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
   execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
   execFileSync('git', ['config', 'core.filemode', 'true'], { cwd: scratch });
-  mkdirSync(join(scratch, 'src'), { recursive: true });
-  writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = true;\n');
-  writeFileSync(join(scratch, 'src/type-swap'), 'qualified-target.rs');
-  execFileSync('git', ['add', 'src/qualified.rs', 'src/type-swap'], { cwd: scratch });
+  mkdirSync(join(scratch, 'crates/snapback/src'), { recursive: true });
+  writeFileSync(join(scratch, 'crates/snapback/src/qualified.rs'), 'pub const QUALIFIED: bool = true;\n');
+  writeFileSync(join(scratch, 'crates/snapback/src/type-swap'), 'qualified-target.rs');
+  execFileSync('git', ['add', 'crates/snapback/src/qualified.rs', 'crates/snapback/src/type-swap'], { cwd: scratch });
   const ibexGitlink = execFileSync('git', ['rev-parse', 'HEAD:vendor/ibex'], {
     cwd: root,
     encoding: 'utf8',
@@ -424,7 +424,7 @@ function qualifiedImplementationScopeFixture() {
   }).trim();
   const scoped = {
     schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
-    roots: ['src'],
+    roots: ['crates/snapback/src'],
     files: ['vendor/ibex'],
   };
   return {
@@ -640,8 +640,8 @@ function publishedDerivedFixture({
   execFileSync('git', ['init', '--quiet'], { cwd: scratch });
   execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
   execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
-  mkdirSync(join(scratch, 'src'), { recursive: true });
-  writeFileSync(join(scratch, 'src/qualification-marker.txt'), 'derived-fork qualification C\n');
+  mkdirSync(join(scratch, 'crates/snapback/src'), { recursive: true });
+  writeFileSync(join(scratch, 'crates/snapback/src/qualification-marker.txt'), 'derived-fork qualification C\n');
   for (const path of DERIVED_FORK_SIBLING_CHAIN_PATHS) {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), readFileSync(join(root, path)));
@@ -682,7 +682,7 @@ function publishedDerivedFixture({
     writeFileSync(join(scratch, preexistingDatedEvidencePath), 'retained historical bytes\n');
   }
   execFileSync('git', [
-    'add', 'src/qualification-marker.txt',
+    'add', 'crates/snapback/src/qualification-marker.txt',
     ...DERIVED_FORK_SIBLING_CHAIN_PATHS,
     ...DERIVED_FORK_IMPLEMENTATION_SCOPE.files.filter((path) => path !== 'vendor/ibex'),
     ...qualificationContextPaths,
@@ -1928,7 +1928,7 @@ test('v3 binds the reviewed scope even when two scopes select the same leaves', 
   const sameLeavesDifferentDeclaration = {
     schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
     roots: [],
-    files: ['src/qualified.rs', 'src/type-swap', 'vendor/ibex'],
+    files: ['crates/snapback/src/qualified.rs', 'crates/snapback/src/type-swap', 'vendor/ibex'],
   };
   assert.notEqual(
     scopedDigest,
@@ -1937,7 +1937,7 @@ test('v3 binds the reviewed scope even when two scopes select the same leaves', 
   assert.match(scopedDigest, /^sha256:[0-9a-f]{64}$/u);
   assert.deepEqual(scoped, {
     schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
-    roots: ['src'],
+    roots: ['crates/snapback/src'],
     files: ['vendor/ibex'],
   });
 });
@@ -2058,7 +2058,9 @@ test('C-bound sibling custody refuses a trigger that no longer covers its mapped
       () => validatePublicationRecord(scratch, derived),
       (error) => {
         assert.match(error.message, /sibling custody transfer .* is not covered/u);
-        assert.ok(error.message.includes(path), error.message);
+        assert.ok(DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS.some((transfer) => (
+          transfer.gate === gate && error.message.includes(transfer.path)
+        )), error.message);
         assert.ok(error.message.includes(gate), error.message);
         return true;
       },
@@ -2184,7 +2186,7 @@ test('claim snapshot stands when only out-of-scope files change', () => {
 
 test('one-byte src change yields requalificationDue and the published derived-fork claim stands', () => {
   const scratch = publishedDerivedFixture();
-  const sourcePath = 'src/qualification-marker.txt';
+  const sourcePath = 'crates/snapback/src/qualification-marker.txt';
   writeFileSync(join(scratch, sourcePath), 'derived-fork qualification D\n');
   const publication = commitFixture(scratch, 'change one qualified source byte', sourcePath);
 
@@ -2234,7 +2236,7 @@ test('published fork treats structurally regenerated sibling carriers as scoped 
 
 test('publication-chain tampering still refuses with requalificationDue pending', () => {
   const scratch = publishedDerivedFixture();
-  const sourcePath = 'src/qualification-marker.txt';
+  const sourcePath = 'crates/snapback/src/qualification-marker.txt';
   writeFileSync(join(scratch, sourcePath), 'derived-fork qualification D\n');
   commitFixture(scratch, 'change one qualified source byte', sourcePath);
 
@@ -2276,15 +2278,15 @@ test('withdrawal scenario keeps all nine wave leaves out of scope while generic 
     implementationScope: scoped,
   }), scopedDigest);
 
-  writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = falsE;\n');
-  const runtimeCommit = commitFixture(scratch, 'change one runtime byte', 'src/qualified.rs');
+  writeFileSync(join(scratch, 'crates/snapback/src/qualified.rs'), 'pub const QUALIFIED: bool = falsE;\n');
+  const runtimeCommit = commitFixture(scratch, 'change one runtime byte', 'crates/snapback/src/qualified.rs');
   const runtimeSnapshot = evaluateClaimSnapshot(scratch, {
     qualificationCommit: qualification,
     publicationCommit: runtimeCommit,
     scope: scoped,
   });
   assert.equal(runtimeSnapshot.state, 'invalid');
-  assert.deepEqual(runtimeSnapshot.scopedChanges, [{ status: 'M', path: 'src/qualified.rs' }]);
+  assert.deepEqual(runtimeSnapshot.scopedChanges, [{ status: 'M', path: 'crates/snapback/src/qualified.rs' }]);
   assert.deepEqual(runtimeSnapshot.outOfScopeChanges.map(({ path }) => path), ninePaths);
   assert.throws(
     () => assertQualifiedImplementationDigestAtPublication(scratch, {
@@ -2295,7 +2297,7 @@ test('withdrawal scenario keeps all nine wave leaves out of scope while generic 
       expectedDigestVersion: SCOPED_IMPLEMENTATION_DIGEST_VERSION,
       implementationScope: scoped,
     }),
-    /scoped surface changed without requalification: M:src\/qualified\.rs/u,
+    /scoped surface changed without requalification: M:crates\/snapback\/src\/qualified\.rs/u,
   );
 });
 
@@ -2374,8 +2376,8 @@ test('C-to-P custody permits unrelated demo and LLP churn outside the qualified 
 test('C-to-P custody refuses a receipt rotated to P that does not match C', () => {
   const { scratch, qualification, expectedDigest: qualificationDigest } =
     qualifiedImplementationScopeFixture();
-  writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = false;\n');
-  const publication = commitFixture(scratch, 'drift qualified source', 'src/qualified.rs');
+  writeFileSync(join(scratch, 'crates/snapback/src/qualified.rs'), 'pub const QUALIFIED: bool = false;\n');
+  const publication = commitFixture(scratch, 'drift qualified source', 'crates/snapback/src/qualified.rs');
   const receiptDigest = implementationDigestAt(scratch, publication);
 
   assert.throws(
@@ -2387,7 +2389,7 @@ test('C-to-P custody refuses a receipt rotated to P that does not match C', () =
       expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     }),
     (error) => {
-      assert.match(error.message, /in-scope paths drifted: M:src\/qualified\.rs/u);
+      assert.match(error.message, /in-scope paths drifted: M:crates\/snapback\/src\/qualified\.rs/u);
       assert.ok(error.message.includes(`receipt ${receiptDigest}`));
       assert.ok(error.message.includes(`qualification C ${qualificationDigest}`));
       assert.ok(error.message.includes(`publication P ${receiptDigest}`));
@@ -2398,8 +2400,8 @@ test('C-to-P custody refuses a receipt rotated to P that does not match C', () =
 
 test('C-to-P custody refuses a receipt matching C when P drifted in scope', () => {
   const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
-  writeFileSync(join(scratch, 'src/qualified.rs'), 'pub const QUALIFIED: bool = false;\n');
-  const publication = commitFixture(scratch, 'drift qualified source', 'src/qualified.rs');
+  writeFileSync(join(scratch, 'crates/snapback/src/qualified.rs'), 'pub const QUALIFIED: bool = false;\n');
+  const publication = commitFixture(scratch, 'drift qualified source', 'crates/snapback/src/qualified.rs');
   const actualDigest = implementationDigestAt(scratch, publication);
 
   assert.throws(
@@ -2411,7 +2413,7 @@ test('C-to-P custody refuses a receipt matching C when P drifted in scope', () =
       expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     }),
     (error) => {
-      assert.match(error.message, /in-scope paths drifted: M:src\/qualified\.rs/u);
+      assert.match(error.message, /in-scope paths drifted: M:crates\/snapback\/src\/qualified\.rs/u);
       assert.ok(error.message.includes(`receipt ${expectedDigest}`));
       assert.ok(error.message.includes(`qualification C ${expectedDigest}`));
       assert.ok(error.message.includes(`publication P ${actualDigest}`));
@@ -2452,8 +2454,8 @@ test('C-to-P custody refuses a vendor/ibex gitlink change', () => {
 
 test('C-to-P custody refuses an in-scope executable-mode-only change', () => {
   const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
-  chmodSync(join(scratch, 'src/qualified.rs'), 0o755);
-  const publication = commitFixture(scratch, 'make qualified source executable', 'src/qualified.rs');
+  chmodSync(join(scratch, 'crates/snapback/src/qualified.rs'), 0o755);
+  const publication = commitFixture(scratch, 'make qualified source executable', 'crates/snapback/src/qualified.rs');
   const actualDigest = implementationDigestAt(scratch, publication);
   assert.notEqual(actualDigest, expectedDigest);
   assert.throws(
@@ -2464,15 +2466,15 @@ test('C-to-P custody refuses an in-scope executable-mode-only change', () => {
       expectedDigest,
       expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     }),
-    /in-scope paths drifted: M:src\/qualified\.rs/u,
+    /in-scope paths drifted: M:crates\/snapback\/src\/qualified\.rs/u,
   );
 });
 
 test('C-to-P custody refuses an in-scope file-to-symlink type swap', () => {
   const { scratch, qualification, expectedDigest } = qualifiedImplementationScopeFixture();
-  unlinkSync(join(scratch, 'src/type-swap'));
-  symlinkSync('qualified-target.rs', join(scratch, 'src/type-swap'));
-  const publication = commitFixture(scratch, 'swap qualified file for symlink', 'src/type-swap');
+  unlinkSync(join(scratch, 'crates/snapback/src/type-swap'));
+  symlinkSync('qualified-target.rs', join(scratch, 'crates/snapback/src/type-swap'));
+  const publication = commitFixture(scratch, 'swap qualified file for symlink', 'crates/snapback/src/type-swap');
   const actualDigest = implementationDigestAt(scratch, publication);
   assert.notEqual(actualDigest, expectedDigest);
   assert.throws(
@@ -2483,11 +2485,11 @@ test('C-to-P custody refuses an in-scope file-to-symlink type swap', () => {
       expectedDigest,
       expectedDigestVersion: IMPLEMENTATION_DIGEST_VERSION,
     }),
-    /in-scope paths drifted: T:src\/type-swap/u,
+    /in-scope paths drifted: T:crates\/snapback\/src\/type-swap/u,
   );
 });
 
-test('v1-era implementation digests refuse explicitly under the v2 algorithm', () => {
+test('v1-era implementation digests refuse explicitly under the v4 algorithm', () => {
   const { scratch, qualification } = qualifiedImplementationScopeFixture();
   const v1EraDigest = legacyImplementationDigestV1At(scratch, qualification);
   assert.notEqual(v1EraDigest, implementationDigestAt(scratch, qualification));
@@ -2499,14 +2501,14 @@ test('v1-era implementation digests refuse explicitly under the v2 algorithm', (
       expectedDigest: v1EraDigest,
       expectedDigestVersion: 'snapback:agent-safe-implementation-tree:v1',
     }),
-    /presents v1-era implementation digest version.*re-qualification.*v2/u,
+    /presents v1-era implementation digest version.*re-qualification.*v4/u,
   );
 });
 
 test('build and checker bind the shared generated-artifact policy', () => {
   assert.ok(IMPLEMENTATION_ROOTS.includes('scripts/check-agent-safe-publication.mjs'));
   assert.ok(IMPLEMENTATION_ROOTS.includes('scripts/generated-artifact-policy.mjs'));
-  const build = readFileSync(join(root, 'build.rs'), 'utf8');
+  const build = readFileSync(join(root, 'crates/snapback/build.rs'), 'utf8');
   for (const path of IMPLEMENTATION_ROOTS) {
     assert.ok(build.includes(`"${path}"`), `build digest omits ${path}`);
   }
@@ -2529,7 +2531,7 @@ test('build and checker bind the shared generated-artifact policy', () => {
     'build/checker publication-cycle allowlists drifted in either direction',
   );
   assert.ok(build.includes(
-    'cargo:rerun-if-changed=scripts/generated-artifact-policy.mjs',
+    'cargo:rerun-if-changed=../../scripts/generated-artifact-policy.mjs',
   ));
   assert.equal(allowedPublicationPath('scripts/generated-artifact-policy.mjs'), false);
   assert.equal(allowedPublicationPath('scripts/check-generated-artifacts'), false);
@@ -3288,15 +3290,15 @@ test('P-vs-C generated allowance admits only qualification-C paths', () => {
 });
 
 test('P-vs-C publication path allowlist rejects executable drift', () => {
-  assert.equal(allowedPublicationPath('src/local.rs'), false);
-  assert.equal(allowedPublicationPath('src/manifest.rs'), false);
+  assert.equal(allowedPublicationPath('crates/snapback/src/local.rs'), false);
+  assert.equal(allowedPublicationPath('crates/snapback/src/manifest.rs'), false);
   assert.equal(
     allowedPublicationPath('tests/conformance/local-persistent-store-publication-v1.mjs'),
     false,
   );
   assert.equal(allowedPublicationPath('packages/snapback-client/index.mjs'), false);
   assert.equal(
-    allowedPublicationPath('src/local-agent-safe-storage-publication.anchor.json'),
+    allowedPublicationPath('crates/snapback/src/local-agent-safe-storage-publication.anchor.json'),
     true,
   );
   assert.equal(
@@ -3360,8 +3362,8 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
     'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
     'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json',
     'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
-    'src/local-persistent-store-publication.anchor.v1.json',
-    'src/local-persistent-store-publication.v1.json',
+    'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+    'crates/snapback/src/local-persistent-store-publication.v1.json',
   ]) {
     assert.equal(allowedPublicationPath(path), true, path);
   }
@@ -3387,8 +3389,8 @@ test('P-vs-C local-store carrier refresh is an exact digest-only transform', () 
 
 test('P-vs-C local-store transform rejects extra carrier or anchor edits', () => {
   for (const path of [
-    'src/local-persistent-store-publication.anchor.v1.json',
-    'src/local-persistent-store-publication.v1.json',
+    'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+    'crates/snapback/src/local-persistent-store-publication.v1.json',
   ]) {
     const { scratch, qualification } = localStoreTransformFixture();
     writeFileSync(join(scratch, path), Buffer.concat([
@@ -3419,7 +3421,7 @@ test('structural store-carrier tampering belongs to its registered drift gate', 
     'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json',
     'tests/acceptance/fixtures/fleet-observatory/budget-freeze.2026-08-06.v1.json',
     'tests/acceptance/fixtures/fleet-observatory/move1-exit.2026-08-06.v1.json',
-    'src/local-persistent-store-publication.anchor.v1.json',
+    'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
     carrierPath,
     'schemas/capability.manifest.local-dev-sqlite-ibex.json',
     ...Object.keys(carrier.executorSourceSha256),

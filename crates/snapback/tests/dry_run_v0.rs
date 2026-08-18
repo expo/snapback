@@ -13,7 +13,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn generated(demo: &str, file: &str) -> Value {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("demos")
         .join(demo)
         .join("snapback/generated")

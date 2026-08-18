@@ -7,7 +7,7 @@
 use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 
-const CORPUS: &str = include_str!("../schemas/telemetry.projection-fixtures-v1.json");
+const CORPUS: &str = include_str!("../../../schemas/telemetry.projection-fixtures-v1.json");
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

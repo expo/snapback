@@ -2,8 +2,8 @@
 
 use snapback::embed::{NativeCodePosture, ProductionBuilder, production_from_manifests};
 
-const SCHEMA: &[u8] = include_bytes!("../demos/todo/snapback/generated/schema.manifest.json");
-const FUNCTIONS: &[u8] = include_bytes!("../demos/todo/snapback/generated/functions.manifest.json");
+const SCHEMA: &[u8] = include_bytes!("../../../demos/todo/snapback/generated/schema.manifest.json");
+const FUNCTIONS: &[u8] = include_bytes!("../../../demos/todo/snapback/generated/functions.manifest.json");
 
 #[test]
 fn external_consumer_can_build_the_supported_self_hosted_surface() {

@@ -12,7 +12,7 @@
 // differs, which is exactly the surface the third twin leg gates.
 //
 // Executed by cloudflare/test/twin-engine.mjs under
-// src/bin/snapback-conformance-twin.rs; never deployed.
+// crates/snapback/src/bin/snapback-conformance-twin.rs; never deployed.
 
 import capabilityManifest from '../generated/capability.manifest.cloudflare-do-sqlite-v8.json';
 
@@ -52,7 +52,7 @@ export const deploymentIdentity = Object.freeze({
 });
 
 // Mirrors the schema the twin runner applies on both Rust legs
-// (src/bin/snapback-conformance-twin.rs `schema()`).
+// (crates/snapback/src/bin/snapback-conformance-twin.rs `schema()`).
 export const schema = {
   schemaHash: deploymentIdentity.schemaHash,
   strictDeclarations: false,

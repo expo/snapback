@@ -22,7 +22,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn generated(file: &str) -> String {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("demos/todo/snapback/generated")
         .join(file);
     fs::read_to_string(path).expect("read generated artifact")

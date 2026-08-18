@@ -21,23 +21,23 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn committed_manifest_path(file_name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("schemas")
         .join(file_name)
 }
 
 fn committed_cloudflare_manifest_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json")
 }
 
 fn committed_maturity_registry_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("tests/acceptance/capability-maturity.experimental.json")
 }
 
 fn committed_capability_registry_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/acceptance/capability-registry.ids.json")
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("tests/acceptance/capability-registry.ids.json")
 }
 
 fn declared_manifest_json(manifest: CapabilityManifest) -> Value {
@@ -147,7 +147,7 @@ fn capability_maturity_registry_matches_codegen_canonical_emission() {
             "import { experimentalTargetCapabilityIdsCanonicalJson as emit } from \
              './packages/snapback-codegen/index.mjs'; process.stdout.write(emit());",
         ])
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .output()
         .expect("run codegen maturity emitter");
     assert!(

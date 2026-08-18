@@ -27,7 +27,7 @@ use snapback::workerd_exec::{
 };
 use std::collections::BTreeMap;
 
-const TWIN_MODULE_SOURCE: &str = include_str!("conformance/twin-corpus.handlers.js");
+const TWIN_MODULE_SOURCE: &str = include_str!("../../../tests/conformance/twin-corpus.handlers.js");
 
 // Same adversarial module bytes on both engines (ENG-24339). It tries every
 // harness-control interception shape before registering its handler: reserve a
@@ -1042,7 +1042,7 @@ fn ambient_powers_are_unreachable_on_both_engines() {
     // one exclusion is HermesInternal, the declared engine fact pinned by
     // deterministic_member_denial_is_a_declared_engine_fact below.
     let allowlist: Value =
-        serde_json::from_str(include_str!("../packages/snapback-harness/allowlist.json"))
+        serde_json::from_str(include_str!("../../../packages/snapback-harness/allowlist.json"))
             .expect("allowlist.json parses");
     let probes: Vec<String> = allowlist["bannedEverywhere"]["globals"]
         .as_array()
@@ -1519,7 +1519,7 @@ fn handler_boundary_wire_bytes_validate_against_committed_schemas() {
     result.expect("captured workerd mutation succeeds");
 
     let validate = |file: &str, raw: &str, role: &str| {
-        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        let path = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
             .join("schemas")
             .join(file);
         let schema: Value = serde_json::from_str(

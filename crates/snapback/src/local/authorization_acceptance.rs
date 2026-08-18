@@ -1263,7 +1263,7 @@ fn property_query_ids(snapback: &LocalSnapback) -> Vec<String> {
 //   production Ibex results with the independent Contract-side oracle.
 fn shared_property_corpus_emits_production_fresh_query_receipt() {
     let config: Value = serde_json::from_str(include_str!(
-        "../../tests/acceptance/auth-invalidation-v1-property-corpus.json"
+        "../../../../tests/acceptance/auth-invalidation-v1-property-corpus.json"
     ))
     .expect("shared property corpus config");
     assert_eq!(config["schemaVersion"], 1);
@@ -2016,7 +2016,7 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
         })
     );
     let expected: Value = serde_json::from_str(include_str!(
-        "../../tests/acceptance/auth-invalidation-v1-receipt.json"
+        "../../../../tests/acceptance/auth-invalidation-v1-receipt.json"
     ))
     .expect("committed acceptance receipt JSON");
     assert_eq!(actual, expected, "acceptance receipt drifted");

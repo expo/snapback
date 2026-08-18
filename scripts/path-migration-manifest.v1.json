@@ -8,7 +8,7 @@
     "derivation": "Rows are a mechanical, reviewed projection of the completed Phase 0 survey; currentPathExpression remains evidence and targetExpression is the migration obligation."
   },
   "epoch": {
-    "current": "pre-flip",
+    "current": "phase-1",
     "order": [
       "pre-flip",
       "phase-1",
@@ -225,7 +225,7 @@
     },
     {
       "id": "root-rust-example",
-      "activeFrom": "phase-2",
+      "activeFrom": "phase-1",
       "projections": [
         "scripts",
         "workflow-yaml",
@@ -335,7 +335,11 @@
       },
       {
         "id": "dated-acceptance-fixtures",
-        "pattern": "^tests/acceptance/fixtures/.+\\.2026-[^/]*\\.v1\\.json$"
+        "pattern": "^tests/acceptance/fixtures/.+\\.2026-[^/]*\\.v1\\.json$",
+        "files": [
+          "tests/acceptance/fixtures/agent-safe-storage/performance-baseline-build-recipe.v1.json",
+          "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-09.v3.json"
+        ]
       },
       {
         "id": "acceptance-evidence-markdown",
@@ -1934,7 +1938,7 @@
       "targetExpression": "After the Phase 1 move, add two parent hops so the include resolves from crates/snapback back to the named repository-root corpus; preserve later target moves such as targets/cloudflare.",
       "verification": "Rust compilation of every moved crate and integration-test target.",
       "changeKind": "update",
-      "applyByEpoch": "phase-2",
+      "applyByEpoch": "phase-1",
       "surveyCitation": "path-migration-manifest.md:171",
       "targetFiles": [
         "crates/snapback/examples/embedded_todo.rs"

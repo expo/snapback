@@ -2,7 +2,7 @@
   "corpus": "snapback-data-tier",
   "corpusVersion": 1,
   "name": "todo-v2-patch-missing-row-is-soft",
-  "notes": "The JS defensive-get idiom lowers to plain Patch: a missing row is a no-op with changed count 0 (src/storage.rs patch path), never an error.",
+  "notes": "The JS defensive-get idiom lowers to plain Patch: a missing row is a no-op with changed count 0 (crates/snapback/src/storage.rs patch path), never an error.",
   "schema": {
     "tables": [
       {

@@ -132,7 +132,7 @@ fn wait_for_ready(child: &mut Child, ready_file: &Path) {
 #[test]
 fn server_and_external_status_sustain_one_hundred_file_replica_commits() {
     let binary = env!("CARGO_BIN_EXE_snapback");
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let manifest_dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let directory = tempfile::tempdir().expect("temporary replication directory");
     let database = directory.path().join("source.sqlite3");
     let remote = directory.path().join("remote");

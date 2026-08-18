@@ -696,7 +696,7 @@ fn materialize_all_oracle_over_1100_roots_matches_independent_digest() {
 #[test]
 fn relational_migration_coupled_suite_v1_summary() {
     let ticket = std::fs::read_to_string(
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
             .join("issues/closed/20260724-step5-impl-coupled-suite.md"),
     )
     .expect("read coupled-suite ticket");

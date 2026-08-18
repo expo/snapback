@@ -627,7 +627,7 @@ pub fn control_catalog_digest() -> SnapbackResult<String> {
     static DIGEST: OnceLock<Result<String, String>> = OnceLock::new();
     match DIGEST.get_or_init(|| {
         serde_json::from_str::<Value>(include_str!(
-            "../control-catalog/generated/control-catalog.v1.json"
+            "../../../control-catalog/generated/control-catalog.v1.json"
         ))
         .map_err(|error| error.to_string())?
         .get("catalogDigest")

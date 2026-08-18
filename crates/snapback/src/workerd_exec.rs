@@ -215,7 +215,8 @@ pub fn detect_workerd_binary() -> Option<PathBuf> {
         }
         return None;
     }
-    let repo_local = Path::new(env!("CARGO_MANIFEST_DIR")).join("node_modules/.bin/workerd");
+    let repo_local =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../node_modules/.bin/workerd");
     if repo_local.is_file() {
         return Some(repo_local);
     }
@@ -262,7 +263,7 @@ pub struct CompatConfig {
 /// nodejs_compat* flag is refused fail-closed on every generator — Node
 /// compatibility surface would silently re-widen the handler-visible dialect.
 pub fn compat_config() -> SnapbackResult<CompatConfig> {
-    let raw = include_str!("../packages/snapback-harness/compat.json");
+    let raw = include_str!("../../../packages/snapback-harness/compat.json");
     let config: CompatConfig = serde_json::from_str(raw).map_err(|error| {
         SnapbackError::error(
             "SNAPBACK_V8_COMPAT_CONFIG_INVALID",
@@ -349,17 +350,17 @@ const mainWorker :Workerd.Worker = (
 }
 
 pub(crate) const HARNESS_ENTRY_SOURCE: &str =
-    include_str!("../packages/snapback-harness/workerd/entry.mjs");
+    include_str!("../../../packages/snapback-harness/workerd/entry.mjs");
 pub(crate) const HARNESS_SERVER_SOURCE: &str =
-    include_str!("../packages/snapback-harness/workerd/handler-server.mjs");
+    include_str!("../../../packages/snapback-harness/workerd/handler-server.mjs");
 pub(crate) const HARNESS_STRIP_SOURCE: &str =
-    include_str!("../packages/snapback-harness/workerd/strip.mjs");
+    include_str!("../../../packages/snapback-harness/workerd/strip.mjs");
 pub(crate) const HARNESS_ALLOWLIST_INSTALL_SOURCE: &str =
-    include_str!("../packages/snapback-harness/allowlist-install.js");
+    include_str!("../../../packages/snapback-harness/allowlist-install.js");
 pub(crate) const HARNESS_CTX_BOOTSTRAP_SOURCE: &str =
-    include_str!("../packages/snapback-harness/ctx-bootstrap.js");
+    include_str!("../../../packages/snapback-harness/ctx-bootstrap.js");
 pub(crate) const HARNESS_ALLOWLIST_JSON: &str =
-    include_str!("../packages/snapback-harness/allowlist.json");
+    include_str!("../../../packages/snapback-harness/allowlist.json");
 
 fn allowlist_module_source() -> String {
     format!("export default {};", HARNESS_ALLOWLIST_JSON.trim_end())

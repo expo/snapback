@@ -285,6 +285,7 @@ mod tests {
             ordering: OrderingVector,
         }
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
             .join("tests/conformance/relation-activity-publication-v1.vectors.json");
         let vectors: Vectors =
             serde_json::from_slice(&std::fs::read(path).expect("read cursor vectors"))

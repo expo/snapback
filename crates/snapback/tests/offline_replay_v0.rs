@@ -27,7 +27,7 @@ use tower::ServiceExt;
 const USER: &str = "user_offline";
 
 fn generated(file: &str) -> Value {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("demos/todo-v2/snapback/generated")
         .join(file);
     serde_json::from_str(&fs::read_to_string(path).expect("read generated artifact"))

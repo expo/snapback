@@ -338,7 +338,7 @@ async function startServerWithDeps({
   const expectedIdentity = deps.expectedIdentity ?? readCheckoutBinaryIdentity(cwd);
 
   // The kit no longer injects checkout-derived SNAPBACK_BUILD_GIT_COMMIT /
-  // SNAPBACK_BUILD_GIT_DIRTY into spawned children. build.rs runs its own git
+  // SNAPBACK_BUILD_GIT_DIRTY into spawned children. crates/snapback/build.rs runs its own git
   // probe over the binary's real inputs (ENG-23365/ENG-23419), so injecting
   // the same launch-time read the kit later compares against made the commit
   // check a tautology on the `cargo run` rung — checkout drift was invisible

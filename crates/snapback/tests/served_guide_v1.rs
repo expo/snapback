@@ -124,7 +124,7 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
         served.2,
         option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
     );
-    assert_eq!(served.3, include_bytes!("../guide/guide-flat.generated.md"));
+    assert_eq!(served.3, include_bytes!("../../../guide/guide-flat.generated.md"));
 }
 
 /// @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:
@@ -151,10 +151,10 @@ async fn memory_server_serves_flat_projection_with_manifest_identity() {
         .expect("read embedded flat guide");
     assert_eq!(
         bytes.as_ref(),
-        include_bytes!("../guide/guide-flat.generated.md")
+        include_bytes!("../../../guide/guide-flat.generated.md")
     );
     let manifest: Value =
-        serde_json::from_str(include_str!("../guide/guide-manifest.generated.json"))
+        serde_json::from_str(include_str!("../../../guide/guide-manifest.generated.json"))
             .expect("generated guide manifest JSON");
     // @ref LLP 0194#design — contentHash now binds both the flat Markdown and
     // non-Markdown registry bytes, so it intentionally is not the flat SHA.
@@ -255,7 +255,7 @@ async fn memory_server_serves_build_bound_http_route_schema_join() {
         .expect("read HTTP route catalog");
     assert_eq!(
         bytes.as_ref(),
-        include_bytes!("../schemas/http.routes.v1.json")
+        include_bytes!("../../../schemas/http.routes.v1.json")
     );
     let value: Value = serde_json::from_slice(&bytes).expect("route catalog JSON");
     assert_eq!(value["formatVersion"], "snapback.http-routes.v1");
@@ -285,7 +285,7 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
             .await
             .unwrap()
             .as_ref(),
-        include_bytes!("../guide/index.md")
+        include_bytes!("../../../guide/index.md")
     );
 
     let page = get("/_snapback/guide/getting-started/your-first-backend.md").await;
@@ -308,7 +308,7 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
             .await
             .unwrap()
             .as_ref(),
-        include_bytes!("../guide/auth/protecting-data.md")
+        include_bytes!("../../../guide/auth/protecting-data.md")
     );
 
     let manifest = get("/_snapback/guide/guide-manifest.generated.json").await;
@@ -335,7 +335,7 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
             .await
             .unwrap()
             .as_ref(),
-        include_bytes!("../guide/reference/index.md")
+        include_bytes!("../../../guide/reference/index.md")
     );
     let registry = get("/_snapback/guide/reference/registry.json").await;
     assert_eq!(registry.status(), StatusCode::OK);
@@ -348,7 +348,7 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
             .await
             .unwrap()
             .as_ref(),
-        include_bytes!("../guide/reference/registry.json")
+        include_bytes!("../../../guide/reference/registry.json")
     );
     let diagnostics = get("/_snapback/guide/reference/diagnostics.md").await;
     assert_eq!(diagnostics.status(), StatusCode::OK);
@@ -357,7 +357,7 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
             .await
             .unwrap()
             .as_ref(),
-        include_bytes!("../guide/reference/diagnostics.md")
+        include_bytes!("../../../guide/reference/diagnostics.md")
     );
     let diagnostics_registry = get("/_snapback/guide/reference/diagnostics-registry.json").await;
     assert_eq!(diagnostics_registry.status(), StatusCode::OK);
@@ -370,7 +370,7 @@ async fn index_and_individual_build_embedded_files_are_public_read_only() {
             .await
             .unwrap()
             .as_ref(),
-        include_bytes!("../guide/reference/diagnostics-registry.json")
+        include_bytes!("../../../guide/reference/diagnostics-registry.json")
     );
 
     assert_eq!(
@@ -416,11 +416,11 @@ fn served_guide_routes_are_registered_system_static_public_projections() {
 
     assert_eq!(
         snapback::guide::file(INDEX_PATH).unwrap().bytes,
-        include_bytes!("../guide/index.md")
+        include_bytes!("../../../guide/index.md")
     );
     assert_eq!(
         snapback::guide::file(FLAT_PATH).unwrap().bytes,
-        include_bytes!("../guide/guide-flat.generated.md")
+        include_bytes!("../../../guide/guide-flat.generated.md")
     );
     for path in SECTION_FLAT_PATHS {
         assert!(snapback::guide::file(path).is_some());

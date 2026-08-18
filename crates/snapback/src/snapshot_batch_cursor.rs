@@ -605,6 +605,7 @@ mod tests {
                 .collect()
         };
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
             .join("tests/fixtures/snapshot-batch-sbsb1-parity-v1.json");
         let fixture: ParityFixture =
             serde_json::from_slice(&std::fs::read(path).expect("read sbsb1 parity fixture"))

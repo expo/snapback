@@ -24,8 +24,9 @@ const evidencePolicyPath = join(
 const proofSourcePathspecs = [
   'Cargo.toml',
   'Cargo.lock',
-  'build.rs',
-  'src',
+  'crates/snapback/Cargo.toml',
+  'crates/snapback/build.rs',
+  'crates/snapback/src',
   'demos/_kit',
   'demos/todo/snapback',
   'packages/snapback-codegen',
@@ -266,11 +267,26 @@ function trackedProofSourceFiles() {
 
 function trackedProofSourceFilesAtRevision(revision) {
   assertRevision(revision, 'measured source revision');
+  let revisionPathspecs = proofSourcePathspecs;
+  try {
+    execFileSync('git', ['cat-file', '-e', `${revision}:crates/snapback/Cargo.toml`], {
+      cwd: repoRoot,
+      stdio: 'ignore',
+    });
+  } catch {
+    revisionPathspecs = proofSourcePathspecs
+      .filter((pathspec) => pathspec !== 'crates/snapback/Cargo.toml')
+      .map((pathspec) => {
+        if (pathspec === 'crates/snapback/build.rs') return 'build.rs'; // path-migration: historical
+        if (pathspec === 'crates/snapback/src') return 'src';
+        return pathspec;
+      });
+  }
   let output;
   try {
     output = execFileSync(
       'git',
-      ['ls-tree', '-r', '-z', '--name-only', revision, '--', ...proofSourcePathspecs],
+      ['ls-tree', '-r', '-z', '--name-only', revision, '--', ...revisionPathspecs],
       { cwd: repoRoot, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     );
   } catch {

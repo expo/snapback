@@ -185,7 +185,7 @@ final class ClientStateMachine {
         AuthorizationInvalidationConnection?
     /// Set by a `durableDelete` terminal authority disposition: local durable
     /// authority state has been deleted (`LiveAuthorityDisposition`,
-    /// `src/live_wire.rs`).
+    /// `crates/snapback/src/live_wire.rs`).
     public private(set) var localDurableAuthorityDeleted = false
     /// Settled client mutations by `clientMutationId`: the durable ordered
     /// queue redelivers idempotently (LLP 0043), so a settlement applies to

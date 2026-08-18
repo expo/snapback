@@ -1036,7 +1036,7 @@ mod tests {
     #[test]
     fn shared_server_fixture_freezes_preimage_and_signature_bytes() {
         let fixture: SharedGoldenFixture = serde_json::from_str(include_str!(
-            "../tests/conformance/completeness-proof-v1.json"
+            "../../../tests/conformance/completeness-proof-v1.json"
         ))
         .unwrap();
         let seed: [u8; 32] = URL_SAFE_NO_PAD

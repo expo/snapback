@@ -30,7 +30,7 @@ use std::path::PathBuf;
 const CORPUS_FILE: &str = "tests/conformance/relational/corpus.v1.json";
 
 fn corpus_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(CORPUS_FILE)
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(CORPUS_FILE)
 }
 
 fn load_corpus() -> Value {

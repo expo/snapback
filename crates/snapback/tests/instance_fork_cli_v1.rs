@@ -194,7 +194,7 @@ fn fork_admin_token(created: &Value) -> String {
 fn copy_todo_app_root(destination: &Path) {
     let generated = destination.join("snapback/generated");
     std::fs::create_dir_all(&generated).expect("create copied Todo generated directory");
-    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("demos/todo/snapback/generated");
+    let source = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("demos/todo/snapback/generated");
     for artifact in ["schema.manifest.json", "functions.manifest.json"] {
         std::fs::copy(source.join(artifact), generated.join(artifact))
             .unwrap_or_else(|error| panic!("copy Todo {artifact}: {error}"));
@@ -915,7 +915,7 @@ fn library_minted_never_launched_fork_diffs_only_for_its_owning_app_root() {
 /// `fork create` source needs (`SNAPBACK_FORK_APP_ID_REQUIRED`).
 fn parent_with_schema(directory: &Path) -> PathBuf {
     let source = directory.join("parent.sqlite3");
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let schema: SchemaManifest = serde_json::from_slice(
         &std::fs::read(repo.join("demos/todo/snapback/generated/schema.manifest.json"))
             .expect("generated Todo schema"),
@@ -1500,7 +1500,7 @@ fn live_parent_writes_after_fork_point_never_appear_in_the_fork() {
 #[test]
 fn live_fork_asset_lifecycle_is_private_gc_safe_and_exactly_reaped() {
     let directory = tempfile::tempdir().expect("live fork asset fixture");
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let fixture_generated = repo.join("tests/acceptance/fixtures/asset-conformance/generated");
     let schema: Value = serde_json::from_slice(
         &std::fs::read(fixture_generated.join("schema.manifest.json"))
@@ -2640,7 +2640,7 @@ fn partial_generated_layout_stays_journal_enumerated() {
     let app_root = directory.path().join("partial-app");
     let generated = app_root.join("snapback/generated");
     std::fs::create_dir_all(&generated).expect("partial generated directory");
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     std::fs::copy(
         repo.join("demos/todo/snapback/generated/schema.manifest.json"),
         generated.join("schema.manifest.json"),

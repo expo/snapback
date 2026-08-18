@@ -7,7 +7,7 @@ mod authoring_suggestion_tests {
     #[test]
     fn unknown_schema_field_names_only_typed_fields_from_the_served_table() {
         let schema: SchemaManifest = serde_json::from_str(include_str!(
-            "../../demos/todo/snapback/generated/schema.manifest.json"
+            "../../../../demos/todo/snapback/generated/schema.manifest.json"
         ))
         .expect("parse served schema fixture");
         let table = schema.table("todos").expect("served todos table");
@@ -14456,7 +14456,7 @@ mod membership_write_tests {
         }
 
         let cases: Vec<ParityCase> = serde_json::from_str(include_str!(
-            "../../tests/fixtures/membership-validation-parity-v0.json"
+            "../../../../tests/fixtures/membership-validation-parity-v0.json"
         ))
         .expect("shared membership validation parity corpus");
         assert!(!cases.is_empty());
@@ -15807,11 +15807,11 @@ mod membership_write_tests {
         for (name, source) in [
             (
                 "rbac",
-                include_str!("../../demos/rbac/snapback/generated/schema.manifest.json"),
+                include_str!("../../../../demos/rbac/snapback/generated/schema.manifest.json"),
             ),
             (
                 "team-chat",
-                include_str!("../../demos/team-chat/snapback/generated/schema.manifest.json"),
+                include_str!("../../../../demos/team-chat/snapback/generated/schema.manifest.json"),
             ),
         ] {
             let schema: SchemaManifest = serde_json::from_str(source)
@@ -19662,7 +19662,7 @@ mod membership_write_tests {
         };
 
         let manifest: SchemaManifest = serde_json::from_str(include_str!(
-            "../../demos/todo/snapback/generated/schema.manifest.json"
+            "../../../../demos/todo/snapback/generated/schema.manifest.json"
         ))
         .expect("todo generated schema");
         let mut db = LocalDatabase::memory().expect("memory database");
@@ -19784,7 +19784,7 @@ mod media_ref_projection_acceptance_tests {
 
     fn media_database() -> LocalDatabase {
         let manifest: SchemaManifest = serde_json::from_str(include_str!(
-            "../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
+            "../../../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
         ))
         .expect("generated media fixture schema");
         let mut db = LocalDatabase::memory().expect("memory database");
@@ -20466,7 +20466,7 @@ mod media_ref_projection_acceptance_tests {
         let dir = tempfile::tempdir().expect("temporary mixed-settlement store");
         let path = dir.path().join("mixed-settlements.sqlite3");
         let manifest: SchemaManifest = serde_json::from_str(include_str!(
-            "../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
+            "../../../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
         ))
         .expect("generated media fixture schema");
         let mut db = LocalDatabase::open(&path).expect("open media store");

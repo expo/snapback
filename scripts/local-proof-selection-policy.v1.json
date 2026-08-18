@@ -12,6 +12,8 @@
     "local-proof-inventory",
     "affected-selector-fixtures",
     "path-migration-stragglers",
+    "workspace-graph",
+    "workspace-graph-fixtures",
     "authoring-profile-branches",
     "package-test-inventory",
     "scripts-test-inventory"
@@ -232,7 +234,7 @@
           "scripts/check-module-ownership.mjs"
         ],
         "prefixes": [
-          "src/"
+          "crates/snapback/src/"
         ]
       },
       "regenerateCommand": "node scripts/check-module-ownership.mjs"
@@ -374,7 +376,7 @@
           "scripts/check-guide",
           "scripts/generate-guide",
           "scripts/guide-",
-          "src/"
+          "crates/snapback/src/"
         ]
       },
       "regenerateCommand": "node scripts/generate-guide-manifest.mjs",
@@ -413,24 +415,24 @@
         "files": [
           "packages/snapback-contract/client-store.mjs",
           "packages/snapback-contract/query-authorization.mjs",
-          "src/ephemeral.rs",
-          "src/local.rs",
-          "src/local/auth_room_kick_acceptance.rs",
-          "src/local/authorization_acceptance.rs",
-          "src/local/config_types.rs",
-          "src/local/inspection.rs",
-          "src/local/live_protocol.rs",
-          "src/local/receipt_log.rs",
-          "src/local/tests.rs",
-          "src/storage.rs",
-          "src/storage/auth_invalidation.rs",
+          "crates/snapback/src/ephemeral.rs",
+          "crates/snapback/src/local.rs",
+          "crates/snapback/src/local/auth_room_kick_acceptance.rs",
+          "crates/snapback/src/local/authorization_acceptance.rs",
+          "crates/snapback/src/local/config_types.rs",
+          "crates/snapback/src/local/inspection.rs",
+          "crates/snapback/src/local/live_protocol.rs",
+          "crates/snapback/src/local/receipt_log.rs",
+          "crates/snapback/src/local/tests.rs",
+          "crates/snapback/src/storage.rs",
+          "crates/snapback/src/storage/auth_invalidation.rs",
           "tests/acceptance/auth-invalidation-v1-composed-receipt.json",
           "tests/acceptance/auth-invalidation-v1-property-corpus.json",
           "tests/acceptance/auth-invalidation-v1-report.mjs"
         ],
         "prefixes": [
-          "src/auth/",
-          "src/storage/"
+          "crates/snapback/src/auth/",
+          "crates/snapback/src/storage/"
         ]
       },
     "prepareCommand": "scripts/bootstrap-ibex-runtime",
@@ -522,44 +524,44 @@
     },
     "relation-activity-publication": {
       "records": [
-        "src/local-relation-activity-publication.v1.json and its pinned readers"
+        "crates/snapback/src/local-relation-activity-publication.v1.json and its pinned readers"
       ],
       "recordPaths": [
-        "src/local-relation-activity-publication.v1.json",
+        "crates/snapback/src/local-relation-activity-publication.v1.json",
         "tests/conformance/relation-activity-publication-v1.mjs",
-        "src/manifest.rs"
+        "crates/snapback/src/manifest.rs"
       ],
       "triggerRules": {
         "files": [
           "packages/snapback-codegen/define.mjs",
           "scripts/refresh-publication-carrier.mjs",
-          "src/local-relation-activity-publication.v1.json",
-          "src/local.rs",
-          "src/local/config_types.rs",
-          "src/local/inspection.rs",
-          "src/local/live_protocol.rs",
-          "src/local/receipt_log.rs",
-          "src/local/tests.rs",
-          "src/manifest.rs",
-          "src/storage.rs",
+          "crates/snapback/src/local-relation-activity-publication.v1.json",
+          "crates/snapback/src/local.rs",
+          "crates/snapback/src/local/config_types.rs",
+          "crates/snapback/src/local/inspection.rs",
+          "crates/snapback/src/local/live_protocol.rs",
+          "crates/snapback/src/local/receipt_log.rs",
+          "crates/snapback/src/local/tests.rs",
+          "crates/snapback/src/manifest.rs",
+          "crates/snapback/src/storage.rs",
           "tests/conformance/relation-activity-publication-v1.receipt.json",
           "tests/conformance/relation-activity-publication-v1.mjs"
         ],
         "prefixes": [
-          "src/storage/"
+          "crates/snapback/src/storage/"
         ]
       },
       "regenerateCommand": "node scripts/refresh-publication-carrier.mjs"
     },
     "sequence-allocation-publication": {
       "records": [
-        "src/local-sequence-allocation-publication.v1.json and its pinned readers"
+        "crates/snapback/src/local-sequence-allocation-publication.v1.json and its pinned readers"
       ],
       "recordPaths": [
-        "src/local-sequence-allocation-publication.v1.json",
+        "crates/snapback/src/local-sequence-allocation-publication.v1.json",
         "tests/conformance/sequence-allocation-publication-v1.mjs",
         "tests/conformance/sequence-allocation-publication-v1.receipt.json",
-        "src/manifest.rs"
+        "crates/snapback/src/manifest.rs"
       ],
       "triggerRules": {
         "files": [
@@ -567,26 +569,26 @@
           "packages/snapback-contract/derived-overlay.mjs",
           "packages/snapback-contract/index.mjs",
           "scripts/refresh-publication-carrier.mjs",
-          "src/local-sequence-allocation-publication.v1.json",
-          "src/manifest.rs",
-          "src/runtime.rs",
-          "src/storage.rs",
+          "crates/snapback/src/local-sequence-allocation-publication.v1.json",
+          "crates/snapback/src/manifest.rs",
+          "crates/snapback/src/runtime.rs",
+          "crates/snapback/src/storage.rs",
           "tests/conformance/sequence-allocation-publication-v1.mjs",
           "tests/conformance/sequence-allocation-publication-v1.receipt.json"
         ],
         "prefixes": [
-          "src/storage/"
+          "crates/snapback/src/storage/"
         ]
       },
       "regenerateCommand": "node scripts/refresh-publication-carrier.mjs"
     },
     "local-store-publication": {
       "records": [
-        "src/local-persistent-store-publication.v1.json and src/local-persistent-store-publication.anchor.v1.json"
+        "crates/snapback/src/local-persistent-store-publication.v1.json and crates/snapback/src/local-persistent-store-publication.anchor.v1.json"
       ],
       "recordPaths": [
-        "src/local-persistent-store-publication.v1.json",
-        "src/local-persistent-store-publication.anchor.v1.json"
+        "crates/snapback/src/local-persistent-store-publication.v1.json",
+        "crates/snapback/src/local-persistent-store-publication.anchor.v1.json"
       ],
       "triggerRules": {
         "files": [
@@ -598,22 +600,22 @@
           "packages/snapback-client/store-runtime.mjs",
           "packages/snapback-codegen/index.mjs",
           "schemas/capability.manifest.local-dev-sqlite-ibex.json",
-          "src/local-persistent-store-publication.anchor.v1.json",
-          "src/local-persistent-store-publication.v1.json",
-          "src/local.rs",
-          "src/local/config_types.rs",
-          "src/local/inspection.rs",
-          "src/local/live_protocol.rs",
-          "src/local/receipt_log.rs",
-          "src/local/tests.rs",
-          "src/storage.rs",
+          "crates/snapback/src/local-persistent-store-publication.anchor.v1.json",
+          "crates/snapback/src/local-persistent-store-publication.v1.json",
+          "crates/snapback/src/local.rs",
+          "crates/snapback/src/local/config_types.rs",
+          "crates/snapback/src/local/inspection.rs",
+          "crates/snapback/src/local/live_protocol.rs",
+          "crates/snapback/src/local/receipt_log.rs",
+          "crates/snapback/src/local/tests.rs",
+          "crates/snapback/src/storage.rs",
           "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
           "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
           "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json"
         ],
         "prefixes": [
           "scripts/finalize-local-persistent-store-publication",
-          "src/storage/"
+          "crates/snapback/src/storage/"
         ]
       },
       "regenerateCommand": "scripts/finalize-local-persistent-store-publication"
@@ -707,7 +709,8 @@
         "Cargo.lock",
         "Cargo.toml",
         "bun.lock",
-        "build.rs",
+        "crates/snapback/build.rs",
+        "crates/snapback/Cargo.toml",
         "package.json",
         "rust-toolchain.toml"
       ],
@@ -908,7 +911,7 @@
         "telemetry"
       ],
       "prefixes": [
-        "src/"
+        "crates/snapback/src/"
       ]
     },
     {
@@ -974,6 +977,7 @@
       "id": "other-tests",
       "disposition": "all",
       "prefixes": [
+        "crates/snapback/tests/",
         "tests/"
       ]
     },

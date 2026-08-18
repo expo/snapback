@@ -538,8 +538,8 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
 /// single self-contained file — inline styles, inline brand SVG, no external
 /// assets — so a bare `cargo run` serves it with no toolchain.
 const INSTANCE_HOME_HTML: &str = include_str!("instance_home.html");
-const SNAPBACK_MARK_SVG: &str = include_str!("../../brand/snapback-mark.svg");
-const SNAPBACK_FAVICON_SVG: &str = include_str!("../../brand/favicon.svg");
+const SNAPBACK_MARK_SVG: &str = include_str!("../../../../brand/snapback-mark.svg");
+const SNAPBACK_FAVICON_SVG: &str = include_str!("../../../../brand/favicon.svg");
 const LOCK_ICON_SVG: &str = r#"<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>"#;
 
 fn instance_home_html(status: &InstanceStatus) -> String {

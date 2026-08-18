@@ -12,7 +12,7 @@ use snapback::manifest::{
 use snapback::storage::LocalDatabase;
 use std::collections::BTreeMap;
 
-const CORPUS_JSON: &str = include_str!("conformance/structural-validation.corpus.json");
+const CORPUS_JSON: &str = include_str!("../../../tests/conformance/structural-validation.corpus.json");
 
 #[derive(Debug, Deserialize)]
 struct Corpus {

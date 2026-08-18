@@ -30,7 +30,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 fn corpus_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("tests")
         .join("conformance")
         .join("data-tier")

@@ -91,7 +91,7 @@ fn build_export() -> Value {
 }
 
 fn export_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("packages/snapback-cli/control-plane-registry.json")
 }
 

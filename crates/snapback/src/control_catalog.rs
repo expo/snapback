@@ -19,7 +19,7 @@ pub const CATALOG_DIGEST_HEADER: &str = "x-snapback-control-catalog-digest";
 
 pub static BUILD_CATALOG_BYTES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/control-catalog/generated/control-catalog.v1.json"
+    "/../../control-catalog/generated/control-catalog.v1.json"
 ));
 
 static BUILD_CATALOG: OnceLock<Value> = OnceLock::new();

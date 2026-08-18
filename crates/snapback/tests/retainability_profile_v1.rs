@@ -66,7 +66,7 @@ fn validate(function: FunctionDefinition) -> Result<(), Box<snapback::diagnostic
 
 fn owner_visible_relational_query() -> FunctionDefinition {
     let corpus: serde_json::Value =
-        serde_json::from_str(include_str!("conformance/relational/corpus.v1.json"))
+        serde_json::from_str(include_str!("../../../tests/conformance/relational/corpus.v1.json"))
             .expect("relational corpus JSON");
     let plan: RelationalQueryPlan = serde_json::from_value(corpus["cases"][0]["plan"].clone())
         .expect("owner-visible relational plan");

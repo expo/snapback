@@ -4255,7 +4255,7 @@ export class Coordinator {
           // it a never-settling handler parks this fetch forever AND wedges
           // the handler isolate's invocation chain — every later invocation
           // on that isolate queues behind the hang. The local twin has
-          // always passed one (src/workerd_exec.rs); this closes the same
+          // always passed one (crates/snapback/src/workerd_exec.rs); this closes the same
           // hole on the deployed path, and the twin corpus's hangForever
           // case now converges to SNAPBACK_HANDLER_DID_NOT_SETTLE here.
           settlementTimeoutMs: this.settlementTimeoutMs(mode),
@@ -4265,7 +4265,7 @@ export class Coordinator {
         }),
       });
       const result = await response.json();
-      // The checks below mirror src/workerd_exec.rs order for the twin leg:
+      // The checks below mirror crates/snapback/src/workerd_exec.rs order for the twin leg:
       // fatal → unhandled rejections → detection support → envelope.
       if (result.fatal) {
         return { ok: false, code: 'SNAPBACK_V8_RUNNER_INVOKE_FAILED', message: result.fatal };
@@ -4402,7 +4402,7 @@ export class Coordinator {
   // advances only when the EFFECTIVE changeset is non-empty — a mutation
   // whose writes all degrade to no-ops (patch on a missing row, empty-values
   // patch, delete of a missing row) keeps the current version, matching
-  // src/storage.rs (ENG-23583).
+  // crates/snapback/src/storage.rs (ENG-23583).
   commit(host, transactionTail = null) {
     if (host.writes.length === 0 && typeof transactionTail !== 'function') {
       return { version: this.currentVersion(), changes: [], committedAtMs: null };
@@ -4422,7 +4422,7 @@ export class Coordinator {
           changes.push({ table: write.table, id: write.id, op: 'insert' });
         } else if (write.kind === 'patch') {
           // Empty-values patches are no-ops on the local target
-          // (src/storage.rs); they must not journal or advance the version
+          // (crates/snapback/src/storage.rs); they must not journal or advance the version
           // here either.
           if (Object.keys(write.values).length === 0) continue;
           const existing = this.readRow(table, write.id);
@@ -5166,7 +5166,7 @@ export class Coordinator {
   // { version, changed_count, result, receipt }.
   // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 1: the hosted arm emits the required terminal
   //   mutation receipt (mutation.output.schema.json), mirroring the local
-  //   record_mutation_commit facts (src/local.rs). Every field is honest on
+  //   record_mutation_commit facts (crates/snapback/src/local.rs). Every field is honest on
   //   this arm: the id is minted per invocation (hosted has no
   //   client-mutation replay ledger, so clientMutationId is never echoed),
   //   affectedTables comes from the DECLARED write set (null when none is

@@ -1213,7 +1213,7 @@ pub(crate) mod tests {
 
     #[test]
     fn primed_todo_and_rbac_dev_mints_validate_from_target_and_tampering_refuses() {
-        let repository_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repository_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let scratch = tempfile::tempdir().unwrap();
         let mut fixtures = Vec::new();
 
@@ -1222,12 +1222,12 @@ pub(crate) mod tests {
             .enumerate()
         {
             run_node(
-                repository_root,
+                &repository_root,
                 &["packages/snapback-codegen/index.mjs", backend],
             );
             let config_path = scratch.path().join(format!("target-config-{index}.json"));
             run_node(
-                repository_root,
+                &repository_root,
                 &[
                     "scripts/mint-visibility-governance-dev-config.mjs",
                     backend,

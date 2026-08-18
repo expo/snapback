@@ -8,7 +8,7 @@
 // every kit-lane emitter now composes it through this helper.
 //
 // Subsystem classification mirrors the local arm's vocabulary
-// (`src/diagnostic.rs` call sites: "realtime" for the connection/live
+// (`crates/snapback/src/diagnostic.rs` call sites: "realtime" for the connection/live
 // surface, "server" for request-shape refusals, "storage" for persistence
 // limits, "auth" for credential failures, "runtime" for handler/invocation
 // failures). Classification is by stable code family so a shared code never
@@ -56,7 +56,7 @@ const SUBSYSTEM_RULES = [
 
 // Compose one fully-filled committed Diagnostic. `details` is always
 // present — `{}` when the emitter has none, matching the local
-// `Diagnostic::error` default (`src/diagnostic.rs`).
+// `Diagnostic::error` default (`crates/snapback/src/diagnostic.rs`).
 export function wireDiagnostic(code, message, details = null) {
   const rule = SUBSYSTEM_RULES.find((candidate) => candidate.test.test(code));
   return {

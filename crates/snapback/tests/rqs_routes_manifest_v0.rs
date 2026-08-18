@@ -789,7 +789,7 @@ fn generation_rotates_with_route_manifest_identity() {
 /// `LocalSnapback::ensure_app` admission path.
 #[test]
 fn codegen_js_param_route_is_admitted_by_real_ensure_app() {
-    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let codegen = root.join("packages/snapback-codegen/index.mjs");
     let define = root.join("packages/snapback-codegen/define.mjs");
     let define_url = format!(

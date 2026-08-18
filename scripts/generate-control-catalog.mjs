@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // LLP 0184 Phase 1: the ControlCatalogV1 compiler. Joins the LLP 0031/0024
 // registry export (packages/snapback-cli/control-plane-registry.json,
-// itself verified against live Rust by tests/control_catalog_registry_export.rs),
+// itself verified against live Rust by crates/snapback/tests/control_catalog_registry_export.rs),
 // the control-MCP tool declarations (packages/snapback-cli/mcp-control.mjs's
 // CONTROL_TOOLS), the CLI-only-declared family manifest
 // (control-catalog/cli-only-operations.json), the hand-authored
@@ -115,7 +115,7 @@ const controlResourcesByOperation = new Map(
 
 // A small hand-authored CLI-command projection lookup for host-op identities
 // with a direct CLI command today. This is NOT a second authority: every
-// command name here is checkable against packages/snapback-cli or src/cli.rs
+// command name here is checkable against packages/snapback-cli or crates/snapback/src/cli.rs
 // and is intentionally narrow (only what Phase 1 backfills — see
 // control-catalog/operability-overrides.json's coverage note). An operation
 // with a real CLI command but no entry here is under-projected in this
@@ -357,7 +357,7 @@ for (const name of hostOpsIdentities) {
     },
     guide: GUIDE_ANCHORS[name] ?? null,
     authorities: ['llp/0024-agent-operating-surface'],
-    sources: ['src/host_ops.rs', 'packages/snapback-cli/mcp-control.mjs'],
+    sources: ['crates/snapback/src/host_ops.rs', 'packages/snapback-cli/mcp-control.mjs'],
   };
   if (surfaceAccess === 'cliOnly') entry.mcpDeferralReason = 'Not yet classified.';
   if (surfaceAccess === 'mcpOnly') entry.cliDeferralReason = 'Not yet classified.';
@@ -410,7 +410,7 @@ for (const [name, op] of operationsByName) {
     },
     guide: null,
     authorities: ['llp/0031-server-route-taxonomy'],
-    sources: ['src/server.rs operation_registry()'],
+    sources: ['crates/snapback/src/server.rs operation_registry()'],
   };
   applyAuthoredOverrides(entry);
   if (entry.surfaceAccess === 'cliOnly' && !entry.mcpDeferralReason) entry.mcpDeferralReason = 'Not yet classified.';
@@ -520,7 +520,7 @@ if (mailboxRoute) {
     projections: { cli: null, mcp: null, hostOps: null, http: 'GET /_snapback/api/auth/mailbox', adminClient: null, console: null },
     guide: null,
     authorities: ['llp/0031-server-route-taxonomy'],
-    sources: ['src/server.rs route_registry()'],
+    sources: ['crates/snapback/src/server.rs route_registry()'],
     pinned: true,
     pinReason:
       "responseSensitivity CredentialSecret: usage-evidence promotion to native/cliOnly/mcpOnly is refused outright regardless of call volume (§Product contract's promotion-refusal rule). This row stays apiOnly until an authored override passes the same secret-carrier review config.set requires.",
@@ -673,7 +673,7 @@ for (const route of registryExport.routes) {
     },
     guide: GUIDE_ANCHORS[operationName] ?? null,
     authorities: ['llp/0031-server-route-taxonomy'],
-    sources: ['src/server.rs route_registry()'],
+    sources: ['crates/snapback/src/server.rs route_registry()'],
   };
   if (entry.surfaceAccess === 'cliOnly') entry.mcpDeferralReason = 'Not yet classified.';
   if (entry.surfaceAccess === 'mcpOnly') entry.cliDeferralReason = 'Not yet classified.';

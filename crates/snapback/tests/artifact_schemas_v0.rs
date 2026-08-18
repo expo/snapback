@@ -488,7 +488,7 @@ fn representative_restore_activation_plan() -> RestoreActivationPlan {
 }
 
 fn schemas_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("schemas")
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("schemas")
 }
 
 fn committed(file: &str) -> Value {
@@ -636,7 +636,7 @@ fn dk7_committed_schemas_match_rust_types() {
     }
 
     let declaration_gate = std::process::Command::new("node")
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .args([
             "scripts/check-agent-safe-publication.mjs",
             "--codegen-declarations-only",
@@ -713,7 +713,7 @@ fn dk7_committed_public_instances_match_rust_types() {
                         continue;
                     };
                     assert!(
-                        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
                             .join("schemas")
                             .join(reference)
                             .is_file(),
@@ -1001,7 +1001,7 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
         }),
     );
     let completeness_fixture: Value =
-        serde_json::from_str(include_str!("conformance/completeness-proof-v1.json"))
+        serde_json::from_str(include_str!("../../../tests/conformance/completeness-proof-v1.json"))
             .expect("parse completeness proof fixture");
     assert_validates(
         "authorized-lease.query.output.schema.json",
@@ -1343,7 +1343,7 @@ fn auth_invalidation_counter_schemas_match_the_portable_runtime_domain() {
 /// @ref LLP 0058#exact-response-dto — the response is one closed Rust/schemars
 /// authority; a schema looser than the shipped client is a conformance bug.
 const AUTH_SESSION_PARITY_CORPUS: &str =
-    include_str!("conformance/auth-session-parity.corpus.json");
+    include_str!("../../../tests/conformance/auth-session-parity.corpus.json");
 
 fn corpus_case_value(corpus: &Value, case: &Value) -> Value {
     let base_name = case["base"].as_str().expect("corpus case names a base");
@@ -2717,7 +2717,7 @@ fn data_tier_publication_validates_against_committed_schemas() {
         &committed("data-tier.profile.json"),
     );
 
-    let corpus_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let corpus_dir = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("tests")
         .join("conformance")
         .join("data-tier");
@@ -2737,7 +2737,7 @@ fn data_tier_publication_validates_against_committed_schemas() {
 
 #[test]
 fn remote_service_publication_is_closed_digest_bound_and_host_private() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let generated = root.join("demos/todo-v2/snapback/generated-remote-service");
     let read_json = |path: &std::path::Path| -> Value {
         serde_json::from_str(
@@ -3468,7 +3468,7 @@ const GENERATED_BACKENDS: [&str; 7] = [
 /// the Rust-derived schema (the codegen output the schema is meant to describe).
 #[test]
 fn dk7_committed_demo_manifests_validate_against_schemas() {
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let pairs = [
         ("schema.manifest.schema.json", "schema.manifest.json"),
         ("functions.manifest.schema.json", "functions.manifest.json"),
@@ -3504,7 +3504,7 @@ fn dk7_committed_demo_manifests_validate_against_schemas() {
 /// pass their artifact-header validation — the schema and the parser agree.
 #[test]
 fn dk7_committed_demo_manifests_parse_through_runtime_structs() {
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     for backend in GENERATED_BACKENDS {
         let dir = repo.join(backend);
         let schema: SchemaManifest = serde_json::from_str(
@@ -3841,7 +3841,7 @@ fn gap_row_schemas_accept_representative_values() {
     });
     assert_validates("query.output.schema.json", &attributed);
     let completeness_fixture: Value =
-        serde_json::from_str(include_str!("conformance/completeness-proof-v1.json"))
+        serde_json::from_str(include_str!("../../../tests/conformance/completeness-proof-v1.json"))
             .expect("parse completeness proof fixture");
     let finite_carrier = json!({
         "version": 43,
@@ -4006,7 +4006,7 @@ fn gap_row_schemas_accept_representative_values() {
 
 #[test]
 fn hosted_product_journey_receipt_is_rust_owned_and_closed() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("demos/signal-desk/hosted-product-journey.v1.json");
     let bytes = fs::read(&path).expect("hosted product journey receipt");
     let value: Value = serde_json::from_slice(&bytes).expect("journey receipt JSON");

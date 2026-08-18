@@ -314,7 +314,7 @@ impl AuthRuntime {
             // source spelling as a readiness probe. Client protocol 1 still
             // requires its actual coordinator and mandatory kit participant.
             _canonical_client_module: include_bytes!(
-                "../../packages/snapback-contract/auth-coordinator.mjs"
+                "../../../../packages/snapback-contract/auth-coordinator.mjs"
             ),
             #[cfg(test)]
             fail_before_build: false,

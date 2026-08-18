@@ -5,8 +5,8 @@
   "status": "bounded-poc-not-runtime",
   "scope": {
     "included": [
-      "src/value_expr.rs exact source via path import",
-      "src/result_transform.rs exact source via path import",
+      "crates/snapback/src/value_expr.rs exact source via path import",
+      "crates/snapback/src/result_transform.rs exact source via path import",
       "minimal manifest-type and diagnostic-method shims",
       "serde JSON input/output closure",
       "SHA-256 result-transform hashing"
@@ -42,11 +42,11 @@
     }
   },
   "sources": {
-    "src/value_expr.rs": "sha256:f0384703217b562ff5902fe9984a03f3c57dd351a9532f0893a32fdabf9bc0af",
-    "src/result_transform.rs": "sha256:0506db6b43d88835255cf852c3e07c988da385443a62b82db12e716e695d931b",
+    "crates/snapback/src/value_expr.rs": "sha256:f0384703217b562ff5902fe9984a03f3c57dd351a9532f0893a32fdabf9bc0af",
+    "crates/snapback/src/result_transform.rs": "sha256:0506db6b43d88835255cf852c3e07c988da385443a62b82db12e716e695d931b",
     "Cargo.toml": "sha256:6a4f55409fd75b35cecc2bb9a9bac88dee1953705c3bcce6c2749f219d847020",
     "Cargo.lock": "sha256:66e2f7f6d80a472dae969cf3e8a99e1dc87698f8e495dc7da5d618dace60b5fc",
-    "src/lib.rs": "sha256:859c5bec07a9e398bc579855d448a2b503a867e614c4fef1c479aa8e815b07c4"
+    "src/lib.rs": "sha256:892b4e82eaa60b27792ec2e812c4b6659ce8e1c500ff36e7db5fb83dca5cb11b"
   },
   "artifact": {
     "path": "target/wasm32-unknown-unknown/release/snapback_rust_evaluator_wasm_poc.wasm",

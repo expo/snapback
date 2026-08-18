@@ -165,6 +165,6 @@ pub fn nfkc_case_fold(ch: char, mut emit: impl FnMut(char)) {
 }
 `;
 
-const output = resolve(import.meta.dirname, '..', 'src', 'search', 'unicode17_generated.rs');
+const output = resolve(import.meta.dirname, '..', 'crates', 'snapback', 'src', 'search', 'unicode17_generated.rs');
 writeFileSync(output, rendered);
 process.stdout.write(`wrote ${output}\n`);

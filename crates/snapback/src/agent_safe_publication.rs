@@ -118,7 +118,7 @@ const STORAGE_ANCHOR_BYTES: &[u8] =
 const STORAGE_CARRIER_BYTES: &[u8] =
     include_bytes!("local-agent-safe-storage-publication.carrier.json");
 const STORAGE_RECEIPT_BYTES: &[u8] = include_bytes!(
-    "../tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json"
+    "../../../tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json"
 );
 #[cfg(test)]
 const DERIVED_FORK_ANCHOR_BYTES: &[u8] =
@@ -128,7 +128,7 @@ const DERIVED_FORK_CARRIER_BYTES: &[u8] =
     include_bytes!("local-agent-safe-derived-deployment-fork-publication.carrier.json");
 #[cfg(test)]
 const DERIVED_FORK_RECEIPT_BYTES: &[u8] = include_bytes!(
-    "../tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json"
+    "../../../tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json"
 );
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]

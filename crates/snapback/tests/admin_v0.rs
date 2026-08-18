@@ -311,7 +311,7 @@ async fn admin_client_module_is_served_from_the_shared_package() {
     );
     assert_eq!(
         source,
-        include_str!("../packages/snapback-admin-client/index.mjs"),
+        include_str!("../../../packages/snapback-admin-client/index.mjs"),
         "byte-identical to the workspace package the Contract admin-ui imports"
     );
 }

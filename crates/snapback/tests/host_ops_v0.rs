@@ -170,7 +170,7 @@ fn snapback_restart_cli_proves_credential_and_composes_lifecycle() {
 }
 
 fn generated(file: &str) -> Value {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("demos/todo/snapback/generated")
         .join(file);
     serde_json::from_str(&fs::read_to_string(path).expect("read generated artifact"))
@@ -209,7 +209,7 @@ fn github_heading_slug(heading: &str) -> String {
 
 #[test]
 fn mint_session_catalog_contract_and_served_guide_anchor_stay_in_lockstep() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let overrides: Value = serde_json::from_str(
         &fs::read_to_string(root.join("control-catalog/operability-overrides.json"))
             .expect("read operability overrides"),
@@ -664,7 +664,7 @@ fn p6_served_ops_round_trip_through_envelopes() {
 
     // A raw host-op reset has no authorization-stream coordinator and must
     // fail closed without applying its otherwise-valid seed.
-    let seed_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("demos/todo/snapback/seed.json");
+    let seed_path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("demos/todo/snapback/seed.json");
     let seed: Value =
         serde_json::from_str(&fs::read_to_string(seed_path).expect("read seed")).expect("seed");
     let before_reset = functions["artifacts"]["databaseVersion"].clone();

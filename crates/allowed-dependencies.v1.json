@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "snapback.allowed-dependencies.v1",
+  "governedBy": "LLP 0276#crates--the-rust-workspace",
+  "crates": [
+    { "name": "snapback-types", "owner": "shared-contract-types-leaf", "rank": 0, "allowedWorkspaceDependencies": [] },
+    { "name": "snapback-kernel", "owner": "storage-migration-kernel", "rank": 1, "allowedWorkspaceDependencies": ["snapback-types"] },
+    { "name": "snapback-auth", "owner": "auth-substrate", "rank": 2, "allowedWorkspaceDependencies": ["snapback-kernel", "snapback-types"] },
+    { "name": "snapback-activation", "owner": "generation-activation-coordinator", "rank": 3, "allowedWorkspaceDependencies": ["snapback-auth", "snapback-kernel", "snapback-types"] },
+    { "name": "snapback-runtime", "owner": "js-execution", "rank": 3, "allowedWorkspaceDependencies": ["snapback-types"] },
+    { "name": "snapback-services", "owner": "background-services", "rank": 3, "allowedWorkspaceDependencies": ["snapback-auth", "snapback-kernel", "snapback-types"] },
+    { "name": "snapback-sync", "owner": "sync-realtime-engine", "rank": 3, "allowedWorkspaceDependencies": ["snapback-auth", "snapback-kernel", "snapback-types"] },
+    { "name": "snapback-engine", "owner": "engine-coordinator", "rank": 4, "allowedWorkspaceDependencies": ["snapback-activation", "snapback-auth", "snapback-kernel", "snapback-runtime", "snapback-services", "snapback-sync", "snapback-types"] },
+    { "name": "snapback-server", "owner": "transport-adapters", "rank": 5, "allowedWorkspaceDependencies": ["snapback-activation", "snapback-auth", "snapback-engine", "snapback-kernel", "snapback-runtime", "snapback-services", "snapback-sync", "snapback-types"] },
+    { "name": "snapback-cli", "owner": "transport-adapters", "rank": 6, "allowedWorkspaceDependencies": ["snapback-activation", "snapback-auth", "snapback-engine", "snapback-kernel", "snapback-runtime", "snapback-server", "snapback-services", "snapback-sync", "snapback-types"] },
+    { "name": "snapback", "owner": "embed-facade", "rank": 7, "allowedWorkspaceDependencies": ["snapback-activation", "snapback-auth", "snapback-cli", "snapback-engine", "snapback-kernel", "snapback-runtime", "snapback-server", "snapback-services", "snapback-sync", "snapback-types"] },
+    { "name": "snapback-conformance", "owner": "proof-harness", "rank": 7, "allowedWorkspaceDependencies": ["snapback-auth", "snapback-engine", "snapback-kernel", "snapback-server", "snapback-types"] },
+    { "name": "snapback-tools", "owner": "dev-tools", "rank": 7, "allowedWorkspaceDependencies": ["snapback-activation", "snapback-auth", "snapback-cli", "snapback-engine", "snapback-kernel", "snapback-runtime", "snapback-server", "snapback-services", "snapback-sync", "snapback-types"] }
+  ],
+  "externalConfinement": [
+    { "dependency": "axum", "allowedMembers": ["snapback-server"] },
+    { "dependency": "celld-ltx", "allowedMembers": ["snapback-services"] },
+    { "dependency": "clap", "allowedMembers": ["snapback-cli"] },
+    { "dependency": "ibex-runtime", "allowedMembers": ["snapback-runtime"] },
+    { "dependency": "rusqlite", "allowedMembers": ["snapback-kernel", "snapback-services"] }
+  ],
+  "remainderConfinementExemption": {
+    "member": "snapback",
+    "dependencies": ["axum", "celld-ltx", "clap", "ibex-runtime", "rusqlite"],
+    "expiresAt": "phase-3-flip",
+    "reason": "The Phase 1 monolith remains the uncarved remainder and necessarily carries every confined external until the owning crates exist."
+  },
+  "membershipExceptions": []
+}

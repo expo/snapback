@@ -29,10 +29,10 @@ export const AUTHORING_PROFILE_READ_ALLOWLIST = Object.freeze([
     path: 'packages/snapback-react/familiar.d.mts',
     category: 'familiar-type-brand',
   }),
-  Object.freeze({ path: 'src/cli/migration.rs', category: 'migration-tooling' }),
-  Object.freeze({ path: 'src/diagnostic.rs', category: 'diagnostic-record' }),
-  Object.freeze({ path: 'src/manifest.rs', category: 'custody-record' }),
-  Object.freeze({ path: 'src/migration.rs', category: 'migration-tooling' }),
+  Object.freeze({ path: 'crates/snapback/src/cli/migration.rs', category: 'migration-tooling' }),
+  Object.freeze({ path: 'crates/snapback/src/diagnostic.rs', category: 'diagnostic-record' }),
+  Object.freeze({ path: 'crates/snapback/src/manifest.rs', category: 'custody-record' }),
+  Object.freeze({ path: 'crates/snapback/src/migration.rs', category: 'migration-tooling' }),
 ]);
 
 export const AUTHORING_PROFILE_SCAN_ROOTS = Object.freeze([

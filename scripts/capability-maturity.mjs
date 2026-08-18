@@ -236,6 +236,22 @@ function bytesAt(repoRoot, sourceSha, repoPath) {
   }
 }
 
+function rustRegistryPathAt(repoRoot, commit) {
+  const epochs = [
+    'crates/snapback/src/manifest.rs',
+    'src/manifest.rs', // path-migration: historical
+  ];
+  for (const path of epochs) {
+    try {
+      git(repoRoot, ['cat-file', '-e', `${commit}:${path}`], { quiet: true });
+      return path;
+    } catch {
+      // Try the other structural path epoch.
+    }
+  }
+  fail('MATURITY_LOCATOR_UNRESOLVED', `${commit} has no Rust capability registry path`);
+}
+
 function validateLocator(locator, label, context, { staged = false } = {}) {
   exactKeys(locator, ['path', 'sha256', 'schemaVersion', 'producer', 'sourceSha'], [], label);
   safeRepoPath(locator.path, `${label}.path`);
@@ -1054,7 +1070,8 @@ export function validateTransitionRange({ repoRoot, range, validation = null }) 
       || canonicalJson(record.capabilityIds) !== canonicalJson(ids)) {
       fail('MATURITY_TRANSITION_PARENT_MISMATCH', `${commit} record does not bind its sole parent and changed ids`);
     }
-    const registryPaths = ['src/manifest.rs', 'packages/snapback-codegen/index.mjs'];
+    const rustRegistryPath = rustRegistryPathAt(repoRoot, commit);
+    const registryPaths = [rustRegistryPath, 'packages/snapback-codegen/index.mjs'];
     const isHistoricalIntroduction = direction === 'introduction'
       && record.recordingMode === 'historical-backfill.v1';
     if (isHistoricalIntroduction) {
@@ -1095,7 +1112,7 @@ export function validateTransitionRange({ repoRoot, range, validation = null }) 
       // names the exact receipt path without duplicating its digest; A2/A5 bind
       // the receipt bytes, parent, and complete self-excluding landed tree.
       const registryCitation = `@ref LLP 0134#4-the-promotion-act — promoted ${record.promotionDate.slice(0, 10)} via ${recordEntry.repoPath}`;
-      const manifestSource = bytesAt(repoRoot, commit, 'src/manifest.rs').toString('utf8');
+      const manifestSource = bytesAt(repoRoot, commit, rustRegistryPath).toString('utf8');
       if (!manifestSource.includes(registryCitation)) {
         fail(
           'MATURITY_PROMOTION_COMMENT_MISSING',

@@ -267,9 +267,9 @@ pub mod manifest {
     }
 }
 
-#[path = "../../../../../../../src/value_expr.rs"]
+#[path = "../../../../../../../crates/snapback/src/value_expr.rs"]
 mod value_expr;
-#[path = "../../../../../../../src/result_transform.rs"]
+#[path = "../../../../../../../crates/snapback/src/result_transform.rs"]
 mod result_transform;
 
 #[derive(Deserialize)]

@@ -30,6 +30,8 @@ const FROZEN_DISPOSITIONS = new Set([
   'relocation',
   'time-bounded-waiver',
 ]);
+const SOURCE_ROOT = 'crates/snapback/src';
+const LEGACY_SOURCE_ROOT = 'src';
 const OWNER_ORDINALS = new Map([
   ['shared-contract-types-leaf', 0],
   ['generation-activation-coordinator', 1],
@@ -106,13 +108,16 @@ export function validateManifest(manifest, rustFiles) {
     const sorted = [...files].sort();
     assert(JSON.stringify(files) === JSON.stringify(sorted), `modulesByOwner.${owner} must be sorted`);
     for (const path of files) {
-      assert(/^src\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path), `invalid Rust module path ${path}`);
+      assert(
+        /^(?:src|crates\/snapback\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path),
+        `invalid Rust module path ${path}`,
+      );
       assert(!assignment.has(path), `${path} is assigned to both ${assignment.get(path)} and ${owner}`);
       assignment.set(path, owner);
     }
   }
 
-  assert(rustFiles.length > 0, 'no src/**/*.rs modules found; refusing a vacuous pass');
+  assert(rustFiles.length > 0, `no ${SOURCE_ROOT}/**/*.rs modules found; refusing a vacuous pass`);
   const rustSet = new Set(rustFiles);
   const missing = rustFiles.filter((path) => !assignment.has(path));
   const extra = [...assignment.keys()].filter((path) => !rustSet.has(path));
@@ -147,7 +152,8 @@ export function validateManifest(manifest, rustFiles) {
 }
 
 function modulePathForFile(path) {
-  const relativePath = path.slice('src/'.length, -'.rs'.length);
+  const sourceRoot = path.startsWith(`${SOURCE_ROOT}/`) ? SOURCE_ROOT : LEGACY_SOURCE_ROOT;
+  const relativePath = path.slice(`${sourceRoot}/`.length, -'.rs'.length);
   if (relativePath === 'lib' || relativePath === 'main' || relativePath.startsWith('bin/')) return null;
   const segments = relativePath.split('/');
   if (segments.at(-1) === 'mod') segments.pop();
@@ -672,8 +678,8 @@ function validateBaseline(baseline, manifest, godFiles) {
   assert(baseline.edgeCount === baseline.edges.length, 'baseline edgeCount does not match edges.length');
   const keys = new Set();
   for (const edge of baseline.edges) {
-    assert(/^src\/(?:[^/]+\/)*[^/]+\.rs$/u.test(edge?.from ?? ''), 'baseline edge has an invalid from path');
-    assert(/^src\/(?:[^/]+\/)*[^/]+\.rs$/u.test(edge?.to ?? ''), 'baseline edge has an invalid to path');
+    assert(/^(?:src|crates\/snapback\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(edge?.from ?? ''), 'baseline edge has an invalid from path');
+    assert(/^(?:src|crates\/snapback\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(edge?.to ?? ''), 'baseline edge has an invalid to path');
     assert(OWNER_ORDINALS.has(edge.fromOwner), `baseline edge has unknown fromOwner ${edge.fromOwner}`);
     assert(OWNER_ORDINALS.has(edge.toOwner), `baseline edge has unknown toOwner ${edge.toOwner}`);
     const key = edgeKey(edge);
@@ -743,7 +749,7 @@ function summarizeBaselineDelta(manifest, analysis, baseline) {
 }
 
 function loadRepositorySources() {
-  const rustFiles = globSync('src/**/*.rs', { cwd: ROOT }).sort();
+  const rustFiles = globSync(`${SOURCE_ROOT}/**/*.rs`, { cwd: ROOT }).sort();
   return new Map(rustFiles.map((path) => [path, readFileSync(join(ROOT, path), 'utf8')]));
 }
 
@@ -764,12 +770,33 @@ function loadRevisionSnapshot(revision) {
   const resolvedRevision = git(['rev-parse', '--verify', `${revision}^{commit}`]).trim();
   const paths = git(['ls-tree', '-r', '--name-only', resolvedRevision]).trim().split('\n').filter(Boolean);
   const read = (path) => git(['show', `${resolvedRevision}:${path}`]);
-  const rustFiles = paths.filter((path) => /^src\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path)).sort();
+  const legacyEpoch = !paths.some((path) => path.startsWith(`${SOURCE_ROOT}/`));
+  const migratePath = (path) => legacyEpoch && path.startsWith(`${LEGACY_SOURCE_ROOT}/`)
+    ? `${SOURCE_ROOT}/${path.slice(`${LEGACY_SOURCE_ROOT}/`.length)}`
+    : path;
+  const migrateString = (value) => legacyEpoch
+    ? value.replaceAll(`${LEGACY_SOURCE_ROOT}/`, `${SOURCE_ROOT}/`)
+    : value;
+  const migrateValue = (value) => {
+    if (typeof value === 'string') return migrateString(value);
+    if (Array.isArray(value)) return value.map(migrateValue);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(Object.entries(value).map(([key, child]) => [migrateString(key), migrateValue(child)]));
+    }
+    return value;
+  };
+  const rustSourcePaths = paths
+    .filter((path) => /^(?:src|crates\/snapback\/src)\/(?:[^/]+\/)*[^/]+\.rs$/u.test(path))
+    .sort();
+  const rustFiles = rustSourcePaths.map(migratePath);
   const issuePaths = paths.filter((path) => /^issues\/[^/]+\.md$/u.test(path)).sort();
-  const manifest = JSON.parse(read('ownership.manifest.json'));
-  const baseline = JSON.parse(read('ownership.baseline.json'));
-  const sources = new Map(rustFiles.map((path) => [path, read(path)]));
-  const issues = new Map(issuePaths.map((path) => [path, read(path)]));
+  const manifest = migrateValue(JSON.parse(read('ownership.manifest.json')));
+  const baseline = migrateValue(JSON.parse(read('ownership.baseline.json')));
+  const sources = new Map(rustSourcePaths.map((path) => [migratePath(path), read(path)]));
+  const issues = new Map(issuePaths.map((path) => [
+    path,
+    legacyEpoch ? read(path).replaceAll(`${LEGACY_SOURCE_ROOT}/`, `${SOURCE_ROOT}/`) : read(path),
+  ]));
   // A predecessor may itself be the red being fixed forward. Treat modules
   // already missing there as historical residue so the pushed tree can remove
   // them or explicitly park them in unassigned. A module new in the pushed
@@ -1058,7 +1085,7 @@ function defaultPredecessors() {
   if (fromEnvironment.length > 0) return fromEnvironment;
   const changed = git([
     'status', '--porcelain=v1', '--untracked-files=normal', '--',
-    'src', 'ownership.manifest.json', 'ownership.baseline.json', 'issues',
+    SOURCE_ROOT, 'ownership.manifest.json', 'ownership.baseline.json', 'issues',
   ]).trim();
   if (changed !== '') return ['HEAD'];
   try {

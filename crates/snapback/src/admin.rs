@@ -396,7 +396,7 @@ pub(crate) fn resolve_profile(
 /// The one admin HTTP client. Contract admin-ui imports the same source as the
 /// `@expo/snapback-admin-client` workspace package, and the server also exposes it at
 /// `/_snapback/admin/client.mjs` for external tooling — one client, no drift.
-const ADMIN_CLIENT_MJS: &str = include_str!("../packages/snapback-admin-client/index.mjs");
+const ADMIN_CLIENT_MJS: &str = include_str!("../../../packages/snapback-admin-client/index.mjs");
 
 /// Browser-safe administrator capability lifetime. The credential is
 /// short-lived and may slide only while active, with an eight-hour absolute
@@ -2527,6 +2527,7 @@ fn resolve_admin_dist(raw: Option<OsString>, default: Option<PathBuf>) -> Option
 
 fn default_admin_dist() -> Option<PathBuf> {
     let dist = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
         .join("admin-ui")
         .join("dist");
     if dist.join("index.html").is_file() {

@@ -14,7 +14,7 @@ use snapback::manifest::FieldType;
 use std::path::{Path, PathBuf};
 
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
 }
 
 /// The serialized form of representative Snapback-owned enum-like values is
@@ -120,7 +120,7 @@ fn serde_repr_requires_an_allowlisting_ref() {
     );
 
     let mut files = Vec::new();
-    rust_sources(&repo_root().join("src"), &mut files);
+    rust_sources(&repo_root().join("crates/snapback/src"), &mut files);
     assert!(!files.is_empty(), "expected Rust sources under src/");
     let mut violations = Vec::new();
     for file in files {

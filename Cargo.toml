@@ -1,0 +1,25 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+default-members = ["crates/snapback"]
+exclude = ["vendor/ibex", "vendor/celld-ltx"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.lints]
+
+# Keep the ordinary release build suitable for the in-window incremental edit
+# loop. The shipped binary uses the dedicated production profile below.
+[profile.release]
+incremental = true
+
+# @ref LLP 0276#crates--the-rust-workspace — production qualification retains
+# the shipped full-LTO shape without imposing it on ordinary release builds.
+[profile.production]
+inherits = "release"
+incremental = false
+lto = "fat"
+codegen-units = 1

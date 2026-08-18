@@ -954,7 +954,7 @@ mod tests {
 
     fn todo_schema() -> crate::manifest::SchemaManifest {
         serde_json::from_str(include_str!(
-            "../demos/todo/snapback/generated/schema.manifest.json"
+            "../../../demos/todo/snapback/generated/schema.manifest.json"
         ))
         .expect("todo generated schema")
     }
@@ -1082,7 +1082,7 @@ mod tests {
         // by the same-transaction activation scan, witnessed in the storage
         // membership-write suite.
         let sessions: crate::manifest::SchemaManifest = serde_json::from_str(include_str!(
-            "../demos/rbac/snapback/generated/schema.manifest.json"
+            "../../../demos/rbac/snapback/generated/schema.manifest.json"
         ))
         .expect("rbac generated schema");
         let mut membership_artifact = SeedArtifactV1 {

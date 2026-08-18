@@ -10,7 +10,7 @@ assert.equal(vectors.formatVersion, 'relation-activity-publication-v1');
 const receiptUrl = new URL('./relation-activity-publication-v1.receipt.json', import.meta.url);
 const receiptBytes = await readFile(receiptUrl);
 const receipt = JSON.parse(receiptBytes);
-const carrierUrl = new URL('../../src/local-relation-activity-publication.v1.json', import.meta.url);
+const carrierUrl = new URL('../../crates/snapback/src/local-relation-activity-publication.v1.json', import.meta.url);
 const carrierBytes = await readFile(carrierUrl);
 const carrier = JSON.parse(carrierBytes);
 const sha256 = (bytes) => `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
@@ -41,7 +41,7 @@ assert.deepEqual(carrier.capabilityIds, ['bounded_children_v1', 'write_activity_
 assert.equal(carrier.qualificationReceiptSha256, sha256(receiptBytes));
 assert.equal(
   sha256(carrierBytes),
-  'sha256:2572614eef4569b45be9ad88ca969f0f7b4b45b8d026c1b1408003a39a4abcee',
+  'sha256:901b8dbc111547b15739d1339198c062460b2af7babf3034c6ce46b9c49211c4',
 );
 for (const [source, expected] of Object.entries({
   ...carrier.executorSourceSha256,

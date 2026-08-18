@@ -19353,7 +19353,7 @@ fn effect_ceiling_subset_check_fails_closed_on_mismatch() {
 //   here before it ships.
 #[test]
 fn generated_demo_manifests_pass_the_effect_ceiling_subset_check() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     for demo in [
         "demos/competitive-checkpoint/snapback/generated",
         "demos/todo-v2/snapback/generated",

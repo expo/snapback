@@ -21,7 +21,7 @@ use snapback::wire_fixtures::{
 };
 
 fn committed(file: &str) -> Value {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("schemas")
         .join(file);
     let text = fs::read_to_string(&path)

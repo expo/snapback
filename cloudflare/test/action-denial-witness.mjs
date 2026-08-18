@@ -1,4 +1,4 @@
-// Hosted mirror of tests/action_denial_witness_v0.rs (0137 a4-f5,
+// Hosted mirror of crates/snapback/tests/action_denial_witness_v0.rs (0137 a4-f5,
 // issues/20260801-hosted-action-denial-witness-parity.md): a nested
 // mutation's trusted SNAPBACK_AUTH_PERMISSION_DENIED must survive the action
 // boundary on the workerd/DO coordinator exactly as on the local runtime —
@@ -32,7 +32,7 @@ const bootstrap = await readFile(
 
 // The uniform trusted denial a hosted requireRole/RLS producer surfaces
 // through runMutationForAction — byte-identical to role_denial()
-// (src/membership_rules.rs): code, message, details.
+// (crates/snapback/src/membership_rules.rs): code, message, details.
 const TRUSTED_DENIAL = Object.freeze({
   ok: false,
   code: 'SNAPBACK_AUTH_PERMISSION_DENIED',

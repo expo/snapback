@@ -320,7 +320,7 @@ fi
 reviewed_source_profile_cache_keys() (
     [ -f "$VENDOR_IBEX/scripts/hermes-version.sh" ] || return 1
 
-    # build.rs reconstructs the checked-in defaults, not caller overrides.
+    # vendor/ibex/build.rs reconstructs the checked-in defaults, not caller overrides.
     unset IBEX_HERMES_VERSION IBEX_HERMES_SOURCE_REF \
         IBEX_HERMES_SOURCE_COMMIT IBEX_HERMES_BUILD_REF
     # shellcheck source=/dev/null
@@ -631,7 +631,7 @@ if [ "$RUN_CHECK" != "0" ]; then
     # worktree's first `cargo run` crash (ENG-22664). Build the binary (real link)
     # and, on macOS, launch it with DYLD_* scrubbed to mirror the SIP-stripped
     # environment of a protected process tree; the framework must load from the
-    # LC_RPATH baked in by build.rs. Artifacts were verified above, so a failure
+    # LC_RPATH baked in by crates/snapback/build.rs. Artifacts were verified above, so a failure
     # here is a Snapback/vendored-runtime compile/link or runtime-load problem,
     # not a missing artifact.
     log "validating Snapback native runtime: exact cargo link + launch smoke"

@@ -10,7 +10,7 @@
 # (issues/closed/20260805-whole-tree-dirty-flag-forces-runtime-rebuild.md).
 #
 # Consumers (keep in sync when adding one):
-#   build.rs                            (compile-time fallback probe)
+#   crates/snapback/build.rs            (compile-time fallback probe)
 #   scripts/verify-local-proof          (stamp_snapback_build_identity)
 #   scripts/bootstrap-ibex-runtime      (reuse_authoritative_runtime_receipt)
 #   demos/_kit/provenance.mjs           (readCheckoutBinaryIdentity)
@@ -26,13 +26,14 @@
 # authoring surface: those cannot change the binary's bytes.
 
 # Cargo build inputs
-build.rs
 Cargo.toml
 Cargo.lock
+crates/snapback/Cargo.toml
+crates/snapback/build.rs
 rust-toolchain.toml
 
-# Crate sources (includes src/**/*.html and other include_str! assets)
-src
+# Crate sources (includes crates/snapback/src/**/*.html and other include_str! assets)
+crates/snapback/src
 
 # Vendored runtime crate that links into the binary (submodule pathspec:
 # reports new commits / modified tracked content; prepared Hermes artifacts
@@ -40,7 +41,7 @@ src
 vendor/ibex
 
 # Build-embedded corpora and assets (build.rs rerun-if-changed=guide;
-# include_str!/include_bytes! targets outside src/)
+# include_str!/include_bytes! targets outside crates/snapback/src/)
 guide
 brand
 schemas/http.routes.v1.json

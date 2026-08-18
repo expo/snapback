@@ -61,7 +61,7 @@ const encoder = new TextEncoder();
 
 // ---------------------------------------------------------------------------
 // Hash tags shared with cloudflare-arm identities (LLP 0091 §0A.6 / the
-// step-1 interim queryArtifact rule, byte-compatible with src/rqs.rs).
+// step-1 interim queryArtifact rule, byte-compatible with crates/snapback/src/rqs.rs).
 // ---------------------------------------------------------------------------
 
 function sha256Hex(bytes) {
@@ -77,7 +77,7 @@ function tagged(tag, text) {
   return joined;
 }
 
-/// `sha256:`-prefixed identity of a canonical JSON value (src/rqs.rs
+/// `sha256:`-prefixed identity of a canonical JSON value (crates/snapback/src/rqs.rs
 /// `sha256_identity` parity: untagged SHA-256 over the JCS bytes).
 export function sha256Identity(value) {
   return `sha256:${sha256Hex(encoder.encode(jcs(value)))}`;
@@ -140,7 +140,7 @@ export function generationDigest(
 /// The plan `value` expressions this arm's native evaluator supports. The
 /// derivation is fail-closed: anything outside the subset makes the function
 /// non-eligible AND non-evaluable, never a silently wrong answer. Mirrors
-/// the authority/ambient-input refusals of src/manifest.rs
+/// the authority/ambient-input refusals of crates/snapback/src/manifest.rs
 /// (`value_expr_uses_authority_or_ambient_input`) by whitelist instead of
 /// blacklist.
 function supportedFilterValue(value) {
@@ -193,7 +193,7 @@ export function validateHostPlanQuery(plan, schemaTables) {
 
 /// The `rqsEligible` predicate + digest-kind selector, derived (never
 /// authored) from the compiled function definition — the same conjunction
-/// src/manifest.rs `rqs_eligible_digest_kind` computes on the local arm:
+/// crates/snapback/src/manifest.rs `rqs_eligible_digest_kind` computes on the local arm:
 /// declared `authorityIndependent` on a public LiveQuery with no authority
 /// or ambient inputs, plus the closed-inputs proof (a HostPlan query with a
 /// complete `singleTable` read summary). On this deploy-time-compiled arm the
@@ -699,7 +699,7 @@ function constantTimeEqual(a, b) {
   return diff === 0;
 }
 
-/// Decode and cryptographically verify a presented `tokenWire` (src/rqs.rs
+/// Decode and cryptographically verify a presented `tokenWire` (crates/snapback/src/rqs.rs
 /// `decode_and_verify` parity): framing, size cap, key resolution under the
 /// overlap window, MAC over the rebuilt transcript, and the `issuedAt`
 /// staleness backstop. Semantic admission is the caller's.

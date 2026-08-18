@@ -6939,7 +6939,7 @@ fn invocation_source(
 /// source so top-level handler code observes the same surface on both
 /// engines.
 fn allowlist_install_source() -> &'static str {
-    include_str!("../packages/snapback-harness/allowlist-install.js")
+    include_str!("../../../packages/snapback-harness/allowlist-install.js")
 }
 
 /// The per-invocation tail of the eval source: the async IIFE that calls
@@ -7020,7 +7020,7 @@ fn invocation_iife_source(
     // includes raw newlines, which cannot occur in a serde_json string literal,
     // and is split exactly once rather than globally replacing user-adjacent
     // tokens. The tagged settlement contract above is otherwise unchanged.
-    let template = include_str!("../packages/snapback-harness/invocation-iife.js");
+    let template = include_str!("../../../packages/snapback-harness/invocation-iife.js");
     let (prefix, suffix) = template
         .split_once(INVOCATION_IIFE_PAYLOAD_SLOT)
         .expect("invocation IIFE must contain its single payload slot");
@@ -7074,7 +7074,7 @@ fn banned_ambient_globals() -> &'static Vec<String> {
     static BANNED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     BANNED.get_or_init(|| {
         let allowlist: Value =
-            serde_json::from_str(include_str!("../packages/snapback-harness/allowlist.json"))
+            serde_json::from_str(include_str!("../../../packages/snapback-harness/allowlist.json"))
                 .expect("packages/snapback-harness/allowlist.json parses");
         allowlist
             .get("bannedEverywhere")
@@ -7099,7 +7099,7 @@ fn banned_ambient_members() -> &'static Vec<String> {
     static BANNED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     BANNED.get_or_init(|| {
         let allowlist: Value =
-            serde_json::from_str(include_str!("../packages/snapback-harness/allowlist.json"))
+            serde_json::from_str(include_str!("../../../packages/snapback-harness/allowlist.json"))
                 .expect("packages/snapback-harness/allowlist.json parses");
         allowlist
             .get("bannedEverywhere")
@@ -7256,7 +7256,7 @@ fn ctx_bootstrap_source() -> &'static str {
     // @ref LLP 0048#architecture — the ctx bootstrap is the single-sourced
     // handler harness core, shared byte-for-byte with the workerd/V8 leg and
     // the LLP 0040 deploy template.
-    include_str!("../packages/snapback-harness/ctx-bootstrap.js")
+    include_str!("../../../packages/snapback-harness/ctx-bootstrap.js")
 }
 
 fn required_string(args: &Value, key: &str) -> SnapbackResult<String> {
@@ -7772,7 +7772,7 @@ fn find_vendored_ibex_cli() -> Option<PathBuf> {
 }
 
 fn snapback_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
 fn find_on_path(binary: &str) -> Option<PathBuf> {

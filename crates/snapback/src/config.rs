@@ -1085,7 +1085,7 @@ mod tests {
             variants: Vec<String>,
         }
         let corpus: RedactionCorpus = serde_json::from_str(include_str!(
-            "../tests/fixtures/secret-redaction-encoded-forms.json"
+            "../../../tests/fixtures/secret-redaction-encoded-forms.json"
         ))
         .expect("shared local/Cloudflare redaction corpus");
         let redactor = SecretRedactor::new(vec![corpus.secret]);

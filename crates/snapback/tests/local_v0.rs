@@ -132,7 +132,7 @@ fn ibex_ctx_db_handlers_run_todo_query_mutation_and_live_update() {
 /// JavaScript transform fixture.
 #[test]
 fn typescript_handler_codegen_executes_emitted_javascript_in_hermes() {
-    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = std::path::PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let codegen = root.join("packages/snapback-codegen/index.mjs");
     let define = root.join("packages/snapback-codegen/define.mjs");
     let define_url = format!(
@@ -2543,7 +2543,7 @@ fn ensure_ephemeral_collections_rejects_mismatch_without_clearing_room() {
 #[test]
 fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     const GENERATED_SCHEMA: &str =
-        include_str!("../demos/todo/snapback/generated/schema.manifest.json");
+        include_str!("../../../demos/todo/snapback/generated/schema.manifest.json");
     let committed_schema: Value =
         serde_json::from_str(GENERATED_SCHEMA).expect("committed schema artifact parses");
     let schema: SchemaManifest =
@@ -2565,7 +2565,7 @@ fn generated_v0_artifacts_round_trip_through_runtime_structs() {
     assert_eq!(schema_value["schemaHash"], committed_schema["schemaHash"]);
 
     const GENERATED_FUNCTIONS: &str =
-        include_str!("../demos/todo/snapback/generated/functions.manifest.json");
+        include_str!("../../../demos/todo/snapback/generated/functions.manifest.json");
     let committed_functions: Value =
         serde_json::from_str(GENERATED_FUNCTIONS).expect("committed function artifact parses");
     let functions: FunctionManifest =

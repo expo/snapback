@@ -71,7 +71,7 @@ const LEGACY_CLAIM_SCOPE = Object.freeze({
     '.gitmodules',
     'Cargo.lock',
     'Cargo.toml',
-    'build.rs',
+  'crates/snapback/build.rs',
     'scripts/check-agent-safe-publication.mjs',
     'scripts/generated-artifact-policy.mjs',
     'vendor/ibex',

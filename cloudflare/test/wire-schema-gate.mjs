@@ -1,7 +1,7 @@
 // Hosted-arm wire-schema gate (LLP 0094 §0F items 1–3 / LLP 0051 §D4).
 //
 // The committed schemas under schemas/ are generated from the Rust serde
-// authorities and drift-gated on the Rust side (tests/artifact_schemas_v0.rs).
+// authorities and drift-gated on the Rust side (crates/snapback/tests/artifact_schemas_v0.rs).
 // This suite is the HOSTED executable half: it validates what the Cloudflare
 // arm actually serves against those same committed schemas —
 //

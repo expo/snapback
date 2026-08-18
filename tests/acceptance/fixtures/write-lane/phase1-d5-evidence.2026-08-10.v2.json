@@ -982,7 +982,7 @@
     "rustHost": {
       "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
       "command": "cargo test --locked --test data_tier_corpus_v0 data_tier_corpus_cases_pass_on_the_host_evaluator -- --nocapture",
-      "runner": "tests/data_tier_corpus_v0.rs",
+      "runner": "crates/snapback/tests/data_tier_corpus_v0.rs",
       "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
       "status": "pass"
     }
@@ -1004,7 +1004,7 @@
     "packages/snapback-contract/index.mjs": "sha256:8507f1f39b855191f98887d98eb360d85346e0cceac9d6656092bdb4d44ebe76",
     "tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs": "sha256:e940ca06b49aeac9d4fd59eecf057d54b913216742969fdf5c17c6b94faa9b14",
     "tests/conformance/data-tier/js-d5-harness.mjs": "sha256:6379413001c81895dc9585a14100c8a0cfdb08cb955bca68c2d4b801e4953071",
-    "tests/data_tier_corpus_v0.rs": "sha256:da9a0cbbca5203685f8cd49bbbed2d66e3a2f966d6ffada06ec15e9937aa24ea"
+    "crates/snapback/tests/data_tier_corpus_v0.rs": "sha256:da9a0cbbca5203685f8cd49bbbed2d66e3a2f966d6ffada06ec15e9937aa24ea"
   },
   "summary": {
     "blocked": 0,

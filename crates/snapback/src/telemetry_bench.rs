@@ -382,7 +382,7 @@ fn benchmark_environment() -> BenchmarkEnvironment {
 fn ceilings_for(profile: BenchmarkProofProfile) -> SnapbackResult<BenchmarkCeilings> {
     let baseline: CommittedBenchmarkBaseline = serde_json::from_str(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json"
+        "/../../tests/acceptance/telemetry-phase1-benchmark-baseline.v1.json"
     )))
     .map_err(|error| {
         bench_error(

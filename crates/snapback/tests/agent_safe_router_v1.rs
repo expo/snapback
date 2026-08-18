@@ -41,11 +41,11 @@ const CLIENT_AUDIENCE_ID: &str = "agent-safe-router-store";
 
 fn generated_owned_crud_fixture() -> (SchemaManifest, FunctionManifest) {
     let mut schema: SchemaManifest = serde_json::from_str(include_str!(
-        "../demos/competitive-checkpoint/acceptance/hosted-edge/app/generated/schema.manifest.json"
+        "../../../demos/competitive-checkpoint/acceptance/hosted-edge/app/generated/schema.manifest.json"
     ))
     .expect("generated owned-CRUD schema fixture");
     let mut functions: FunctionManifest = serde_json::from_str(include_str!(
-        "../demos/competitive-checkpoint/acceptance/hosted-edge/app/generated/functions.manifest.json"
+        "../../../demos/competitive-checkpoint/acceptance/hosted-edge/app/generated/functions.manifest.json"
     ))
     .expect("generated owned-CRUD function fixture");
 

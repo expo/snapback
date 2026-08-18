@@ -41,7 +41,7 @@ use snapback::workerd_exec::{
     with_wall_clock_timeout_ms, workerd_version,
 };
 
-const CORPUS_MODULE_SOURCE: &str = include_str!("../../tests/conformance/twin-corpus.handlers.js");
+const CORPUS_MODULE_SOURCE: &str = include_str!("../../../../tests/conformance/twin-corpus.handlers.js");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Engines {
@@ -678,7 +678,7 @@ fn run_case_on(case: &Case, backend: HandlerBackend) -> RawRun {
 // reports raw per-case observations for classification here.
 
 fn cloudflare_leg_toolchain() -> Result<(PathBuf, PathBuf), String> {
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let script = manifest_dir.join("cloudflare/test/twin-engine.mjs");
     if !script.exists() {
         return Err(format!("missing runner {}", script.display()));
@@ -689,7 +689,7 @@ fn cloudflare_leg_toolchain() -> Result<(PathBuf, PathBuf), String> {
                 .to_owned(),
         );
     }
-    Ok((script, manifest_dir.to_path_buf()))
+    Ok((script, manifest_dir))
 }
 
 fn run_cloudflare_leg(cases: &[Case]) -> Result<HashMap<String, Value>, String> {
@@ -758,7 +758,7 @@ fn run_cloudflare_leg(cases: &[Case]) -> Result<HashMap<String, Value>, String> 
 /// absolute path inside a developer worktree is not a portable runtime fact.
 // @ref LLP 0048#reproducible-conformance-evidence-2026-07-12 — canonical reports use a stable repo-relative tool locator.
 fn workerd_report_locator(workerd_bin: &Path) -> String {
-    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let portable = |path: &Path| {
         path.components()
             .map(|component| component.as_os_str().to_string_lossy())
@@ -766,7 +766,7 @@ fn workerd_report_locator(workerd_bin: &Path) -> String {
             .join("/")
     };
 
-    if let Ok(relative) = workerd_bin.strip_prefix(repo_root) {
+    if let Ok(relative) = workerd_bin.strip_prefix(&repo_root) {
         return portable(relative);
     }
     if workerd_bin.is_relative() {
@@ -974,7 +974,7 @@ mod tests {
 
     #[test]
     fn repo_local_workerd_locator_is_stable_across_worktrees() {
-        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let locator = workerd_report_locator(&repo_root.join("node_modules/.bin/workerd"));
         assert_eq!(locator, "node_modules/.bin/workerd");
         assert!(!locator.contains(&repo_root.display().to_string()));

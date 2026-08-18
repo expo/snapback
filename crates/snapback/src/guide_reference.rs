@@ -679,7 +679,7 @@ mod tests {
     #[test]
     fn shared_lookup_cases_match_the_package_contract_and_budget() {
         let fixtures: Value = serde_json::from_str(include_str!(
-            "../tests/fixtures/guide-symbol-lookup-v1.json"
+            "../../../tests/fixtures/guide-symbol-lookup-v1.json"
         ))
         .unwrap();
         for case in fixtures["cases"].as_array().unwrap() {

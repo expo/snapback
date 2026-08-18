@@ -22,7 +22,7 @@ struct BrowserVector {
 fn webcrypto_es256_proof_verifies_in_rust() {
     let output = Command::new("node")
         .arg("packages/snapback-client/sender-proof.vector.mjs")
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .output()
         .expect("launch Node sender-proof vector");
     assert!(

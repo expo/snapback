@@ -153,7 +153,7 @@ fn compute_fixture() -> Value {
 }
 
 fn committed_fixture() -> Value {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(FIXTURE_PATH);
+    let path = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(FIXTURE_PATH);
     let bytes = std::fs::read(&path).expect("committed parity fixture exists");
     serde_json::from_slice(&bytes).expect("parity fixture parses")
 }
@@ -162,7 +162,7 @@ fn committed_fixture() -> Value {
 #[test]
 #[ignore = "regenerates tests/fixtures/rqs-parity-v1.json; run explicitly after a contract change"]
 fn regenerate_parity_fixture() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(FIXTURE_PATH);
+    let path = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join(FIXTURE_PATH);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let mut bytes = serde_json::to_vec_pretty(&compute_fixture()).unwrap();
     bytes.push(b'\n');

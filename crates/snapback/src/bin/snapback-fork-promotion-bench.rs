@@ -1008,7 +1008,7 @@ mod tests {
     #[test]
     fn absolute_recorder_accepts_only_the_exact_step0_baseline_bytes() {
         let baseline = include_bytes!(
-            "../../tests/acceptance/fixtures/agent-safe-storage/performance-baseline.2026-08-03.v1.json"
+            "../../../../tests/acceptance/fixtures/agent-safe-storage/performance-baseline.2026-08-03.v1.json"
         );
         assert_eq!(
             validate_baseline_digest(baseline).expect("accepted baseline"),

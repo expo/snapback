@@ -8378,7 +8378,7 @@ const fn served_guide_route(path: &'static str) -> RouteSpec {
 pub const GUIDE_CONTENT_HASH_HEADER: &str = "x-snapback-guide-content-sha256";
 pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
 pub const HTTP_ROUTES_PATH: &str = "/_snapback/guide/http.routes.v1.json";
-const HTTP_ROUTES_V1: &[u8] = include_bytes!("../schemas/http.routes.v1.json");
+const HTTP_ROUTES_V1: &[u8] = include_bytes!("../../../schemas/http.routes.v1.json");
 
 // @ref LLP 0186#w2--context-injection-surface-owned-here — the convention
 // endpoint gives agent probes a size-labeled index into the build-bound guide.

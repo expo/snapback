@@ -24,7 +24,12 @@ function main() {
     return;
   }
 
-  const rustSources = globSync(['*.rs', 'src/**/*.rs', 'tests/**/*.rs'], { cwd: ROOT });
+  const rustSources = globSync([
+    'crates/*/src/**/*.rs',
+    'crates/*/tests/**/*.rs',
+    'crates/*/examples/**/*.rs',
+    'crates/*/build.rs',
+  ], { cwd: ROOT });
   if (rustSources.length === 0) {
     fail('no Rust source files were found; refusing a vacuous formatting pass');
     return;

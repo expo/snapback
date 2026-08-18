@@ -13,7 +13,7 @@ fn main() {
         "{}\n",
         serde_json::to_string_pretty(&value).expect("sbsb2 fixture is JSON")
     );
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
         .join("tests/fixtures/snapshot-batch-sbsb2-parity-v1.json");
     if std::env::args().any(|argument| argument == "--write") {
         std::fs::write(&path, rendered).expect("write sbsb2 parity fixture");

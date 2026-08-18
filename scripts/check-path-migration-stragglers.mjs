@@ -10,7 +10,7 @@
 // variables, derived template roots, or helpers defined in another file.
 // `crate::` module paths are out of scope; the compiler and workspace-graph
 // gate own that coverage. Epoch-assignment validation proves only "not too
-// early", not that every assignment is otherwise correct. The 207-row source
+// early", not that every assignment is otherwise correct. The 208-row source
 // manifest was sampled by the two final blind reviews (16 and 19 rows), not
 // independently re-verified row by row. The battery's fail-closed inventories
 // remain the net behind this bounded scanner.
@@ -141,7 +141,7 @@ function validateManifest(manifest) {
   expect(consumers.length > 0, 'consumers must not be empty');
   const consumerIds = new Set();
   const consumerFileMoves = (repositoryPath) => repositoryPath === 'build.rs'
-    || repositoryPath.startsWith('src/')
+    || repositoryPath.startsWith('crates/snapback/src/')
     || /^tests\/[^/]+\.rs$/u.test(repositoryPath)
     || repositoryPath.startsWith('examples/')
     || repositoryPath.startsWith('tools/agent-safe-baseline-worker/')
@@ -270,8 +270,9 @@ function validateEpochAssignments(manifest) {
   const epochIndex = new Map(manifest.epoch.order.map((epoch, index) => [epoch, index]));
   const earliestTargetEpoch = (repositoryPath) => {
     if (/^targets\/cloudflare\//u.test(repositoryPath)) return 'phase-3';
+    if (/^crates\/snapback\/examples\//u.test(repositoryPath)) return 'phase-1';
     if (/^crates\/(?!snapback\/(?:src|tests)\/|snapback\/(?:Cargo\.toml|build\.rs)$)/u.test(repositoryPath)
-      || /^crates\/snapback\/examples\//u.test(repositoryPath)) return 'phase-2';
+    ) return 'phase-2';
     if (/^crates\/snapback\/(?:src|tests)\//u.test(repositoryPath)
       || /^crates\/snapback\/(?:Cargo\.toml|build\.rs)$/u.test(repositoryPath)) return 'phase-1';
     return 'pre-flip';
@@ -303,7 +304,9 @@ function workspaceMembers(root) {
 
 function workspaceIncludesMember(members, repositoryPath) {
   return members.includes(repositoryPath)
-    || members.some((entry) => entry.endsWith('/*') && repositoryPath.startsWith(entry.slice(0, -1)));
+    || members.some((entry) => entry.endsWith('/*')
+      && repositoryPath.startsWith(entry.slice(0, -1))
+      && existsSync(join(ROOT, repositoryPath, 'Cargo.toml')));
 }
 
 function hasRemainderConfinementExemption(root) {
@@ -366,9 +369,9 @@ function validateEpochShape(epoch, root = ROOT) {
     requireDirectory('cloudflare');
     forbidDirectory('targets/cloudflare');
     requireDirectory('tools/agent-safe-baseline-worker');
-    requireDirectory('examples');
+    forbidDirectory('examples');
     forbidDirectory('crates/snapback-tools');
-    forbidDirectory('crates/snapback/examples');
+    requireDirectory('crates/snapback/examples');
     requireFile('crates/allowed-dependencies.v1.json');
     requireFile('scripts/check-module-ownership.mjs');
     requireWorkspaceMember('crates/snapback');
@@ -515,7 +518,7 @@ function projectionFiles(manifest, epochIndex) {
   const files = new Map();
   const add = (projection, paths) => {
     for (const path of paths) {
-      if (path === MANIFEST_PATH) continue;
+      if (path === MANIFEST_PATH || path === 'scripts/check-path-migration-stragglers.mjs') continue;
       const projections = files.get(path) ?? new Set();
       projections.add(projection);
       files.set(path, projections);
@@ -696,14 +699,26 @@ function withoutDestinationForms(candidate, pattern) {
   return masked;
 }
 
+function staleMovedSourceToken(candidate) {
+  const tokenRegex = /(?:^|([^a-zA-Z0-9_./$-]))((?:\.{1,2}\/)*src\/)([^\s"'`),;\]}]*)/gu;
+  return [...candidate.matchAll(tokenRegex)].some((match) => {
+    const suffix = match[3].replace(/[:#].*$/u, '');
+    const literalPrefix = suffix.split(/[?*[{]/u, 1)[0].replace(/\/$/u, '');
+    const movedPath = join(ROOT, 'crates/snapback/src', literalPrefix);
+    return existsSync(movedPath);
+  });
+}
+
 function candidateMatchesPattern(candidate, pattern) {
   const source = withoutDestinationForms(candidate, pattern);
+  if (pattern.id === 'root-build-script'
+    && /(?:\bibexRoot\b|vendor\/ibex\/build\.rs|Ibex build\.rs)/u.test(source)) return false;
   if (pattern.matcher === 'normalized-root-path') {
-    const tokenRegex = /(?:^|[^a-zA-Z0-9_./-])((?:\.{1,2}\/)*src\/)/gu;
-    return [...source.matchAll(tokenRegex)].some((match) => {
-      const normalized = match[1].replace(/^(?:\.{1,2}\/)+/u, '');
-      return normalized.startsWith('src/');
-    });
+    // Resolve lexical `src/` tokens against the tree that Phase 1 actually
+    // moved. This preserves detection for Rust sources and source assets while
+    // excluding unrelated local trees such as cloudflare/src, React src, and
+    // shell variables named $src.
+    return staleMovedSourceToken(source);
   }
   const regex = new RegExp(pattern.regex, pattern.flags ?? 'u');
   return regex.test(source);
@@ -720,6 +735,7 @@ function scanCommonPatterns({ source, repositoryPath, projection, patterns, mani
       if (!pattern.projections.includes(projection)) continue;
       if (epochIndex < manifest.epoch.order.indexOf(pattern.activeFrom)) continue;
       if (pattern.fileSuffixes && !pattern.fileSuffixes.some((suffix) => repositoryPath.endsWith(suffix))) continue;
+      if (pattern.id === 'root-build-script' && /\bibexRoot\b/u.test(line)) continue;
       const matches = lexicalCandidates(line).some((candidate) => candidateMatchesPattern(candidate, pattern));
       if (matches) {
         findings.push({
@@ -796,6 +812,7 @@ function scanRustSource(source, repositoryPath, epochIndex, manifest) {
     'gu',
   );
   for (const match of source.matchAll(manifestDirRegex)) {
+    if (/(?:join\(\s*["']\.\.\/\.\.["']\s*\)|["']\/\.\.\/\.\.["'])/u.test(match[0])) continue;
     findings.push({
       path: repositoryPath,
       line: lineNumberAt(source, match.index),
@@ -807,6 +824,7 @@ function scanRustSource(source, repositoryPath, epochIndex, manifest) {
 
   const helperRegex = /\bfn\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*->\s*(?:(?:std::path::)?PathBuf)\s*\{([^}]*?CARGO_MANIFEST_DIR[^}]*)\}/gu;
   for (const helper of source.matchAll(helperRegex)) {
+    if (/(?:join\(\s*["']\.\.\/\.\.["']\s*\)|["']\/\.\.\/\.\.["'])/u.test(helper[2])) continue;
     const helperName = helper[1];
     const escapedHelper = helperName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
     const addHelperMatches = (regex) => {
@@ -970,7 +988,7 @@ function main() {
         process.stderr.write(`${DIAGNOSTIC}_USAGE: --path must name an existing file inside the repository: ${repositoryPath}\n`);
         process.exit(2);
       }
-      if (repositoryPath === MANIFEST_PATH) {
+      if (repositoryPath === MANIFEST_PATH || repositoryPath === 'scripts/check-path-migration-stragglers.mjs') {
         authorityFiles += 1;
         continue;
       }

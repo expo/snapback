@@ -812,7 +812,7 @@ pub fn reference_parity_fixture() -> Result<Value, &'static str> {
         None,
     )?;
     let v1_fixture: Value = serde_json::from_str(include_str!(
-        "../tests/fixtures/snapshot-batch-sbsb1-parity-v1.json"
+        "../../../tests/fixtures/snapshot-batch-sbsb1-parity-v1.json"
     ))
     .map_err(|_| "serialize")?;
     let v1_wire = v1_fixture
@@ -1086,6 +1086,7 @@ mod tests {
     #[test]
     fn complete_reference_fixture_is_byte_exact_and_drift_guarded() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
             .join("tests/fixtures/snapshot-batch-sbsb2-parity-v1.json");
         let committed_bytes = std::fs::read(&path).expect("read sbsb2 parity fixture");
         let committed: Value =

@@ -11698,14 +11698,14 @@ async fn hosted_absent_carrier_on_unknown_function_refuses_before_body_poll() {
 async fn served_http_refusals_project_typed_candidates_and_argument_contracts() {
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
         let schema: SchemaManifest = serde_json::from_str(include_str!(
-            "../../demos/todo/snapback/generated/schema.manifest.json"
+            "../../../../demos/todo/snapback/generated/schema.manifest.json"
         ))
         .expect("parse served suggestion schema");
         snapback
             .apply_schema(schema)
             .expect("load suggestion schema");
         let functions: FunctionManifest = serde_json::from_str(include_str!(
-            "../../demos/todo/snapback/generated/functions.manifest.json"
+            "../../../../demos/todo/snapback/generated/functions.manifest.json"
         ))
         .expect("parse served suggestion functions");
         let diagnostics = snapback.load_functions(functions);
@@ -11824,14 +11824,14 @@ async fn served_http_buffered_mutation_reprojects_stored_media_result() {
     let mut asset_id = None;
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
         let schema: SchemaManifest = serde_json::from_str(include_str!(
-            "../../tests/acceptance/fixtures/media-reprojection/snapback/generated/schema.manifest.json"
+            "../../../../tests/acceptance/fixtures/media-reprojection/snapback/generated/schema.manifest.json"
         ))
         .expect("parse media re-projection schema");
         snapback
             .apply_schema(schema)
             .expect("load media re-projection schema");
         let functions: FunctionManifest = serde_json::from_str(include_str!(
-            "../../tests/acceptance/fixtures/media-reprojection/snapback/generated/functions.manifest.json"
+            "../../../../tests/acceptance/fixtures/media-reprojection/snapback/generated/functions.manifest.json"
         ))
         .expect("parse media re-projection functions");
         let diagnostics = snapback.load_functions(functions);
@@ -11843,7 +11843,7 @@ async fn served_http_buffered_mutation_reprojects_stored_media_result() {
             )),
             "media re-projection fixture loads: {diagnostics:?}",
         );
-        let png = include_bytes!("../../brand/favicon-16.png");
+        let png = include_bytes!("../../../../brand/favicon-16.png");
         let uploaded = snapback
             .asset_host_op(
                 "asset.put",
@@ -11942,14 +11942,14 @@ async fn served_http_media_commit_pushes_projected_live_replace() {
     let mut asset_id = None;
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
         let schema: SchemaManifest = serde_json::from_str(include_str!(
-            "../../tests/acceptance/fixtures/media-reprojection/snapback/generated/schema.manifest.json"
+            "../../../../tests/acceptance/fixtures/media-reprojection/snapback/generated/schema.manifest.json"
         ))
         .expect("parse media live-push schema");
         snapback
             .apply_schema(schema)
             .expect("load media live-push schema");
         let mut functions: FunctionManifest = serde_json::from_str(include_str!(
-            "../../tests/acceptance/fixtures/media-reprojection/snapback/generated/functions.manifest.json"
+            "../../../../tests/acceptance/fixtures/media-reprojection/snapback/generated/functions.manifest.json"
         ))
         .expect("parse media live-push functions");
 
@@ -11957,7 +11957,7 @@ async fn served_http_media_commit_pushes_projected_live_replace() {
         // charter's protected demo, but bind its result contract to this
         // compact Phase-F fixture's equivalent `profiles.image` field.
         let live_functions: FunctionManifest = serde_json::from_str(include_str!(
-            "../../demos/media-happy-post/snapback/generated/functions.manifest.json"
+            "../../../../demos/media-happy-post/snapback/generated/functions.manifest.json"
         ))
         .expect("parse generated media-happy live query");
         let mut list_profiles = live_functions
@@ -12005,7 +12005,7 @@ async fn served_http_media_commit_pushes_projected_live_replace() {
                 Some(&json!({
                     "upload": "profileImageUpload",
                     "bytesBase64": base64::engine::general_purpose::STANDARD
-                        .encode(include_bytes!("../../brand/favicon-16.png")),
+                        .encode(include_bytes!("../../../../brand/favicon-16.png")),
                     "fileName": "live-push-profile.png",
                     "contentType": "image/png",
                 })),
@@ -12131,14 +12131,14 @@ async fn served_http_buffered_media_command_reuses_attempt_for_preview_commit_an
     let mut asset_id = None;
     let (state, _) = auth_runtime_fixture_with(PolicyAuthMode::Dev, |snapback| {
         let schema: SchemaManifest = serde_json::from_str(include_str!(
-            "../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
+            "../../../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
         ))
         .expect("parse served media-command schema");
         snapback
             .apply_schema(schema)
             .expect("load served media-command schema");
         let functions: FunctionManifest = serde_json::from_str(include_str!(
-            "../../tests/acceptance/fixtures/media-profile/snapback/generated/functions.manifest.json"
+            "../../../../tests/acceptance/fixtures/media-profile/snapback/generated/functions.manifest.json"
         ))
         .expect("parse served media-command functions");
         let diagnostics = snapback.load_functions(functions);
@@ -12150,7 +12150,7 @@ async fn served_http_buffered_media_command_reuses_attempt_for_preview_commit_an
             )),
             "served media-command fixture loads: {diagnostics:?}",
         );
-        let png = include_bytes!("../../brand/favicon-16.png");
+        let png = include_bytes!("../../../../brand/favicon-16.png");
         let uploaded = snapback
             .asset_host_op(
                 "asset.put",

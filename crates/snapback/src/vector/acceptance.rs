@@ -73,7 +73,7 @@ struct OracleRanks {
 
 fn oracle() -> OracleCorpus {
     serde_json::from_str(include_str!(
-        "../../tests/conformance/vector-search-v1.corpus.json"
+        "../../../../tests/conformance/vector-search-v1.corpus.json"
     ))
     .expect("committed vector-search semantic oracle parses")
 }

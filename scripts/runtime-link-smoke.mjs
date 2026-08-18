@@ -110,9 +110,12 @@ function producerInputs(root, cargoCommand, cargoArgs, environment) {
   // One digest vocabulary: the same candidate set the persisted readiness
   // receipt records and re-verifies (LLP 0115 CV-3).
   const candidates = runtimeArtifactCandidates(root);
+  const packageManifest = existsSync(join(root, 'crates/snapback/Cargo.toml'))
+    ? join(root, 'crates/snapback/Cargo.toml')
+    : join(root, 'Cargo.toml');
   return {
     root,
-    manifest: join(root, 'Cargo.toml'),
+    manifest: packageManifest,
     lockfile: join(root, 'Cargo.lock'),
     target: 'snapback',
     profile: 'debug',
@@ -132,7 +135,8 @@ function producerInputs(root, cargoCommand, cargoArgs, environment) {
     cargoInputs: [
       join(root, 'Cargo.toml'),
       join(root, 'Cargo.lock'),
-      join(root, 'build.rs'),
+      join(root, 'crates/snapback/Cargo.toml'),
+      join(root, 'crates/snapback/build.rs'),
       join(root, '.cargo/config.toml'),
       join(root, 'vendor/ibex/Cargo.toml'),
       join(root, 'vendor/ibex/build.rs'),

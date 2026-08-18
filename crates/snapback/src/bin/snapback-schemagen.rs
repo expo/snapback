@@ -21,7 +21,9 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 fn main() -> std::io::Result<()> {
-    let schemas_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("schemas");
+    let schemas_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join("schemas");
     let schemas = artifact_schemas();
     write_schema_artifacts(&schemas_dir, &schemas)?;
     write_artifact_instances(&schemas_dir, &artifact_instances())

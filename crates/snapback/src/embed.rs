@@ -180,9 +180,9 @@ mod tests {
     use crate::auth::deployment::AuthDeploymentTarget;
 
     const TODO_SCHEMA: &[u8] =
-        include_bytes!("../demos/todo/snapback/generated/schema.manifest.json");
+        include_bytes!("../../../demos/todo/snapback/generated/schema.manifest.json");
     const TODO_FUNCTIONS: &[u8] =
-        include_bytes!("../demos/todo/snapback/generated/functions.manifest.json");
+        include_bytes!("../../../demos/todo/snapback/generated/functions.manifest.json");
 
     #[test]
     fn production_builder_bakes_artifacts_and_stays_self_hosted() {

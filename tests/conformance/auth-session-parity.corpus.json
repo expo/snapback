@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Shared accept/reject corpus for the auth.session.output wire contract (ENG-24991). Every case must produce the SAME verdict from the committed JSON Schema (tests/artifact_schemas_v0.rs) and from the executable kit validator (demos/_kit/tests/auth-session-schema-parity.mjs), so codegen/conformance can never approve a handshake shape no actual client accepts. Each case names a base fixture and optional mutations: `remove` is a list of member paths to delete, `set` is a list of {path, value} assignments. Paths are arrays of object keys.",
+  "description": "Shared accept/reject corpus for the auth.session.output wire contract (ENG-24991). Every case must produce the SAME verdict from the committed JSON Schema (crates/snapback/tests/artifact_schemas_v0.rs) and from the executable kit validator (demos/_kit/tests/auth-session-schema-parity.mjs), so codegen/conformance can never approve a handshake shape no actual client accepts. Each case names a base fixture and optional mutations: `remove` is a list of member paths to delete, `set` is a list of {path, value} assignments. Paths are arrays of object keys.",
   "schema": "auth.session.output.schema.json",
   "bases": {
     "settledDevAnonymous": {

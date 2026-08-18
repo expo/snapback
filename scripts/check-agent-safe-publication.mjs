@@ -57,9 +57,11 @@ const DERIVED_FORK_DATED_LOCATOR_PATTERNS = Object.freeze({
 export const IMPLEMENTATION_ROOTS = [
   'Cargo.toml',
   'Cargo.lock',
-  'build.rs',
+  'crates/snapback/Cargo.toml',
+  'crates/snapback/build.rs',
   '.gitmodules',
-  'src',
+  'crates/snapback/src',
+  'crates/snapback/tests',
   'packages/snapback-codegen',
   'packages/snapback-contract',
   'tests',
@@ -68,7 +70,7 @@ export const IMPLEMENTATION_ROOTS = [
 ];
 
 export const IMPLEMENTATION_DIGEST_VERSION =
-  'snapback:agent-safe-implementation-tree:v2';
+  'snapback:agent-safe-implementation-tree:v4';
 export const SCOPED_IMPLEMENTATION_DIGEST_VERSION =
   'snapback:agent-safe-implementation-tree:v3';
 export const IMPLEMENTATION_SCOPE_SCHEMA_VERSION =
@@ -81,17 +83,44 @@ const LEGACY_IMPLEMENTATION_DIGEST_VERSION =
 // defines publication semantics, rather than every wave-shared proof leaf.
 export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
   schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
-  roots: Object.freeze(['src']),
+  roots: Object.freeze(['crates/snapback/src']),
   files: Object.freeze([
     '.gitmodules',
     'Cargo.lock',
     'Cargo.toml',
-    'build.rs',
+    'crates/snapback/Cargo.toml',
+    'crates/snapback/build.rs',
     'scripts/check-agent-safe-publication.mjs',
     'scripts/generated-artifact-policy.mjs',
     'vendor/ibex',
   ]),
 });
+
+const LEGACY_DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
+  schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
+  roots: Object.freeze(['src']),
+  files: Object.freeze([
+    '.gitmodules',
+    'Cargo.lock',
+    'Cargo.toml',
+    'build.rs', // path-migration: historical
+    'scripts/check-agent-safe-publication.mjs',
+    'scripts/generated-artifact-policy.mjs',
+    'vendor/ibex',
+  ]),
+});
+
+function derivedForkImplementationScopeAt(root, commit) {
+  try {
+    execFileSync('git', ['cat-file', '-e', `${commit}:crates/snapback/Cargo.toml`], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+    return DERIVED_FORK_IMPLEMENTATION_SCOPE;
+  } catch {
+    return LEGACY_DERIVED_FORK_IMPLEMENTATION_SCOPE;
+  }
+}
 
 const DERIVED_FORK_SELECTION_POLICY_PATH =
   'scripts/local-proof-selection-policy.v1.json';
@@ -176,11 +205,11 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
   }),
   'local-store-publication': Object.freeze({
     records: Object.freeze([
-      'src/local-persistent-store-publication.v1.json and src/local-persistent-store-publication.anchor.v1.json',
+      'crates/snapback/src/local-persistent-store-publication.v1.json and crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
     ]),
     recordPaths: Object.freeze([
-      'src/local-persistent-store-publication.v1.json',
-      'src/local-persistent-store-publication.anchor.v1.json',
+      'crates/snapback/src/local-persistent-store-publication.v1.json',
+      'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
     ]),
     triggerRules: Object.freeze({
       files: Object.freeze([
@@ -192,22 +221,22 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
         'packages/snapback-client/store-runtime.mjs',
         'packages/snapback-codegen/index.mjs',
         'schemas/capability.manifest.local-dev-sqlite-ibex.json',
-        'src/local-persistent-store-publication.anchor.v1.json',
-        'src/local-persistent-store-publication.v1.json',
-        'src/local.rs',
-        'src/local/config_types.rs',
-        'src/local/inspection.rs',
-        'src/local/live_protocol.rs',
-        'src/local/receipt_log.rs',
-        'src/local/tests.rs',
-        'src/storage.rs',
+        'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+        'crates/snapback/src/local-persistent-store-publication.v1.json',
+        'crates/snapback/src/local.rs',
+        'crates/snapback/src/local/config_types.rs',
+        'crates/snapback/src/local/inspection.rs',
+        'crates/snapback/src/local/live_protocol.rs',
+        'crates/snapback/src/local/receipt_log.rs',
+        'crates/snapback/src/local/tests.rs',
+        'crates/snapback/src/storage.rs',
         'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
         'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
         'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
       ]),
       prefixes: Object.freeze([
         'scripts/finalize-local-persistent-store-publication',
-        'src/storage/',
+        'crates/snapback/src/storage/',
       ]),
     }),
     regenerateCommand: 'scripts/finalize-local-persistent-store-publication',
@@ -256,42 +285,42 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
   }),
   'relation-activity-publication': Object.freeze({
     records: Object.freeze([
-      'src/local-relation-activity-publication.v1.json and its pinned readers',
+      'crates/snapback/src/local-relation-activity-publication.v1.json and its pinned readers',
     ]),
     recordPaths: Object.freeze([
-      'src/local-relation-activity-publication.v1.json',
+      'crates/snapback/src/local-relation-activity-publication.v1.json',
       'tests/conformance/relation-activity-publication-v1.mjs',
-      'src/manifest.rs',
+      'crates/snapback/src/manifest.rs',
     ]),
     triggerRules: Object.freeze({
       files: Object.freeze([
         'packages/snapback-codegen/define.mjs',
         'scripts/refresh-publication-carrier.mjs',
-        'src/local-relation-activity-publication.v1.json',
-        'src/local.rs',
-        'src/local/config_types.rs',
-        'src/local/inspection.rs',
-        'src/local/live_protocol.rs',
-        'src/local/receipt_log.rs',
-        'src/local/tests.rs',
-        'src/manifest.rs',
-        'src/storage.rs',
+        'crates/snapback/src/local-relation-activity-publication.v1.json',
+        'crates/snapback/src/local.rs',
+        'crates/snapback/src/local/config_types.rs',
+        'crates/snapback/src/local/inspection.rs',
+        'crates/snapback/src/local/live_protocol.rs',
+        'crates/snapback/src/local/receipt_log.rs',
+        'crates/snapback/src/local/tests.rs',
+        'crates/snapback/src/manifest.rs',
+        'crates/snapback/src/storage.rs',
         'tests/conformance/relation-activity-publication-v1.receipt.json',
         'tests/conformance/relation-activity-publication-v1.mjs',
       ]),
-      prefixes: Object.freeze(['src/storage/']),
+      prefixes: Object.freeze(['crates/snapback/src/storage/']),
     }),
     regenerateCommand: 'node scripts/refresh-publication-carrier.mjs',
   }),
   'sequence-allocation-publication': Object.freeze({
     records: Object.freeze([
-      'src/local-sequence-allocation-publication.v1.json and its pinned readers',
+      'crates/snapback/src/local-sequence-allocation-publication.v1.json and its pinned readers',
     ]),
     recordPaths: Object.freeze([
-      'src/local-sequence-allocation-publication.v1.json',
+      'crates/snapback/src/local-sequence-allocation-publication.v1.json',
       'tests/conformance/sequence-allocation-publication-v1.mjs',
       'tests/conformance/sequence-allocation-publication-v1.receipt.json',
-      'src/manifest.rs',
+      'crates/snapback/src/manifest.rs',
     ]),
     triggerRules: Object.freeze({
       files: Object.freeze([
@@ -299,14 +328,14 @@ const DERIVED_FORK_ADMITTED_COVERAGE_GATES = Object.freeze({
         'packages/snapback-contract/derived-overlay.mjs',
         'packages/snapback-contract/index.mjs',
         'scripts/refresh-publication-carrier.mjs',
-        'src/local-sequence-allocation-publication.v1.json',
-        'src/manifest.rs',
-        'src/runtime.rs',
-        'src/storage.rs',
+        'crates/snapback/src/local-sequence-allocation-publication.v1.json',
+        'crates/snapback/src/manifest.rs',
+        'crates/snapback/src/runtime.rs',
+        'crates/snapback/src/storage.rs',
         'tests/conformance/sequence-allocation-publication-v1.mjs',
         'tests/conformance/sequence-allocation-publication-v1.receipt.json',
       ]),
-      prefixes: Object.freeze(['src/storage/']),
+      prefixes: Object.freeze(['crates/snapback/src/storage/']),
     }),
     regenerateCommand: 'node scripts/refresh-publication-carrier.mjs',
   }),
@@ -364,19 +393,19 @@ export const DERIVED_FORK_SIBLING_CUSTODY_GATES = Object.freeze([
 
 export const DERIVED_FORK_SIBLING_CUSTODY_TRANSFERS = Object.freeze([
   Object.freeze({
-    path: 'src/local-persistent-store-publication.v1.json',
+    path: 'crates/snapback/src/local-persistent-store-publication.v1.json',
     gate: 'local-store-publication',
   }),
   Object.freeze({
-    path: 'src/local-persistent-store-publication.anchor.v1.json',
+    path: 'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
     gate: 'local-store-publication',
   }),
   Object.freeze({
-    path: 'src/local-relation-activity-publication.v1.json',
+    path: 'crates/snapback/src/local-relation-activity-publication.v1.json',
     gate: 'relation-activity-publication',
   }),
   Object.freeze({
-    path: 'src/local-sequence-allocation-publication.v1.json',
+    path: 'crates/snapback/src/local-sequence-allocation-publication.v1.json',
     gate: 'sequence-allocation-publication',
   }),
 ]);
@@ -433,10 +462,10 @@ const LEGACY_REVIEW_VERDICT_CODES = new Map([
 ]);
 
 export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
-  'src/local-agent-safe-storage-publication.anchor.json',
-  'src/local-agent-safe-storage-publication.carrier.json',
-  'src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
-  'src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+  'crates/snapback/src/local-agent-safe-storage-publication.anchor.json',
+  'crates/snapback/src/local-agent-safe-storage-publication.carrier.json',
+  'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+  'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
   'tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json',
   'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json',
@@ -471,8 +500,8 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
   'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-06.v1.json',
   'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
-  'src/local-persistent-store-publication.anchor.v1.json',
-  'src/local-persistent-store-publication.v1.json',
+  'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+  'crates/snapback/src/local-persistent-store-publication.v1.json',
 ]);
 
 // The persistent-store carrier and anchor are publication-cycle exclusions
@@ -480,15 +509,15 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
 // the derived-fork snapshot. The two other sibling carriers already have that
 // classification because they are not cycle exclusions.
 export const DERIVED_FORK_SIBLING_CHAIN_PATHS = Object.freeze([
-  'src/local-persistent-store-publication.anchor.v1.json',
-  'src/local-persistent-store-publication.v1.json',
-  'src/local-relation-activity-publication.v1.json',
-  'src/local-sequence-allocation-publication.v1.json',
+  'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+  'crates/snapback/src/local-persistent-store-publication.v1.json',
+  'crates/snapback/src/local-relation-activity-publication.v1.json',
+  'crates/snapback/src/local-sequence-allocation-publication.v1.json',
 ]);
 
 export const LOCAL_STORE_PUBLICATION_TRANSFORM = {
-  anchor: 'src/local-persistent-store-publication.anchor.v1.json',
-  carrier: 'src/local-persistent-store-publication.v1.json',
+  anchor: 'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
+  carrier: 'crates/snapback/src/local-persistent-store-publication.v1.json',
   receipts: [
     {
       path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json',
@@ -515,15 +544,15 @@ const DERIVED_COMPONENTS = ['derivedDeploymentForkSafetyV1'];
 const RECORDS = [
   {
     id: 'agent_safe_storage_v1',
-    anchor: 'src/local-agent-safe-storage-publication.anchor.json',
-    carrier: 'src/local-agent-safe-storage-publication.carrier.json',
+    anchor: 'crates/snapback/src/local-agent-safe-storage-publication.anchor.json',
+    carrier: 'crates/snapback/src/local-agent-safe-storage-publication.carrier.json',
     receipt: 'tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json',
     components: STORAGE_COMPONENTS,
   },
   {
     id: 'agent_safe_derived_deployment_fork_v1',
-    anchor: 'src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
-    carrier: 'src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+    anchor: 'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+    carrier: 'crates/snapback/src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
     receipt: 'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
     components: DERIVED_COMPONENTS,
   },
@@ -900,15 +929,35 @@ function gateRecordsExistAtCommit(root, commit, metadata) {
   )));
 }
 
+function normalizeCoverageGatePathEpoch(root, commit, value) {
+  if (derivedForkImplementationScopeAt(root, commit) === DERIVED_FORK_IMPLEMENTATION_SCOPE) {
+    return value;
+  }
+  if (typeof value === 'string') return value.replaceAll('src/', 'crates/snapback/src/'); // path-migration: historical
+  if (Array.isArray(value)) return value.map((member) => (
+    normalizeCoverageGatePathEpoch(root, commit, member)
+  ));
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, member]) => [
+      key,
+      normalizeCoverageGatePathEpoch(root, commit, member),
+    ]));
+  }
+  return value;
+}
+
 function admittedCoverageGateAtCommit(root, recordCommit, driftProneGates, gate) {
   const metadata = driftProneGates?.[gate];
   const admitted = DERIVED_FORK_ADMITTED_COVERAGE_GATES[gate];
+  const normalizedMetadata = metadata === undefined
+    ? undefined
+    : normalizeCoverageGatePathEpoch(root, recordCommit, metadata);
   if (metadata === undefined || admitted === undefined
-      || !canonicallyEqual(metadata, admitted)
+      || !canonicallyEqual(normalizedMetadata, admitted)
       || !gateRecordsExistAtCommit(root, recordCommit, metadata)) {
     return null;
   }
-  return metadata;
+  return normalizedMetadata;
 }
 
 // The caller supplies the reviewed previous-record departure set. Exact set
@@ -978,8 +1027,13 @@ function assertSiblingChainCustodyTransfers({
       + `extra ${extra.join(',') || 'none'}`);
   }
   for (const { path, gate } of transfers) {
-    const metadata = driftProneGates?.[gate];
-    if (metadata === undefined || !gateTriggerMatchesPath(metadata, path)) {
+    const metadata = admittedCoverageGateAtCommit(
+      root,
+      recordCommit,
+      driftProneGates,
+      gate,
+    );
+    if (metadata === null || !gateTriggerMatchesPath(metadata, path)) {
       fail(`sibling custody transfer ${path} is not covered by registered drift gate ${gate}`);
     }
   }
@@ -1442,7 +1496,7 @@ function currentDerivedForkLocatorMatches(kind, path, index) {
   return path === DERIVED_FORK_HISTORICAL_EVIDENCE[index][1];
 }
 
-function validateReceiptShape(receipt, record, published) {
+function validateReceiptShape(root, receipt, record, published) {
   const legacyKeys = [
     'schemaVersion', 'capabilityId', 'qualifiedSourceCommit', 'implementationTreeSha256',
     'candidateFactsSha256', 'qualifiedTargetProfileId', 'negativeTargetProfileIds',
@@ -1474,7 +1528,10 @@ function validateReceiptShape(receipt, record, published) {
     );
     validateImplementationScope(receipt.implementationScope, `${record.id} receipt scope`);
     if (record.id === 'agent_safe_derived_deployment_fork_v1'
-        && !canonicallyEqual(receipt.implementationScope, DERIVED_FORK_IMPLEMENTATION_SCOPE)) {
+        && !canonicallyEqual(
+          receipt.implementationScope,
+          derivedForkImplementationScopeAt(root, receipt.qualifiedSourceCommit),
+        )) {
       fail(`${record.id} receipt scope does not equal the canonical derived-fork scope`);
     }
     if (record.id === 'agent_safe_derived_deployment_fork_v1'
@@ -2376,7 +2433,7 @@ function validateDerivedForkAuthorAcceptance(
     && value.implementationTreeSha256 === receipt.implementationTreeSha256
     && value.candidateFactsSha256 === receipt.candidateFactsSha256
     && canonicallyEqual(value.implementationScope, receipt.implementationScope)
-    && canonicallyEqual(value.implementationScope, DERIVED_FORK_IMPLEMENTATION_SCOPE)
+    && canonicallyEqual(value.implementationScope, derivedForkImplementationScopeAt(root, commit))
     && value.selectionPolicySha256 === receipt.selectionPolicySha256
     && canonicallyEqual(
       value.residualV2DepartingClass,
@@ -2525,7 +2582,7 @@ export function validatePublicationRecord(root, record) {
     fail(`${record.id} anchor identity/state drifted`);
   }
   const published = anchor.state === 'published';
-  validateReceiptShape(receipt, record, published);
+  validateReceiptShape(root, receipt, record, published);
   if (!published) {
     if (anchor.carrierSha256 !== null) fail(`${record.id} withheld anchor carries authority`);
     return { id: record.id, state: 'withheld' };

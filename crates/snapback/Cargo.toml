@@ -1,8 +1,9 @@
 [package]
 name = "snapback"
-version = "0.1.0"
-edition = "2024"
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
 default-run = "snapback"
 # build.rs emits the macOS LC_RPATH for hermesvm.framework (ENG-22664); a
 # dependency's rustc-link-arg does not propagate to this binary's link step.
@@ -32,7 +33,7 @@ axum = { version = "0.8.9", features = ["ws"] }
 base64 = "0.22"
 bcrypt = "0.19.3"
 chacha20poly1305 = "0.10"
-celld-ltx = { path = "vendor/celld-ltx" }
+celld-ltx = { path = "../../vendor/celld-ltx" }
 clap = { version = "4.5", features = ["derive"] }
 crc32fast = "1"
 futures-util = "0.3"
@@ -41,7 +42,7 @@ getrandom = "0.3"
 hkdf = "0.12"
 hmac = "0.12"
 http-body = "1"
-ibex-runtime = { path = "vendor/ibex" }
+ibex-runtime = { path = "../../vendor/ibex" }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 # Default features pull remote-$ref HTTP/TLS dependencies. Ask validates only
 # caller-supplied in-memory schemas, so keep the file-only resolver.
@@ -77,18 +78,7 @@ sha2 = "0.10"
 # depend on the builder's shared libcurl (absent on stock consumer hosts).
 # sfe-static-network links ibex's pinned static curl + vendored static OpenSSL.
 [target.'cfg(target_os = "linux")'.dependencies]
-ibex-runtime = { path = "vendor/ibex", features = ["sfe-static-network"] }
-
-# The production release links as one full optimization graph. Beyond
-# throughput, this keeps infrequently used storage/proof code from fragmenting
-# or duplicating the hot executable pages retained by an otherwise-idle local
-# instance.
-#
-# @ref LLP 0162#measurement-gate — the active covered profile must stay within
-#   the dated resident-memory equivalence bound in the shipped release shape.
-[profile.release]
-lto = "fat"
-codegen-units = 1
+ibex-runtime = { path = "../../vendor/ibex", features = ["sfe-static-network"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [
@@ -106,3 +96,6 @@ syn = { version = "2.0", features = ["full", "visit"] }
 tokio = { version = "1.48", features = ["full", "test-util"] }
 tokio-tungstenite = "0.29"
 tower = { version = "0.5", features = ["util"] }
+
+[lints]
+workspace = true

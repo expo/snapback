@@ -176,7 +176,7 @@ fn lifecycle_receipt_writer_refuses_to_overwrite_retained_evidence() {
 
 fn parent_with_schema(directory: &Path, ballast_mb: u64) -> PathBuf {
     let source = directory.join("parent.sqlite3");
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let schema: SchemaManifest = serde_json::from_slice(
         &std::fs::read(repo.join("demos/todo/snapback/generated/schema.manifest.json"))
             .expect("generated Todo schema"),
@@ -259,7 +259,7 @@ fn fork_lifecycle_row13_bench() {
     let directory = tempfile::tempdir().expect("bench fixture");
     let app_root = directory.path().join("app");
     std::fs::create_dir(&app_root).unwrap();
-    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
     let commit = String::from_utf8(
         Command::new("git")
             .args(["-C", repo.to_str().unwrap(), "rev-parse", "HEAD"])

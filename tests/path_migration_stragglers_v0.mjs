@@ -85,7 +85,7 @@ function materializeEpoch(root, epoch) {
     epoch === 'post-migration' ? '{}\n' : '{"remainderConfinementExemption": {}}\n',
   );
   if (epoch === 'phase-1') {
-    for (const path of ['cloudflare/.keep', 'tools/agent-safe-baseline-worker/.keep', 'examples/.keep']) {
+    for (const path of ['cloudflare/.keep', 'tools/agent-safe-baseline-worker/.keep', 'crates/snapback/examples/.keep']) {
       writeFixtureFile(root, path);
     }
   } else {
@@ -111,7 +111,12 @@ test('a moved Phase 1 tree with a committed pre-flip epoch fails before scanning
     mkdirSync(join(fixtureRoot, 'scripts'), { recursive: true });
     mkdirSync(join(fixtureRoot, 'crates/snapback/src'), { recursive: true });
     copyFileSync(CHECKER, join(fixtureRoot, 'scripts/check-path-migration-stragglers.mjs'));
-    copyFileSync(MANIFEST_PATH, join(fixtureRoot, 'scripts/path-migration-manifest.v1.json'));
+    const staleManifest = structuredClone(manifest);
+    staleManifest.epoch.current = 'pre-flip';
+    writeFileSync(
+      join(fixtureRoot, 'scripts/path-migration-manifest.v1.json'),
+      `${JSON.stringify(staleManifest, null, 2)}\n`,
+    );
 
     const result = runChecker([], fixtureRoot, join(fixtureRoot, 'scripts/check-path-migration-stragglers.mjs'));
     assert.equal(result.status, 1);
@@ -157,8 +162,9 @@ test('every adjacent epoch pair has unique exact, partial, both, and neither sha
               writeFixtureFile(root, 'crates/snapback-tools/.keep');
             }
             if (variant !== 'both') rmSync(join(root, 'tools/agent-safe-baseline-worker'), { recursive: true, force: true });
-            if (variant === 'partial') writeFixtureFile(root, 'examples/.keep');
-            else if (variant === 'neither') rmSync(join(root, 'examples'), { recursive: true, force: true });
+            if (variant === 'partial') {
+              rmSync(join(root, 'crates/snapback/examples'), { recursive: true, force: true });
+            }
           } else if (earlier === 'phase-2') {
             if (variant !== 'neither') writeFixtureFile(root, 'targets/cloudflare/.keep');
             if (variant !== 'both') rmSync(join(root, 'cloudflare'), { recursive: true, force: true });
@@ -282,8 +288,8 @@ test('due consumers are projected from the manifest and an unprojectable planted
   assert.deepEqual(validateConsumerProjections(manifest, phase3), []);
 });
 
-test('the Unicode generator composed source path is caught from Phase 1', () => {
-  const source = readFileSync(join(ROOT, 'scripts/generate-search-unicode.mjs'), 'utf8');
+test('a composed stale Unicode generator source path is caught from Phase 1', () => {
+  const source = "const output = resolve(root, 'src', 'search', 'unicode17_generated.rs');";
   const findings = scanCommonPatterns({
     source,
     repositoryPath: 'scripts/generate-search-unicode.mjs',
@@ -294,7 +300,7 @@ test('the Unicode generator composed source path is caught from Phase 1', () => 
   });
   assert.deepEqual(
     findings.filter(({ pattern }) => pattern === 'root-src-path').map(({ line }) => line),
-    [168],
+    [1],
   );
 });
 
@@ -374,10 +380,14 @@ fn snapback_root() -> PathBuf {
   );
 });
 
-test('manifest rows are exact pre-flip files with structurally valid epochs', () => {
+test('manifest rows retain the pre-flip inventory with structurally valid epochs', () => {
   assert.equal(manifest.consumers.length, 208);
   assert.deepEqual(validateManifest(manifest), []);
-  assert.deepEqual(validateConsumerFiles(manifest, ROOT), []);
+  if (manifest.epoch.current === 'pre-flip') {
+    assert.deepEqual(validateConsumerFiles(manifest, ROOT), []);
+  } else {
+    assert.equal(manifest.epoch.current, 'phase-1');
+  }
   assert.deepEqual(validateEpochAssignments(manifest), []);
   for (const epoch of manifest.epoch.order) {
     assert.deepEqual(validateConsumerProjections(manifest, manifest.epoch.order.indexOf(epoch)), [], epoch);

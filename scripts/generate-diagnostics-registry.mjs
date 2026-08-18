@@ -29,8 +29,8 @@ const outputs = {
 const markdownAuthorities = [
   'llp/0193-errors-as-docs-completeness.plan.md',
   'scripts/generate-diagnostics-registry.mjs',
-  'src/server/api_error.rs',
-  'src/server/tests.rs',
+  'crates/snapback/src/server/api_error.rs',
+  'crates/snapback/src/server/tests.rs',
 ];
 
 function walk(directory, accept) {
@@ -60,7 +60,8 @@ const diagnosticCatalogPaths = [
 const productionPaths = [
   // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
   // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
-  ...walk(join(root, 'src'), (path) => path.endsWith('.rs') && !/^src\/(?:cli|local|server|storage)\/tests\.rs$/u.test(path)),
+  ...walk(join(root, 'crates/snapback/src'), (path) => path.endsWith('.rs')
+    && !/^crates\/snapback\/src\/(?:cli|local|server|storage)\/tests\.rs$/u.test(path)),
   ...walk(join(root, 'packages'), (path) => (
     path.endsWith('.mjs')
     && !/(?:^|\.)test\.mjs$/u.test(path)
@@ -108,7 +109,7 @@ function subsystemFor(code, sites) {
   const packageMatch = first.match(/^packages\/([^/]+)/u);
   if (packageMatch) return packageMatch[1].replace(/^snapback-/u, '');
   if (first.startsWith('clients/swift/')) return 'swift-client';
-  return first.startsWith('src/') ? 'server' : 'snapback';
+  return first.startsWith('crates/snapback/src/') ? 'server' : 'snapback';
 }
 
 function collectSites() {
@@ -150,7 +151,7 @@ const HTTP_STATUS_NUMBERS = {
 function parseHttpStatuses() {
   // @ref LLP 0199#sequencing-guidance-not-a-schedule — the reviewed family
   // table moved with the server's extracted test owner.
-  const source = readFileSync(join(root, 'src/server/tests.rs'), 'utf8');
+  const source = readFileSync(join(root, 'crates/snapback/src/server/tests.rs'), 'utf8');
   const families = new Map();
   for (const match of source.matchAll(/const\s+([A-Z0-9_]+):\s*&\[&str\]\s*=\s*&\[(.*?)\];/gsu)) {
     families.set(match[1], [...match[2].matchAll(/"(SNAPBACK_[A-Z0-9_]+)"/gu)].map((item) => item[1]));

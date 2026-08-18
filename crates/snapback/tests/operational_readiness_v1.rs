@@ -30,7 +30,7 @@ impl Drop for ServerGuard {
 }
 
 fn generated(file: &str) -> Value {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
         .join("demos/todo/snapback/generated")
         .join(file);
     serde_json::from_str(&fs::read_to_string(path).expect("read generated artifact"))
@@ -327,7 +327,7 @@ async fn in_process_router_serves_operational_readiness_authority() {
 #[test]
 fn served_operational_readiness_declares_evaluates_and_splices() {
     let binary = env!("CARGO_BIN_EXE_snapback");
-    let target_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target");
+    let target_directory = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("target");
     let directory = tempfile::tempdir_in(target_directory).unwrap();
     let database = directory.path().join("operational-readiness.sqlite3");
     let ready_file = directory.path().join("host-ready.json");

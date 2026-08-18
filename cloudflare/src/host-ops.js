@@ -11,7 +11,7 @@
 // (version allocation + row writes + journal append together), so LLP 0007's
 // gap-free visibility holds by construction — exactly as on the local target.
 //
-// Overlay semantics are kept point-for-point with src/runtime.rs
+// Overlay semantics are kept point-for-point with crates/snapback/src/runtime.rs
 // (apply_buffered_to_point / materialize_insert / merge_buffered_into_query):
 // a patch on a missing row stays a miss, buffered reads re-fetch the full
 // stored row before overlaying, and the overlay stamps the invocation's
@@ -258,7 +258,7 @@ export class HostContext {
     // (a nested mutation refusing across action.runMutation), recorded so
     // the typed code can survive the action boundary without letting a
     // handler-forged {code: ...} become typed — the JS analogue of
-    // denial_witness on IbexHostContext (src/runtime.rs, 0137 a4-f5).
+    // denial_witness on IbexHostContext (crates/snapback/src/runtime.rs, 0137 a4-f5).
     this.denialWitness = null;
   }
 
@@ -347,7 +347,7 @@ export class HostContext {
   // SQLite comparisons agree with applyPlan/matchFilter, including SQL
   // three-valued logic on null/missing fields (ENG-23606: matchFilter
   // mirrors the NULL-never-matches WHERE semantics, same as
-  // filter_matches_row in src/live_matcher.rs); ties break on the id
+  // filter_matches_row in crates/snapback/src/live_matcher.rs); ties break on the id
   // column, matching applyPlan's _id tie-break.
   storageQuery(physical, plan, storageLimit = effectiveQueryLimit(plan)) {
     const table = tableManifest(this.schemaTables, plan.table);
@@ -464,14 +464,14 @@ export class HostContext {
     return this.writes.filter((write) => write.table === table);
   }
 
-  // Mirrors materialize_insert (src/runtime.rs): a buffered insert's
+  // Mirrors materialize_insert (crates/snapback/src/runtime.rs): a buffered insert's
   // effective view carries the frozen handler clock; the authoritative
   // version/timestamps are assigned at commit.
   materializeInsert(id, values) {
     return { _id: id, _createdAt: this.nowMs, _updatedAt: this.nowMs, ...values };
   }
 
-  // Mirrors apply_buffered_to_point (src/runtime.rs): a patch against a row
+  // Mirrors apply_buffered_to_point (crates/snapback/src/runtime.rs): a patch against a row
   // that does not exist yet is a no-op at commit, so the effective view stays
   // a miss (ENG-23582 divergence 1); an applied patch bumps _updatedAt
   // (divergence 3).
@@ -492,7 +492,7 @@ export class HostContext {
     return current;
   }
 
-  // Mirrors merge_buffered_into_query (src/runtime.rs): drop touched rows
+  // Mirrors merge_buffered_into_query (crates/snapback/src/runtime.rs): drop touched rows
   // from the (already filtered, unlimited) base set, recompute each touched
   // row's effective view from its FULL stored row, keep it only if it still
   // matches the plan's filters, then re-sort and re-apply the limit
@@ -747,7 +747,7 @@ export function applyPlan(rows, plan) {
 function matchFilter(row, filter) {
   const value = row[filter.field];
   const target = literalValue(filter.value);
-  // SQL three-valued logic, matching filter_matches_row (src/live_matcher.rs)
+  // SQL three-valued logic, matching filter_matches_row (crates/snapback/src/live_matcher.rs)
   // and the storageQuery pushdown: a null/missing column value satisfies no
   // operator, and a null literal on the right matches nothing either —
   // `IS NULL` is not an expressible predicate in this query subset

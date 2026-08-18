@@ -13188,26 +13188,26 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:2572614eef4569b45be9ad88ca969f0f7b4b45b8d026c1b1408003a39a4abcee";
+    "sha256:901b8dbc111547b15739d1339198c062460b2af7babf3034c6ce46b9c49211c4";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
+    include_bytes!("../../../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:2d0c768bc037a1574919170ab9592534c36b6195b34c9afe21c7c3e04192274b";
+    "sha256:c04817194dbd5e1991627d109be7b8f300c0d1cb79e79d6cb4352611f79438b2";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
+    include_bytes!("../../../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.v1.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.anchor.v1.json");
 const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
-    "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json"
+    "../../../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json"
 );
 const LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json");
+    include_bytes!("../../../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json");
 const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json");
+    include_bytes!("../../../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json");
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -13604,7 +13604,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:a408f1c836f6a37e169286fd026ba10550eb51430ad8810d89d0faf23b993daa"
+                    "sha256:57cdfcc6f7990f22fbc6044999d36fc4b91ef97b5f77de35d00a3f5a711af99e"
                         .to_owned(),
                 ),
                 (
@@ -13629,7 +13629,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:208dff80ff7b8d5c063a7826bb939ed88abed69b8597b8373b786acebb462852"
+                    "sha256:b732fbe3b431316cc91ca2797544c1f8c3fa1acbdef11244c8718524f94fb543"
                         .to_owned(),
                 ),
                 (
@@ -13739,7 +13739,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:2c5fa4a2f62dab669f77a8290321bb57901d9ad565ff48ddb485e626e05a1004"
+                    "sha256:18aaaef5fcd5e3666964a5a97a5aa62612ad3286ecee55b75727ad9392960b02"
                         .to_owned(),
                 ),
                 (
@@ -13807,7 +13807,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:a408f1c836f6a37e169286fd026ba10550eb51430ad8810d89d0faf23b993daa"
+                    "sha256:57cdfcc6f7990f22fbc6044999d36fc4b91ef97b5f77de35d00a3f5a711af99e"
                         .to_owned(),
                 ),
                 (
@@ -13832,12 +13832,12 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:208dff80ff7b8d5c063a7826bb939ed88abed69b8597b8373b786acebb462852"
+                    "sha256:b732fbe3b431316cc91ca2797544c1f8c3fa1acbdef11244c8718524f94fb543"
                         .to_owned(),
                 ),
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:dddbd6b5ef7b8aa970e79ef21e56c0df756f6bd1d113a732a10ea1d2a63d3446"
+                    "sha256:6320da10271fca2e8b1fad23155a64a36554a6b8dce4bf5af2e6470b58030ec8"
                         .to_owned(),
                 ),
                 (
@@ -13947,7 +13947,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:2c5fa4a2f62dab669f77a8290321bb57901d9ad565ff48ddb485e626e05a1004"
+                    "sha256:18aaaef5fcd5e3666964a5a97a5aa62612ad3286ecee55b75727ad9392960b02"
                         .to_owned(),
                 ),
                 (
@@ -14101,7 +14101,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/authorization_acceptance.rs".to_owned(),
-                    "sha256:a408f1c836f6a37e169286fd026ba10550eb51430ad8810d89d0faf23b993daa"
+                    "sha256:57cdfcc6f7990f22fbc6044999d36fc4b91ef97b5f77de35d00a3f5a711af99e"
                         .to_owned(),
                 ),
                 (
@@ -14126,7 +14126,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/local/tests.rs".to_owned(),
-                    "sha256:208dff80ff7b8d5c063a7826bb939ed88abed69b8597b8373b786acebb462852"
+                    "sha256:b732fbe3b431316cc91ca2797544c1f8c3fa1acbdef11244c8718524f94fb543"
                         .to_owned(),
                 ),
                 (
@@ -14236,7 +14236,7 @@ fn local_persistent_store_contributor_chain_verified(
                 ),
                 (
                     "src/storage/tests.rs".to_owned(),
-                    "sha256:2c5fa4a2f62dab669f77a8290321bb57901d9ad565ff48ddb485e626e05a1004"
+                    "sha256:18aaaef5fcd5e3666964a5a97a5aa62612ad3286ecee55b75727ad9392960b02"
                         .to_owned(),
                 ),
                 (
@@ -15957,28 +15957,28 @@ mod untrusted_code_profile_tests {
         let committed_manifests: [(&str, &[u8]); 5] = [
             (
                 "local",
-                include_bytes!("../schemas/capability.manifest.local-dev-sqlite-ibex.json"),
+                include_bytes!("../../../schemas/capability.manifest.local-dev-sqlite-ibex.json"),
             ),
             (
                 "local-outbound-actions",
                 include_bytes!(
-                    "../schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json"
+                    "../../../schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json"
                 ),
             ),
             (
                 "remote-service",
-                include_bytes!("../schemas/capability.manifest.remote-service-sqlite-ibex.json"),
+                include_bytes!("../../../schemas/capability.manifest.remote-service-sqlite-ibex.json"),
             ),
             (
                 "cloudflare",
                 include_bytes!(
-                    "../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
+                    "../../../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json"
                 ),
             ),
             (
                 "cloudflare-all-aboard",
                 include_bytes!(
-                    "../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json"
+                    "../../../cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json"
                 ),
             ),
         ];
@@ -19510,7 +19510,7 @@ mod membership_manifest_grammar_tests {
             "false qualification mode must not leak into declared manifests",
         );
         let committed: Value = serde_json::from_slice(include_bytes!(
-            "../schemas/capability.manifest.local-dev-sqlite-ibex.json"
+            "../../../schemas/capability.manifest.local-dev-sqlite-ibex.json"
         ))
         .expect("committed local manifest parses");
         assert_eq!(
@@ -20507,11 +20507,11 @@ mod media_ref_manifest_tests {
     #[test]
     fn generated_media_contract_rotates_identity_demotes_rqs_and_refuses_actions() {
         let schema: SchemaManifest = serde_json::from_str(include_str!(
-            "../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
+            "../../../tests/acceptance/fixtures/media-profile/snapback/generated/schema.manifest.json"
         ))
         .expect("generated media schema");
         let functions: FunctionManifest = serde_json::from_str(include_str!(
-            "../tests/acceptance/fixtures/media-profile/snapback/generated/functions.manifest.json"
+            "../../../tests/acceptance/fixtures/media-profile/snapback/generated/functions.manifest.json"
         ))
         .expect("generated media functions");
         let function = functions

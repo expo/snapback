@@ -331,7 +331,7 @@ async function main() {
     // scope here; the harness twin covers the exhaustive matrix. We assert the
     // manifest posture and one live proof below (a mutation cannot reach fetch
     // because the isolate is stripped — a fetch attempt would surface as a
-    // handler failure). Covered exhaustively in tests/workerd_twin_v0.rs.
+    // handler failure). Covered exhaustively in crates/snapback/tests/workerd_twin_v0.rs.
     check('manifest declares hosted_untrusted_code still a gap (denial by discipline, not platform)',
       manifest.capabilityGaps.includes('hosted_untrusted_code'), JSON.stringify(manifest.capabilityGaps));
 

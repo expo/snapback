@@ -91,8 +91,15 @@ export function readCheckoutRuntimeIdentity(root) {
   );
   let crateVersion = null;
   try {
-    const cargoManifest = readFileSync(join(root, 'Cargo.toml'), 'utf8');
+    const packageManifestPath = existsSync(join(root, 'crates/snapback/Cargo.toml'))
+      ? join(root, 'crates/snapback/Cargo.toml')
+      : join(root, 'Cargo.toml');
+    const cargoManifest = readFileSync(packageManifestPath, 'utf8');
     crateVersion = cargoManifest.match(/^\s*version\s*=\s*"([^"]+)"/m)?.[1] ?? null;
+    if (crateVersion === null && /^\s*version\.workspace\s*=\s*true\s*$/mu.test(cargoManifest)) {
+      const workspaceManifest = readFileSync(join(root, 'Cargo.toml'), 'utf8');
+      crateVersion = workspaceManifest.match(/^\s*version\s*=\s*"([^"]+)"/m)?.[1] ?? null;
+    }
   } catch {
     // A source export without Cargo metadata is honestly unpinned.
   }

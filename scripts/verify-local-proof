@@ -237,6 +237,8 @@ run proof-runner-fixtures -- node --test tests/proof_runner_v0.mjs
 run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
 run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
 run path-migration-stragglers -- node scripts/check-path-migration-stragglers.mjs
+run workspace-graph -- node scripts/check-workspace-graph.mjs
+run workspace-graph-fixtures -- node --test tests/workspace_graph_v1.mjs
 run rustfmt -- node scripts/check-rustfmt.mjs
 run module-ownership -- node scripts/check-module-ownership.mjs
 run module-ownership-fixtures -- node --test scripts/check-module-ownership.test.mjs
@@ -415,7 +417,7 @@ run telemetry-release-gate-fixtures -- node --test scripts/telemetry-release-gat
 run telemetry-receipt-check -- scripts/verify-telemetry-phase1-proof --check
 run telemetry-smoke --requires native-runtime-bootstrap -- \
     scripts/verify-telemetry-phase1-proof --smoke
-# Real-binary identity honesty: the freshly bootstrapped binary's build.rs
+# Real-binary identity honesty: the freshly bootstrapped binary's crates/snapback/build.rs
 # stamp must refuse (or honestly report unverifiable) a drifted checkout
 # expectation — the comparison the kit's env injection used to self-confirm
 # (issues/closed/20260724-kit-identity-stamp-env-injection-tautology.md).
@@ -474,7 +476,7 @@ esac
 # Cargo cache can retain the root build-script output from the pre-proof
 # bootstrap even after stamp_snapback_build_identity establishes the final
 # clean identity. Remove only the root package's completed artifacts so
-# build.rs must replay that deterministic stamp; dependency and vendored-Ibex
+# crates/snapback/build.rs must replay that deterministic stamp; dependency and vendored-Ibex
 # artifacts remain warm. Then build visibly and outside the 60 s runtime-ready
 # deadline, so startServer measures startup rather than a cold link.
 build_current_binary() {

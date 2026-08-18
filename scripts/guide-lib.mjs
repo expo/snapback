@@ -648,8 +648,8 @@ export function parseCapabilityIndex(root, errors) {
 export function extractRoutePaths(root, errors) {
   const paths = new Set();
   const sources = [
-    ['src/server.rs', ['core_route_registrations', 'system_route_registrations']],
-    ['src/admin.rs', ['admin_route_registrations']],
+    ['crates/snapback/src/server.rs', ['core_route_registrations', 'system_route_registrations']],
+    ['crates/snapback/src/admin.rs', ['admin_route_registrations']],
   ];
   for (const [file, fns] of sources) {
     const src = readFileSync(join(root, file), 'utf8');
@@ -675,7 +675,7 @@ export function extractRoutePaths(root, errors) {
 }
 
 export function extractHostOps(root, errors) {
-  const src = readFileSync(join(root, 'src/server.rs'), 'utf8');
+  const src = readFileSync(join(root, 'crates/snapback/src/server.rs'), 'utf8');
   const ops = new Set(
     [...src.matchAll(/"(host_ops\.[a-zA-Z_]+(?:\.[a-zA-Z_]+)*)"/g)].map((m) => m[1]),
   );

@@ -3,8 +3,8 @@
 //! This is one executable plus the platform runtime layout described by
 //! LLP 0141 D6; it does not claim that Hermes is already one portable file.
 
-const SCHEMA: &[u8] = include_bytes!("../demos/todo/snapback/generated/schema.manifest.json");
-const FUNCTIONS: &[u8] = include_bytes!("../demos/todo/snapback/generated/functions.manifest.json");
+const SCHEMA: &[u8] = include_bytes!("../../../demos/todo/snapback/generated/schema.manifest.json");
+const FUNCTIONS: &[u8] = include_bytes!("../../../demos/todo/snapback/generated/functions.manifest.json");
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
