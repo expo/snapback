@@ -4051,6 +4051,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "sha2 0.10.9",
+ "snapback-auth",
  "snapback-kernel",
  "snapback-types",
  "subtle",
@@ -4065,6 +4066,33 @@ dependencies = [
  "ureq",
  "uuid",
  "windows-sys 0.61.2",
+ "zeroize",
+]
+
+[[package]]
+name = "snapback-auth"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "base64 0.22.1",
+ "bcrypt",
+ "fs2",
+ "hmac 0.12.1",
+ "http",
+ "libc",
+ "ring",
+ "schemars",
+ "scrypt",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "snapback-kernel",
+ "snapback-types",
+ "subtle",
+ "tempfile",
+ "tokio",
+ "unicode-normalization",
+ "uuid",
  "zeroize",
 ]
 

@@ -18,19 +18,19 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-pub(crate) const AUTH_GC_INTERVAL: Duration = Duration::from_secs(30);
-pub(crate) const RESTORE_DECLARATION_FILE: &str = "restore-declaration.json";
+pub const AUTH_GC_INTERVAL: Duration = Duration::from_secs(30);
+pub const RESTORE_DECLARATION_FILE: &str = "restore-declaration.json";
 const RESTORE_DECLARATION_FORMAT_VERSION: u32 = 1;
 const RESTORE_DECLARATION_MAXIMUM_BYTES: usize = 4 * 1024;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum EmailCodeReadiness {
+pub enum EmailCodeReadiness {
     Ready(KeyringSummary),
     Unavailable,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct AuthActivation {
+pub struct AuthActivation {
     pub catalog_created: bool,
     pub email_code: EmailCodeReadiness,
 }
@@ -39,7 +39,7 @@ pub(crate) struct AuthActivation {
 /// A missing/corrupt keyring on `ReadyV1` disables only the email-code provider;
 /// it is deliberately not recreated because retained challenges may name lost
 /// key material and session resolution does not require that keyring.
-pub(crate) fn activate_catalog(
+pub fn activate_catalog(
     database: &mut LocalDatabase,
     keyring: &AuthKeyringStore,
     now_ms: u64,
@@ -82,7 +82,7 @@ fn existing_keyring_readiness(keyring: &AuthKeyringStore) -> EmailCodeReadiness 
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum KeyringGcResult {
+pub enum KeyringGcResult {
     Available { retired_keys_deleted: usize },
     Unavailable,
 }
@@ -97,7 +97,7 @@ pub(crate) struct AuthGcPass {
 }
 
 impl AuthGcPass {
-    pub(crate) fn next_delay(self) -> Duration {
+    pub fn next_delay(self) -> Duration {
         if self.immediate_retry {
             Duration::ZERO
         } else {
@@ -149,33 +149,33 @@ pub(crate) fn run_gc_pass(
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub(crate) struct RestoreDeclaration {
+pub struct RestoreDeclaration {
     format_version: u32,
     declaration_id: String,
 }
 
 impl RestoreDeclaration {
-    pub(crate) fn fresh() -> Self {
+    pub fn fresh() -> Self {
         Self {
             format_version: RESTORE_DECLARATION_FORMAT_VERSION,
             declaration_id: crate::ids::mint_time_ordered(crate::ids::Kind::Declaration),
         }
     }
 
-    pub(crate) fn parse(bytes: &[u8]) -> SnapbackResult<Self> {
+    pub fn parse(bytes: &[u8]) -> SnapbackResult<Self> {
         let declaration: Self = serde_json::from_slice(bytes)
             .map_err(|_| restore_invalid("restore declaration is not a closed format-1 object"))?;
         declaration.validate()?;
         Ok(declaration)
     }
 
-    pub(crate) fn to_bytes(&self) -> SnapbackResult<Vec<u8>> {
+    pub fn to_bytes(&self) -> SnapbackResult<Vec<u8>> {
         self.validate()?;
         serde_json::to_vec(self)
             .map_err(|_| restore_invalid("restore declaration could not be encoded"))
     }
 
-    pub(crate) fn declaration_id(&self) -> &str {
+    pub fn declaration_id(&self) -> &str {
         &self.declaration_id
     }
 
@@ -190,7 +190,7 @@ impl RestoreDeclaration {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum DeclaredRestoreOutcome {
+pub enum DeclaredRestoreOutcome {
     Applied {
         sessions_revoked: usize,
         challenges_deleted: usize,
@@ -199,7 +199,7 @@ pub(crate) enum DeclaredRestoreOutcome {
 }
 
 #[allow(dead_code)] // Consumed by startup/CLI composition after this pure lifecycle lane lands.
-pub(crate) fn restore_declaration_path(database_path: &Path) -> SnapbackResult<PathBuf> {
+pub fn restore_declaration_path(database_path: &Path) -> SnapbackResult<PathBuf> {
     let instance_directory = database_path
         .parent()
         .ok_or_else(|| restore_invalid("restored database path has no instance directory"))?;
@@ -209,7 +209,7 @@ pub(crate) fn restore_declaration_path(database_path: &Path) -> SnapbackResult<P
 /// Consume a declared restore before bind. The caller supplies the command-line
 /// declaration separately; mismatches fail before any database or mailbox
 /// effect. Post-commit cleanup is retry-safe because the database marker wins.
-pub(crate) fn apply_declared_restore(
+pub fn apply_declared_restore(
     database: &mut LocalDatabase,
     mailbox: &CaptureMailbox,
     declaration_path: &Path,

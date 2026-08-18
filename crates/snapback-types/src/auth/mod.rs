@@ -9,5 +9,6 @@ pub mod invalidation;
 pub mod invocation;
 pub mod mode;
 pub mod rehearsal;
+pub mod session_projection;
 pub mod service_authority_contract;
 pub mod wire;

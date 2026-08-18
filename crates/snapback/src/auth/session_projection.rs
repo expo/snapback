@@ -13,6 +13,14 @@ pub(crate) use snapback_kernel::auth::session_projection::{
     AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamRecord, ProjectionIdentityRow,
     ProjectionSessionRow, ProjectionSource, ProjectionTokenRow, ProjectionUserRow,
 };
+pub(crate) use snapback_auth::auth::lock_rank::{
+    AUTH_LOCK_RANK_CONNECTION_REGISTRY, AUTH_LOCK_RANK_MODE_ADMISSION, AUTH_LOCK_RANK_SESSION,
+    AUTH_LOCK_RANK_STREAM, AUTH_LOCK_RANK_TOPOLOGY, AuthLockRankGuard, RankedMutexGuard,
+    ranked_mutex_lock, ranked_mutex_lock_unpoisoned,
+};
+pub(crate) use snapback_types::auth::session_projection::{
+    ProjectedSessionInsert, TERMINAL_CLOSE_GRACE,
+};
 use crate::contract_types::{
     AuthorizationStreamIncarnation, RevocationReason, SessionTerminalCauseRecord, TokenDigest,
 };
@@ -22,9 +30,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::num::NonZeroU64;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::sync::Notify;
 use uuid::Uuid;
@@ -32,98 +40,7 @@ use uuid::Uuid;
 pub(crate) const SESSION_PROJECTION_FORMAT_VERSION: u32 = 1;
 const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
-pub(crate) const TERMINAL_CLOSE_GRACE: Duration = Duration::from_millis(5_000);
 const MAX_IN_FLIGHT_AUTHORITY_WORK: usize = 4_096;
-
-std::thread_local! {
-    static HELD_AUTH_LOCK_RANKS: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-
-pub(crate) const AUTH_LOCK_RANK_TOPOLOGY: u8 = 10;
-const AUTH_LOCK_RANK_STREAM: u8 = 20;
-const AUTH_LOCK_RANK_SESSION: u8 = 30;
-// @ref LLP 0059#locking-and-linearization — the independent mode cut is the
-// final lock in a composed publication; registry and mode ranks make that
-// cross-module order executable in every debug/test build.
-pub(crate) use crate::exec_guard::AUTH_LOCK_RANK_CONNECTION_REGISTRY;
-pub(crate) const AUTH_LOCK_RANK_MODE_ADMISSION: u8 = 50;
-
-pub(crate) struct AuthLockRankGuard(u8);
-
-impl AuthLockRankGuard {
-    pub(crate) fn enter(rank: u8) -> Self {
-        crate::exec_guard::debug_assert_auth_lock_outside_local_snapback(rank);
-        HELD_AUTH_LOCK_RANKS.with(|held| {
-            let mut held = held.borrow_mut();
-            if cfg!(debug_assertions) {
-                assert!(
-                    held.last().is_none_or(|current| *current <= rank),
-                    "auth lock-rank inversion: attempted rank {rank} while holding {:?}",
-                    held.last(),
-                );
-            }
-            held.push(rank);
-        });
-        Self(rank)
-    }
-}
-
-impl Drop for AuthLockRankGuard {
-    fn drop(&mut self) {
-        HELD_AUTH_LOCK_RANKS.with(|held| {
-            let popped = held.borrow_mut().pop();
-            debug_assert_eq!(
-                popped,
-                Some(self.0),
-                "auth lock-rank guards dropped out of order"
-            );
-        });
-    }
-}
-
-pub(crate) struct RankedMutexGuard<'a, T> {
-    guard: MutexGuard<'a, T>,
-    _rank: AuthLockRankGuard,
-}
-
-impl<T> Deref for RankedMutexGuard<'_, T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        &self.guard
-    }
-}
-
-impl<T> DerefMut for RankedMutexGuard<'_, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.guard
-    }
-}
-
-pub(crate) fn ranked_mutex_lock<'a, T>(
-    mutex: &'a Mutex<T>,
-    rank: u8,
-) -> Result<RankedMutexGuard<'a, T>, std::sync::PoisonError<MutexGuard<'a, T>>> {
-    let rank_guard = AuthLockRankGuard::enter(rank);
-    let guard = mutex.lock()?;
-    Ok(RankedMutexGuard {
-        guard,
-        _rank: rank_guard,
-    })
-}
-
-pub(crate) fn ranked_mutex_lock_unpoisoned<T>(
-    mutex: &Mutex<T>,
-    rank: u8,
-) -> RankedMutexGuard<'_, T> {
-    let rank_guard = AuthLockRankGuard::enter(rank);
-    let guard = mutex
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    RankedMutexGuard {
-        guard,
-        _rank: rank_guard,
-    }
-}
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct MutationTicket {
@@ -335,20 +252,6 @@ impl DueExpiryFinalization {
             failed_closed: true,
         }
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ProjectedSessionInsert {
-    pub session_id: String,
-    pub user_id: String,
-    pub provider: String,
-    pub authority_instance_id: String,
-    pub generation: u64,
-    pub token_digest: TokenDigest,
-    pub created_at_ms: u64,
-    pub expires_at_ms: u64,
-    pub absolute_expires_at_ms: u64,
-    pub rehearsal_provenance: Option<crate::auth::rehearsal::AuthRehearsalProvenanceV1>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

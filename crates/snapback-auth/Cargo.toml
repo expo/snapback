@@ -1,0 +1,43 @@
+[package]
+name = "snapback-auth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "snapback_auth"
+path = "src/lib.rs"
+
+[features]
+default = []
+test-support = []
+
+[dependencies]
+argon2 = "0.6.0-rc.8"
+base64 = "0.22"
+bcrypt = "0.19.3"
+fs2 = "0.4"
+hmac = "0.12"
+http = "1"
+libc = "0.2"
+ring = "0.17"
+schemars = "1.2.1"
+scrypt = { version = "0.12.0", features = ["phc"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+snapback-kernel = { path = "../snapback-kernel" }
+snapback-types = { path = "../snapback-types" }
+subtle = "2"
+tokio = { version = "1.48", features = ["full"] }
+unicode-normalization = "0.1"
+uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
+zeroize = "1.8"
+
+[dev-dependencies]
+snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
+tempfile = "3.23"
+
+[lints]
+workspace = true

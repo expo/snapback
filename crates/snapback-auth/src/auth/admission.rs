@@ -168,13 +168,13 @@ pub struct AdmissionController {
 pub type AuthAdmissionController = AdmissionController;
 
 #[derive(Debug)]
-pub(crate) enum ModeCommitFailure {
+pub enum ModeCommitFailure {
     RolledBack(SnapbackError),
     Uncertain(SnapbackError),
 }
 
 impl ModeCommitFailure {
-    pub(crate) fn into_error(self) -> SnapbackError {
+    pub fn into_error(self) -> SnapbackError {
         match self {
             Self::RolledBack(error) | Self::Uncertain(error) => error,
         }
@@ -415,7 +415,7 @@ impl AdmissionController {
     /// durable commit. The process must restart and re-read durable state; it
     /// must never keep serving from an in-memory predecessor it can no longer
     /// prove matches storage.
-    pub(crate) fn fail_closed_after_uncertain_commit(&self) -> SnapbackResult<AdmissionSnapshot> {
+    pub fn fail_closed_after_uncertain_commit(&self) -> SnapbackResult<AdmissionSnapshot> {
         // Exhausting the process-wide epoch allocator must itself fail closed:
         // retire the current epoch even when no fresh diagnostic epoch can be
         // named. Restart is already required in this posture.
@@ -582,8 +582,8 @@ impl AdmissionController {
         )
     }
 
-    #[cfg(test)]
-    pub(crate) fn begin_transition_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn begin_transition_for_test(
         &self,
         timeout: Duration,
     ) -> SnapbackResult<ModeTransitionGuard> {
@@ -713,8 +713,8 @@ impl AdmissionController {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn retire_current_epoch_for_test(&self) -> SnapbackResult<ModeTransitionGuard> {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn retire_current_epoch_for_test(&self) -> SnapbackResult<ModeTransitionGuard> {
         self.begin_transition_with_suspend_and_timeout(|| Ok(()), Duration::ZERO)
     }
 
@@ -825,8 +825,8 @@ impl AdmissionLease {
     /// Compatibility bridge for call sites the HTTP composition lane has not
     /// yet moved onto the app's controller. Such a lease carries the exact
     /// fields but deliberately cannot claim to participate in quiescence.
-    #[cfg(test)]
-    pub(crate) fn unmanaged(transition_generation: u64, admission_epoch: u64) -> Self {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn unmanaged(transition_generation: u64, admission_epoch: u64) -> Self {
         Self {
             token: Arc::new(LeaseToken {
                 controller: None,
@@ -867,7 +867,7 @@ impl AdmissionLease {
         self.token.cancellation.is_cancelled()
     }
 
-    pub(crate) fn is_diagnostic(&self) -> bool {
+    pub fn is_diagnostic(&self) -> bool {
         self.token.diagnostic
     }
 
@@ -956,7 +956,7 @@ pub struct ModeTransitionGuard {
 /// transition guard until off-Local lifecycle and runtime projections finish;
 /// dropping it leaves a fresh epoch non-accepting rather than reopening either
 /// predecessor or successor authority.
-pub(crate) struct CommittedModeTransition<T> {
+pub struct CommittedModeTransition<T> {
     transition: ModeTransitionGuard,
     output: T,
     mode: AuthModeStateRecord,
@@ -973,13 +973,13 @@ impl<T> fmt::Debug for CommittedModeTransition<T> {
 }
 
 impl<T> CommittedModeTransition<T> {
-    pub(crate) fn mode(&self) -> &AuthModeStateRecord {
+    pub fn mode(&self) -> &AuthModeStateRecord {
         &self.mode
     }
 
     /// Explicitly publish the already-projected successor only after every
     /// off-Local terminal/runtime projection has completed.
-    pub(crate) fn publish_successor(
+    pub fn publish_successor(
         self,
     ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
         let Self {
@@ -1035,7 +1035,7 @@ impl ModeTransitionGuard {
     /// explicit `RolledBack` result lets Drop reopen the predecessor;
     /// `Uncertain` and every failure after `Committed` leave admission closed
     /// instead of guessing at stale authority.
-    pub(crate) fn commit_and_publish_mode_state<T>(
+    pub fn commit_and_publish_mode_state<T>(
         mut self,
         commit: impl FnOnce() -> Result<(T, AuthModeStateRecord), ModeCommitFailure>,
     ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
@@ -1082,7 +1082,7 @@ impl ModeTransitionGuard {
     /// @ref LLP 0058#same-mode-provisioning — the transition's private
     /// projection root is the only work admitted between durable activation
     /// and successor reopen.
-    pub(crate) fn commit_and_project_mode_state<T>(
+    pub fn commit_and_project_mode_state<T>(
         mut self,
         commit: impl FnOnce(&AdmissionLease) -> Result<(T, AuthModeStateRecord), ModeCommitFailure>,
     ) -> SnapbackResult<CommittedModeTransition<T>> {
@@ -1375,6 +1375,7 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1431,17 +1432,6 @@ mod tests {
         assert_eq!(controller.snapshot().in_flight, 1);
         drop(clone);
         assert_eq!(controller.snapshot().in_flight, 0);
-    }
-
-    #[test]
-    #[should_panic(expected = "auth lock-rank inversion")]
-    fn mode_publication_guard_rejects_stream_fence_inversion() {
-        let controller = AdmissionController::new(7, true).unwrap();
-        let lease = controller.admit().unwrap();
-        let _mode = lease.effect_guard("intentional inverse").unwrap();
-        let (_, publication) =
-            crate::auth::session_projection::FencedPublication::anonymous_for_unmanaged_dev_connection();
-        let _ = publication.try_publish(0, Instant::now(), || Ok(()));
     }
 
     #[test]

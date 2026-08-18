@@ -64,6 +64,8 @@ const productionPaths = [
     && !/^crates\/snapback\/src\/(?:cli|local|server|storage)\/tests\.rs$/u.test(path)),
   // @ref LLP 0276#phases — diagnostics move with their owning contract
   // modules, so the source-complete registry must scan each carved Rust root.
+  ...walk(join(root, 'crates/snapback-auth/src'), (path) => path.endsWith('.rs')),
+  ...walk(join(root, 'crates/snapback-kernel/src'), (path) => path.endsWith('.rs')),
   ...walk(join(root, 'crates/snapback-types/src'), (path) => path.endsWith('.rs')),
   ...walk(join(root, 'packages'), (path) => (
     path.endsWith('.mjs')

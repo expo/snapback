@@ -96,7 +96,7 @@ pub use snapback_kernel::data_tier;
 #[doc(hidden)]
 pub mod deploy;
 #[doc(hidden)]
-pub mod dev_identity;
+pub use snapback_auth::dev_identity;
 #[doc(hidden)]
 pub mod diagnostic;
 #[doc(hidden)]

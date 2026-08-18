@@ -27,9 +27,9 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use zeroize::Zeroize as _;
 
-pub(crate) const BACKUP_DATABASE_FILE: &str = "database.sqlite3";
-pub(crate) const BACKUP_KEYRING_FILE: &str = "auth-keyring.json";
-pub(crate) const BACKUP_MANIFEST_FILE: &str = "backup.json";
+pub const BACKUP_DATABASE_FILE: &str = "database.sqlite3";
+pub const BACKUP_KEYRING_FILE: &str = "auth-keyring.json";
+pub const BACKUP_MANIFEST_FILE: &str = "backup.json";
 const BACKUP_FORMAT_VERSION_V1: u32 = 1;
 const BACKUP_FORMAT_VERSION: u32 = 2;
 const BACKUP_MANIFEST_MAXIMUM_BYTES: usize = 64 * 1024;
@@ -44,20 +44,20 @@ const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 /// @ref LLP 0057#consistent-backup — every backup exit publishes one of the
 /// three closed publication states.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub(crate) enum BackupPublicationState {
+pub enum BackupPublicationState {
     Unpublished,
     Published,
     CommitAmbiguous,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct AuthBackupOutcome {
-    pub(crate) manifest: AuthBackupManifest,
-    pub(crate) publication_state: BackupPublicationState,
+pub struct AuthBackupOutcome {
+    pub manifest: AuthBackupManifest,
+    pub publication_state: BackupPublicationState,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub(crate) enum AuthBackupCatalogState {
+pub enum AuthBackupCatalogState {
     ReadyV3,
     ReadyV4,
 }
@@ -104,7 +104,7 @@ enum AuthBackupManifestData {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct AuthBackupManifest(AuthBackupManifestData);
+pub struct AuthBackupManifest(AuthBackupManifestData);
 
 impl AuthBackupManifest {
     fn new(
@@ -211,7 +211,7 @@ impl AuthBackupManifest {
         Ok(())
     }
 
-    fn to_bytes(&self) -> SnapbackResult<Vec<u8>> {
+    pub fn to_bytes(&self) -> SnapbackResult<Vec<u8>> {
         self.validate()?;
         match &self.0 {
             AuthBackupManifestData::Format1(manifest) => serde_json::to_vec(manifest),
@@ -232,42 +232,42 @@ impl AuthBackupManifest {
         Ok(manifest)
     }
 
-    fn format_version(&self) -> u32 {
+    pub fn format_version(&self) -> u32 {
         match &self.0 {
             AuthBackupManifestData::Format1(manifest) => manifest.format_version,
             AuthBackupManifestData::Format2(manifest) => manifest.format_version,
         }
     }
 
-    fn created_at_ms(&self) -> u64 {
+    pub fn created_at_ms(&self) -> u64 {
         match &self.0 {
             AuthBackupManifestData::Format1(manifest) => manifest.created_at_ms,
             AuthBackupManifestData::Format2(manifest) => manifest.created_at_ms,
         }
     }
 
-    fn catalog_state(&self) -> Option<AuthBackupCatalogState> {
+    pub fn catalog_state(&self) -> Option<AuthBackupCatalogState> {
         match &self.0 {
             AuthBackupManifestData::Format1(_) => None,
             AuthBackupManifestData::Format2(manifest) => Some(manifest.catalog_state),
         }
     }
 
-    fn catalog_version(&self) -> u32 {
+    pub fn catalog_version(&self) -> u32 {
         match &self.0 {
             AuthBackupManifestData::Format1(manifest) => manifest.catalog_version,
             AuthBackupManifestData::Format2(manifest) => manifest.catalog_version,
         }
     }
 
-    fn catalog_tables(&self) -> Option<&[String]> {
+    pub fn catalog_tables(&self) -> Option<&[String]> {
         match &self.0 {
             AuthBackupManifestData::Format1(_) => None,
             AuthBackupManifestData::Format2(manifest) => Some(&manifest.catalog_tables),
         }
     }
 
-    fn password_identifier_mode(&self) -> Option<&str> {
+    pub fn password_identifier_mode(&self) -> Option<&str> {
         match &self.0 {
             AuthBackupManifestData::Format1(_) => None,
             AuthBackupManifestData::Format2(manifest) => {
@@ -300,7 +300,7 @@ impl AuthBackupManifest {
 
 /// Create a complete backup directory. The caller must hold the instance write
 /// lock and exclusive auth-maintenance guard until this function returns.
-pub(crate) fn create_backup(
+pub fn create_backup(
     database: &LocalDatabase,
     keyring: &AuthKeyringStore,
     output_directory: &Path,
@@ -414,7 +414,7 @@ fn create_backup_inner(
 
 /// Validate a backup and publish a new instance directory containing the
 /// database, its mechanically named keyring sidecar, and a fresh declaration.
-pub(crate) fn restore_backup(
+pub fn restore_backup(
     backup_directory: &Path,
     target_database: &Path,
     random: &dyn RandomSource,
@@ -629,7 +629,7 @@ fn require_absent(path: &Path, message: &str) -> SnapbackResult<()> {
     }
 }
 
-fn require_exact_members(directory: &Path, expected: &[&str]) -> SnapbackResult<()> {
+pub fn require_exact_members(directory: &Path, expected: &[&str]) -> SnapbackResult<()> {
     let expected = expected.iter().map(OsString::from).collect::<Vec<_>>();
     require_exact_os_members(directory, &expected)
 }
@@ -2047,210 +2047,6 @@ mod tests {
                 .password_attempt_for_test("email-mode@example.com")
                 .unwrap(),
             Some((1, 2, None))
-        );
-    }
-
-    #[test]
-    fn backup_and_restore_publish_exact_owner_only_consistent_units() {
-        use crate::auth::identity_core::PasswordSecret;
-        use std::os::unix::fs::PermissionsExt as _;
-
-        let mut fixture = Fixture::new();
-        let database = &mut fixture.database;
-        fixture
-            .keyring
-            .with_active_key(20, &fixture.random, |key_id, key| {
-                database.identity_password_register(
-                    "backup-person",
-                    &PasswordSecret::new("strong-backup-password-1".to_owned()),
-                    20,
-                    &fixture.random,
-                    key_id.as_str(),
-                    key.expose_secret(),
-                )
-            })
-            .unwrap()
-            .unwrap();
-        database
-            .insert_password_attempt_for_test("backup-ledger@example.com", 20, 4, Some(120))
-            .unwrap();
-        database.insert_large_backup_fixture_for_test().unwrap();
-        let backup_directory = fixture.parent().join("backup");
-        let outcome = create_backup(
-            &fixture.database,
-            &fixture.keyring,
-            &backup_directory,
-            123,
-            &fixture.random,
-        )
-        .unwrap();
-        assert_eq!(outcome.publication_state, BackupPublicationState::Published);
-        assert_eq!(outcome.manifest.format_version(), 2);
-        assert_eq!(outcome.manifest.created_at_ms(), 123);
-        assert_eq!(outcome.manifest.catalog_version(), 4);
-        assert_eq!(
-            outcome.manifest.catalog_state(),
-            Some(AuthBackupCatalogState::ReadyV4)
-        );
-        assert_eq!(
-            outcome.manifest.password_identifier_mode(),
-            Some("username-v1")
-        );
-        assert!(
-            !outcome
-                .manifest
-                .to_bytes()
-                .unwrap()
-                .windows(b"backup-ledger@example.com".len())
-                .any(|window| window == b"backup-ledger@example.com"),
-            "backup manifests must not disclose canonical attempt addresses"
-        );
-        assert_eq!(
-            outcome.manifest.catalog_tables().unwrap(),
-            [
-                "_auth_users",
-                "_auth_identities",
-                "_auth_credentials",
-                "_auth_password_credentials",
-                "_auth_passkey_credentials",
-                "_auth_recovery_code_sets",
-                "_auth_recovery_codes",
-                "_auth_sessions",
-                "_auth_session_tokens",
-                "_auth_verification_codes",
-                "_auth_assurances",
-                "_auth_provisioning_receipts",
-                "_auth_security_events",
-                "_auth_agent_credentials",
-                "_auth_grants",
-                "_auth_grant_tokens",
-                "_auth_agent_invitations",
-                "_auth_pairing_requests",
-                "_auth_scope_bases",
-                "_auth_password_attempts",
-            ]
-        );
-        require_exact_members(
-            &backup_directory,
-            &[
-                BACKUP_DATABASE_FILE,
-                BACKUP_KEYRING_FILE,
-                BACKUP_MANIFEST_FILE,
-            ],
-        )
-        .unwrap();
-        assert_eq!(
-            std::fs::metadata(&backup_directory)
-                .unwrap()
-                .permissions()
-                .mode()
-                & 0o777,
-            0o700
-        );
-        for name in [
-            BACKUP_DATABASE_FILE,
-            BACKUP_KEYRING_FILE,
-            BACKUP_MANIFEST_FILE,
-        ] {
-            assert_eq!(
-                std::fs::metadata(backup_directory.join(name))
-                    .unwrap()
-                    .permissions()
-                    .mode()
-                    & 0o777,
-                0o600
-            );
-        }
-        assert!(!backup_directory.join("database.sqlite3-wal").exists());
-        assert_eq!(
-            std::fs::read(backup_directory.join(BACKUP_KEYRING_FILE)).unwrap(),
-            std::fs::read(AuthKeyringStore::keyring_path(&fixture.database_path)).unwrap()
-        );
-
-        let target_database = fixture.parent().join("restored").join("renamed.sqlite3");
-        let declaration =
-            restore_backup(&backup_directory, &target_database, &fixture.random).unwrap();
-        assert!(target_database.exists());
-        assert!(AuthKeyringStore::keyring_path(&target_database).exists());
-        assert!(
-            target_database
-                .parent()
-                .unwrap()
-                .join(RESTORE_DECLARATION_FILE)
-                .exists()
-        );
-        assert!(!target_database.with_extension("sqlite3-wal").exists());
-        assert_eq!(
-            RestoreDeclaration::parse(
-                &crate::secure_file::read_strict_owner_only(
-                    &target_database
-                        .parent()
-                        .unwrap()
-                        .join(RESTORE_DECLARATION_FILE),
-                    4096,
-                )
-                .unwrap()
-            )
-            .unwrap()
-            .declaration_id(),
-            declaration.declaration_id()
-        );
-        let restored = LocalDatabase::open(&target_database).unwrap();
-        assert_eq!(
-            restored.inspect_auth_catalog().unwrap(),
-            AuthCatalogState::ReadyV4
-        );
-        assert_eq!(
-            restored.auth_password_identifier_mode().unwrap(),
-            PasswordIdentifierMode::UsernameV1
-        );
-        assert_eq!(restored.auth_retained_key_ids().unwrap().len(), 1);
-        let restored_keyring = AuthKeyringStore::file_for_database(&target_database);
-        let key_id = AuthKeyId::parse(&restored.auth_retained_key_ids().unwrap()[0]).unwrap();
-        restored_keyring.with_key(&key_id, |_| ()).unwrap();
-        drop(restored);
-        let restored_rows = rusqlite::Connection::open(&target_database).unwrap();
-        for table in [
-            "_auth_credentials",
-            "_auth_recovery_code_sets",
-            "_auth_recovery_codes",
-            "_auth_assurances",
-            "_auth_security_events",
-            "_auth_password_attempts",
-        ] {
-            let count: u64 = restored_rows
-                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
-                    row.get(0)
-                })
-                .unwrap();
-            assert!(count > 0, "v4 backup omitted state from {table}");
-        }
-        assert_eq!(
-            restored_rows
-                .query_row(
-                    "SELECT address,window_start_ms,failed_count,locked_until_ms
-                     FROM _auth_password_attempts",
-                    [],
-                    |row| Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, u64>(1)?,
-                        row.get::<_, u64>(2)?,
-                        row.get::<_, Option<u64>>(3)?,
-                    )),
-                )
-                .unwrap(),
-            ("backup-ledger@example.com".to_owned(), 20, 4, Some(120))
-        );
-        assert_eq!(
-            restored_rows
-                .query_row(
-                    "SELECT length(payload) FROM backup_large_app_fixture",
-                    [],
-                    |row| row.get::<_, u64>(0),
-                )
-                .unwrap(),
-            1_048_576,
-            "the descriptor-safe backup must retain real multi-page app data",
         );
     }
 

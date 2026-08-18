@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 use tokio::sync::Notify;
 
-pub(crate) use snapback_kernel::auth::service_fence::{
+pub use snapback_kernel::auth::service_fence::{
     PreparedServiceAuthorityTerminal, ServiceAuthorityCommitInterlock,
 };
 
@@ -69,7 +69,7 @@ struct ServiceAuthorityDomain {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ServiceAuthorityPublication {
+pub struct ServiceAuthorityPublication {
     fence: Arc<Mutex<ServiceAuthorityFenceState>>,
     domain: Arc<ServiceAuthorityDomain>,
     /// The provider owns the durable-floor-clamped epoch and injected
@@ -80,7 +80,7 @@ pub(crate) struct ServiceAuthorityPublication {
 }
 
 #[derive(Debug)]
-pub(crate) struct ServiceAuthorityExternalEffectPermit {
+pub struct ServiceAuthorityExternalEffectPermit {
     fence: Arc<Mutex<ServiceAuthorityFenceState>>,
     domain: Arc<ServiceAuthorityDomain>,
     witness: ServiceAuthorityWitness,
@@ -89,14 +89,14 @@ pub(crate) struct ServiceAuthorityExternalEffectPermit {
 
 /// The external-effect permit is also the retained finite-authority work
 /// permit. Both operations need the same begin-before-terminal interlock.
-pub(crate) type ServiceAuthorityWorkPermit = ServiceAuthorityExternalEffectPermit;
+pub type ServiceAuthorityWorkPermit = ServiceAuthorityExternalEffectPermit;
 
 /// Owned exact-token terminal intent. Acquisition closes only the planned
 /// tokens and asynchronously drains their predecessor work. The blocking
 /// owner must install it with [`with_service_authority_terminal_gate`] around
 /// the matching synchronous storage operation.
 #[derive(Debug)]
-pub(crate) struct ServiceAuthorityTerminalGate {
+pub struct ServiceAuthorityTerminalGate {
     prepared: Option<PremarkedServiceAuthorityTerminal>,
 }
 
@@ -136,7 +136,7 @@ impl ServiceAuthorityExternalEffectPermit {
     /// Acknowledge that the native effect was synchronously initiated (or
     /// synchronously refused). Terminal premark may commit only after this
     /// exact begin→initiated window closes.
-    pub(crate) fn initiated(mut self) {
+    pub fn initiated(mut self) {
         self.settle();
     }
 
@@ -144,7 +144,7 @@ impl ServiceAuthorityExternalEffectPermit {
     /// exact retained permit, rather than ambient token activity, installs the
     /// nested witness, so unrelated/new callers cannot publish through a
     /// pending ending while this predecessor drains.
-    pub(crate) fn with_retained_authority<T>(&self, operation: impl FnOnce() -> T) -> T {
+    pub fn with_retained_authority<T>(&self, operation: impl FnOnce() -> T) -> T {
         let key = Arc::as_ptr(&self.fence) as usize;
         ACTIVE_SERVICE_AUTHORITY_ACTS.with(|active| {
             active.borrow_mut().push((key, self.witness.clone()));
@@ -208,8 +208,8 @@ impl ServiceAuthorityPublication {
         ActiveServiceAuthorityAct { key }
     }
 
-    #[cfg(test)]
-    pub(crate) fn synthetic_for_test(token_id: &str) -> Self {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn synthetic_for_test(token_id: &str) -> Self {
         let domain = Arc::new(ServiceAuthorityDomain::default());
         Self {
             fence: Arc::new(Mutex::new(ServiceAuthorityFenceState {
@@ -233,7 +233,7 @@ impl ServiceAuthorityPublication {
         }
     }
 
-    pub(crate) fn with_provider_clock(mut self, clock: Arc<AuthProvider>) -> Self {
+    pub fn with_provider_clock(mut self, clock: Arc<AuthProvider>) -> Self {
         self.clock = Some(clock);
         self
     }
@@ -246,7 +246,7 @@ impl ServiceAuthorityPublication {
             })
     }
 
-    pub(crate) fn current_clock_sample(
+    pub fn current_clock_sample(
         &self,
         epoch_now_ms: u64,
         monotonic_now: Instant,
@@ -270,7 +270,7 @@ impl ServiceAuthorityPublication {
                 .is_some_and(|deadline| monotonic_now >= deadline)
     }
 
-    pub(crate) fn expired_deadline_terminal(
+    pub fn expired_deadline_terminal(
         &self,
         now_ms: u64,
         monotonic_now: Instant,
@@ -346,7 +346,7 @@ impl ServiceAuthorityPublication {
         }))
     }
 
-    pub(crate) fn remaining_until_deadline(&self, monotonic_now: Instant) -> Duration {
+    pub fn remaining_until_deadline(&self, monotonic_now: Instant) -> Duration {
         let monotonic_now = self
             .clock
             .as_ref()
@@ -364,7 +364,7 @@ impl ServiceAuthorityPublication {
             .unwrap_or(Duration::ZERO)
     }
 
-    pub(crate) fn try_publish<T>(
+    pub fn try_publish<T>(
         &self,
         now_ms: u64,
         monotonic_now: Instant,
@@ -433,7 +433,7 @@ impl ServiceAuthorityPublication {
         result
     }
 
-    pub(crate) fn terminal_disposition(
+    pub fn terminal_disposition(
         &self,
         now_ms: u64,
         monotonic_now: Instant,
@@ -452,7 +452,7 @@ impl ServiceAuthorityPublication {
     /// Validate the leaf for an app effect and return its immutable witness.
     /// Poison, rollback, a pending/committed terminal mutation, and expiry all
     /// fail closed; callers must not recover a poisoned guard for authority.
-    pub(crate) fn resolve_act(
+    pub fn resolve_act(
         &self,
         now_ms: u64,
         monotonic_now: Instant,
@@ -485,7 +485,7 @@ impl ServiceAuthorityPublication {
         ))
     }
 
-    pub(crate) fn begin_authority_work(
+    pub fn begin_authority_work(
         &self,
         now_ms: u64,
         monotonic_now: Instant,
@@ -551,7 +551,7 @@ impl ServiceAuthorityPublication {
         })
     }
 
-    pub(crate) fn begin_external_effect(
+    pub fn begin_external_effect(
         &self,
         now_ms: u64,
         monotonic_now: Instant,
@@ -571,7 +571,7 @@ struct ServiceAuthorityFenceRegistryState {
 }
 
 #[derive(Clone)]
-pub(crate) struct ServiceAuthorityFenceRegistry {
+pub struct ServiceAuthorityFenceRegistry {
     state: Arc<Mutex<ServiceAuthorityFenceRegistryState>>,
     changed: Arc<Notify>,
 }
@@ -592,8 +592,8 @@ impl std::fmt::Debug for ServiceAuthorityFenceRegistry {
 }
 
 impl ServiceAuthorityFenceRegistry {
-    #[cfg(test)]
-    pub(crate) fn is_same_registry(&self, other: &Self) -> bool {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn is_same_registry(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.state, &other.state)
     }
 
@@ -666,7 +666,7 @@ impl ServiceAuthorityFenceRegistry {
     /// Close only the exact planned tokens to new finite-service work, then
     /// asynchronously drain their predecessor operations. Overlapping gates
     /// serialize; disjoint tokens remain live and drain independently.
-    pub(crate) async fn acquire_terminal_gate(
+    pub async fn acquire_terminal_gate(
         &self,
         token_ids: &[String],
         disposition: ServiceAuthorityDisposition,
@@ -706,8 +706,8 @@ impl ServiceAuthorityFenceRegistry {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn synthetic_publication_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn synthetic_publication_for_test(
         &self,
         token_id: &str,
         validated_at_ms: u64,
@@ -734,7 +734,7 @@ impl ServiceAuthorityFenceRegistry {
     /// durable resolution. A terminal transaction therefore either premarks
     /// this exact fence later or committed before resolution and makes the
     /// durable lookup fail; it cannot pass unseen between lookup and install.
-    pub(crate) fn register(
+    pub fn register(
         &self,
         witness: ServiceAuthorityWitness,
         validated_at_ms: u64,
@@ -971,7 +971,7 @@ impl Drop for ActiveServiceTerminalGateScope {
 /// Bind an asynchronously drained exact-token gate to one synchronous storage
 /// call. The storage interlock consumes it only after its own transaction plan
 /// reproduces the exact token set and disposition.
-pub(crate) fn with_service_authority_terminal_gate<T>(
+pub fn with_service_authority_terminal_gate<T>(
     gate: ServiceAuthorityTerminalGate,
     operation: impl FnOnce() -> T,
 ) -> T {
