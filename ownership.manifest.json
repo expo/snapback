@@ -299,7 +299,6 @@
       "crates/snapback/src/telemetry.rs",
       "crates/snapback/src/telemetry_bench.rs",
       "crates/snapback/src/telemetry_query.rs",
-      "crates/snapback/src/warm_vm.rs",
       "crates/snapback/src/webhooks.rs"
     ],
     "transport-adapters": [
@@ -349,8 +348,7 @@
       "crates/snapback/src/server/remote_mcp.rs",
       "crates/snapback/src/server/response_types.rs",
       "crates/snapback/src/server/tests.rs",
-      "crates/snapback/src/server/writer_gate.rs",
-      "crates/snapback/src/workerd_exec.rs"
+      "crates/snapback/src/server/writer_gate.rs"
     ],
     "embed-facade": [
       "crates/snapback/src/embed.rs",

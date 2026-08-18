@@ -376,7 +376,8 @@
           "scripts/check-guide",
           "scripts/generate-guide",
           "scripts/guide-",
-          "crates/snapback/src/"
+          "crates/snapback/src/",
+          "crates/snapback-runtime/src/"
         ]
       },
       "regenerateCommand": "node scripts/generate-guide-manifest.mjs",
@@ -911,7 +912,8 @@
         "telemetry"
       ],
       "prefixes": [
-        "crates/snapback/src/"
+        "crates/snapback/src/",
+        "crates/snapback-runtime/"
       ]
     },
     {

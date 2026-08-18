@@ -4035,7 +4035,6 @@ dependencies = [
  "hkdf",
  "hmac 0.12.1",
  "http-body",
- "ibex-runtime",
  "image",
  "jsonschema",
  "kamadak-exif",
@@ -4054,6 +4053,7 @@ dependencies = [
  "snapback-activation",
  "snapback-auth",
  "snapback-kernel",
+ "snapback-runtime",
  "snapback-types",
  "subtle",
  "syn",
@@ -4139,6 +4139,20 @@ dependencies = [
  "uuid",
  "windows-sys 0.61.2",
  "zeroize",
+]
+
+[[package]]
+name = "snapback-runtime"
+version = "0.1.0"
+dependencies = [
+ "ibex-runtime",
+ "libc",
+ "schemars",
+ "serde",
+ "serde_json",
+ "snapback-types",
+ "ureq",
+ "uuid",
 ]
 
 [[package]]

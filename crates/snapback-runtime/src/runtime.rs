@@ -1,8 +1,7 @@
-use super::host_glue::snapback_host_call;
-use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use libc::{c_char, c_int, size_t};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use snapback_types::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use std::env;
 use std::ffi::CString;
 use std::path::{Path, PathBuf};
@@ -85,8 +84,9 @@ impl RuntimeManager {
         Vec::new()
     }
 
-    #[cfg(test)]
-    pub(crate) fn force_ibex_cli_unavailable_for_test(&mut self) {
+    #[cfg(any(test, feature = "test-support"))]
+    #[doc(hidden)]
+    pub fn force_ibex_cli_unavailable_for_test(&mut self) {
         self.capabilities.ibex_cli = IbexCliCapability {
             available: false,
             path: None,
@@ -103,39 +103,40 @@ impl RuntimeManager {
 // `diagnostic-codes.d.mts` union — so it is deliberately not re-declared here.
 
 #[repr(C)]
-pub(crate) struct HermesRuntimeOpaque {
+#[doc(hidden)]
+pub struct HermesRuntimeOpaque {
     _private: [u8; 0],
 }
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub(super) struct HermesValueHandle {
-    pub(super) runtime_nonce: u64,
-    pub(super) handle_id: u64,
+pub struct HermesValueHandle {
+    pub runtime_nonce: u64,
+    pub handle_id: u64,
 }
 
 #[repr(C)]
-pub(super) struct HermesOwnedBytes {
-    pub(super) data: *mut u8,
-    pub(super) length: usize,
+pub struct HermesOwnedBytes {
+    pub data: *mut u8,
+    pub length: usize,
 }
 
 #[repr(C)]
-pub(super) struct HermesAsyncFailureEvent {
-    pub(super) abi_version: u32,
-    pub(super) struct_size: u32,
-    pub(super) kind: u32,
-    pub(super) principal_status: u32,
-    pub(super) value: HermesValueHandle,
-    pub(super) host_context_id: u64,
-    pub(super) owning_principal_id: u64,
-    pub(super) event_id: u64,
-    pub(super) associated_evaluation: u64,
-    pub(super) dropped_count: u64,
+pub struct HermesAsyncFailureEvent {
+    pub abi_version: u32,
+    pub struct_size: u32,
+    kind: u32,
+    principal_status: u32,
+    pub value: HermesValueHandle,
+    host_context_id: u64,
+    owning_principal_id: u64,
+    event_id: u64,
+    associated_evaluation: u64,
+    pub dropped_count: u64,
 }
 
 impl HermesAsyncFailureEvent {
-    pub(super) fn current() -> Self {
+    pub fn current() -> Self {
         Self {
             abi_version: 1,
             struct_size: std::mem::size_of::<Self>() as u32,
@@ -169,22 +170,22 @@ unsafe extern "C" {
     fn ex_hermes_watch_time_limit(runtime: *mut HermesRuntimeOpaque, timeout_ms: u32) -> c_int;
     fn ex_hermes_unwatch_time_limit(runtime: *mut HermesRuntimeOpaque);
     fn ex_hermes_interrupt_eval(runtime: *mut HermesRuntimeOpaque, runtime_nonce: u64) -> c_int;
-    pub(super) fn ex_hermes_take_async_failure_event(
+    pub fn ex_hermes_take_async_failure_event(
         runtime: *mut HermesRuntimeOpaque,
         event: *mut HermesAsyncFailureEvent,
     ) -> u32;
-    pub(super) fn ex_hermes_value_kind(
+    pub fn ex_hermes_value_kind(
         runtime: *mut HermesRuntimeOpaque,
         handle: HermesValueHandle,
     ) -> u32;
-    pub(super) fn ex_hermes_value_stage1_text(
+    pub fn ex_hermes_value_stage1_text(
         runtime: *mut HermesRuntimeOpaque,
         handle: HermesValueHandle,
         out_data: *mut *mut u8,
         out_length: *mut usize,
         out_truncated: *mut u32,
     ) -> u32;
-    pub(super) fn ex_hermes_value_safe_throw_metadata(
+    pub fn ex_hermes_value_safe_throw_metadata(
         runtime: *mut HermesRuntimeOpaque,
         handle: HermesValueHandle,
         metadata_fields: *mut u32,
@@ -192,20 +193,29 @@ unsafe extern "C" {
         message: *mut HermesOwnedBytes,
         stack: *mut HermesOwnedBytes,
     ) -> u32;
-    pub(super) fn ex_hermes_value_release(
+    pub fn ex_hermes_value_release(
         runtime: *mut HermesRuntimeOpaque,
         handle: HermesValueHandle,
     ) -> u32;
-    pub(super) fn ex_hermes_free_string(value: *mut c_char);
-    fn ex_hermes_set_host_call(
-        runtime: *mut HermesRuntimeOpaque,
-        callback: extern "C" fn(*const c_char, *const c_char) -> *mut c_char,
-    );
+    pub fn ex_hermes_free_string(value: *mut c_char);
+    fn ex_hermes_set_host_call(runtime: *mut HermesRuntimeOpaque, callback: HermesHostCall);
 }
 
-pub(crate) struct RuntimeGuard {
+/// The one host-call callback installed into a Hermes runtime.
+///
+/// The callback supplies host behavior; it does not carry admission or commit
+/// authority. The higher engine retains those capabilities in its private
+/// invocation context.
+pub type HermesHostCall = extern "C" fn(*const c_char, *const c_char) -> *mut c_char;
+
+extern "C" fn unavailable_host_call(_op: *const c_char, _args_json: *const c_char) -> *mut c_char {
+    ptr::null_mut()
+}
+
+#[doc(hidden)]
+pub struct RuntimeGuard {
     runtime: *mut HermesRuntimeOpaque,
-    pub(super) interrupt: Arc<RuntimeInterrupt>,
+    interrupt: Arc<RuntimeInterrupt>,
     /// The strict capability context this VM claimed at construction. Retained
     /// so posture regressions can prove the claim actually happened; the
     /// accessor below is exercised only by those tests, so a non-test build
@@ -214,12 +224,12 @@ pub(crate) struct RuntimeGuard {
     host_context_id: u64,
 }
 
-pub(super) struct RuntimeInterrupt {
+struct RuntimeInterrupt {
     runtime: StdMutex<Option<(usize, u64)>>,
 }
 
 impl RuntimeInterrupt {
-    pub(super) fn signal(&self) {
+    fn signal(&self) {
         let runtime = self.runtime.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some((runtime, runtime_nonce)) = *runtime {
             // Hermes documents watchTimeLimit as owner-thread-only. Cancellation
@@ -280,7 +290,10 @@ fn arm_strict_host_context() -> u64 {
 }
 
 impl RuntimeGuard {
-    pub(crate) fn create() -> SnapbackResult<Self> {
+    /// Construct one restricted handler VM with the higher engine's host-call
+    /// implementation. The callback is behavior, not an authority assertion:
+    /// admitted invocation state remains private to the engine adapter.
+    pub fn create(host_call: HermesHostCall) -> SnapbackResult<Self> {
         let host_context_id = arm_strict_host_context();
         // @ref LLP 0009#supply-chain-and-generated-bundles — application code
         // is exactly the selected manifest bundle; fetched or constructed
@@ -303,7 +316,7 @@ impl RuntimeGuard {
                 "Ibex runtime identity could not be captured",
             ));
         }
-        unsafe { ex_hermes_set_host_call(runtime, snapback_host_call) };
+        unsafe { ex_hermes_set_host_call(runtime, host_call) };
         Ok(Self {
             runtime,
             interrupt: Arc::new(RuntimeInterrupt {
@@ -319,11 +332,11 @@ impl RuntimeGuard {
         self.host_context_id
     }
 
-    pub(crate) fn ptr(&self) -> *mut HermesRuntimeOpaque {
+    pub fn ptr(&self) -> *mut HermesRuntimeOpaque {
         self.runtime
     }
 
-    pub(super) fn watch_until(&self, deadline: Instant) -> SnapbackResult<RuntimeTimeLimit<'_>> {
+    pub fn watch_until(&self, deadline: Instant) -> SnapbackResult<RuntimeTimeLimit<'_>> {
         let timeout_ms = remaining_deadline_ms(deadline)?;
         let status = unsafe { ex_hermes_watch_time_limit(self.runtime, timeout_ms) };
         if status != 0 {
@@ -335,9 +348,17 @@ impl RuntimeGuard {
         }
         Ok(RuntimeTimeLimit { runtime: self })
     }
+
+    /// Return a callback that can interrupt only this runtime generation.
+    /// The opaque closure preserves the pointer-plus-nonce fence.
+    pub fn cancellation_hook(&self) -> impl Fn() + Send + Sync + 'static {
+        let interrupt = self.interrupt.clone();
+        move || interrupt.signal()
+    }
 }
 
-pub(super) struct RuntimeTimeLimit<'a> {
+#[doc(hidden)]
+pub struct RuntimeTimeLimit<'a> {
     runtime: &'a RuntimeGuard,
 }
 
@@ -370,7 +391,7 @@ impl Drop for RuntimeGuard {
 /// glue; this is the smallest probe that can.
 pub fn qualify_handler_vm() -> SnapbackResult<()> {
     for _ in 0..2 {
-        RuntimeGuard::create().map(drop)?;
+        RuntimeGuard::create(unavailable_host_call).map(drop)?;
     }
     Ok(())
 }
@@ -383,11 +404,11 @@ pub fn qualify_handler_vm() -> SnapbackResult<()> {
 /// @ref LLP 0032#phase-4--measurement — M2 VM-cost decomposition.
 pub fn bench_runtime_create_us(iterations: usize) -> f64 {
     for _ in 0..4 {
-        let _ = RuntimeGuard::create();
+        let _ = RuntimeGuard::create(unavailable_host_call);
     }
     let start = Instant::now();
     for _ in 0..iterations {
-        let _guard = RuntimeGuard::create();
+        let _guard = RuntimeGuard::create(unavailable_host_call);
     }
     start.elapsed().as_micros() as f64 / iterations.max(1) as f64
 }
@@ -435,11 +456,11 @@ fn allocate_invocation_epoch(next: &std::sync::atomic::AtomicU64) -> SnapbackRes
     }
 }
 
-pub(super) fn next_invocation_epoch() -> SnapbackResult<u64> {
+pub fn next_invocation_epoch() -> SnapbackResult<u64> {
     allocate_invocation_epoch(&NEXT_INVOCATION_EPOCH)
 }
 
-pub(super) fn media_process_epoch() -> &'static str {
+pub fn media_process_epoch() -> &'static str {
     static EPOCH: OnceLock<String> = OnceLock::new();
     EPOCH.get_or_init(|| uuid::Uuid::now_v7().to_string())
 }
@@ -457,7 +478,7 @@ pub(super) fn media_process_epoch() -> &'static str {
 /// @ref LLP 0009#capability-model
 #[cfg(test)]
 mod strict_host_context_tests {
-    use super::RuntimeGuard;
+    use super::{RuntimeGuard, unavailable_host_call};
 
     fn claimed(context_id: u64) -> bool {
         assert_ne!(context_id, 0, "creation must arm a strict context");
@@ -471,8 +492,8 @@ mod strict_host_context_tests {
 
     #[test]
     fn every_vm_claims_its_own_strict_context() {
-        let first = RuntimeGuard::create().expect("first VM");
-        let second = RuntimeGuard::create().expect("second VM");
+        let first = RuntimeGuard::create(unavailable_host_call).expect("first VM");
+        let second = RuntimeGuard::create(unavailable_host_call).expect("second VM");
 
         assert_ne!(
             first.host_context_id(),
@@ -488,7 +509,7 @@ mod strict_host_context_tests {
         // A thread that never ran the process's first creation used to have no
         // armed token at all, so its VMs were Audit-fallback from the start.
         let across_threads = std::thread::spawn(|| {
-            let guard = RuntimeGuard::create().expect("VM on a fresh thread");
+            let guard = RuntimeGuard::create(unavailable_host_call).expect("VM on a fresh thread");
             claimed(guard.host_context_id())
         })
         .join()
@@ -541,13 +562,13 @@ mod invocation_epoch_tests {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum IbexInvocationMode {
+pub enum IbexInvocationMode {
     Query,
     Mutation,
     Action,
 }
 
-pub(super) fn remaining_deadline_ms(deadline: Instant) -> SnapbackResult<u32> {
+pub fn remaining_deadline_ms(deadline: Instant) -> SnapbackResult<u32> {
     let remaining = deadline
         .checked_duration_since(Instant::now())
         .ok_or_else(|| {
@@ -563,7 +584,7 @@ pub(super) fn remaining_deadline_ms(deadline: Instant) -> SnapbackResult<u32> {
     Ok(rounded_up_ms.clamp(1, u128::from(u32::MAX)) as u32)
 }
 
-pub(super) const IBEX_EVAL_OUTPUT_MAX_BYTES: usize = 8 * 1024 * 1024;
+pub const IBEX_EVAL_OUTPUT_MAX_BYTES: usize = 8 * 1024 * 1024;
 
 fn take_ibex_eval_output(out: *mut c_char) -> SnapbackResult<String> {
     if out.is_null() {
@@ -594,7 +615,7 @@ fn take_ibex_eval_output(out: *mut c_char) -> SnapbackResult<String> {
     output
 }
 
-pub(crate) fn eval(
+pub fn eval(
     runtime: *mut HermesRuntimeOpaque,
     source_url: &str,
     source: &str,
@@ -602,7 +623,7 @@ pub(crate) fn eval(
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L7: a Hermes
     // eval is synchronous FFI for the whole handler run and must never occupy
     // a tokio async worker.
-    crate::exec_guard::debug_assert_off_async_worker("ex_hermes_eval");
+    snapback_types::exec_guard::debug_assert_off_async_worker("ex_hermes_eval");
     let source_url =
         CString::new(source_url).unwrap_or_else(|_| CString::new("handler.js").unwrap());
     let mut out: *mut c_char = ptr::null_mut();
@@ -661,8 +682,8 @@ pub(crate) fn eval(
 /// the same file evaluates as a side-effect module. It runs before the module
 /// source so top-level handler code observes the same surface on both
 /// engines.
-pub(super) fn allowlist_install_source() -> &'static str {
-    include_str!("../../../../packages/snapback-harness/allowlist-install.js")
+pub fn allowlist_install_source() -> &'static str {
+    include_str!("../../../packages/snapback-harness/allowlist-install.js")
 }
 
 /// The per-invocation tail of the eval source: the async IIFE that calls
@@ -670,14 +691,14 @@ pub(super) fn allowlist_install_source() -> &'static str {
 /// it to ambient + bootstrap + module in one eval; the warm path evals it
 /// alone against an already-set-up VM — same text either way, so the two
 /// paths cannot drift.
-pub(super) const INVOCATION_IIFE_PAYLOAD_SLOT: &str = "\"\n__SNAPBACK_INVOCATION_JSON__\n\"";
+pub const INVOCATION_IIFE_PAYLOAD_SLOT: &str = "\"\n__SNAPBACK_INVOCATION_JSON__\n\"";
 
 /// Outbound action egress is opt-in and off by default. When enabled, an ACTION
 /// (only) keeps `fetch` + timers and is granted `network:fetch`; queries and
 /// mutations stay fully denied. This is the [LLP 0027#external-data-and-action-egress]
 /// seam — sandbox-policy territory owned by [LLP 0009], so the default posture is
 /// unchanged (everything denied, strict).
-pub(crate) fn outbound_actions_enabled() -> bool {
+pub fn outbound_actions_enabled() -> bool {
     matches!(
         std::env::var("SNAPBACK_OUTBOUND_ACTIONS").ok().as_deref(),
         Some("1") | Some("true") | Some("TRUE")
@@ -715,7 +736,7 @@ fn banned_ambient_globals() -> &'static Vec<String> {
     static BANNED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     BANNED.get_or_init(|| {
         let allowlist: Value = serde_json::from_str(include_str!(
-            "../../../../packages/snapback-harness/allowlist.json"
+            "../../../packages/snapback-harness/allowlist.json"
         ))
         .expect("packages/snapback-harness/allowlist.json parses");
         allowlist
@@ -741,7 +762,7 @@ fn banned_ambient_members() -> &'static Vec<String> {
     static BANNED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     BANNED.get_or_init(|| {
         let allowlist: Value = serde_json::from_str(include_str!(
-            "../../../../packages/snapback-harness/allowlist.json"
+            "../../../packages/snapback-harness/allowlist.json"
         ))
         .expect("packages/snapback-harness/allowlist.json parses");
         allowlist
@@ -785,10 +806,7 @@ const DATE_CONSTRUCTOR_DENY_SOURCE: &str = r#"  var NativeDate = g.Date;
   } catch (_) {}
 "#;
 
-pub(super) fn ambient_restriction_source(
-    mode: IbexInvocationMode,
-    outbound_enabled: bool,
-) -> String {
+pub fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) -> String {
     let egress = outbound_enabled && matches!(mode, IbexInvocationMode::Action);
     let mut denials = String::new();
     // Names installed as callable deny stubs, collected for the post-install
@@ -898,14 +916,14 @@ pub(super) fn ambient_restriction_source(
     )
 }
 
-pub(super) fn ctx_bootstrap_source() -> &'static str {
+pub fn ctx_bootstrap_source() -> &'static str {
     // @ref LLP 0048#architecture — the ctx bootstrap is the single-sourced
     // handler harness core, shared byte-for-byte with the workerd/V8 leg and
     // the LLP 0040 deploy template.
-    include_str!("../../../../packages/snapback-harness/ctx-bootstrap.js")
+    include_str!("../../../packages/snapback-harness/ctx-bootstrap.js")
 }
 
-pub(super) fn first_line(value: &str) -> String {
+fn first_line(value: &str) -> String {
     value.lines().next().unwrap_or(value).to_owned()
 }
 
