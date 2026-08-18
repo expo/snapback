@@ -1031,7 +1031,7 @@ impl ObligationRegistry {
     /// one. Revisions that merge into an already-quarantined scope are not a
     /// second entry; delivery/re-fire remains level-triggered independently.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn raise_with_quarantine_lifecycle(
+    pub fn raise_with_quarantine_lifecycle(
         &mut self,
         scope_id: ScopeId,
         cause_sequence: u64,
@@ -1102,8 +1102,8 @@ impl ObligationRegistry {
         })
     }
 
-    #[cfg(test)]
-    pub(crate) fn active_subscription_scopes_for_test(&self) -> Vec<ScopeId> {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn active_subscription_scopes_for_test(&self) -> Vec<ScopeId> {
         self.active_subscription_scopes.iter().cloned().collect()
     }
 
@@ -1147,7 +1147,7 @@ impl ObligationRegistry {
         Ok(Some(child))
     }
 
-    pub(crate) fn register_connection_child_with_quarantine_lifecycle(
+    pub fn register_connection_child_with_quarantine_lifecycle(
         &mut self,
         connection_scope: &ScopeId,
         subscription_scope: ScopeId,
@@ -1336,7 +1336,7 @@ impl ObligationRegistry {
         self.acknowledge(ack_token, true)
     }
 
-    pub(crate) fn resolution_for_ack_token(&self, ack_token: &str) -> Option<&ResolutionTicket> {
+    pub fn resolution_for_ack_token(&self, ack_token: &str) -> Option<&ResolutionTicket> {
         self.resolution_by_scope
             .values()
             .find(|issued| issued.ticket.ack_token == ack_token)
@@ -1354,7 +1354,7 @@ impl ObligationRegistry {
     /// the predecessor remains authoritative and a later transfer must still
     /// inherit that root. Scope sequences remain spent, so no unpublished
     /// identity can be reused.
-    pub(crate) fn rollback_unpublished_live_scope(
+    pub fn rollback_unpublished_live_scope(
         &mut self,
         scope_id: &ScopeId,
         connection_scope: &ScopeId,
@@ -1453,7 +1453,7 @@ impl ObligationRegistry {
     /// Preview the retirement frontier that removing `scope_id` would make
     /// available, without changing any registry state. This lets the caller
     /// authenticate the proof before the predecessor is irreversibly removed.
-    pub(crate) fn preview_scope_retirement(
+    pub fn preview_scope_retirement(
         &self,
         scope_id: &ScopeId,
     ) -> Option<ScopeRetirementCandidate> {
@@ -1499,7 +1499,7 @@ impl ObligationRegistry {
         })
     }
 
-    pub(crate) fn require_scope_retirement_preview(
+    pub fn require_scope_retirement_preview(
         &self,
         scope_id: &ScopeId,
         expected: &Option<ScopeRetirementCandidate>,

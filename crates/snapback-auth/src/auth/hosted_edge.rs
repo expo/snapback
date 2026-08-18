@@ -13,7 +13,6 @@
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use ring::signature::{ED25519, UnparsedPublicKey};
-use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -321,7 +320,7 @@ pub const ADMISSION_RENEWAL_INTERVAL_MS: u64 = 30_000;
 /// pre-bind path did. Carrying the same inputs is the point: a renewed
 /// admission is not trusted more cheaply than the first one.
 #[derive(Clone, Debug)]
-pub(crate) struct AdmissionRenewalInputs {
+pub struct AdmissionRenewalInputs {
     pub document_path: std::path::PathBuf,
     pub admission_public_key: Vec<u8>,
     pub facts: HostedEdgeSelfFacts,
@@ -558,9 +557,7 @@ impl HostedAdmissionEnvelope {
 }
 
 /// Create the durable admission high-water table.
-pub fn initialize_hosted_admission_watermark(connection: &Connection) -> SnapbackResult<()> {
-    snapback_kernel::auth::hosted_edge::initialize_hosted_admission_watermark(connection)
-}
+pub use snapback_kernel::auth::hosted_edge::initialize_hosted_admission_watermark;
 
 
 /// An envelope that passed every check not requiring durable state.
@@ -568,7 +565,7 @@ pub fn initialize_hosted_admission_watermark(connection: &Connection) -> Snapbac
 /// Held between the pre-bind phase and installation so the durable
 /// monotonicity check is the only thing deferred to database availability.
 #[derive(Clone, Debug)]
-pub(crate) struct VerifiedHostedAdmission {
+pub struct VerifiedHostedAdmission {
     envelope: HostedAdmissionEnvelope,
     throttle_key: [u8; 32],
 }
@@ -593,11 +590,11 @@ impl VerifiedHostedAdmission {
         self.envelope.renewal
     }
 
-    pub(crate) fn capabilities(&self) -> crate::auth::deployment::HostedAuthCapabilities {
+    pub fn capabilities(&self) -> crate::auth::deployment::HostedAuthCapabilities {
         self.envelope.admission.hosted_auth
     }
 
-    pub(crate) fn issued_at_ms(&self) -> u64 {
+    pub fn issued_at_ms(&self) -> u64 {
         self.envelope.admission.issued_at_ms
     }
 
@@ -615,7 +612,7 @@ impl VerifiedHostedAdmission {
 ///
 /// @ref LLP 0098#31-the-ordered-checks — each failure carries its own code so a
 /// refusal is reproducible from the code alone.
-pub(crate) fn verify_admission_envelope_prebind(
+pub fn verify_admission_envelope_prebind(
     envelope: &HostedAdmissionEnvelope,
     admission_public_key: &[u8],
     facts: &HostedEdgeSelfFacts,
@@ -718,7 +715,7 @@ pub(crate) fn verify_admission_envelope_prebind(
 /// @ref LLP 0098#31-the-ordered-checks — clause 9. A correctly signed,
 /// unexpired, replayed *older* snapshot is refused here, which is the only
 /// place it can be refused, because the high-water mark is durable.
-pub(crate) fn install_verified_admission(
+pub fn install_verified_admission(
     verified: &VerifiedHostedAdmission,
     now_ms: u64,
     database: &mut crate::storage::LocalDatabase,
@@ -735,7 +732,7 @@ pub(crate) fn install_verified_admission(
     Ok(authority)
 }
 
-pub(crate) fn renew_hosted_admission(
+pub fn renew_hosted_admission(
     database: &mut crate::storage::LocalDatabase,
     inputs: &AdmissionRenewalInputs,
     installed_issued_at_ms: u64,

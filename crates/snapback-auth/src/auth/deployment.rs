@@ -5,7 +5,7 @@
 //! publish the closed descriptor and admission derives from its conjunction.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use axum::http;
+use http;
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use hmac::{Hmac, Mac as _};
@@ -16,7 +16,7 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 use zeroize::Zeroize as _;
 
-pub(crate) use snapback_kernel::auth::deployment::HostedAuthenticationThrottle;
+pub use snapback_kernel::auth::deployment::HostedAuthenticationThrottle;
 
 pub use snapback_types::auth::deployment::*;
 
@@ -135,7 +135,7 @@ impl HostedAdmission {
 /// and is never copied into release, backup, log, or receipt artifacts.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub(crate) struct HostedAdmissionEnvelope {
+pub struct HostedAdmissionEnvelope {
     schema_version: String,
     #[schemars(pattern(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"))]
     key_id: String,
@@ -149,7 +149,7 @@ pub(crate) struct HostedAdmissionEnvelope {
 #[cfg_attr(not(test), allow(dead_code))]
 #[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
-pub(crate) struct HostedAdmissionKeyFile {
+pub struct HostedAdmissionKeyFile {
     schema_version: String,
     #[schemars(pattern(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"))]
     key_id: String,
@@ -318,7 +318,7 @@ fn read_hosted_admission_envelope(path: &Path) -> SnapbackResult<HostedAdmission
 /// @ref LLP 0098#5-live-health-and-withdrawal — renewal composes with
 /// withdrawal, it does not suppress it.
 #[derive(Clone)]
-pub(crate) struct HostedServingHandle {
+pub struct HostedServingHandle {
     current: Arc<std::sync::RwLock<Arc<HostedServingAuthority>>>,
 }
 
@@ -329,7 +329,7 @@ impl fmt::Debug for HostedServingHandle {
 }
 
 impl HostedServingHandle {
-    pub(crate) fn new(authority: HostedServingAuthority) -> Self {
+    pub fn new(authority: HostedServingAuthority) -> Self {
         Self {
             current: Arc::new(std::sync::RwLock::new(Arc::new(authority))),
         }
@@ -337,11 +337,11 @@ impl HostedServingHandle {
 
     /// The authority in force right now. A poisoned lock is treated as a lost
     /// authority by the caller rather than panicking a request thread.
-    pub(crate) fn current(&self) -> Option<Arc<HostedServingAuthority>> {
+    pub fn current(&self) -> Option<Arc<HostedServingAuthority>> {
         self.current.read().ok().map(|guard| guard.clone())
     }
 
-    pub(crate) fn hosted_target_authority_instance_at(
+    pub fn hosted_target_authority_instance_at(
         &self,
         now_ms: u64,
         authorization_incarnation: &str,
@@ -353,7 +353,7 @@ impl HostedServingHandle {
     }
 
     /// Replace the incumbent with an independently verified successor.
-    pub(crate) fn install(&self, authority: HostedServingAuthority) -> bool {
+    pub fn install(&self, authority: HostedServingAuthority) -> bool {
         match self.current.write() {
             Ok(mut guard) => {
                 if !guard.same_hosted_target_process(&authority) {
@@ -369,7 +369,7 @@ impl HostedServingHandle {
 
 #[cfg_attr(not(test), allow(dead_code))]
 #[derive(Clone)]
-pub(crate) struct HostedServingAuthority {
+pub struct HostedServingAuthority {
     admission: Arc<RwLock<HostedAdmission>>,
     public_origin: Arc<str>,
     admission_key_id: Option<Arc<str>>,
@@ -437,7 +437,7 @@ impl HostedServingAuthority {
     /// Install facts only after the target adapter authenticated its
     /// admission producer, live health, and canonical public origin.
     #[allow(dead_code)] // Consumed by the first concrete hosted adapter.
-    pub(crate) fn from_authenticated_target(
+    pub fn from_authenticated_target(
         public_origin: impl Into<String>,
         admission: HostedAdmission,
         observed_at_ms: u64,
@@ -457,7 +457,7 @@ impl HostedServingAuthority {
         })
     }
 
-    pub(crate) fn install_hosted_target_admission(
+    pub fn install_hosted_target_admission(
         &mut self,
         admission: Option<crate::deploy::HostedAdmissionV2>,
     ) {
@@ -489,7 +489,7 @@ impl HostedServingAuthority {
         }
     }
 
-    pub(crate) fn hosted_target_authority_instance_at(
+    pub fn hosted_target_authority_instance_at(
         &self,
         now_ms: u64,
         authorization_incarnation: &str,
@@ -676,14 +676,14 @@ impl HostedServingAuthority {
     }
 
     /// The capability tuple this verified admission attests.
-    pub(crate) fn capabilities(&self) -> HostedAuthCapabilities {
+    pub fn capabilities(&self) -> HostedAuthCapabilities {
         self.admission
             .read()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .hosted_auth
     }
 
-    pub(crate) fn admission_epoch_at(&self, now_ms: u64) -> SnapbackResult<u64> {
+    pub fn admission_epoch_at(&self, now_ms: u64) -> SnapbackResult<u64> {
         let admission = self
             .admission
             .read()
@@ -698,7 +698,7 @@ impl HostedServingAuthority {
         Ok(admission.admission_epoch)
     }
 
-    pub(crate) fn authentication_throttle_at(
+    pub fn authentication_throttle_at(
         &self,
         now_ms: u64,
     ) -> SnapbackResult<HostedAuthenticationThrottle> {
@@ -718,7 +718,7 @@ impl HostedServingAuthority {
     /// The control-plane monotone floor for the durable sender replay
     /// namespace, applied at authority install (decision 1's anti-rollback
     /// composition).
-    pub(crate) fn sender_replay_epoch_floor(&self) -> u64 {
+    pub fn sender_replay_epoch_floor(&self) -> u64 {
         self.admission
             .read()
             .map(|admission| admission.sender_replay_epoch_floor)
@@ -731,7 +731,7 @@ impl HostedServingAuthority {
     /// nonce is `HMAC(server secret, sender_replay_epoch ‖ token_digest ‖
     /// time_bucket)`; the secret here is a domain-separated derivation of the
     /// target-attested key, valid only while admission is valid.
-    pub(crate) fn sender_cover_key_at(
+    pub fn sender_cover_key_at(
         &self,
         now_ms: u64,
     ) -> SnapbackResult<crate::auth::sender_proof::SenderCoverNonceKey> {
@@ -744,7 +744,7 @@ impl HostedServingAuthority {
     /// Derive the proof target solely from authenticated target origin plus
     /// the already-routed absolute path. Query and all forwarding headers are
     /// excluded from the proof identity.
-    pub(crate) fn canonical_external_uri(
+    pub fn canonical_external_uri(
         &self,
         request_uri: &http::Uri,
         now_ms: u64,

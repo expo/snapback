@@ -1,5 +1,37 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum HostedAdmissionV2Version {
+    #[serde(rename = "snapback.hosted-admission.v2")]
+    V2,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HostedAdmissionV2 {
+    pub schema_version: HostedAdmissionV2Version,
+    pub target_id: String,
+    pub deployment_id: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub binding_generation: u64,
+    pub target_binding_sha256: String,
+    pub control_head_sha256: String,
+    pub supervisor_incarnation: String,
+    pub exact_roster_sha256: String,
+    pub routed_machine_id: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub hosted_auth_expires_at_ms: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub routed_machine_expires_at_ms: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub replay_floor: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub admission_generation: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
+    pub issued_at_ms: u64,
+    pub signature: String,
+}
+
 /// The exposure contract an operator asks the serving target to satisfy.
 ///
 /// `hosted` is must-understand. A local listener never treats loopback, a
