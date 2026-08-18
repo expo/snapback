@@ -61,8 +61,7 @@ fn concurrent_app_root_identity_first_publication_is_idempotent() {
     });
 
     let identity = app_root.join(".snapback").join(APP_ROOT_IDENTITY_FILE);
-    let recorded: AppRootIdentityV1 =
-        serde_json::from_slice(&fs::read(identity).unwrap()).unwrap();
+    let recorded: AppRootIdentityV1 = serde_json::from_slice(&fs::read(identity).unwrap()).unwrap();
     assert_eq!(recorded.app_id, "app-a");
     assert_eq!(
         recorded.canonical_app_root,
@@ -104,10 +103,9 @@ fn concurrent_same_id_first_writers_compare_and_publish_one_identity() {
         .collect::<Vec<_>>();
     files.sort();
     assert_eq!(files, [std::ffi::OsString::from(APP_ROOT_IDENTITY_FILE)]);
-    let recorded: AppRootIdentityV1 = serde_json::from_slice(
-        &fs::read(identity_directory.join(APP_ROOT_IDENTITY_FILE)).unwrap(),
-    )
-    .unwrap();
+    let recorded: AppRootIdentityV1 =
+        serde_json::from_slice(&fs::read(identity_directory.join(APP_ROOT_IDENTITY_FILE)).unwrap())
+            .unwrap();
     assert_eq!(recorded.app_id, "app-a");
 }
 
@@ -174,8 +172,7 @@ fn conflicting_first_writers_accept_one_identity_before_mint_or_launch() {
     assert_eq!(launch_attempts.load(std::sync::atomic::Ordering::SeqCst), 1);
 
     let identity = app_root.join(".snapback").join(APP_ROOT_IDENTITY_FILE);
-    let recorded: AppRootIdentityV1 =
-        serde_json::from_slice(&fs::read(identity).unwrap()).unwrap();
+    let recorded: AppRootIdentityV1 = serde_json::from_slice(&fs::read(identity).unwrap()).unwrap();
     assert_eq!(recorded.app_id, accepted[0].as_str());
     assert!(
         directory
@@ -260,10 +257,7 @@ fn app_row_source_database(directory: &Path) -> PathBuf {
                 crate::storage::BufferedWrite::Insert {
                     table: "items".to_owned(),
                     id: "revert-me".to_owned(),
-                    values: serde_json::Map::from_iter([(
-                        "title".to_owned(),
-                        json!("original"),
-                    )]),
+                    values: serde_json::Map::from_iter([("title".to_owned(), json!("original"))]),
                 },
             ],
             Vec::new(),
@@ -822,8 +816,7 @@ fn parent_credential_and_cursor_corpus_is_refused_by_minted_fork() {
         format!("{parent_admin}\n").as_bytes(),
     )
     .unwrap();
-    let parent_auth_keyring =
-        crate::auth::keyring::AuthKeyringStore::file_for_database(&source);
+    let parent_auth_keyring = crate::auth::keyring::AuthKeyringStore::file_for_database(&source);
     parent_auth_keyring
         .load_or_mint_initial(1_000, &crate::auth::crypto::OsRandom)
         .unwrap();
@@ -835,8 +828,7 @@ fn parent_credential_and_cursor_corpus_is_refused_by_minted_fork() {
     let parent_resume_path = directory
         .path()
         .join(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
-    let mut parent_resume =
-        crate::rqs::ResumeKeyring::load_or_create(parent_resume_path, 1_000);
+    let mut parent_resume = crate::rqs::ResumeKeyring::load_or_create(parent_resume_path, 1_000);
     let (parent_resume_key_id, parent_resume_key) = parent_resume.active(1_000).unwrap();
     let parent_resume_body = crate::rqs::ResumeTokenBody {
         app: "app-a".to_owned(),
@@ -915,13 +907,11 @@ fn parent_credential_and_cursor_corpus_is_refused_by_minted_fork() {
         let tx = conn.transaction().unwrap();
         crate::assets::create_infra(&tx).unwrap();
         let key = crate::assets::active_signing_key(&tx, 1_000).unwrap();
-        parent_asset_token = crate::assets::mint_signed_url_token(
-            &key, "asset-a", "original", "user-a", 1, 10_000,
-        );
-        parent_authorization =
-            crate::storage::auth_stream::rotate_authorization_version_in(&tx)
-                .unwrap()
-                .incarnation;
+        parent_asset_token =
+            crate::assets::mint_signed_url_token(&key, "asset-a", "original", "user-a", 1, 10_000);
+        parent_authorization = crate::storage::auth_stream::rotate_authorization_version_in(&tx)
+            .unwrap()
+            .incarnation;
         parent_data_stream =
             crate::storage::auth_invalidation::rotate_data_version_stream_in(&tx).unwrap();
         tx.commit().unwrap();
@@ -1162,17 +1152,14 @@ async fn direct_telemetry_export_route_refuses_before_export_read() {
     publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
     let database = destination.join("app.sqlite3");
     let snapback = crate::local::LocalSnapback::open(&database).unwrap();
-    let (state, operator) =
-        crate::admin::AppState::try_from_snapback_with_secret_read_operator(
-            snapback,
-            crate::admin::ServerContext::detached(),
-        )
-        .expect("fork secret read app state");
+    let (state, operator) = crate::admin::AppState::try_from_snapback_with_secret_read_operator(
+        snapback,
+        crate::admin::ServerContext::detached(),
+    )
+    .expect("fork secret read app state");
     let lease = operator
         .mint(crate::admin_secret_read::SecretReadLeaseRequest {
-            scopes: BTreeSet::from([
-                crate::admin_secret_read::SecretReadScope::TelemetryExport,
-            ]),
+            scopes: BTreeSet::from([crate::admin_secret_read::SecretReadScope::TelemetryExport]),
             ttl: Duration::from_secs(60),
             row_budget: 100,
             byte_budget: 1024 * 1024,
@@ -1239,12 +1226,11 @@ async fn push_receipt_maintenance_refuses_on_a_ledger_bearing_fork_before_provid
         .auth_database_mut()
         .activate_push_registry_for_test(declaration)
         .unwrap();
-    let (state, _operator) =
-        crate::admin::AppState::try_from_snapback_with_secret_read_operator(
-            snapback,
-            crate::admin::ServerContext::detached(),
-        )
-        .expect("fork push app state");
+    let (state, _operator) = crate::admin::AppState::try_from_snapback_with_secret_read_operator(
+        snapback,
+        crate::admin::ServerContext::detached(),
+    )
+    .expect("fork push app state");
     let error = crate::server::drive_push_maintenance_once(
         &state.snapback,
         crate::contract_types::ServerProfile::Test,
@@ -1422,10 +1408,8 @@ fn managed_lifecycle_copies_only_explicit_secrets_diffs_and_reaps_by_clock() {
         CustodyDisposition::Scrub
     );
     assert!(
-        !crate::config::ConfigStore::path_for_database(
-            &scrubbed_destination.join("app.sqlite3")
-        )
-        .exists()
+        !crate::config::ConfigStore::path_for_database(&scrubbed_destination.join("app.sqlite3"))
+            .exists()
     );
     drop_managed(&root, &scrubbed.lineage.fork_id, &managed_expected(&root)).unwrap();
 
@@ -1829,8 +1813,7 @@ fn stale_registry_entries_clear_only_after_their_directory_is_gone() {
         vec![receipt.lineage.fork_id.clone()],
         "id enumeration keeps working over a stale entry"
     );
-    clear_stale_registry_entry(&root, &receipt.lineage.fork_id, &managed_expected(&root))
-        .unwrap();
+    clear_stale_registry_entry(&root, &receipt.lineage.fork_id, &managed_expected(&root)).unwrap();
     assert!(managed_registry_ids(&root).unwrap().is_empty());
     assert_eq!(
         clear_stale_registry_entry(&root, &receipt.lineage.fork_id, &managed_expected(&root),)
@@ -1870,8 +1853,7 @@ fn renewal_moves_every_expiry_carrier_and_never_shortens_clears_or_resurrects() 
         SERVER_EXPIRED_CODE
     );
 
-    let renewed =
-        renew_managed(&root, &fork_id, &managed_expected(&root), 150, 299_850).unwrap();
+    let renewed = renew_managed(&root, &fork_id, &managed_expected(&root), 150, 299_850).unwrap();
     assert_eq!(renewed.schema_version, "snapback.fork-renew.v1");
     assert_eq!(renewed.previous_expires_at_ms, 200_000);
     assert_eq!(renewed.expires_at_ms, 300_000);
@@ -1895,8 +1877,7 @@ fn renewal_moves_every_expiry_carrier_and_never_shortens_clears_or_resurrects() 
         1
     );
     let durable: ForkRenewReceiptV1 =
-        serde_json::from_slice(&fs::read(destination.join(RENEW_RECEIPT_FILE)).unwrap())
-            .unwrap();
+        serde_json::from_slice(&fs::read(destination.join(RENEW_RECEIPT_FILE)).unwrap()).unwrap();
     assert_eq!(durable, renewed);
 
     // Shortening or holding the expiry is refused outright.
@@ -2296,8 +2277,7 @@ fn root_wide_admission_is_atomic_at_count_and_total_byte_boundaries() {
         fs::create_dir(&app_root).unwrap();
         let expected = ensure_expected_app(&app_root, "app-a").unwrap();
         let initial =
-            enforce_creation_limits(&root, &source, &ForkResourceLimits::default(), false)
-                .unwrap();
+            enforce_creation_limits(&root, &source, &ForkResourceLimits::default(), false).unwrap();
         let limits = if boundary == "fork-count" {
             ForkResourceLimits {
                 max_forks: 1,
@@ -2642,8 +2622,7 @@ fn net_diff_oracle_covers_the_mutation_corpus_and_verifies_the_journal() {
         true,
     )
     .unwrap();
-    let sibling_net =
-        net_diff_receipt(&sibling.join("app.sqlite3"), FORK_DIFF_MAX_ROWS).unwrap();
+    let sibling_net = net_diff_receipt(&sibling.join("app.sqlite3"), FORK_DIFF_MAX_ROWS).unwrap();
     assert!(
         sibling_net.rows.is_empty(),
         "a no-op workload nets to zero rows"
@@ -2933,10 +2912,7 @@ fn net_diff_authorizer_backed_app_row_corpus_and_runtime_negative() {
                 crate::storage::BufferedWrite::Patch {
                     table: "items".to_owned(),
                     id: "revert-me".to_owned(),
-                    values: serde_json::Map::from_iter([(
-                        "title".to_owned(),
-                        json!("changed"),
-                    )]),
+                    values: serde_json::Map::from_iter([("title".to_owned(), json!("changed"))]),
                 },
                 crate::storage::BufferedWrite::Delete {
                     table: "items".to_owned(),
@@ -2958,10 +2934,7 @@ fn net_diff_authorizer_backed_app_row_corpus_and_runtime_negative() {
                 crate::storage::BufferedWrite::Patch {
                     table: "items".to_owned(),
                     id: "revert-me".to_owned(),
-                    values: serde_json::Map::from_iter([(
-                        "title".to_owned(),
-                        json!("original"),
-                    )]),
+                    values: serde_json::Map::from_iter([("title".to_owned(), json!("original"))]),
                 },
             ],
             Vec::new(),
@@ -3631,8 +3604,7 @@ fn publication_crash_matrix_recovers_to_absent_or_bootable_without_registry() {
         // staging (2026-08-05 review: the matrix had no asset cuts).
         let source = asset_bearing_parent(directory.path(), b"crash matrix blob");
         let destination = directory.path().join("fork");
-        let error =
-            publish(&source, &destination, "app-a", "parent-a", 42, Some(cut)).unwrap_err();
+        let error = publish(&source, &destination, "app-a", "parent-a", 42, Some(cut)).unwrap_err();
         assert_eq!(
             error.diagnostic.code, "SNAPBACK_FORK_TEST_CRASH_CUT",
             "{cut:?}"
