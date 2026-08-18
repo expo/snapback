@@ -202,3 +202,39 @@ The acquisition predicate must verify that effective write authority—including
 The architectural direction is otherwise coherent. Fixing M1 and M2 should be followed by one narrow delta review of those corrections.
 
 VERDICT: NOT READY
+## Round 4 — 2026-08-17 (author-authorized narrow delta round)
+
+- Reviewer: codex `gpt-5.6-sol`, reasoning effort xhigh, sandbox read-only; same runner, cwd = round-4 capsule
+- Target revision (r4, sha256): `5649ae4cb93edb37c7e8c46a25d63fb4799f4f0703721872116056aaeb7539bb`
+- Capsule hash: `e1d113b668fa4e406ba86377884848a472a5bea2cc4e1b55732a1c684bc15552`
+- Instruction hash: `e2585049b56ac820d3d8eedf2c36d4ecab98400bf634bd7238864089861cdc36`
+- Blindness: structural; author-authorized narrow delta round (r3→r4 fixes)
+- Verdict: READY — all three MATERIAL fixes verified resolved; one IN-DELTA editorial minor (OQ-B wording); no PRE-EXISTING concerns
+
+### Verbatim review
+
+## Overall assessment
+
+Revision r4 resolves all three enumerated MATERIAL findings without introducing a new MATERIAL defect. The document remains coherent with LLP 0189, LLP 0225, and LLP 0232.
+
+## Verification of the three fixes
+
+1. **Staged external confinement — resolved.** The workspace-graph gate now applies confinement immediately to each extracted crate while granting only the monolithic remainder a named temporary exemption. The flip requires confinement with no remainder exemption, coincides with analyzer retirement, and promotes the already-running gate into `driftFailClosedCoreGates`. Registration in the canonical inventory and selection policy during Phase 1 closes the former enforcement gap.
+
+2. **Qualification contract — resolved.** Entry failures require continuity with a real prior eligible battery rather than the entry record itself. Migration-critical gates, cold-clone witnesses, and publication claim-relevant gates cannot be excluded. Publication also remains independently subject to LLP 0189 D-6 and LLP 0232, so an entry-excluded red cannot reach publication when it is claim-relevant.
+
+3. **Lease exclusivity — resolved.** Acquisition now depends on effective write authority being reduced to the operator alone, with every non-operator bypass revoked or technically disabled and the resulting state recorded. This converts the former inventory-only mechanism into an exclusive lease predicate.
+
+The accompanying auth ownership clarifications also match LLP 0225’s landed cuts: durable auth operations remain in the kernel, leaf shapes remain in `snapback-types`, `SessionProjection` remains in sync, and `throttle.rs` remains kernel-owned pending inversion.
+
+## Concerns
+
+- **m1 — IN-DELTA, minor:** OQ-B asks which admin/App identities “retain ruleset bypass,” while the normative acquisition predicate requires every non-operator bypass to be revoked or disabled. The predicate is unambiguous and therefore prevents a live bypass, but OQ-B should preferably ask which identities *had* bypass and record each disposition, or state that only the operator may retain effective bypass.
+
+- **PRE-EXISTING concerns:** None.
+
+## Recommended next step
+
+The RFC is ready for the author’s acceptance. The OQ-B wording can be corrected editorially without another material review round.
+
+VERDICT: READY

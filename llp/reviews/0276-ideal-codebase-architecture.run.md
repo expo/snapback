@@ -253,3 +253,56 @@ exceeded (this is launch 4 of 6 per family).
   `e2585049b56ac820d3d8eedf2c36d4ecab98400bf634bd7238864089861cdc36`
 - Outbound inventory: same seven-file shape; no secrets, no review
   artifacts. Runners identical to prior rounds. Receipts recorded below.
+
+### Round 4 receipts — LOOP CONVERGED
+
+Both reviews received 2026-08-17, persisted verbatim on receipt.
+**codex: READY. grok: READY.** Dual-READY on one revision — the loop's
+strongest terminal — binding to **r4, sha256
+`5649ae4cb93edb37c7e8c46a25d63fb4799f4f0703721872116056aaeb7539bb`**.
+Both reviewers verified all three round-3 MATERIAL fixes resolved
+(staged confinement; anchored/required-green qualification contract;
+exclusive lease predicate) and found zero PRE-EXISTING concerns. Remaining
+findings: six IN-DELTA minors total (codex m1 ≈ grok m1 OQ-B wording;
+grok m2 Today-line completeness + `crypto.rs` precision; grok m3
+entry-anchor gloss; grok m4 "migration-critical" set definition; grok m5
+two stale risk cells), each explicitly labeled not-round-holding by its
+reviewer.
+
+## Final close-out — 2026-08-18
+
+- **Convergence: dual READY on r4.** Rounds run: 4 (3 budgeted + 1
+  author-authorized). Launches: 4 per family, zero voids, within the
+  2×-budget cap. Growth: final text +47–50% net over the entering
+  revision, disclosed each round — all reviewer-demanded resolution.
+- **Revision r5** (sha256
+  `cb40e3cf3900a6c6eca353c32c3618e287a1d7b151bf8144e9d6637f861a6431`,
+  780 lines) exists **after** the converged verdicts: it folds exactly the
+  six non-blocking round-4 minors plus one reviewer suggestion (Phase 3
+  names the exemption removal), which both reviewers sanctioned as
+  editorial ("can be corrected editorially without another material review
+  round"). No normative decision changed; the enumerated diff is in the r5
+  `Revised:` header. **The dual-READY verdicts bind to r4; r5 is a later,
+  editorial-only, loop-unreviewed revision.**
+- **Recommendation:** the document is ready for the author's acceptance
+  (both round-4 reviews say so in terms). Acceptance is the author's to
+  apply; this loop's one authorized transition (Draft → Review) was applied
+  at start and status remains **Review**.
+- Landing note: r4 + the pre-round-4 artifact state landed to `main` as
+  `d234d7392` by a parallel session process; the round-4 artifact sections,
+  this close-out, and r5 are the follow-up delta to land.
+
+## Acceptance — 2026-08-18
+
+**Charlie Cheever accepted LLP 0276 in-session** on the dual-READY
+convergence (round 4, both families, verdicts bound to r4 `5649ae4c…`).
+The orchestrator applied the metadata transition mechanically at the
+author's instruction — the accepted text is r5 plus the acceptance header
+(final file sha256
+`f8ee56630dcc7063b3d9908800d4c37026171d24c33243be681aafe5b4e16758`);
+`ref-check` green (no `[inferred]` claims). Acceptance ratifies D1–D7, the
+ownership-map amendments (auth-substrate, js-execution, engine-coordinator,
+search/vector→kernel, the rank strata and matrix), and the supersessions:
+LLP 0225's execution posture and its §5 amendment-point sentence (for the
+projection), with pointer amendments on 0225/0232 owed by the program's
+Phase 4 docs series. The loop is fully closed; execution begins at Phase 0.

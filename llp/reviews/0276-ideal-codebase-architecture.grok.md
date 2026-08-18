@@ -457,3 +457,132 @@ Revise r3 for **M1** (and fold m1–m5 if cheap). Stay in `Review`. Do not accep
 The rest of the r3 delta is in good shape: the item-3 assignment, invert-never-reassign, committed matrix, membership-not-edge hot-path escape, single qualification contract, and Phase 4 lease-held publish order are the right closures. One unimplementable sentence in the overlap contract is what keeps this off READY.
 
 VERDICT: NOT READY
+
+## Round 4 — 2026-08-17 (author-authorized narrow delta round)
+
+- Reviewer: `grok-4.6`, reasoning effort xhigh; same runner, cwd = round-4 capsule
+- Target revision (r4, sha256): `5649ae4cb93edb37c7e8c46a25d63fb4799f4f0703721872116056aaeb7539bb`
+- Capsule hash: `e1d113b668fa4e406ba86377884848a472a5bea2cc4e1b55732a1c684bc15552`
+- Instruction hash: `e2585049b56ac820d3d8eedf2c36d4ecab98400bf634bd7238864089861cdc36`
+- Blindness: structural; author-authorized narrow delta round (r3→r4 fixes)
+- Note: the first paragraph of the body is the runner's tool-narration preamble, preserved verbatim.
+- Verdict: READY — all three MATERIAL fixes verified resolved; zero MATERIALs; five IN-DELTA minors (specification polish, explicitly not round-holding)
+
+### Verbatim review
+
+I'll start by reading CAPSULE.md and the review materials it points to.I'll load the review skill and the RFC so I can check the r3→r4 fixes against the stated MATERIAL concerns.The three r4 fixes sit on 0189/0225/0232 contracts — I'll read those next and isolate the exact r3→r4 delta.Prior-round findings and the r3→r4 text diff will show whether those three MATERIAL fixes actually close the holes.I have the r3 findings, the r3→r4 diff, and the 0189/0225/0232 constraints. The review below is the complete written product.
+
+# Review of LLP 0276 r4 — Ideal codebase architecture
+
+**Document:** `llp/0276-ideal-codebase-architecture.rfc.md` (revision r4 only)  
+**Context (not under review):** `AGENTS.md`, LLP 0000, 0141, 0189, 0225, 0232  
+**Round:** author-authorized narrow delta. Scope is whether the three r3 MATERIAL fixes resolve their concerns and whether the r3→r4 delta introduces new defects. Author rulings (frozen-`main` window; supersession of LLP 0225’s execution posture) are treated as settled. Inventory figures of 2026-08-17 are treated as given.
+
+## Overall assessment
+
+r4 does the job this extra round exists to do. The three r3 MATERIAL holes — confinement that could not be live on the Phase 1 monolith, a circular entry contract that could carry excluded reds through publication, and a “lease” that still left bypass grants live — are closed by decisions an implementer can execute. The accompanying r3 minors (auth/leaf/`SessionProjection` inventory, membership-exception flip rule, rank-7 owner ids, production-profile LTO wording, straggler-exemption narrowing, touched-`@ref` obligation) are applied in the same pass.
+
+I read the whole RFC for coherence with those fixes and against LLP 0225 §§1–3 (as this RFC amends them), LLP 0189 D-4/D-6, LLP 0232’s fail-closed-core and qualified-publication rules, and LLP 0141’s façade. I found no new defective decision and no unresolved MATERIAL concern, in-delta or pre-existing.
+
+## Do the three enumerated fixes resolve their concerns?
+
+### 1. Staged external confinement — resolved (IN-DELTA target)
+
+The r3 contradiction was real: a fail-closed confinement list (`rusqlite` / `ibex-runtime` / `axum` / `clap` / `celld-ltx`) cannot hold of `crates/snapback` on the day it is still the monolith, and a red with no entry lineage would also refuse Phase 1 under the unified qualification contract.
+
+r4 stages the check instead of silently dropping it:
+
+- Confinement is specified to hold **for every extracted member**.
+- The uncarved remainder (`crates/snapback` while it is still the monolith) carries a **named remainder exemption**.
+- Each confinement rule arms the moment that member exists.
+- The exemption ends at the flip, in the same change as analyzer retirement.
+- The flip predicate now includes **confinement holding with no remainder exemption**.
+- The gate is **registered in the canonical proof inventory and selection policy in Phase 1** (so the Phase 1 battery actually runs it) and only **promoted** into `driftFailClosedCoreGates` at Phase 3.
+
+That is implementable. Phase 1 is assignment + workspace-edge validation on a single member, with confinement vacuously satisfied via the named exemption — which is honest, because Phase 1 has no extracted confineable member. Phase 2 cannot hide an illegal `ibex-runtime` on a newly carved `snapback-runtime` (or `rusqlite` on types, `axum` on kernel, etc.). The remainder may keep every confined external until the last carve; the flip is the close, not an unstated operational cleanup.
+
+Promotion-only-at-Phase-3 is the right overlap with LLP 0225’s analyzer, which remains the fail-closed *core* member while it still describes one crate. LLP 0189 D-4 is preserved: crate-edge coverage appears when crate edges appear; module-edge coverage never leaves the remainder; confinement coverage appears per extracted member and becomes whole at the flip. Narrowing the committed artifact (including removing the remainder exemption) is correctly operational; only widening amends this RFC.
+
+### 2. Qualification contract — resolved (IN-DELTA target)
+
+The r3 contract used the entry record as its own predecessor (“signature continuity with a red … in the entry record”) and then reused that exclusion list through publication. That was circular at entry and incompatible with LLP 0189 D-6 (claim-relevant gates must be green; only unrelated reds may be ticketed) and with LLP 0232’s statement that npm publication keeps its qualified blocking protocol.
+
+r4 adds the two qualifiers that close those loopholes:
+
+- **Entry is anchored** to “the most recent prior eligible complete battery,” so “new at entry” has a real predecessor and cannot baptize a fresh failure as inherited.
+- **A required-green scope admits no exclusions:** migration-critical gates, every cold-clone witness, and every publication claim-relevant gate must be green outright. Entry exclusions live only outside that scope.
+- **Publication additionally satisfies LLP 0189 D-6 and LLP 0232’s qualified publication protocol unchanged.**
+
+Read with the surviving sentence “a red without entry lineage always blocks,” the contract is now:
+
+1. New versus the named predecessor → always blocks (cannot be excluded).
+2. Inherited + required-green → blocks (no exclusion).
+3. Inherited + outside required-green → may be excluded, and that exclusion cannot re-block exit.
+4. Publication still has to meet D-6 on its own terms (scoped evidence; newest eligible complete battery green on the claim-relevant set derived from the claim’s D-4 scope; unrelated reds ticketed in the promotion record).
+
+That is compatible with D-6 rather than a local substitute for it. Cold-clone witnesses in required-green apply at every evaluation of the contract, including entry and Phase 1 — extra rigor, not a hole, and runnable against current `main` before the freeze. A gate this program introduces in Phase 1 (the workspace-graph gate itself) has no entry lineage if red, so it cannot be laundered through an entry exclusion.
+
+### 3. Lease exclusivity — resolved (IN-DELTA target)
+
+Enumerating bypass actors was visibility. r4’s acquisition predicate is the missing enforcement: **effective write authority reduced to the operator alone**; every non-operator ruleset bypass grant **revoked or technically disabled** for the window; that state captured in the acquisition receipt; “an enumerated-but-live bypass is visibility, not a lease.”
+
+That is the decision Codex r3 M2 asked for. Combined with unloaded launchd backstops, a protected integration branch, and fast-forward of a pinned SHA, the exact-commit premise of Phase 4 is no longer optional convention. Residual platform facts (an org owner can edit the ruleset that binds them) sit outside the stated threat model — accidental fleet/CI/App writes, not a hostile co-owner — and do not reopen “listed but still live” bypass grants.
+
+## Strengths (including accompanying r4 repairs)
+
+- **Item-3 cut still matches 0225 A2/A3.** Kernel keeps every `storage/auth_*` as typed durable operations. Auth is policy and published substrate surfaces; durability stays kernel. Remaining `storage/* → src/auth/*` edges are inversion prerequisites for both carves (“invert the edge, never reassign the calling file upward”).
+- **Auth inventory no longer swallows the leaf or `throttle.rs`.** `identity_core.rs`, the leaf-owned contents of `crypto.rs`, and `service_authority_contract.rs` stay with `snapback-types`. `throttle.rs` stays kernel per 0225 A1 until the `auth_rehearsal` call-up inverts. `SessionProjection` is explicitly left in `snapback-sync`; auth’s job is revocation *publication* through existing LLP 0053 leaf shapes. That matches the landed item-3 second cut.
+- **Flip predicate and membership exceptions now agree.** A named membership exception *is* that module’s assigned home; any unmatched file fails closed. The hot-path escape remains a membership exception (never a matrix-edge hole) plus the port pattern (compile/publish in auth, evaluate locally, refresh off the fan-out path).
+- **Rank-7 harness crates have owner ids** (`proof-harness`, `dev-tools`, both marked non-product). The gate’s “every member carries an owner/rank assignment” rule is no longer vacuously undefined for those two crates.
+- **Phase 4 order still pins the SHA that ships:** docs on the integration branch → complete battery plus cold-clone witnesses on that head → fast-forward that SHA → publish under the still-held lease → then reinstall backstops and release. Irreversibility remains publication (LLP 0041), not the merge.
+- **Straggler-gate exemptions are now the right categories** (`llp/tombstones/`, `issues/closed/`, `diaries/`, marked historical sections, named fixtures). Active normative `llp/` and open `issues/` are checked. Touched `@ref` glosses are a phase obligation, matching AGENTS.md; only untouched-corpus audit defers to `llp-maintain`.
+- **Language-policy LTO cell** now names `cargo build --profile production -p snapback`, matching the workspace-rules repair (package overrides cannot carry `lto`).
+- **Scope and abort remain honest.** Mandatory boundaries and mixed-owner splits versus ticketed within-owner `legacy`; abort never fast-forwards a partial tree and never retires the ownership arm.
+
+## Concerns
+
+### MATERIAL
+
+None. No unresolved MATERIAL concern remains in this document.
+
+### minor
+
+**m1 — IN-DELTA — OQ-B still says identities “retain” bypass.**  
+The freeze-mechanics predicate is exclusive. OQ-B was not rewritten: it still asks “which admin/App identities retain ruleset bypass.” That is leftover r3 inventory language. It does not override the predicate, but it is the one sentence a later operator could misread as authorizing a named exception.  
+**Resolve:** Ask OQ-B to name the operator and to name every bypass identity *that was revoked or disabled*, plus any residual platform role that cannot be disabled, in the acquisition receipt.
+
+**m2 — IN-DELTA — The types and kernel “Today” lines were not updated with the auth-row carve-outs.**  
+The auth row now excludes leaf-owned `src/auth/` modules and `throttle.rs`. The types row still lists only `contract_types.rs`, the DTO half of `manifest.rs`, `ids.rs`, `value_expr.rs`, wire shapes, and `schema_export.rs`. The kernel row still does not name `src/auth/throttle.rs`. Invert-before-move and the flip’s unmatched-file rule still save the architecture; a directory-shaped move list would not. Also, “shape halves of `crypto.rs`” is slightly looser than 0225 (the *file* `crypto.rs` is already leaf-owned; behavior lives in `provider.rs`).  
+**Resolve:** Add those files to the types/kernel Today lists; say `crypto.rs` (leaf) rather than “shape halves.”
+
+**m3 — IN-DELTA — Predecessor gloss says “the scheduled backstop.”**  
+The governing phrase, “most recent prior eligible complete battery,” is LLP 0189 D-6’s phrase and is the right object (D2.3 complete inventory; on-demand runs eligible; newest eligible controls; older than two scheduled periods is not “most recent”). The parenthetical “the scheduled backstop’s latest run” collides with this repo’s usual name for the *two-hour drift* job, which is not a complete battery. A fail-closed reading (unobserved-in-predecessor = new) does not reopen baptism or the publication hole; a drift-only predecessor would only make entry stricter. Still worth disambiguating.  
+**Resolve:** Point at `com.snapback.local-proof-backstop` / the LLP 0175 D2.3 complete inventory, and keep D-6’s eligibility rule (do not forbid a newer on-demand complete run).
+
+**m4 — IN-DELTA — “Migration-critical gates” is an unnamed set.**  
+Required-green’s publication and witness members are defined (D-4/D-6; the Phase 4 witness list). “Migration-critical” is not. That does not reopen r3’s publication hole, and new reds still block by lineage. It only leaves inherited, non-publication reds to operator judgment.  
+**Resolve:** Either enumerate the set (once they exist: workspace-graph gate, straggler gate, path-sensitive inventories this program mutates) or say required-green is evaluated against gates present in the battery under test, and that in-window gates join required-green when they land.
+
+**m5 — IN-DELTA — Two risk-table cells still speak the pre-fix dialect.**  
+“Fat LTO confined to the binary package” is the instruction the language table just retired. The writer-on-`main` row still cites inventory rather than revoked bypass. Neither cell is the normative rule.  
+**Resolve:** Point the LTO row at the production profile; mention exclusivity on the writer row.
+
+## Suggestions (non-blocking)
+
+- At flip, state in one sentence that the remainder exemption is removed from `crates/allowed-dependencies.v1.json` in the same change as analyzer retirement and `driftFailClosedCoreGates` promotion (the gate-transition paragraph already implies this; a Phase 3 bullet would make the commit recipe mechanical).
+- Confirm — as an implementation note, not a new decision — that the façade binary keeps Hermes *rpath* link args without a direct `ibex-runtime` Cargo dependency. Confinement is over `cargo metadata`; rpath-only matches ENG-22664 and the current `build.rs` split.
+- Generate the Phase 1 baseline remap as a prefix-relocation of 0225 fingerprints that retains owner pairs. Still implementation protocol, not a missing decision.
+
+## Open questions
+
+OQ-A (freeze duration) remains the right operational parameter to leave open.
+
+OQ-B remains the right *question* (which identity is the operator). Its current wording should follow the exclusive-lease predicate (see m1). It is not a license to leave non-operator bypass live.
+
+No new open question is required for READY.
+
+## Recommended next step
+
+The author may accept this RFC. The minors above are specification polish and can ride implementation notes or a later pointer pass; they do not identify a defective decision and should not hold another review round.
+
+VERDICT: READY

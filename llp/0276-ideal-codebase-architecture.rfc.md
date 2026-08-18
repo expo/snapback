@@ -1,14 +1,29 @@
 # LLP 0276: The ideal codebase — target languages, layout, and the one-shot rearchitecture
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Project, Build, Packaging, Verification, Docs
 **Author:** Charlie Cheever / Claude (Fable)
 **Date:** 2026-08-17
 **Related:** LLP 0000, LLP 0002, LLP 0010, LLP 0037, LLP 0041, LLP 0053,
 LLP 0059, LLP 0061, LLP 0141, LLP 0189, LLP 0199, LLP 0225, LLP 0232,
 LLP 0259
-**Revised:** 2026-08-17 (r4, post-loop, unreviewed by the loop: round-3
+**Revised:** 2026-08-18 (**Accepted by Charlie Cheever**, in-session, after
+the super-refine loop converged dual-READY — codex gpt-5.6-sol xhigh and
+grok-4.6 xhigh both READY in the author-authorized round 4, verdicts bound
+to r4 `5649ae4c…`; the accepted text is r5, the sanctioned editorial fold
+of the six non-blocking round-4 minors. Acceptance ratifies Decisions
+D1–D7, the ownership-map amendments, and the supersessions recorded in
+§"Relationship to LLP 0225 and LLP 0199"; the LLP 0225/0232 amendment
+pointers land with the program's Phase 4 docs series.)
+**Revised:** 2026-08-17 (r5, editorial only, after dual-READY convergence
+bound to r4: the six non-blocking round-4 minors folded — OQ-B asks for
+revoked/disabled bypass dispositions; leaf-assigned `src/auth/` files named
+in the types row and `throttle.rs` in the kernel row; the entry-anchor
+gloss points at the LLP 0175 D2.3 complete inventory; the required-green
+"migration-critical" set defined; two stale risk cells updated; Phase 3
+names the exemption removal. No normative decision changed.)
+**Revised:** 2026-08-17 (r4: round-3
 in-delta findings applied — external confinement staged (per-member arming
 with a remainder exemption ending at the flip); the qualification contract
 gains a required-green scope anchored to a named prior battery, preserving
@@ -270,9 +285,9 @@ a strictly lower rank; the matrix is therefore a DAG by construction.
 
 | Crate | Rank | Owner | May depend on (workspace) | Charter and today's principal modules |
 | --- | --- | --- | --- | --- |
-| `snapback-types` | 0 | `shared-contract-types-leaf` | — | Language-neutral schema/wire/id/value/generation types; `schemars` derives; hosts the `snapback-schemagen` bin that exports `schemas/`. Today: `contract_types.rs`, the DTO half of `manifest.rs`, `ids.rs`, `value_expr.rs`, wire shape structs, `schema_export.rs`. |
-| `snapback-kernel` | 1 | `storage-migration-kernel` | types | SQLite transactions — the only commit primitive for the canonical store (LLP 0059); schema lineage, migration executor, rollback artifacts, durability; **search + vector** as storage-level query machinery over the canonical store (their rebuild jobs stay above, in services, composing kernel ops). Today: `storage.rs` + **all of `storage/*` including every `storage/auth_*`** — after 0225's A2/A3 those are the kernel's typed durable operations (transaction scope + SQL), and they stay in the kernel; plus `migration*.rs`, `data_patch.rs`, `data_tier.rs`, `seed_identity.rs`, `instance_lock.rs`, `store_state.rs`, `search/*`, `vector/*` (the generated `unicode17` table is a recorded generated-file exception). Any remaining `storage/* → src/auth/*` call-up is an **inversion prerequisite for both the kernel and auth carves** — the fix is inverting the edge, never reassigning the calling file upward. |
-| `snapback-auth` | 2 | `auth-substrate` *(new owner)* | kernel, types | The auth **substrate**: provider, session/credential/lease/custody **policy and published substrate surfaces** (durability stays kernel), revocation **publication** through the LLP 0053 leaf shapes (`SessionProjection` itself stays in `snapback-sync` per 0225's landed cut), rescue, sender-proof, identity, hosted-edge *policy*. Sits **below** the domain rank so sync, services, and transport may all consume it without sideways edges — preserving 0225's landed item-3 cut. The boundary rule: `snapback-sync` keeps witnessed delivery obligations, resync fan-out, and subscription-invalidation *delivery*; auth owns authorization policy and its published epochs/leases, carried by the leaf's existing LLP 0053 shapes (authorization versions/epochs, lease ids, terminal-cause records) — not a new undirected pile; **the live matcher makes no per-row cross-crate call on the fan-out path** (the port pattern: policy compiles/publishes in auth, sync evaluates locally against leaf-shaped state, refresh rides auth commits through sync's existing invalidation delivery — off the fan-out path). A policy module that provably cannot leave sync without a hot-path hop stays in sync as a **bounded, named membership exception in `crates/allowed-dependencies.v1.json`** with a burn-down ticket — membership, never a matrix edge exception. Today: `src/auth/*` **minus its already-leaf-assigned modules** (`identity_core.rs`, the shape halves of `crypto.rs`, `service_authority_contract.rs` stay with `snapback-types` per 0225's assignments) and minus `throttle.rs` (kernel per 0225 A1 until the `auth_rehearsal` call-up inverts) — i.e. policy: provider, sender-proof decisions, hosted-edge policy, identity/lifecycle, rescue; plus `membership_rules.rs`, `dev_identity.rs` — **not** the durable `storage/auth_*` operations, which are kernel. |
+| `snapback-types` | 0 | `shared-contract-types-leaf` | — | Language-neutral schema/wire/id/value/generation types; `schemars` derives; hosts the `snapback-schemagen` bin that exports `schemas/`. Today: `contract_types.rs`, the DTO half of `manifest.rs`, `ids.rs`, `value_expr.rs`, wire shape structs, `schema_export.rs`, and the leaf-assigned `src/auth/` modules per 0225 — `auth/identity_core.rs`, `auth/crypto.rs`, `auth/service_authority_contract.rs`. |
+| `snapback-kernel` | 1 | `storage-migration-kernel` | types | SQLite transactions — the only commit primitive for the canonical store (LLP 0059); schema lineage, migration executor, rollback artifacts, durability; **search + vector** as storage-level query machinery over the canonical store (their rebuild jobs stay above, in services, composing kernel ops). Today: `storage.rs` + **all of `storage/*` including every `storage/auth_*`** — after 0225's A2/A3 those are the kernel's typed durable operations (transaction scope + SQL), and they stay in the kernel; plus `migration*.rs`, `data_patch.rs`, `data_tier.rs`, `seed_identity.rs`, `instance_lock.rs`, `store_state.rs`, `src/auth/throttle.rs` (kernel per 0225 A1 until its `auth_rehearsal` call-up inverts), `search/*`, `vector/*` (the generated `unicode17` table is a recorded generated-file exception). Any remaining `storage/* → src/auth/*` call-up is an **inversion prerequisite for both the kernel and auth carves** — the fix is inverting the edge, never reassigning the calling file upward. |
+| `snapback-auth` | 2 | `auth-substrate` *(new owner)* | kernel, types | The auth **substrate**: provider, session/credential/lease/custody **policy and published substrate surfaces** (durability stays kernel), revocation **publication** through the LLP 0053 leaf shapes (`SessionProjection` itself stays in `snapback-sync` per 0225's landed cut), rescue, sender-proof, identity, hosted-edge *policy*. Sits **below** the domain rank so sync, services, and transport may all consume it without sideways edges — preserving 0225's landed item-3 cut. The boundary rule: `snapback-sync` keeps witnessed delivery obligations, resync fan-out, and subscription-invalidation *delivery*; auth owns authorization policy and its published epochs/leases, carried by the leaf's existing LLP 0053 shapes (authorization versions/epochs, lease ids, terminal-cause records) — not a new undirected pile; **the live matcher makes no per-row cross-crate call on the fan-out path** (the port pattern: policy compiles/publishes in auth, sync evaluates locally against leaf-shaped state, refresh rides auth commits through sync's existing invalidation delivery — off the fan-out path). A policy module that provably cannot leave sync without a hot-path hop stays in sync as a **bounded, named membership exception in `crates/allowed-dependencies.v1.json`** with a burn-down ticket — membership, never a matrix edge exception. Today: `src/auth/*` **minus its already-leaf-assigned modules** (`identity_core.rs`, `crypto.rs`, `service_authority_contract.rs` are leaf-owned files staying with `snapback-types` per 0225's assignments) and minus `throttle.rs` (kernel per 0225 A1 until the `auth_rehearsal` call-up inverts) — i.e. policy: provider, sender-proof decisions, hosted-edge policy, identity/lifecycle, rescue; plus `membership_rules.rs`, `dev_identity.rs` — **not** the durable `storage/auth_*` operations, which are kernel. |
 | `snapback-activation` | 3 | `generation-activation-coordinator` | auth, kernel, types | Composes and atomically installs successor generations via kernel commits (LLP 0225 §3.2 unchanged). Today: `generation_activation.rs`, the activation logic of `local.rs`/`manifest.rs`. |
 | `snapback-sync` | 3 | `sync-realtime-engine` | auth, kernel, types | Subscriptions, version streams, live matching/coalescing, RQS, cursors, outbox settlement, invalidation delivery, fan-out, ephemeral rooms. Today: `live_matcher.rs`, `live_coalesce.rs`, `rqs*.rs`, `watches.rs`, `connected_clients.rs`, `snapshot_batch_cursor*.rs`, `ephemeral.rs`, `realtime.rs`. |
 | `snapback-services` | 3 | `background-services` | auth, kernel, types | Assets + media pipeline, jobs, cron, push, webhooks, outbound policy, forks/branches, replication (`celld-ltx`'s sole consumer), telemetry (its sidecar store stays its own per 0225 §3.1), error tracking, ledger/proof-checkpoint custody, search/vector rebuild jobs. |
@@ -511,12 +526,17 @@ the entry record. Two hard qualifiers close the loopholes this rule would
 otherwise open:
 
 - **Entry is anchored, not self-defining**: entry continuity is evaluated
-  against the most recent prior eligible complete battery (the scheduled
-  backstop's latest run), so "new at entry" has a real predecessor — entry
-  cannot baptize a fresh failure as inherited.
-- **A required-green scope admits no exclusions**: migration-critical gates,
-  every cold-clone witness, and every publication claim-relevant gate must
-  be green outright. Entry exclusions are admissible only outside this
+  against the most recent prior eligible complete battery — the newest
+  LLP 0175 D2.3 complete-inventory run, whether from the
+  `com.snapback.local-proof-backstop` schedule or a newer on-demand
+  complete run, per LLP 0189 D-6 eligibility — so "new at entry" has a
+  real predecessor and entry cannot baptize a fresh failure as inherited.
+- **A required-green scope admits no exclusions**: migration-critical
+  gates — evaluated against the gates present in the battery under test:
+  the path-sensitive inventories this program mutates, plus the
+  workspace-graph and straggler gates from the moment they land — every
+  cold-clone witness, and every publication claim-relevant gate must be
+  green outright. Entry exclusions are admissible only outside this
   scope. Publication additionally satisfies LLP 0189 D-6 and LLP 0232's
   qualified publication protocol **unchanged** — nothing in this program
   weakens them.
@@ -634,7 +654,9 @@ Consequences:
   graph, the analyzer holds the shrinking remainder.
 - **Phase 3 — consolidation (day 3).** The module-level machinery retires
   behind the checked flip predicate (gate already live since Phase 1), with
-  the worklist resolution, 0232 events, and amendment pointers in the same
+  the remainder-confinement exemption removed from
+  `crates/allowed-dependencies.v1.json` in that same change, and the
+  worklist resolution, 0232 events, and amendment pointers in the same
   series; the agent-safe digest job moves to `snapback-tools`;
   `targets/cloudflare/` move + snippet-path updates. Integration-test
   consolidation starts here behind the isolation audit but is **optional
@@ -722,12 +744,12 @@ On acceptance of this RFC:
 | A path-sensitive consumer is missed (digest pathspecs, selection policy, CI, launchd, embed/link paths, `SNAPBACK_REPO_ROOT`, readiness receipts) | The Phase 0 path-migration manifest is the plan of record, checked by the deterministic straggler gate; Phase 1 lands the whole flip and qualifies (per the contract) before any carve; the battery's fail-closed inventories are the net behind the manifest. |
 | `@ref` and LLP path references break en masse | `ref-check` is in `alwaysGates` and validates repo paths; run per-phase, fix in-series. Per AGENTS.md, `@ref` glosses on files a carve or inversion **touches** are checked and updated in that phase — only untouched-corpus auditing defers to `llp-maintain`. |
 | Guide transclusion breaks | 11 snippets transclude from paths this program moves (9 × `cloudflare/**`, 2 × `tests/*.rs`); their `source=` updates land in the same series as each move, and `check-guide` runs in every phase regardless. |
-| A writer lands on `main` mid-window | The server-side ruleset is the enforcement; hook + banner are depth; the writer inventory catches automation; `main` only ever moves by the final fast-forward. |
+| A writer lands on `main` mid-window | The exclusive ruleset lease is the enforcement (non-operator bypass revoked or disabled, receipted); hook + banner are depth; the writer inventory catches automation; `main` only ever moves by the final fast-forward. |
 | The backstops push during the freeze | Both launchd jobs unloaded for the window (in the writer inventory); reinstalled at release. |
 | An illegal-but-compilable crate edge appears during the carves | The workspace-graph gate is live from Phase 1 (before the first carve) and holds the crate graph; the analyzer holds the shrinking single-crate remainder; the two overlap until the flip predicate passes. Neither "Cargo will catch it" nor the module analyzer alone is the safety argument. |
 | Carve-time mending introduces behavior change | Port inversions are the semantic slices; each runs its affected gates; characterization envelopes from the 0225 slices remain in force; the exit gate is the complete battery plus cold-clone witnesses. |
 | Inherited red discovered after the fleet stops | The entry condition: freeze acquired only against a qualified, recorded freeze point. |
-| Build-time regressions from workspace profiles | Fat LTO confined to the binary package; no dependency or edition changes ride the window. |
+| Build-time regressions from workspace profiles | Fat LTO only in the dedicated `production` profile build; ordinary `release` stays incremental-friendly; no dependency or edition changes ride the window. |
 | The window overruns | Author may extend; otherwise the abort path: `main` untouched, branch preserved, machinery unretired, RFC stays `Review`. Partial states are never merged. |
 
 ## Decisions closed by this revision
@@ -759,6 +781,8 @@ On acceptance of this RFC:
 - **OQ-A — freeze duration.** 72 hours budgeted (skeleton day 1, carves
   days 1–3, prove/merge day 3); the author may extend rather than abort.
 - **OQ-B — operator identity.** Which identity holds the `main` ruleset
-  lease and the integration branch's push rights for the window, and which
-  admin/App identities retain ruleset bypass — all named in the acquisition
-  receipt.
+  lease and the integration branch's push rights for the window. The
+  acquisition receipt names that operator, every bypass identity **that was
+  revoked or disabled** for the window, and any residual platform role that
+  cannot be disabled — per the exclusivity predicate, no non-operator
+  bypass remains live.
