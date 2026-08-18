@@ -664,7 +664,8 @@ fn p6_served_ops_round_trip_through_envelopes() {
 
     // A raw host-op reset has no authorization-stream coordinator and must
     // fail closed without applying its otherwise-valid seed.
-    let seed_path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("demos/todo/snapback/seed.json");
+    let seed_path = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .join("demos/todo/snapback/seed.json");
     let seed: Value =
         serde_json::from_str(&fs::read_to_string(seed_path).expect("read seed")).expect("seed");
     let before_reset = functions["artifacts"]["databaseVersion"].clone();

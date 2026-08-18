@@ -205,7 +205,8 @@ fn write_receipt(path: &Path, receipt: &ApplicationReadyReceiptV1, mode: u32) {
 
 #[test]
 fn host_wait_succeeds_for_live_descriptor_and_times_out_when_missing() {
-    let target_directory = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("target");
+    let target_directory =
+        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("target");
     let directory = tempfile::tempdir_in(target_directory).unwrap();
     let (_guard, descriptor, ready_file) = spawn_server(directory.path());
 
@@ -233,7 +234,8 @@ fn host_wait_succeeds_for_live_descriptor_and_times_out_when_missing() {
 
 #[test]
 fn application_wait_requires_a_strict_current_receipt_and_live_matching_fact() {
-    let target_directory = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("target");
+    let target_directory =
+        PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("target");
     let directory = tempfile::tempdir_in(target_directory).unwrap();
     let (_guard, descriptor, ready_file) = spawn_server(directory.path());
     let token = fs::read_to_string(

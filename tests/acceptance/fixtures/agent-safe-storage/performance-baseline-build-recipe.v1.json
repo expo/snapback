@@ -5,15 +5,15 @@
   "instrumentationPatchSha256": "sha256:8d1e62197fadb7fa1c8a86f16c4c1f07f474907cfd10f6d5d42ca77082c945b5",
   "instrumentationFiles": [
     {
-      "path": "crates/snapback/src/bench.rs",
+      "path": "src/bench.rs",
       "sha256": "sha256:7d9936f65e41ff9d5b3118966c8e5038b4777cdfa2ad1fe1617e35ad5fa73ed0"
     },
     {
-      "path": "crates/snapback/src/bin/snapback-agent-safe-step0.rs",
+      "path": "src/bin/snapback-agent-safe-step0.rs",
       "sha256": "sha256:b646422c12e1651daa48b70cdb3a894693ea31cd6eb01eb81c0f6215a42e6232"
     },
     {
-      "path": "crates/snapback/src/bin/snapback-bench.rs",
+      "path": "src/bin/snapback-bench.rs",
       "sha256": "sha256:540e7aed8416f48df6ae361a95e39e2f6dbecca2ad22489e59325da9b0ec9b57"
     }
   ],
@@ -22,7 +22,7 @@
     "acceptedProductInstrumentationPath": false,
     "packageName": "snapback-agent-safe-baseline-worker",
     "sourceTreePath": "tools/agent-safe-baseline-worker",
-    "snapbackPathDependency": "../..",
+    "snapbackPathDependency": "../../crates/snapback",
     "pathDependencySourceRevision": "2ab36e28c74c450213b65f17ef81c0d6652ba33a",
     "baselineRootCargoLockSha256": "sha256:496569d9a3cb87609b6e79974f69126dbaccba53eb71d093f5dcf090fe1a36b1",
     "derivedCargoLockSha256": "sha256:05bd0af1ed649011354f091e2cd371f38aaf5c229437c6a98b4807c7d0eead3d",
@@ -38,7 +38,7 @@
       },
       {
         "path": "tools/agent-safe-baseline-worker/Cargo.toml",
-        "sha256": "sha256:24c6ee237f07fcbb6df72ce9609368eeb8201d1927c0d583ac7851eb2f0a6a63"
+        "sha256": "sha256:ae64ec6afc969781169a8abd853a23b907d1d57e0a3a0b5ba74377c52480c923"
       },
       {
         "path": "tools/agent-safe-baseline-worker/build.rs",
@@ -61,7 +61,7 @@
     "verify HEAD, exactly three product dirty paths, and the three accepted product content digests above before introducing the external worker",
     "copy the external worker .gitignore, Cargo.toml, build.rs, and src/main.rs from the candidate tree into the same relative path in BASELINE_WORKTREE and verify their digests independently; build.rs supplies only the relative macOS framework rpath the wrapper binary needs",
     "seed the worker Cargo.lock from BASELINE_WORKTREE/Cargo.lock whose exact digest is registered above, resolve the isolated graph offline, and verify the derived lock digest plus that every shared package name/version/source/checksum tuple matches the baseline root lock and the wrapper package is the only addition",
-    "verify the worker manifest has the exact snapback path dependency ../.. and its dependency root is BASELINE_WORKTREE at the pinned source revision with only the accepted three product instrumentation blobs",
+    "verify the worker manifest has the exact snapback path dependency ../../crates/snapback and its dependency root is BASELINE_WORKTREE/crates/snapback at the pinned source revision with only the accepted three product instrumentation blobs",
     "bootstrap the pinned Ibex runtime, then cargo build --locked --release --manifest-path BASELINE_WORKTREE/tools/agent-safe-baseline-worker/Cargo.toml",
     "write snapback.agent-safe-baseline-build-provenance.v2 with the three accepted product identities and the separate external-worker source/root-lock/derived-lock/path-dependency identities, exact toolchain/profile, and the worker executable SHA-256; supply both lockfiles to the paired runner for byte and package-tuple verification"
   ],

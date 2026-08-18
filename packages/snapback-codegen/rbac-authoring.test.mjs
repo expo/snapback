@@ -14,11 +14,11 @@ const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const dirs = [];
 
 const reviewedGenerationConsumerFileAllowlist = [
-  'src/membership_rules.rs',
-  'src/runtime.rs',
-  'src/storage/membership_plans.rs',
-  'src/storage/auth_agents.rs',
-  'src/storage.rs',
+  'crates/snapback/src/membership_rules.rs',
+  'crates/snapback/src/runtime.rs',
+  'crates/snapback/src/storage/membership_plans.rs',
+  'crates/snapback/src/storage/auth_agents.rs',
+  'crates/snapback/src/storage.rs',
 ];
 
 // Swept receiver binding list across the five reviewed files: membership data

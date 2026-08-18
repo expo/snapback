@@ -105,11 +105,39 @@ function subsystemFor(code, sites) {
     TELEMETRY: 'telemetry',
   };
   if (families[family]) return families[family];
-  const first = sites[0]?.file ?? '';
+  // Preserve the pre-workspace semantic precedence explicitly. Rust files
+  // may move through several workspace crates during LLP 0276; repository
+  // path ordering must never reclassify a published diagnostic.
+  const sitePriority = (file) => {
+    if (file.startsWith('clients/swift/')) return 0;
+    if (file.startsWith('packages/')) return 1;
+    if (file.startsWith('src/') || file.startsWith('crates/')) return 2; // path-migration: historical
+    return 3;
+  };
+  const first = [...sites].sort((left, right) => (
+    sitePriority(left.file) - sitePriority(right.file)
+      || left.file.localeCompare(right.file)
+      || left.line - right.line
+      || left.column - right.column
+  ))[0]?.file ?? '';
   const packageMatch = first.match(/^packages\/([^/]+)/u);
   if (packageMatch) return packageMatch[1].replace(/^snapback-/u, '');
   if (first.startsWith('clients/swift/')) return 'swift-client';
-  return first.startsWith('crates/snapback/src/') ? 'server' : 'snapback';
+  return first.startsWith('src/') || first.startsWith('crates/') ? 'server' : 'snapback'; // path-migration: historical
+}
+
+function assertPathRelocationPreservesSubsystem(code, sites) {
+  const legacySites = sites.map((site) => ({
+    ...site,
+    file: site.file.replace(/^crates\/[^/]+\/src\//u, 'src/'), // path-migration: historical
+  }));
+  const current = subsystemFor(code, sites);
+  const legacy = subsystemFor(code, legacySites);
+  if (current !== legacy) {
+    throw new Error(
+      `[diagnostics-registry] path-only relocation reclassified ${code}: ${legacy} -> ${current}`,
+    );
+  }
 }
 
 function collectSites() {
@@ -305,6 +333,7 @@ for (const code of codes) {
   const sites = byCode.get(code).sort((left, right) => (
     left.file.localeCompare(right.file) || left.line - right.line || left.column - right.column
   ));
+  assertPathRelocationPreservesSubsystem(code, sites);
   const httpStatus = statuses.get(code) ?? null;
   const guide = anchors.get(code) ?? [];
   diagnostics[code] = {

@@ -7073,9 +7073,10 @@ const UNDEFINED_SHADOWED_AMBIENT: [&str; 3] = ["process", "require", "HermesInte
 fn banned_ambient_globals() -> &'static Vec<String> {
     static BANNED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     BANNED.get_or_init(|| {
-        let allowlist: Value =
-            serde_json::from_str(include_str!("../../../packages/snapback-harness/allowlist.json"))
-                .expect("packages/snapback-harness/allowlist.json parses");
+        let allowlist: Value = serde_json::from_str(include_str!(
+            "../../../packages/snapback-harness/allowlist.json"
+        ))
+        .expect("packages/snapback-harness/allowlist.json parses");
         allowlist
             .get("bannedEverywhere")
             .and_then(|banned| banned.get("globals"))
@@ -7098,9 +7099,10 @@ fn banned_ambient_globals() -> &'static Vec<String> {
 fn banned_ambient_members() -> &'static Vec<String> {
     static BANNED: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
     BANNED.get_or_init(|| {
-        let allowlist: Value =
-            serde_json::from_str(include_str!("../../../packages/snapback-harness/allowlist.json"))
-                .expect("packages/snapback-harness/allowlist.json parses");
+        let allowlist: Value = serde_json::from_str(include_str!(
+            "../../../packages/snapback-harness/allowlist.json"
+        ))
+        .expect("packages/snapback-harness/allowlist.json parses");
         allowlist
             .get("bannedEverywhere")
             .and_then(|banned| banned.get("members"))

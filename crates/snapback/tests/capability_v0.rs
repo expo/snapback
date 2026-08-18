@@ -37,7 +37,8 @@ fn committed_maturity_registry_path() -> PathBuf {
 }
 
 fn committed_capability_registry_path() -> PathBuf {
-    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("tests/acceptance/capability-registry.ids.json")
+    PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .join("tests/acceptance/capability-registry.ids.json")
 }
 
 fn declared_manifest_json(manifest: CapabilityManifest) -> Value {

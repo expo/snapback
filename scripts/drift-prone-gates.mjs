@@ -60,23 +60,24 @@ const INFRASTRUCTURE_TICKET_THRESHOLD = 3;
 const BATTERY_ESCALATION_THRESHOLD = 4;
 const BATTERY_RESULT_SCHEMA = 'snapback.proof-gate-result.v2';
 const BATTERY_TICKET_DATE_ENV = 'SNAPBACK_BATTERY_TICKET_DATE';
-const LEGACY_CLAIM_SCOPE = Object.freeze({
-  roots: Object.freeze([
-    'src',
-    'packages/snapback-codegen',
-    'packages/snapback-contract',
-    'tests',
-  ]),
-  files: Object.freeze([
-    '.gitmodules',
-    'Cargo.lock',
-    'Cargo.toml',
+const PUBLICATION_ROOT_CANDIDATES = Object.freeze([
+  'crates/snapback/src',
+  'src',
+]);
+const LEGACY_CLAIM_SCOPE_SHARED_ROOTS = Object.freeze([
+  'packages/snapback-codegen',
+  'packages/snapback-contract',
+  'tests',
+]);
+const LEGACY_CLAIM_SCOPE_FILES = Object.freeze([
+  '.gitmodules',
+  'Cargo.lock',
+  'Cargo.toml',
   'crates/snapback/build.rs',
-    'scripts/check-agent-safe-publication.mjs',
-    'scripts/generated-artifact-policy.mjs',
-    'vendor/ibex',
-  ]),
-});
+  'scripts/check-agent-safe-publication.mjs',
+  'scripts/generated-artifact-policy.mjs',
+  'vendor/ibex',
+]);
 const INFRASTRUCTURE_OUTPUT = /^(?:Error \[(?:ERR_MODULE_NOT_FOUND|MODULE_NOT_FOUND)\]: Cannot find (?:package|module)[^\r\n]*|Error: Cannot find module[^\r\n]*|error: couldn't read [^\r\n]*: No such file or directory(?: \(os error \d+\))?|fatal: this operation must be run in a work tree|\[(?:snapback-bootstrap|runtime-link-smoke|ibex-doctor)\] (?:error: |ERROR )?SNAPBACK_(?:CAPABILITY_IBEX|IBEX)_[A-Z0-9_]+[^\r\n]*)$/mu;
 const RUNNER_CONTROLLED_OUTPUT = /^(?:fatal: this operation must be run in a work tree|\[(?:snapback-bootstrap|runtime-link-smoke|ibex-doctor)\] (?:error: |ERROR )?SNAPBACK_(?:CAPABILITY_IBEX_HERMES_MISSING|IBEX_(?:HERMES_DOWNLOAD_FAILED|HERMES_ARTIFACTS_UNUSABLE|HOST_UNSUPPORTED|SUBMODULE_INIT_FAILED|RUNTIME_LINK_INTERRUPTED|RUNTIME_LINK_PROBE_FAILED))[^\r\n]*)$/u;
 // Git exports these repository-local variables to hooks. They must not leak
@@ -1832,18 +1833,44 @@ function jsonAtRevision(root, revision, path, label) {
   }
 }
 
-function publicationAnchorPaths(root, revision) {
-  return gitPaths(root, [
-    'ls-tree', '-r', '--name-only', '-z', revision, '--', 'src',
-  ]).filter((path) => /publication\.anchor(?:\.v\d+)?\.json$/u.test(path));
+function publicationRootAtRevision(root, revision) {
+  const roots = PUBLICATION_ROOT_CANDIDATES.filter((candidate) => (
+    gitPaths(root, [
+      'ls-tree', '-d', '--name-only', '-z', revision, '--', candidate,
+    ]).includes(candidate)
+  ));
+  if (roots.length !== 1) {
+    fail(`revision ${revision} resolves ${roots.length} publication roots (${roots.join(', ')})`);
+  }
+  return roots[0];
 }
 
-function publicationCarrierForAnchor(root, revision, anchorPath, anchor) {
+function publicationAnchorPaths(root, revision, publicationRoot) {
+  const known = gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision,
+  ]).filter((path) => /publication\.anchor(?:\.v\d+)?\.json$/u.test(path));
+  const anchors = gitPaths(root, [
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', publicationRoot,
+  ]).filter((path) => /publication\.anchor(?:\.v\d+)?\.json$/u.test(path));
+  if (known.length > 0 && anchors.length === 0) {
+    fail(
+      `revision ${revision} has ${known.length} known publication anchor(s), but `
+        + `publication root ${publicationRoot} yielded zero standing claims`,
+    );
+  }
+  const omitted = known.filter((path) => !anchors.includes(path));
+  if (omitted.length > 0) {
+    fail(`publication root ${publicationRoot} omitted known anchor(s): ${omitted.join(', ')}`);
+  }
+  return anchors;
+}
+
+function publicationCarrierForAnchor(root, revision, publicationRoot, anchorPath, anchor) {
   if (!/^sha256:[0-9a-f]{64}$/u.test(anchor.carrierSha256 ?? '')) {
     fail(`published claim anchor ${anchorPath} lacks a carrier digest`);
   }
   const candidates = gitPaths(root, [
-    'ls-tree', '-r', '--name-only', '-z', revision, '--', 'src',
+    'ls-tree', '-r', '--name-only', '-z', revision, '--', publicationRoot,
   ]).filter((path) => path.includes('publication')
     && path.endsWith('.json')
     && !path.includes('.anchor.'));
@@ -1894,15 +1921,32 @@ function publicationReceiptForCarrier(root, revision, capabilityId, carrier) {
   return { path: matches[0].path, value };
 }
 
-function legacyPublicationScope(root, revision, anchorPath, carrierPath, carrier) {
+function legacyClaimScope(publicationRoot) {
+  return {
+    roots: [publicationRoot, ...LEGACY_CLAIM_SCOPE_SHARED_ROOTS].sort(),
+    files: [...LEGACY_CLAIM_SCOPE_FILES],
+  };
+}
+
+function legacyPublicationScope(
+  root,
+  revision,
+  publicationRoot,
+  anchorPath,
+  carrierPath,
+  carrier,
+) {
   const files = new Set([anchorPath, carrierPath]);
   for (const [key, value] of Object.entries(carrier)) {
     if (!key.endsWith('SourceSha256') || !value || typeof value !== 'object'
       || Array.isArray(value)) continue;
     for (const path of Object.keys(value)) files.add(path);
   }
-  const conformancePath = carrierPath
-    .replace(/^src\/local-/u, 'tests/conformance/local-')
+  const carrierPrefix = `${publicationRoot}/local-`;
+  if (!carrierPath.startsWith(carrierPrefix)) {
+    fail(`legacy publication carrier ${carrierPath} is outside ${publicationRoot}`);
+  }
+  const conformancePath = `tests/conformance/local-${carrierPath.slice(carrierPrefix.length)}`
     .replace(/\.publication\.v(\d+)\.json$/u, '-publication-v$1.mjs');
   const committed = new Set(gitPaths(root, [
     'ls-tree', '-r', '--name-only', '-z', revision, '--', conformancePath,
@@ -1917,7 +1961,8 @@ export function standingBatteryClaims({
   context = loadSelectionContext(),
 } = {}) {
   const claims = [];
-  for (const anchorPath of publicationAnchorPaths(root, revision)) {
+  const publicationRoot = publicationRootAtRevision(root, revision);
+  for (const anchorPath of publicationAnchorPaths(root, revision, publicationRoot)) {
     const anchor = jsonAtRevision(root, revision, anchorPath, 'claim anchor');
     if (anchor?.schemaVersion !== 'snapback.local-capability-publication-anchor.v1'
       || typeof anchor.capabilityId !== 'string'
@@ -1925,7 +1970,13 @@ export function standingBatteryClaims({
       fail(`claim anchor ${anchorPath} has invalid identity or state`);
     }
     if (anchor.state !== 'published') continue;
-    const carrier = publicationCarrierForAnchor(root, revision, anchorPath, anchor);
+    const carrier = publicationCarrierForAnchor(
+      root,
+      revision,
+      publicationRoot,
+      anchorPath,
+      anchor,
+    );
     const receipt = publicationReceiptForCarrier(
       root,
       revision,
@@ -1935,8 +1986,15 @@ export function standingBatteryClaims({
     const scope = validateClaimScope(
       receipt?.value.implementationScope
         ?? (carrier.value.implementationTreeSha256
-          ? LEGACY_CLAIM_SCOPE
-          : legacyPublicationScope(root, revision, anchorPath, carrier.path, carrier.value)),
+          ? legacyClaimScope(publicationRoot)
+          : legacyPublicationScope(
+            root,
+            revision,
+            publicationRoot,
+            anchorPath,
+            carrier.path,
+            carrier.value,
+          )),
       `${anchor.capabilityId} D-4 scope`,
     );
     claims.push({

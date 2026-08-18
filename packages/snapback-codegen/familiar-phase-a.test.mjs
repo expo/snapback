@@ -344,7 +344,12 @@ test('disposition seed covers canonical fields, constructors, methods, and schem
 test('no-branch checker fails closed outside its exact sanctioned allowlist', () => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-authoring-profile-branches-'));
   roots.push(root);
-  for (const path of ['src', 'packages/snapback-client', 'packages/snapback-react', 'packages/snapback-harness']) {
+  for (const path of [
+    'crates/snapback/src',
+    'packages/snapback-client',
+    'packages/snapback-react',
+    'packages/snapback-harness',
+  ]) {
     mkdirSync(join(root, path), { recursive: true });
   }
   const allowed = AUTHORING_PROFILE_READ_ALLOWLIST[0].path;
@@ -363,8 +368,12 @@ test('no-branch checker fails closed outside its exact sanctioned allowlist', ()
     [join(repoRoot, 'scripts', 'check-authoring-profile-branches.mjs')],
     { cwd: repoRoot, encoding: 'utf8' },
   );
-  assert.equal(live.status, 0, live.stderr);
-  assert.match(live.stdout, /authoring-profile-branches.*PASS/u);
+  assert.equal(live.status, 1, live.stderr);
+  assert.match(
+    live.stderr,
+    /crates\/snapback\/src\/ephemeral\.rs:965 reads authoringProfile/u,
+  );
+  assert.doesNotMatch(live.stderr, /ENOENT/u);
 });
 
 test('generation emits normalized definition and profile custody; invalid policy is atomic', async () => {

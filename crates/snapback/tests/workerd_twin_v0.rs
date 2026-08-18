@@ -1041,9 +1041,10 @@ fn ambient_powers_are_unreachable_on_both_engines() {
     // drifts, so parse bannedEverywhere.globals from the single source. The
     // one exclusion is HermesInternal, the declared engine fact pinned by
     // deterministic_member_denial_is_a_declared_engine_fact below.
-    let allowlist: Value =
-        serde_json::from_str(include_str!("../../../packages/snapback-harness/allowlist.json"))
-            .expect("allowlist.json parses");
+    let allowlist: Value = serde_json::from_str(include_str!(
+        "../../../packages/snapback-harness/allowlist.json"
+    ))
+    .expect("allowlist.json parses");
     let probes: Vec<String> = allowlist["bannedEverywhere"]["globals"]
         .as_array()
         .expect("bannedEverywhere.globals is an array")

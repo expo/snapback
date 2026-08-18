@@ -46,11 +46,11 @@ pub enum NativeCodePosture {
 /// # async fn run() -> anyhow::Result<()> {
 /// const SCHEMA: &[u8] = include_bytes!(concat!(
 ///     env!("CARGO_MANIFEST_DIR"),
-///     "/demos/todo/snapback/generated/schema.manifest.json"
+///     "/../../demos/todo/snapback/generated/schema.manifest.json"
 /// ));
 /// const FUNCTIONS: &[u8] = include_bytes!(concat!(
 ///     env!("CARGO_MANIFEST_DIR"),
-///     "/demos/todo/snapback/generated/functions.manifest.json"
+///     "/../../demos/todo/snapback/generated/functions.manifest.json"
 /// ));
 /// snapback::embed::production_from_manifests(SCHEMA, FUNCTIONS)?
 ///     .database(".snapback/todo.sqlite3")

@@ -36,6 +36,9 @@ const EXPECTED_CONFINEMENT = [
   ['ibex-runtime', ['snapback-runtime']],
   ['rusqlite', ['snapback-kernel', 'snapback-services']],
 ].map(([dependency, allowedMembers]) => ({ dependency, allowedMembers }));
+const EXPECTED_WORKSPACE_MEMBERS = ['crates/*'];
+const EXPECTED_WORKSPACE_DEFAULT_MEMBERS = ['crates/snapback'];
+const EXPECTED_WORKSPACE_EXCLUDE = ['vendor/ibex', 'vendor/celld-ltx'];
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -48,7 +51,38 @@ function sortedUniqueStrings(values, label) {
   assert(JSON.stringify(values) === JSON.stringify([...values].sort()), `${label} must be sorted`);
 }
 
-export function validateArtifactAndMetadata(artifact, metadata) {
+function workspaceArray(manifestSource, key) {
+  assert(typeof manifestSource === 'string', 'root Cargo.toml is unreadable');
+  const header = /^\[workspace\]\s*$/mu.exec(manifestSource);
+  assert(header !== null, 'root Cargo.toml lacks [workspace]');
+  const tail = manifestSource.slice(header.index + header[0].length);
+  const nextHeader = tail.search(/^\[/mu);
+  const section = nextHeader === -1 ? tail : tail.slice(0, nextHeader);
+  const value = section.match(new RegExp(`^\\s*${key}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'mu'))?.[1];
+  assert(value !== undefined, `workspace.${key} is missing`);
+  return [...value.matchAll(/["']([^"']+)["']/gu)].map((match) => match[1]);
+}
+
+function validateWorkspaceManifest(manifestSource) {
+  assert(
+    JSON.stringify(workspaceArray(manifestSource, 'members'))
+      === JSON.stringify(EXPECTED_WORKSPACE_MEMBERS),
+    'workspace.members drifted from the Phase 1 trap-safe set',
+  );
+  assert(
+    JSON.stringify(workspaceArray(manifestSource, 'default-members'))
+      === JSON.stringify(EXPECTED_WORKSPACE_DEFAULT_MEMBERS),
+    'workspace.default-members drifted from the Phase 1 trap-safe set',
+  );
+  assert(
+    JSON.stringify(workspaceArray(manifestSource, 'exclude'))
+      === JSON.stringify(EXPECTED_WORKSPACE_EXCLUDE),
+    'workspace.exclude drifted from the Phase 1 trap-safe set',
+  );
+}
+
+export function validateArtifactAndMetadata(artifact, metadata, workspaceManifestSource) {
+  validateWorkspaceManifest(workspaceManifestSource);
   assert(artifact?.schemaVersion === 'snapback.allowed-dependencies.v1', 'matrix schemaVersion is invalid');
   assert(JSON.stringify(artifact.crates) === JSON.stringify(EXPECTED_CRATES), 'matrix crate rows drifted from LLP 0276');
   assert(JSON.stringify(artifact.externalConfinement) === JSON.stringify(EXPECTED_CONFINEMENT), 'external confinement drifted from LLP 0276');
@@ -89,18 +123,26 @@ export function validateArtifactAndMetadata(artifact, metadata) {
       assert(exempt, `${member.name} may not depend on confined external ${rule.dependency}`);
     }
   }
+  const defaultMembers = (metadata?.workspace_default_members ?? [])
+    .map((id) => packagesById.get(id));
+  assert(
+    defaultMembers.length === 1
+      && defaultMembers[0]?.name === 'snapback',
+    'cargo metadata default workspace member must be snapback',
+  );
   return { members: [...memberNames].sort(), plannedCrates: matrix.size };
 }
 
 function main() {
   try {
     const artifact = JSON.parse(readFileSync(MATRIX_PATH, 'utf8'));
+    const workspaceManifestSource = readFileSync(resolve(ROOT, 'Cargo.toml'), 'utf8');
     const metadata = JSON.parse(execFileSync(
       'cargo',
       ['metadata', '--format-version', '1', '--no-deps'],
       { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
     ));
-    const result = validateArtifactAndMetadata(artifact, metadata);
+    const result = validateArtifactAndMetadata(artifact, metadata, workspaceManifestSource);
     process.stdout.write(`[workspace-graph] PASS: ${result.members.length} members (${result.members.join(', ')}); ${result.plannedCrates} planned matrix rows\n`);
   } catch (error) {
     process.stderr.write(`${DIAGNOSTIC}: ${error.message}\n`);

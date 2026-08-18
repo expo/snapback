@@ -41,7 +41,8 @@ use snapback::workerd_exec::{
     with_wall_clock_timeout_ms, workerd_version,
 };
 
-const CORPUS_MODULE_SOURCE: &str = include_str!("../../../../tests/conformance/twin-corpus.handlers.js");
+const CORPUS_MODULE_SOURCE: &str =
+    include_str!("../../../../tests/conformance/twin-corpus.handlers.js");
 
 #[derive(Clone, Copy, PartialEq)]
 enum Engines {

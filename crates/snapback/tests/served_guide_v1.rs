@@ -124,7 +124,10 @@ async fn cli_memory_server_serves_the_build_bound_flat_guide() {
         served.2,
         option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
     );
-    assert_eq!(served.3, include_bytes!("../../../guide/guide-flat.generated.md"));
+    assert_eq!(
+        served.3,
+        include_bytes!("../../../guide/guide-flat.generated.md")
+    );
 }
 
 /// @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:

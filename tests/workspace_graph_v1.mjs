@@ -5,29 +5,38 @@ import test from 'node:test';
 import { validateArtifactAndMetadata } from '../scripts/check-workspace-graph.mjs';
 
 const artifact = JSON.parse(readFileSync(new URL('../crates/allowed-dependencies.v1.json', import.meta.url)));
+const workspaceManifestSource = readFileSync(new URL('../Cargo.toml', import.meta.url), 'utf8');
 
 function metadata(name = 'snapback', dependencies = ['axum', 'celld-ltx', 'clap', 'ibex-runtime', 'rusqlite']) {
   const id = `${name} 0.1.0 (path+file:///fixture/${name})`;
   return {
     packages: [{ id, name, publish: [], dependencies: dependencies.map((dependency) => ({ name: dependency })) }],
     workspace_members: [id],
+    workspace_default_members: [id],
   };
 }
 
 test('the Phase 1 remainder is assigned and carries only named confinement exemptions', () => {
-  assert.deepEqual(validateArtifactAndMetadata(artifact, metadata()), {
+  assert.deepEqual(validateArtifactAndMetadata(artifact, metadata(), workspaceManifestSource), {
     members: ['snapback'],
     plannedCrates: 13,
   });
 });
 
 test('an unassigned workspace member fails closed', () => {
-  assert.throws(() => validateArtifactAndMetadata(artifact, metadata('surprise')), /has no owner\/rank assignment/u);
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, metadata('surprise'), workspaceManifestSource),
+    /has no owner\/rank assignment/u,
+  );
 });
 
 test('a confined external outside its owner and remainder exemption fails closed', () => {
   assert.throws(
-    () => validateArtifactAndMetadata(artifact, metadata('snapback-types', ['axum'])),
+    () => validateArtifactAndMetadata(
+      artifact,
+      metadata('snapback-types', ['axum']),
+      workspaceManifestSource,
+    ),
     /may not depend on confined external axum/u,
   );
 });
@@ -35,12 +44,34 @@ test('a confined external outside its owner and remainder exemption fails closed
 test('publishable workspace crates fail closed', () => {
   const value = metadata();
   value.packages[0].publish = null;
-  assert.throws(() => validateArtifactAndMetadata(artifact, value), /publish = false/u);
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, value, workspaceManifestSource),
+    /publish = false/u,
+  );
 });
 
 test('the committed matrix cannot widen without amending its checked projection', () => {
   const widened = structuredClone(artifact);
   widened.crates.find((entry) => entry.name === 'snapback-kernel')
     .allowedWorkspaceDependencies.push('snapback-auth');
-  assert.throws(() => validateArtifactAndMetadata(widened, metadata()), /matrix crate rows drifted/u);
+  assert.throws(
+    () => validateArtifactAndMetadata(widened, metadata(), workspaceManifestSource),
+    /matrix crate rows drifted/u,
+  );
+});
+
+test('scratch manifest copies cannot drop either workspace trap', () => {
+  const withoutDefaultMembers = workspaceManifestSource.replace(/^default-members\s*=.*\n/mu, '');
+  assert.notEqual(withoutDefaultMembers, workspaceManifestSource);
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, metadata(), withoutDefaultMembers),
+    /workspace\.default-members/u,
+  );
+
+  const withoutExclude = workspaceManifestSource.replace(/^exclude\s*=.*\n/mu, '');
+  assert.notEqual(withoutExclude, workspaceManifestSource);
+  assert.throws(
+    () => validateArtifactAndMetadata(artifact, metadata(), withoutExclude),
+    /workspace\.exclude/u,
+  );
 });

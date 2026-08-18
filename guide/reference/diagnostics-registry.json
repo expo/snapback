@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-diagnostics-registry.v1",
   "generatedBy": "scripts/generate-diagnostics-registry.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:ee1243d8d9e8564c0391b32f96477dac0f720a113fc7e0d29e02502b98d43cb4"
+    "sourceDigest": "sha256:e04f4a0f3ac3e074cb593c99d22491cdb13a304debe010e13caecb1051e5027a"
   },
   "limits": {
     "lookupBytes": 16384
@@ -42,7 +42,7 @@
     },
     "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE": {
       "code": "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -51,12 +51,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7506,
+          "line": 7508,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7866,
+          "line": 7868,
           "column": 30
         },
         {
@@ -81,27 +81,27 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7507,
+          "line": 7509,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8025,
+          "line": 8027,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8125,
+          "line": 8127,
           "column": 48
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8338,
+          "line": 8340,
           "column": 57
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8339,
+          "line": 8341,
           "column": 18
         },
         {
@@ -197,7 +197,7 @@
     },
     "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED": {
       "code": "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -211,7 +211,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7520,
+          "line": 7522,
           "column": 12
         },
         {
@@ -377,7 +377,7 @@
     },
     "SNAPBACK_ACTION_STREAM_CANCELLED": {
       "code": "SNAPBACK_ACTION_STREAM_CANCELLED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -386,7 +386,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7511,
+          "line": 7513,
           "column": 12
         },
         {
@@ -414,7 +414,7 @@
     },
     "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT": {
       "code": "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -423,7 +423,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7512,
+          "line": 7514,
           "column": 12
         },
         {
@@ -462,7 +462,7 @@
     },
     "SNAPBACK_ACTION_STREAM_INVALID": {
       "code": "SNAPBACK_ACTION_STREAM_INVALID",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -501,7 +501,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7513,
+          "line": 7515,
           "column": 12
         },
         {
@@ -604,7 +604,7 @@
     },
     "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED": {
       "code": "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -613,7 +613,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7515,
+          "line": 7517,
           "column": 12
         },
         {
@@ -661,7 +661,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7514,
+          "line": 7516,
           "column": 12
         },
         {
@@ -682,7 +682,7 @@
     },
     "SNAPBACK_ACTION_STREAM_TIMEOUT": {
       "code": "SNAPBACK_ACTION_STREAM_TIMEOUT",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -691,7 +691,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7516,
+          "line": 7518,
           "column": 12
         },
         {
@@ -725,7 +725,7 @@
     },
     "SNAPBACK_ACTION_STREAM_UNSUPPORTED": {
       "code": "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -754,7 +754,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7517,
+          "line": 7519,
           "column": 12
         },
         {
@@ -777,11 +777,11 @@
     },
     "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS": {
       "code": "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7518,
+          "line": 7520,
           "column": 12
         },
         {
@@ -809,11 +809,11 @@
     },
     "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED": {
       "code": "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7519,
+          "line": 7521,
           "column": 12
         },
         {
@@ -907,7 +907,7 @@
     },
     "SNAPBACK_ACTION_TIMEOUT": {
       "code": "SNAPBACK_ACTION_TIMEOUT",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/config.rs",
@@ -936,17 +936,17 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7508,
+          "line": 7510,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8334,
+          "line": 8336,
           "column": 57
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8335,
+          "line": 8337,
           "column": 18
         },
         {
@@ -2634,7 +2634,7 @@
     },
     "SNAPBACK_ADMIN_DIST": {
       "code": "SNAPBACK_ADMIN_DIST",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/admin.rs",
@@ -3848,7 +3848,7 @@
     },
     "SNAPBACK_ADMIN_SECRET_READ_REQUIRED": {
       "code": "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/admin_secret_read.rs",
@@ -4632,7 +4632,7 @@
     },
     "SNAPBACK_API_APPROVAL_QUERY_INVALID": {
       "code": "SNAPBACK_API_APPROVAL_QUERY_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -4662,7 +4662,7 @@
     },
     "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE": {
       "code": "SNAPBACK_API_APPROVAL_REQUIRES_EXPOSURE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -4714,7 +4714,7 @@
     },
     "SNAPBACK_API_ASK_BUDGETS_INVALID": {
       "code": "SNAPBACK_API_ASK_BUDGETS_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -4784,7 +4784,7 @@
     },
     "SNAPBACK_API_ASK_BUDGETS_REQUIRED": {
       "code": "SNAPBACK_API_ASK_BUDGETS_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -5004,7 +5004,7 @@
     },
     "SNAPBACK_API_ASK_MANIFEST_INVALID": {
       "code": "SNAPBACK_API_ASK_MANIFEST_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -5054,7 +5054,7 @@
     },
     "SNAPBACK_API_ASK_MODEL_INVALID": {
       "code": "SNAPBACK_API_ASK_MODEL_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -5259,7 +5259,7 @@
     },
     "SNAPBACK_API_ASK_REQUIRES_API": {
       "code": "SNAPBACK_API_ASK_REQUIRES_API",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -5396,7 +5396,7 @@
     },
     "SNAPBACK_API_ASK_SECRET_INVALID": {
       "code": "SNAPBACK_API_ASK_SECRET_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -5596,7 +5596,7 @@
     },
     "SNAPBACK_API_AUTH_MODE_INVALID": {
       "code": "SNAPBACK_API_AUTH_MODE_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -5646,7 +5646,7 @@
     },
     "SNAPBACK_API_BUDGETS_INVALID": {
       "code": "SNAPBACK_API_BUDGETS_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -5666,7 +5666,7 @@
     },
     "SNAPBACK_API_BUDGETS_UNAVAILABLE": {
       "code": "SNAPBACK_API_BUDGETS_UNAVAILABLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -6213,7 +6213,7 @@
     },
     "SNAPBACK_API_FUNCTION_EXPOSURE_INVALID": {
       "code": "SNAPBACK_API_FUNCTION_EXPOSURE_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -6233,7 +6233,7 @@
     },
     "SNAPBACK_API_FUNCTION_UNKNOWN": {
       "code": "SNAPBACK_API_FUNCTION_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -6340,7 +6340,7 @@
     },
     "SNAPBACK_API_MANIFEST_INVALID": {
       "code": "SNAPBACK_API_MANIFEST_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -6422,7 +6422,7 @@
     },
     "SNAPBACK_API_OAUTH_BEARER_OPT_IN_REQUIRED": {
       "code": "SNAPBACK_API_OAUTH_BEARER_OPT_IN_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -6447,7 +6447,7 @@
     },
     "SNAPBACK_API_OAUTH_BUNDLES_INVALID": {
       "code": "SNAPBACK_API_OAUTH_BUNDLES_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -6477,7 +6477,7 @@
     },
     "SNAPBACK_API_OAUTH_FUNCTION_NOT_EXPOSED": {
       "code": "SNAPBACK_API_OAUTH_FUNCTION_NOT_EXPOSED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -6502,7 +6502,7 @@
     },
     "SNAPBACK_API_OAUTH_FUNCTION_UNKNOWN": {
       "code": "SNAPBACK_API_OAUTH_FUNCTION_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -6542,7 +6542,7 @@
     },
     "SNAPBACK_API_OAUTH_REQUIRES_API": {
       "code": "SNAPBACK_API_OAUTH_REQUIRES_API",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -6567,7 +6567,7 @@
     },
     "SNAPBACK_API_ORIGIN_INVALID": {
       "code": "SNAPBACK_API_ORIGIN_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -6602,7 +6602,7 @@
     },
     "SNAPBACK_API_PAGINATION_RECOMMENDED": {
       "code": "SNAPBACK_API_PAGINATION_RECOMMENDED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -6634,7 +6634,7 @@
     },
     "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED": {
       "code": "SNAPBACK_API_REGISTRATION_POSTURE_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -9636,7 +9636,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/bin/snapback-conformance-twin.rs",
-          "line": 647,
+          "line": 648,
           "column": 49
         },
         {
@@ -9681,27 +9681,27 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7584,
+          "line": 7586,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8190,
+          "line": 8192,
           "column": 62
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8199,
+          "line": 8201,
           "column": 47
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8221,
+          "line": 8223,
           "column": 57
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8265,
+          "line": 8267,
           "column": 55
         },
         {
@@ -9773,7 +9773,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7892,
+          "line": 7894,
           "column": 16
         }
       ],
@@ -9833,7 +9833,7 @@
     },
     "SNAPBACK_ARG_MISSING": {
       "code": "SNAPBACK_ARG_MISSING",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -9898,7 +9898,7 @@
     },
     "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH": {
       "code": "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "app-cli",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -13995,7 +13995,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11551,
+          "line": 11553,
           "column": 44
         },
         {
@@ -14051,7 +14051,7 @@
     },
     "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID": {
       "code": "SNAPBACK_AUTHORITY_PROFILE_ROLE_LATTICE_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/storage.rs",
@@ -14096,7 +14096,7 @@
     },
     "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID": {
       "code": "SNAPBACK_AUTHORITY_PROFILE_ROSTER_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/membership_rules.rs",
@@ -14216,7 +14216,7 @@
     },
     "SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS": {
       "code": "SNAPBACK_AUTHORITY_PROFILE_UNSUPPORTED_COMPOSITION_CLASS",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/membership_rules.rs",
@@ -14710,7 +14710,7 @@
     },
     "SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED": {
       "code": "SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -14805,7 +14805,7 @@
     },
     "SNAPBACK_AUTHORIZED_LEASE_EXPIRED": {
       "code": "SNAPBACK_AUTHORIZED_LEASE_EXPIRED",
-      "subsystem": "server",
+      "subsystem": "contract",
       "sites": [
         {
           "file": "crates/snapback/src/auth/lease.rs",
@@ -14885,7 +14885,7 @@
     },
     "SNAPBACK_AUTHORIZED_LEASE_INVALID": {
       "code": "SNAPBACK_AUTHORIZED_LEASE_INVALID",
-      "subsystem": "server",
+      "subsystem": "contract",
       "sites": [
         {
           "file": "crates/snapback/src/auth/lease.rs",
@@ -15115,7 +15115,7 @@
     },
     "SNAPBACK_AUTHORIZED_LEASE_STALE": {
       "code": "SNAPBACK_AUTHORIZED_LEASE_STALE",
-      "subsystem": "server",
+      "subsystem": "contract",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -16076,22 +16076,22 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7505,
+          "line": 7507,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11620,
+          "line": 11622,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11650,
+          "line": 11652,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 12138,
+          "line": 12140,
           "column": 41
         },
         {
@@ -17260,7 +17260,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7503,
+          "line": 7505,
           "column": 12
         },
         {
@@ -21967,7 +21967,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7504,
+          "line": 7506,
           "column": 12
         },
         {
@@ -22904,22 +22904,22 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11761,
+          "line": 11763,
           "column": 45
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11772,
+          "line": 11774,
           "column": 44
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11778,
+          "line": 11780,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11909,
+          "line": 11911,
           "column": 19
         },
         {
@@ -25224,7 +25224,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7502,
+          "line": 7504,
           "column": 12
         },
         {
@@ -27729,7 +27729,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7893,
+          "line": 7895,
           "column": 16
         }
       ],
@@ -27880,21 +27880,21 @@
     },
     "SNAPBACK_BATCH_READ_INDEX_INVALID": {
       "code": "SNAPBACK_BATCH_READ_INDEX_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7569,
+          "line": 7571,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9794,
+          "line": 9796,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9799,
+          "line": 9801,
           "column": 18
         },
         {
@@ -27930,21 +27930,21 @@
     },
     "SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED": {
       "code": "SNAPBACK_BATCH_READ_INPUT_BYTES_EXCEEDED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7403,
+          "line": 7405,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7567,
+          "line": 7569,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9880,
+          "line": 9882,
           "column": 14
         },
         {
@@ -27965,61 +27965,61 @@
     },
     "SNAPBACK_BATCH_READ_INPUT_INVALID": {
       "code": "SNAPBACK_BATCH_READ_INPUT_INVALID",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7303,
+          "line": 7305,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7310,
+          "line": 7312,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7325,
+          "line": 7327,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7335,
+          "line": 7337,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7346,
+          "line": 7348,
           "column": 22
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7359,
+          "line": 7361,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7370,
+          "line": 7372,
           "column": 22
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7396,
+          "line": 7398,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7565,
+          "line": 7567,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9920,
+          "line": 9922,
           "column": 44
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9931,
+          "line": 9933,
           "column": 44
         },
         {
@@ -28040,21 +28040,21 @@
     },
     "SNAPBACK_BATCH_READ_ITEMS_EXCEEDED": {
       "code": "SNAPBACK_BATCH_READ_ITEMS_EXCEEDED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7383,
+          "line": 7385,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7566,
+          "line": 7568,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9857,
+          "line": 9859,
           "column": 14
         },
         {
@@ -28075,7 +28075,7 @@
     },
     "SNAPBACK_BATCH_READ_KEY_INVALID": {
       "code": "SNAPBACK_BATCH_READ_KEY_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -28084,32 +28084,32 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7570,
+          "line": 7572,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9804,
+          "line": 9806,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9806,
+          "line": 9808,
           "column": 39
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9810,
+          "line": 9812,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9815,
+          "line": 9817,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9820,
+          "line": 9822,
           "column": 18
         },
         {
@@ -28155,7 +28155,7 @@
     },
     "SNAPBACK_BATCH_READ_RESPONSE_BYTES_EXCEEDED": {
       "code": "SNAPBACK_BATCH_READ_RESPONSE_BYTES_EXCEEDED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -28164,12 +28164,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7568,
+          "line": 7570,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9893,
+          "line": 9895,
           "column": 14
         },
         {
@@ -28190,7 +28190,7 @@
     },
     "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT": {
       "code": "SNAPBACK_BATCH_READ_UNIQUE_INVARIANT_CORRUPT",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -28199,7 +28199,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7571,
+          "line": 7573,
           "column": 12
         },
         {
@@ -28355,7 +28355,7 @@
     },
     "SNAPBACK_BINDING_MISSING": {
       "code": "SNAPBACK_BINDING_MISSING",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -30489,7 +30489,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7547,
+          "line": 7549,
           "column": 12
         },
         {
@@ -30508,7 +30508,7 @@
     },
     "SNAPBACK_BUILD_DISTRIBUTION": {
       "code": "SNAPBACK_BUILD_DISTRIBUTION",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/identity.rs",
@@ -30528,7 +30528,7 @@
     },
     "SNAPBACK_BUILD_GIT_COMMIT": {
       "code": "SNAPBACK_BUILD_GIT_COMMIT",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/bin/snapback-agent-safe-candidate.rs",
@@ -30583,7 +30583,7 @@
     },
     "SNAPBACK_BUILD_GIT_DIRTY": {
       "code": "SNAPBACK_BUILD_GIT_DIRTY",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/bin/snapback-agent-safe-candidate.rs",
@@ -30878,7 +30878,7 @@
     },
     "SNAPBACK_BUNDLE_NOT_PUBLIC": {
       "code": "SNAPBACK_BUNDLE_NOT_PUBLIC",
-      "subsystem": "server",
+      "subsystem": "vite",
       "sites": [
         {
           "file": "crates/snapback/src/bundle.rs",
@@ -30998,7 +30998,7 @@
     },
     "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL": {
       "code": "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/bundle.rs",
@@ -31596,7 +31596,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/bin/snapback-conformance-twin.rs",
-          "line": 808,
+          "line": 809,
           "column": 18
         },
         {
@@ -31771,7 +31771,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/bin/snapback-conformance-twin.rs",
-          "line": 788,
+          "line": 789,
           "column": 14
         },
         {
@@ -31786,7 +31786,7 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 235,
+          "line": 234,
           "column": 10
         }
       ],
@@ -31801,7 +31801,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7450,
+          "line": 7452,
           "column": 14
         },
         {
@@ -34619,7 +34619,7 @@
     },
     "SNAPBACK_CLI_ARGUMENT_INVALID": {
       "code": "SNAPBACK_CLI_ARGUMENT_INVALID",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/cli.rs",
@@ -34959,7 +34959,7 @@
     },
     "SNAPBACK_CLI_FAILED": {
       "code": "SNAPBACK_CLI_FAILED",
-      "subsystem": "server",
+      "subsystem": "create-snapback-app",
       "sites": [
         {
           "file": "crates/snapback/src/cli.rs",
@@ -37842,7 +37842,7 @@
     },
     "SNAPBACK_CONFIG_MISSING": {
       "code": "SNAPBACK_CONFIG_MISSING",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -37866,7 +37866,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7498,
+          "line": 7500,
           "column": 12
         },
         {
@@ -38149,7 +38149,7 @@
     },
     "SNAPBACK_CONFIG_UNDECLARED": {
       "code": "SNAPBACK_CONFIG_UNDECLARED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -38173,7 +38173,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7497,
+          "line": 7499,
           "column": 12
         },
         {
@@ -40389,7 +40389,7 @@
     },
     "SNAPBACK_CTX_LEDGER_EXHAUSTED": {
       "code": "SNAPBACK_CTX_LEDGER_EXHAUSTED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -40403,7 +40403,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7558,
+          "line": 7560,
           "column": 12
         },
         {
@@ -40439,7 +40439,7 @@
     },
     "SNAPBACK_CTX_LEDGER_ID_INVALID": {
       "code": "SNAPBACK_CTX_LEDGER_ID_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -40479,7 +40479,7 @@
     },
     "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED": {
       "code": "SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -40503,7 +40503,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7559,
+          "line": 7561,
           "column": 12
         },
         {
@@ -40539,7 +40539,7 @@
     },
     "SNAPBACK_CTX_LEDGER_UNUSED_IDS": {
       "code": "SNAPBACK_CTX_LEDGER_UNUSED_IDS",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -40589,7 +40589,7 @@
     },
     "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED": {
       "code": "SNAPBACK_CTX_LEDGER_VERSION_UNSUPPORTED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -41902,7 +41902,7 @@
     },
     "SNAPBACK_DEV_AUTH_ORIGINS": {
       "code": "SNAPBACK_DEV_AUTH_ORIGINS",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/admin.rs",
@@ -42265,7 +42265,7 @@
     },
     "SNAPBACK_DEV_IDENTITY_REFUSED": {
       "code": "SNAPBACK_DEV_IDENTITY_REFUSED",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/dev_identity.rs",
@@ -43422,7 +43422,7 @@
     },
     "SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED": {
       "code": "SNAPBACK_ELEVATED_READ_CAPABILITY_UNDECLARED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -43662,7 +43662,7 @@
     },
     "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED": {
       "code": "SNAPBACK_EPHEMERAL_AUTHORITY_INSTANCE_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server.rs",
@@ -43732,7 +43732,7 @@
     },
     "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH": {
       "code": "SNAPBACK_EPHEMERAL_AUTHORITY_PROTOCOL_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server.rs",
@@ -43762,7 +43762,7 @@
     },
     "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED": {
       "code": "SNAPBACK_EPHEMERAL_AUTHORITY_UNSUPPORTED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server.rs",
@@ -43917,7 +43917,7 @@
     },
     "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH": {
       "code": "SNAPBACK_EPHEMERAL_EXPIRY_PROTOCOL_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server.rs",
@@ -43947,7 +43947,7 @@
     },
     "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED": {
       "code": "SNAPBACK_EPHEMERAL_EXPIRY_UNSUPPORTED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server.rs",
@@ -44722,7 +44722,7 @@
     },
     "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE": {
       "code": "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
-      "subsystem": "server",
+      "subsystem": "react",
       "sites": [
         {
           "file": "crates/snapback/src/ephemeral.rs",
@@ -44776,7 +44776,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7897,
+          "line": 7899,
           "column": 16
         }
       ],
@@ -45182,7 +45182,7 @@
     },
     "SNAPBACK_EXPECTED_STRING": {
       "code": "SNAPBACK_EXPECTED_STRING",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -45261,7 +45261,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7891,
+          "line": 7893,
           "column": 16
         }
       ],
@@ -45272,7 +45272,7 @@
     },
     "SNAPBACK_EXPOSURE": {
       "code": "SNAPBACK_EXPOSURE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/admin.rs",
@@ -46718,7 +46718,7 @@
     },
     "SNAPBACK_EXPR_TYPE": {
       "code": "SNAPBACK_EXPR_TYPE",
-      "subsystem": "server",
+      "subsystem": "contract",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -46878,7 +46878,7 @@
     },
     "SNAPBACK_EXPR_UNANALYZABLE": {
       "code": "SNAPBACK_EXPR_UNANALYZABLE",
-      "subsystem": "server",
+      "subsystem": "contract",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -46908,7 +46908,7 @@
     },
     "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION": {
       "code": "SNAPBACK_EXPR_UNSUPPORTED_FUNCTION",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -47238,7 +47238,7 @@
     },
     "SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID": {
       "code": "SNAPBACK_FIELD_BOUNDARY_CONDITION_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -47270,7 +47270,7 @@
     },
     "SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID": {
       "code": "SNAPBACK_FIELD_BOUNDARY_FIELDS_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -47312,7 +47312,7 @@
     },
     "SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN": {
       "code": "SNAPBACK_FIELD_BOUNDARY_FIELD_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -47344,7 +47344,7 @@
     },
     "SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID": {
       "code": "SNAPBACK_FIELD_BOUNDARY_SPEC_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -47381,7 +47381,7 @@
     },
     "SNAPBACK_FIELD_ENUM_VALUE_INVALID": {
       "code": "SNAPBACK_FIELD_ENUM_VALUE_INVALID",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -47415,7 +47415,7 @@
     },
     "SNAPBACK_FIELD_MISSING": {
       "code": "SNAPBACK_FIELD_MISSING",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -47445,7 +47445,7 @@
     },
     "SNAPBACK_FIELD_TYPE_MISMATCH": {
       "code": "SNAPBACK_FIELD_TYPE_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -47993,7 +47993,7 @@
     },
     "SNAPBACK_FORK_EGRESS_DENIED": {
       "code": "SNAPBACK_FORK_EGRESS_DENIED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/instance_fork.rs",
@@ -48052,7 +48052,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7546,
+          "line": 7548,
           "column": 12
         },
         {
@@ -49830,7 +49830,7 @@
     },
     "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID": {
       "code": "SNAPBACK_FUNCTION_HANDLER_FORM_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -49907,7 +49907,7 @@
     },
     "SNAPBACK_FUNCTION_KIND_MISMATCH": {
       "code": "SNAPBACK_FUNCTION_KIND_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/auth/invocation.rs",
@@ -50795,7 +50795,7 @@
     },
     "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED": {
       "code": "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -50824,37 +50824,37 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7129,
+          "line": 7131,
           "column": 30
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7132,
+          "line": 7134,
           "column": 30
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7216,
+          "line": 7218,
           "column": 429
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7216,
+          "line": 7218,
           "column": 692
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7248,
+          "line": 7250,
           "column": 374
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7251,
+          "line": 7253,
           "column": 368
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7492,
+          "line": 7494,
           "column": 10
         },
         {
@@ -50938,7 +50938,7 @@
     },
     "SNAPBACK_HANDLER_CAPABILITY_DENIED": {
       "code": "SNAPBACK_HANDLER_CAPABILITY_DENIED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -50952,7 +50952,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7492,
+          "line": 7494,
           "column": 58
         },
         {
@@ -50988,7 +50988,7 @@
     },
     "SNAPBACK_HANDLER_DID_NOT_SETTLE": {
       "code": "SNAPBACK_HANDLER_DID_NOT_SETTLE",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -51002,27 +51002,27 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7958,
+          "line": 7960,
           "column": 44
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8364,
+          "line": 8366,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8372,
+          "line": 8374,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8386,
+          "line": 8388,
           "column": 22
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8402,
+          "line": 8404,
           "column": 22
         },
         {
@@ -51042,7 +51042,7 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 888,
+          "line": 887,
           "column": 39
         },
         {
@@ -51063,7 +51063,7 @@
     },
     "SNAPBACK_HANDLER_ERROR_EXPOSURE": {
       "code": "SNAPBACK_HANDLER_ERROR_EXPOSURE",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -51072,7 +51072,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11239,
+          "line": 11241,
           "column": 48
         },
         {
@@ -51107,7 +51107,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7938,
+          "line": 7940,
           "column": 14
         },
         {
@@ -51123,7 +51123,7 @@
     },
     "SNAPBACK_HANDLER_EXPORT_MISSING": {
       "code": "SNAPBACK_HANDLER_EXPORT_MISSING",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -51147,7 +51147,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7494,
+          "line": 7496,
           "column": 12
         },
         {
@@ -51177,7 +51177,7 @@
     },
     "SNAPBACK_HANDLER_FAILED": {
       "code": "SNAPBACK_HANDLER_FAILED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/config.rs",
@@ -51331,47 +51331,47 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7586,
+          "line": 7588,
           "column": 15
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8236,
+          "line": 8238,
           "column": 45
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8256,
+          "line": 8258,
           "column": 49
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8270,
+          "line": 8272,
           "column": 45
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8281,
+          "line": 8283,
           "column": 44
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8353,
+          "line": 8355,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8461,
+          "line": 8463,
           "column": 44
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8487,
+          "line": 8489,
           "column": 50
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11248,
+          "line": 11250,
           "column": 50
         },
         {
@@ -51480,11 +51480,11 @@
     },
     "SNAPBACK_HANDLER_HOST_CALL_": {
       "code": "SNAPBACK_HANDLER_HOST_CALL_",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7585,
+          "line": 7587,
           "column": 35
         },
         {
@@ -51509,7 +51509,7 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1151,
+          "line": 1150,
           "column": 43
         }
       ],
@@ -51539,7 +51539,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1147,
+          "line": 1146,
           "column": 43
         }
       ],
@@ -51569,47 +51569,47 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7268,
+          "line": 7270,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7280,
+          "line": 7282,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7293,
+          "line": 7295,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7424,
+          "line": 7426,
           "column": 18
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7438,
+          "line": 7440,
           "column": 26
-        },
-        {
-          "file": "crates/snapback/src/runtime.rs",
-          "line": 11918,
-          "column": 26
-        },
-        {
-          "file": "crates/snapback/src/runtime.rs",
-          "line": 11919,
-          "column": 30
         },
         {
           "file": "crates/snapback/src/runtime.rs",
           "line": 11920,
+          "column": 26
+        },
+        {
+          "file": "crates/snapback/src/runtime.rs",
+          "line": 11921,
+          "column": 30
+        },
+        {
+          "file": "crates/snapback/src/runtime.rs",
+          "line": 11922,
           "column": 28
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11954,
+          "line": 11956,
           "column": 44
         },
         {
@@ -51639,12 +51639,12 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1211,
+          "line": 1210,
           "column": 26
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1249,
+          "line": 1248,
           "column": 26
         }
       ],
@@ -51674,17 +51674,17 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1155,
+          "line": 1154,
           "column": 43
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1225,
+          "line": 1224,
           "column": 22
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1232,
+          "line": 1231,
           "column": 22
         }
       ],
@@ -51739,7 +51739,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1143,
+          "line": 1142,
           "column": 43
         }
       ],
@@ -51794,7 +51794,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7695,
+          "line": 7697,
           "column": 10
         }
       ],
@@ -51885,7 +51885,7 @@
     },
     "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID": {
       "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -52008,7 +52008,7 @@
     },
     "SNAPBACK_HANDLER_RESULT_INVALID": {
       "code": "SNAPBACK_HANDLER_RESULT_INVALID",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -52027,17 +52027,17 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7495,
+          "line": 7497,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8309,
+          "line": 8311,
           "column": 57
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8310,
+          "line": 8312,
           "column": 18
         },
         {
@@ -52060,7 +52060,7 @@
     },
     "SNAPBACK_HANDLER_STALE_CONTINUATION": {
       "code": "SNAPBACK_HANDLER_STALE_CONTINUATION",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -52079,7 +52079,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7496,
+          "line": 7498,
           "column": 12
         },
         {
@@ -52089,7 +52089,7 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1239,
+          "line": 1238,
           "column": 22
         },
         {
@@ -52174,7 +52174,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8543,
+          "line": 8545,
           "column": 14
         },
         {
@@ -52214,7 +52214,7 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 822,
+          "line": 821,
           "column": 18
         }
       ],
@@ -52225,7 +52225,7 @@
     },
     "SNAPBACK_HANDLER_WRITE_IN_QUERY": {
       "code": "SNAPBACK_HANDLER_WRITE_IN_QUERY",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -52244,22 +52244,22 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7493,
+          "line": 7495,
           "column": 10
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8106,
+          "line": 8108,
           "column": 48
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9320,
+          "line": 9322,
           "column": 41
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9353,
+          "line": 9355,
           "column": 44
         },
         {
@@ -52675,7 +52675,7 @@
     },
     "SNAPBACK_HOSTED_ADMISSION_V2_INVALID": {
       "code": "SNAPBACK_HOSTED_ADMISSION_V2_INVALID",
-      "subsystem": "server",
+      "subsystem": "hosted-supervisor",
       "sites": [
         {
           "file": "crates/snapback/src/auth/hosted_edge.rs",
@@ -52735,7 +52735,7 @@
     },
     "SNAPBACK_HOSTED_ADMISSION_V2_STALE": {
       "code": "SNAPBACK_HOSTED_ADMISSION_V2_STALE",
-      "subsystem": "server",
+      "subsystem": "hosted-supervisor",
       "sites": [
         {
           "file": "crates/snapback/src/auth/deployment.rs",
@@ -54080,11 +54080,11 @@
     },
     "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8": {
       "code": "SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7542,
+          "line": 7544,
           "column": 12
         },
         {
@@ -54112,11 +54112,11 @@
     },
     "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE": {
       "code": "SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7541,
+          "line": 7543,
           "column": 12
         },
         {
@@ -54180,7 +54180,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7540,
+          "line": 7542,
           "column": 12
         },
         {
@@ -54563,7 +54563,7 @@
     },
     "SNAPBACK_HOST_OP_UNIMPLEMENTED": {
       "code": "SNAPBACK_HOST_OP_UNIMPLEMENTED",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/host_ops.rs",
@@ -54810,7 +54810,7 @@
     },
     "SNAPBACK_HOST_TOKEN": {
       "code": "SNAPBACK_HOST_TOKEN",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/handler_wire.rs",
@@ -54819,12 +54819,12 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 343,
+          "line": 342,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1328,
+          "line": 1327,
           "column": 34
         },
         {
@@ -54864,7 +54864,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7714,
+          "line": 7716,
           "column": 29
         }
       ],
@@ -54939,7 +54939,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7248,
+          "line": 7250,
           "column": 615
         }
       ],
@@ -56028,16 +56028,16 @@
     },
     "SNAPBACK_INVOKE_TOKEN": {
       "code": "SNAPBACK_INVOKE_TOKEN",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 342,
+          "line": 341,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1326,
+          "line": 1325,
           "column": 34
         },
         {
@@ -59804,7 +59804,7 @@
     },
     "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED": {
       "code": "SNAPBACK_MEDIA_COLLECTION_RAW_WRITE_REFUSED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -59909,7 +59909,7 @@
     },
     "SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID": {
       "code": "SNAPBACK_MEDIA_COLLECTION_SHARING_DERIVATION_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -60779,7 +60779,7 @@
     },
     "SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE": {
       "code": "SNAPBACK_MEDIA_PROJECTION_SNAPSHOT_UNAVAILABLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -61125,7 +61125,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11571,
+          "line": 11573,
           "column": 14
         },
         {
@@ -61214,7 +61214,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11987,
+          "line": 11989,
           "column": 14
         },
         {
@@ -61923,7 +61923,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11529,
+          "line": 11531,
           "column": 41
         },
         {
@@ -62188,7 +62188,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11494,
+          "line": 11496,
           "column": 14
         },
         {
@@ -62230,7 +62230,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 9951,
+          "line": 9953,
           "column": 48
         },
         {
@@ -62774,7 +62774,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 12082,
+          "line": 12084,
           "column": 14
         },
         {
@@ -62927,7 +62927,7 @@
     },
     "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION": {
       "code": "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/membership_rules.rs",
@@ -62966,7 +62966,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7580,
+          "line": 7582,
           "column": 12
         },
         {
@@ -63011,7 +63011,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11921,
+          "line": 11923,
           "column": 33
         },
         {
@@ -64406,7 +64406,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7894,
+          "line": 7896,
           "column": 16
         }
       ],
@@ -64456,12 +64456,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11200,
+          "line": 11202,
           "column": 47
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 11368,
+          "line": 11370,
           "column": 69
         },
         {
@@ -64532,7 +64532,7 @@
     },
     "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE": {
       "code": "SNAPBACK_MUTATION_SETTLEMENT_UNAVAILABLE",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -64546,12 +64546,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7554,
+          "line": 7556,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8323,
+          "line": 8325,
           "column": 14
         },
         {
@@ -65759,7 +65759,7 @@
     },
     "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED": {
       "code": "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/operation_ledger.rs",
@@ -66194,7 +66194,7 @@
     },
     "SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID": {
       "code": "SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -66279,7 +66279,7 @@
     },
     "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID": {
       "code": "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/operation_ledger.rs",
@@ -66384,7 +66384,7 @@
     },
     "SNAPBACK_OPERATION_RANGE_EXHAUSTED": {
       "code": "SNAPBACK_OPERATION_RANGE_EXHAUSTED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -66654,7 +66654,7 @@
     },
     "SNAPBACK_OPERATION_RESULT_EXPIRED": {
       "code": "SNAPBACK_OPERATION_RESULT_EXPIRED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -67785,7 +67785,7 @@
     },
     "SNAPBACK_OUTBOUND_ACTIONS": {
       "code": "SNAPBACK_OUTBOUND_ACTIONS",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/ask.rs",
@@ -68796,7 +68796,7 @@
     },
     "SNAPBACK_OVERLOADED": {
       "code": "SNAPBACK_OVERLOADED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -68805,17 +68805,17 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7548,
+          "line": 7550,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8313,
+          "line": 8315,
           "column": 57
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8314,
+          "line": 8316,
           "column": 18
         },
         {
@@ -68881,7 +68881,7 @@
     },
     "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT": {
       "code": "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -69173,7 +69173,7 @@
     },
     "SNAPBACK_PLAN_BOUNDS": {
       "code": "SNAPBACK_PLAN_BOUNDS",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -69293,7 +69293,7 @@
     },
     "SNAPBACK_PLAN_INVALID": {
       "code": "SNAPBACK_PLAN_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -69433,7 +69433,7 @@
     },
     "SNAPBACK_PLAN_SOURCE_INVALID": {
       "code": "SNAPBACK_PLAN_SOURCE_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -69728,7 +69728,7 @@
     },
     "SNAPBACK_PROFILE": {
       "code": "SNAPBACK_PROFILE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/admin.rs",
@@ -69820,7 +69820,7 @@
     },
     "SNAPBACK_PROFILE_FORBIDS": {
       "code": "SNAPBACK_PROFILE_FORBIDS",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/admin.rs",
@@ -72545,7 +72545,7 @@
     },
     "SNAPBACK_PUSH_LEDGER_NOT_DECLARED": {
       "code": "SNAPBACK_PUSH_LEDGER_NOT_DECLARED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -73072,7 +73072,7 @@
     },
     "SNAPBACK_PUSH_TOKEN_INVALID": {
       "code": "SNAPBACK_PUSH_TOKEN_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/push.rs",
@@ -73146,17 +73146,17 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7560,
+          "line": 7562,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8343,
+          "line": 8345,
           "column": 55
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8345,
+          "line": 8347,
           "column": 18
         },
         {
@@ -73228,17 +73228,17 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7561,
+          "line": 7563,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8348,
+          "line": 8350,
           "column": 57
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8349,
+          "line": 8351,
           "column": 18
         },
         {
@@ -73300,7 +73300,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7563,
+          "line": 7565,
           "column": 12
         },
         {
@@ -73337,7 +73337,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7562,
+          "line": 7564,
           "column": 12
         },
         {
@@ -73409,7 +73409,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7564,
+          "line": 7566,
           "column": 12
         },
         {
@@ -75933,7 +75933,7 @@
     },
     "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED": {
       "code": "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -76115,7 +76115,7 @@
     },
     "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED": {
       "code": "SNAPBACK_RELATION_INCARNATION_WRITE_PROTECTED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/data_patch.rs",
@@ -76145,7 +76145,7 @@
     },
     "SNAPBACK_RELATION_PARENT_UNAVAILABLE": {
       "code": "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -76169,12 +76169,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7555,
+          "line": 7557,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8324,
+          "line": 8326,
           "column": 14
         },
         {
@@ -76220,7 +76220,7 @@
     },
     "SNAPBACK_RELATION_SCHEMA_INVALID": {
       "code": "SNAPBACK_RELATION_SCHEMA_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -78484,16 +78484,16 @@
     },
     "SNAPBACK_RESPONSE_TOKEN": {
       "code": "SNAPBACK_RESPONSE_TOKEN",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 344,
+          "line": 343,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 1330,
+          "line": 1329,
           "column": 34
         },
         {
@@ -78788,7 +78788,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_BASE_INVALID": {
       "code": "SNAPBACK_RESULT_TRANSFORM_BASE_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -78813,7 +78813,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_COMPARATOR_UNKNOWN": {
       "code": "SNAPBACK_RESULT_TRANSFORM_COMPARATOR_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -78838,7 +78838,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_CROSS_ADDRESS": {
       "code": "SNAPBACK_RESULT_TRANSFORM_CROSS_ADDRESS",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -78878,7 +78878,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_FIELD_UNPROJECTED": {
       "code": "SNAPBACK_RESULT_TRANSFORM_FIELD_UNPROJECTED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -78903,7 +78903,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_LIMIT_INVALID": {
       "code": "SNAPBACK_RESULT_TRANSFORM_LIMIT_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -78928,7 +78928,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_MIXED_VERSION": {
       "code": "SNAPBACK_RESULT_TRANSFORM_MIXED_VERSION",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -78953,7 +78953,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_NON_SCALAR": {
       "code": "SNAPBACK_RESULT_TRANSFORM_NON_SCALAR",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -78978,7 +78978,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_NORMALIZATION_UNADMITTED": {
       "code": "SNAPBACK_RESULT_TRANSFORM_NORMALIZATION_UNADMITTED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -79003,7 +79003,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_ORDER_FIELD_DUPLICATE": {
       "code": "SNAPBACK_RESULT_TRANSFORM_ORDER_FIELD_DUPLICATE",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -79028,7 +79028,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_OVERLAY_INPUT_REQUIRED": {
       "code": "SNAPBACK_RESULT_TRANSFORM_OVERLAY_INPUT_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -79053,7 +79053,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_PLAN_INVALID": {
       "code": "SNAPBACK_RESULT_TRANSFORM_PLAN_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -79078,7 +79078,7 @@
     },
     "SNAPBACK_RESULT_TRANSFORM_STAGE_UNKNOWN": {
       "code": "SNAPBACK_RESULT_TRANSFORM_STAGE_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/result_transform.rs",
@@ -79348,7 +79348,7 @@
     },
     "SNAPBACK_RESUME_STREAM_MISMATCH": {
       "code": "SNAPBACK_RESUME_STREAM_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/rqs.rs",
@@ -79747,7 +79747,7 @@
     },
     "SNAPBACK_ROW_NOT_FOUND": {
       "code": "SNAPBACK_ROW_NOT_FOUND",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -80739,7 +80739,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7895,
+          "line": 7897,
           "column": 16
         }
       ],
@@ -81666,7 +81666,7 @@
     },
     "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID": {
       "code": "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -81883,7 +81883,7 @@
     },
     "SNAPBACK_SEARCH_INDEX_UNAVAILABLE": {
       "code": "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -82072,7 +82072,7 @@
     },
     "SNAPBACK_SEARCH_QUERY_INVALID": {
       "code": "SNAPBACK_SEARCH_QUERY_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/args_contract.rs",
@@ -82189,7 +82189,7 @@
     },
     "SNAPBACK_SEARCH_QUERY_PLAN_INVALID": {
       "code": "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -82380,7 +82380,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7896,
+          "line": 7898,
           "column": 16
         }
       ],
@@ -83177,7 +83177,7 @@
     },
     "SNAPBACK_SEQUENCE_DECLARATION_INVALID": {
       "code": "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -83302,7 +83302,7 @@
     },
     "SNAPBACK_SEQUENCE_EXHAUSTED": {
       "code": "SNAPBACK_SEQUENCE_EXHAUSTED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -83311,12 +83311,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7552,
+          "line": 7554,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8321,
+          "line": 8323,
           "column": 14
         },
         {
@@ -83354,7 +83354,7 @@
     },
     "SNAPBACK_SEQUENCE_UNDECLARED": {
       "code": "SNAPBACK_SEQUENCE_UNDECLARED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -83378,17 +83378,17 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7553,
+          "line": 7555,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8322,
+          "line": 8324,
           "column": 14
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 10975,
+          "line": 10977,
           "column": 44
         },
         {
@@ -84239,7 +84239,7 @@
     },
     "SNAPBACK_STALE_": {
       "code": "SNAPBACK_STALE_",
-      "subsystem": "server",
+      "subsystem": "cli",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -84490,7 +84490,7 @@
     },
     "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID": {
       "code": "SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -85405,7 +85405,7 @@
     },
     "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED": {
       "code": "SNAPBACK_STREAM_ATTEMPT_LIMIT_EXCEEDED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85414,7 +85414,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7524,
+          "line": 7526,
           "column": 12
         },
         {
@@ -85445,7 +85445,7 @@
     },
     "SNAPBACK_STREAM_ATTEMPT_NOT_FOUND": {
       "code": "SNAPBACK_STREAM_ATTEMPT_NOT_FOUND",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85454,7 +85454,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7525,
+          "line": 7527,
           "column": 12
         },
         {
@@ -85490,7 +85490,7 @@
     },
     "SNAPBACK_STREAM_CANCELLED": {
       "code": "SNAPBACK_STREAM_CANCELLED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85499,7 +85499,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7526,
+          "line": 7528,
           "column": 12
         },
         {
@@ -85530,7 +85530,7 @@
     },
     "SNAPBACK_STREAM_CHUNK_INVALID": {
       "code": "SNAPBACK_STREAM_CHUNK_INVALID",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85554,7 +85554,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7527,
+          "line": 7529,
           "column": 12
         },
         {
@@ -85585,7 +85585,7 @@
     },
     "SNAPBACK_STREAM_CHUNK_TOO_LARGE": {
       "code": "SNAPBACK_STREAM_CHUNK_TOO_LARGE",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85594,7 +85594,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7528,
+          "line": 7530,
           "column": 12
         },
         {
@@ -85650,7 +85650,7 @@
     },
     "SNAPBACK_STREAM_FORBIDDEN": {
       "code": "SNAPBACK_STREAM_FORBIDDEN",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85659,7 +85659,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7529,
+          "line": 7531,
           "column": 12
         },
         {
@@ -85700,7 +85700,7 @@
     },
     "SNAPBACK_STREAM_INITIATOR_REQUIRED": {
       "code": "SNAPBACK_STREAM_INITIATOR_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85709,7 +85709,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7530,
+          "line": 7532,
           "column": 12
         },
         {
@@ -85740,7 +85740,7 @@
     },
     "SNAPBACK_STREAM_NOT_DECLARED": {
       "code": "SNAPBACK_STREAM_NOT_DECLARED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85754,7 +85754,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7531,
+          "line": 7533,
           "column": 12
         },
         {
@@ -85785,7 +85785,7 @@
     },
     "SNAPBACK_STREAM_RATE_LIMITED": {
       "code": "SNAPBACK_STREAM_RATE_LIMITED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85794,7 +85794,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7532,
+          "line": 7534,
           "column": 12
         },
         {
@@ -85825,7 +85825,7 @@
     },
     "SNAPBACK_STREAM_RUNNER_FENCED": {
       "code": "SNAPBACK_STREAM_RUNNER_FENCED",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85834,7 +85834,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7533,
+          "line": 7535,
           "column": 12
         },
         {
@@ -85870,7 +85870,7 @@
     },
     "SNAPBACK_STREAM_TERMINAL": {
       "code": "SNAPBACK_STREAM_TERMINAL",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/error_tracking.rs",
@@ -85879,7 +85879,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7534,
+          "line": 7536,
           "column": 12
         },
         {
@@ -87803,7 +87803,7 @@
     },
     "SNAPBACK_SYSTEM_FIELD_WRITE": {
       "code": "SNAPBACK_SYSTEM_FIELD_WRITE",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/data_patch.rs",
@@ -87863,7 +87863,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID": {
       "code": "SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARMS_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -87898,7 +87898,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID": {
       "code": "SNAPBACK_TABLE_VISIBILITY_ANY_OF_ARM_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -87943,7 +87943,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_ANY_OF_DUPLICATE_ARM": {
       "code": "SNAPBACK_TABLE_VISIBILITY_ANY_OF_DUPLICATE_ARM",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -88033,7 +88033,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_DEPLOYMENT_IDENTITY_MISMATCH": {
       "code": "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_DEPLOYMENT_IDENTITY_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/visibility_governance.rs",
@@ -88078,7 +88078,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION": {
       "code": "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_PUSH_VIOLATION",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/visibility_governance.rs",
@@ -88198,7 +88198,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE": {
       "code": "SNAPBACK_TABLE_VISIBILITY_GOVERNANCE_REMOTE_CUSTODY_UNAVAILABLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -88333,7 +88333,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN": {
       "code": "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_DECLARATION_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -88365,7 +88365,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID": {
       "code": "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLES_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -88395,7 +88395,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN": {
       "code": "SNAPBACK_TABLE_VISIBILITY_MEMBERSHIP_ROLE_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -88567,7 +88567,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_TIME_INVALID": {
       "code": "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_APPROVAL_TIME_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/visibility_governance.rs",
@@ -88647,7 +88647,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_EXPIRED": {
       "code": "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_EXPIRED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/visibility_governance.rs",
@@ -88672,7 +88672,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_EXPIRING": {
       "code": "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_EXPIRING",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/visibility_governance.rs",
@@ -88752,7 +88752,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_NOT_YET_VALID": {
       "code": "SNAPBACK_TABLE_VISIBILITY_OVERRIDE_NOT_YET_VALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/visibility_governance.rs",
@@ -88887,7 +88887,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN": {
       "code": "SNAPBACK_TABLE_VISIBILITY_OWNER_FIELD_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -88919,7 +88919,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH": {
       "code": "SNAPBACK_TABLE_VISIBILITY_PLAN_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -88943,12 +88943,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7572,
+          "line": 7574,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 10240,
+          "line": 10242,
           "column": 14
         },
         {
@@ -89186,7 +89186,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH": {
       "code": "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_TYPE_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -89216,7 +89216,7 @@
     },
     "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN": {
       "code": "SNAPBACK_TABLE_VISIBILITY_RESOURCE_FIELD_UNKNOWN",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -89300,7 +89300,7 @@
     },
     "SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE": {
       "code": "SNAPBACK_TABLE_WRITE_AUTHORITY_TABLE_INELIGIBLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -89365,7 +89365,7 @@
     },
     "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE": {
       "code": "SNAPBACK_TABLE_WRITE_OWNER_IMMUTABLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -89374,12 +89374,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7579,
+          "line": 7581,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 10201,
+          "line": 10203,
           "column": 14
         },
         {
@@ -89415,7 +89415,7 @@
     },
     "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED": {
       "code": "SNAPBACK_TABLE_WRITE_OWNER_INPUT_REFUSED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
@@ -89424,12 +89424,12 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7578,
+          "line": 7580,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 10036,
+          "line": 10038,
           "column": 18
         },
         {
@@ -89465,11 +89465,11 @@
     },
     "SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE": {
       "code": "SNAPBACK_TABLE_WRITE_POLICY_INELIGIBLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7577,
+          "line": 7579,
           "column": 12
         },
         {
@@ -89540,7 +89540,7 @@
     },
     "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE": {
       "code": "SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -89554,7 +89554,7 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7576,
+          "line": 7578,
           "column": 12
         },
         {
@@ -89635,11 +89635,11 @@
     },
     "SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED": {
       "code": "SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7575,
+          "line": 7577,
           "column": 12
         },
         {
@@ -89670,7 +89670,7 @@
     },
     "SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED": {
       "code": "SNAPBACK_TABLE_WRITE_UNIQUE_DISCLOSURE_REQUIRED",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -91082,7 +91082,7 @@
     },
     "SNAPBACK_TIMESTAMP_OUT_OF_RANGE": {
       "code": "SNAPBACK_TIMESTAMP_OUT_OF_RANGE",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -91214,7 +91214,7 @@
     },
     "SNAPBACK_UNKNOWN_FIELD": {
       "code": "SNAPBACK_UNKNOWN_FIELD",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/data_patch.rs",
@@ -91283,7 +91283,7 @@
     },
     "SNAPBACK_UNKNOWN_SUBSCRIPTION": {
       "code": "SNAPBACK_UNKNOWN_SUBSCRIPTION",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -91313,7 +91313,7 @@
     },
     "SNAPBACK_UNKNOWN_TABLE": {
       "code": "SNAPBACK_UNKNOWN_TABLE",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/data_patch.rs",
@@ -91459,7 +91459,7 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 269,
+          "line": 268,
           "column": 14
         }
       ],
@@ -91479,7 +91479,7 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 286,
+          "line": 285,
           "column": 14
         }
       ],
@@ -91509,7 +91509,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 914,
+          "line": 913,
           "column": 14
         }
       ],
@@ -91529,12 +91529,12 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 418,
+          "line": 417,
           "column": 10
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 457,
+          "line": 456,
           "column": 10
         }
       ],
@@ -91549,32 +91549,32 @@
       "sites": [
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 708,
+          "line": 707,
           "column": 22
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 722,
+          "line": 721,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 796,
+          "line": 795,
           "column": 22
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 804,
+          "line": 803,
           "column": 22
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 859,
+          "line": 858,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 866,
+          "line": 865,
           "column": 14
         }
       ],
@@ -91589,67 +91589,67 @@
       "sites": [
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 401,
+          "line": 400,
           "column": 22
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 409,
+          "line": 408,
           "column": 10
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 432,
+          "line": 431,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 439,
+          "line": 438,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 446,
+          "line": 445,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 508,
+          "line": 507,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 517,
+          "line": 516,
           "column": 18
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 525,
+          "line": 524,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 534,
+          "line": 533,
           "column": 18
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 583,
+          "line": 582,
           "column": 35
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 614,
+          "line": 613,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 780,
+          "line": 779,
           "column": 14
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 975,
+          "line": 974,
           "column": 10
         }
       ],
@@ -91680,7 +91680,7 @@
     },
     "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY": {
       "code": "SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -91720,7 +91720,7 @@
     },
     "SNAPBACK_VALUE_TOO_LARGE": {
       "code": "SNAPBACK_VALUE_TOO_LARGE",
-      "subsystem": "server",
+      "subsystem": "harness",
       "sites": [
         {
           "file": "crates/snapback/src/auth/recovery.rs",
@@ -91734,17 +91734,17 @@
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 7549,
+          "line": 7551,
           "column": 12
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8317,
+          "line": 8319,
           "column": 57
         },
         {
           "file": "crates/snapback/src/runtime.rs",
-          "line": 8318,
+          "line": 8320,
           "column": 18
         },
         {
@@ -91829,7 +91829,7 @@
     },
     "SNAPBACK_VECTOR_INDEX_INVALID": {
       "code": "SNAPBACK_VECTOR_INDEX_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/manifest.rs",
@@ -91894,7 +91894,7 @@
     },
     "SNAPBACK_VECTOR_INDEX_UNAVAILABLE": {
       "code": "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -92080,7 +92080,7 @@
     },
     "SNAPBACK_VECTOR_QUERY_INVALID": {
       "code": "SNAPBACK_VECTOR_QUERY_INVALID",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server/api_error.rs",
@@ -92112,7 +92112,7 @@
     },
     "SNAPBACK_VECTOR_QUERY_PLAN_INVALID": {
       "code": "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/local.rs",
@@ -92998,7 +92998,7 @@
     },
     "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG": {
       "code": "SNAPBACK_VISIBILITY_GOVERNANCE_TARGET_CONFIG",
-      "subsystem": "server",
+      "subsystem": "codegen",
       "sites": [
         {
           "file": "crates/snapback/src/visibility_governance.rs",
@@ -93790,7 +93790,7 @@
     },
     "SNAPBACK_WEBSOCKET_SENDER_MISMATCH": {
       "code": "SNAPBACK_WEBSOCKET_SENDER_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server.rs",
@@ -93815,7 +93815,7 @@
     },
     "SNAPBACK_WIRE_VERSION_MISMATCH": {
       "code": "SNAPBACK_WIRE_VERSION_MISMATCH",
-      "subsystem": "server",
+      "subsystem": "client",
       "sites": [
         {
           "file": "crates/snapback/src/server.rs",
@@ -93964,7 +93964,7 @@
       "sites": [
         {
           "file": "crates/snapback/src/bin/snapback-conformance-twin.rs",
-          "line": 789,
+          "line": 790,
           "column": 64
         },
         {
@@ -93974,7 +93974,7 @@
         },
         {
           "file": "crates/snapback/src/workerd_exec.rs",
-          "line": 238,
+          "line": 237,
           "column": 70
         }
       ],

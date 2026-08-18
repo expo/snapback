@@ -215,8 +215,7 @@ pub fn detect_workerd_binary() -> Option<PathBuf> {
         }
         return None;
     }
-    let repo_local =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../node_modules/.bin/workerd");
+    let repo_local = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../node_modules/.bin/workerd");
     if repo_local.is_file() {
         return Some(repo_local);
     }

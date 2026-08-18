@@ -1402,8 +1402,38 @@ test('standing battery claims are discovered from every on-disk publication anch
   );
   assert.equal(
     claims.find(({ id }) => id === 'single_table_v1')?.recordPath,
-    'src/local-persistent-store-publication.anchor.v1.json',
+    'crates/snapback/src/local-persistent-store-publication.anchor.v1.json',
   );
+});
+
+test('standing battery claims fail closed when known anchors project to zero claims', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-battery-zero-claims-'));
+  const repo = join(scratch, 'repo');
+  mkdirSync(repo);
+  try {
+    git(repo, ['init', '--quiet']);
+    git(repo, ['config', 'user.name', 'Snapback battery fixture']);
+    git(repo, ['config', 'user.email', 'snapback-battery@example.invalid']);
+    mkdirSync(join(repo, 'src'), { recursive: true });
+    writeFileSync(join(repo, 'src', 'README.md'), 'legacy publication root\n');
+    mkdirSync(join(repo, 'detached'), { recursive: true });
+    writeFileSync(
+      join(repo, 'detached', 'known-publication.anchor.json'),
+      `${JSON.stringify({
+        schemaVersion: 'snapback.local-capability-publication-anchor.v1',
+        capabilityId: 'known_published_fixture_v1',
+        state: 'published',
+        carrierSha256: `sha256:${'0'.repeat(64)}`,
+      })}\n`,
+    );
+    const revision = commitAll(repo, 'test: known anchor outside publication root');
+    assert.throws(
+      () => standingBatteryClaims({ root: repo, revision, context: {} }),
+      /known publication anchor\(s\).*zero standing claims/u,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 // @ref LLP 0189#decision — D-1 tickets are keyed by normalized root failure,

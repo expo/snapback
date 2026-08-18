@@ -1462,14 +1462,14 @@
       "consumerFiles": [
         "tools/agent-safe-baseline-worker/Cargo.toml"
       ],
-      "currentPathExpression": "[workspace] opt-out + snapback = { path = \"../..\" }",
-      "targetExpression": "if absorbed into crates/snapback-tools: dep becomes path = \"../snapback\" (or workspace dep) and the [workspace] opt-out is removed — this changes the frozen build recipe (§3); if it must stay lock-isolated, it needs exclude in the root workspace instead",
-      "verification": "agent-safe baseline recipe gate",
+      "currentPathExpression": "[workspace] opt-out + snapback = { path = \"../..\" } became invalid when the repository root changed to a virtual workspace manifest",
+      "targetExpression": "while the worker remains lock-isolated at tools/ in Phase 1, repoint to ../../crates/snapback; refresh the frozen recipe dependency string and Cargo.toml digest in the same repair",
+      "verification": "cargo metadata --manifest-path tools/agent-safe-baseline-worker/Cargo.toml with dependency resolution + agent-safe baseline recipe gate",
       "changeKind": "update",
-      "applyByEpoch": "phase-2",
-      "surveyCitation": "path-migration-manifest.md:127",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "Phase 1 blind-review correction M3, 2026-08-17",
       "targetFiles": [
-        "crates/snapback-tools/Cargo.toml"
+        "tools/agent-safe-baseline-worker/Cargo.toml"
       ]
     },
     {
@@ -3324,6 +3324,35 @@
       "changeKind": "update",
       "applyByEpoch": "phase-1",
       "surveyCitation": "final blind-review correction A4, 2026-08-17"
+    },
+    {
+      "id": "s09-r005b",
+      "category": "source-reading-checkers",
+      "consumer": "scripts/check-authoring-profile-branches.mjs:38 and packages/snapback-codegen/familiar-phase-a.test.mjs:347",
+      "consumerFiles": [
+        "packages/snapback-codegen/familiar-phase-a.test.mjs",
+        "scripts/check-authoring-profile-branches.mjs"
+      ],
+      "currentPathExpression": "AUTHORING_PROFILE_SCAN_ROOTS and its fail-closed fixture still begin at repository-root src even though the path-exact allowlist moved to crates/snapback/src",
+      "targetExpression": "scan crates/snapback/src plus the three package roots, and keep the inherited ephemeral.rs finding visible rather than dropping the Rust scan",
+      "verification": "node scripts/check-authoring-profile-branches.mjs reports crates/snapback/src/ephemeral.rs:965; familiar-phase-a fixture",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "Phase 1 blind-review correction M1, 2026-08-17"
+    },
+    {
+      "id": "s09-r005c",
+      "category": "source-reading-checkers",
+      "consumer": "packages/snapback-codegen/rbac-authoring.test.mjs:16-20",
+      "consumerFiles": [
+        "packages/snapback-codegen/rbac-authoring.test.mjs"
+      ],
+      "currentPathExpression": "reviewedGenerationConsumerFileAllowlist opens five root src/ Rust files before proving generation-bound authority-field custody",
+      "targetExpression": "repoint all five source readers to crates/snapback/src while retaining the synthetic out-of-hash refusal assertions",
+      "verification": "node --test packages/snapback-codegen/rbac-authoring.test.mjs",
+      "changeKind": "update",
+      "applyByEpoch": "phase-1",
+      "surveyCitation": "Phase 1 blind-review correction M2, 2026-08-17"
     },
     {
       "id": "s09-r006",

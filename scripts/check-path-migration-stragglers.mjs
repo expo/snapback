@@ -10,7 +10,7 @@
 // variables, derived template roots, or helpers defined in another file.
 // `crate::` module paths are out of scope; the compiler and workspace-graph
 // gate own that coverage. Epoch-assignment validation proves only "not too
-// early", not that every assignment is otherwise correct. The 208-row source
+// early", not that every assignment is otherwise correct. The 210-row source
 // manifest was sampled by the two final blind reviews (16 and 19 rows), not
 // independently re-verified row by row. The battery's fail-closed inventories
 // remain the net behind this bounded scanner.

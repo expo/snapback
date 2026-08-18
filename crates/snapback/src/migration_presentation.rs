@@ -914,7 +914,9 @@ mod tests {
                 include_str!("../../../tests/fixtures/migration-presentation/plan-narration.txt")
             }
             "plan-estimate-absent" => {
-                include_str!("../../../tests/fixtures/migration-presentation/plan-estimate-absent.txt")
+                include_str!(
+                    "../../../tests/fixtures/migration-presentation/plan-estimate-absent.txt"
+                )
             }
             "plan-narrow" => {
                 include_str!("../../../tests/fixtures/migration-presentation/plan-narrow.txt")

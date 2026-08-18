@@ -194,7 +194,8 @@ fn fork_admin_token(created: &Value) -> String {
 fn copy_todo_app_root(destination: &Path) {
     let generated = destination.join("snapback/generated");
     std::fs::create_dir_all(&generated).expect("create copied Todo generated directory");
-    let source = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../..")).join("demos/todo/snapback/generated");
+    let source = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .join("demos/todo/snapback/generated");
     for artifact in ["schema.manifest.json", "functions.manifest.json"] {
         std::fs::copy(source.join(artifact), generated.join(artifact))
             .unwrap_or_else(|error| panic!("copy Todo {artifact}: {error}"));
