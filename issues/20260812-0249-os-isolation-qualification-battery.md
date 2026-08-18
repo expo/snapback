@@ -4,7 +4,7 @@
 **Severity:** P0
 **Systems:** Worker sandbox, macOS seatbelt, Linux Landlock/namespaces, CI
 **Date:** 2026-08-12
-**Related:** LLP 0249 D3; LLP 0189; `spike-isolated-node-action/RESULTS-20260812.md`
+**Related:** LLP 0249 D3; LLP 0189; `archive/spike-isolated-node-action/RESULTS-20260812.md`
 
 ## Problem
 

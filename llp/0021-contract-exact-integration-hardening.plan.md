@@ -452,7 +452,7 @@ Draft, with implementation state tracked by phase.
 
 Done:
 
-- [x] [`docs/contract-exact-integration.md`](../docs/contract-exact-integration.md)
+- [x] [`archive/docs/contract-exact-integration.md`](../archive/docs/contract-exact-integration.md)
   inventories demo/admin glue, lifecycle, launch shapes, static/native recipe,
   and product-versus-prototype ownership.
 - [x] Snapback emits structured `SNAPBACK_CAPABILITY_EXACT_*` diagnostics when a

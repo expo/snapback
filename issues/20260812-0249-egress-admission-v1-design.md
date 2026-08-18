@@ -4,7 +4,7 @@
 **Severity:** P1
 **Systems:** Actions, runtime egress, isolation broker, schemas
 **Date:** 2026-08-12
-**Related:** LLP 0249 D3; `spike-isolated-node-action/schemas-draft/egress-admission.v1.json`; `spike-isolated-node-action/schemas-draft/globally-routable-unicast-v1.vectors.json`
+**Related:** LLP 0249 D3; `archive/spike-isolated-node-action/schemas-draft/egress-admission.v1.json`; `archive/spike-isolated-node-action/schemas-draft/globally-routable-unicast-v1.vectors.json`
 
 ## Problem
 

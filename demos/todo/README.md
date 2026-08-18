@@ -45,7 +45,7 @@ and this surface imports generated binding modules from
 `snapback/generated/contract/`; there is no local `surfaces/contract/data/`
 sidecar directory. The LLP 0021 inventory distinguishes the remaining prototype
 glue from product code in
-[`docs/contract-exact-integration.md`](../../docs/contract-exact-integration.md).
+[`archive/docs/contract-exact-integration.md`](../../archive/docs/contract-exact-integration.md).
 
 ## Run it
 

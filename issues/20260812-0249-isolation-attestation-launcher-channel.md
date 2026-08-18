@@ -4,7 +4,7 @@
 **Severity:** P1
 **Systems:** CLI, server, privileged launcher, worker attestation
 **Date:** 2026-08-12
-**Related:** LLP 0249 D3; `spike-isolated-node-action/schemas-draft/isolation-profile.v1.json`
+**Related:** LLP 0249 D3; `archive/spike-isolated-node-action/schemas-draft/isolation-profile.v1.json`
 
 ## Problem
 

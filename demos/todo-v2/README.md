@@ -54,7 +54,7 @@ V2 intentionally reuses that adapter instead of copying bridge code. Its Contrac
 imports generated binding modules from `snapback/generated/contract/`; there is
 no local `surfaces/contract/data/` sidecar directory. The LLP 0021 inventory
 distinguishes the remaining prototype bridge from product code in
-[`docs/contract-exact-integration.md`](../../docs/contract-exact-integration.md).
+[`archive/docs/contract-exact-integration.md`](../../archive/docs/contract-exact-integration.md).
 
 ## Run it
 

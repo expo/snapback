@@ -44,7 +44,7 @@ package exports and owns the programmatic Vite `build()`,
 `exactVitePlugin` before `contractVitePlugin`, route-registry and subdir-entry
 preflights, the LLP 0268 `mac` native envelope, and the post-build URL rewrite
 for the `/_snapback/admin/` mount. The current LLP 0021 inventory lives in
-[`docs/contract-exact-integration.md`](../docs/contract-exact-integration.md).
+[`archive/docs/contract-exact-integration.md`](../archive/docs/contract-exact-integration.md).
 
 ## Dev Serve
 

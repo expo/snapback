@@ -4,7 +4,7 @@
 **Severity:** P1
 **Systems:** Runtime, worker custody, manifest capability, operational readiness
 **Date:** 2026-08-12
-**Related:** LLP 0249 rollout 3; `src/manifest.rs:10197-10500`; `spike-isolated-node-action/RESULTS-20260812.md`
+**Related:** LLP 0249 rollout 3; `src/manifest.rs:10197-10500`; `archive/spike-isolated-node-action/RESULTS-20260812.md`
 
 ## Scope
 
