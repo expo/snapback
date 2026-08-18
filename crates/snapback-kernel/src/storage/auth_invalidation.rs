@@ -6,10 +6,14 @@
 
 use super::auth_stream::ensure_authorization_version_in;
 use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH};
-use crate::auth::invalidation::{RetryEpisode, RetryEpisodeKey, RetryEpisodeRegistry};
+use crate::auth::invalidation::{
+    AUTH_ERROR_ATTEMPTS_TOTAL, AUTH_ERROR_RETRY_WINDOW_MS, AUTH_RETRY_EPISODE_MAX_GLOBAL,
+    AUTH_RETRY_EPISODE_MAX_PER_AUTH_STORE, CompositeWitness, DataWitness, MAX_PROTOCOL_COUNTER,
+    RetryEpisode, RetryEpisodeKey, RetryReservation, RetryReservationKind, validate_counter,
+    validate_opaque,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{OptionalExtension, Transaction, TransactionBehavior, params};
-#[cfg(any(test, feature = "test-support"))]
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -28,6 +32,376 @@ fn exhausted() -> SnapbackError {
         "auth",
         "authorization invalidation boot sequence exhausted the JavaScript-safe range",
     )
+}
+
+/// Kernel-owned durable view of retry episodes. Persistence constructors and
+/// the clock high-water never cross the crate boundary; higher layers can ask
+/// for typed retry operations but cannot manufacture storage state.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+/// persistence reconstruction stays inside the canonical-store kernel.
+#[derive(Clone, Debug, Default)]
+struct PersistedRetryEpisodeRegistry {
+    episodes: BTreeMap<RetryEpisodeKey, RetryEpisode>,
+    clock_high_water_ms: u64,
+    unloaded_global_records: usize,
+    unloaded_store_records: usize,
+}
+
+impl PersistedRetryEpisodeRegistry {
+    fn episodes(&self) -> &BTreeMap<RetryEpisodeKey, RetryEpisode> {
+        &self.episodes
+    }
+
+    fn clock_high_water_ms(&self) -> u64 {
+        self.clock_high_water_ms
+    }
+
+    fn from_persisted(
+        episodes: BTreeMap<RetryEpisodeKey, RetryEpisode>,
+        clock_high_water_ms: u64,
+    ) -> SnapbackResult<Self> {
+        validate_counter(clock_high_water_ms, "retry.clockHighWaterMs", false)?;
+        for (key, episode) in &episodes {
+            validate_retry_episode_key(key)?;
+            validate_persisted_retry_episode(episode, key, clock_high_water_ms)?;
+        }
+        Ok(Self {
+            episodes,
+            clock_high_water_ms,
+            unloaded_global_records: 0,
+            unloaded_store_records: 0,
+        })
+    }
+
+    fn from_persisted_scoped(
+        key: &RetryEpisodeKey,
+        episode: Option<RetryEpisode>,
+        clock_high_water_ms: u64,
+        unloaded_global_records: usize,
+        unloaded_store_records: usize,
+    ) -> SnapbackResult<Self> {
+        validate_counter(clock_high_water_ms, "retry.clockHighWaterMs", false)?;
+        validate_retry_episode_key(key)?;
+        let mut episodes = BTreeMap::new();
+        if let Some(episode) = episode {
+            validate_persisted_retry_episode(&episode, key, clock_high_water_ms)?;
+            episodes.insert(key.clone(), episode);
+        }
+        Ok(Self {
+            episodes,
+            clock_high_water_ms,
+            unloaded_global_records,
+            unloaded_store_records,
+        })
+    }
+
+    fn reserve(
+        &mut self,
+        key: RetryEpisodeKey,
+        witness_floor: CompositeWitness,
+        now_ms: u64,
+        kind: RetryReservationKind,
+    ) -> SnapbackResult<RetryReservation> {
+        validate_retry_episode_key(&key)?;
+        witness_floor.validate()?;
+        validate_counter(now_ms, "retry.nowMs", false)?;
+        if now_ms < self.clock_high_water_ms {
+            if let Some(existing) = self.episodes.get_mut(&key) {
+                existing.attempts_reserved = AUTH_ERROR_ATTEMPTS_TOTAL;
+                existing.first_failure_at_ms.get_or_insert(
+                    existing
+                        .first_attempt_reserved_at_ms
+                        .min(existing.last_reservation_at_ms),
+                );
+                existing.deadline_ms = Some(self.clock_high_water_ms);
+                return Ok(RetryReservation::Exhausted(existing.clone()));
+            }
+            return Err(crate::auth::invalidation::invalidation_error(
+                "SNAPBACK_AUTH_CLOCK_ROLLBACK",
+                "authorization retry clock moved behind its durable high-water",
+            )
+            .into());
+        }
+        self.clock_high_water_ms = now_ms;
+
+        if let Some(existing) = self.episodes.get_mut(&key) {
+            existing.witness_floor = if existing.witness_floor.authorization
+                == witness_floor.authorization
+            {
+                merge_retry_witness(&existing.witness_floor, &witness_floor)?
+            } else if existing.witness_floor.authorization.incarnation
+                == witness_floor.authorization.incarnation
+                && existing.witness_floor.authorization.epoch < witness_floor.authorization.epoch
+            {
+                CompositeWitness {
+                    authorization: witness_floor.authorization.clone(),
+                    data: merge_retry_data_witness(
+                        existing.witness_floor.data.as_ref(),
+                        witness_floor.data.as_ref(),
+                    )?,
+                }
+            } else {
+                return Err(crate::auth::invalidation::invalidation_error(
+                    "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                    "retry witness cannot move backward or cross an unauthenticated incarnation",
+                )
+                .into());
+            };
+            if kind == RetryReservationKind::Initial {
+                return Ok(RetryReservation::Attached(existing.clone()));
+            }
+            if existing.first_failure_at_ms.is_none() {
+                let origin = existing
+                    .first_attempt_reserved_at_ms
+                    .min(existing.last_reservation_at_ms);
+                existing.first_failure_at_ms = Some(origin);
+                existing.deadline_ms = origin
+                    .checked_add(AUTH_ERROR_RETRY_WINDOW_MS)
+                    .filter(|value| *value <= MAX_PROTOCOL_COUNTER)
+                    .or(Some(origin));
+            }
+            if existing.attempts_reserved >= AUTH_ERROR_ATTEMPTS_TOTAL
+                || existing
+                    .deadline_ms
+                    .is_some_and(|deadline| now_ms > deadline)
+            {
+                return Ok(RetryReservation::Exhausted(existing.clone()));
+            }
+            existing.attempts_reserved += 1;
+            existing.last_reservation_at_ms = now_ms;
+            return Ok(RetryReservation::Reserved(existing.clone()));
+        }
+
+        if kind != RetryReservationKind::Initial {
+            return Err(corrupt(
+                "automatic retry cannot create an episode without an initial attempt",
+            ));
+        }
+        self.ensure_capacity(&key)?;
+        let episode = RetryEpisode {
+            episode_id: crate::ids::mint_time_ordered(crate::ids::Kind::RetryEpisode),
+            key: key.clone(),
+            witness_floor,
+            first_attempt_reserved_at_ms: now_ms,
+            first_failure_at_ms: None,
+            attempts_reserved: 1,
+            deadline_ms: None,
+            manual_retry_id: None,
+            last_reservation_at_ms: now_ms,
+        };
+        self.episodes.insert(key, episode.clone());
+        Ok(RetryReservation::Reserved(episode))
+    }
+
+    fn record_failure(&mut self, key: &RetryEpisodeKey, now_ms: u64) -> SnapbackResult<()> {
+        validate_counter(now_ms, "retry.failureAtMs", false)?;
+        let episode = self
+            .episodes
+            .get_mut(key)
+            .ok_or_else(|| corrupt("retry failure has no reserved episode"))?;
+        if now_ms < self.clock_high_water_ms {
+            episode.attempts_reserved = AUTH_ERROR_ATTEMPTS_TOTAL;
+            episode.first_failure_at_ms.get_or_insert(
+                episode
+                    .first_attempt_reserved_at_ms
+                    .min(episode.last_reservation_at_ms),
+            );
+            episode.deadline_ms = Some(self.clock_high_water_ms);
+            return Err(crate::auth::invalidation::invalidation_error(
+                "SNAPBACK_AUTH_CLOCK_ROLLBACK",
+                "authorization retry clock moved behind its durable high-water",
+            )
+            .into());
+        }
+        if episode.first_failure_at_ms.is_none() {
+            episode.first_failure_at_ms = Some(now_ms);
+            episode.deadline_ms = now_ms
+                .checked_add(AUTH_ERROR_RETRY_WINDOW_MS)
+                .filter(|value| *value <= MAX_PROTOCOL_COUNTER)
+                .or(Some(now_ms));
+        }
+        self.clock_high_water_ms = self.clock_high_water_ms.max(now_ms);
+        Ok(())
+    }
+
+    fn resolve(&mut self, key: &RetryEpisodeKey, proof: &CompositeWitness) -> bool {
+        let Some(episode) = self.episodes.get(key) else {
+            return false;
+        };
+        if !proof.covers(&episode.witness_floor) {
+            return false;
+        }
+        self.episodes.remove(key);
+        true
+    }
+
+    fn manual_retry(
+        &mut self,
+        key: &RetryEpisodeKey,
+        manual_retry_id: impl Into<String>,
+        now_ms: u64,
+    ) -> SnapbackResult<RetryReservation> {
+        let manual_retry_id = manual_retry_id.into();
+        validate_opaque(&manual_retry_id, "manualRetryId")?;
+        validate_counter(now_ms, "manualRetry.nowMs", false)?;
+        if now_ms < self.clock_high_water_ms {
+            return Err(crate::auth::invalidation::invalidation_error(
+                "SNAPBACK_AUTH_CLOCK_ROLLBACK",
+                "authorization retry clock moved behind its durable high-water",
+            )
+            .into());
+        }
+        let episode = self
+            .episodes
+            .get_mut(key)
+            .ok_or_else(|| corrupt("manual retry has no unresolved episode"))?;
+        if episode.manual_retry_id.as_deref() == Some(&manual_retry_id) {
+            return Ok(RetryReservation::Attached(episode.clone()));
+        }
+        if episode.attempts_reserved < AUTH_ERROR_ATTEMPTS_TOTAL
+            && episode
+                .deadline_ms
+                .is_none_or(|deadline| now_ms <= deadline)
+        {
+            return Err(crate::auth::invalidation::invalidation_error(
+                "SNAPBACK_AUTH_RETRY_NOT_EXHAUSTED",
+                "manual retry cannot replace an authorization retry episode before exhaustion",
+            )
+            .into());
+        }
+        episode.episode_id = crate::ids::mint_time_ordered(crate::ids::Kind::RetryEpisode);
+        episode.first_attempt_reserved_at_ms = now_ms;
+        episode.first_failure_at_ms = None;
+        episode.attempts_reserved = 1;
+        episode.deadline_ms = None;
+        episode.manual_retry_id = Some(manual_retry_id);
+        episode.last_reservation_at_ms = now_ms;
+        self.clock_high_water_ms = self.clock_high_water_ms.max(now_ms);
+        Ok(RetryReservation::Reserved(episode.clone()))
+    }
+
+    fn ensure_capacity(&self, key: &RetryEpisodeKey) -> SnapbackResult<()> {
+        let per_store = self
+            .episodes
+            .keys()
+            .filter(|candidate| {
+                candidate.authority_subject == key.authority_subject
+                    && candidate.client_store_id == key.client_store_id
+            })
+            .count()
+            .saturating_add(self.unloaded_store_records);
+        let global = self
+            .episodes
+            .len()
+            .saturating_add(self.unloaded_global_records);
+        if global >= AUTH_RETRY_EPISODE_MAX_GLOBAL
+            || per_store >= AUTH_RETRY_EPISODE_MAX_PER_AUTH_STORE
+        {
+            return Err(crate::auth::invalidation::invalidation_error(
+                "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY",
+                "authorization retry episode storage is at its fail-closed capacity",
+            )
+            .into());
+        }
+        Ok(())
+    }
+}
+
+fn validate_retry_episode_key(key: &RetryEpisodeKey) -> SnapbackResult<()> {
+    validate_opaque(&key.authority_subject, "authoritySubject")?;
+    validate_opaque(&key.client_store_id, "clientStoreId")?;
+    if key.query_key.is_empty() || key.query_key.len() > 8_192 {
+        return Err(corrupt("retry query key is empty or too large"));
+    }
+    Ok(())
+}
+
+fn validate_persisted_retry_episode(
+    episode: &RetryEpisode,
+    expected_key: &RetryEpisodeKey,
+    clock_high_water_ms: u64,
+) -> SnapbackResult<()> {
+    if &episode.key != expected_key {
+        return Err(corrupt("retry episode key does not match its storage key"));
+    }
+    validate_opaque(&episode.episode_id, "retry.episodeId")?;
+    episode.witness_floor.validate()?;
+    validate_counter(
+        episode.first_attempt_reserved_at_ms,
+        "retry.firstAttemptReservedAtMs",
+        false,
+    )?;
+    validate_counter(
+        episode.last_reservation_at_ms,
+        "retry.lastReservationAtMs",
+        false,
+    )?;
+    if episode.attempts_reserved == 0 || episode.attempts_reserved > AUTH_ERROR_ATTEMPTS_TOTAL {
+        return Err(corrupt("retry attemptsReserved is outside 1..=3"));
+    }
+    if episode.last_reservation_at_ms < episode.first_attempt_reserved_at_ms
+        || episode.last_reservation_at_ms > clock_high_water_ms
+    {
+        return Err(corrupt("retry reservation times are not monotone"));
+    }
+    match (episode.first_failure_at_ms, episode.deadline_ms) {
+        (None, None) => {}
+        (Some(failure), Some(deadline)) => {
+            validate_counter(failure, "retry.firstFailureAtMs", false)?;
+            validate_counter(deadline, "retry.deadlineMs", false)?;
+            let maximum = failure
+                .checked_add(AUTH_ERROR_RETRY_WINDOW_MS)
+                .filter(|value| *value <= MAX_PROTOCOL_COUNTER)
+                .unwrap_or(failure);
+            if deadline > maximum {
+                return Err(corrupt("retry deadline extends beyond the fixed window"));
+            }
+        }
+        _ => return Err(corrupt("retry failure and deadline must appear together")),
+    }
+    if let Some(manual_retry_id) = &episode.manual_retry_id {
+        validate_opaque(manual_retry_id, "retry.manualRetryId")?;
+    }
+    Ok(())
+}
+
+fn merge_retry_witness(
+    current: &CompositeWitness,
+    incoming: &CompositeWitness,
+) -> SnapbackResult<CompositeWitness> {
+    if current.authorization != incoming.authorization {
+        return Err(corrupt(
+            "one live scope cannot merge obligations from different authorization pairs",
+        ));
+    }
+    let data = merge_retry_data_witness(current.data.as_ref(), incoming.data.as_ref())?;
+    Ok(CompositeWitness {
+        authorization: incoming.authorization.clone(),
+        data,
+    })
+}
+
+fn merge_retry_data_witness(
+    current: Option<&DataWitness>,
+    incoming: Option<&DataWitness>,
+) -> SnapbackResult<Option<DataWitness>> {
+    match (current, incoming) {
+        (Some(current), Some(incoming)) => {
+            if current.version_stream != incoming.version_stream {
+                return Err(corrupt(
+                    "one live scope cannot merge obligations from different version streams",
+                ));
+            }
+            Ok(Some(DataWitness {
+                version_stream: current.version_stream.clone(),
+                min_commit_version: current.min_commit_version.max(incoming.min_commit_version),
+            }))
+        }
+        (Some(current), None) => Ok(Some(current.clone())),
+        (None, Some(incoming)) => Ok(Some(incoming.clone())),
+        (None, None) => Ok(None),
+    }
 }
 
 impl LocalDatabase {
@@ -247,10 +621,10 @@ impl LocalDatabase {
     /// are maintained in the same auth-control transaction as episode
     /// insert/replace/delete and rebuilt from the bounded table before
     /// admission; no unresolved or exhausted episode is ever safety-evicted.
-    pub fn with_invalidation_retry_episode<T>(
+    fn with_invalidation_retry_episode<T>(
         &mut self,
         key: &RetryEpisodeKey,
-        operation: impl FnOnce(&mut RetryEpisodeRegistry) -> SnapbackResult<T>,
+        operation: impl FnOnce(&mut PersistedRetryEpisodeRegistry) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
         let tx = self
             .conn
@@ -277,7 +651,7 @@ impl LocalDatabase {
                 .map_err(|_| corrupt("retry global count is not representable"))?
         };
         let loaded_records = usize::from(loaded.is_some());
-        let mut registry = RetryEpisodeRegistry::from_persisted_scoped(
+        let mut registry = PersistedRetryEpisodeRegistry::from_persisted_scoped(
             key,
             loaded.clone(),
             clock_high_water_ms,
@@ -293,13 +667,58 @@ impl LocalDatabase {
         Ok(output)
     }
 
+    pub fn reserve_invalidation_retry_episode(
+        &mut self,
+        key: &RetryEpisodeKey,
+        witness_floor: crate::auth::invalidation::CompositeWitness,
+        now_ms: u64,
+        kind: crate::auth::invalidation::RetryReservationKind,
+    ) -> SnapbackResult<crate::auth::invalidation::RetryReservation> {
+        self.with_invalidation_retry_episode(key, |registry| {
+            registry
+                .reserve(key.clone(), witness_floor, now_ms, kind)
+                .map_err(Into::into)
+        })
+    }
+
+    pub fn record_invalidation_retry_failure(
+        &mut self,
+        key: &RetryEpisodeKey,
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        self.with_invalidation_retry_episode(key, |registry| {
+            registry.record_failure(key, now_ms).map_err(Into::into)
+        })
+    }
+
+    pub fn resolve_invalidation_retry_episode(
+        &mut self,
+        key: &RetryEpisodeKey,
+        proof: &crate::auth::invalidation::CompositeWitness,
+    ) -> SnapbackResult<bool> {
+        self.with_invalidation_retry_episode(key, |registry| Ok(registry.resolve(key, proof)))
+    }
+
+    pub fn reserve_manual_invalidation_retry(
+        &mut self,
+        key: &RetryEpisodeKey,
+        manual_retry_id: impl Into<String>,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::auth::invalidation::RetryReservation> {
+        self.with_invalidation_retry_episode(key, |registry| {
+            registry
+                .manual_retry(key, manual_retry_id, now_ms)
+                .map_err(Into::into)
+        })
+    }
+
     /// Test-only full snapshot of the durable retry registry. Reads and
     /// validates every episode without rewriting anything; production paths
     /// are key-local by design.
     #[cfg(any(test, feature = "test-support"))]
-    pub fn read_invalidation_retry_registry<T>(
+    fn read_invalidation_retry_registry<T>(
         &mut self,
-        operation: impl FnOnce(&RetryEpisodeRegistry) -> SnapbackResult<T>,
+        operation: impl FnOnce(&PersistedRetryEpisodeRegistry) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
         let tx = self
             .conn
@@ -307,10 +726,18 @@ impl LocalDatabase {
         let head = super::current_version_on(&tx)?;
         let episodes = load_retry_episodes(&tx, head)?;
         let clock_high_water_ms = strict_meta_u64(&tx, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
-        let registry = RetryEpisodeRegistry::from_persisted(episodes, clock_high_water_ms)?;
+        let registry =
+            PersistedRetryEpisodeRegistry::from_persisted(episodes, clock_high_water_ms)?;
         let output = operation(&registry)?;
         tx.commit()?;
         Ok(output)
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn invalidation_retry_episodes_for_test(
+        &mut self,
+    ) -> SnapbackResult<BTreeMap<RetryEpisodeKey, RetryEpisode>> {
+        self.read_invalidation_retry_registry(|registry| Ok(registry.episodes().clone()))
     }
 
     /// Test-only bulk fixture installer: durable episodes, counter rows, the
@@ -528,7 +955,7 @@ fn persist_scoped_retry_episode(
     key: &RetryEpisodeKey,
     loaded: Option<&RetryEpisode>,
     loaded_clock_high_water_ms: u64,
-    registry: &RetryEpisodeRegistry,
+    registry: &PersistedRetryEpisodeRegistry,
 ) -> SnapbackResult<()> {
     if registry.episodes().keys().any(|candidate| candidate != key) {
         return Err(corrupt(

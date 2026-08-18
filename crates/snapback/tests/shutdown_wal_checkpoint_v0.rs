@@ -60,7 +60,7 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
     db.mutation_writes()
         .execute_mutation(
             &MutationPlan {
-            owner_write_checks: Vec::new(),
+                owner_write_checks: Vec::new(),
                 steps: vec![MutationStep::Insert {
                     table: "notes".to_owned(),
                     values: BTreeMap::from([(
@@ -82,15 +82,13 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
     // Retain an idle pooled reader that has read a real page, so it holds the
     // WAL-mode SHARED lock that defeats the writer's close-time checkpoint.
     let pool = db.reader_pool().expect("file-backed reader pool");
-    let reader = pool.checkout().expect("pooled reader checkout");
     assert_eq!(
-        reader
-            .conn()
-            .query_row("SELECT COUNT(*) FROM notes", [], |row| row.get::<_, i64>(0))
-            .expect("pooled reader query"),
+        pool.with_pinned_read(db.schema(), |reader| {
+            reader.table_row_count_for_test("notes")
+        })
+        .expect("pooled reader query"),
         1
     );
-    drop(reader);
 
     let report = db.shutdown_checkpoint(Duration::from_secs(30));
     assert!(report.applicable, "{}", report.summary());
@@ -109,13 +107,10 @@ fn pooled_readers_no_longer_strand_the_wal_on_shutdown() {
 
     let reopened = LocalDatabase::open(&path).expect("reopen checkpointed database");
     let reopened_pool = reopened.reader_pool().expect("reopened reader pool");
-    let reopened_reader = reopened_pool.checkout().expect("reopened reader");
-    let mode = reopened_reader
-        .conn()
-        .query_row("PRAGMA journal_mode", [], |row| row.get::<_, String>(0))
+    let mode = reopened_pool
+        .with_pinned_read(reopened.schema(), |reader| reader.journal_mode_for_test())
         .expect("inspect reopened journal mode");
     assert_eq!(mode.to_ascii_lowercase(), "wal");
-    drop(reopened_reader);
     let reopened_report = reopened.shutdown_checkpoint(Duration::from_secs(30));
     assert!(reopened_report.complete, "{}", reopened_report.summary());
     drop(reopened);
@@ -159,16 +154,10 @@ fn plain_drop_strands_the_wal_only_once_the_reader_pool_is_warm() {
     let warm = directory.path().join("warm.sqlite3");
     let warm_db = LocalDatabase::open(&warm).expect("open queried database");
     let pool = warm_db.reader_pool().expect("file-backed reader pool");
-    let reader = pool.checkout().expect("pooled reader checkout");
-    reader
-        .conn()
-        .query_row(
-            "SELECT version FROM _snapback_version WHERE id = 1",
-            [],
-            |row| row.get::<_, i64>(0),
-        )
-        .expect("pooled reader database query");
-    drop(reader);
+    pool.with_pinned_read(warm_db.schema(), |reader| {
+        reader.current_version().map(|_| ())
+    })
+    .expect("pooled reader database query");
     drop(warm_db);
     assert!(
         sidecar(&warm, "-wal").exists(),

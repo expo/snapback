@@ -8,6 +8,10 @@
 **Related:** LLP 0000, LLP 0002, LLP 0010, LLP 0037, LLP 0041, LLP 0053,
 LLP 0059, LLP 0061, LLP 0141, LLP 0189, LLP 0199, LLP 0225, LLP 0232,
 LLP 0259
+**Revised:** 2026-08-18 (Phase 2 security-fix round: port inversion may not
+replace a compiler-enforced admission capability with a caller-asserted
+public trait, enum, or constructor; commit ports retain opaque capabilities
+and façade confinement, with negative compilation evidence.)
 **Revised:** 2026-08-18 (**Accepted by Charlie Cheever**, in-session, after
 the super-refine loop converged dual-READY — codex gpt-5.6-sol xhigh and
 grok-4.6 xhigh both READY in the author-authorized round 4, verdicts bound
@@ -657,7 +661,16 @@ Consequences:
   hard prerequisite for `snapback-activation`; the remaining
   `storage/* → crates/snapback/src/auth/*` call-up family is likewise the named prerequisite
   for the kernel and auth carves (invert the edge; never reassign the
-  calling file upward). Each carve: invert, `git mv`, split the sibling
+  calling file upward). **A port inversion may transport admitted facts but
+  must not turn an enforced capability into an assertion:** a crate-private
+  admission carrier remains opaque across the boundary, its raw constructor
+  and commit primitive are not re-exported by the façade, and a public trait
+  or enum may not let the caller claim that admission occurred. Where Rust's
+  crate privacy requires a public inter-crate carrier, it remains confined to
+  an unpublished lower crate and only the higher authorized adapter projects
+  it into a reachable commit call. Each privilege-bearing carve records a
+  negative compile probe for the pre-carve attack. Each carve: invert,
+  `git mv`, split the sibling
   `tests.rs` along the same lines, resolve that module's grandfathered
   edges (the ratchet items die at their carve), compile, run affected gates.
   Coverage overlaps throughout: the workspace-graph gate holds the crate

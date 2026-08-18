@@ -27115,15 +27115,13 @@ fn auth_requery_error_uses_one_durable_three_attempt_episode() {
         .expect("durable retry episode id");
     let episode = snapback
         .auth_database_mut()
-        .read_invalidation_retry_registry(|registry| {
-            Ok(registry
-                .episodes()
-                .values()
-                .next()
-                .cloned()
-                .expect("stored retry episode"))
-        })
+        .invalidation_retry_episodes_for_test()
         .expect("read retry registry");
+    let episode = episode
+        .values()
+        .next()
+        .cloned()
+        .expect("stored retry episode");
     assert_eq!(episode.episode_id, retry_id);
     assert_eq!(
         episode.attempts_reserved,
@@ -27179,7 +27177,8 @@ fn retired_auth_epoch_cannot_commit_retry_registry_state() {
         .witness(0);
     let before = snapback
         .auth_database_mut()
-        .read_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
+        .invalidation_retry_episodes_for_test()
+        .map(|episodes| episodes.len())
         .expect("read retry registry");
     let failure = snapback
         .run_authorization_retry_transaction(
@@ -27187,23 +27186,20 @@ fn retired_auth_epoch_cannot_commit_retry_registry_state() {
             "retired authorization retry transaction",
             None,
             |database| {
-                database.with_invalidation_retry_episode(&key, |registry| {
-                    registry
-                        .reserve(
-                            key.clone(),
-                            witness,
-                            now_millis(),
-                            RetryReservationKind::Initial,
-                        )
-                        .map_err(Into::into)
-                })
+                database.reserve_invalidation_retry_episode(
+                    &key,
+                    witness,
+                    now_millis(),
+                    RetryReservationKind::Initial,
+                )
             },
         )
         .expect_err("retired epoch must fail before the durable transaction");
     assert_eq!(failure.error.diagnostic.code, "SNAPBACK_AUTH_MODE_PENDING");
     let after = snapback
         .auth_database_mut()
-        .read_invalidation_retry_registry(|registry| Ok(registry.episodes().len()))
+        .invalidation_retry_episodes_for_test()
+        .map(|episodes| episodes.len())
         .expect("read retry registry");
     assert_eq!(after, before);
 }
@@ -27862,16 +27858,12 @@ fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
         let churn_started = Instant::now();
         let initial = snapback
             .auth_database_mut()
-            .with_invalidation_retry_episode(&target, |registry| {
-                registry
-                    .reserve(
-                        target.clone(),
-                        witness.clone(),
-                        now,
-                        RetryReservationKind::Initial,
-                    )
-                    .map_err(Into::into)
-            })
+            .reserve_invalidation_retry_episode(
+                &target,
+                witness.clone(),
+                now,
+                RetryReservationKind::Initial,
+            )
             .expect("initial refire reservation");
         assert!(matches!(
             initial,
@@ -27880,16 +27872,12 @@ fn retry_churn_at_the_global_cap_does_not_starve_unrelated_mutations() {
         now += 1;
         let automatic = snapback
             .auth_database_mut()
-            .with_invalidation_retry_episode(&target, |registry| {
-                registry
-                    .reserve(
-                        target.clone(),
-                        witness.clone(),
-                        now,
-                        RetryReservationKind::Automatic,
-                    )
-                    .map_err(Into::into)
-            })
+            .reserve_invalidation_retry_episode(
+                &target,
+                witness.clone(),
+                now,
+                RetryReservationKind::Automatic,
+            )
             .expect("automatic refire reservation");
         assert!(matches!(
             automatic,

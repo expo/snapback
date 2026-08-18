@@ -2696,25 +2696,27 @@ mod tests {
             .with_pinned_read_view(|view| {
                 let table = view.schema().table("incidents").expect("fixture table");
                 let index = table.search_indexes.first().expect("fixture search index");
-                let (generation, _, _) = active_generation(view.conn(), &table.name, &index.name)?;
                 let prefix = "check";
                 let upper_bound = prefix_upper_bound(prefix).expect("bounded ASCII prefix");
-                let mut statement = view.conn().prepare(&format!(
-                    "EXPLAIN QUERY PLAN {PREFIX_CANDIDATES_BOUNDED_SQL}"
-                ))?;
-                let rows = statement.query_map(
-                    params![
-                        table.name,
-                        index.name,
-                        generation as i64,
-                        "public",
-                        prefix,
-                        upper_bound,
-                        Option::<String>::None,
-                    ],
-                    |row| row.get::<_, String>(3),
-                )?;
-                Ok(rows.collect::<Result<Vec<_>, _>>()?)
+                view.with_connection(|conn| {
+                    let (generation, _, _) = active_generation(conn, &table.name, &index.name)?;
+                    let mut statement = conn.prepare(&format!(
+                        "EXPLAIN QUERY PLAN {PREFIX_CANDIDATES_BOUNDED_SQL}"
+                    ))?;
+                    let rows = statement.query_map(
+                        params![
+                            table.name,
+                            index.name,
+                            generation as i64,
+                            "public",
+                            prefix,
+                            upper_bound,
+                            Option::<String>::None,
+                        ],
+                        |row| row.get::<_, String>(3),
+                    )?;
+                    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+                })
             })
             .expect("explain prefix candidate query");
 

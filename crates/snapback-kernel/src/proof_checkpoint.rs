@@ -1448,9 +1448,7 @@ fn required_checkpoint_schema_hash(schema: &SchemaManifest) -> SnapbackResult<&s
         })
 }
 
-pub fn validate_checkpoint_request(
-    request: &NamedCheckpointRequestV1,
-) -> SnapbackResult<()> {
+pub fn validate_checkpoint_request(request: &NamedCheckpointRequestV1) -> SnapbackResult<()> {
     crate::manifest::validate_portable_timestamp_millis(request.now_ms)?;
     crate::manifest::validate_portable_timestamp_millis(request.lease_expires_at_ms)?;
     let lease = request
@@ -2721,7 +2719,7 @@ pub fn erase_protected_record_checkpoint_copies(
 /// @ref LLP 0165#protected-deletion-authority-audit--2026-08-04 — generic
 /// `BufferedWrite::Delete` has no protected-erasure authority; this deliberate
 /// command owns canonical deletion, registry fencing, and copy obligations.
-pub fn erase_protected_record(
+pub(crate) fn erase_protected_record(
     conn: &Connection,
     schema: &SchemaManifest,
     request: &ProtectedRecordErasureRequestV1,
@@ -4196,8 +4194,10 @@ mod tests {
             "operator-b" => 8,
             _ => 9,
         };
-        let credential_digest_sha256 =
-            format!("sha256:{}", hex(&Sha256::digest(authority_label.as_bytes())));
+        let credential_digest_sha256 = format!(
+            "sha256:{}",
+            hex(&Sha256::digest(authority_label.as_bytes()))
+        );
         ProtectedRecordErasureRequestV1 {
             operation_id: operation_id.to_owned(),
             authority: ProtectedRecordErasureAuthorityV1::from_admitted_facts(

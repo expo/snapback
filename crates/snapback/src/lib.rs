@@ -106,9 +106,9 @@ pub mod error_tracking;
 #[doc(hidden)]
 pub mod errors_query;
 #[doc(hidden)]
-pub use snapback_types::exec_guard;
-#[doc(hidden)]
 pub use snapback_kernel::fork_promotion;
+#[doc(hidden)]
+pub use snapback_types::exec_guard;
 #[doc(hidden)]
 pub mod guide;
 pub(crate) mod guide_mcp;
@@ -152,8 +152,10 @@ pub use snapback_kernel::operation_ledger;
 #[doc(hidden)]
 pub mod operational_readiness;
 pub(crate) use snapback_types::owner_only_file;
-#[doc(hidden)]
-pub use snapback_kernel::proof_checkpoint;
+// The proof/checkpoint implementation contains commit primitives and
+// admission carriers. Keep the kernel module available to in-crate adapters
+// without publishing it as a forgeable façade surface.
+pub(crate) use snapback_kernel::proof_checkpoint;
 #[doc(hidden)]
 pub mod push;
 pub mod realtime;
@@ -197,9 +199,9 @@ pub use snapback_types::telemetry_contract;
 #[doc(hidden)]
 pub mod telemetry_query;
 #[doc(hidden)]
-pub use snapback_types::value_expr;
-#[doc(hidden)]
 pub use snapback_kernel::vector;
+#[doc(hidden)]
+pub use snapback_types::value_expr;
 pub(crate) mod warm_vm;
 #[doc(hidden)]
 pub mod wire_fixtures;

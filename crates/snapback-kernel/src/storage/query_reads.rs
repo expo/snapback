@@ -37,12 +37,7 @@ impl LocalDatabase {
         &self,
         read: impl FnOnce(DbRead<'_>) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
-        with_pinned_read_snapshot(&self.conn, |conn| {
-            read(DbRead::Pinned {
-                conn,
-                schema: &self.schema,
-            })
-        })
+        with_pinned_read_snapshot(&self.conn, |conn| read(DbRead::pinned(conn, &self.schema)))
     }
 
     pub(super) fn query_with_storage_limit(

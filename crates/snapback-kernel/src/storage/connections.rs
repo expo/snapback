@@ -10,13 +10,13 @@ const READER_POOL_RETAINED: usize = 4;
 /// connection. Construction reconstructs the durable armed manifest, verifies
 /// defensive mode, installs the same default-deny authorizer, and enters a
 /// system-only token that cannot authorize application or journal DML.
-pub enum RegisteredSystemWriterPurposeV1 {
+pub(super) enum RegisteredSystemWriterPurposeV1 {
     DerivedForkLifecycle,
     DerivedForkEgressMarker,
     VectorIndex,
 }
 
-pub struct RegisteredSystemWriterV1 {
+pub(super) struct RegisteredSystemWriterV1 {
     conn: Connection,
     _authority: write_authority::WriterAuthorityV1,
     _token: write_authority::GeneratedWriterTokenV1,
@@ -362,12 +362,19 @@ pub(super) fn registered_writer_coverage_manifest(
 }
 
 impl RegisteredSystemWriterV1 {
-    pub fn conn(&self) -> &Connection {
-        &self.conn
+    #[cfg(test)]
+    pub(super) fn execute_for_authorizer_test(&self, sql: &str) -> rusqlite::Result<usize> {
+        self.conn.execute(sql, [])
+    }
+
+    #[cfg(test)]
+    pub(super) fn defensive_mode_for_authorizer_test(&self) -> rusqlite::Result<bool> {
+        self.conn
+            .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
     }
 }
 
-pub fn open_registered_system_writer_v1(
+pub(super) fn open_registered_system_writer_v1(
     path: &Path,
     purpose: RegisteredSystemWriterPurposeV1,
 ) -> SnapbackResult<RegisteredSystemWriterV1> {
@@ -406,6 +413,87 @@ pub fn open_registered_system_writer_v1(
         _authority: authority,
         _token: token,
     })
+}
+
+/// Atomically replace the exact derived-fork lineage row through the
+/// registered lifecycle lane. The service supplies typed lineage intent and
+/// never receives the writable connection or transaction.
+///
+/// @ref LLP 0225#3-transaction-and-commit-boundaries--who-may-commit-what —
+/// the storage kernel is the sole canonical-store transaction authority.
+pub fn renew_derived_fork_lineage_v1(
+    path: &Path,
+    lineage: &crate::instance_fork::DerivedForkLineageV1,
+    checkpoint_first: bool,
+) -> SnapbackResult<()> {
+    let writer = open_registered_system_writer_v1(
+        path,
+        RegisteredSystemWriterPurposeV1::DerivedForkLifecycle,
+    )?;
+    if checkpoint_first && !crate::replication::configured_from_env() {
+        writer.conn.execute_batch("PRAGMA wal_checkpoint(FULL);")?;
+    }
+    let lineage_json = serde_json::to_string(lineage).map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_FORK_LINEAGE_INVALID",
+            "instanceFork",
+            error.to_string(),
+        )
+    })?;
+    let tx = writer.conn.unchecked_transaction()?;
+    let changed = tx.execute(
+        "UPDATE _snapback_meta SET value=?2 WHERE key=?1",
+        params!["instance_fork_lineage_v1", lineage_json],
+    )?;
+    if changed != 1 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+            "instanceFork",
+            "renewal lineage update did not affect exactly one fork row",
+        )
+        .with_details(json!({ "updatedRows": changed })));
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// Persist one bounded derived-fork egress-denial marker through its exact
+/// registered system lane.
+pub fn record_derived_fork_egress_attempt_v1(
+    path: &Path,
+    family: &str,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let writer = open_registered_system_writer_v1(
+        path,
+        RegisteredSystemWriterPurposeV1::DerivedForkEgressMarker,
+    )?;
+    writer.conn.execute(
+        "INSERT INTO _snapback_fork_egress_attempts_v1(
+           family,attempts,first_attempt_at_ms,last_attempt_at_ms
+         ) VALUES(?1,1,?2,?2)
+         ON CONFLICT(family) DO UPDATE SET
+           attempts=MIN(attempts + 1, 9223372036854775807),
+           last_attempt_at_ms=excluded.last_attempt_at_ms",
+        params![family, now_ms],
+    )?;
+    Ok(())
+}
+
+/// Test-support probe for the connection-local authorizer. It exposes only a
+/// denial verdict, never the registered writer or its SQLite handle.
+#[cfg(any(test, feature = "test-support"))]
+pub fn registered_vector_writer_denies_sql_for_test(
+    path: &Path,
+    sql: &str,
+) -> SnapbackResult<bool> {
+    let writer =
+        open_registered_system_writer_v1(path, RegisteredSystemWriterPurposeV1::VectorIndex)?;
+    Ok(matches!(
+        writer.conn.execute(sql, []),
+        Err(rusqlite::Error::SqliteFailure(failure, _))
+            if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+    ))
 }
 
 /// A pool of read-only WAL connections for the lock-free read lane.
@@ -449,7 +537,7 @@ impl ReaderPool {
             .collect()
     }
 
-    pub fn checkout(&self) -> SnapbackResult<PooledReader<'_>> {
+    fn checkout(&self) -> SnapbackResult<PooledReader<'_>> {
         crate::exec_guard::debug_assert_off_async_worker("a reader-pool checkout");
         let pooled = self
             .idle
@@ -464,6 +552,22 @@ impl ReaderPool {
             pool: self,
             conn: Some(conn),
         })
+    }
+
+    /// Execute one operation inside a kernel-owned read transaction. The
+    /// callback receives only the typed read carrier; neither the pooled
+    /// connection nor its transaction can escape this boundary.
+    pub fn with_pinned_read<T>(
+        &self,
+        schema: &SchemaManifest,
+        read: impl FnOnce(DbRead<'_>) -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        let reader = self.checkout()?;
+        let tx = reader.connection().unchecked_transaction()?;
+        current_version_on(&tx)?;
+        let output = read(DbRead::pinned(&tx, schema))?;
+        tx.commit()?;
+        Ok(output)
     }
 
     fn open_reader(&self) -> SnapbackResult<Connection> {
@@ -501,7 +605,7 @@ impl ReaderPool {
             RegisteredSystemWriterPurposeV1::VectorIndex,
         )?;
         crate::vector::sqlite::quarantine_generation_on(
-            writer.conn(),
+            &writer.conn,
             identity,
             "same-snapshot vector release recheck failed",
         )
@@ -524,13 +628,13 @@ impl ReaderPool {
 }
 
 /// A checked-out reader connection; returns to the pool on drop.
-pub struct PooledReader<'a> {
+struct PooledReader<'a> {
     pool: &'a ReaderPool,
     conn: Option<Connection>,
 }
 
 impl PooledReader<'_> {
-    pub fn conn(&self) -> &Connection {
+    fn connection(&self) -> &Connection {
         self.conn.as_ref().expect("pooled reader connection")
     }
 }

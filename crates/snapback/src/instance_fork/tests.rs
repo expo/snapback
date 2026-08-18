@@ -3215,30 +3215,20 @@ fn net_diff_matching_journal_forgery_is_outside_the_registered_connection_class(
 
 #[test]
 fn registered_manifest_gap_and_exact_restore_cannot_reearn_completeness() {
-    fn authorization_denied(error: &rusqlite::Error) -> bool {
-        matches!(
-            error,
-            rusqlite::Error::SqliteFailure(failure, _)
-                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
-        )
-    }
-
     let directory = tempfile::tempdir().unwrap();
     let source = app_row_source_database(directory.path());
     let destination = directory.path().join("fork-registered-gap");
     let (_, _, database) = publish_armed_app_row_fork(&source, &destination);
 
-    let registered = crate::storage::open_registered_system_writer_v1(
+    let denied = crate::storage::registered_vector_writer_denies_sql_for_test(
         &database,
-        crate::storage::RegisteredSystemWriterPurposeV1::VectorIndex,
+        "DELETE FROM _snapback_operation_coverage_v1",
     )
-    .expect("open armed registered writer");
-    let denied = registered
-        .conn()
-        .execute("DELETE FROM _snapback_operation_coverage_v1", [])
-        .expect_err("registered writer cannot delete the active manifest");
-    assert!(authorization_denied(&denied));
-    drop(registered);
+    .expect("probe armed registered writer");
+    assert!(
+        denied,
+        "registered writer cannot delete the active manifest"
+    );
 
     // Reproduce the reviewer's formerly successful sequence beyond the
     // newly denied first statement by simulating the old gap through an
@@ -3267,13 +3257,11 @@ fn registered_manifest_gap_and_exact_restore_cannot_reearn_completeness() {
         .unwrap();
     drop(raw);
 
-    let error = match crate::storage::open_registered_system_writer_v1(
-        &database,
-        crate::storage::RegisteredSystemWriterPurposeV1::VectorIndex,
-    ) {
-        Ok(_) => panic!("coverage evidence must not admit an unarmed registered writer"),
-        Err(error) => error,
-    };
+    let error =
+        match crate::storage::registered_vector_writer_denies_sql_for_test(&database, "SELECT 1") {
+            Ok(_) => panic!("coverage evidence must not admit an unarmed registered writer"),
+            Err(error) => error,
+        };
     assert_eq!(error.diagnostic.code, WRITER_COVERAGE_GAP_CODE);
     assert!(destination.join(APP_ROW_COVERAGE_GAP_FILE).is_file());
 

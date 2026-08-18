@@ -1,10 +1,9 @@
 use super::core::*;
-use snapback_types::runtime::*;
 use crate::auth::admission::{AdmissionLease, CancellationRegistration};
+use crate::auth::invocation::MembershipWriterResolvedExt;
 #[cfg(test)]
 use crate::auth::invocation::ResolvedAppAuthority;
 use crate::auth::invocation::{HandlerAuthProjection, PreparedInvocation};
-use crate::auth::invocation::MembershipWriterResolvedExt;
 use crate::config::SecretRedactor;
 use crate::cron::CronRunMetadata;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -33,6 +32,7 @@ use libc::{c_char, c_void};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
+use snapback_types::runtime::*;
 use std::cell::{Cell, RefCell};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
@@ -1660,8 +1660,7 @@ impl<'a> IbexHostContext<'a> {
                 .transpose()
                 .map_err(|_| crate::assets::media_projection_integrity())?
                 .ok_or_else(crate::assets::media_projection_integrity)?;
-            let related_fact_digest =
-                crate::storage::media_projection_fact_digest_on(self.db().conn(), &asset_id)?;
+            let related_fact_digest = self.db().media_projection_fact_digest(&asset_id)?;
             let entry = self.next_media_entry;
             self.next_media_entry = entry.checked_add(1).ok_or_else(|| {
                 SnapbackError::error(
@@ -3711,12 +3710,10 @@ impl<'a> IbexHostContext<'a> {
                         return Err(error);
                     }
                 };
-                if let Err(error) = crate::storage::asset_grants::preview(
-                    self.db().conn(),
-                    &caller,
-                    &self.asset_grant_ops,
-                    &proposed,
-                ) {
+                if let Err(error) =
+                    self.db()
+                        .preview_asset_grant(&caller, &self.asset_grant_ops, &proposed)
+                {
                     self.terminal_denial = Some(error.clone());
                     return Err(error);
                 }
@@ -3754,12 +3751,10 @@ impl<'a> IbexHostContext<'a> {
                         return Err(error);
                     }
                 };
-                if let Err(error) = crate::storage::asset_grants::preview(
-                    self.db().conn(),
-                    &caller,
-                    &self.asset_grant_ops,
-                    &proposed,
-                ) {
+                if let Err(error) =
+                    self.db()
+                        .preview_asset_grant(&caller, &self.asset_grant_ops, &proposed)
+                {
                     self.terminal_denial = Some(error.clone());
                     return Err(error);
                 }

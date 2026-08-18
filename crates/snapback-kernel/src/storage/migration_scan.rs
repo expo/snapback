@@ -580,8 +580,8 @@ impl LocalDatabase {
     ) -> SnapbackResult<MigrationKeysetScanBatch> {
         self.query_reads_read()
             .with_pinned_read_view(|db| match db {
-                DbRead::Pinned { conn, schema } => {
-                    migration_keyset_scan_batch_on(conn, schema, request, checkpoint)
+                DbRead::Pinned(read) => {
+                    migration_keyset_scan_batch_on(read.conn, read.schema, request, checkpoint)
                 }
                 DbRead::Live(db) => {
                     migration_keyset_scan_batch_on(&db.conn, &db.schema, request, checkpoint)
@@ -622,13 +622,15 @@ impl LocalDatabase {
                     None => {
                         let _ = schema_table(view.schema(), table)?;
                         let quoted = quote_ident(table)?;
-                        let observed: i64 = view.conn().query_row(
-                            &format!(
-                                "SELECT COUNT(*) FROM (SELECT 1 FROM {quoted} LIMIT ?1)"
-                            ),
-                            params![limit],
-                            |row| row.get(0),
-                        )?;
+                        let observed: i64 = view.with_connection(|conn| {
+                            Ok(conn.query_row(
+                                &format!(
+                                    "SELECT COUNT(*) FROM (SELECT 1 FROM {quoted} LIMIT ?1)"
+                                ),
+                                params![limit],
+                                |row| row.get(0),
+                            )?)
+                        })?;
                         let rows = u64::try_from(observed).map_err(|_| {
                             SnapbackError::error(
                                 "SNAPBACK_MIGRATION_PRECONDITION_FAILED",

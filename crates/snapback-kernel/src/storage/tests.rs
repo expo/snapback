@@ -9575,35 +9575,26 @@ mod guarded_commit_tests {
                 .expect("open registered vector writer");
         assert!(
             second
-                .conn()
-                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .defensive_mode_for_authorizer_test()
                 .expect("second writer defensive mode")
         );
         second
-            .conn()
-            .execute(
+            .execute_for_authorizer_test(
                 "INSERT INTO _snapback_meta(key,value) VALUES('vector-system-write','1')",
-                [],
             )
             .expect("the registered vector token admits its system-table lane");
-        assert!(denied(second.conn().execute(
+        assert!(denied(second.execute_for_authorizer_test(
             "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
              VALUES('second-bypass',1,1,1,'denied')",
-            [],
         )));
-        assert!(denied(
-            second
-                .conn()
-                .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [],)
-        ));
-        assert!(denied(
-            second
-                .conn()
-                .execute("DELETE FROM _snapback_operation_coverage_v1", [],)
-        ));
-        assert!(denied(second.conn().execute(
+        assert!(denied(second.execute_for_authorizer_test(
+            "INSERT INTO _snapback_changes DEFAULT VALUES",
+        )));
+        assert!(denied(second.execute_for_authorizer_test(
+            "DELETE FROM _snapback_operation_coverage_v1",
+        )));
+        assert!(denied(second.execute_for_authorizer_test(
             "DELETE FROM _snapback_operation_coverage_continuity_v1",
-            [],
         )));
         {
             let _primary_writer = db
@@ -9611,18 +9602,17 @@ mod guarded_commit_tests {
                 .enter(write_authority::LocalWriterLaneV1::OrdinaryHostPlan)
                 .expect("enter primary ordinary writer");
             assert!(
-                denied(second.conn().execute(
+                denied(second.execute_for_authorizer_test(
                     "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
                      VALUES('vector-bypass',1,1,1,'denied')",
-                    [],
                 )),
                 "a primary token cannot leak authority to a second connection"
             );
             assert!(
                 denied(
-                    second
-                        .conn()
-                        .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [])
+                    second.execute_for_authorizer_test(
+                        "INSERT INTO _snapback_changes DEFAULT VALUES",
+                    )
                 ),
                 "a primary token cannot leak journal authority to a second connection"
             );
@@ -9635,20 +9625,16 @@ mod guarded_commit_tests {
         .expect("open registry-reconstructed lifecycle writer");
         assert!(
             lifecycle
-                .conn()
-                .db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_DEFENSIVE)
+                .defensive_mode_for_authorizer_test()
                 .expect("lifecycle writer defensive mode")
         );
-        assert!(denied(lifecycle.conn().execute(
+        assert!(denied(lifecycle.execute_for_authorizer_test(
             "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
              VALUES('lifecycle-bypass',1,1,1,'denied')",
-            [],
         )));
-        assert!(denied(
-            lifecycle
-                .conn()
-                .execute("INSERT INTO _snapback_changes DEFAULT VALUES", [])
-        ));
+        assert!(denied(lifecycle.execute_for_authorizer_test(
+            "INSERT INTO _snapback_changes DEFAULT VALUES",
+        )));
     }
 
     #[test]
@@ -13904,10 +13890,7 @@ mod membership_write_tests {
     fn authority_profile_schema() -> SchemaManifest {
         let mut schema = membership_schema();
         let table = &mut schema.tables[1];
-        let membership = table
-            .membership
-            .as_mut()
-            .expect("membership declaration");
+        let membership = table.membership.as_mut().expect("membership declaration");
         membership.id = Some("event_members".to_owned());
         let rename = |role: &mut String| {
             *role = match role.as_str() {
@@ -15063,15 +15046,17 @@ mod membership_write_tests {
                 CallerAuthorityOperation::Remove => db
                     .membership_plans_read()
                     .plan_membership_remove(&user(caller), "event_members", target),
-                CallerAuthorityOperation::Patch => db
-                    .membership_plans_read()
-                    .plan_membership_patch(
+                CallerAuthorityOperation::Patch => {
+                    db.membership_plans_read().plan_membership_patch(
                         &user(caller),
                         "event_members",
                         target,
                         Map::from_iter([("expiresAt".to_owned(), json!(5_000))]),
-                    ),
-                CallerAuthorityOperation::Insert => unreachable!("insert is not member-id addressed"),
+                    )
+                }
+                CallerAuthorityOperation::Insert => {
+                    unreachable!("insert is not member-id addressed")
+                }
             }
             .expect_err("member-id operation must refuse")
         };
@@ -15849,10 +15834,7 @@ mod membership_write_tests {
             } else {
                 entry.implies.retain(|role| role != &entry.role);
             }
-            assert_authority_lattice_reason(
-                authority_lattice_error(schema),
-                "self-inclusion",
-            );
+            assert_authority_lattice_reason(authority_lattice_error(schema), "self-inclusion");
         }
     }
 
@@ -16158,13 +16140,11 @@ mod membership_write_tests {
 
     fn plan_remove_self(db: &LocalDatabase, principal: &str, event_id: &str) -> MembershipPlan {
         let mut authorized = db
-            .authorize_membership_commands(
-                vec![BufferedMembershipCommand::remove_self(
-                    user(principal),
-                    "event_members".to_owned(),
-                    Some(event_id.to_owned()),
-                )],
-            )
+            .authorize_membership_commands(vec![BufferedMembershipCommand::remove_self(
+                user(principal),
+                "event_members".to_owned(),
+                Some(event_id.to_owned()),
+            )])
             .expect("removeSelf resolves and plans from the pinned snapshot");
         assert_eq!(authorized.len(), 1);
         authorized.pop().expect("one plan").plan
@@ -19681,8 +19661,7 @@ mod membership_write_tests {
         let predecessor_incarnation = db
             .ensure_authorization_stream_incarnation()
             .expect("authorization stream");
-        let successor_incarnation =
-            crate::contract_types::AuthorizationStreamIncarnation::fresh();
+        let successor_incarnation = crate::contract_types::AuthorizationStreamIncarnation::fresh();
         let request = ResetSeedRequestV1 {
             format_version: SEED_RESET_REQUEST_FORMAT_V1.to_owned(),
             operation_id: "01982c7a-7c00-7000-8000-000000000202".to_owned(),

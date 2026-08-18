@@ -85,19 +85,17 @@ impl LocalDatabase {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn push_reserve_send<A: crate::push::PushAuthoritySource>(
+    pub(super) fn push_reserve_send(
         &mut self,
         declaration: &crate::push::PushSeamDeclarationV1,
         schema: &crate::manifest::SchemaManifest,
-        authority: impl FnOnce() -> A,
+        authority: crate::push::PushStorageAuthority,
         trigger_mode: crate::push::PushTriggerModeV1,
         deferred_grant: Option<&crate::push::PushDeferredGrantV1>,
         request: &crate::push::PushSendRequestV1,
         now_ms: u64,
     ) -> SnapbackResult<crate::push::ReservedPushAttemptV1> {
         self.with_auth_transaction(|tx| {
-            let authority = authority();
-            let authority = authority.push_storage_authority();
             crate::push::reserve_send_in(
                 tx,
                 crate::push::PushSendReservation {
@@ -1045,11 +1043,12 @@ impl<'a> PushRegistryKernel<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn reserve_send<A: crate::push::PushAuthoritySource>(
+    #[doc(hidden)]
+    pub fn reserve_send_admitted_storage(
         &mut self,
         declaration: &crate::push::PushSeamDeclarationV1,
         schema: &crate::manifest::SchemaManifest,
-        authority: impl FnOnce() -> A,
+        authority: crate::push::PushStorageAuthority,
         trigger_mode: crate::push::PushTriggerModeV1,
         deferred_grant: Option<&crate::push::PushDeferredGrantV1>,
         request: &crate::push::PushSendRequestV1,

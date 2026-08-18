@@ -15,21 +15,126 @@ use rusqlite::{Connection, params};
 #[cfg(test)]
 use sha2::{Digest as _, Sha256};
 
-pub use snapback_kernel::push::*;
+pub use crate::contract_types::{PushAudienceReferenceV1, PushDeferredGrantV1};
+pub use snapback_kernel::push::PushRegistryInspectionV1;
+pub(crate) use snapback_kernel::push::{
+    PUSH_BATCH_MESSAGES_MAX, PUSH_PROVIDER_RESPONSE_MAX_BYTES, PUSH_RECEIPT_BATCH_MAX,
+    PUSH_RECEIPT_FIRST_POLL_MS, PUSH_RECEIPT_WINDOW_MS, PushBatchClaimV1,
+    PushBatchSettlementV1, PushDeferredGrantRequestV1, PushLedgerRowV1,
+    PushReceiptOutcomeV1, PushReceiptPollClaimV1, PushRecoveredBatchV1, PushSendRequestV1,
+    PushSendReservationResponseV1, PushStorageAuthority, PushTicketOutcomeV1,
+    PushTokenRegistrationResponse, PushTokenUnregisterResponse, PushTriggerModeV1,
+    REGISTRY_TABLE_SQL, ReservedPushAttemptV1, capture_deferred_grant, expo_receipt_payload,
+    expo_send_payload_from_parts, parse_expo_receipt_response, resolve_audience_in,
+    validate_audience_args, validate_config_uses, validate_declaration_against_schema,
+    validate_exact_ledger_schema, validate_provider_id, validate_receipt_error_code,
+    validate_ticket_error_code, validate_token,
+};
+pub use snapback_types::push::*;
 
-impl PushAuthoritySource for crate::auth::invocation::PreparedAuthority {
-    fn push_storage_authority(&self) -> PushStorageAuthority {
-        if matches!(
-            self.resolved(),
-            crate::auth::invocation::ResolvedAppAuthority::System
-        ) {
-            PushStorageAuthority::System
-        } else if let Some(user_id) = self.projection().user_id() {
-            PushStorageAuthority::User(user_id.to_owned())
-        } else {
-            PushStorageAuthority::Other
-        }
+/// The sole adapter from admitted invocation authority to the kernel's
+/// storage-only push fact. The kernel fact is intentionally not re-exported
+/// through the public façade, so callers cannot assert `System` themselves.
+///
+/// @ref LLP 0276#phases — port inversion must preserve compiler-enforced
+/// admission rather than accept a caller assertion.
+pub(crate) fn admitted_push_storage_authority(
+    authority: &crate::auth::invocation::PreparedAuthority,
+) -> PushStorageAuthority {
+    if matches!(
+        authority.resolved(),
+        crate::auth::invocation::ResolvedAppAuthority::System
+    ) {
+        PushStorageAuthority::System
+    } else if let Some(user_id) = authority.projection().user_id() {
+        PushStorageAuthority::User(user_id.to_owned())
+    } else {
+        PushStorageAuthority::Other
     }
+}
+
+/// Crate-private commit adapter: every call must supply the unforgeable
+/// prepared invocation carrier, and only this adapter projects the kernel
+/// authority fact consumed by the transaction.
+pub(crate) trait PreparedPushRegistryExt {
+    #[allow(clippy::too_many_arguments)]
+    fn reserve_send(
+        &mut self,
+        declaration: &PushSeamDeclarationV1,
+        schema: &crate::manifest::SchemaManifest,
+        authority: impl FnOnce() -> crate::auth::invocation::PreparedAuthority,
+        trigger_mode: PushTriggerModeV1,
+        deferred_grant: Option<&PushDeferredGrantV1>,
+        request: &PushSendRequestV1,
+        now_ms: u64,
+    ) -> SnapbackResult<ReservedPushAttemptV1>;
+}
+
+impl PreparedPushRegistryExt for crate::storage::PushRegistryKernel<'_> {
+    fn reserve_send(
+        &mut self,
+        declaration: &PushSeamDeclarationV1,
+        schema: &crate::manifest::SchemaManifest,
+        authority: impl FnOnce() -> crate::auth::invocation::PreparedAuthority,
+        trigger_mode: PushTriggerModeV1,
+        deferred_grant: Option<&PushDeferredGrantV1>,
+        request: &PushSendRequestV1,
+        now_ms: u64,
+    ) -> SnapbackResult<ReservedPushAttemptV1> {
+        let authority = authority();
+        authority.validate_admission("push durable reservation")?;
+        self.reserve_send_admitted_storage(
+            declaration,
+            schema,
+            admitted_push_storage_authority(&authority),
+            trigger_mode,
+            deferred_grant,
+            request,
+            now_ms,
+        )
+    }
+}
+
+pub(crate) fn read_ledger_projection_for_prepared(
+    db: &crate::storage::DbRead<'_>,
+    declaration: &PushSeamDeclarationV1,
+    schema: &crate::manifest::SchemaManifest,
+    authority: &crate::auth::invocation::PreparedAuthority,
+    intent_id: &str,
+) -> SnapbackResult<(
+    Vec<PushLedgerRowV1>,
+    Option<crate::storage::CapturedReadDependency>,
+)> {
+    authority.validate_admission("push ledger projection")?;
+    snapback_kernel::push::read_ledger_projection(
+        db,
+        declaration,
+        schema,
+        &admitted_push_storage_authority(authority),
+        intent_id,
+    )
+}
+
+#[cfg(test)]
+fn authorize_send_for_prepared(
+    tx: &rusqlite::Transaction<'_>,
+    schema: &crate::manifest::SchemaManifest,
+    audience: &PushAudienceDeclarationV1,
+    authority: &crate::auth::invocation::PreparedAuthority,
+    trigger_mode: PushTriggerModeV1,
+    deferred_grant: Option<&PushDeferredGrantV1>,
+    request: &PushSendRequestV1,
+) -> SnapbackResult<()> {
+    authority.validate_admission("push send authorization")?;
+    snapback_kernel::push::authorize_send_in(
+        tx,
+        schema,
+        audience,
+        &admitted_push_storage_authority(authority),
+        trigger_mode,
+        deferred_grant,
+        request,
+    )
 }
 
 pub(crate) struct ExpoHttpResponseV1 {
@@ -581,7 +686,7 @@ mod tests {
             .expect("ledger fixture");
 
         let system = system_authority();
-        let (rows, dependency) = read_ledger_projection(
+        let (rows, dependency) = read_ledger_projection_for_prepared(
             &DbRead::Live(&db),
             &declaration,
             db.schema(),
@@ -601,7 +706,7 @@ mod tests {
 
         let user = session_authority(&principal_id);
         assert_eq!(
-            read_ledger_projection(
+            read_ledger_projection_for_prepared(
                 &DbRead::Live(&db),
                 &declaration,
                 db.schema(),
@@ -1083,7 +1188,7 @@ mod tests {
         };
         let authority = system_authority();
         let tx = connection.unchecked_transaction().expect("transaction");
-        authorize_send_in(
+        authorize_send_for_prepared(
             &tx,
             &schema,
             &audience,
@@ -1097,7 +1202,7 @@ mod tests {
         let mut divergent = request.clone();
         divergent.dedupe_key = "deferred-2".into();
         assert_eq!(
-            authorize_send_in(
+            authorize_send_for_prepared(
                 &tx,
                 &schema,
                 &audience,
@@ -1117,7 +1222,7 @@ mod tests {
         )
         .expect("revoke producer membership");
         assert_eq!(
-            authorize_send_in(
+            authorize_send_for_prepared(
                 &tx,
                 &schema,
                 &audience,
@@ -1165,7 +1270,7 @@ mod tests {
         let schema = app_membership_schema();
         let authority = session_authority(&sender);
         let tx = connection.unchecked_transaction().expect("transaction");
-        authorize_send_in(
+        authorize_send_for_prepared(
             &tx,
             &schema,
             &audience,
@@ -1201,7 +1306,7 @@ mod tests {
             "SNAPBACK_PUSH_SEND_INVALID"
         );
         assert_eq!(
-            authorize_send_in(
+            authorize_send_for_prepared(
                 &tx,
                 &schema,
                 &audience,

@@ -9,9 +9,9 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-pub use snapback_types::instance_fork::*;
 use crate::auth::crypto::ResumeKeyId;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+pub use snapback_types::instance_fork::*;
 
 pub const STAGING_SENTINEL: &str = ".snapback-fork-staging.v1";
 pub const MINT_RECEIPT_FILE: &str = "fork-mint-receipt.json";
@@ -650,10 +650,7 @@ fn wall_clock_now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-pub fn server_expired_error(
-    lineage: &DerivedForkLineageV1,
-    observed_at_ms: u64,
-) -> SnapbackError {
+pub fn server_expired_error(lineage: &DerivedForkLineageV1, observed_at_ms: u64) -> SnapbackError {
     fork_error(
         SERVER_EXPIRED_CODE,
         "derived-fork server is past its finite expiry; shutting down and refusing new work",
@@ -705,9 +702,7 @@ fn rotate_protected_erasure_generation(tx: &Transaction<'_>) -> SnapbackResult<(
 }
 
 /// Remove copied bearer and operation authority from an in-app branch head.
-pub fn scrub_copied_authority_for_in_app_branch(
-    conn: &mut Connection,
-) -> SnapbackResult<()> {
+pub fn scrub_copied_authority_for_in_app_branch(conn: &mut Connection) -> SnapbackResult<()> {
     let tx = conn.transaction()?;
     for rule in TABLE_CUSTODY {
         if rule.disposition == CustodyDisposition::Scrub && table_exists(&tx, rule.name)? {
@@ -991,18 +986,10 @@ impl DerivedForkRuntimeExt for DerivedForkRuntime {
     // @ref LLP 0162#acceptance — DenyAll records only the closed effect family.
     fn deny(&self, family: EgressFamily, now_ms: u64) -> SnapbackError {
         let recorded = (|| -> SnapbackResult<()> {
-            let writer = crate::storage::open_registered_system_writer_v1(
+            crate::storage::record_derived_fork_egress_attempt_v1(
                 &self.database_path,
-                crate::storage::RegisteredSystemWriterPurposeV1::DerivedForkEgressMarker,
-            )?;
-            writer.conn().execute(
-                "INSERT INTO _snapback_fork_egress_attempts_v1(
-                   family,attempts,first_attempt_at_ms,last_attempt_at_ms
-                 ) VALUES(?1,1,?2,?2)
-                 ON CONFLICT(family) DO UPDATE SET
-                   attempts=MIN(attempts + 1, 9223372036854775807),
-                   last_attempt_at_ms=excluded.last_attempt_at_ms",
-                params![family.as_str(), now_ms],
+                family.as_str(),
+                now_ms,
             )?;
             Ok(())
         })();

@@ -57,14 +57,54 @@ const diagnosticCatalogPaths = [
   'packages/snapback-codegen/handler-runtime-profile.mjs',
 ];
 
+const rustProductionRoots = [
+  {
+    path: 'crates/snapback/src',
+    // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
+    // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
+    accept: (path) => !/^crates\/snapback\/src\/(?:cli|local|server|storage)\/tests\.rs$/u.test(path),
+  },
+  {
+    path: 'crates/snapback-kernel/src',
+    // The carve moved the storage test module with its production owner.
+    // Keep that explicit cfg(test) file out of the production site count.
+    accept: (path) => path !== 'crates/snapback-kernel/src/storage/tests.rs',
+  },
+  { path: 'crates/snapback-types/src', accept: () => true },
+];
+
+function assertEveryCarvedRustRootIsInventoried(paths) {
+  const carvedRoots = readdirSync(join(root, 'crates'))
+    .filter((name) => (
+      existsSync(join(root, 'crates', name, 'Cargo.toml'))
+        && existsSync(join(root, 'crates', name, 'src'))
+    ))
+    .map((name) => `crates/${name}/src`)
+    .sort();
+  const configuredRoots = new Set(rustProductionRoots.map(({ path }) => path));
+  for (const carvedRoot of carvedRoots) {
+    if (!configuredRoots.has(carvedRoot)) {
+      throw new Error(
+        `[diagnostics-registry] carved Rust crate root is absent from productionPaths: ${carvedRoot}`,
+      );
+    }
+    if (!paths.some((path) => path.startsWith(`${carvedRoot}/`))) {
+      throw new Error(
+        `[diagnostics-registry] carved Rust crate root contributes no production files: ${carvedRoot}`,
+      );
+    }
+  }
+}
+
+const rustProductionPaths = rustProductionRoots.flatMap(({ path: crateRoot, accept }) => (
+  walk(join(root, crateRoot), (path) => path.endsWith('.rs') && accept(path))
+));
+assertEveryCarvedRustRootIsInventoried(rustProductionPaths);
+
 const productionPaths = [
-  // @ref LLP 0199#sequencing-guidance-not-a-schedule — these files inherit
-  // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
-  ...walk(join(root, 'crates/snapback/src'), (path) => path.endsWith('.rs')
-    && !/^crates\/snapback\/src\/(?:cli|local|server|storage)\/tests\.rs$/u.test(path)),
   // @ref LLP 0276#phases — diagnostics move with their owning contract
   // modules, so the source-complete registry must scan each carved Rust root.
-  ...walk(join(root, 'crates/snapback-types/src'), (path) => path.endsWith('.rs')),
+  ...rustProductionPaths,
   ...walk(join(root, 'packages'), (path) => (
     path.endsWith('.mjs')
     && !/(?:^|\.)test\.mjs$/u.test(path)

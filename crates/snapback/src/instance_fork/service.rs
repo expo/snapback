@@ -21,8 +21,8 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 use snapback_kernel::instance_fork::{
-    CustodyDisposition, CustodyRule, ForkMintReceiptV1, MINT_RECEIPT_FILE, SIDECAR_CUSTODY,
-    SERVER_EXPIRED_CODE, STAGING_SENTINEL, TABLE_CUSTODY, inspect_boot, inspect_boot_at,
+    CustodyDisposition, CustodyRule, ForkMintReceiptV1, MINT_RECEIPT_FILE, SERVER_EXPIRED_CODE,
+    SIDECAR_CUSTODY, STAGING_SENTINEL, TABLE_CUSTODY, inspect_boot, inspect_boot_at,
     server_expired_error,
 };
 
@@ -393,7 +393,6 @@ pub fn audit_connection(conn: &Connection) -> SnapbackResult<Vec<(String, Custod
     }
     Ok(classified)
 }
-
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1543,7 +1542,6 @@ fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
     Ok(())
 }
 
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PublicationCut {
     AfterSentinelWrite,
@@ -2575,32 +2573,7 @@ fn write_renewal_database_lineage(
     lineage: &DerivedForkLineageV1,
     checkpoint_first: bool,
 ) -> SnapbackResult<()> {
-    let lineage_json = serde_json::to_string(lineage)
-        .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
-    let writer = crate::storage::open_registered_system_writer_v1(
-        database,
-        crate::storage::RegisteredSystemWriterPurposeV1::DerivedForkLifecycle,
-    )?;
-    if checkpoint_first {
-        // The registered lifecycle token admits this exact non-mutating
-        // maintenance pragma when the fork owns its WAL. Run it before the
-        // lineage transaction so a refusal or I/O failure cannot commit half
-        // a renewal; a configured replicator retains checkpoint authority.
-        checkpoint_when_fork_owns_wal(writer.conn())?;
-    }
-    let tx = writer.conn().unchecked_transaction()?;
-    let changed = tx.execute(
-        "UPDATE _snapback_meta SET value=?2 WHERE key=?1",
-        params![LINEAGE_META_KEY, lineage_json],
-    )?;
-    if changed != 1 {
-        return Err(fork_error(
-            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
-            "renewal lineage update did not affect exactly one fork row",
-        )
-        .with_details(json!({ "updatedRows": changed })));
-    }
-    tx.commit()?;
+    crate::storage::renew_derived_fork_lineage_v1(database, lineage, checkpoint_first)?;
     sync_sqlite_files(database, None)
 }
 

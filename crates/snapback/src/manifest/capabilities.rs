@@ -4,10 +4,52 @@
 //! push, asset, vector, and auth facts: splitting a constructor body would
 //! change the evidence gate rather than merely relocate it.
 
+use super::push_assets::ExpoPushSeamFactsLocalExt as _;
 use super::*;
 use crate::assets::AssetFactsLocalExt as _;
-use crate::search::FullTextSearchFactsLocalExt as _;
-use super::push_assets::ExpoPushSeamFactsLocalExt as _;
+
+trait FullTextSearchFactsLocalExt {
+    fn local_v1() -> Self;
+}
+
+impl FullTextSearchFactsLocalExt for FullTextSearchFactsV1 {
+    fn local_v1() -> Self {
+        Self {
+            capability_id: crate::search::SEARCH_CAPABILITY.to_owned(),
+            maturity: "stable".to_owned(),
+            analyzer: crate::search::SEARCH_ANALYZER.to_owned(),
+            unicode_version: crate::search::unicode17_generated::UNICODE_VERSION.to_owned(),
+            analyzer_tables_digest: crate::search::unicode17_generated::ANALYZER_TABLES_DIGEST
+                .to_owned(),
+            parser: crate::search::SEARCH_PARSER.to_owned(),
+            scorer: crate::search::SEARCH_SCORER.to_owned(),
+            score_max: 22_937_600,
+            maintenance: "synchronous".to_owned(),
+            pagination: "current-keyset-v1".to_owned(),
+            cursor_ttl_ms: crate::search::SEARCH_CURSOR_TTL_MS,
+            accelerator: "none".to_owned(),
+            authorization_filters: vec![
+                "public-read".to_owned(),
+                "owner.v1".to_owned(),
+                "membership.v1".to_owned(),
+            ],
+            highlights: true,
+            counts: false,
+            facets: false,
+            suggestions: false,
+            offline: false,
+            storage_engines: vec!["sqlite".to_owned()],
+            nonclaims: vec![
+                "live-search".to_owned(),
+                "offline-search".to_owned(),
+                "postgres".to_owned(),
+                "relational-visibility".to_owned(),
+                "native-fts-acceleration".to_owned(),
+                "sensitive-fields".to_owned(),
+            ],
+        }
+    }
+}
 
 pub(super) fn bounded_batch_read_runtime_facts() -> Value {
     serde_json::json!({
@@ -38,10 +80,12 @@ pub(super) const LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES: &[u8] =
 pub(super) const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
     "../../../../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-06.v1.json"
 );
-pub(super) const LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../../../../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json");
-pub(super) const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] =
-    include_bytes!("../../../../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json");
+pub(super) const LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES: &[u8] = include_bytes!(
+    "../../../../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-06.v1.json"
+);
+pub(super) const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] = include_bytes!(
+    "../../../../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-06.v1.json"
+);
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -131,7 +175,8 @@ pub(crate) const PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION: &str =
 pub(crate) const PACKAGED_STORE_QUALIFICATION_SUITE_ID: &str = "packaged-store-qualification-v1";
 pub(super) const PACKAGED_STORE_QUALIFICATION_RECEIPT_ENV: &str =
     "SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT";
-pub(super) const PACKAGED_STORE_QUALIFICATION_MODE_ENV: &str = "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE";
+pub(super) const PACKAGED_STORE_QUALIFICATION_MODE_ENV: &str =
+    "SNAPBACK_PACKAGED_STORE_QUALIFICATION_MODE";
 pub(super) const PACKAGED_STORE_QUALIFICATION_RECEIPT_MAX_BYTES: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1161,7 +1206,6 @@ pub(super) fn local_persistent_store_publication_verified() -> bool {
     )
 }
 
-
 pub trait TargetCapabilityFactsExt: Sized {
     fn local_auth_aware() -> Self;
     #[cfg(test)]
@@ -1637,7 +1681,9 @@ mod untrusted_code_profile_tests {
         let committed_manifests: [(&str, &[u8]); 5] = [
             (
                 "local",
-                include_bytes!("../../../../schemas/capability.manifest.local-dev-sqlite-ibex.json"),
+                include_bytes!(
+                    "../../../../schemas/capability.manifest.local-dev-sqlite-ibex.json"
+                ),
             ),
             (
                 "local-outbound-actions",
@@ -1647,7 +1693,9 @@ mod untrusted_code_profile_tests {
             ),
             (
                 "remote-service",
-                include_bytes!("../../../../schemas/capability.manifest.remote-service-sqlite-ibex.json"),
+                include_bytes!(
+                    "../../../../schemas/capability.manifest.remote-service-sqlite-ibex.json"
+                ),
             ),
             (
                 "cloudflare",
@@ -2046,10 +2094,7 @@ impl CapabilityManifestLocalExt for CapabilityManifest {
     /// the bounded response-stream profile.
     // @ref LLP 0076#target-contract — capability truth is instance-live, not
     // a static declaration: the served manifest reflects this process.
-    fn local_v0_instance(
-        mut capability_gaps: Vec<String>,
-        outbound_actions: bool,
-    ) -> Self {
+    fn local_v0_instance(mut capability_gaps: Vec<String>, outbound_actions: bool) -> Self {
         if outbound_actions {
             capability_gaps
                 .retain(|gap| gap != "outbound_actions" && gap != "bounded_response_stream_v1");

@@ -1,6 +1,6 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
-use crate::instance_fork::DerivedForkRuntimeExt as _;
 use crate::ephemeral::{validate_collection_definitions, validate_collection_permission_backing};
+use crate::instance_fork::DerivedForkRuntimeExt as _;
 use crate::manifest::{
     AssetCollectionMutationPlanV1, AssetCollectionOperationV1, AuthInput, AuthMode,
     AuthRequirement, AuthorityProfileHookV1, AuthorityProfileOperationNameV1,
@@ -79,7 +79,6 @@ mod schema_transition;
 mod settlement;
 mod versions;
 
-pub use snapback_types::storage::*;
 pub use self::jobs::{JobsKernel, JobsReadKernel};
 pub use api_envelope_state::{
     ApiEnvelopeCurrentRecord, ApiEnvelopeKernel, ApiEnvelopeReadKernel, ApiEnvelopeStateRecord,
@@ -94,12 +93,13 @@ pub use auth_catalog_ops::{
 };
 pub use branch_ops::{BranchOpsKernel, BranchOpsReadKernel};
 pub use checkpoints::{CheckpointsKernel, CheckpointsReadKernel};
+pub use connections::ReaderPool;
+#[cfg(any(test, feature = "test-support"))]
+pub use connections::registered_vector_writer_denies_sql_for_test;
+#[cfg(test)]
+use connections::{RegisteredSystemWriterPurposeV1, open_registered_system_writer_v1};
 use connections::registered_writer_coverage_manifest;
-pub use connections::{PooledReader, ReaderPool};
-#[allow(unused_imports)] // Preserve the pre-split crate::storage surface.
-pub use connections::{
-    RegisteredSystemWriterPurposeV1, RegisteredSystemWriterV1, open_registered_system_writer_v1,
-};
+pub use connections::{record_derived_fork_egress_attempt_v1, renew_derived_fork_lineage_v1};
 pub use generation_commit::{CommitFunctionGeneration, FunctionGenerationRecord};
 pub use membership_plans::{MembershipPlansKernel, MembershipPlansReadKernel};
 pub use membership_reads::MembershipReadsKernel;
@@ -127,6 +127,7 @@ pub use schema_transition::{
     prove_retained_work_posture, record_schema_transition_event, schema_transition_events_on,
 };
 pub use settlement::{SettlementKernel, SettlementReadKernel};
+pub use snapback_types::storage::*;
 pub use versions::{VersionsKernel, VersionsReadKernel};
 
 #[cfg(test)]
@@ -524,10 +525,7 @@ pub enum AuthorizationCommitPreflight {
     },
 }
 
-pub fn app_writes_are_authorization_event(
-    schema: &SchemaManifest,
-    changes: &[ChangedRow],
-) -> bool {
+pub fn app_writes_are_authorization_event(schema: &SchemaManifest, changes: &[ChangedRow]) -> bool {
     authorization::app_writes_are_authorization_event(schema, changes)
 }
 
@@ -588,8 +586,7 @@ pub fn install_managed_authorization_reservation(
     });
 }
 
-pub fn take_managed_authorization_reservation()
--> Option<Box<dyn AuthorizationCommitReservation>> {
+pub fn take_managed_authorization_reservation() -> Option<Box<dyn AuthorizationCommitReservation>> {
     MANAGED_AUTHORIZATION_RESERVATION.with(|slot| slot.borrow_mut().take())
 }
 
@@ -2029,9 +2026,7 @@ impl LocalDatabase {
     /// it as LLP 0163 operation-envelope coverage. The logical manifest lanes
     /// are fork-specific; the physical adapter set is the same closed set of
     /// four generated app-row writers enforced by SQLite.
-    pub fn derived_fork_exact_app_row_journal_coverage_active(
-        &self,
-    ) -> SnapbackResult<bool> {
+    pub fn derived_fork_exact_app_row_journal_coverage_active(&self) -> SnapbackResult<bool> {
         let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&self.conn)?
         else {
             return Ok(false);
@@ -2111,10 +2106,7 @@ impl LocalDatabase {
     }
 
     #[cfg(any(test, feature = "test-support"))]
-    pub fn execute_out_of_seam_app_sql_for_test(
-        &self,
-        sql: &str,
-    ) -> rusqlite::Result<usize> {
+    pub fn execute_out_of_seam_app_sql_for_test(&self, sql: &str) -> rusqlite::Result<usize> {
         self.conn.execute(sql, [])
     }
 
@@ -2207,10 +2199,7 @@ impl LocalDatabase {
     /// Install the active maintained-projection set (LLP 0080 §5). Called by
     /// function-manifest activation after validation; every mutation path on
     /// this database maintains these outputs in its own commit.
-    pub fn set_projections(
-        &mut self,
-        plans: Vec<crate::manifest::MaintainedProjectionPlan>,
-    ) {
+    pub fn set_projections(&mut self, plans: Vec<crate::manifest::MaintainedProjectionPlan>) {
         self.projections = Arc::new(plans);
     }
 
@@ -6957,26 +6946,42 @@ fn notify_infra_migration_acquired(conn: &Connection) {
 /// call (ENG-23324).
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
+pub struct PinnedDbRead<'a> {
+    conn: &'a Connection,
+    schema: &'a SchemaManifest,
+}
+
+impl<'a> PinnedDbRead<'a> {
+    fn new(conn: &'a Connection, schema: &'a SchemaManifest) -> Self {
+        Self { conn, schema }
+    }
+
+    fn reborrow(&self) -> PinnedDbRead<'_> {
+        PinnedDbRead::new(self.conn, self.schema)
+    }
+}
+
 pub enum DbRead<'a> {
     Live(&'a LocalDatabase),
-    Pinned {
-        conn: &'a Connection,
-        schema: &'a SchemaManifest,
-    },
+    Pinned(PinnedDbRead<'a>),
 }
 
 impl DbRead<'_> {
+    pub(crate) fn pinned<'a>(conn: &'a Connection, schema: &'a SchemaManifest) -> DbRead<'a> {
+        DbRead::Pinned(PinnedDbRead::new(conn, schema))
+    }
+
     pub fn reborrow(&self) -> DbRead<'_> {
         match self {
             DbRead::Live(db) => DbRead::Live(db),
-            DbRead::Pinned { conn, schema } => DbRead::Pinned { conn, schema },
+            DbRead::Pinned(read) => DbRead::Pinned(read.reborrow()),
         }
     }
 
     fn live(&self) -> Option<&LocalDatabase> {
         match self {
             DbRead::Live(db) => Some(db),
-            DbRead::Pinned { .. } => None,
+            DbRead::Pinned(_) => None,
         }
     }
 
@@ -6988,7 +6993,7 @@ impl DbRead<'_> {
         read: impl FnOnce(DbRead<'_>) -> SnapbackResult<T>,
     ) -> SnapbackResult<T> {
         match self {
-            DbRead::Pinned { .. } => read(self.reborrow()),
+            DbRead::Pinned(_) => read(self.reborrow()),
             DbRead::Live(db) => db.query_reads_read().with_pinned_read_view(read),
         }
     }
@@ -6997,7 +7002,7 @@ impl DbRead<'_> {
     /// to resolve a declaration id to its table and field names.
     pub fn schema(&self) -> &SchemaManifest {
         match self {
-            DbRead::Pinned { schema, .. } => schema,
+            DbRead::Pinned(read) => read.schema,
             DbRead::Live(db) => db.schema(),
         }
     }
@@ -7013,7 +7018,7 @@ impl DbRead<'_> {
         &self,
     ) -> SnapbackResult<(AuthorizationVersion, Option<String>)> {
         let conn = match self {
-            DbRead::Pinned { conn, .. } => *conn,
+            DbRead::Pinned(read) => read.conn,
             DbRead::Live(db) => &db.conn,
         };
         Ok((
@@ -7024,7 +7029,7 @@ impl DbRead<'_> {
 
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
         match self {
-            DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
+            DbRead::Pinned(read) => query_on(read.conn, read.schema, plan, input),
             _ => self
                 .live()
                 .expect("live db")
@@ -7043,8 +7048,8 @@ impl DbRead<'_> {
         ceiling: usize,
     ) -> SnapbackResult<QueryOutput> {
         match self {
-            DbRead::Pinned { conn, schema } => {
-                query_on_with_examined_entry_ceiling(conn, schema, plan, input, ceiling)
+            DbRead::Pinned(read) => {
+                query_on_with_examined_entry_ceiling(read.conn, read.schema, plan, input, ceiling)
             }
             DbRead::Live(db) => {
                 query_on_with_examined_entry_ceiling(&db.conn, &db.schema, plan, input, ceiling)
@@ -7059,8 +7064,8 @@ impl DbRead<'_> {
         authority: &crate::search::sqlite::SearchExecutionAuthority<'_>,
     ) -> SnapbackResult<QueryOutput> {
         match self {
-            DbRead::Pinned { conn, schema } => {
-                crate::search::query_search_on(conn, schema, plan, input, authority)
+            DbRead::Pinned(read) => {
+                crate::search::query_search_on(read.conn, read.schema, plan, input, authority)
             }
             DbRead::Live(db) => with_pinned_read_snapshot(&db.conn, |conn| {
                 crate::search::query_search_on(conn, &db.schema, plan, input, authority)
@@ -7081,9 +7086,13 @@ impl DbRead<'_> {
         crate::vector::sqlite::VectorSqliteQueryFailure,
     > {
         match self {
-            DbRead::Pinned { conn, schema } => {
-                crate::vector::sqlite::query_vector_on(conn, schema, plan, input, owner_subject)
-            }
+            DbRead::Pinned(read) => crate::vector::sqlite::query_vector_on(
+                read.conn,
+                read.schema,
+                plan,
+                input,
+                owner_subject,
+            ),
             DbRead::Live(db) => crate::vector::sqlite::query_vector_on(
                 &db.conn,
                 &db.schema,
@@ -7096,7 +7105,7 @@ impl DbRead<'_> {
 
     pub fn search_database_identity(&self) -> SnapbackResult<String> {
         let conn = match self {
-            DbRead::Pinned { conn, .. } => *conn,
+            DbRead::Pinned(read) => read.conn,
             DbRead::Live(db) => &db.conn,
         };
         let value: Option<String> = conn
@@ -7118,7 +7127,7 @@ impl DbRead<'_> {
         keyset: Option<&KeysetAfter>,
     ) -> SnapbackResult<QueryOutput> {
         match self {
-            DbRead::Pinned { conn, schema } => query_on_keyset(conn, schema, plan, input, keyset),
+            DbRead::Pinned(read) => query_on_keyset(read.conn, read.schema, plan, input, keyset),
             DbRead::Live(db) => query_on_keyset(&db.conn, &db.schema, plan, input, keyset),
         }
     }
@@ -7132,9 +7141,9 @@ impl DbRead<'_> {
         input: &HandlerInput,
     ) -> SnapbackResult<QueryOutput> {
         match self {
-            DbRead::Pinned { conn, schema } => query_on_with_storage_limit_visibility(
-                conn,
-                schema,
+            DbRead::Pinned(read) => query_on_with_storage_limit_visibility(
+                read.conn,
+                read.schema,
                 plan,
                 input,
                 effective_query_limit(plan),
@@ -7166,9 +7175,9 @@ impl DbRead<'_> {
         storage_limit: usize,
     ) -> SnapbackResult<QueryOutput> {
         match self {
-            DbRead::Pinned { conn, schema } => query_on_with_storage_limit_visibility_keyset(
-                conn,
-                schema,
+            DbRead::Pinned(read) => query_on_with_storage_limit_visibility_keyset(
+                read.conn,
+                read.schema,
                 plan,
                 input,
                 storage_limit,
@@ -7198,8 +7207,8 @@ impl DbRead<'_> {
         storage_limit: usize,
     ) -> SnapbackResult<QueryOutput> {
         match self {
-            DbRead::Pinned { conn, schema } => {
-                query_on_with_storage_limit(conn, schema, plan, input, storage_limit)
+            DbRead::Pinned(read) => {
+                query_on_with_storage_limit(read.conn, read.schema, plan, input, storage_limit)
             }
             _ => self
                 .live()
@@ -7211,7 +7220,7 @@ impl DbRead<'_> {
 
     pub fn get(&self, table: &str, id: &str) -> SnapbackResult<Option<Value>> {
         match self {
-            DbRead::Pinned { conn, schema } => get_on(conn, schema, table, id),
+            DbRead::Pinned(read) => get_on(read.conn, read.schema, table, id),
             _ => self
                 .live()
                 .expect("live db")
@@ -7226,7 +7235,7 @@ impl DbRead<'_> {
         document: &mut Value,
     ) -> SnapbackResult<()> {
         let (conn, schema) = match self {
-            DbRead::Pinned { conn, schema } => (*conn, *schema),
+            DbRead::Pinned(read) => (read.conn, read.schema),
             DbRead::Live(db) => (&db.conn, &db.schema),
         };
         let table = schema_table(schema, table_name)?;
@@ -7235,7 +7244,7 @@ impl DbRead<'_> {
 
     pub fn get_many(&self, table: &str, ids: &[String]) -> SnapbackResult<Vec<Option<Value>>> {
         match self {
-            DbRead::Pinned { conn, schema } => get_many_on(conn, schema, table, ids),
+            DbRead::Pinned(read) => get_many_on(read.conn, read.schema, table, ids),
             DbRead::Live(db) => get_many_on(&db.conn, &db.schema, table, ids),
         }
     }
@@ -7247,7 +7256,7 @@ impl DbRead<'_> {
         keys: &[Map<String, Value>],
     ) -> SnapbackResult<Vec<Option<Value>>> {
         match self {
-            DbRead::Pinned { conn, schema } => unique_many_on(conn, schema, table, index, keys),
+            DbRead::Pinned(read) => unique_many_on(read.conn, read.schema, table, index, keys),
             DbRead::Live(db) => unique_many_on(&db.conn, &db.schema, table, index, keys),
         }
     }
@@ -7258,7 +7267,7 @@ impl DbRead<'_> {
         id: &str,
     ) -> SnapbackResult<Option<String>> {
         let conn = match self {
-            DbRead::Pinned { conn, .. } => *conn,
+            DbRead::Pinned(read) => read.conn,
             DbRead::Live(db) => &db.conn,
         };
         Ok(conn
@@ -7280,7 +7289,7 @@ impl DbRead<'_> {
         scope_incarnation: &str,
     ) -> SnapbackResult<u64> {
         let conn = match self {
-            DbRead::Pinned { conn, .. } => *conn,
+            DbRead::Pinned(read) => read.conn,
             DbRead::Live(db) => &db.conn,
         };
         let next = conn
@@ -7307,9 +7316,9 @@ impl DbRead<'_> {
 
     pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
         match self {
-            DbRead::Pinned { conn, schema } => {
-                let table = schema_table(schema, table)?;
-                table_change_version_from_connection(conn, &table.name)
+            DbRead::Pinned(read) => {
+                let table = schema_table(read.schema, table)?;
+                table_change_version_from_connection(read.conn, &table.name)
             }
             _ => self.live().expect("live db").table_change_version(table),
         }
@@ -7317,16 +7326,80 @@ impl DbRead<'_> {
 
     pub fn current_version(&self) -> SnapbackResult<u64> {
         match self {
-            DbRead::Pinned { conn, .. } => current_version_on(conn),
+            DbRead::Pinned(read) => current_version_on(read.conn),
             _ => self.live().expect("live db").current_version(),
         }
     }
 
-    pub fn conn(&self) -> &Connection {
-        match self {
-            DbRead::Pinned { conn, .. } => conn,
+    pub(crate) fn with_connection<T>(
+        &self,
+        read: impl FnOnce(&Connection) -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        read(match self {
+            DbRead::Pinned(pinned) => pinned.conn,
             DbRead::Live(db) => &db.conn,
-        }
+        })
+    }
+
+    /// Read the asset facts bound into a handler-visible media projection
+    /// without exposing the underlying SQLite handle to the runtime layer.
+    pub fn media_projection_fact_digest(&self, asset_id: &str) -> SnapbackResult<String> {
+        self.with_connection(|conn| media_projection_fact_digest_on(conn, asset_id))
+    }
+
+    /// Preview one buffered asset-grant transition against this exact read
+    /// view. Commit-time authorization still re-reads the same facts.
+    pub fn preview_asset_grant(
+        &self,
+        caller: &str,
+        staged: &[crate::assets::BufferedAssetGrantOp],
+        proposed: &crate::assets::BufferedAssetGrantOp,
+    ) -> SnapbackResult<()> {
+        self.with_connection(|conn| asset_grants::preview(conn, caller, staged, proposed))
+    }
+
+    /// Read the complete room-permission decision and authorization version
+    /// from this view's already-pinned snapshot.
+    pub fn room_permission_projection_observed(
+        &self,
+        table_name: &str,
+        subject_field: &str,
+        user_id: &str,
+        scope_fields: &[(String, String)],
+        min_commit_version: u64,
+    ) -> SnapbackResult<(bool, AuthorizationVersion)> {
+        self.with_connection(|conn| {
+            let granted = room_permission_projection_granted_on(
+                conn,
+                self.schema(),
+                table_name,
+                subject_field,
+                user_id,
+                scope_fields,
+                min_commit_version,
+            )?;
+            Ok((granted, authorization_version_on(conn)?))
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn table_row_count_for_test(&self, table_name: &str) -> SnapbackResult<i64> {
+        let table = schema_table(self.schema(), table_name)?;
+        let quoted = quote_ident(&table.name)?;
+        self.with_connection(|conn| {
+            Ok(
+                conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}"), [], |row| {
+                    row.get(0)
+                })?,
+            )
+        })
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn journal_mode_for_test(&self) -> SnapbackResult<String> {
+        self.with_connection(
+            |conn| Ok(conn.query_row("PRAGMA journal_mode", [], |row| row.get(0))?),
+        )
     }
 
     /// Snapshot lookup for `ctx.jobs.enqueue` idempotent reuse (LLP 0070:
@@ -7339,16 +7412,15 @@ impl DbRead<'_> {
         action: &str,
         idempotency_key: &str,
     ) -> SnapbackResult<Option<jobs::ExistingIdempotentJob>> {
-        jobs::find_job_by_scoped_idempotency(self.conn(), queue, action, idempotency_key)
+        self.with_connection(|conn| {
+            jobs::find_job_by_scoped_idempotency(conn, queue, action, idempotency_key)
+        })
     }
 
     /// The declared job-status query's read (LLP 0121 option 3): the
     /// privacy-bounded lifecycle projection for one job id.
-    pub fn job_status_row(
-        &self,
-        job_id: &str,
-    ) -> SnapbackResult<Option<jobs::JobStatusRow>> {
-        jobs::job_status_row(self.conn(), job_id)
+    pub fn job_status_row(&self, job_id: &str) -> SnapbackResult<Option<jobs::JobStatusRow>> {
+        self.with_connection(|conn| jobs::job_status_row(conn, job_id))
     }
 }
 
@@ -9281,7 +9353,12 @@ fn validate_authority_profile_role_lattice(table: &TableManifest) -> SnapbackRes
             ));
         }
         let implied_set = entry.implies.iter().cloned().collect::<BTreeSet<_>>();
-        if entry.implies.iter().filter(|role| *role == &entry.role).count() != 1
+        if entry
+            .implies
+            .iter()
+            .filter(|role| *role == &entry.role)
+            .count()
+            != 1
             || implied_set.len() != entry.implies.len()
         {
             return Err(invalid(
@@ -12430,9 +12507,7 @@ fn eval_expr(
 ) -> SnapbackResult<Value> {
     let default_id = |_path: &str| Ok(new_id());
     let scoped_id = |path: &str| {
-        runtime_id
-            .unwrap_or(&default_id)(&format!("{site}{path}"))
-            .map_err(Into::into)
+        runtime_id.unwrap_or(&default_id)(&format!("{site}{path}")).map_err(Into::into)
     };
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
@@ -12982,7 +13057,9 @@ pub enum MembershipWriter {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ResolvedMembershipWriter {
-    User { user_id: String },
+    User {
+        user_id: String,
+    },
     ServicePrincipal {
         actor_user_id: String,
         effective_user_id: Option<String>,
@@ -13329,11 +13406,7 @@ impl BufferedMembershipCommand {
         }
     }
 
-    pub fn insert(
-        writer: MembershipWriter,
-        table: String,
-        values: Map<String, Value>,
-    ) -> Self {
+    pub fn insert(writer: MembershipWriter, table: String, values: Map<String, Value>) -> Self {
         Self {
             writer,
             table,
@@ -13388,11 +13461,7 @@ impl BufferedMembershipCommand {
         }
     }
 
-    pub fn remove_self(
-        writer: MembershipWriter,
-        table: String,
-        resource: Option<String>,
-    ) -> Self {
+    pub fn remove_self(writer: MembershipWriter, table: String, resource: Option<String>) -> Self {
         Self {
             writer,
             table,
@@ -14676,7 +14745,7 @@ pub fn asset_read_authorized(
                     &resource_binding,
                     &effective_roles,
                 );
-                let output = DbRead::Pinned { conn: tx, schema }
+                let output = DbRead::pinned(tx, schema)
                     .query_private_membership(&probe, &HandlerInput::default())?;
                 let matching_ids: Vec<String> = output
                     .rows
@@ -18657,9 +18726,7 @@ fn sequence_allocation_fact_is_valid(fact: &SequenceAllocationFact) -> bool {
         && (1..=SEQUENCE_MAX_SAFE_INTEGER).contains(&fact.value)
 }
 
-pub fn validate_sequence_allocation_fact(
-    fact: &SequenceAllocationFact,
-) -> SnapbackResult<()> {
+pub fn validate_sequence_allocation_fact(fact: &SequenceAllocationFact) -> SnapbackResult<()> {
     if sequence_allocation_fact_is_valid(fact) {
         return Ok(());
     }

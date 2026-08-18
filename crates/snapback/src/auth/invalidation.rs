@@ -24,10 +24,7 @@ use std::sync::{Arc, RwLock};
 
 pub use snapback_types::auth::invalidation::*;
 
-pub(crate) fn invalidation_error(
-    code: &'static str,
-    message: impl Into<String>,
-) -> SnapbackError {
+pub(crate) fn invalidation_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     snapback_types::auth::invalidation::invalidation_error(code, message).into()
 }
 
@@ -35,13 +32,8 @@ pub(crate) fn corrupt(message: impl Into<String>) -> SnapbackError {
     snapback_types::auth::invalidation::corrupt(message).into()
 }
 
-pub(crate) fn validate_counter(
-    value: u64,
-    field: &str,
-    positive: bool,
-) -> SnapbackResult<()> {
-    snapback_types::auth::invalidation::validate_counter(value, field, positive)
-        .map_err(Into::into)
+pub(crate) fn validate_counter(value: u64, field: &str, positive: bool) -> SnapbackResult<()> {
+    snapback_types::auth::invalidation::validate_counter(value, field, positive).map_err(Into::into)
 }
 
 pub(crate) fn validate_uuid_v7(value: &str, field: &str) -> SnapbackResult<()> {
@@ -50,6 +42,44 @@ pub(crate) fn validate_uuid_v7(value: &str, field: &str) -> SnapbackResult<()> {
 
 pub(crate) fn validate_opaque(value: &str, field: &str) -> SnapbackResult<()> {
     snapback_types::auth::invalidation::validate_opaque(value, field).map_err(Into::into)
+}
+
+fn merge_witness(
+    current: &CompositeWitness,
+    incoming: &CompositeWitness,
+) -> SnapbackResult<CompositeWitness> {
+    if current.authorization != incoming.authorization {
+        return Err(corrupt(
+            "one live scope cannot merge obligations from different authorization pairs",
+        ));
+    }
+    let data = merge_data_witness(current.data.as_ref(), incoming.data.as_ref())?;
+    Ok(CompositeWitness {
+        authorization: incoming.authorization.clone(),
+        data,
+    })
+}
+
+fn merge_data_witness(
+    current: Option<&DataWitness>,
+    incoming: Option<&DataWitness>,
+) -> SnapbackResult<Option<DataWitness>> {
+    match (current, incoming) {
+        (Some(current), Some(incoming)) => {
+            if current.version_stream != incoming.version_stream {
+                return Err(corrupt(
+                    "one live scope cannot merge obligations from different version streams",
+                ));
+            }
+            Ok(Some(DataWitness {
+                version_stream: current.version_stream.clone(),
+                min_commit_version: current.min_commit_version.max(incoming.min_commit_version),
+            }))
+        }
+        (Some(current), None) => Ok(Some(current.clone())),
+        (None, Some(incoming)) => Ok(Some(incoming.clone())),
+        (None, None) => Ok(None),
+    }
 }
 
 pub const AUTH_INVALIDATION_REFIRE_MAX_MS: u64 = 5_000;

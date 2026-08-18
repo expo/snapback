@@ -1,5 +1,5 @@
-use crate::auth::admission::AdmissionLease;
 use crate::assets::AssetFactsLocalExt as _;
+use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{
     AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
 };
@@ -26,14 +26,14 @@ use crate::auth::mode::{
 use crate::auth::service_authority_contract::{
     ServiceAuthorityActResolution, ServiceAuthorityDisposition,
 };
+use crate::completeness::{
+    AuthorizationWitnessRecordExt as _, CursorEndExt as _, PageSetManifestExt as _,
+};
 use crate::config::{ConfigStore, VerificationRecord};
 use crate::contract_types::ServerProfile;
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
     LocalCronRuntime, validate_cron_manifest,
-};
-use crate::completeness::{
-    AuthorizationWitnessRecordExt as _, CursorEndExt as _, PageSetManifestExt as _,
 };
 use crate::diagnostic::{
     Diagnostic, DiagnosticSeverity, PublicDiagnostic, SnapbackError, SnapbackResult,
@@ -45,18 +45,17 @@ use crate::ephemeral::{
     RoomSubscriberResolution, SubscribeRequest, validate_collection_definitions,
     validate_collection_permission_backing,
 };
+use crate::instance_fork::DerivedForkRuntimeExt as _;
 use crate::live_matcher::{
     LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome, compute_live_delta,
     live_subscription_match_outcome, query_dependencies_from_plan,
 };
-use crate::instance_fork::DerivedForkRuntimeExt as _;
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
     LiveSocketServerFrame, MutationReceiptOutcome, Receipt, ResumeFromToken, ResumeMeta,
     ResumeWire, SettlementClaim, SettlementClaimDisposition, SettlementIdMapDisposition,
     SettlementIdMapEntry, SubscriptionReceiptEvent,
 };
-use crate::manifest::{CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _};
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
     AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
@@ -67,6 +66,7 @@ use crate::manifest::{
     SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
     ctx_ledger_version, legacy_auth_fingerprint,
 };
+use crate::manifest::{CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _};
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
     IbexSubmoduleCapability, RuntimeCapabilities, RuntimeManager,
@@ -5009,14 +5009,13 @@ impl LocalSnapback {
         // activation consumes target-owned custody and the exact derived
         // deployment identity before any durable schema/function cut. A
         // request or bundle field cannot supply these inputs.
-        let _governance_warnings =
-            crate::visibility_governance::validate_activation_from_target(
-                &artifacts.schema,
-                &artifacts.functions,
-                self.server_profile,
-                now_millis(),
-                None,
-            )?;
+        let _governance_warnings = crate::visibility_governance::validate_activation_from_target(
+            &artifacts.schema,
+            &artifacts.functions,
+            self.server_profile,
+            now_millis(),
+            None,
+        )?;
         // @ref LLP 0076#target-contract — cold-start capability admission
         // composes the candidate pair with the exact process's live egress
         // fact, just like `/inspect` and ordinary function loading. The
@@ -13384,8 +13383,7 @@ impl LocalSnapback {
                         identity.as_ref(),
                     )?;
                     crate::result_contract::validate_handler_result(&function, &executed.result)?;
-                    let membership_plans =
-                        executed.authorize_membership_commands(&mut self.db)?;
+                    let membership_plans = executed.authorize_membership_commands(&mut self.db)?;
                     let producer_mutation_id = receipt_mutation_id
                         .map(ToOwned::to_owned)
                         .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
@@ -16846,11 +16844,8 @@ impl LocalSnapback {
         let reservation = {
             let _effect =
                 authority.effect_guard("authorization manual retry reservation transaction")?;
-            self.db.with_invalidation_retry_episode(&key, |registry| {
-                registry
-                    .manual_retry(&key, input.manual_retry_id, now_millis())
-                    .map_err(Into::into)
-            })?
+            self.db
+                .reserve_manual_invalidation_retry(&key, input.manual_retry_id, now_millis())?
         };
         let episode = match reservation {
             RetryReservation::Attached(episode) => {
@@ -24258,14 +24253,12 @@ impl LocalSnapback {
             "authorization retry initial reservation transaction",
             None,
             |database| {
-                database.with_invalidation_retry_episode(&key, |registry| {
-                    registry.reserve(
-                        key.clone(),
-                        witness_floor.clone(),
-                        now,
-                        RetryReservationKind::Initial,
-                    ).map_err(Into::into)
-                })
+                database.reserve_invalidation_retry_episode(
+                    &key,
+                    witness_floor.clone(),
+                    now,
+                    RetryReservationKind::Initial,
+                )
             },
         );
         let episode = match initial {
@@ -24276,14 +24269,12 @@ impl LocalSnapback {
                     "authorization retry automatic reservation transaction",
                     None,
                     |database| {
-                        database.with_invalidation_retry_episode(&key, |registry| {
-                            registry.reserve(
-                                key.clone(),
-                                witness_floor.clone(),
-                                now_millis(),
-                                RetryReservationKind::Automatic,
-                            ).map_err(Into::into)
-                        })
+                        database.reserve_invalidation_retry_episode(
+                            &key,
+                            witness_floor.clone(),
+                            now_millis(),
+                            RetryReservationKind::Automatic,
+                        )
                     },
                 ) {
                     Ok(RetryReservation::Reserved(episode)) => episode,
@@ -24356,13 +24347,7 @@ impl LocalSnapback {
                         admission,
                         "authorization retry failure transaction",
                         Some(episode.episode_id.clone()),
-                        |database| {
-                            database.with_invalidation_retry_episode(&key, |registry| {
-                                registry
-                                    .record_failure(&key, now_millis())
-                                    .map_err(Into::into)
-                            })
-                        },
+                        |database| database.record_invalidation_retry_failure(&key, now_millis()),
                     );
                     failure?;
                     let reservation = self.run_authorization_retry_transaction(
@@ -24370,14 +24355,12 @@ impl LocalSnapback {
                         "authorization retry automatic reservation transaction",
                         Some(episode.episode_id.clone()),
                         |database| {
-                            database.with_invalidation_retry_episode(&key, |registry| {
-                                registry.reserve(
-                                    key.clone(),
-                                    witness_floor.clone(),
-                                    now_millis(),
-                                    RetryReservationKind::Automatic,
-                                ).map_err(Into::into)
-                            })
+                            database.reserve_invalidation_retry_episode(
+                                &key,
+                                witness_floor.clone(),
+                                now_millis(),
+                                RetryReservationKind::Automatic,
+                            )
                         },
                     );
                     match reservation {
@@ -24405,10 +24388,9 @@ impl LocalSnapback {
         let Some(key) = Self::authorization_retry_key(subscription) else {
             return Ok(());
         };
-        self.db.with_invalidation_retry_episode(&key, |registry| {
-            registry.resolve(&key, proof);
-            Ok(())
-        })
+        self.db
+            .resolve_invalidation_retry_episode(&key, proof)
+            .map(|_| ())
     }
 
     fn deliver_authorization_snapshot(
@@ -27111,20 +27093,15 @@ impl ReadLane {
             .collect::<SnapbackResult<Vec<_>>>()?;
         let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
         let manifests = self.manifests();
-        let reader = pool.checkout()?;
-        let tx = reader.conn().unchecked_transaction()?;
-        crate::storage::current_version_on(&tx)?;
-        let granted = crate::storage::room_permission_projection_granted_on(
-            &tx,
-            &manifests.schema,
-            &projection.table,
-            &projection.subject_field,
-            user_id,
-            &scope_fields,
-            0,
-        )?;
-        let authorization = crate::storage::authorization_version_on(&tx)?;
-        tx.commit()?;
+        let (granted, authorization) = pool.with_pinned_read(&manifests.schema, |db| {
+            db.room_permission_projection_observed(
+                &projection.table,
+                &projection.subject_field,
+                user_id,
+                &scope_fields,
+                0,
+            )
+        })?;
         if !granted {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_PERMISSION_DENIED",
@@ -27260,41 +27237,33 @@ impl ReadLane {
         );
         let vector_quarantine = VectorQuarantineCapture::default();
         let mut result = (|| {
-            let reader = pool.checkout()?;
-            let tx = reader.conn().unchecked_transaction()?;
-            // Pin the WAL snapshot now (the first read fixes it), before any
-            // handler work, so rows, captured read versions, and the reported
-            // version all come from this snapshot.
-            crate::storage::current_version_on(&tx)?;
-            let invocation = crate::runtime::with_runtime_log_telemetry(
-                self.telemetry.clone(),
-                correlation,
-                || {
-                    execute_query_invocation(
-                        function,
-                        name,
-                        DbRead::Pinned {
-                            conn: &tx,
-                            schema: &manifests.schema,
-                        },
-                        epochs.as_ref(),
-                        input,
-                        &prepared,
-                        Some(&self.warm_vms),
-                        Some(RelationalCursorAuthority {
-                            app_id: &manifests.functions.app_id,
-                            keyring: &self.resume_keyring,
-                            schema_hash: manifests.schema.schema_hash.as_deref(),
-                            function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
-                            function_publication_generation: manifests.app_generation,
-                            target_profile: manifests.schema.target_profile.as_deref(),
-                        }),
-                        None,
-                        Some(&vector_quarantine),
-                    )
-                },
-            )?;
-            Ok(invocation)
+            pool.with_pinned_read(&manifests.schema, |db| {
+                crate::runtime::with_runtime_log_telemetry(
+                    self.telemetry.clone(),
+                    correlation,
+                    || {
+                        execute_query_invocation(
+                            function,
+                            name,
+                            db,
+                            epochs.as_ref(),
+                            input,
+                            &prepared,
+                            Some(&self.warm_vms),
+                            Some(RelationalCursorAuthority {
+                                app_id: &manifests.functions.app_id,
+                                keyring: &self.resume_keyring,
+                                schema_hash: manifests.schema.schema_hash.as_deref(),
+                                function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
+                                function_publication_generation: manifests.app_generation,
+                                target_profile: manifests.schema.target_profile.as_deref(),
+                            }),
+                            None,
+                            Some(&vector_quarantine),
+                        )
+                    },
+                )
+            })
         })();
         if let Some(target) = vector_quarantine.take()
             && pool.quarantine_vector_generation(&target).is_err()
@@ -27331,26 +27300,24 @@ impl ReadLane {
         deadline: Instant,
     ) -> SnapbackResult<ExecutedIbexMutation> {
         let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
-        let reader = pool.checkout()?;
-        let tx = reader.conn().unchecked_transaction()?;
-        crate::storage::current_version_on(&tx)?;
-        crate::runtime::execute_ibex_mutation_prepared(
-            module,
-            input,
-            prepared,
-            DbRead::Pinned { conn: &tx, schema },
-            None,
-            Some(deadline),
-        )
+        pool.with_pinned_read(schema, |db| {
+            crate::runtime::execute_ibex_mutation_prepared(
+                module,
+                input,
+                prepared,
+                db,
+                None,
+                Some(deadline),
+            )
+        })
     }
 
     /// Serve the `/health` payload without the global mutex.
     pub fn health(&self) -> SnapbackResult<ReadHealth> {
         let pool = self.pool.as_ref().ok_or_else(read_lane_unavailable)?;
         let manifests = self.manifests();
-        let reader = pool.checkout()?;
         Ok(ReadHealth {
-            version: crate::storage::current_version_on(reader.conn())?,
+            version: pool.with_pinned_read(&manifests.schema, |db| db.current_version())?,
             capabilities: manifests.capabilities.clone(),
         })
     }
@@ -31976,13 +31943,14 @@ fn execute_query_invocation(
                     "the application does not declare the push ledger",
                 )
             })?;
-            let (projection, authorization_dependency) = crate::push::read_ledger_projection(
-                &db,
-                declaration,
-                schema,
-                prepared.authority(),
-                intent_id,
-            )?;
+            let (projection, authorization_dependency) =
+                crate::push::read_ledger_projection_for_prepared(
+                    &db,
+                    declaration,
+                    schema,
+                    prepared.authority(),
+                    intent_id,
+                )?;
             let version = db.current_version()?;
             let rows = projection
                 .iter()

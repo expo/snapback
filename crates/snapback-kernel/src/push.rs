@@ -22,24 +22,16 @@ pub const PUSH_RECEIPT_WINDOW_MS: u64 = 86_400_000;
 pub const PUSH_RECEIPT_BATCH_MAX: usize = 1_000;
 pub const PUSH_PROVIDER_RESPONSE_MAX_BYTES: u64 = 1_048_576;
 
-/// The admitted authority fact consumed by durable push authorization. The
-/// higher policy layer implements [`PushAuthoritySource`] for its prepared
-/// invocation carrier; storage never depends on that carrier itself.
+/// The admitted authority fact consumed by durable push authorization.
+///
+/// This is a kernel-internal port value, not an admission capability. The
+/// public façade deliberately does not re-export it; its only production
+/// producer is the prepared-authority adapter in `snapback::push`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PushStorageAuthority {
     System,
     User(String),
     Other,
-}
-
-pub trait PushAuthoritySource {
-    fn push_storage_authority(&self) -> PushStorageAuthority;
-}
-
-impl PushAuthoritySource for PushStorageAuthority {
-    fn push_storage_authority(&self) -> PushStorageAuthority {
-        self.clone()
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -1103,11 +1095,11 @@ pub fn inspect(conn: &Connection) -> SnapbackResult<PushRegistryInspectionV1> {
 /// @ref LLP 0143#d6-activation-migration-and-the-no-op-posture — this is the
 ///   Rust-owned half of `definePushLedgerQuery`, not an ambient system-table
 ///   escape hatch.
-pub fn read_ledger_projection<A: PushAuthoritySource + ?Sized>(
+pub fn read_ledger_projection(
     db: &crate::storage::DbRead<'_>,
     declaration: &PushSeamDeclarationV1,
     schema: &crate::manifest::SchemaManifest,
-    authority: &A,
+    authority: &PushStorageAuthority,
     intent_id: &str,
 ) -> SnapbackResult<(
     Vec<PushLedgerRowV1>,
@@ -1125,16 +1117,17 @@ pub fn read_ledger_projection<A: PushAuthoritySource + ?Sized>(
         ));
     }
     let app_scope = declaration.app_scope.identity();
-    let intent: Option<(String, String)> = db
-        .conn()
-        .query_row(
-            "SELECT audience_name, audience_args_json
+    let intent: Option<(String, String)> = db.with_connection(|conn| {
+        Ok(conn
+            .query_row(
+                "SELECT audience_name, audience_args_json
              FROM _snapback_push_intents_v1
              WHERE id = ?1 AND app_scope = ?2",
-            params![intent_id, app_scope],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()?;
+                params![intent_id, app_scope],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?)
+    })?;
     let Some((audience_name, audience_args_json)) = intent else {
         return Ok((Vec::new(), None));
     };
@@ -1147,10 +1140,9 @@ pub fn read_ledger_projection<A: PushAuthoritySource + ?Sized>(
         .ok_or_else(|| corrupt("push ledger intent carries invalid audience arguments"))?;
     validate_audience_args(audience, &audience_args)?;
 
-    let authority = authority.push_storage_authority();
     let authorization_dependency = match &audience.authorize {
         PushAudienceAuthorizeV1::System => {
-            if authority != PushStorageAuthority::System {
+            if authority != &PushStorageAuthority::System {
                 return Err(crate::membership_rules::role_denial());
             }
             None
@@ -1160,7 +1152,7 @@ pub fn read_ledger_projection<A: PushAuthoritySource + ?Sized>(
             resource_arg,
             roles,
         } => {
-            let PushStorageAuthority::User(principal) = &authority else {
+            let PushStorageAuthority::User(principal) = authority else {
                 return Err(crate::membership_rules::role_denial());
             };
             let (table, membership) =
@@ -1188,8 +1180,9 @@ pub fn read_ledger_projection<A: PushAuthoritySource + ?Sized>(
         }
     };
 
-    let mut statement = db.conn().prepare(
-        "SELECT
+    let rows = db.with_connection(|conn| {
+        let mut statement = conn.prepare(
+            "SELECT
            intent.id, intent.trigger_mode, intent.state, intent.attempt_count,
            intent.created_at_ms, intent.updated_at_ms, intent.expires_at_ms,
            batch.id, batch.attempt_number, batch.batch_index, batch.state,
@@ -1205,55 +1198,56 @@ pub fn read_ledger_projection<A: PushAuthoritySource + ?Sized>(
          LEFT JOIN _snapback_push_messages_v1 AS message ON message.batch_id = batch.id
          WHERE intent.id = ?1 AND intent.app_scope = ?2
          ORDER BY batch.attempt_number, batch.batch_index, message.id",
-    )?;
-    let rows = statement
-        .query_map(params![intent_id, app_scope], |row| {
-            let intent_id: String = row.get(0)?;
-            let batch_id: Option<String> = row.get(7)?;
-            let message_id: Option<String> = row.get(16)?;
-            Ok(PushLedgerRowV1 {
-                id: message_id
-                    .clone()
-                    .or_else(|| batch_id.clone())
-                    .unwrap_or_else(|| intent_id.clone()),
-                intent_id,
-                trigger_mode: row.get(1)?,
-                intent_state: row.get(2)?,
-                attempt_count: u32::try_from(row.get::<_, u64>(3)?).unwrap_or(u32::MAX),
-                created_at_ms: row.get(4)?,
-                updated_at_ms: row.get(5)?,
-                expires_at_ms: row.get(6)?,
-                batch_id,
-                attempt_number: row
-                    .get::<_, Option<u64>>(8)?
-                    .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
-                batch_index: row
-                    .get::<_, Option<u64>>(9)?
-                    .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
-                batch_state: row.get(10)?,
-                transmitting_at_ms: row.get(11)?,
-                settled_at_ms: row.get(12)?,
-                http_status: row
-                    .get::<_, Option<u64>>(13)?
-                    .map(|value| u16::try_from(value).unwrap_or(u16::MAX)),
-                request_error_code: row.get(14)?,
-                previous_ambiguous: row.get::<_, Option<u64>>(15)?.map(|value| value != 0),
-                message_id,
-                token_id: row.get(17)?,
-                message_state: row.get(18)?,
-                ticket_id: row.get(19)?,
-                receipt_poll_count: row
-                    .get::<_, Option<u64>>(20)?
-                    .map(|value| u8::try_from(value).unwrap_or(u8::MAX)),
-                next_receipt_poll_at_ms: row.get(21)?,
-                receipt_window_closes_at_ms: row.get(22)?,
-                handed_to_expo_at_ms: row.get(23)?,
-                expo_accepted_at_ms: row.get(24)?,
-                expo_error_code: row.get(25)?,
-                retirement_effect: row.get::<_, Option<u64>>(26)?.map(|value| value != 0),
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
+        )?;
+        Ok(statement
+            .query_map(params![intent_id, app_scope], |row| {
+                let intent_id: String = row.get(0)?;
+                let batch_id: Option<String> = row.get(7)?;
+                let message_id: Option<String> = row.get(16)?;
+                Ok(PushLedgerRowV1 {
+                    id: message_id
+                        .clone()
+                        .or_else(|| batch_id.clone())
+                        .unwrap_or_else(|| intent_id.clone()),
+                    intent_id,
+                    trigger_mode: row.get(1)?,
+                    intent_state: row.get(2)?,
+                    attempt_count: u32::try_from(row.get::<_, u64>(3)?).unwrap_or(u32::MAX),
+                    created_at_ms: row.get(4)?,
+                    updated_at_ms: row.get(5)?,
+                    expires_at_ms: row.get(6)?,
+                    batch_id,
+                    attempt_number: row
+                        .get::<_, Option<u64>>(8)?
+                        .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
+                    batch_index: row
+                        .get::<_, Option<u64>>(9)?
+                        .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
+                    batch_state: row.get(10)?,
+                    transmitting_at_ms: row.get(11)?,
+                    settled_at_ms: row.get(12)?,
+                    http_status: row
+                        .get::<_, Option<u64>>(13)?
+                        .map(|value| u16::try_from(value).unwrap_or(u16::MAX)),
+                    request_error_code: row.get(14)?,
+                    previous_ambiguous: row.get::<_, Option<u64>>(15)?.map(|value| value != 0),
+                    message_id,
+                    token_id: row.get(17)?,
+                    message_state: row.get(18)?,
+                    ticket_id: row.get(19)?,
+                    receipt_poll_count: row
+                        .get::<_, Option<u64>>(20)?
+                        .map(|value| u8::try_from(value).unwrap_or(u8::MAX)),
+                    next_receipt_poll_at_ms: row.get(21)?,
+                    receipt_window_closes_at_ms: row.get(22)?,
+                    handed_to_expo_at_ms: row.get(23)?,
+                    expo_accepted_at_ms: row.get(24)?,
+                    expo_error_code: row.get(25)?,
+                    retirement_effect: row.get::<_, Option<u64>>(26)?.map(|value| value != 0),
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?)
+    })?;
     Ok((rows, authorization_dependency))
 }
 
@@ -2788,16 +2782,15 @@ pub fn capture_deferred_grant(
     ))
 }
 
-pub fn authorize_send_in<A: PushAuthoritySource + ?Sized>(
+pub fn authorize_send_in(
     tx: &Transaction<'_>,
     schema: &crate::manifest::SchemaManifest,
     audience: &PushAudienceDeclarationV1,
-    authority: &A,
+    authority: &PushStorageAuthority,
     trigger_mode: PushTriggerModeV1,
     deferred_grant: Option<&PushDeferredGrantV1>,
     request: &PushSendRequestV1,
 ) -> SnapbackResult<()> {
-    let authority = &authority.push_storage_authority();
     let args = &request.to.args;
     let allowed = match &audience.authorize {
         PushAudienceAuthorizeV1::System => {
@@ -2811,15 +2804,11 @@ pub fn authorize_send_in<A: PushAuthoritySource + ?Sized>(
             roles,
         } => {
             let principal = match trigger_mode {
-                PushTriggerModeV1::Immediate if deferred_grant.is_none() => {
-                    match authority {
-                        PushStorageAuthority::User(principal) => Some(principal.as_str()),
-                        PushStorageAuthority::System | PushStorageAuthority::Other => None,
-                    }
-                }
-                PushTriggerModeV1::Deferred
-                    if authority == &PushStorageAuthority::System =>
-                {
+                PushTriggerModeV1::Immediate if deferred_grant.is_none() => match authority {
+                    PushStorageAuthority::User(principal) => Some(principal.as_str()),
+                    PushStorageAuthority::System | PushStorageAuthority::Other => None,
+                },
+                PushTriggerModeV1::Deferred if authority == &PushStorageAuthority::System => {
                     deferred_grant
                         .filter(|grant| {
                             grant.to == request.to

@@ -1981,6 +1981,7 @@ impl IbexActionHost for DetachedActionHost {
                 )
             })?;
             let access_token = self.push_access_token(&declaration)?;
+            use crate::push::PreparedPushRegistryExt as _;
             let attempt = database.push_registry().reserve_send(
                 &declaration,
                 &schema,
@@ -7268,8 +7269,7 @@ async fn open_connection(
     // @ref LLP 0262#d1-the-dev-identity-capability — a verified open carrier
     // becomes an internal witness on the connection grant. Stage 1 records
     // the witness but does not refuse later identity frames for its absence.
-    let dev_identity_witnessed =
-        verify_presented_dev_identity_capability(&runtime, &headers)?;
+    let dev_identity_witnessed = verify_presented_dev_identity_capability(&runtime, &headers)?;
     let (
         suggested,
         previous_token,
@@ -11070,8 +11070,7 @@ async fn prepare_registered_route_authority(
                             | InvocationSource::HostOperationMutationDryRun
                     ) {
                         (dev_host_operation_authority(handler_value), None, None)
-                    } else if effective.invocation_authority
-                        == InvocationAuthority::ClientAsserted
+                    } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
                         && source != InvocationSource::DirectAdminRunner
                     {
                         let resolved = dev_body_authority(handler_value);
@@ -11079,11 +11078,7 @@ async fn prepare_registered_route_authority(
                         // app-plane ClientAsserted installation is capability
                         // witnessed; admin-token host operations retain their
                         // existing authority contract (Ruling OQ2).
-                        verify_or_warn_client_asserted_dev_identity(
-                            runtime,
-                            headers,
-                            &resolved,
-                        )?;
+                        verify_or_warn_client_asserted_dev_identity(runtime, headers, &resolved)?;
                         (resolved, None, None)
                     } else if source == InvocationSource::DirectAdminRunner {
                         (dev_body_authority(handler_value), None, None)
@@ -21445,9 +21440,13 @@ async fn execute_auth_host_operation(
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
-                        return Ok(
-                            auth_host_result(runtime, request, server_url, Err(error.into())).await,
-                        );
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(error.into()),
+                        )
+                        .await);
                     }
                 };
                 let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
@@ -21536,9 +21535,13 @@ async fn execute_auth_host_operation(
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
-                        return Ok(
-                            auth_host_result(runtime, request, server_url, Err(error.into())).await,
-                        );
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(error.into()),
+                        )
+                        .await);
                     }
                 };
                 let identity = planned.planned_identity();
@@ -21597,9 +21600,13 @@ async fn execute_auth_host_operation(
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
-                        return Ok(
-                            auth_host_result(runtime, request, server_url, Err(error.into())).await,
-                        );
+                        return Ok(auth_host_result(
+                            runtime,
+                            request,
+                            server_url,
+                            Err(error.into()),
+                        )
+                        .await);
                     }
                 };
                 let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
@@ -30426,8 +30433,7 @@ fn stamp_ephemeral_socket_response(
 struct LiveSocketEffectContext<'a> {
     protected_room: Option<&'a BoundRoomAuthorization>,
     effect_fence: Option<&'a crate::ephemeral::ConnectionEffectFence>,
-    dev_identity_capabilities:
-        Option<&'a crate::dev_identity::DevIdentityCapabilityRegistry>,
+    dev_identity_capabilities: Option<&'a crate::dev_identity::DevIdentityCapabilityRegistry>,
     dev_identity_witnessed: bool,
 }
 

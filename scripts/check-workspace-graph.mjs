@@ -5,7 +5,7 @@
 // external confinement, ownership assignment, and publish posture.
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -81,6 +81,69 @@ function validateWorkspaceManifest(manifestSource) {
   );
 }
 
+function readRustTree(directory) {
+  return readdirSync(directory, { withFileTypes: true })
+    .flatMap((entry) => {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) return readRustTree(path);
+      return entry.isFile() && entry.name.endsWith('.rs') ? [readFileSync(path, 'utf8')] : [];
+    })
+    .join('\n');
+}
+
+function validateKernelAdmissionFacades() {
+  const facade = readFileSync(resolve(ROOT, 'crates/snapback/src/lib.rs'), 'utf8');
+  const pushAdapter = readFileSync(resolve(ROOT, 'crates/snapback/src/push.rs'), 'utf8');
+  const facadeRust = readRustTree(resolve(ROOT, 'crates/snapback/src'));
+  const pushKernel = readFileSync(
+    resolve(ROOT, 'crates/snapback-kernel/src/storage/push_registry.rs'),
+    'utf8',
+  );
+  const storageKernel = readFileSync(
+    resolve(ROOT, 'crates/snapback-kernel/src/storage.rs'),
+    'utf8',
+  );
+  const connectionKernel = readFileSync(
+    resolve(ROOT, 'crates/snapback-kernel/src/storage/connections.rs'),
+    'utf8',
+  );
+  const forkService = readFileSync(
+    resolve(ROOT, 'crates/snapback/src/instance_fork/service.rs'),
+    'utf8',
+  );
+  assert(
+    !/^pub use snapback_kernel::proof_checkpoint;/mu.test(facade),
+    'proof/checkpoint kernel primitives must not be re-exported by the facade',
+  );
+  assert(
+    !/^pub use snapback_kernel::push::\*;/mu.test(pushAdapter),
+    'raw kernel push primitives must not be re-exported by the facade',
+  );
+  assert(
+    /trait PreparedPushRegistryExt[\s\S]*authority: impl FnOnce\(\) -> crate::auth::invocation::PreparedAuthority/u.test(pushAdapter),
+    'push commit adapter must consume PreparedAuthority',
+  );
+  assert(
+    (facadeRust.match(/\.reserve_send_admitted_storage\(/gu) ?? []).length === 1,
+    'only the prepared-authority adapter may call the kernel push commit entrypoint',
+  );
+  assert(
+    /pub fn reserve_send_admitted_storage\([\s\S]*authority: crate::push::PushStorageAuthority/u.test(pushKernel),
+    'kernel push commit entrypoint drifted from its storage-only authority carrier',
+  );
+  assert(
+    !/pub fn conn\s*\(/u.test(storageKernel)
+      && !/pub fn conn\s*\(/u.test(connectionKernel)
+      && !/pub fn checkout\s*\(/u.test(connectionKernel),
+    'kernel storage must not publish raw reader or writer connection accessors',
+  );
+  assert(
+    forkService.includes('crate::storage::renew_derived_fork_lineage_v1(')
+      && !forkService.includes('open_registered_system_writer_v1('),
+    'fork lineage renewal must remain a typed kernel transaction',
+  );
+}
+
 export function validateArtifactAndMetadata(artifact, metadata, workspaceManifestSource) {
   validateWorkspaceManifest(workspaceManifestSource);
   assert(artifact?.schemaVersion === 'snapback.allowed-dependencies.v1', 'matrix schemaVersion is invalid');
@@ -135,6 +198,7 @@ export function validateArtifactAndMetadata(artifact, metadata, workspaceManifes
 
 function main() {
   try {
+    validateKernelAdmissionFacades();
     const artifact = JSON.parse(readFileSync(MATRIX_PATH, 'utf8'));
     const workspaceManifestSource = readFileSync(resolve(ROOT, 'Cargo.toml'), 'utf8');
     const metadata = JSON.parse(execFileSync(

@@ -53,7 +53,6 @@ pub fn validate_opaque(value: &str, field: &str) -> SnapbackResult<()> {
     Ok(())
 }
 
-
 /// A boot identity is never reused, even when process-local counters restart.
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -105,7 +104,6 @@ impl IssuerId {
         }
         Ok(())
     }
-
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, JsonSchema)]
@@ -312,8 +310,6 @@ pub struct ResolutionTicket {
     pub owner_continuity_id: Option<String>,
 }
 
-
-
 /// One level-triggered live projection. Delivery is only a hint; the exact
 /// obligation remains authoritative until the optional resolution ticket is
 /// acknowledged after the client commits its local transition.
@@ -329,7 +325,7 @@ pub const AUTH_ERROR_ATTEMPTS_TOTAL: u8 = 3;
 pub const AUTH_RETRY_EPISODE_MAX_GLOBAL: usize = 10_000;
 pub const AUTH_RETRY_EPISODE_MAX_PER_AUTH_STORE: usize = 1_024;
 
-pub fn merge_witness(
+pub(crate) fn merge_witness(
     current: &CompositeWitness,
     incoming: &CompositeWitness,
 ) -> SnapbackResult<CompositeWitness> {
@@ -345,7 +341,7 @@ pub fn merge_witness(
     })
 }
 
-pub fn merge_data_witness(
+pub(crate) fn merge_data_witness(
     current: Option<&DataWitness>,
     incoming: Option<&DataWitness>,
 ) -> SnapbackResult<Option<DataWitness>> {
@@ -439,14 +435,15 @@ impl RetryEpisodeRegistry {
         &self.episodes
     }
 
-    pub fn clock_high_water_ms(&self) -> u64 {
+    #[allow(dead_code)]
+    pub(crate) fn clock_high_water_ms(&self) -> u64 {
         self.clock_high_water_ms
     }
 
     // Full-table loads remain for test-only registry snapshots; production
     // persistence is key-scoped (ENG-24990).
     #[cfg_attr(not(test), allow(dead_code))]
-    pub fn from_persisted(
+    pub(crate) fn from_persisted(
         episodes: BTreeMap<RetryEpisodeKey, RetryEpisode>,
         clock_high_water_ms: u64,
     ) -> SnapbackResult<Self> {
@@ -472,7 +469,8 @@ impl RetryEpisodeRegistry {
     /// @ref LLP 0053#invalidation-is-an-obligation-not-a-message — retry
     /// persistence is per-key insert/replace/delete, not a full-table
     /// rewrite (ENG-24990).
-    pub fn from_persisted_scoped(
+    #[allow(dead_code)]
+    pub(crate) fn from_persisted_scoped(
         key: &RetryEpisodeKey,
         episode: Option<RetryEpisode>,
         clock_high_water_ms: u64,

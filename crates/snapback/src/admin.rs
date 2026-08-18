@@ -4026,7 +4026,7 @@ fn derive_protected_record_erasure_authority(
     if authority.source() != InvocationSource::ProtectedRecordErasure {
         return Err(SnapbackError::error(
             "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
-            "admin",
+            "proofCheckpoint",
             "protected-record erasure requires its registered product invocation source",
         ));
     }
@@ -4041,7 +4041,7 @@ fn derive_protected_record_erasure_authority(
             _ => {
                 return Err(SnapbackError::error(
                     "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
-                    "admin",
+                    "proofCheckpoint",
                     "protected-record erasure requires current administrative authority",
                 ));
             }
