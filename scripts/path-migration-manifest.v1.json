@@ -336,10 +336,11 @@
       {
         "id": "dated-acceptance-fixtures",
         "pattern": "^tests/acceptance/fixtures/.+\\.2026-[^/]*\\.v1\\.json$",
-        "files": [
-          "tests/acceptance/fixtures/agent-safe-storage/performance-baseline-build-recipe.v1.json",
-          "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-09.v3.json"
-        ]
+      "files": [
+        "tests/acceptance/fixtures/agent-safe-storage/performance-baseline-build-recipe.v1.json",
+        "tests/acceptance/fixtures/browser-lane/spike/rust-evaluator-wasm.2026-08-05/measurement.v1.json",
+        "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-09.v3.json"
+      ]
       },
       {
         "id": "acceptance-evidence-markdown",
