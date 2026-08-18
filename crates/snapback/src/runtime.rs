@@ -6,8 +6,6 @@
 
 mod core;
 mod host_glue;
-mod proof_shapes;
-
 pub use core::*;
 pub use host_glue::*;
-pub(crate) use proof_shapes::*;
+pub(crate) use snapback_types::runtime::*;

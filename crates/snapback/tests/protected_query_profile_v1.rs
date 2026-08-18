@@ -36,6 +36,7 @@ fn manifest_error(function: FunctionDefinition) -> snapback::diagnostic::Snapbac
     }
     .validate_artifact()
     .expect_err("protected input must fail at manifest load")
+    .into()
 }
 
 #[test]

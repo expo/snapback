@@ -14,7 +14,7 @@ pub mod query;
 pub mod rebuild;
 pub mod sqlite;
 pub mod storage;
-pub mod types;
+pub use snapback_types::vector::types;
 
 #[cfg(test)]
 mod acceptance;

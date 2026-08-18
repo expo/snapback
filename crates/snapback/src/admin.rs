@@ -2912,6 +2912,7 @@ impl AppState {
     ) -> Result<Arc<crate::network_profile::ActiveNetworkProfile>, SnapbackError> {
         self.network_profiles
             .activate(profile, self.network_profile_authority(), source, principal)
+            .map_err(Into::into)
     }
 
     pub(crate) fn activate_network_profile_env(
@@ -6172,7 +6173,7 @@ mod tests {
         );
 
         let (schema, functions, config) =
-            crate::visibility_governance::tests::signed_repository_local_dev_activation_fixture();
+            crate::visibility_governance::signed_repository_local_dev_activation_fixture();
         let profile = shared
             .try_lock()
             .expect("inspect production graph")

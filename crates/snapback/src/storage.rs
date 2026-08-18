@@ -1,4 +1,5 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+use crate::instance_fork::DerivedForkRuntimeExt as _;
 use crate::ephemeral::{validate_collection_definitions, validate_collection_permission_backing};
 use crate::manifest::{
     AssetCollectionMutationPlanV1, AssetCollectionOperationV1, AuthInput, AuthMode,
@@ -11,7 +12,7 @@ use crate::manifest::{
     OwnerWriteCheckV1, PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX,
     QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency,
     ResultValueContract, ReturnValue, SchemaManifest, SeedData, SettlementMintObservation,
-    SettlementTimeObservation, TableManifest, TableVisibilityV1, ValueExpr, auth_fingerprint,
+    SettlementTimeObservation, TableManifest, TableVisibilityV1, ValueExpr,
     canonical_membership_transition_matrix, effective_query_limit, is_user_identifier,
     replay_opaque_id_is_valid, validate_ctx_answer_ledger, validate_portable_timestamp_millis,
     validate_query_plan_shape,
@@ -36,7 +37,6 @@ use std::sync::{OnceLock, mpsc};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 pub(crate) const META_FUNCTION_GENERATION: &str = "function_generation";
 
 mod api_envelope_state;
@@ -79,6 +79,7 @@ mod schema_transition;
 mod settlement;
 mod versions;
 
+pub use snapback_types::storage::*;
 pub use self::jobs::{JobsKernel, JobsReadKernel};
 pub use api_envelope_state::{
     ApiEnvelopeCurrentRecord, ApiEnvelopeKernel, ApiEnvelopeReadKernel, ApiEnvelopeStateRecord,
@@ -491,86 +492,6 @@ fn maintain_derived_indexes_in_tx(
     crate::vector::sqlite::maintain_vector_indexes_in_tx(tx, schema, changes, version)
 }
 
-/// The one durable authorization-stream witness. The incarnation closes reset
-/// and restore ABA; the JS-safe epoch advances for ordinary authorization
-/// events within that stream.
-///
-/// @ref LLP 0053#the-authorization-version — v1 has one global durable pair.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthorizationVersion {
-    pub incarnation: String,
-    #[schemars(range(max = MAX_AUTHORIZATION_EPOCH))]
-    pub epoch: u64,
-}
-
-/// JavaScript's largest exactly representable integer. The durable epoch
-/// refuses at this boundary rather than wrapping or losing wire precision.
-pub const MAX_AUTHORIZATION_EPOCH: u64 = 9_007_199_254_740_991;
-
-/// Exact authorization state produced inside a caller-owned commit. `event`
-/// is false for an ordinary/disjoint app commit, while `incarnation_rotated`
-/// distinguishes destructive boundaries from epoch advances.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct AuthorizationCommitWitness {
-    pub version: AuthorizationVersion,
-    pub event: bool,
-    pub incarnation_rotated: bool,
-    /// Stable LLP 0056 declaration ids whose writes contributed to this event.
-    /// Empty for non-membership events and ordinary commits. The durable
-    /// authorization version remains the one global pair LLP 0053 pins; this
-    /// attribution exists for per-declaration blast-radius measurement.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub membership_declarations: Vec<String>,
-}
-
-/// The authority-relevant state of one membership row. Application-specific
-/// roster columns and host-private provenance deliberately stay out of the
-/// transition receipt; the subject and scope are carried separately.
-///
-/// @ref LLP 0240#d3-generate-the-ordinary-roster-and-role-surface — mutation
-///   receipts expose predecessor/successor authority state without making
-///   private membership metadata application-visible.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AuthorityMembershipStateV1 {
-    pub role: String,
-    pub status: AuthorityMembershipStatusV1,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum AuthorityMembershipStatusV1 {
-    Active,
-    Invited,
-}
-
-/// Whether the exact commit advanced the durable authorization generation.
-/// Preview is explicit because dry-run executes the same storage plan but
-/// intentionally rolls it back.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "kebab-case")]
-pub enum AuthorityInvalidationDispositionV1 {
-    GlobalAuthorizationEpochAdvanced,
-    NoAuthorizationEvent,
-    PreviewRolledBack,
-}
-
-/// One affected subject in a writer-seam membership commit. Atomic operations
-/// such as `transferOwner` return one receipt per changed subject, all carrying
-/// the disposition of their shared commit.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AuthorityTransitionReceiptV1 {
-    pub declaration: String,
-    pub predecessor: Option<AuthorityMembershipStateV1>,
-    pub successor: Option<AuthorityMembershipStateV1>,
-    pub subject: String,
-    pub scope: Option<String>,
-    pub invalidation_disposition: AuthorityInvalidationDispositionV1,
-}
-
 /// Process-local impact metadata for the protected-room commit interlock.
 ///
 /// The durable authorization version intentionally remains one global pair,
@@ -888,27 +809,6 @@ pub struct ResetCommit {
     pub authorization: AuthorizationCommitWitness,
 }
 
-/// Durable identity for one queued client mutation. The server stores this in
-/// the same SQLite transaction as the mutation result, closing the
-/// response-loss/reconnect duplicate window (LLP 0043 M2).
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ClientMutationIdentity {
-    pub id: String,
-    pub function: String,
-    pub auth_fingerprint: String,
-    pub authority_instance_id: String,
-    pub input_fingerprint: String,
-    /// Digest of the exact schema/function generation selected for an
-    /// issuance-bearing operation. It is retained separately from the input
-    /// collision digest so the envelope can compare today's policy artifact
-    /// before interpreting its plan.
-    pub artifact_generation_digest: Option<String>,
-    /// Authenticated LLP 0163 issuance facts. Existing protocol clients leave
-    /// this absent and therefore remain outside envelope coverage until the
-    /// range carrier/negotiation amendment lands.
-    pub operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
-}
-
 struct RetainedClientMutationRow {
     function: String,
     auth_fingerprint: String,
@@ -1036,141 +936,6 @@ impl<'a> MembershipCommitAuthority<'a> {
     }
 }
 
-impl ClientMutationIdentity {
-    pub fn new(id: impl Into<String>, function: impl Into<String>, input: &HandlerInput) -> Self {
-        Self::for_authority(
-            id,
-            function,
-            input,
-            TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
-        )
-    }
-
-    pub fn for_authority(
-        id: impl Into<String>,
-        function: impl Into<String>,
-        input: &HandlerInput,
-        authority_instance_id: impl Into<String>,
-    ) -> Self {
-        Self::for_authority_with_settlement(
-            id,
-            function,
-            input,
-            authority_instance_id,
-            &MutationSettlement::default(),
-        )
-    }
-
-    pub fn for_authority_with_settlement(
-        id: impl Into<String>,
-        function: impl Into<String>,
-        input: &HandlerInput,
-        authority_instance_id: impl Into<String>,
-        settlement: &MutationSettlement,
-    ) -> Self {
-        Self {
-            id: id.into(),
-            function: function.into(),
-            auth_fingerprint: auth_fingerprint(&input.auth),
-            authority_instance_id: authority_instance_id.into(),
-            // @ref LLP 0133#exactly-once-identity-under-the-new-semantics —
-            //   every settle-time policy fact shares the durable collision
-            //   boundary with args/readSet/ctxLedger.
-            input_fingerprint: mutation_input_fingerprint(input, settlement),
-            artifact_generation_digest: None,
-            operation_issuance: None,
-        }
-    }
-
-    pub fn with_operation_issuance(
-        mut self,
-        issuance: crate::commit_envelope::OperationIssuanceV1,
-    ) -> Self {
-        self.operation_issuance = Some(issuance);
-        self
-    }
-
-    /// Bind the closed generated media-command carrier into the same durable
-    /// collision boundary as args and settlement facts. A response-loss retry
-    /// can therefore recover only the exact attempt/item/principal plan.
-    pub(crate) fn with_media_command(
-        mut self,
-        invocation: &crate::manifest::MediaCommandInvocationV1,
-    ) -> Self {
-        let canonical = canonical_json(json!({
-            "inputFingerprint": self.input_fingerprint,
-            "mediaCommand": invocation,
-        }));
-        let mut digest = Sha256::new();
-        digest.update(b"snapback:client-mutation-media-command:v1\n");
-        digest.update(
-            serde_json::to_vec(&canonical).expect("media-command mutation identity serializes"),
-        );
-        self.input_fingerprint = format!("sha256:{:x}", digest.finalize());
-        self
-    }
-
-    pub fn with_artifact_generation(
-        mut self,
-        generation: &crate::manifest::ArtifactGeneration,
-    ) -> Self {
-        self.artifact_generation_digest = Some(operation_artifact_generation_digest(generation));
-        let canonical = canonical_json(json!({
-            "artifactGeneration": generation,
-            "inputFingerprint": self.input_fingerprint,
-        }));
-        let mut digest = Sha256::new();
-        digest.update(b"snapback:client-mutation-artifact-binding:v1\n");
-        digest.update(
-            serde_json::to_vec(&canonical).expect("artifact-bound mutation identity serializes"),
-        );
-        self.input_fingerprint = format!("sha256:{:x}", digest.finalize());
-        self
-    }
-
-    /// Provenance-only digest of the exact server-constructed durable
-    /// settlement identity. The activity row never receives the opaque
-    /// client mutation id or its authority/input fingerprints in cleartext.
-    pub(crate) fn activity_digest(&self) -> String {
-        // Preserve the already-shipped digest preimage for callers outside
-        // LLP 0163 coverage. Issuance facts widen the identity only when they
-        // are actually present.
-        let canonical = canonical_json(match &self.operation_issuance {
-            Some(issuance) => json!({
-                "authFingerprint": self.auth_fingerprint,
-                "authorityInstanceId": self.authority_instance_id,
-                "clientMutationId": self.id,
-                "function": self.function,
-                "inputFingerprint": self.input_fingerprint,
-                "artifactGenerationDigest": self.artifact_generation_digest,
-                "operationIssuance": issuance,
-            }),
-            None => json!({
-                "authFingerprint": self.auth_fingerprint,
-                "authorityInstanceId": self.authority_instance_id,
-                "clientMutationId": self.id,
-                "function": self.function,
-                "inputFingerprint": self.input_fingerprint,
-            }),
-        });
-        let encoded =
-            serde_json::to_vec(&canonical).expect("client mutation identity JSON serializes");
-        let mut digest = Sha256::new();
-        digest.update(b"snapback:client-mutation-identity:v1\n");
-        digest.update(encoded);
-        format!("sha256:{:x}", digest.finalize())
-    }
-}
-
-pub(crate) fn operation_artifact_generation_digest(
-    generation: &crate::manifest::ArtifactGeneration,
-) -> String {
-    crate::operation_ledger::digest_fact_set(
-        b"snapback:operation-artifact-generation:v1\n",
-        &canonical_json(serde_json::to_value(generation).expect("artifact generation serializes")),
-    )
-}
-
 /// One executed IR mutation plan with its recorded deterministic answers —
 /// what the plan wrote (or would write), every host-generated id in answer
 /// order, and the frozen evaluation clock. The commit path discards the
@@ -1185,43 +950,6 @@ pub struct MutationPlanExecution {
     pub now_ms: u64,
     /// The database version the plan evaluated against.
     pub snapshot_version: u64,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct CapturedReadDependency {
-    pub kind: CapturedReadKind,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub table: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub predicate: Option<Value>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub rows: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub field: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub value: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub order: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub limit: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub result_count: Option<usize>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub boundary: Option<Value>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum CapturedReadKind {
-    Row,
-    MissingRow,
-    Query,
-    Auth,
-    Permission,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1248,23 +976,6 @@ pub enum BufferedWrite {
         id: String,
     },
 }
-
-/// One tentative sequence value. It is returned during handler execution but
-/// becomes a fact only if this exact identity/value transition commits.
-///
-/// @ref LLP 0135#13-allocation-versus-commit-ordering-and-gap-semantics — the
-///   counter advance is buffered and commits or rolls back with app writes.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct SequenceAllocationFact {
-    pub counter: String,
-    pub scope_table: String,
-    pub scope_row_id: String,
-    pub scope_incarnation: String,
-    #[schemars(range(min = 1, max = SEQUENCE_MAX_SAFE_INTEGER))]
-    pub value: u64,
-}
-
 impl BufferedWrite {
     pub fn table(&self) -> &str {
         match self {
@@ -11238,7 +10949,7 @@ fn build_query_sql(
     bindings: &BTreeMap<String, Value>,
     direct_bindings: Option<&BTreeMap<String, Value>>,
     now_ms: u64,
-    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
     runtime_id_site: &str,
     sql_limit: Option<usize>,
     keyset: Option<&KeysetAfter>,
@@ -11495,7 +11206,7 @@ fn build_table_visibility_sql(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
-    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
     runtime_id_site: &str,
     filter_bindings: &mut usize,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
@@ -11606,7 +11317,7 @@ fn build_membership_exists_sql(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
-    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
     runtime_id_site: &str,
     filter_bindings: &mut usize,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
@@ -12713,11 +12424,15 @@ fn eval_expr(
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
     now_ms: u64,
-    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
     site: &str,
 ) -> SnapbackResult<Value> {
     let default_id = |_path: &str| Ok(new_id());
-    let scoped_id = |path: &str| runtime_id.unwrap_or(&default_id)(&format!("{site}{path}"));
+    let scoped_id = |path: &str| {
+        runtime_id
+            .unwrap_or(&default_id)(&format!("{site}{path}"))
+            .map_err(Into::into)
+    };
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),
@@ -12732,7 +12447,8 @@ fn eval_expr(
         now_ms: Some(now_ms),
         runtime_id: Some(&scoped_id),
     };
-    crate::value_expr::eval_value_expr(expr, &env).map_err(|error| error.into_snapback())
+    crate::value_expr::eval_value_expr(expr, &env)
+        .map_err(|error| crate::diagnostic::SnapbackError::from(error.into_snapback()))
 }
 
 /// Evaluate one host-owned declarative authorization decision under the
@@ -12748,7 +12464,7 @@ fn eval_authorization_decision_values(
     bindings: &BTreeMap<String, Value>,
     direct_bindings: Option<&BTreeMap<String, Value>>,
     now_ms: u64,
-    runtime_id: Option<&crate::value_expr::RuntimeIdGenerator<'_>>,
+    runtime_id: Option<&dyn Fn(&str) -> SnapbackResult<String>>,
     site: &str,
 ) -> SnapbackResult<Vec<Value>> {
     let is_actor_aware =
@@ -15116,7 +14832,9 @@ pub(super) fn enforce_identity_binding_write_seal(
         //   provisioning lane is the only intended future exception.
         // @ref LLP 0226#b-authd7-owner--principal-claims — exposed claims may
         //   inform application behavior but cannot authorize an ordinary write.
-        return Err(crate::auth::identity_core::AuthClaimsProjection::refuse_binding_write());
+        return Err(
+            crate::auth::identity_core::AuthClaimsProjection::refuse_binding_write().into(),
+        );
     }
     Ok(())
 }
@@ -18968,7 +18686,7 @@ fn expect_string(value: Value, label: &str) -> SnapbackResult<String> {
 }
 
 fn validate_plan_replay_ledger(input: &HandlerInput) -> SnapbackResult<Option<&CtxAnswerLedger>> {
-    validate_ctx_answer_ledger(input)
+    validate_ctx_answer_ledger(input).map_err(Into::into)
 }
 
 struct PlanIdSource<'a> {

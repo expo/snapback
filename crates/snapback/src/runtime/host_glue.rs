@@ -1,5 +1,5 @@
 use super::core::*;
-use super::proof_shapes::*;
+use snapback_types::runtime::*;
 use crate::auth::admission::{AdmissionLease, CancellationRegistration};
 #[cfg(test)]
 use crate::auth::invocation::ResolvedAppAuthority;

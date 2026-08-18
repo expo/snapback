@@ -15,7 +15,9 @@
 
 use serde_json::Value;
 use snapback::local::LocalSnapback;
-use snapback::manifest::{CapabilityManifest, CapabilityMaturity, TargetCapabilityId};
+use snapback::manifest::{
+    CapabilityManifest, CapabilityManifestLocalExt as _, CapabilityMaturity, TargetCapabilityId,
+};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;

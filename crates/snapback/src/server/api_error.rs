@@ -87,6 +87,12 @@ impl From<SnapbackError> for ApiError {
     }
 }
 
+impl From<snapback_types::diagnostic::SnapbackError> for ApiError {
+    fn from(value: snapback_types::diagnostic::SnapbackError) -> Self {
+        Self(value.into(), None, None, None, None)
+    }
+}
+
 // Authoritative registry consumed by the JS client's exhaustive classifier
 // test. These request-shape/protocol refusals cannot become successful under
 // an unchanged live-subscribe retry.

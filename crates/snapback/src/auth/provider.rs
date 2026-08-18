@@ -48,12 +48,12 @@ pub use crate::contract_types::{
     AuthProviderProfile, AuthenticatedUse, ResolvedSession, SessionRevocation,
 };
 use crate::contract_types::{
-    AuthSessionRecord as SessionRecord, AuthSessionResponseFact, CatalogIssuanceReconcile,
+    AuthSessionRecord as SessionRecord, CatalogIssuanceReconcile,
     ExchangeChallengeFact, PlannedIdentityState, RejectedExchangeOutcome, RequestInsertOutcome,
     RevocationReason, SessionCapFacts, SessionIssuanceFacts, SessionRevocationCandidateFact,
     TokenDigest,
 };
-pub(crate) use crate::contract_types::{AuthenticatedUseRow, PresentedSessionLookup};
+pub(crate) use crate::contract_types::PresentedSessionLookup;
 pub(crate) use crate::contract_types::{
     DurableRejectedIssuanceReconcile, DurableRevocationReconcile, DurableRotationReconcile,
     PlannedFamilyAlarmCommit, PlannedRevocationCommit, PlannedRotationTransaction,
@@ -464,6 +464,12 @@ impl std::error::Error for ProviderError {}
 impl From<SnapbackError> for ProviderError {
     fn from(error: SnapbackError) -> Self {
         Self::new(error)
+    }
+}
+
+impl From<snapback_types::diagnostic::SnapbackError> for ProviderError {
+    fn from(error: snapback_types::diagnostic::SnapbackError) -> Self {
+        Self::new(error.into())
     }
 }
 
@@ -3902,33 +3908,6 @@ impl BearerCandidate {
             bearer: Some(bearer),
             token_hash,
         })
-    }
-}
-
-impl SessionRecord {
-    fn live_at(&self, now_ms: u64) -> bool {
-        !self.revoked && now_ms < self.session.expires_at_ms
-    }
-}
-
-impl AuthenticatedUseRow {
-    pub(crate) fn live_at(self, now_ms: u64) -> bool {
-        !self.revoked && now_ms < self.expires_at_ms && now_ms < self.absolute_expires_at_ms
-    }
-}
-
-impl From<AuthSessionResponseFact> for SessionResponse {
-    fn from(fact: AuthSessionResponseFact) -> Self {
-        Self {
-            id: fact.id,
-            user_id: fact.user_id,
-            provider: fact.provider,
-            created_at: fact.created_at,
-            expires_at: fact.expires_at,
-            absolute_expires_at: fact.absolute_expires_at,
-            authority_instance_id: fact.authority_instance_id,
-            generation: fact.generation,
-        }
     }
 }
 

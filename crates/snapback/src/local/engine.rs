@@ -1,4 +1,5 @@
 use crate::auth::admission::AdmissionLease;
+use crate::assets::AssetFactsLocalExt as _;
 use crate::auth::admission::{
     AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
 };
@@ -31,6 +32,9 @@ use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
     LocalCronRuntime, validate_cron_manifest,
 };
+use crate::completeness::{
+    AuthorizationWitnessRecordExt as _, CursorEndExt as _, PageSetManifestExt as _,
+};
 use crate::diagnostic::{
     Diagnostic, DiagnosticSeverity, PublicDiagnostic, SnapbackError, SnapbackResult,
 };
@@ -45,12 +49,14 @@ use crate::live_matcher::{
     LiveDeltaKind, LiveDeltaOutcome, LiveMatchOutcome, compute_live_delta,
     live_subscription_match_outcome, query_dependencies_from_plan,
 };
+use crate::instance_fork::DerivedForkRuntimeExt as _;
 use crate::live_wire::{
     AuthorizationInvalidationSnapshot, LiveDeltaOpKind, LiveDeltaWireOp, LiveEnvelope,
     LiveSocketServerFrame, MutationReceiptOutcome, Receipt, ResumeFromToken, ResumeMeta,
     ResumeWire, SettlementClaim, SettlementClaimDisposition, SettlementIdMapDisposition,
     SettlementIdMapEntry, SubscriptionReceiptEvent,
 };
+use crate::manifest::{CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _};
 use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
     AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
@@ -90,8 +96,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[path = "activation.rs"]
 pub(super) mod activation;
-#[path = "config_types.rs"]
-mod config_types;
+use snapback_types::local::config_types;
 #[path = "inspection.rs"]
 mod inspection;
 #[path = "live_protocol.rs"]
@@ -105,6 +110,16 @@ pub use crate::realtime::{
 };
 use activation::*;
 pub use config_types::*;
+
+impl From<&VerificationRecord> for ConfigVerificationStatus {
+    fn from(record: &VerificationRecord) -> Self {
+        Self {
+            ok: record.ok,
+            at_ms: record.at_ms,
+        }
+    }
+}
+
 pub(crate) use inspection::MaintenanceOperation;
 pub use inspection::{
     ForceLiveResyncReceipt, InspectState, LiveSubscriptionInfo, MaintenanceDiagnostics,
@@ -33050,7 +33065,8 @@ fn eval_action_expr(
         now_ms: Some(metadata.due_at_ms),
         runtime_id: Some(&generate_id),
     };
-    crate::value_expr::eval_value_expr(expr, &env).map_err(|error| error.into_snapback())
+    crate::value_expr::eval_value_expr(expr, &env)
+        .map_err(|error| crate::diagnostic::SnapbackError::from(error.into_snapback()))
 }
 
 fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {

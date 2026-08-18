@@ -135,6 +135,7 @@ impl LocalDatabase {
                 return Ok(Err(crate::auth::rehearsal::carrier_required()));
             };
             if let Err(error) = bindings.validate_grant(&grant, now_ms) {
+                let error: SnapbackError = error.into();
                 if error.diagnostic.code == "SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH" {
                     transaction.execute(
                         &format!("UPDATE {GRANTS} SET revoked_at_ms = COALESCE(revoked_at_ms, ?2), terminal_reason = COALESCE(terminal_reason, 'bindingMismatch') WHERE grant_id = ?1"),
@@ -504,6 +505,7 @@ impl LocalDatabase {
                 RehearsalAtomicEffectAdmission::Admitted(prepared) => prepared,
             };
             if let Err(error) = plan.reachability.validate_for_install() {
+                let error: SnapbackError = error.into();
                 finish_rehearsal_atomic_effect_denial_in(
                     transaction,
                     &plan.exercise,
@@ -1252,6 +1254,7 @@ pub(crate) fn prepare_rehearsal_atomic_effect_in(
     };
     let request_digest = plan.request.normalized_digest()?;
     if let Err(error) = plan.bindings.validate_grant(&grant, plan.now_ms) {
+        let error: SnapbackError = error.into();
         if error.diagnostic.code == "SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH" {
             transaction.execute(
                 &format!("UPDATE {GRANTS} SET revoked_at_ms = COALESCE(revoked_at_ms, ?2), terminal_reason = COALESCE(terminal_reason, 'bindingMismatch') WHERE grant_id = ?1"),
@@ -1493,6 +1496,7 @@ fn apply_exercise_in(
     let request_digest = plan.request.normalized_digest()?;
     let binding_error = plan.bindings.validate_grant(&grant, plan.now_ms).err();
     if let Some(error) = binding_error {
+        let error: SnapbackError = error.into();
         if error.diagnostic.code == "SNAPBACK_AUTH_REHEARSAL_BINDING_MISMATCH" {
             transaction.execute(
                 &format!("UPDATE {GRANTS} SET revoked_at_ms = COALESCE(revoked_at_ms, ?2), terminal_reason = COALESCE(terminal_reason, 'bindingMismatch') WHERE grant_id = ?1"),

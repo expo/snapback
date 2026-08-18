@@ -537,6 +537,7 @@ fn is_source_commit(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::manifest::CapabilityManifestLocalExt as _;
 
     fn published_fixture(
         capability_id: &str,

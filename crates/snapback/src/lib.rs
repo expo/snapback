@@ -32,13 +32,12 @@ pub mod admin_link;
 #[doc(hidden)]
 pub mod admin_secret_read;
 pub(crate) mod agent_safe_publication;
-mod api_compat;
 #[doc(hidden)]
-pub mod api_envelope;
+pub use snapback_types::api_envelope;
 #[doc(hidden)]
-pub mod app_data_result;
+pub use snapback_types::app_data_result;
 #[doc(hidden)]
-pub mod args_contract;
+pub use snapback_types::args_contract;
 pub(crate) mod ask;
 #[doc(hidden)]
 pub mod assets;
@@ -67,7 +66,7 @@ pub mod bundle;
 #[doc(hidden)]
 pub mod cli;
 #[doc(hidden)]
-pub mod commit_envelope;
+pub use snapback_types::commit_envelope;
 #[doc(hidden)]
 pub mod completeness;
 #[doc(hidden)]
@@ -80,12 +79,12 @@ pub(crate) mod contract_exact;
 pub(crate) mod elevated_read_trace;
 pub(crate) mod generation_activation;
 #[doc(hidden)]
-pub mod visibility_governance;
+pub use snapback_types::visibility_governance;
 pub(crate) mod spike_trace;
 // @ref LLP 0225#1-ownership-map — dependency-free shared contract/types
 // leaf consumed downward by Rust owners and generated-artifact producers.
 #[doc(hidden)]
-pub mod contract_types;
+pub use snapback_types::contract_types;
 #[doc(hidden)]
 pub mod control_catalog;
 #[doc(hidden)]
@@ -107,7 +106,7 @@ pub mod error_tracking;
 #[doc(hidden)]
 pub mod errors_query;
 #[doc(hidden)]
-pub mod exec_guard;
+pub use snapback_types::exec_guard;
 #[doc(hidden)]
 pub mod fork_promotion;
 #[doc(hidden)]
@@ -115,14 +114,14 @@ pub mod guide;
 pub(crate) mod guide_mcp;
 pub(crate) mod guide_reference;
 #[doc(hidden)]
-pub mod handler_wire;
+pub use snapback_types::handler_wire;
 #[doc(hidden)]
 pub mod host_ops;
-pub mod host_ops_contract;
+pub use snapback_types::host_ops_contract;
 #[doc(hidden)]
-pub mod identity;
+pub use snapback_types::identity;
 #[doc(hidden)]
-pub mod ids;
+pub use snapback_types::ids;
 #[doc(hidden)]
 pub mod instance_fork;
 pub(crate) mod instance_lock;
@@ -135,7 +134,7 @@ pub(crate) mod webhooks;
 
 pub(crate) mod live_matcher;
 #[doc(hidden)]
-pub mod live_wire;
+pub use snapback_types::live_wire;
 #[doc(hidden)]
 pub mod local;
 #[doc(hidden)]
@@ -152,7 +151,7 @@ pub(crate) mod operation_detail;
 pub mod operation_ledger;
 #[doc(hidden)]
 pub mod operational_readiness;
-pub(crate) mod owner_only_file;
+pub(crate) use snapback_types::owner_only_file;
 #[doc(hidden)]
 pub mod proof_checkpoint;
 #[doc(hidden)]
@@ -163,12 +162,12 @@ pub mod remediation;
 #[doc(hidden)]
 pub mod replication;
 #[doc(hidden)]
-pub mod result_contract;
+pub use snapback_types::result_contract;
 #[doc(hidden)]
-pub mod result_transform;
+pub use snapback_types::result_transform;
 #[doc(hidden)]
 pub mod rqs;
-pub mod rqs_contract;
+pub use snapback_types::rqs_contract;
 #[doc(hidden)]
 pub mod runtime;
 #[doc(hidden)]
@@ -181,7 +180,7 @@ pub mod seed_identity;
 #[doc(hidden)]
 pub mod server;
 #[doc(hidden)]
-pub mod service_profile;
+pub use snapback_types::service_profile;
 pub(crate) mod snapshot_batch_cursor;
 #[doc(hidden)]
 pub mod snapshot_batch_cursor_v2;
@@ -194,17 +193,17 @@ pub mod stream_attempt;
 #[doc(hidden)]
 pub mod telemetry;
 #[doc(hidden)]
-pub mod telemetry_contract;
+pub use snapback_types::telemetry_contract;
 #[doc(hidden)]
 pub mod telemetry_query;
 #[doc(hidden)]
-pub mod value_expr;
+pub use snapback_types::value_expr;
 #[doc(hidden)]
 pub mod vector;
 pub(crate) mod warm_vm;
 #[doc(hidden)]
 pub mod wire_fixtures;
 #[doc(hidden)]
-pub mod wire_version;
+pub use snapback_types::wire_version;
 #[doc(hidden)]
 pub mod workerd_exec;

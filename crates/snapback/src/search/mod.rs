@@ -18,11 +18,15 @@ pub mod parser;
 pub mod rebuild;
 pub mod scorer;
 pub mod sqlite;
-pub mod types;
+pub use snapback_types::search::types;
 pub mod unicode17_generated;
 
-impl FullTextSearchFactsV1 {
-    pub fn local_v1() -> Self {
+pub(crate) trait FullTextSearchFactsLocalExt {
+    fn local_v1() -> Self;
+}
+
+impl FullTextSearchFactsLocalExt for FullTextSearchFactsV1 {
+    fn local_v1() -> Self {
         Self {
             capability_id: SEARCH_CAPABILITY.to_owned(),
             maturity: "stable".to_owned(),

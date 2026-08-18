@@ -62,6 +62,9 @@ const productionPaths = [
   // `#[cfg(test)]` from their parent modules; a filesystem walk does not.
   ...walk(join(root, 'crates/snapback/src'), (path) => path.endsWith('.rs')
     && !/^crates\/snapback\/src\/(?:cli|local|server|storage)\/tests\.rs$/u.test(path)),
+  // @ref LLP 0276#phases — diagnostics move with their owning contract
+  // modules, so the source-complete registry must scan each carved Rust root.
+  ...walk(join(root, 'crates/snapback-types/src'), (path) => path.endsWith('.rs')),
   ...walk(join(root, 'packages'), (path) => (
     path.endsWith('.mjs')
     && !/(?:^|\.)test\.mjs$/u.test(path)

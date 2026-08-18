@@ -2,6 +2,7 @@
 //! versions, exact target capabilities, and manifest-load refusals.
 
 use serde_json::json;
+use snapback::manifest::{CapabilityManifestLocalExt as _, SchemaManifestValidationExt as _};
 use snapback::manifest::{
     AgentsManifest, AgentsMode, ApiDisclosure, ApiFunctionExposure, ApiManifest, ApiOAuthBundle,
     ApiOAuthManifest, AuthManifest, AuthMode, AuthRequirement, CapabilityManifest,

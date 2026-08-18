@@ -31,6 +31,7 @@ use std::process::{Command, Stdio};
 
 use serde_json::{Map, Value, json};
 use snapback::local::LocalSnapback;
+use snapback::manifest::CapabilityManifestLocalExt as _;
 use snapback::manifest::{
     AuthInput, CapabilityManifest, FieldManifest, FieldType, FunctionDefinition, FunctionKind,
     FunctionManifest, HandlerInput, IbexModule, SchemaManifest, TableManifest,

@@ -9,11 +9,10 @@
 //! @ref LLP 0059#two-phase-mutation-protocol — unique tickets, rather than a
 //! saved session snapshot, own every reversible pre-commit marker.
 
-use crate::auth::crypto::TokenHash;
 use crate::contract_types::{
-    AuthorizationStreamIncarnation, PersistedSessionTerminalReason, RevocationReason,
-    SESSION_TERMINAL_CAUSE_META_PREFIX, SessionTerminalCauseRecord, TokenDigest,
+    AuthorizationStreamIncarnation, RevocationReason, SessionTerminalCauseRecord, TokenDigest,
 };
+pub use crate::contract_types::TerminalAuthorityDisposition;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -121,23 +120,6 @@ pub(crate) fn ranked_mutex_lock_unpoisoned<T>(
     RankedMutexGuard {
         guard,
         _rank: rank_guard,
-    }
-}
-
-impl AuthorizationStreamIncarnation {
-    pub(crate) fn fresh() -> Self {
-        Self(Uuid::now_v7().to_string())
-    }
-
-    pub(crate) fn parse(value: &str) -> SnapbackResult<Self> {
-        validate_canonical_uuid_v7(value).map_err(|_| {
-            stream_corrupt("authorization-stream incarnation is not a canonical UUIDv7")
-        })?;
-        Ok(Self(value.to_owned()))
-    }
-
-    pub(crate) fn as_str(&self) -> &str {
-        &self.0
     }
 }
 
@@ -256,19 +238,6 @@ pub(crate) struct ProjectionTokenRow {
     pub superseded_at_ms: i64,
 }
 
-impl TokenDigest {
-    pub(crate) fn from_slice(bytes: &[u8]) -> SnapbackResult<Self> {
-        let digest: [u8; 32] = bytes.try_into().map_err(|_| {
-            projection_corrupt("a projected token digest does not contain exactly 32 bytes")
-        })?;
-        Ok(Self::from_bytes(digest))
-    }
-
-    pub(crate) fn from_token_hash(token_hash: &TokenHash) -> Self {
-        Self::from_bytes(*token_hash.as_bytes())
-    }
-}
-
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct MutationTicket {
     startup_id: String,
@@ -316,148 +285,6 @@ struct DeadlineKey {
     epoch_deadline_ms: u64,
     session_id: String,
     generation: u64,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum TerminalAuthorityDisposition {
-    Carrier,
-    DurableDelete,
-}
-
-impl RevocationReason {
-    pub(crate) fn authority_disposition(self) -> TerminalAuthorityDisposition {
-        match self {
-            Self::Expired | Self::CapEviction | Self::Uncertain => {
-                TerminalAuthorityDisposition::Carrier
-            }
-            Self::DurableRevocation
-            | Self::Logout
-            | Self::FamilyAlarm
-            | Self::RefreshReuse
-            | Self::Reset
-            | Self::Restore
-            | Self::ModeTransition => TerminalAuthorityDisposition::DurableDelete,
-        }
-    }
-}
-
-impl PersistedSessionTerminalReason {
-    fn from_revocation_reason(reason: RevocationReason) -> SnapbackResult<Self> {
-        Ok(match reason {
-            RevocationReason::DurableRevocation => Self::DurableRevocation,
-            RevocationReason::Logout => Self::Logout,
-            RevocationReason::CapEviction => Self::CapEviction,
-            RevocationReason::FamilyAlarm => Self::FamilyAlarm,
-            RevocationReason::RefreshReuse => Self::RefreshReuse,
-            RevocationReason::Reset => Self::Reset,
-            RevocationReason::Restore => Self::Restore,
-            RevocationReason::ModeTransition => Self::ModeTransition,
-            RevocationReason::Expired | RevocationReason::Uncertain => {
-                return Err(projection_corrupt(
-                    "a non-durable session ending cannot be persisted as a revocation cause",
-                ));
-            }
-        })
-    }
-
-    fn into_revocation_reason(self) -> RevocationReason {
-        match self {
-            Self::DurableRevocation => RevocationReason::DurableRevocation,
-            Self::Logout => RevocationReason::Logout,
-            Self::CapEviction => RevocationReason::CapEviction,
-            Self::FamilyAlarm => RevocationReason::FamilyAlarm,
-            Self::RefreshReuse => RevocationReason::RefreshReuse,
-            Self::Reset => RevocationReason::Reset,
-            Self::Restore => RevocationReason::Restore,
-            Self::ModeTransition => RevocationReason::ModeTransition,
-        }
-    }
-}
-
-impl SessionTerminalCauseRecord {
-    pub(crate) fn new(
-        session_id: &str,
-        generation: u64,
-        revoked_at_ms: u64,
-        reason: RevocationReason,
-    ) -> SnapbackResult<Self> {
-        let record = Self {
-            format_version: 1,
-            session_id: session_id.to_owned(),
-            generation,
-            revoked_at_ms,
-            reason: PersistedSessionTerminalReason::from_revocation_reason(reason)?,
-        };
-        record.validate()?;
-        Ok(record)
-    }
-
-    pub(crate) fn parse_exact(bytes: &[u8]) -> SnapbackResult<Self> {
-        let record: Self = serde_json::from_slice(bytes).map_err(|_| {
-            projection_corrupt("a session terminal-cause witness is not a closed format-1 record")
-        })?;
-        record.validate()?;
-        if record.encode_bytes()? != bytes {
-            return Err(projection_corrupt(
-                "a session terminal-cause witness is not canonically encoded",
-            ));
-        }
-        Ok(record)
-    }
-
-    pub(crate) fn meta_key(session_id: &str) -> SnapbackResult<String> {
-        validate_projection_id(session_id, "session terminal-cause")?;
-        Ok(format!("{SESSION_TERMINAL_CAUSE_META_PREFIX}{session_id}"))
-    }
-
-    pub(crate) fn encode_string(&self) -> SnapbackResult<String> {
-        String::from_utf8(self.encode_bytes()?).map_err(|_| {
-            projection_corrupt("a session terminal-cause witness could not be encoded")
-        })
-    }
-
-    pub(crate) fn session_id(&self) -> &str {
-        &self.session_id
-    }
-
-    pub(crate) fn generation(&self) -> u64 {
-        self.generation
-    }
-
-    pub(crate) fn revoked_at_ms(&self) -> u64 {
-        self.revoked_at_ms
-    }
-
-    pub(crate) fn reason(&self) -> RevocationReason {
-        self.reason.into_revocation_reason()
-    }
-
-    fn encode_bytes(&self) -> SnapbackResult<Vec<u8>> {
-        self.validate()?;
-        serde_json::to_vec(self).map_err(|_| {
-            projection_corrupt("a session terminal-cause witness could not be encoded")
-        })
-    }
-
-    fn validate(&self) -> SnapbackResult<()> {
-        if self.format_version != 1 {
-            return Err(projection_corrupt(
-                "a session terminal-cause witness has an unsupported format",
-            ));
-        }
-        validate_projection_id(&self.session_id, "session terminal-cause")?;
-        if self.generation == 0 || self.generation > MAX_SAFE_GENERATION {
-            return Err(projection_corrupt(
-                "a session terminal-cause witness has an invalid generation",
-            ));
-        }
-        if self.revoked_at_ms > MAX_SAFE_TIMESTAMP {
-            return Err(projection_corrupt(
-                "a session terminal-cause witness has an invalid timestamp",
-            ));
-        }
-        Ok(())
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

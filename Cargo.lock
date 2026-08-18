@@ -4051,6 +4051,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "sha2 0.10.9",
+ "snapback-types",
  "subtle",
  "syn",
  "tempfile",
@@ -4063,6 +4064,32 @@ dependencies = [
  "ureq",
  "uuid",
  "windows-sys 0.61.2",
+ "zeroize",
+]
+
+[[package]]
+name = "snapback-types"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "crc32fast",
+ "getrandom 0.3.4",
+ "hmac 0.12.1",
+ "http",
+ "jsonschema",
+ "libc",
+ "ring",
+ "ryu-js",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "sha2 0.10.9",
+ "subtle",
+ "tempfile",
+ "tokio",
+ "unicode-normalization",
+ "uuid",
  "zeroize",
 ]
 

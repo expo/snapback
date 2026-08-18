@@ -38,8 +38,13 @@ fn validate_api_origin(origin: &str) -> SnapbackResult<()> {
     }
     Ok(())
 }
-impl SchemaManifest {
-    pub fn validate_artifact(&self) -> SnapbackResult<()> {
+pub trait SchemaManifestValidationExt {
+    fn validate_artifact(&self) -> SnapbackResult<()>;
+    fn validate_asset_collections(&self) -> SnapbackResult<()>;
+}
+
+impl SchemaManifestValidationExt for SchemaManifest {
+    fn validate_artifact(&self) -> SnapbackResult<()> {
         validate_artifact_header(
             "schema",
             "schemaManifest",
@@ -627,8 +632,12 @@ impl SchemaManifest {
         Ok(())
     }
 }
-impl ExpoPushSeamFactsV1 {
-    pub fn local_v1() -> Self {
+pub(crate) trait ExpoPushSeamFactsLocalExt {
+    fn local_v1() -> Self;
+}
+
+impl ExpoPushSeamFactsLocalExt for ExpoPushSeamFactsV1 {
+    fn local_v1() -> Self {
         Self {
             capability_id: "notifications.expoPushSeam".to_owned(),
             surfaces: [

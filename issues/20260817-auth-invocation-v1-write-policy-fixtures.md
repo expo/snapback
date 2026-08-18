@@ -36,17 +36,20 @@ also dropping `principal:` from `createBinding` yields
 `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED`.
 
 The cause is ordering, not the fixture. On the JavaScript handler path,
-`ctx.db.insert` resolves **generic** write policy at `src/runtime.rs:3902` and
+`ctx.db.insert` resolves **generic** write policy at
+`crates/snapback/src/runtime.rs:3902` and
 returns the undeclared-table refusal *before* the write is buffered and
-therefore before the identity-binding seal at `src/storage.rs:4674` can fire.
+therefore before the identity-binding seal at
+`crates/snapback/src/storage.rs:4674` can fire.
 LLP 0214 §5.9 specifies the specialized binding refusal as
 **policy-independent**, so a generic policy outcome should not be able to
 preempt it.
 
 The HostPlan path already implements the intended order: the binding seal runs
-at `src/storage.rs:3038`, ahead of owner-check validation at
-`src/storage.rs:3167`. So the two paths disagree with each other, which is the
-clearest evidence that this is a defect rather than a deliberate choice.
+at `crates/snapback/src/storage.rs:3038`, ahead of owner-check validation at
+`crates/snapback/src/storage.rs:3167`. So the two paths disagree with each
+other, which is the clearest evidence that this is a defect rather than a
+deliberate choice.
 
 **Why a fixture edit is the wrong fix, and dangerous:** changing the fixture to
 `public-read` makes the assertion pass while leaving the precedence inversion in
