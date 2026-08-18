@@ -11,6 +11,7 @@
     "proof-runner-fixtures",
     "local-proof-inventory",
     "affected-selector-fixtures",
+    "path-migration-stragglers",
     "authoring-profile-branches",
     "package-test-inventory",
     "scripts-test-inventory"
@@ -60,10 +61,12 @@
     ]
   },
   "driftAlwaysRunGates": [
-    "module-ownership"
+    "module-ownership",
+    "path-migration-stragglers"
   ],
   "driftFailClosedCoreGates": [
     "module-ownership",
+    "path-migration-stragglers",
     "contract-meta",
     "guide",
     "telemetry-receipt-check",
@@ -178,6 +181,41 @@
         ]
       },
       "regenerateCommand": "node --test tests/local_proof_inventory_v0.mjs"
+    },
+    "path-migration-stragglers": {
+      "records": [
+        "scripts/path-migration-manifest.v1.json (LLP 0276 path-sensitive consumer plan and epoch-aware search contract)"
+      ],
+      "recordPaths": [
+        "scripts/path-migration-manifest.v1.json"
+      ],
+      "triggerRules": {
+        "files": [
+          "AGENTS.md",
+          "Cargo.toml",
+          "ownership.baseline.json",
+          "ownership.manifest.json",
+          "ref-check",
+          "scripts/check-path-migration-stragglers.mjs",
+          "scripts/path-migration-manifest.v1.json"
+        ],
+        "prefixes": [
+          ".github/workflows/",
+          ".githooks/",
+          "cloudflare/",
+          "crates/",
+          "guide/",
+          "issues/",
+          "llp/",
+          "scripts/",
+          "skills/",
+          "targets/",
+          "tests/acceptance/",
+          "tests/conformance/",
+          "tools/"
+        ]
+      },
+      "regenerateCommand": "node scripts/check-path-migration-stragglers.mjs"
     },
     "module-ownership": {
       "records": [
@@ -643,9 +681,11 @@
       "files": [
         ".github/workflows/local-proof.yml",
         "scripts/check-local-proof-gates.mjs",
+        "scripts/check-path-migration-stragglers.mjs",
         "scripts/check-scripts-test-inventory.mjs",
         "scripts/lib/proof-runner.sh",
         "scripts/local-proof-selection-policy.v1.json",
+        "scripts/path-migration-manifest.v1.json",
         "scripts/select-local-proof.mjs",
         "scripts/verify-local-proof",
         "tests/local_proof_inventory_v0.mjs",
@@ -1058,6 +1098,12 @@
     }
   ],
   "groups": {
+    "path-migration": {
+      "lane": "fast",
+      "gates": [
+        "path-migration-stragglers"
+      ]
+    },
     "module-ownership": {
       "lane": "fast",
       "gates": [

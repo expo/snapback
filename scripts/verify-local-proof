@@ -236,6 +236,7 @@ run runtime-readiness-fixtures -- node --test tests/runtime_readiness_receipt_v0
 run proof-runner-fixtures -- node --test tests/proof_runner_v0.mjs
 run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
 run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
+run path-migration-stragglers -- node scripts/check-path-migration-stragglers.mjs
 run rustfmt -- node scripts/check-rustfmt.mjs
 run module-ownership -- node scripts/check-module-ownership.mjs
 run module-ownership-fixtures -- node --test scripts/check-module-ownership.test.mjs

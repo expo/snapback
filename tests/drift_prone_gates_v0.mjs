@@ -54,11 +54,13 @@ const IMPLEMENTATION_FILES = [
   'ownership.baseline.json',
   'ownership.manifest.json',
   'scripts/check-module-ownership.mjs',
+  'scripts/check-path-migration-stragglers.mjs',
   'scripts/drift-prone-gates.mjs',
   'scripts/check-contract-meta.mjs',
   'scripts/check-contract-meta.test.mjs',
   'scripts/check-diary-identity.mjs',
   'scripts/local-proof-selection-policy.v1.json',
+  'scripts/path-migration-manifest.v1.json',
   'scripts/select-local-proof.mjs',
   'scripts/update-agent-safe-publication-leaf-set.mjs',
   'scripts/update-contract-meta.mjs',
@@ -686,17 +688,23 @@ test('drift selection preserves mapped triggers and tiers fail-closed paths', ()
   const core = context.inventory.canonicalGates.filter((gate) => (
     context.policy.driftFailClosedCoreGates.includes(gate)
   ));
-  assert.deepEqual(context.policy.driftAlwaysRunGates, ['module-ownership']);
+  assert.deepEqual(
+    context.policy.driftAlwaysRunGates,
+    ['module-ownership', 'path-migration-stragglers'],
+  );
   assert.ok(context.policy.driftFailClosedCoreGates.length > 0);
   for (const gate of context.policy.driftFailClosedCoreGates) {
     assert.ok(Object.hasOwn(context.policy.driftProneGates, gate), gate);
   }
   assert.deepEqual(
     selectDriftProneGates(['README.md'], context).selectedDriftProneGates,
-    ['module-ownership'],
+    ['module-ownership', 'path-migration-stragglers'],
   );
   const mapped = selectDriftProneGates(['guide/index.md'], context);
-  assert.deepEqual(mapped.selectedDriftProneGates, ['guide', 'module-ownership']);
+  assert.deepEqual(
+    mapped.selectedDriftProneGates,
+    ['guide', 'module-ownership', 'path-migration-stragglers'],
+  );
   assert.equal(mapped.driftFailClosedDisposition, null);
   const guideTriggerFiles = [
     'llp/0193-errors-as-docs-completeness.plan.md',
@@ -717,13 +725,13 @@ test('drift selection preserves mapped triggers and tiers fail-closed paths', ()
     selectDriftProneGates([
       'tests/agent_safe_publication_checker_v1.mjs',
     ], context).selectedDriftProneGates,
-    ['agent-safe-publication-fixtures', 'module-ownership'],
+    ['agent-safe-publication-fixtures', 'module-ownership', 'path-migration-stragglers'],
   );
   assert.deepEqual(
     selectDriftProneGates([
       'diaries/0001-todo-demo.diary.md',
     ], context).selectedDriftProneGates,
-    ['diary-identity', 'module-ownership'],
+    ['diary-identity', 'module-ownership', 'path-migration-stragglers'],
   );
   const unknown = selectDriftProneGates(['unclassified-drift-probe.xyz'], context);
   assert.equal(unknown.selectionClass, 'FAIL_CLOSED_FULL');

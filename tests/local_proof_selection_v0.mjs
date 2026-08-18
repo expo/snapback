@@ -267,11 +267,14 @@ test('Rust modules and ownership authorities select the module-ownership ratchet
   }
 });
 
-test('docs-only pushes still select the always-run module-ownership drift gate', () => {
-  assert.deepEqual(context.policy.driftAlwaysRunGates, ['module-ownership']);
+test('docs-only pushes still select the always-run migration drift gates', () => {
+  assert.deepEqual(
+    context.policy.driftAlwaysRunGates,
+    ['module-ownership', 'path-migration-stragglers'],
+  );
   assert.deepEqual(
     selectDriftProneGates(['README.md'], context).selectedDriftProneGates,
-    ['module-ownership'],
+    ['module-ownership', 'path-migration-stragglers'],
   );
 });
 
