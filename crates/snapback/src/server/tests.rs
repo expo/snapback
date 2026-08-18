@@ -14,6 +14,7 @@ use super::{
     spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
     with_snapback_staged_authorization_write,
 };
+use crate::manifest::SchemaManifestValidationExt as _;
 
 fn test_session_claims_for(
     authority: &ResolvedAppAuthority,

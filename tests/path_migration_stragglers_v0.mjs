@@ -75,7 +75,9 @@ function materializeEpoch(root, epoch) {
     return;
   }
 
-  const members = epoch === 'phase-1' ? ['crates/snapback'] : WORKSPACE_MEMBERS;
+  const members = epoch === 'phase-1'
+    ? ['crates/snapback', 'crates/snapback-types']
+    : WORKSPACE_MEMBERS;
   writeWorkspace(root, members);
   writeFixtureFile(root, 'crates/snapback/src/.keep');
   writeFixtureFile(root, 'scripts/check-module-ownership.mjs');
@@ -381,7 +383,7 @@ fn snapback_root() -> PathBuf {
 });
 
 test('manifest rows retain the pre-flip inventory with structurally valid epochs', () => {
-  assert.equal(manifest.consumers.length, 208);
+  assert.equal(manifest.consumers.length, 210);
   assert.deepEqual(validateManifest(manifest), []);
   if (manifest.epoch.current === 'pre-flip') {
     assert.deepEqual(validateConsumerFiles(manifest, ROOT), []);

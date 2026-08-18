@@ -21445,7 +21445,9 @@ async fn execute_auth_host_operation(
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
-                        return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                        return Ok(
+                            auth_host_result(runtime, request, server_url, Err(error.into())).await,
+                        );
                     }
                 };
                 let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
@@ -21534,7 +21536,9 @@ async fn execute_auth_host_operation(
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
-                        return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                        return Ok(
+                            auth_host_result(runtime, request, server_url, Err(error.into())).await,
+                        );
                     }
                 };
                 let identity = planned.planned_identity();
@@ -21593,7 +21597,9 @@ async fn execute_auth_host_operation(
                 ) {
                     Ok(provenance) => provenance,
                     Err(error) => {
-                        return Ok(auth_host_result(runtime, request, server_url, Err(error)).await);
+                        return Ok(
+                            auth_host_result(runtime, request, server_url, Err(error.into())).await,
+                        );
                     }
                 };
                 let exercise = crate::storage::auth_rehearsal::RehearsalExercisePlan {
@@ -22233,7 +22239,10 @@ async fn host_ops_handler_inner(
                         "debug.networkProfileSet requires a profile name or inline profile under input",
                     )
                 })
-                .and_then(crate::network_profile::NetworkConditionProfile::parse_value)
+                .and_then(|value| {
+                    crate::network_profile::NetworkConditionProfile::parse_value(value)
+                        .map_err(Into::into)
+                })
                 // @ref LLP 0167#authority-one-activation-chokepoint — this is
                 //   the same state-changing method used by admin PUT; there is
                 //   no host-ops-specific validation or authority path.

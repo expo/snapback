@@ -23,6 +23,7 @@ use crate::auth::service_fence::{
 use crate::auth::session_projection::FencedPublication;
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+pub use snapback_types::auth::invocation::FunctionAttribution;
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, AuthorityDescriptor, FunctionDefinition, FunctionKind,
     HandlerInput,
@@ -32,7 +33,7 @@ use crate::storage::auth_asset_callbacks::{
     ASSET_CALLBACKS_SERVICE_NAME, AssetCallbacksServicePrincipal,
 };
 use crate::storage::auth_grants::ExactGrantScope;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -703,23 +704,6 @@ struct HandlerAuthActorProjection {
     kind: String,
     grant_id: String,
 }
-
-/// Server-derived, bearer-free attribution for one app-data function
-/// response. Wrappers may copy this value, but cannot synthesize attribution
-/// authority when the invocation gate did not produce it.
-///
-/// @ref LLP 0055#audit — every resolved service-principal function response
-/// carries the same actor/effective/grant attribution and v1 has no agent
-/// dry-run surface.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct FunctionAttribution {
-    pub actor_user_id: String,
-    pub effective_user_id: Option<String>,
-    pub grant_id: String,
-    pub dry_run: bool,
-}
-
 /// The sealed direct baseline used by host-mediated authorization for a
 /// delegated invocation. Authentication-shape fields are intentionally
 /// impossible here: authorization may not distinguish a user's real session
@@ -1502,7 +1486,9 @@ impl PreparedAuthority {
             None => publish_service(),
         };
         match (&self.rehearsal_provenance, &self.rehearsal_fence) {
-            (Some(_), Some(fence)) => fence.try_publish(epoch_now_ms, publish_session),
+            (Some(_), Some(fence)) => fence
+                .try_publish(epoch_now_ms, || publish_session().map_err(Into::into))
+                .map_err(Into::into),
             (Some(_), None) => Err(crate::auth::rehearsal::authority_ended()),
             (None, _) => publish_session(),
         }
@@ -1538,7 +1524,9 @@ impl PreparedAuthority {
     pub fn validate_admission(&self, effect: &'static str) -> SnapbackResult<()> {
         self.admission.validate(effect)?;
         match (&self.rehearsal_provenance, &self.rehearsal_fence) {
-            (Some(_), Some(fence)) => fence.validate_at(rehearsal_now_ms()),
+            (Some(_), Some(fence)) => fence
+                .validate_at(rehearsal_now_ms())
+                .map_err(Into::into),
             (Some(_), None) => Err(crate::auth::rehearsal::authority_ended()),
             (None, _) => Ok(()),
         }

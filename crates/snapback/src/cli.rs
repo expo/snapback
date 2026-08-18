@@ -7,7 +7,7 @@ use crate::contract_types::ServerProfile;
 use crate::host_ops::{HOST_OPS_RESULT_KIND, HostOpsArtifacts, HostOpsResult, HostReadyDescriptor};
 use crate::instance_lock::{DatabaseInstanceLock, StartupTargetReservation};
 use crate::local::{DiagnosticBoundary, LocalSnapback};
-use crate::manifest::SNAPBACK_SCHEMA_VERSION;
+use crate::manifest::{SNAPBACK_SCHEMA_VERSION, SchemaManifestValidationExt as _};
 use crate::server;
 use anyhow::Context;
 use clap::{CommandFactory, Parser};
@@ -83,10 +83,11 @@ fn auth_startup_required(message: &'static str) -> crate::diagnostic::SnapbackEr
 }
 
 fn with_expected_deployment(
-    mut error: crate::diagnostic::SnapbackError,
+    error: impl Into<crate::diagnostic::SnapbackError>,
     expected: Option<&crate::auth::mode::DeploymentIdentity>,
     observed: Option<&crate::auth::mode::DeploymentIdentity>,
 ) -> crate::diagnostic::SnapbackError {
+    let mut error = error.into();
     error.diagnostic.details = json!({
         "expectedDeployment": expected,
         "observedDeployment": observed,
@@ -822,7 +823,11 @@ pub struct Args {
     /// browser contract. Without a verified hosted-edge adapter attestation the
     /// target refuses this must-understand request; loopback plus a reverse
     /// proxy is not an attestation.
-    #[arg(long, value_enum, default_value = "local")]
+    #[arg(
+        long,
+        value_parser = crate::auth::deployment::parse_auth_deployment_target,
+        default_value = "local"
+    )]
     pub auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
 
     /// Hosted-edge adapter configuration (LLP 0098). Carries no authority: it

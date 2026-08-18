@@ -27,6 +27,7 @@ pub use crate::contract_types::{
     CompletenessProofV1, CursorEndV1, PageIdentityV1, ProofNodeIdentityV1, ProofVersionV1,
     UnsignedCompletenessProofV1,
 };
+pub use snapback_types::completeness::PageSetManifestV1;
 
 pub const PROOF_KEYRING_FILE_NAME: &str = "completeness-proof-keyring.json";
 pub const TRUSTED_COMPOSITION_ACTIVATION_FILE_NAME: &str = "trusted-composition-activation.json";
@@ -306,8 +307,13 @@ impl TrustedCompositionActivationV1 {
     }
 }
 
-impl AuthorizationWitnessRecordV1 {
-    pub fn new(query_instance_id: u64, composite_witness: CompositeWitness) -> Result<Self> {
+pub trait AuthorizationWitnessRecordExt: Sized {
+    fn new(query_instance_id: u64, composite_witness: CompositeWitness) -> Result<Self>;
+    fn digest(&self) -> Result<String>;
+}
+
+impl AuthorizationWitnessRecordExt for AuthorizationWitnessRecordV1 {
+    fn new(query_instance_id: u64, composite_witness: CompositeWitness) -> Result<Self> {
         if query_instance_id == 0 || query_instance_id > 9_007_199_254_740_991 {
             bail!("query instance id is not a positive portable safe integer")
         }
@@ -326,13 +332,18 @@ impl AuthorizationWitnessRecordV1 {
         })
     }
 
-    pub fn digest(&self) -> Result<String> {
+    fn digest(&self) -> Result<String> {
         domain_digest(AUTHORIZATION_WITNESS_DOMAIN, self)
     }
 }
 
-impl CursorEndV1 {
-    pub fn input(profile_id: &str, wire: Option<&str>) -> Self {
+pub trait CursorEndExt: Sized {
+    fn input(profile_id: &str, wire: Option<&str>) -> Self;
+    fn output(profile_id: &str, wire: Option<&str>) -> Self;
+}
+
+impl CursorEndExt for CursorEndV1 {
+    fn input(profile_id: &str, wire: Option<&str>) -> Self {
         match wire {
             None => Self::First,
             Some(wire) => Self::Cursor {
@@ -342,7 +353,7 @@ impl CursorEndV1 {
         }
     }
 
-    pub fn output(profile_id: &str, wire: Option<&str>) -> Self {
+    fn output(profile_id: &str, wire: Option<&str>) -> Self {
         match wire {
             None => Self::Terminal,
             Some(wire) => Self::Cursor {
@@ -353,8 +364,13 @@ impl CursorEndV1 {
     }
 }
 
-impl PageIdentityV1 {
-    pub fn digest(&self) -> Result<String> {
+pub trait PageIdentityExt {
+    fn digest(&self) -> Result<String>;
+    fn validate(&self) -> Result<()>;
+}
+
+impl PageIdentityExt for PageIdentityV1 {
+    fn digest(&self) -> Result<String> {
         self.validate()?;
         domain_digest(PAGE_IDENTITY_DOMAIN, self)
     }
@@ -525,14 +541,19 @@ pub fn result_digest_v1(established_result: &Value) -> Result<String> {
     )
 }
 
-impl CompletenessProofV1 {
-    pub fn preimage(&self) -> Result<Vec<u8>> {
+pub trait CompletenessProofExt {
+    fn preimage(&self) -> Result<Vec<u8>>;
+    fn digest(&self) -> Result<String>;
+}
+
+impl CompletenessProofExt for CompletenessProofV1 {
+    fn preimage(&self) -> Result<Vec<u8>> {
         let mut bytes = PROOF_SIGNATURE_DOMAIN.to_vec();
         bytes.extend(jcs_bytes(&UnsignedCompletenessProofV1::from(self.clone()))?);
         Ok(bytes)
     }
 
-    pub fn digest(&self) -> Result<String> {
+    fn digest(&self) -> Result<String> {
         domain_digest(PROOF_DIGEST_DOMAIN, self)
     }
 }
@@ -930,19 +951,12 @@ impl PageSetIdentityRecordV1 {
     }
 }
 
-/// Client-store manifest for one composed first-to-terminal page set.  The
-/// identity is the digest of the closed LLP 0157 `PageSetIdentityRecordV1`;
-/// retaining the ordered proof digests beside it lets the client reproduce
-/// that record from its already-verified fragments before committing the set.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct PageSetManifestV1 {
-    pub identity: String,
-    pub ordered_proof_digests: Vec<String>,
+pub trait PageSetManifestExt: Sized {
+    fn compose(proofs: &[CompletenessProofV1]) -> Result<Self>;
 }
 
-impl PageSetManifestV1 {
-    pub fn compose(proofs: &[CompletenessProofV1]) -> Result<Self> {
+impl PageSetManifestExt for PageSetManifestV1 {
+    fn compose(proofs: &[CompletenessProofV1]) -> Result<Self> {
         let record = PageSetIdentityRecordV1::compose(proofs)?;
         Ok(Self {
             identity: record.digest()?,

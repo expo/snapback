@@ -26,8 +26,6 @@ use std::fmt;
 
 pub use crate::host_ops_contract::*;
 
-pub const HOST_OPS_RESULT_KIND: &str = "hostOpsResult";
-pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
 /// MCP mints `maxBytes` plus this fixed-shape outer-envelope allowance. The
 /// server measures the actual successful envelope and fails closed if future
 /// host metadata ever outgrows it.
@@ -213,65 +211,6 @@ pub const EXPLAIN_KINDS: [&str; 5] = [
     "capabilityGap",
     "mutationDryRun",
 ];
-
-impl fmt::Debug for HostOpsResult {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("HostOpsResult")
-            .field("ok", &self.ok)
-            .field("request_id", &"[REDACTED]")
-            .field("operation", &"[REDACTED]")
-            .field("target", &"[REDACTED]")
-            .field("authority", &"[REDACTED]")
-            .field("artifacts", &"[REDACTED]")
-            .field("data", &"[REDACTED]")
-            .field("diagnostic_count", &self.diagnostics.len())
-            .field("next_count", &self.next.len())
-            .finish_non_exhaustive()
-    }
-}
-
-impl HostOpsResult {
-    pub(crate) fn mark_admin_bypass(&mut self, reason: &str) {
-        self.authority = authority_admin(reason);
-    }
-}
-
-impl HostReadyDescriptor {
-    /// Attach-side validation (LLP 0030 §attach): a plugin/CLI must refuse to
-    /// treat a file as a Snapback readiness descriptor unless these facts
-    /// hold. Returns the structured reasons instead of a bare boolean.
-    pub fn validate(value: &Value) -> Result<HostReadyDescriptor, Vec<String>> {
-        let mut problems = Vec::new();
-        let descriptor: HostReadyDescriptor = match serde_json::from_value(value.clone()) {
-            Ok(descriptor) => descriptor,
-            Err(error) => return Err(vec![format!("not a readiness descriptor: {error}")]),
-        };
-        if descriptor.descriptor_kind != HOST_READY_DESCRIPTOR_KIND {
-            problems.push(format!(
-                "descriptorKind {} is not {HOST_READY_DESCRIPTOR_KIND}",
-                descriptor.descriptor_kind
-            ));
-        }
-        if descriptor.schema_version != SNAPBACK_SCHEMA_VERSION {
-            problems.push(format!(
-                "schemaVersion {} is not {SNAPBACK_SCHEMA_VERSION}",
-                descriptor.schema_version
-            ));
-        }
-        if !descriptor.ready {
-            problems.push("descriptor is not ready".to_owned());
-        }
-        if descriptor.pid == 0 {
-            problems.push("descriptor has no process id".to_owned());
-        }
-        if problems.is_empty() {
-            Ok(descriptor)
-        } else {
-            Err(problems)
-        }
-    }
-}
 
 /// One host-ops request. Operation-specific fields are optional and validated
 /// per operation; unknown operations fail closed with an envelope.

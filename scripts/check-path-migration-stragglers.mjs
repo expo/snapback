@@ -44,6 +44,12 @@ const EXTRACTED_WORKSPACE_MEMBERS = [
   'crates/snapback-tools',
   'crates/snapback-types',
 ];
+// Phase 2 carves land one dependency rank at a time. Keep this exact list in
+// lockstep with completed carves while the broader path-migration epoch stays
+// at Phase 1 until the auxiliary tools move completes the Phase 2 shape.
+const PHASE_2_CARVED_WORKSPACE_MEMBERS = new Set([
+  'crates/snapback-types',
+]);
 
 function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -375,7 +381,10 @@ function validateEpochShape(epoch, root = ROOT) {
     requireFile('crates/allowed-dependencies.v1.json');
     requireFile('scripts/check-module-ownership.mjs');
     requireWorkspaceMember('crates/snapback');
-    for (const member of EXTRACTED_WORKSPACE_MEMBERS) forbidWorkspaceMember(member);
+    for (const member of EXTRACTED_WORKSPACE_MEMBERS) {
+      if (PHASE_2_CARVED_WORKSPACE_MEMBERS.has(member)) requireWorkspaceMember(member);
+      else forbidWorkspaceMember(member);
+    }
     requireRemainderExemption();
   } else if (epoch === 'phase-2') {
     requireDirectory('crates/snapback/src');

@@ -1,14 +1,8 @@
-use crate::auth::invocation::FunctionAttribution;
-use crate::diagnostic::{Diagnostic, PublicDiagnostic, SnapbackError, SnapbackResult};
-use crate::ephemeral::EphemeralCollection;
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use crate::diagnostic::{SnapbackError, SnapbackResult};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
-use sha2::{Digest, Sha256};
+use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
-use std::fmt;
-use std::str::FromStr;
 use std::sync::OnceLock;
 
 pub use crate::contract_types::{
@@ -47,142 +41,27 @@ pub use crate::vector::types::{
 mod capabilities;
 mod identity;
 mod push_assets;
-mod types;
-mod vector;
+#[cfg(test)]
+mod types_remainder_tests;
 
 pub use capabilities::*;
 pub(crate) use identity::*;
 #[allow(unused_imports)]
 pub use push_assets::*;
-pub use types::*;
-pub use vector::*;
+pub use snapback_types::manifest::*;
 
-// These private helpers are used across multiple owner-aligned children. They
-// stay in the parent rather than choosing a false owner or creating lateral
-// dependencies between the eventual destination modules.
-fn capability_manifest_kind() -> String {
-    "capabilityManifest".to_owned()
+use snapback_types::manifest::{
+    capability_manifest_kind, sha256_is_well_formed_nonzero, sha256_prefixed,
+    snapback_schema_version, validate_artifact_header, validate_known_v1_capabilities,
+};
+
+fn unsupported_capability_error(
+    capability: &str,
+    message: impl Into<String>,
+) -> SnapbackError {
+    snapback_types::manifest::unsupported_capability_error(capability, message).into()
 }
 
-fn snapback_schema_version() -> String {
-    SNAPBACK_SCHEMA_VERSION.to_owned()
-}
-
-fn sha256_prefixed(bytes: &[u8]) -> String {
-    format!("sha256:{:x}", Sha256::digest(bytes))
-}
-
-fn sha256_is_well_formed_nonzero(value: &str) -> bool {
-    value.len() == 71
-        && value.starts_with("sha256:")
-        && value[7..].bytes().all(|byte| byte.is_ascii_hexdigit())
-        && value[7..].bytes().any(|byte| byte != b'0')
-}
-
-fn unsupported_capability_error(capability: &str, message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error(
-        "SNAPBACK_CAPABILITY_UNSUPPORTED",
-        "capability",
-        message.into(),
-    )
-    .with_details(serde_json::json!({ "capability": capability }))
-}
-
-fn validate_known_v1_capabilities<'a>(
-    required: impl IntoIterator<Item = &'a str>,
-) -> SnapbackResult<()> {
-    for capability in required {
-        capability.parse::<TargetCapabilityId>().map_err(|()| {
-            unsupported_capability_error(
-                capability,
-                format!("unknown required target capability {capability}"),
-            )
-        })?;
-    }
-    Ok(())
-}
 fn vector_manifest_invalid(message: impl Into<String>) -> SnapbackError {
-    SnapbackError::error("SNAPBACK_VECTOR_INDEX_INVALID", "vector", message)
-}
-fn validate_artifact_header(
-    subsystem: &str,
-    expected_kind: &str,
-    artifact_kind: &str,
-    schema_version: &str,
-    content_hash: Option<&str>,
-    inputs_hash: Option<&str>,
-) -> SnapbackResult<()> {
-    if artifact_kind != expected_kind {
-        return Err(SnapbackError::error(
-            format!(
-                "SNAPBACK_STALE_{}_ARTIFACT_KIND",
-                subsystem.to_ascii_uppercase()
-            ),
-            subsystem,
-            format!("expected {expected_kind} artifact but received {artifact_kind}"),
-        )
-        .with_artifact_details(
-            expected_kind,
-            artifact_kind,
-            schema_version,
-            content_hash,
-            inputs_hash,
-        ));
-    }
-
-    if !matches!(
-        schema_version,
-        SNAPBACK_SCHEMA_VERSION | SNAPBACK_SESSIONS_SCHEMA_VERSION
-    ) {
-        return Err(SnapbackError::error(
-            format!(
-                "SNAPBACK_STALE_{}_ARTIFACT_VERSION",
-                subsystem.to_ascii_uppercase()
-            ),
-            subsystem,
-            format!("unsupported {expected_kind} schema version {schema_version}"),
-        )
-        .with_artifact_details(
-            expected_kind,
-            artifact_kind,
-            schema_version,
-            content_hash,
-            inputs_hash,
-        ));
-    }
-
-    Ok(())
-}
-
-trait ArtifactDiagnosticExt {
-    fn with_artifact_details(
-        self,
-        expected_kind: &str,
-        artifact_kind: &str,
-        schema_version: &str,
-        content_hash: Option<&str>,
-        inputs_hash: Option<&str>,
-    ) -> Self;
-}
-
-impl ArtifactDiagnosticExt for SnapbackError {
-    fn with_artifact_details(
-        mut self,
-        expected_kind: &str,
-        artifact_kind: &str,
-        schema_version: &str,
-        content_hash: Option<&str>,
-        inputs_hash: Option<&str>,
-    ) -> Self {
-        self.diagnostic.details = serde_json::json!({
-            "expectedArtifactKind": expected_kind,
-            "artifactKind": artifact_kind,
-            "expectedSchemaVersion": SNAPBACK_SCHEMA_VERSION,
-            "supportedSchemaVersions": [SNAPBACK_SCHEMA_VERSION, SNAPBACK_SESSIONS_SCHEMA_VERSION],
-            "schemaVersion": schema_version,
-            "contentHash": content_hash,
-            "inputsHash": inputs_hash,
-        });
-        self
-    }
+    snapback_types::manifest::vector_manifest_invalid(message).into()
 }

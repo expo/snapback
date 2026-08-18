@@ -33,7 +33,7 @@ impl LocalDatabase {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let version = ensure_authorization_version_in(&tx)?;
         tx.commit()?;
-        AuthorizationStreamIncarnation::parse(&version.incarnation)
+        AuthorizationStreamIncarnation::parse(&version.incarnation).map_err(Into::into)
     }
 
     pub(crate) fn authorization_stream_incarnation(

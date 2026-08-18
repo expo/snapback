@@ -5,6 +5,8 @@
 **Related:** LLP 0276, LLP 0225, LLP 0189, LLP 0232
 **Blocks:** LLP 0276 Phase 2 (the carve series) cannot start until Part 3 is ruled.
 
+<!-- path-migration: historical-begin -->
+
 Produced during the Phase 0 execution run. Phase 0 landed in full
 (`c3716cc32`..`86af99cc4`); Phase 1 is the skeleton flip; Phase 2 is blocked on
 the decisions in Part 3 because the RFC's crate matrix disagrees with the
@@ -624,3 +626,5 @@ Append:
 6. **Two S-family edges** (`local/live_protocol.rs` → `local.rs`, `local/receipt_log.rs` → `local.rs`) have no direct textual reference found and are likely re-export-resolved; CM expects them to dissolve at the local.rs split — verify with the analyzer, don't assume (CM S2).
 7. **Minor internal inconsistency in the carve map:** `exec_guard.rs` is flagged YES in the types table but listed in the §1.2 REALITY-OVERRIDE summary; `elevated_read_trace.rs` the reverse. The substance (both stay/colocate as recommended) is identical either way.
 8. **P0-C and P0-D landing state** — described here as of memo time (lane branches, reviews dispatched); reconfirm before citing their gates as live.
+
+<!-- path-migration: historical-end -->

@@ -8,12 +8,12 @@ pub(crate) mod backup;
 pub(crate) mod coordinator;
 pub mod crypto;
 pub mod deployment;
-pub mod descriptor;
+pub use snapback_types::auth::descriptor;
 pub mod effective_source;
 pub mod handshake;
 #[allow(dead_code)] // Composed by the hosted-edge adapter startup lane (LLP 0098).
 pub mod hosted_edge;
-pub(crate) mod identity_core;
+pub(crate) use snapback_types::auth::identity_core;
 pub mod invalidation;
 #[allow(dead_code)] // Server composition consumes crate-private prepared authority.
 pub(crate) mod invocation;
@@ -31,9 +31,9 @@ pub(crate) mod rehearsal;
 pub(crate) mod rescue;
 pub mod runtime;
 pub mod sender_proof;
-pub(crate) mod service_authority_contract;
+pub(crate) use snapback_types::auth::service_authority_contract;
 pub(crate) mod service_fence;
 #[allow(dead_code)] // Published by the ENG-24603 coordinator integration lane.
 pub(crate) mod session_projection;
 pub(crate) mod throttle;
-pub mod wire;
+pub use snapback_types::auth::wire;

@@ -75,11 +75,11 @@ use snapback::local::{
 };
 use snapback::manifest::{
     ArtifactGeneration, AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS,
-    CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, ConfigEntryDefinition, CronJobDefinition,
-    CronSchedule, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
-    MutationAcknowledgementResponse, MutationPlan, MutationRequest, REPLAY_OPAQUE_ID_MAX_BYTES,
-    REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest, SettlementLane, SourceSpan,
-    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+    CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CapabilityManifestLocalExt as _,
+    ConfigEntryDefinition, CronJobDefinition, CronSchedule, FunctionManifest, HandlerInput,
+    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationPlan, MutationRequest,
+    REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    SchemaManifestValidationExt as _, SettlementLane, SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
 use snapback::result_transform::{
     RESULT_TRANSFORM_V1_CASE_SCHEMA_FILE, RESULT_TRANSFORM_V1_CORPUS,

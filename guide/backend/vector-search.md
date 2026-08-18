@@ -4,7 +4,7 @@ id: backend.vector-search
 order: 29
 audience: agent-first
 capabilities: [backend.vector-search]
-authorities: [llp/0132-vector-search.spec.md, crates/snapback/src/vector/types.rs, crates/snapback/src/vector/query.rs, crates/snapback/src/vector/sqlite.rs, crates/snapback/src/manifest.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0132-vector-search.spec.md, crates/snapback-types/src/vector/types.rs, crates/snapback/src/vector/query.rs, crates/snapback/src/vector/sqlite.rs, crates/snapback/src/manifest.rs, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs]
 examples: [packages/snapback-codegen/vector-authoring.test.mjs, packages/snapback-client/package.test.mjs]
 status: current
 targets: [local]

@@ -10,6 +10,8 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
+pub use snapback_types::jobs::JobEnqueueFact;
+
 /// The paved default queue (LLP 0121 OQ1): `ctx.jobs.enqueue` requires zero
 /// app-side queue declaration in v1; every job lands on this queue with the
 /// paved limits below published as target facts.
@@ -72,19 +74,6 @@ pub struct JobProducer {
     pub function: String,
     pub principal: Option<String>,
 }
-
-/// The bounded per-enqueue fact echoed on the producing mutation's receipt —
-/// the mutation-side half of the association (jobId/action/availableAt only;
-/// never argument values).
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-pub struct JobEnqueueFact {
-    #[serde(rename = "jobId")]
-    pub job_id: String,
-    pub action: String,
-    #[serde(rename = "availableAtMs")]
-    pub available_at_ms: u64,
-}
-
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum JobState {

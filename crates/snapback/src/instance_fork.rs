@@ -9,8 +9,8 @@
 //! test module; it remains a test sibling because it exercises private fork
 //! hooks.
 
-mod contract;
 mod service;
 
-pub use contract::*;
 pub use service::*;
+pub use snapback_types::instance_fork::contract;
+pub use snapback_types::instance_fork::*;

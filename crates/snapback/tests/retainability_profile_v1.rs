@@ -61,7 +61,7 @@ fn validate(function: FunctionDefinition) -> Result<(), Box<snapback::diagnostic
         ..FunctionManifest::default()
     }
     .validate_artifact()
-    .map_err(Box::new)
+    .map_err(|error| Box::new(error.into()))
 }
 
 fn owner_visible_relational_query() -> FunctionDefinition {

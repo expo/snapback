@@ -24,24 +24,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, OnceLock};
 use uuid::Uuid;
 
+pub use snapback_types::stream_attempt::StreamInitiator;
+
 pub const STREAM_CHUNK_MAX_BYTES: usize = 16 * 1024;
 pub const STREAM_ATTEMPT_MAX_BYTES: usize = 2 * 1024 * 1024;
 pub const STREAM_CHUNKS_PER_SECOND: usize = 20;
 const STREAM_LIVE_AUTH_RETENTION: std::time::Duration = std::time::Duration::from_secs(30);
 
-/// Stable privacy identity for a streaming action. Session reconnects compare
-/// the user id, service reconnects the credential id, while anonymous access
-/// remains connection-bound.
-///
-/// @ref LLP 0204#d91--streaming-conversations — possession of a
-/// room key is never stream read authority.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(tag = "kind", content = "key", rename_all = "snake_case")]
-pub enum StreamInitiator {
-    SessionUser(String),
-    ServiceCredential(String),
-    AnonymousConnection(String),
-}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct StreamAttemptMetadata {

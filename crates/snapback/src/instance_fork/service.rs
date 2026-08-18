@@ -2186,12 +2186,16 @@ fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
     Ok(())
 }
 
-impl DerivedForkRuntime {
+pub trait DerivedForkRuntimeExt {
+    fn deny(&self, family: EgressFamily, now_ms: u64) -> SnapbackError;
+}
+
+impl DerivedForkRuntimeExt for DerivedForkRuntime {
     /// Persist a bounded, payload-free marker before returning the refusal.
     ///
     /// @ref LLP 0162#acceptance — DenyAll still leaves durable proof by
     /// closed effect family; no request URL/body/token enters this table.
-    pub fn deny(&self, family: EgressFamily, now_ms: u64) -> SnapbackError {
+    fn deny(&self, family: EgressFamily, now_ms: u64) -> SnapbackError {
         let recorded = (|| -> SnapbackResult<()> {
             let writer = crate::storage::open_registered_system_writer_v1(
                 &self.database_path,
