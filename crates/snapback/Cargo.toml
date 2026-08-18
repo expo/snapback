@@ -15,6 +15,7 @@ path = "src/lib.rs"
 
 [features]
 default = []
+services-owner = []
 # Internal evidence harness for LLP 0154 Phase 1. This is deliberately absent
 # from ordinary contributor/server builds and is enabled only by the bounded
 # proof script.
@@ -75,6 +76,7 @@ snapback-auth = { path = "../snapback-auth" }
 snapback-activation = { path = "../snapback-activation" }
 snapback-runtime = { path = "../snapback-runtime" }
 snapback-sync = { path = "../snapback-sync" }
+snapback-services = { path = "../snapback-services" }
 
 [build-dependencies]
 sha2 = "0.10"
@@ -93,6 +95,7 @@ snapback-auth = { path = "../snapback-auth", features = ["test-support"] }
 snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
 snapback-runtime = { path = "../snapback-runtime", features = ["test-support"] }
 snapback-sync = { path = "../snapback-sync", features = ["test-support"] }
+snapback-services = { path = "../snapback-services", features = ["remainder-tests"] }
 syn = { version = "2.0", features = ["full", "visit"] }
 # test-util enables tokio's paused clock so the admitted-body ingest deadline
 # (LLP 0058#admitted-body-ingestion) is testable without a 20-second wait.

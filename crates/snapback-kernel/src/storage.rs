@@ -83,7 +83,9 @@ pub use self::jobs::{JobsKernel, JobsReadKernel};
 pub use api_envelope_state::{
     ApiEnvelopeCurrentRecord, ApiEnvelopeKernel, ApiEnvelopeReadKernel, ApiEnvelopeStateRecord,
 };
-pub use asset_attempts::{AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome};
+pub use asset_attempts::{
+    AssetAttemptsKernel, AssetPreparedVariant, AssetPublishOutcome,
+};
 pub use asset_maintenance::AssetMaintenanceKernel;
 pub use asset_reads::{AssetDelivery, AssetDeliveryOutcome, AssetReadsKernel};
 pub use auth_catalog_ops::AuthCatalogKernel;

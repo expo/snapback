@@ -24,6 +24,9 @@ use crate::auth::invocation::{
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
 };
+use crate::telemetry::{
+    CallerAttributionLocalExt as _, ObservationSpanLocalExt as _, TelemetryLocalExt as _,
+};
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
     PasswordIssuanceCustody, PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout,

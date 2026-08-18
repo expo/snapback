@@ -22,6 +22,8 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::local::{EphemeralApi, InspectState, LocalSnapback, ReadLane};
 use crate::manifest::{AuthMode, FunctionKind, HandlerInput};
 use crate::runtime::CapabilityState;
+#[cfg(test)]
+use crate::telemetry::{TelemetryLocalExt as _, TelemetryStoreIdentityLocalExt as _};
 use crate::server::{
     ApiError, AuthTerminalLifecycle, ConnectionRegistry, CredentialResolution, EffectPolicy,
     HealthResponse, InvocationAuthority, LegacyBodyPolicy, PolicyAuthMode, PolicyAuthPosture,
@@ -2404,23 +2406,7 @@ impl fmt::Debug for ResolvedAdminToken {
     }
 }
 
-/// Mint a local admin capability token: 122 bits of CSPRNG randomness.
-pub fn mint_admin_token() -> String {
-    format!("sbat_{}", uuid::Uuid::new_v4().simple())
-}
-
-/// The sibling file a minted admin token persists in, next to the artifact
-/// that names the instance (the SQLite database, or the readiness descriptor
-/// for in-memory instances) — the same sibling convention as the
-/// `.snapback.lock` instance lock.
-pub fn admin_token_sibling(path: &std::path::Path) -> PathBuf {
-    let mut name = path
-        .file_name()
-        .map(|name| name.to_os_string())
-        .unwrap_or_default();
-    name.push(".admin-token");
-    path.with_file_name(name)
-}
+pub use snapback_auth::auth::admin_token::{admin_token_sibling, mint_admin_token};
 
 /// Digest-only console credential persistence beside a file-backed database.
 pub fn console_credential_sibling(path: &std::path::Path) -> PathBuf {

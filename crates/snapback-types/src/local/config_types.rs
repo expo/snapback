@@ -1,5 +1,16 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::path::{Path, PathBuf};
+
+/// The owner-only config sidecar for one database path.
+pub fn config_path_for_database(db_path: &Path) -> PathBuf {
+    let mut name = db_path
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "snapback".to_owned());
+    name.push_str(".config.json");
+    db_path.with_file_name(name)
+}
 
 /// One entry's LLP 0036 status: names and states only — never values.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

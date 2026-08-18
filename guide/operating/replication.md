@@ -4,7 +4,7 @@ id: operating.replication
 order: 10
 audience: agent-first
 capabilities: [operating.replication]
-authorities: [llp/0188-ltx-sqlite-replication.rfc.md, crates/snapback/src/replication.rs, crates/snapback/src/cli.rs, scripts/g2-replication-drill, scripts/g2-receipts/20260809-self-hosted-async-minio-sustained.md]
+authorities: [llp/0188-ltx-sqlite-replication.rfc.md, crates/snapback-services/src/replication.rs, crates/snapback/src/cli.rs, scripts/g2-replication-drill, scripts/g2-receipts/20260809-self-hosted-async-minio-sustained.md]
 examples: [scripts/g2-replication-drill]
 status: current
 targets: [local]

@@ -1,0 +1,50 @@
+[package]
+name = "snapback-services"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "snapback_services"
+path = "src/lib.rs"
+
+[features]
+default = ["services-owner"]
+# Remainder-only tests include the moved source under the old crate root so
+# tests that exercise higher-layer composition retain their original access.
+services-owner = []
+remainder-tests = ["snapback-kernel/test-support"]
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+celld-ltx = { path = "../../vendor/celld-ltx" }
+chacha20poly1305 = "0.10"
+crc32fast = "1"
+fs2 = "0.4"
+getrandom = "0.3"
+hmac = "0.12"
+http = "1"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+kamadak-exif = "0.6"
+libc = "0.2"
+regex = "1"
+rusqlite = { version = "0.31", features = ["backup", "bundled", "column_decltype", "functions", "hooks", "limits", "serialize"] }
+schemars = "1.2.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+snapback-auth = { path = "../snapback-auth" }
+snapback-kernel = { path = "../snapback-kernel" }
+snapback-types = { path = "../snapback-types" }
+tempfile = "3.23"
+tokio = { version = "1.48", features = ["full"] }
+ureq = { version = "2", features = ["json"] }
+uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
+
+[dev-dependencies]
+snapback-kernel = { path = "../snapback-kernel", features = ["test-support"] }
+
+[lints]
+workspace = true

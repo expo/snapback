@@ -640,8 +640,13 @@ function publishedDerivedFixture({
   execFileSync('git', ['init', '--quiet'], { cwd: scratch });
   execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
   execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
-  mkdirSync(join(scratch, 'crates/snapback/src'), { recursive: true });
-  writeFileSync(join(scratch, 'crates/snapback/src/qualification-marker.txt'), 'derived-fork qualification C\n');
+  const scopeRootMarkers = DERIVED_FORK_IMPLEMENTATION_SCOPE.roots.map(
+    (scopeRoot) => `${scopeRoot}/qualification-marker.txt`,
+  );
+  for (const marker of scopeRootMarkers) {
+    mkdirSync(dirname(join(scratch, marker)), { recursive: true });
+    writeFileSync(join(scratch, marker), 'derived-fork qualification C\n');
+  }
   for (const path of DERIVED_FORK_SIBLING_CHAIN_PATHS) {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
     writeFileSync(join(scratch, path), readFileSync(join(root, path)));
@@ -682,7 +687,7 @@ function publishedDerivedFixture({
     writeFileSync(join(scratch, preexistingDatedEvidencePath), 'retained historical bytes\n');
   }
   execFileSync('git', [
-    'add', 'crates/snapback/src/qualification-marker.txt',
+    'add', ...scopeRootMarkers,
     ...DERIVED_FORK_SIBLING_CHAIN_PATHS,
     ...DERIVED_FORK_IMPLEMENTATION_SCOPE.files.filter((path) => path !== 'vendor/ibex'),
     ...qualificationContextPaths,

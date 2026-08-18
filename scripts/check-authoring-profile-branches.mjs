@@ -36,6 +36,9 @@ export const AUTHORING_PROFILE_READ_ALLOWLIST = Object.freeze([
 ]);
 
 export const AUTHORING_PROFILE_SCAN_ROOTS = Object.freeze([
+  // @ref LLP 0276#phases — carved production roots remain inside the
+  // fail-closed authoring-profile branch inventory.
+  'crates/snapback-services/src',
   'crates/snapback/src',
   'crates/snapback-sync/src',
   'packages/snapback-client',

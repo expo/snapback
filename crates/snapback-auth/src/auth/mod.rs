@@ -1,6 +1,7 @@
 //! Authentication policy over the durable kernel substrate.
 
 pub mod admission;
+pub mod admin_token;
 pub mod backup;
 pub mod deployment;
 pub mod effective_source;

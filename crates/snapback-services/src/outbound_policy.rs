@@ -14,43 +14,43 @@ use std::time::Duration;
 // @ref LLP 0251#canonical-admission-algorithm — all Rust HTTP egress consumers share this
 // public-address floor and the same pinned, no-redirect, no-env-proxy agent.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum HttpTargetPolicy {
+pub enum HttpTargetPolicy {
     PublicHttpsOnly,
     LocalDevLoopbackHttp,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum PrepareTargetErrorKind {
+pub enum PrepareTargetErrorKind {
     Invalid,
     SsrfRefused,
     Unavailable,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct PrepareTargetError {
+pub struct PrepareTargetError {
     kind: PrepareTargetErrorKind,
 }
 
 impl PrepareTargetError {
-    pub(crate) fn kind(self) -> PrepareTargetErrorKind {
+    pub fn kind(self) -> PrepareTargetErrorKind {
         self.kind
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct PreparedHttpTarget {
+pub struct PreparedHttpTarget {
     url: String,
     addresses: Vec<SocketAddr>,
     loopback_http: bool,
 }
 
 impl PreparedHttpTarget {
-    pub(crate) fn authored_url(&self) -> &str {
+    pub fn authored_url(&self) -> &str {
         &self.url
     }
 }
 
-pub(crate) fn action_http_target_policy() -> HttpTargetPolicy {
+pub fn action_http_target_policy() -> HttpTargetPolicy {
     action_http_target_policy_for(
         std::env::var_os("SNAPBACK_OUTBOUND_LOOPBACK").as_deref(),
         cfg!(test),
@@ -68,7 +68,7 @@ fn action_http_target_policy_for(
     }
 }
 
-pub(crate) fn prepare_http_target(
+pub fn prepare_http_target(
     url: &str,
     policy: HttpTargetPolicy,
     max_target_bytes: usize,
@@ -155,7 +155,7 @@ where
 ///
 /// The address set is revalidated immediately before it is captured by the
 /// resolver, so even an incorrectly constructed in-crate value fails closed.
-pub(crate) fn pinned_http_agent(
+pub fn pinned_http_agent(
     target: &PreparedHttpTarget,
     timeout: Duration,
 ) -> Result<ureq::Agent, PrepareTargetError> {
@@ -185,7 +185,7 @@ pub(crate) fn pinned_http_agent(
         .build())
 }
 
-pub(crate) fn is_public_ip(ip: IpAddr) -> bool {
+pub fn is_public_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(ip) => is_public_v4(ip),
         IpAddr::V6(ip) => is_public_v6(ip),
@@ -197,7 +197,7 @@ pub(crate) fn is_public_ip(ip: IpAddr) -> bool {
 /// field-name matching; the X-Forwarded family is prefix-closed.
 // @ref LLP 0251#canonical-admission-algorithm — caller headers cannot replace
 // the prepared authority or inject transport-owned framing/routing metadata.
-pub(crate) fn is_forbidden_outbound_header_name(name: &str) -> bool {
+pub fn is_forbidden_outbound_header_name(name: &str) -> bool {
     matches_ignore_ascii_case(
         name,
         &[

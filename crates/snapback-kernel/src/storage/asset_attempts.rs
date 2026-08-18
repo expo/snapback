@@ -4,6 +4,7 @@ use crate::assets;
 use crate::manifest::{
     AssetImageVariant, AssetUploadIntentDefinition, HandlerInput, SchemaManifest,
 };
+use crate::services_assets::{AssetAttemptCurrentProof, AssetPublicationPlannedProof};
 use rusqlite::{OptionalExtension, TransactionBehavior};
 use serde_json::{Map, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -1479,6 +1480,36 @@ impl<'a> AssetAttemptsKernel<'a> {
         self.db.attempt_require_current(attempt)
     }
 
+    /// Mint an opaque continuity proof only after the kernel has checked that
+    /// the exact attempt snapshot is current.
+    ///
+    /// @ref LLP 0276#phases — inter-crate capability carriers remain
+    /// unconstructable outside the kernel operation that proves their facts.
+    pub(crate) fn attempt_require_current_proof(
+        &mut self,
+        attempt: &assets::AssetAttemptRecordV1,
+    ) -> SnapbackResult<AssetAttemptCurrentProof> {
+        let canonical = self
+            .db
+            .attempt_ingest_load(&attempt.attempt_id)?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ATTEMPT_UNKNOWN",
+                    "assets",
+                    format!("unknown attempt {}", attempt.attempt_id),
+                )
+            })?;
+        if canonical != *attempt {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ASSET_RECORD_INVALID",
+                "assets",
+                "the admitted attempt snapshot does not match its canonical storage record",
+            ));
+        }
+        self.db.attempt_require_current(&canonical)?;
+        Ok(AssetAttemptCurrentProof::new(canonical))
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn attempt_create(
         &mut self,
@@ -1622,6 +1653,24 @@ impl<'a> AssetAttemptsKernel<'a> {
     ) -> SnapbackResult<assets::AssetPublicationRecordV1> {
         self.db
             .attempt_finalize_commit_plan(app_id, attempt_id, digest, now)
+    }
+
+    /// Commit the publication plan and return the only token accepted by the
+    /// services-owned Phase-B ticket constructor.
+    ///
+    /// @ref LLP 0276#phases — the committed plan is transported as an opaque
+    /// fact instead of a caller-asserted publication record.
+    pub(crate) fn attempt_finalize_commit_plan_proved(
+        &mut self,
+        app_id: &str,
+        attempt_id: &str,
+        digest: &str,
+        now: u64,
+    ) -> SnapbackResult<AssetPublicationPlannedProof> {
+        let publication = self
+            .db
+            .attempt_finalize_commit_plan(app_id, attempt_id, digest, now)?;
+        Ok(AssetPublicationPlannedProof::new(publication))
     }
 
     pub fn attempt_finalize_commit_staged(

@@ -628,13 +628,13 @@ pub fn canonicalize_strip(
     })
 }
 
-#[cfg(test)]
-pub(crate) mod fixtures {
+#[cfg(any(test, feature = "remainder-tests"))]
+pub mod fixtures {
     /// A deterministic JPEG carrying an EXIF APP1 segment with GPS
     /// coordinates, orientation, and DateTimeOriginal — the exact triple the
     /// strip path must separate: drop the first, apply the second, keep the
     /// third.
-    pub(crate) fn jpeg_with_gps_exif(width: u32, height: u32, orientation: u16) -> Vec<u8> {
+    pub fn jpeg_with_gps_exif(width: u32, height: u32, orientation: u16) -> Vec<u8> {
         let encoded = plain_jpeg(width, height);
         let exif_payload = exif_app1_payload(orientation);
         let mut out = Vec::with_capacity(encoded.len() + exif_payload.len() + 4);
@@ -648,11 +648,11 @@ pub(crate) mod fixtures {
         out
     }
 
-    pub(crate) fn plain_jpeg(width: u32, height: u32) -> Vec<u8> {
+    pub fn plain_jpeg(width: u32, height: u32) -> Vec<u8> {
         plain_jpeg_quality(width, height, 90)
     }
 
-    pub(crate) fn plain_jpeg_quality(width: u32, height: u32, quality: u8) -> Vec<u8> {
+    pub fn plain_jpeg_quality(width: u32, height: u32, quality: u8) -> Vec<u8> {
         let image = deterministic_rgb(width, height);
         let mut encoded = Vec::new();
         let mut cursor = std::io::Cursor::new(&mut encoded);
@@ -662,7 +662,7 @@ pub(crate) mod fixtures {
         encoded
     }
 
-    pub(crate) fn deterministic_rgb(width: u32, height: u32) -> image::RgbImage {
+    pub fn deterministic_rgb(width: u32, height: u32) -> image::RgbImage {
         image::RgbImage::from_fn(width, height, |x, y| {
             image::Rgb([(x % 251) as u8, (y % 241) as u8, ((x + y) % 239) as u8])
         })
@@ -670,7 +670,7 @@ pub(crate) mod fixtures {
 
     /// A PNG whose IHDR declares enormous dimensions with no real pixel
     /// data behind them.
-    pub(crate) fn dimension_lying_png(width: u32, height: u32) -> Vec<u8> {
+    pub fn dimension_lying_png(width: u32, height: u32) -> Vec<u8> {
         let mut out = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
         let mut ihdr = Vec::new();
         ihdr.extend_from_slice(&width.to_be_bytes());

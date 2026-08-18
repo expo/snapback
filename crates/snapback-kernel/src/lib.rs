@@ -45,6 +45,8 @@ pub mod rqs;
 pub mod search;
 pub mod secure_file;
 pub mod seed_identity;
+#[doc(hidden)]
+pub mod services_assets;
 pub mod storage;
 pub mod vector;
 pub mod watches;

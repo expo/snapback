@@ -108,7 +108,7 @@ function validateKernelAdmissionFacades() {
     'utf8',
   );
   const forkService = readFileSync(
-    resolve(ROOT, 'crates/snapback/src/instance_fork/service.rs'),
+    resolve(ROOT, 'crates/snapback-services/src/instance_fork/service.rs'),
     'utf8',
   );
   assert(

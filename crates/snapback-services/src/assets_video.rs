@@ -542,39 +542,39 @@ pub fn inspect_video(
 }
 
 /// Deterministic container fixtures shared with the finalizer e2e suites.
-#[cfg(test)]
-pub(crate) mod fixtures {
-    pub(crate) const GPS: &str = "+37.7749-122.4194/";
+#[cfg(any(test, feature = "remainder-tests"))]
+pub mod fixtures {
+    pub const GPS: &str = "+37.7749-122.4194/";
 
-    pub(crate) fn boxed(kind: &[u8; 4], payload: &[u8]) -> Vec<u8> {
+    pub fn boxed(kind: &[u8; 4], payload: &[u8]) -> Vec<u8> {
         let mut out = ((payload.len() + 8) as u32).to_be_bytes().to_vec();
         out.extend_from_slice(kind);
         out.extend_from_slice(payload);
         out
     }
 
-    pub(crate) fn ftyp() -> Vec<u8> {
+    pub fn ftyp() -> Vec<u8> {
         let mut payload = b"isom".to_vec();
         payload.extend_from_slice(&0u32.to_be_bytes());
         payload.extend_from_slice(b"isommp42");
         boxed(b"ftyp", &payload)
     }
 
-    pub(crate) fn mvhd(timescale: u32, duration: u32) -> Vec<u8> {
+    pub fn mvhd(timescale: u32, duration: u32) -> Vec<u8> {
         let mut payload = vec![0u8; 100];
         payload[12..16].copy_from_slice(&timescale.to_be_bytes());
         payload[16..20].copy_from_slice(&duration.to_be_bytes());
         boxed(b"mvhd", &payload)
     }
 
-    pub(crate) fn tkhd(width: u32, height: u32) -> Vec<u8> {
+    pub fn tkhd(width: u32, height: u32) -> Vec<u8> {
         let mut payload = vec![0u8; 84];
         payload[76..80].copy_from_slice(&(width << 16).to_be_bytes());
         payload[80..84].copy_from_slice(&(height << 16).to_be_bytes());
         boxed(b"tkhd", &payload)
     }
 
-    pub(crate) fn xyz_atom() -> Vec<u8> {
+    pub fn xyz_atom() -> Vec<u8> {
         let mut payload = (GPS.len() as u16).to_be_bytes().to_vec();
         payload.extend_from_slice(&0x15C7u16.to_be_bytes());
         payload.extend_from_slice(GPS.as_bytes());
@@ -582,7 +582,7 @@ pub(crate) mod fixtures {
     }
 
     /// A minimal valid MP4 carrying a QuickTime GPS atom: 640x480, 2 s.
-    pub(crate) fn mp4_with_gps() -> Vec<u8> {
+    pub fn mp4_with_gps() -> Vec<u8> {
         let udta = boxed(b"udta", &xyz_atom());
         let trak = boxed(b"trak", &tkhd(640, 480));
         let moov = boxed(b"moov", &[mvhd(1000, 2000), trak, udta].concat());
@@ -592,7 +592,7 @@ pub(crate) mod fixtures {
 
 #[cfg(test)]
 mod tests {
-    use super::fixtures::{boxed, ftyp, mvhd, tkhd, GPS};
+    use super::fixtures::{GPS, boxed, ftyp, mvhd, tkhd};
     use super::*;
 
     fn gps_fixture() -> Vec<u8> {
@@ -793,10 +793,12 @@ mod tests {
         let error =
             canonicalize_strip_video(&truncated, &ASSET_VIDEO_CEILINGS_LOCAL_V1).unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_VIDEO_PARSE_FAILED");
-        assert!(error
-            .diagnostic
-            .message
-            .contains(&format!("byte offset {}", ftyp().len())));
+        assert!(
+            error
+                .diagnostic
+                .message
+                .contains(&format!("byte offset {}", ftyp().len()))
+        );
 
         // Nested size-0 box.
         let nested_zero = {

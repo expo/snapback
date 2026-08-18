@@ -9,7 +9,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::auth::crypto::ResumeKeyId;
+use crate::auth::crypto::{OsRandom, RandomSource, ResumeKeyId};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 pub use snapback_types::instance_fork::*;
 
@@ -733,25 +733,25 @@ fn admin_token_sibling(path: &Path) -> std::path::PathBuf {
     path.with_file_name(name)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct PersistedResumeKeyring {
     format_version: u32,
     keys: Vec<PersistedResumeKey>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct PersistedResumeKey {
     key_id: String,
     secret: String,
     #[allow(dead_code)]
     created_at_ms: u64,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     retired_at_ms: Option<u64>,
 }
 
-fn persisted_resume_file_has_active_key(path: &Path) -> bool {
+pub fn persisted_resume_file_has_active_key(path: &Path) -> bool {
     const RESUME_KEYRING_FORMAT_VERSION: u32 = 1;
     const RESUME_KEYRING_MAX_BYTES: usize = 64 * 1024;
 
@@ -783,6 +783,36 @@ fn persisted_resume_file_has_active_key(path: &Path) -> bool {
         }
     }
     active == 1
+}
+
+/// Mint the exact resume-keyring artifact required by a staged derived fork.
+/// The caller already proved the staging namespace empty; failure remains an
+/// availability-only false result, matching `ResumeKeyring::load_or_create`.
+pub fn mint_resume_keyring_for_fork(path: &Path, now_ms: u64) -> bool {
+    let random = OsRandom;
+    let Ok(key_id) = ResumeKeyId::generate(&random) else {
+        return false;
+    };
+    let mut secret = zeroize::Zeroizing::new([0_u8; 32]);
+    if random.fill(secret.as_mut()).is_err() {
+        return false;
+    }
+    let persisted = PersistedResumeKeyring {
+        format_version: 1,
+        keys: vec![PersistedResumeKey {
+            key_id: key_id.as_str().to_owned(),
+            secret: URL_SAFE_NO_PAD.encode(secret.as_ref()),
+            created_at_ms: now_ms,
+            retired_at_ms: None,
+        }],
+    };
+    let Ok(bytes) = serde_json::to_vec(&persisted) else {
+        return false;
+    };
+    if crate::secure_file::write_owner_only(path, &bytes).is_err() {
+        return false;
+    }
+    persisted_resume_file_has_active_key(path)
 }
 
 fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {

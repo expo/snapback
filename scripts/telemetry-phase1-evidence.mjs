@@ -26,6 +26,10 @@ const proofSourcePathspecs = [
   'Cargo.lock',
   'crates/snapback/Cargo.toml',
   'crates/snapback/build.rs',
+  // @ref LLP 0276#phases — telemetry evidence must hash the service-owned
+  // implementation after the crate carve.
+  'crates/snapback-services/Cargo.toml',
+  'crates/snapback-services/src',
   'crates/snapback/src',
   'demos/_kit',
   'demos/todo/snapback',

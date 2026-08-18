@@ -4,7 +4,7 @@
 //! push, asset, vector, and auth facts: splitting a constructor body would
 //! change the evidence gate rather than merely relocate it.
 
-use super::push_assets::ExpoPushSeamFactsLocalExt as _;
+use snapback_services::manifest::ExpoPushSeamFactsLocalExt as _;
 use super::*;
 use crate::assets::AssetFactsLocalExt as _;
 

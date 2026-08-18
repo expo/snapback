@@ -44,13 +44,13 @@ pub mod assets;
 #[doc(hidden)]
 pub mod assets_cut;
 #[doc(hidden)]
-pub mod assets_image;
+pub use snapback_services::assets_image;
 #[doc(hidden)]
-pub mod assets_s3;
+pub use snapback_services::assets_s3;
 #[doc(hidden)]
 pub mod assets_store;
 #[doc(hidden)]
-pub mod assets_video;
+pub use snapback_services::assets_video;
 #[doc(hidden)]
 pub mod auth;
 pub(crate) mod authoring_suggestion;
@@ -104,9 +104,9 @@ pub mod diagnostic;
 #[doc(hidden)]
 pub use snapback_sync::ephemeral;
 #[doc(hidden)]
-pub mod error_tracking;
+pub use snapback_services::error_tracking;
 #[doc(hidden)]
-pub mod errors_query;
+pub use snapback_services::errors_query;
 #[doc(hidden)]
 pub use snapback_kernel::fork_promotion;
 #[doc(hidden)]
@@ -130,9 +130,9 @@ pub(crate) use snapback_kernel::instance_lock;
 #[doc(hidden)]
 pub mod jobs;
 pub use snapback_sync::live_coalesce;
-pub(crate) mod outbound_policy;
+pub(crate) use snapback_services::outbound_policy;
 pub(crate) mod watches;
-pub(crate) mod webhooks;
+pub(crate) use snapback_services::webhooks;
 
 pub use snapback_kernel::live_matcher;
 #[doc(hidden)]
@@ -164,7 +164,7 @@ pub use snapback_sync::realtime;
 #[doc(hidden)]
 pub mod remediation;
 #[doc(hidden)]
-pub mod replication;
+pub use snapback_services::replication;
 #[doc(hidden)]
 pub use snapback_types::result_contract;
 #[doc(hidden)]
@@ -189,6 +189,14 @@ pub(crate) use snapback_sync::snapshot_batch_cursor;
 #[doc(hidden)]
 pub use snapback_sync::snapshot_batch_cursor_v2;
 #[doc(hidden)]
+/// The services-only asset continuity capability is intentionally absent.
+///
+/// ```compile_fail
+/// use snapback::storage::AssetAttemptCurrentProof;
+/// ```
+///
+/// @ref LLP 0276#phases — raw lower-layer capability carriers must not be
+/// re-exported by the supported façade.
 pub use snapback_kernel::storage;
 #[doc(hidden)]
 pub mod store_state;
@@ -199,7 +207,7 @@ pub mod telemetry;
 #[doc(hidden)]
 pub use snapback_types::telemetry_contract;
 #[doc(hidden)]
-pub mod telemetry_query;
+pub use snapback_services::telemetry_query;
 #[doc(hidden)]
 pub use snapback_kernel::vector;
 pub(crate) use snapback_runtime::warm_vm;

@@ -16,11 +16,11 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use sha2::{Digest as _, Sha256};
+pub use snapback_types::error_tracking::*;
 use std::collections::BTreeMap;
-use std::sync::OnceLock;
 #[cfg(test)]
 use std::collections::BTreeSet;
-pub use snapback_types::error_tracking::*;
+use std::sync::OnceLock;
 /// vocabulary. The sentinel is deliberately reserved and can only be emitted
 /// by this validator.
 pub fn validated_error_class(raw: Option<&str>) -> String {
@@ -54,7 +54,6 @@ fn utf8_prefix(value: &str, maximum: usize) -> (&str, bool) {
     }
     (&value[..end], true)
 }
-
 
 pub fn extract_failure_carrier(
     error_class: Option<&str>,

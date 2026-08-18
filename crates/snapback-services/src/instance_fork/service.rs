@@ -1108,7 +1108,7 @@ fn scrub_and_mint_with_cut(
         })?
         .to_owned();
 
-    let admin_path = crate::admin::admin_token_sibling(database_path);
+    let admin_path = snapback_auth::auth::admin_token::admin_token_sibling(database_path);
     let auth_keyring_path = crate::auth::keyring::AuthKeyringStore::keyring_path(database_path);
     let resume_path = database_path.with_file_name(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
     let operation_detail_path = crate::operation_detail::keyring_path(database_path);
@@ -1122,7 +1122,7 @@ fn scrub_and_mint_with_cut(
             "fork replacement sidecars must be minted into an empty staging namespace",
         ));
     }
-    let admin_token = crate::admin::mint_admin_token();
+    let admin_token = snapback_auth::auth::admin_token::mint_admin_token();
     crate::secure_file::write_new_owner_only(&admin_path, format!("{admin_token}\n").as_bytes())
         .map_err(|error| io_error("mint fork admin token", error))?;
     sync_file(&admin_path, "sync fork admin token")?;
@@ -1132,8 +1132,7 @@ fn scrub_and_mint_with_cut(
         .map_err(|error| fork_error("SNAPBACK_FORK_KEYRING_MINT_FAILED", error.to_string()))?;
     sync_file(&auth_keyring_path, "sync fork auth keyring")?;
     maybe_cut(cut_at, PublicationCut::AfterAuthSidecar)?;
-    let _resume = crate::rqs::ResumeKeyring::load_or_create(resume_path.clone(), now_ms);
-    if !crate::rqs::ResumeKeyring::persisted_file_has_active_key(&resume_path) {
+    if !snapback_kernel::instance_fork::mint_resume_keyring_for_fork(&resume_path, now_ms) {
         return Err(fork_error(
             "SNAPBACK_FORK_KEYRING_MINT_FAILED",
             "fork resume keyring was not durably minted",
@@ -1287,7 +1286,7 @@ pub fn arm_derived_fork_app_row_coverage(
 ///   complete owner-only pair before this activation cut.
 /// @ref LLP 0165#derived-fork-authorizer-backed-net-diff--2026-08-06 — the
 ///   manifest is active from the fork point on the process-owned connection.
-pub(crate) fn arm_open_derived_fork_app_row_coverage(
+pub fn arm_open_derived_fork_app_row_coverage(
     database: &mut crate::storage::LocalDatabase,
     activated_at_ms: u64,
 ) -> SnapbackResult<ForkAppRowCoverageReceiptV1> {
@@ -1485,7 +1484,7 @@ fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
         Ok(())
     }
 
-    let admin_path = crate::admin::admin_token_sibling(database_path);
+    let admin_path = snapback_auth::auth::admin_token::admin_token_sibling(database_path);
     require_regular(&admin_path, "admin-token")?;
     let admin = crate::secure_file::read_owner_only(&admin_path).map_err(|_| {
         fork_error(
@@ -1523,7 +1522,7 @@ fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
         })?;
     let resume_path = database_path.with_file_name(crate::rqs_contract::RESUME_KEYRING_FILE_NAME);
     require_regular(&resume_path, "resume-keyring")?;
-    if !crate::rqs::ResumeKeyring::persisted_file_has_active_key(&resume_path) {
+    if !snapback_kernel::instance_fork::persisted_resume_file_has_active_key(&resume_path) {
         return Err(fork_error(
             "SNAPBACK_FORK_SIDECAR_MALFORMED",
             "minted resume-keyring sidecar has no active key",
@@ -2639,7 +2638,7 @@ fn database_set_size(database_path: &Path) -> SnapbackResult<u64> {
     Ok(total)
 }
 
-pub(crate) fn directory_tree_bytes(path: &Path) -> SnapbackResult<u64> {
+pub fn directory_tree_bytes(path: &Path) -> SnapbackResult<u64> {
     let mut total = 0;
     let mut stack = vec![path.to_path_buf()];
     while let Some(current) = stack.pop() {
@@ -3962,14 +3961,13 @@ fn publish_with_options(
         maybe_cut(cut_at, PublicationCut::AfterClone)?;
 
         if with_secrets {
-            let source_config = crate::config::ConfigStore::path_for_database(source_database);
+            let source_config = crate::local::config_path_for_database(source_database);
             if source_config.exists() {
                 let bytes =
                     crate::secure_file::read_owner_only(&source_config).map_err(|error| {
                         io_error("read parent config for explicit fork copy", error)
                     })?;
-                let target_config =
-                    crate::config::ConfigStore::path_for_database(&staging_database);
+                let target_config = crate::local::config_path_for_database(&staging_database);
                 crate::secure_file::write_new_owner_only(&target_config, &bytes)
                     .map_err(|error| io_error("copy config into fork staging", error))?;
                 sync_file(&target_config, "sync copied fork config")?;

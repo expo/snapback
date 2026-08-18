@@ -313,6 +313,8 @@ fn emit_build_identity() {
     // These additional paths feed the agent-safe implementation digest below.
     println!("cargo:rerun-if-changed=../../packages/snapback-codegen");
     println!("cargo:rerun-if-changed=../../packages/snapback-contract");
+    println!("cargo:rerun-if-changed=../../crates/snapback-services/Cargo.toml");
+    println!("cargo:rerun-if-changed=../../crates/snapback-services/src");
     println!("cargo:rerun-if-changed=../../tests");
     println!("cargo:rerun-if-changed=../../scripts/check-agent-safe-publication.mjs");
     println!("cargo:rerun-if-changed=../../scripts/generated-artifact-policy.mjs");
@@ -474,6 +476,8 @@ fn agent_safe_implementation_tree_sha256(repo_root: &Path) -> Option<String> {
             "--",
             "Cargo.toml",
             "Cargo.lock",
+            "crates/snapback-services/Cargo.toml",
+            "crates/snapback-services/src",
             "crates/snapback/Cargo.toml",
             "crates/snapback/build.rs",
             ".gitmodules",

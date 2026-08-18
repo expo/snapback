@@ -7,7 +7,7 @@
 use super::*;
 
 fn validate_api_origin(origin: &str) -> SnapbackResult<()> {
-    let parsed = origin.parse::<axum::http::Uri>().map_err(|_| {
+    let parsed = origin.parse::<http::Uri>().map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_API_ORIGIN_INVALID",
             "api",
@@ -632,7 +632,7 @@ impl SchemaManifestValidationExt for SchemaManifest {
         Ok(())
     }
 }
-pub(crate) trait ExpoPushSeamFactsLocalExt {
+pub trait ExpoPushSeamFactsLocalExt {
     fn local_v1() -> Self;
 }
 

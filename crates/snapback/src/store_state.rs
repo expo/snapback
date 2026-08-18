@@ -1,5 +1,6 @@
 //! File-backed store durable-state inventory and WAL-consistent export.
 
+use crate::assets::AssetFsStoreLocalExt as _;
 use crate::auth::crypto::{RandomSource, encode_base64url};
 use crate::auth::keyring::AuthKeyringStore;
 use crate::diagnostic::{SnapbackError, SnapbackResult};

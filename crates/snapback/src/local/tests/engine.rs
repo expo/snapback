@@ -8672,7 +8672,7 @@ fn asset_finalize_revocation_between_preflight_and_commit_refuses_before_phase_a
         FinalizePreflightV1::Proceed(ticket) => ticket,
         FinalizePreflightV1::AlreadyComplete(_) => panic!("attempt is not complete yet"),
     };
-    let generation = ticket.attempt.admission.policy_generation;
+    let generation = ticket.attempt().admission.policy_generation;
     let preparation = ticket.prepare().expect("repeatable prepare succeeds");
 
     snapback
@@ -8805,12 +8805,12 @@ fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_conve
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let gated_store: Arc<dyn crate::assets_store::AssetStore> =
         Arc::new(BlockFirstCanonicalCopyStore {
-            inner: first_ticket.store.clone(),
+            inner: first_ticket.store_for_test(),
             entered: std::sync::Mutex::new(Some(entered_tx)),
             release: std::sync::Mutex::new(release_rx),
         });
-    first_ticket.store = gated_store.clone();
-    second_ticket.store = gated_store;
+    first_ticket.replace_store_for_test(gated_store.clone());
+    second_ticket.replace_store_for_test(gated_store);
 
     let first_put = match snapback
         .asset_attempt_finalize_plan(&authority, first_ticket, first_preparation)
@@ -8819,8 +8819,8 @@ fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_conve
         FinalizePhaseAOutcomeV1::Proceed(ticket) => ticket,
         FinalizePhaseAOutcomeV1::AlreadyComplete(_) => panic!("first Phase A must plan"),
     };
-    let first_publication_id = first_put.publication.publication_id.clone();
-    let first_planned_key = first_put.publication.planned_key.clone();
+    let first_publication_id = first_put.publication_for_test().publication_id.clone();
+    let first_planned_key = first_put.publication_for_test().planned_key.clone();
     let first_put_thread = std::thread::spawn(move || {
         first_put
             .put()
@@ -8851,8 +8851,14 @@ fn asset_publication_maintain_slow_put_releases_writer_and_double_finalize_conve
             panic!("the first put has not reached Phase C")
         }
     };
-    assert_eq!(second_put.publication.publication_id, first_publication_id);
-    assert_eq!(second_put.publication.planned_key, first_planned_key);
+    assert_eq!(
+        second_put.publication_for_test().publication_id,
+        first_publication_id
+    );
+    assert_eq!(
+        second_put.publication_for_test().planned_key,
+        first_planned_key
+    );
     let second_commit = second_put
         .put()
         .expect("the shared-key loser put is idempotent");

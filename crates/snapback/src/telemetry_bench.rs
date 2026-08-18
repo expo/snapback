@@ -4,6 +4,7 @@
 //! same private buffer, batch, maintenance, and cap paths as production without
 //! adding an author-facing telemetry mutation API.
 
+use super::TelemetryLocalExt as _;
 use super::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};

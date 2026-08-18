@@ -59,6 +59,8 @@ export const IMPLEMENTATION_ROOTS = [
   'Cargo.lock',
   'crates/snapback/Cargo.toml',
   'crates/snapback/build.rs',
+  'crates/snapback-services/Cargo.toml',
+  'crates/snapback-services/src',
   '.gitmodules',
   'crates/snapback/src',
   'crates/snapback/tests',
@@ -82,6 +84,30 @@ const LEGACY_IMPLEMENTATION_DIGEST_VERSION =
 // derived-fork record binds the native runtime and the checker code that
 // defines publication semantics, rather than every wave-shared proof leaf.
 export const DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
+  schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
+  // @ref LLP 0276#phases — the scoped claim must continue to bind fork
+  // implementation after its service owner leaves the remainder.
+  roots: Object.freeze([
+    'crates/snapback-services/src',
+    'crates/snapback/src',
+  ]),
+  files: Object.freeze([
+    '.gitmodules',
+    'Cargo.lock',
+    'Cargo.toml',
+    'crates/snapback-services/Cargo.toml',
+    'crates/snapback/Cargo.toml',
+    'crates/snapback/build.rs',
+    'scripts/check-agent-safe-publication.mjs',
+    'scripts/generated-artifact-policy.mjs',
+    'vendor/ibex',
+  ]),
+});
+
+// Receipts qualified after the workspace path migration but before the
+// services carve retain their exact historical closure. New qualifications
+// use the expanded scope above.
+const PRE_SERVICES_DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
   schemaVersion: IMPLEMENTATION_SCOPE_SCHEMA_VERSION,
   roots: Object.freeze(['crates/snapback/src']),
   files: Object.freeze([
@@ -112,11 +138,24 @@ const LEGACY_DERIVED_FORK_IMPLEMENTATION_SCOPE = Object.freeze({
 
 function derivedForkImplementationScopeAt(root, commit) {
   try {
-    execFileSync('git', ['cat-file', '-e', `${commit}:crates/snapback/Cargo.toml`], {
+    execFileSync('git', ['cat-file', '-e', `${commit}:crates/snapback-services/Cargo.toml`], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+    execFileSync('git', ['cat-file', '-e', `${commit}:crates/snapback-services/src`], {
       cwd: root,
       stdio: 'ignore',
     });
     return DERIVED_FORK_IMPLEMENTATION_SCOPE;
+  } catch {
+    // Continue through the earlier path epochs below.
+  }
+  try {
+    execFileSync('git', ['cat-file', '-e', `${commit}:crates/snapback/Cargo.toml`], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+    return PRE_SERVICES_DERIVED_FORK_IMPLEMENTATION_SCOPE;
   } catch {
     return LEGACY_DERIVED_FORK_IMPLEMENTATION_SCOPE;
   }
@@ -930,7 +969,8 @@ function gateRecordsExistAtCommit(root, commit, metadata) {
 }
 
 function normalizeCoverageGatePathEpoch(root, commit, value) {
-  if (derivedForkImplementationScopeAt(root, commit) === DERIVED_FORK_IMPLEMENTATION_SCOPE) {
+  if (derivedForkImplementationScopeAt(root, commit)
+      !== LEGACY_DERIVED_FORK_IMPLEMENTATION_SCOPE) {
     return value;
   }
   if (typeof value === 'string') return value.replaceAll('src/', 'crates/snapback/src/'); // path-migration: historical

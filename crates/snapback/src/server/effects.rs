@@ -1,5 +1,6 @@
 use super::*;
 use crate::manifest::FunctionDefinition;
+use crate::telemetry::CallerAttributionLocalExt as _;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

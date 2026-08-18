@@ -317,12 +317,7 @@ impl ConfigStore {
     /// (`dev.sqlite3` → `dev.sqlite3.config.json`) so two databases in one
     /// directory can never share a store by accident.
     pub fn path_for_database(db_path: &Path) -> PathBuf {
-        let mut name = db_path
-            .file_name()
-            .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "snapback".to_owned());
-        name.push_str(".config.json");
-        db_path.with_file_name(name)
+        snapback_types::local::config_path_for_database(db_path)
     }
 
     /// Load the store beside a database file, creating nothing until the first

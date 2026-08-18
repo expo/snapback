@@ -25,6 +25,7 @@ use crate::storage::{
     SEQUENCE_MAX_SAFE_INTEGER, SequenceAllocationFact, generic_owner_write_field,
     validate_sequence_allocation_fact,
 };
+use crate::telemetry::TelemetryLocalExt as _;
 use crate::warm_vm::WarmVmPool;
 use libc::{c_char, c_void};
 use serde::{Deserialize, Serialize};

@@ -23,6 +23,7 @@ use crate::auth::service_fence::{
 use crate::auth::session_projection::FencedPublication;
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use crate::telemetry::CallerAttributionLocalExt as _;
 pub use snapback_types::auth::invocation::FunctionAttribution;
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, AuthorityDescriptor, FunctionDefinition, FunctionKind,

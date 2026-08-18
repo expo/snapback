@@ -22,15 +22,15 @@ pub(crate) const DELIVERY_TIMEOUT: Duration = Duration::from_secs(15);
 pub(crate) const SIGNATURE_HEADER: &str = "X-Snapback-Signature";
 pub(crate) const DELIVERY_HEADER: &str = "X-Snapback-Delivery-Id";
 
-pub(crate) type PreparedTarget = PreparedHttpTarget;
+pub type PreparedTarget = PreparedHttpTarget;
 
 #[derive(Clone, Eq, PartialEq)]
-pub(crate) struct DeliveryRequest {
-    pub(crate) delivery_id: String,
-    pub(crate) idempotency_key: String,
-    pub(crate) target: PreparedTarget,
-    pub(crate) canonical_payload: String,
-    pub(crate) signing_secret: String,
+pub struct DeliveryRequest {
+    pub delivery_id: String,
+    pub idempotency_key: String,
+    pub target: PreparedTarget,
+    pub canonical_payload: String,
+    pub signing_secret: String,
 }
 
 impl std::fmt::Debug for DeliveryRequest {
@@ -47,7 +47,7 @@ impl std::fmt::Debug for DeliveryRequest {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum DeliveryOutcome {
+pub enum DeliveryOutcome {
     Succeeded {
         http_status: u16,
     },
@@ -62,7 +62,7 @@ pub(crate) enum DeliveryOutcome {
 }
 
 impl DeliveryOutcome {
-    pub(crate) fn into_error(self) -> SnapbackError {
+    pub fn into_error(self) -> SnapbackError {
         let code = match self {
             Self::Succeeded { .. } => "SNAPBACK_WEBHOOK_DELIVERY_INVALID",
             Self::Retryable { code, .. } | Self::Permanent { code, .. } => code,
@@ -78,7 +78,7 @@ impl DeliveryOutcome {
 /// @ref LLP 0070#webhook-work — HTTPS, public-address resolution,
 /// redirect refusal, stable idempotency, and bounded transport are one host
 /// primitive rather than conventions left to consumers.
-pub(crate) fn prepare_target(url: &str) -> SnapbackResult<PreparedTarget> {
+pub fn prepare_target(url: &str) -> SnapbackResult<PreparedTarget> {
     prepare_target_with(url, false, |netloc| {
         netloc.to_socket_addrs().map(Iterator::collect)
     })
@@ -107,11 +107,11 @@ pub(crate) fn signature(secret: &str, canonical_payload: &str) -> String {
     format!("sha256={:x}", mac.finalize().into_bytes())
 }
 
-pub(crate) fn payload_digest(canonical_payload: &str) -> String {
+pub fn payload_digest(canonical_payload: &str) -> String {
     format!("sha256:{:x}", Sha256::digest(canonical_payload.as_bytes()))
 }
 
-pub(crate) fn deliver(request: DeliveryRequest) -> DeliveryOutcome {
+pub fn deliver(request: DeliveryRequest) -> DeliveryOutcome {
     if request.idempotency_key.is_empty()
         || request.idempotency_key.len() > MAX_IDEMPOTENCY_KEY_BYTES
         || request.idempotency_key.contains(['\r', '\n'])

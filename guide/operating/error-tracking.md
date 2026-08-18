@@ -4,7 +4,7 @@ id: operating.error-tracking
 order: 6
 audience: agent-first
 capabilities: [backend.error-tracking-v1]
-authorities: [llp/0156-minimal-error-tracking.rfc.md, llp/0154-minimal-observability.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback/src/error_tracking.rs, crates/snapback/src/errors_query.rs, crates/snapback/src/telemetry.rs, crates/snapback/src/cli.rs, crates/snapback/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/app.contract, admin-ui/admin-boundary.mjs]
+authorities: [llp/0156-minimal-error-tracking.rfc.md, llp/0154-minimal-observability.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback-services/src/error_tracking.rs, crates/snapback-services/src/errors_query.rs, crates/snapback-services/src/telemetry.rs, crates/snapback/src/cli.rs, crates/snapback/src/host_ops.rs, packages/snapback-cli/mcp-control.mjs, admin-ui/app.contract, admin-ui/admin-boundary.mjs]
 examples: []
 status: current
 targets: [local]

@@ -1,4 +1,8 @@
 use crate::assets::AssetFactsLocalExt as _;
+use crate::telemetry::{
+    CallerAttributionLocalExt as _, ObservationSpanLocalExt as _, TelemetryLocalExt as _,
+    TelemetryStoreIdentityLocalExt as _,
+};
 use crate::auth::admission::AdmissionLease;
 use crate::auth::admission::{
     AdmissionController, AdmissionEffectGuard, ModeCommitFailure, ModeTransitionGuard,
@@ -35,6 +39,7 @@ use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
     LocalCronRuntime, validate_cron_manifest,
 };
+use crate::cron::{CronRunMetadataLocalExt as _, CronRunRecordLocalExt as _};
 use crate::diagnostic::{
     Diagnostic, DiagnosticSeverity, PublicDiagnostic, SnapbackError, SnapbackResult,
 };
@@ -83,6 +88,7 @@ use crate::storage::{
     ClientMutationIdentity, DbRead, LocalDatabase, MutationCommit, ReaderPool,
     SettlementTimePolicy, ShutdownCheckpointReport, StorageInfo, TableScan,
 };
+use snapback_kernel::services_assets::AssetAttemptsProofLocalExt as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
@@ -4193,7 +4199,7 @@ impl LocalSnapback {
         };
         let successor = crate::telemetry::TelemetryStoreIdentity::new(
             self.db.schema().app_id.clone(),
-            current.environment_id.clone(),
+            current.environment_id().to_owned(),
         )?;
         self.telemetry
             .finish_generation_transition_with_identity(incarnation, successor.clone())?;
@@ -5226,7 +5232,7 @@ impl LocalSnapback {
                     .map(|current| {
                         crate::telemetry::TelemetryStoreIdentity::new(
                             manifest.app_id.clone(),
-                            current.environment_id.clone(),
+                            current.environment_id().to_owned(),
                         )
                     })
                     .transpose()?;
@@ -9757,7 +9763,10 @@ impl LocalSnapback {
         use sha2::Digest as _;
 
         let attempt = self.asset_attempt_for_caller(authority, attempt_id)?;
-        self.db.asset_attempts().attempt_require_current(&attempt)?;
+        let current_proof = self
+            .db
+            .asset_attempts()
+            .attempt_require_current_proof(&attempt)?;
         if offset != attempt.acknowledged_offset {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_OFFSET_CONFLICT",
@@ -9802,15 +9811,12 @@ impl LocalSnapback {
             None => all_checksummed = false,
         }
 
-        Ok(AssetTusPatchTicketV1 {
-            attempt_id: attempt_id.to_owned(),
-            staging_key: attempt.staging_key,
-            expected_offset: offset,
-            expected_all_chunks_checksummed: attempt.all_chunks_checksummed,
+        AssetTusPatchTicketV1::from_current_attempt(
+            current_proof,
             new_offset,
-            all_chunks_checksummed: all_checksummed,
-            store: self.asset_store_obj()?,
-        })
+            all_checksummed,
+            self.asset_store_obj()?,
+        )
     }
 
     /// Acknowledge a previously durable TUS append only when the attempt is
@@ -9824,27 +9830,27 @@ impl LocalSnapback {
         authority: &PreparedAuthority,
         ticket: AssetTusPatchTicketV1,
     ) -> SnapbackResult<crate::assets::AssetAttemptRecordV1> {
-        let attempt = self.asset_attempt_for_caller(authority, &ticket.attempt_id)?;
+        let attempt = self.asset_attempt_for_caller(authority, ticket.attempt_id())?;
         self.db.asset_attempts().attempt_require_current(&attempt)?;
-        if attempt.acknowledged_offset != ticket.expected_offset
-            || attempt.all_chunks_checksummed != ticket.expected_all_chunks_checksummed
+        if attempt.acknowledged_offset != ticket.expected_offset()
+            || attempt.all_chunks_checksummed != ticket.expected_all_chunks_checksummed()
         {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_OFFSET_CONFLICT",
                 "assets",
                 format!(
                     "upload state moved before acknowledgement (expected offset {}, current offset {})",
-                    ticket.expected_offset, attempt.acknowledged_offset
+                    ticket.expected_offset(), attempt.acknowledged_offset
                 ),
             ));
         }
         let now = now_millis();
         self.db.asset_attempts().attempt_tus_patch(
-            &ticket.attempt_id,
-            ticket.expected_offset,
-            ticket.expected_all_chunks_checksummed,
-            ticket.new_offset,
-            ticket.all_chunks_checksummed,
+            ticket.attempt_id(),
+            ticket.expected_offset(),
+            ticket.expected_all_chunks_checksummed(),
+            ticket.new_offset(),
+            ticket.all_chunks_checksummed(),
             now,
         )
     }
@@ -9912,7 +9918,10 @@ impl LocalSnapback {
                 },
             ));
         }
-        self.db.asset_attempts().attempt_require_current(&attempt)?;
+        let current_proof = self
+            .db
+            .asset_attempts()
+            .attempt_require_current_proof(&attempt)?;
         if attempt.acknowledged_offset != attempt.declared_length {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_TRANSFER_INCOMPLETE",
@@ -10012,18 +10021,20 @@ impl LocalSnapback {
         }
 
         let on_ready = frozen_intent.on.as_ref().and_then(|on| on.ready.clone());
-        Ok(FinalizePreflightV1::Proceed(FinalizePrepareTicketV1 {
-            attempt,
-            request,
-            frozen_intent,
-            on_ready,
-            store: self.asset_store_obj()?,
-            image_finalization_enabled: self.asset_image_finalization_enabled(),
-            video_finalization_enabled: self.asset_video_finalization_enabled(),
-            app_id: self.functions.app_id.clone(),
-            app_quota: self.asset_app_quota(),
-            schema: self.db.schema().clone(),
-        }))
+        Ok(FinalizePreflightV1::Proceed(
+            FinalizePrepareTicketV1::from_current_attempt(
+                current_proof,
+                request,
+                frozen_intent,
+                on_ready,
+                self.asset_store_obj()?,
+                self.asset_image_finalization_enabled(),
+                self.asset_video_finalization_enabled(),
+                self.functions.app_id.clone(),
+                self.asset_app_quota(),
+                self.db.schema().clone(),
+            )?,
+        ))
     }
 
     /// Lock-held Phase A. Revocation and lifecycle state are rechecked before
@@ -10168,8 +10179,8 @@ impl LocalSnapback {
             .db
             .asset_attempts()
             .attempt_finalize_generation_revoked(
-                &ticket.attempt.intent_id,
-                ticket.attempt.admission.policy_generation,
+                &ticket.attempt().intent_id,
+                ticket.attempt().admission.policy_generation,
             )?;
         if revoked {
             return Err(asset_intent_generation_revoked_error());
@@ -10179,8 +10190,8 @@ impl LocalSnapback {
         // Reload through the same caller/lifecycle gates as today's retry
         // path: complete is idempotent; every other terminal state keeps its
         // existing structured refusal from the closed transition table.
-        let attempt = self.asset_attempt_for_caller(authority, &ticket.attempt.attempt_id)?;
-        if attempt.lifecycle_generation != ticket.request.lifecycle_generation {
+        let attempt = self.asset_attempt_for_caller(authority, &ticket.attempt().attempt_id)?;
+        if attempt.lifecycle_generation != ticket.request().lifecycle_generation {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_GENERATION_STALE",
                 "assets",
@@ -10210,7 +10221,7 @@ impl LocalSnapback {
         // chunk carried a checksum or an authenticated whole-upload digest
         // matched; a freshly computed digest alone names the received bytes.
         let grade = if attempt.all_chunks_checksummed
-            || ticket.request.declared_digest.as_deref() == Some(prepared.staged_digest.as_str())
+            || ticket.request().declared_digest.as_deref() == Some(prepared.staged_digest.as_str())
         {
             assets::AssetIntegrityGrade::EndToEndVerified
         } else {
@@ -10223,8 +10234,11 @@ impl LocalSnapback {
         let now = now_millis();
         let attempt_id = attempt.attempt_id.clone();
         let digest = prepared.canonical.digest.clone();
-        let publication = self.db.asset_attempts().attempt_finalize_commit_plan(
-            &ticket.app_id,
+        let publication_proof = self
+            .db
+            .asset_attempts()
+            .attempt_finalize_commit_plan_proved(
+            ticket.app_id(),
             &attempt_id,
             &digest,
             now,
@@ -10234,12 +10248,12 @@ impl LocalSnapback {
         }
 
         Ok(FinalizePhaseAOutcomeV1::Proceed(Box::new(
-            FinalizePutTicketV1 {
+            FinalizePutTicketV1::from_planned_publication(
+                publication_proof,
                 ticket,
                 prepared,
-                publication,
                 grade,
-            },
+            )?,
         )))
     }
 
@@ -10264,16 +10278,8 @@ impl LocalSnapback {
     ) -> SnapbackResult<crate::assets::AssetFinalizeResponseV1> {
         use crate::assets;
 
-        let FinalizeCommitTicketV1 {
-            put:
-                FinalizePutTicketV1 {
-                    ticket,
-                    prepared,
-                    mut publication,
-                    grade,
-                },
-        } = ticket;
-        let attempt_id = ticket.attempt.attempt_id.clone();
+        let (ticket, prepared, mut publication, grade) = ticket.into_put().into_parts();
+        let attempt_id = ticket.attempt().attempt_id.clone();
 
         // Phase A releases Local before the put, so either finalizer may
         // complete first from their shared `planned` key. Reloading here
@@ -10282,7 +10288,7 @@ impl LocalSnapback {
         // stage/publish again. Cancellation/expiry likewise retains its
         // existing closed-table refusal.
         let attempt = self.asset_attempt_for_caller(authority, &attempt_id)?;
-        if attempt.lifecycle_generation != ticket.request.lifecycle_generation {
+        if attempt.lifecycle_generation != ticket.request().lifecycle_generation {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_GENERATION_STALE",
                 "assets",
@@ -10300,16 +10306,18 @@ impl LocalSnapback {
         }
         self.db.asset_attempts().attempt_require_current(&attempt)?;
 
-        let FinalizePrepareTicketV1 {
+        let (
+            _ticket_attempt,
+            _ticket_request,
             frozen_intent,
             on_ready,
             store,
             image_finalization_enabled,
+            _video_finalization_enabled,
             app_id,
             app_quota,
             schema,
-            ..
-        } = ticket;
+        ) = ticket.into_parts();
         let detected = prepared.detected_content_type;
         let canonical = prepared.canonical;
         let image_media_facts = prepared.media_facts;

@@ -1,6 +1,7 @@
 use super::*;
 use snapback_kernel::instance_fork::DerivedForkRuntimeExt as _;
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn json_publication_hides_the_final_path_until_synced_temp_is_complete() {
     let directory = tempfile::tempdir().unwrap();
@@ -34,6 +35,7 @@ fn json_publication_hides_the_final_path_until_synced_temp_is_complete() {
     assert_eq!(recorded, expected);
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn concurrent_app_root_identity_first_publication_is_idempotent() {
     const WRITERS: usize = 32;
@@ -70,6 +72,7 @@ fn concurrent_app_root_identity_first_publication_is_idempotent() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn concurrent_same_id_first_writers_compare_and_publish_one_identity() {
     let directory = tempfile::tempdir().unwrap();
@@ -110,6 +113,7 @@ fn concurrent_same_id_first_writers_compare_and_publish_one_identity() {
     assert_eq!(recorded.app_id, "app-a");
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn conflicting_first_writers_accept_one_identity_before_mint_or_launch() {
     let directory = tempfile::tempdir().unwrap();
@@ -297,6 +301,7 @@ fn source_database(directory: &Path) -> PathBuf {
     path
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn custody_sweep_fails_for_unknown_owned_table() {
     let conn = Connection::open_in_memory().unwrap();
@@ -310,6 +315,7 @@ fn custody_sweep_fails_for_unknown_owned_table() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn fresh_runtime_schema_is_fully_classified() {
     let directory = tempfile::tempdir().unwrap();
@@ -379,6 +385,7 @@ fn asset_bearing_parent(directory: &Path, blob_bytes: &[u8]) -> PathBuf {
     source
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn asset_bearing_source_forks_with_same_cut_private_custody() {
     let directory = tempfile::tempdir().unwrap();
@@ -418,6 +425,7 @@ fn asset_bearing_source_forks_with_same_cut_private_custody() {
     assert!(!parent_blob.exists());
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn torn_or_unclassified_asset_cuts_refuse_before_publication() {
     // A blob the metadata names but the parent store lost: refuse, and
@@ -490,6 +498,7 @@ fn torn_or_unclassified_asset_cuts_refuse_before_publication() {
     }
 }
 
+#[cfg(not(feature = "services-owner"))]
 #[test]
 fn scrub_mints_non_promotable_identity_and_payload_free_marker() {
     let directory = tempfile::tempdir().unwrap();
@@ -671,6 +680,7 @@ fn scrub_mints_non_promotable_identity_and_payload_free_marker() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn derived_fork_keeps_its_pinned_copy_when_parent_writes_after_publication() {
     let directory = tempfile::tempdir().unwrap();
@@ -725,6 +735,7 @@ fn derived_fork_keeps_its_pinned_copy_when_parent_writes_after_publication() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn parent_commits_after_the_fork_point_are_invisible_to_the_published_fork() {
     let directory = tempfile::tempdir().unwrap();
@@ -807,6 +818,7 @@ fn parent_commits_after_the_fork_point_are_invisible_to_the_published_fork() {
     );
 }
 
+#[cfg(not(feature = "services-owner"))]
 #[test]
 fn parent_credential_and_cursor_corpus_is_refused_by_minted_fork() {
     let directory = tempfile::tempdir().unwrap();
@@ -999,6 +1011,7 @@ fn parent_credential_and_cursor_corpus_is_refused_by_minted_fork() {
     ));
 }
 
+#[cfg(not(feature = "services-owner"))]
 #[test]
 fn host_op_gate_denies_every_egress_family_and_names_unclassified_ops() {
     let directory = tempfile::tempdir().unwrap();
@@ -1062,6 +1075,7 @@ fn host_op_gate_denies_every_egress_family_and_names_unclassified_ops() {
     plain.deny_derived_fork_host_op("host.fetch", 46).unwrap();
 }
 
+#[cfg(not(feature = "services-owner"))]
 #[test]
 fn manual_cron_and_asset_provider_paths_deny_on_a_fork() {
     let directory = tempfile::tempdir().unwrap();
@@ -1092,6 +1106,7 @@ fn manual_cron_and_asset_provider_paths_deny_on_a_fork() {
     assert_eq!(denied.diagnostic.details["family"], "asset_provider");
 }
 
+#[cfg(not(feature = "services-owner"))]
 #[test]
 fn every_deny_all_family_has_one_bounded_payload_free_row() {
     let directory = tempfile::tempdir().unwrap();
@@ -1139,6 +1154,7 @@ fn every_deny_all_family_has_one_bounded_payload_free_row() {
     assert_eq!(EgressFamily::for_derived_host_op("authority.myRole"), None);
 }
 
+#[cfg(not(feature = "services-owner"))]
 #[tokio::test]
 async fn direct_telemetry_export_route_refuses_before_export_read() {
     use axum::body::{Body, to_bytes};
@@ -1185,6 +1201,7 @@ async fn direct_telemetry_export_route_refuses_before_export_read() {
     assert_eq!(body["diagnostic"]["code"], "SNAPBACK_FORK_EGRESS_DENIED");
 }
 
+#[cfg(not(feature = "services-owner"))]
 #[tokio::test]
 async fn push_receipt_maintenance_refuses_on_a_ledger_bearing_fork_before_provider_io() {
     let directory = tempfile::tempdir().unwrap();
@@ -1253,6 +1270,7 @@ async fn push_receipt_maintenance_refuses_on_a_ledger_bearing_fork_before_provid
     assert_eq!(marker, ("push_receipt".to_owned(), 1));
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn boot_refuses_staging_and_incomplete_local_evidence() {
     let directory = tempfile::tempdir().unwrap();
@@ -1288,6 +1306,7 @@ fn boot_refuses_staging_and_incomplete_local_evidence() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn boot_refuses_each_missing_minted_sidecar() {
     for sidecar in ["admin", "auth", "resume", "operation-detail"] {
@@ -1297,7 +1316,7 @@ fn boot_refuses_each_missing_minted_sidecar() {
         publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
         let database = destination.join("app.sqlite3");
         let path = match sidecar {
-            "admin" => crate::admin::admin_token_sibling(&database),
+            "admin" => snapback_auth::auth::admin_token::admin_token_sibling(&database),
             "auth" => crate::auth::keyring::AuthKeyringStore::keyring_path(&database),
             "resume" => destination.join(crate::rqs_contract::RESUME_KEYRING_FILE_NAME),
             "operation-detail" => crate::operation_detail::keyring_path(&database),
@@ -1312,6 +1331,7 @@ fn boot_refuses_each_missing_minted_sidecar() {
     }
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn boot_refuses_at_injected_finite_expiry_but_lifecycle_evidence_remains_readable() {
     let directory = tempfile::tempdir().unwrap();
@@ -1347,6 +1367,7 @@ fn boot_refuses_at_injected_finite_expiry_but_lifecycle_evidence_remains_readabl
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn malformed_sidecar_and_resource_limit_placeholder_have_stable_codes() {
     let directory = tempfile::tempdir().unwrap();
@@ -1354,7 +1375,11 @@ fn malformed_sidecar_and_resource_limit_placeholder_have_stable_codes() {
     let destination = directory.path().join("fork");
     publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
     let database = destination.join("app.sqlite3");
-    fs::write(crate::admin::admin_token_sibling(&database), b"not-a-token").unwrap();
+    fs::write(
+        snapback_auth::auth::admin_token::admin_token_sibling(&database),
+        b"not-a-token",
+    )
+    .unwrap();
     assert_eq!(
         inspect_boot_at(&database, 42).unwrap_err().diagnostic.code,
         "SNAPBACK_FORK_SIDECAR_MALFORMED"
@@ -1367,12 +1392,13 @@ fn malformed_sidecar_and_resource_limit_placeholder_have_stable_codes() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn managed_lifecycle_copies_only_explicit_secrets_diffs_and_reaps_by_clock() {
     let directory = tempfile::tempdir().unwrap();
     let source = source_database(directory.path());
     crate::secure_file::write_owner_only(
-        &crate::config::ConfigStore::path_for_database(&source),
+        &crate::local::config_path_for_database(&source),
         br#"{"formatVersion":1,"entries":{}}"#,
     )
     .unwrap();
@@ -1409,8 +1435,7 @@ fn managed_lifecycle_copies_only_explicit_secrets_diffs_and_reaps_by_clock() {
         CustodyDisposition::Scrub
     );
     assert!(
-        !crate::config::ConfigStore::path_for_database(&scrubbed_destination.join("app.sqlite3"))
-            .exists()
+        !crate::local::config_path_for_database(&scrubbed_destination.join("app.sqlite3")).exists()
     );
     drop_managed(&root, &scrubbed.lineage.fork_id, &managed_expected(&root)).unwrap();
 
@@ -1433,7 +1458,7 @@ fn managed_lifecycle_copies_only_explicit_secrets_diffs_and_reaps_by_clock() {
     );
     let database = destination.join("app.sqlite3");
     assert_eq!(
-        fs::read(crate::config::ConfigStore::path_for_database(&database)).unwrap(),
+        fs::read(crate::local::config_path_for_database(&database)).unwrap(),
         br#"{"formatVersion":1,"entries":{}}"#
     );
     let ready = destination.join("fork.ready.json");
@@ -1511,6 +1536,7 @@ fn managed_lifecycle_copies_only_explicit_secrets_diffs_and_reaps_by_clock() {
     assert!(!destination.exists());
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn managed_registry_cannot_redirect_reads_or_deletion_without_local_evidence() {
     let directory = tempfile::tempdir().unwrap();
@@ -1572,6 +1598,7 @@ fn managed_registry_cannot_redirect_reads_or_deletion_without_local_evidence() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn managed_registry_ready_file_must_remain_an_exact_direct_child() {
     let directory = tempfile::tempdir().unwrap();
@@ -1609,6 +1636,7 @@ fn managed_registry_ready_file_must_remain_an_exact_direct_child() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn missing_registered_destination_is_reported_as_stale_registry_state() {
     let directory = tempfile::tempdir().unwrap();
@@ -1636,6 +1664,7 @@ fn missing_registered_destination_is_reported_as_stale_registry_state() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn copied_history_drops_parent_operation_identity_when_ledgers_are_scrubbed() {
     let directory = tempfile::tempdir().unwrap();
@@ -1679,6 +1708,7 @@ fn copied_history_drops_parent_operation_identity_when_ledgers_are_scrubbed() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn diff_is_one_snapshot_and_refuses_a_retention_gap() {
     let directory = tempfile::tempdir().unwrap();
@@ -1720,6 +1750,7 @@ fn diff_is_one_snapshot_and_refuses_a_retention_gap() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn concurrent_drops_of_one_fork_settle_idempotently() {
     let directory = tempfile::tempdir().unwrap();
@@ -1780,6 +1811,7 @@ fn concurrent_drops_of_one_fork_settle_idempotently() {
     }
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn stale_registry_entries_clear_only_after_their_directory_is_gone() {
     let directory = tempfile::tempdir().unwrap();
@@ -1825,6 +1857,7 @@ fn stale_registry_entries_clear_only_after_their_directory_is_gone() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn renewal_moves_every_expiry_carrier_and_never_shortens_clears_or_resurrects() {
     let directory = tempfile::tempdir().unwrap();
@@ -1947,6 +1980,7 @@ fn renewal_moves_every_expiry_carrier_and_never_shortens_clears_or_resurrects() 
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn renewal_crash_matrix_recovers_to_one_consistent_expiry() {
     let cuts = [
@@ -2023,6 +2057,7 @@ fn renewal_crash_matrix_recovers_to_one_consistent_expiry() {
     }
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn creation_limits_refuse_deterministically_with_observed_usage() {
     let directory = tempfile::tempdir().unwrap();
@@ -2095,6 +2130,7 @@ fn creation_limits_refuse_deterministically_with_observed_usage() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn same_app_id_distinct_app_roots_cannot_select_or_mutate_each_others_forks() {
     let directory = tempfile::tempdir().unwrap();
@@ -2222,6 +2258,7 @@ fn race_two_creation_admissions(
 }
 
 #[cfg(unix)]
+#[cfg(feature = "services-owner")]
 #[test]
 fn root_wide_admission_deadline_is_stable_and_releases_cleanly() {
     use std::os::fd::AsRawFd as _;
@@ -2267,6 +2304,7 @@ fn root_wide_admission_deadline_is_stable_and_releases_cleanly() {
     .expect("an uncontended first attempt succeeds even at a zero test deadline");
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn root_wide_admission_is_atomic_at_count_and_total_byte_boundaries() {
     for boundary in ["fork-count", "total-bytes"] {
@@ -2305,6 +2343,7 @@ fn root_wide_admission_is_atomic_at_count_and_total_byte_boundaries() {
     }
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn create_shares_the_maximum_fork_lifetime_with_renewal() {
     let directory = tempfile::tempdir().unwrap();
@@ -2338,6 +2377,7 @@ fn create_shares_the_maximum_fork_lifetime_with_renewal() {
     .unwrap();
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn diff_work_limit_refuses_retained_history_exhaustion() {
     let directory = tempfile::tempdir().unwrap();
@@ -2380,6 +2420,7 @@ fn diff_work_limit_refuses_retained_history_exhaustion() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn diff_receipt_v3_digests_are_domain_separated_canonical_and_bind_every_fact() {
     let boundary = |version, version_boundary: &str| ForkDiffCommitBoundaryV1 {
@@ -2500,6 +2541,7 @@ fn journal_write(conn: &Connection, version: u64, table: &str, row_id: &str, op:
     .unwrap();
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_oracle_covers_the_mutation_corpus_and_verifies_the_journal() {
     let directory = tempfile::tempdir().unwrap();
@@ -2634,6 +2676,7 @@ fn net_diff_oracle_covers_the_mutation_corpus_and_verifies_the_journal() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_streaming_limits_refuse_unchanged_revert_heavy_and_byte_heavy_work() {
     let directory = tempfile::tempdir().unwrap();
@@ -2748,6 +2791,7 @@ fn net_diff_streaming_limits_refuse_unchanged_revert_heavy_and_byte_heavy_work()
     assert!(error.diagnostic.details["observedBytes"].as_u64().unwrap() > 32);
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_scan_preflights_huge_text_blob_and_vector_before_owned_decode() {
     let limits = NetDiffWorkLimitsV1 {
@@ -2847,6 +2891,7 @@ fn net_diff_scan_preflights_huge_text_blob_and_vector_before_owned_decode() {
     assert_eq!(error.diagnostic.details["limitKind"], "bytes");
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_authorizer_backed_app_row_corpus_and_runtime_negative() {
     let directory = tempfile::tempdir().unwrap();
@@ -3015,6 +3060,7 @@ fn net_diff_authorizer_backed_app_row_corpus_and_runtime_negative() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn armed_derived_fork_maintenance_sweep_prunes_the_change_journal() {
     let directory = tempfile::tempdir().unwrap();
@@ -3056,6 +3102,7 @@ fn armed_derived_fork_maintenance_sweep_prunes_the_change_journal() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_armed_path_refuses_bypass_tampered_base_and_coverage_fact() {
     let directory = tempfile::tempdir().unwrap();
@@ -3148,6 +3195,7 @@ fn net_diff_armed_path_refuses_bypass_tampered_base_and_coverage_fact() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_matching_journal_forgery_is_outside_the_registered_connection_class() {
     let directory = tempfile::tempdir().unwrap();
@@ -3213,6 +3261,7 @@ fn net_diff_matching_journal_forgery_is_outside_the_registered_connection_class(
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn registered_manifest_gap_and_exact_restore_cannot_reearn_completeness() {
     let directory = tempfile::tempdir().unwrap();
@@ -3326,6 +3375,7 @@ fn registered_manifest_gap_and_exact_restore_cannot_reearn_completeness() {
     assert_eq!(error.diagnostic.code, WRITER_COVERAGE_GAP_CODE);
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_refuses_a_direct_head_database_page_mutation() {
     use std::io::{Read as _, Seek as _, SeekFrom, Write as _};
@@ -3354,6 +3404,7 @@ fn net_diff_refuses_a_direct_head_database_page_mutation() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_refuses_a_direct_wal_header_mutation() {
     use std::io::{Read as _, Seek as _, SeekFrom, Write as _};
@@ -3399,6 +3450,7 @@ fn net_diff_refuses_a_direct_wal_header_mutation() {
     drop(writer);
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_unarmed_and_armed_late_never_upgrade() {
     let directory = tempfile::tempdir().unwrap();
@@ -3457,6 +3509,7 @@ fn net_diff_unarmed_and_armed_late_never_upgrade() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn net_diff_refuses_without_base_catches_a_lying_journal_and_a_tampered_base() {
     let directory = tempfile::tempdir().unwrap();
@@ -3544,6 +3597,7 @@ fn net_diff_refuses_without_base_catches_a_lying_journal_and_a_tampered_base() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn reap_clock_refuses_values_outside_the_portable_range() {
     let directory = tempfile::tempdir().unwrap();
@@ -3562,6 +3616,7 @@ fn reap_clock_refuses_values_outside_the_portable_range() {
     );
 }
 
+#[cfg(feature = "services-owner")]
 #[test]
 fn publication_crash_matrix_recovers_to_absent_or_bootable_without_registry() {
     let cuts = [
