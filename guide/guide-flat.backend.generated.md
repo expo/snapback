@@ -5555,7 +5555,7 @@ id: backend.snapshot-batches
 order: 27
 audience: agent-first
 capabilities: [backend.snapshot-batch-v1]
-authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0166-local-persistent-store.spec.md, crates/snapback/src/manifest.rs, crates/snapback/src/local.rs, crates/snapback/src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0080-portable-relational-queries-and-projections.rfc.md, llp/0166-local-persistent-store.spec.md, crates/snapback/src/manifest.rs, crates/snapback/src/local.rs, crates/snapback-sync/src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/relation-activity-authoring.test.mjs, packages/snapback-codegen/snapshot-batch-v2-authoring.test.mjs, demos/fleet-observatory-move1]
 status: current
 targets: [local]
@@ -6666,7 +6666,7 @@ id: backend.streamed-actions
 order: 35
 audience: agent-first
 capabilities: [backend.streamed-actions]
-authorities: [llp/0076-bounded-streamed-actions.rfc.md, llp/0075-convex-checkpoint-protocol.spec.md, crates/snapback/src/stream_attempt.rs, crates/snapback/src/server.rs, packages/snapback-harness/ctx-bootstrap.js, demos/competitive-checkpoint/snapback/handlers.mjs, cloudflare/app/all-aboard.app.js]
+authorities: [llp/0076-bounded-streamed-actions.rfc.md, llp/0075-convex-checkpoint-protocol.spec.md, crates/snapback-sync/src/stream_attempt.rs, crates/snapback/src/server.rs, packages/snapback-harness/ctx-bootstrap.js, demos/competitive-checkpoint/snapback/handlers.mjs, cloudflare/app/all-aboard.app.js]
 examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]
@@ -6948,7 +6948,7 @@ id: backend.expo-push-seam
 order: 46
 audience: agent-first
 capabilities: [backend.expo-push-seam]
-authorities: [llp/0143-expo-push-notification-seam.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0045-notifications-outbox.rfc.md, crates/snapback/src/push.rs, crates/snapback/src/connected_clients.rs, crates/snapback/src/server.rs, crates/snapback/src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
+authorities: [llp/0143-expo-push-notification-seam.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0045-notifications-outbox.rfc.md, crates/snapback/src/push.rs, crates/snapback-sync/src/connected_clients.rs, crates/snapback/src/server.rs, crates/snapback/src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
 examples: [packages/snapback-cli/fixtures/push-seam]
 status: current
 targets: [local]

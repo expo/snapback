@@ -97,7 +97,7 @@ pub struct AuthorizationBlastRadiusCounters {
 }
 
 impl AuthorizationBlastRadiusStats {
-    pub(crate) fn for_event(
+    pub fn for_event(
         &mut self,
         declarations: &[String],
         update: impl Fn(&mut AuthorizationBlastRadiusCounters),

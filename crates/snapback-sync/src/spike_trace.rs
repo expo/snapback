@@ -46,11 +46,11 @@ fn trace() -> Option<&'static SpikeTrace> {
 
 /// A process-monotonic timestamp in milliseconds. When tracing is disabled,
 /// this is only the cached `OnceLock<Option<_>>` check and returns `None`.
-pub(crate) fn timestamp_ms() -> Option<f64> {
+pub fn timestamp_ms() -> Option<f64> {
     trace().map(|trace| trace.started.elapsed().as_secs_f64() * 1_000.0)
 }
 
-pub(crate) fn enabled() -> bool {
+pub fn enabled() -> bool {
     trace().is_some()
 }
 
@@ -78,7 +78,7 @@ fn emit_at(timestamp_ms: f64, mut event: Value) {
 }
 
 #[derive(Clone, Debug, Default)]
-pub(crate) struct MutationTraceIdentity {
+pub struct MutationTraceIdentity {
     pub client_mutation_id: Option<String>,
     pub receipt_mutation_id: Option<String>,
     pub composition_client_id: Option<String>,
@@ -87,7 +87,7 @@ pub(crate) struct MutationTraceIdentity {
 }
 
 impl MutationTraceIdentity {
-    pub(crate) fn capture(
+    pub fn capture(
         input: &HandlerInput,
         identity: Option<&ClientMutationIdentity>,
         receipt_mutation_id: Option<&str>,
@@ -114,7 +114,7 @@ impl MutationTraceIdentity {
     }
 }
 
-pub(crate) fn commit(
+pub fn commit(
     timestamp_ms: Option<f64>,
     mutation: &str,
     version: u64,
@@ -142,7 +142,7 @@ pub(crate) fn commit(
     );
 }
 
-pub(crate) fn fanout_dispatch(
+pub fn fanout_dispatch(
     commit_versions: &[u64],
     decision: &str,
     changed_row_count: usize,
@@ -165,7 +165,7 @@ pub(crate) fn fanout_dispatch(
     );
 }
 
-pub(crate) fn matcher_decision(
+pub fn matcher_decision(
     subscription_id: &str,
     connection_id: &str,
     commit_versions: &[u64],
@@ -191,7 +191,7 @@ pub(crate) fn matcher_decision(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn eval(
+pub fn eval(
     subscription_id: &str,
     connection_id: &str,
     commit_versions: &[u64],
@@ -236,7 +236,7 @@ pub(crate) fn eval(
 ///
 /// @ref LLP 0200#4-acceptance-instruments-and-predeclared-hypotheses — H-4
 /// requires superseded queued evaluations to be observable.
-pub(crate) fn eval_superseded(
+pub fn eval_superseded(
     subscription_id: &str,
     commit_versions: &[u64],
     queue_ms: Option<f64>,
@@ -266,7 +266,7 @@ pub(crate) fn eval_superseded(
     );
 }
 
-pub(crate) fn coalesce(
+pub fn coalesce(
     action: &str,
     commit_versions: &[u64],
     merged_frame_count: u64,
@@ -296,7 +296,7 @@ pub(crate) fn coalesce(
     );
 }
 
-pub(crate) fn mutate_settle(
+pub fn mutate_settle(
     timestamp_ms: Option<f64>,
     phase: &str,
     mutation: &str,
@@ -319,7 +319,7 @@ pub(crate) fn mutate_settle(
     );
 }
 
-pub(crate) fn fence(
+pub fn fence(
     subscription_id: &str,
     action: &str,
     authorization: &AuthorizationVersion,
@@ -341,7 +341,7 @@ pub(crate) fn fence(
     );
 }
 
-pub(crate) fn watermark(
+pub fn watermark(
     subscription_id: &str,
     connection_id: &str,
     version: u64,

@@ -75,11 +75,11 @@ struct DeliveryRegistration {
 /// invalidation for a predecessor can never close a replacement that reused
 /// the readable connection id.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct DeliveryTerminalEvent {
-    pub(crate) code: LiveAuthErrorCode,
-    pub(crate) reason: LiveAuthErrorReason,
-    pub(crate) authority_disposition: LiveAuthorityDisposition,
-    pub(crate) close_by: std::time::Instant,
+pub struct DeliveryTerminalEvent {
+    pub code: LiveAuthErrorCode,
+    pub reason: LiveAuthErrorReason,
+    pub authority_disposition: LiveAuthorityDisposition,
+    pub close_by: std::time::Instant,
 }
 
 impl Default for DeliveryNotifierState {
@@ -124,7 +124,7 @@ impl Default for DeliveryNotifier {
 /// @ref LLP 0059#locking-and-linearization — notifier ownership is converted
 /// into a lock-free logical claim before any other teardown subsystem runs.
 #[must_use = "a claimed socket generation must be explicitly finished after cleanup"]
-pub(crate) struct DeliveryTeardownClaim {
+pub struct DeliveryTeardownClaim {
     notifier: Arc<DeliveryNotifier>,
     connection_id: String,
     generation: u64,
@@ -132,7 +132,7 @@ pub(crate) struct DeliveryTeardownClaim {
 }
 
 impl DeliveryTeardownClaim {
-    pub(crate) fn finish(mut self) {
+    pub fn finish(mut self) {
         self.release();
     }
 
@@ -174,7 +174,7 @@ impl DeliveryNotifier {
     /// Register a socket against the opaque grant that authorized its
     /// upgrade. Terminal propagation compares both identities; the readable
     /// connection id alone is deliberately insufficient.
-    pub(crate) fn register_bound(
+    pub fn register_bound(
         &self,
         connection_id: &str,
         grant_id: impl Into<Arc<str>>,
@@ -220,7 +220,7 @@ impl DeliveryNotifier {
     /// claim. The claim carries no mutex guard and blocks same-id registration
     /// until cleanup explicitly finishes. A stale socket generation gets
     /// `None` and must not clean any connection state.
-    pub(crate) fn begin_teardown(
+    pub fn begin_teardown(
         self: &Arc<Self>,
         connection_id: &str,
         generation: u64,
@@ -279,7 +279,7 @@ impl DeliveryNotifier {
     /// Whether ordinary effects may still drain to this exact registration.
     /// Terminal ownership remains current for guarded teardown, but ordinary
     /// bytes stop at the same notifier cut that installs the auth error.
-    pub(crate) fn is_deliverable(&self, connection_id: &str, generation: u64) -> bool {
+    pub fn is_deliverable(&self, connection_id: &str, generation: u64) -> bool {
         matches!(
             self.lock_state().waiters.get(connection_id),
             Some(current) if current.generation == generation && current.terminal.is_none()
@@ -290,7 +290,7 @@ impl DeliveryNotifier {
     /// registration on the same readable id has a different grant id and is
     /// untouched. The wake happens after the event is visible under the same
     /// mutex, so the stream cannot observe a wake without its terminal data.
-    pub(crate) fn terminalize_bound(
+    pub fn terminalize_bound(
         &self,
         connection_id: &str,
         grant_id: &str,
@@ -317,7 +317,7 @@ impl DeliveryNotifier {
     /// terminal frame. Removing the exact registration and waking its task
     /// makes every generation-guarded drain stop immediately; a replacement
     /// grant with another opaque id is unaffected.
-    pub(crate) fn retire_bound(&self, connection_id: &str, grant_id: &str) -> bool {
+    pub fn retire_bound(&self, connection_id: &str, grant_id: &str) -> bool {
         let notify = {
             let mut state = self.lock_state();
             let matches = state
@@ -337,7 +337,7 @@ impl DeliveryNotifier {
         true
     }
 
-    pub(crate) fn terminal_if_current(
+    pub fn terminal_if_current(
         &self,
         connection_id: &str,
         generation: u64,
@@ -354,7 +354,7 @@ impl DeliveryNotifier {
     /// registration cannot linearize between the ownership check and an
     /// outbox drain. Closures must follow the documented notifier→outbox lock
     /// order and must never await.
-    pub(crate) fn act_if_current<T>(
+    pub fn act_if_current<T>(
         &self,
         connection_id: &str,
         generation: u64,
@@ -668,8 +668,8 @@ pub fn stream_collection_definition() -> EphemeralCollection {
 /// `packages/snapback-codegen/authoring-validation.test.mjs`. Keeping the
 /// emitted artifact here makes Rust conformance tests independent of Node while
 /// preserving explicit provenance; this is not a hand-built `SchemaManifest`.
-#[cfg(test)]
-pub(crate) const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
+#[cfg(any(test, feature = "test-support"))]
+pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
   "appId": "membership-digest-fixture",
   "artifactDiagnostics": [],
   "artifactKind": "schemaManifest",
@@ -828,8 +828,8 @@ pub(crate) const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON: &str = r#"{
 
 // Counterpart: packages/snapback-codegen/authoring-validation.test.mjs:
 // codegenEmittedMembershipManifestMatchesRustFixtureDigest.
-#[cfg(test)]
-const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256: &str =
+#[cfg(any(test, feature = "test-support"))]
+pub const CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256: &str =
     "8fb7b3c54c59d1b711c79f951ee2247a111a59ddc8dcdceef6203bc78de5aec3";
 
 
@@ -853,10 +853,10 @@ const MAX_OUTBOX_DRAIN_BATCH: usize = 64;
 ///
 /// @ref LLP 0059#durable-and-ephemeral-outboxes — bounded selection owns at
 /// most one cumulative eager handoff budget across direct and queued frames.
-pub(crate) const MAX_OUTBOX_HANDOFF_BYTES: usize = 64 * 1_024 * 1_024;
+pub const MAX_OUTBOX_HANDOFF_BYTES: usize = 64 * 1_024 * 1_024;
 const OUTBOX_HANDOFF_JSON_EXPANSION: usize = 6;
 const OUTBOX_HANDOFF_ENVELOPE_OVERHEAD: usize = 1_024;
-pub(crate) const OUTBOX_HANDOFF_BATCH_OVERHEAD: usize = 2;
+pub const OUTBOX_HANDOFF_BATCH_OVERHEAD: usize = 2;
 
 /// A sticky overflow may need one room-scoped resync for every room whose
 /// latest-state lane was discarded. Keep that recovery ledger independently
@@ -1118,7 +1118,7 @@ fn retained_durable_queue_item_bytes(message: &DurableMessage) -> usize {
         .saturating_add(message.payload.capacity())
 }
 
-pub(crate) fn estimated_durable_handoff_bytes(message: &DurableMessage) -> usize {
+pub fn estimated_durable_handoff_bytes(message: &DurableMessage) -> usize {
     retained_durable_queue_item_bytes(message)
         .saturating_mul(OUTBOX_HANDOFF_JSON_EXPANSION)
         .saturating_add(OUTBOX_HANDOFF_ENVELOPE_OVERHEAD)
@@ -1264,12 +1264,12 @@ impl Drop for OutboxDrainLeaseInner {
 /// Idempotent ownership token for one physically retained outbox frame. The
 /// frame remains in queue order until a bounded transport handoff accepts it;
 /// dropping the last token merely makes it eligible for a later drain.
-pub(crate) struct OutboxDrainLease {
+pub struct OutboxDrainLease {
     inner: Arc<OutboxDrainLeaseInner>,
     ack_on_drop: bool,
 }
 
-pub(crate) enum OutboxLeaseCommit<T> {
+pub enum OutboxLeaseCommit<T> {
     Committed,
     Superseded(T),
     OfferFailed(T),
@@ -1302,7 +1302,7 @@ impl OutboxDrainLease {
     /// outbox lock excludes overflow, purge, and coalescing replacement. The
     /// failed value is returned only after the queue has released the lease;
     /// callers must drop publication permits outside this lock.
-    pub(crate) fn try_commit<T>(
+    pub fn try_commit<T>(
         &self,
         value: T,
         offer: impl FnOnce(T) -> Result<(), T>,
@@ -1334,7 +1334,7 @@ impl OutboxDrainLease {
         }
     }
 
-    pub(crate) fn wake(&self) {
+    pub fn wake(&self) {
         self.inner
             .wake
             .delivery
@@ -1365,7 +1365,7 @@ impl OutboxDrainLease {
     /// Commit a complete HTTP batch at its response-body ownership boundary.
     /// All leases must name the same outbox and remain current; otherwise none
     /// are removed and dropping the handles releases them for a later poll.
-    pub(crate) fn acknowledge_all(leases: &[Self]) -> bool {
+    pub fn acknowledge_all(leases: &[Self]) -> bool {
         let Some(first) = leases.first() else {
             return true;
         };
@@ -1445,12 +1445,12 @@ impl AdmittedRealtimeEnvelope {
         &self.envelope
     }
 
-    pub(crate) fn is_recovery_marker(&self) -> bool {
+    pub fn is_recovery_marker(&self) -> bool {
         self.recovery_marker
     }
 
-    #[cfg(test)]
-    pub(crate) fn into_parts(self) -> (RealtimeEnvelope, Option<RealtimePublicationPermit>) {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn into_parts(self) -> (RealtimeEnvelope, Option<RealtimePublicationPermit>) {
         self.try_into_parts()
             .expect("infallible admitted conversion lost its outbox lease")
     }
@@ -1463,7 +1463,7 @@ impl AdmittedRealtimeEnvelope {
             .then_some((self.envelope, self.publication_authority))
     }
 
-    pub(crate) fn into_leased_parts(
+    pub fn into_leased_parts(
         self,
     ) -> (
         RealtimeEnvelope,
@@ -1890,10 +1890,10 @@ struct QueuePush {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct DurableEnqueueOutcome {
     /// This enqueue crossed the bounded queue into sticky overflow.
-    pub(crate) overflowed_now: bool,
+    pub overflowed_now: bool,
     /// The payload is represented only by the sticky overflow sentinel (the
     /// queue was already overflowed or became overflowed on this enqueue).
-    pub(crate) parked_behind_overflow: bool,
+    pub parked_behind_overflow: bool,
 }
 
 impl OutboundQueue {
@@ -2689,7 +2689,7 @@ impl OutboundQueue {
     ///
     /// @ref LLP 0059#fenced-effects-and-live-closure — final exact-fence
     ///   publication and replacement-safe readable connection ids.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn drain_with_authority(
         &mut self,
         expected_effect_fence: Option<&ConnectionEffectFence>,
@@ -2714,7 +2714,7 @@ impl OutboundQueue {
             .collect()
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn drain_with_authority_bounded(
         &mut self,
         expected_effect_fence: Option<&ConnectionEffectFence>,
@@ -3233,22 +3233,22 @@ pub struct RoomAuthorityResync {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct RoomSubscriberReauthorization {
-    pub(crate) connection_id: ConnectionId,
-    #[cfg(test)]
-    pub(crate) previous_auth: AuthContext,
-    pub(crate) effect_fence: Option<ConnectionEffectFence>,
+pub struct RoomSubscriberReauthorization {
+    pub connection_id: ConnectionId,
+    #[cfg(any(test, feature = "test-support"))]
+    pub previous_auth: AuthContext,
+    pub effect_fence: Option<ConnectionEffectFence>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct PendingRoomReauthorization {
-    pub(crate) room: RoomId,
-    pub(crate) obligation: RoomAuthorityResync,
-    pub(crate) subscribers: Vec<RoomSubscriberReauthorization>,
+pub struct PendingRoomReauthorization {
+    pub room: RoomId,
+    pub obligation: RoomAuthorityResync,
+    pub subscribers: Vec<RoomSubscriberReauthorization>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum RoomSubscriberResolution {
+pub enum RoomSubscriberResolution {
     Authorized {
         connection_id: ConnectionId,
         expected_effect_fence: Option<ConnectionEffectFence>,
@@ -3394,7 +3394,20 @@ impl Default for RoomAuthorityRegistry {
     }
 }
 
-pub(crate) struct RoomAuthorityPermit {
+/// Opaque proof minted only by the room-authority registry.
+///
+/// Callers cannot assert that admission occurred:
+///
+/// ```compile_fail
+/// use snapback_sync::ephemeral::RoomAuthorityPermit;
+///
+/// let _forged = RoomAuthorityPermit {
+///     registry: todo!(),
+///     room: todo!(),
+///     generation: 1,
+/// };
+/// ```
+pub struct RoomAuthorityPermit {
     registry: Arc<RoomAuthorityRegistry>,
     room: RoomId,
     generation: u64,
@@ -3405,7 +3418,7 @@ pub(crate) struct RoomAuthorityPermit {
 /// same registry lock and waits for these permits to quiesce before SQLite may
 /// commit. A frame already destructively drained therefore either finishes
 /// before the commit or is rejected against the successor authorization.
-pub(crate) struct DurableAuthorizationPermit {
+pub struct DurableAuthorizationPermit {
     registry: Arc<RoomAuthorityRegistry>,
 }
 
@@ -3420,7 +3433,7 @@ impl Drop for DurableAuthorizationPermit {
 /// The single final-publication permit carried by a realtime frame. Durable
 /// app rows use the authorization fence; protected ephemeral frames use their
 /// exact room generation. Control and authority-independent frames need none.
-pub(crate) enum RealtimePublicationPermit {
+pub enum RealtimePublicationPermit {
     Durable { _permit: DurableAuthorizationPermit },
     Room(RoomAuthorityPermit),
 }
@@ -3571,7 +3584,7 @@ impl RoomAuthorityRegistry {
         }))
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn prepare(
         &self,
         expected_authorization: AuthorizationVersion,
@@ -3982,7 +3995,7 @@ struct DefinitionSwapTestHook {
     release: std::sync::mpsc::Receiver<()>,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 struct FrameBeforeFirstEnqueueTestHook {
     reached: std::sync::mpsc::SyncSender<EphemeralMessage>,
     release: std::sync::mpsc::Receiver<()>,
@@ -4016,7 +4029,7 @@ struct EphemeralShared {
     definition_swap_hook: StdMutex<Option<DefinitionSwapTestHook>>,
     /// One backend-local, one-shot pause at the exact constructed-frame →
     /// first-outbox-push seam used by the protected-room commit-order test.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     frame_before_first_enqueue_hook: StdMutex<Option<FrameBeforeFirstEnqueueTestHook>>,
     collections: RwLock<BTreeMap<String, EphemeralCollection>>,
     collection_generation: AtomicU64,
@@ -4179,7 +4192,7 @@ struct RoomAuthorizationCommitReservation {
 
 struct NoAuthorizationEventReservation;
 
-pub(crate) fn no_authorization_event_reservation() -> Box<dyn AuthorizationCommitReservation> {
+pub fn no_authorization_event_reservation() -> Box<dyn AuthorizationCommitReservation> {
     Box::new(NoAuthorizationEventReservation)
 }
 
@@ -4371,7 +4384,7 @@ impl LocalEphemeralBackend {
         })
     }
 
-    pub(crate) fn collection_definition(&self, name: &str) -> Option<EphemeralCollection> {
+    pub fn collection_definition(&self, name: &str) -> Option<EphemeralCollection> {
         self.collection_if_loaded(name)
     }
 
@@ -4386,7 +4399,7 @@ impl LocalEphemeralBackend {
                 lifecycle: RwLock::new(()),
                 #[cfg(test)]
                 definition_swap_hook: StdMutex::new(None),
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-support"))]
                 frame_before_first_enqueue_hook: StdMutex::new(None),
                 collections: RwLock::new(BTreeMap::new()),
                 collection_generation: AtomicU64::new(1),
@@ -4405,7 +4418,7 @@ impl LocalEphemeralBackend {
         }
     }
 
-    pub(crate) fn install_authorization_issuer(
+    pub fn install_authorization_issuer(
         &self,
         issuer: crate::auth::invalidation::LiveInvalidationIssuer,
     ) {
@@ -4420,15 +4433,15 @@ impl LocalEphemeralBackend {
         *lock(&self.shared.authorization_issuer) = Some(issuer);
     }
 
-    pub(crate) fn clear_authorization_issuer(&self) {
+    pub fn clear_authorization_issuer(&self) {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "ephemeral authorization issuer clearing",
         );
         *lock(&self.shared.authorization_issuer) = None;
     }
 
-    #[cfg(test)]
-    pub(crate) fn authorization_expectation_for_test(&self) -> Option<AuthorizationVersion> {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn authorization_expectation_for_test(&self) -> Option<AuthorizationVersion> {
         lock(&self.shared.authorization_issuer)
             .as_ref()
             .map(|issuer| {
@@ -4438,8 +4451,8 @@ impl LocalEphemeralBackend {
             })
     }
 
-    #[cfg(test)]
-    pub(crate) fn install_frame_before_first_enqueue_hook_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn install_frame_before_first_enqueue_hook_for_test(
         &self,
         reached: std::sync::mpsc::SyncSender<EphemeralMessage>,
         release: std::sync::mpsc::Receiver<()>,
@@ -4506,7 +4519,7 @@ impl LocalEphemeralBackend {
     /// permission is converted into an in-memory room act. The ordinary room
     /// operation acquires its own inner permit; this outer permit closes the
     /// read-to-registration gap and may be retained through final transport.
-    pub(crate) fn begin_server_authorized_room_act(
+    pub fn begin_server_authorized_room_act(
         &self,
         collection_name: &str,
         scope: &Scope,
@@ -4520,8 +4533,8 @@ impl LocalEphemeralBackend {
     /// retained as the explicit broad-event/test seam; production app writes
     /// use [`Self::reserve_authorization_commit`] so unrelated rooms remain
     /// live when their permission-backing scope is provably disjoint.
-    #[cfg(test)]
-    pub(crate) fn prepare_room_authorization_event(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn prepare_room_authorization_event(
         &self,
         expected_authorization: AuthorizationVersion,
     ) -> SnapbackResult<RoomDependencyTicket> {
@@ -4530,7 +4543,7 @@ impl LocalEphemeralBackend {
             .prepare(expected_authorization, RoomDependencySelector::all())
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn room_dependency_selector(
         &self,
         impact: AuthorizationCommitImpact<'_>,
@@ -4572,7 +4585,7 @@ impl LocalEphemeralBackend {
         (collections, generation)
     }
 
-    pub(crate) fn reserve_authorization_commit(
+    pub fn reserve_authorization_commit(
         &self,
         preflight: AuthorizationCommitPreflight,
         cancellation: Arc<AuthorizationReservationCancellation>,
@@ -4653,14 +4666,14 @@ impl LocalEphemeralBackend {
         Ok(resyncs)
     }
 
-    pub(crate) fn rollback_room_authorization_event(&self, ticket: &RoomDependencyTicket) -> bool {
+    pub fn rollback_room_authorization_event(&self, ticket: &RoomDependencyTicket) -> bool {
         crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
             "room-authority dependency rollback",
         );
         self.shared.room_authority.rollback(ticket)
     }
 
-    pub(crate) fn pending_room_reauthorizations(&self) -> Vec<PendingRoomReauthorization> {
+    pub fn pending_room_reauthorizations(&self) -> Vec<PendingRoomReauthorization> {
         let pending = {
             let authority = lock(&self.shared.room_authority.state);
             authority
@@ -4692,7 +4705,7 @@ impl LocalEphemeralBackend {
                         .map(
                             |(connection_id, subscriber)| RoomSubscriberReauthorization {
                                 connection_id: connection_id.clone(),
-                                #[cfg(test)]
+                                #[cfg(any(test, feature = "test-support"))]
                                 previous_auth: subscriber.auth.clone(),
                                 effect_fence: subscriber.effect_fence.clone(),
                             },
@@ -4703,7 +4716,7 @@ impl LocalEphemeralBackend {
             .collect()
     }
 
-    pub(crate) fn complete_room_reauthorization(
+    pub fn complete_room_reauthorization(
         &self,
         room_id: &RoomId,
         room_authority_generation: u64,
@@ -4989,7 +5002,7 @@ impl LocalEphemeralBackend {
         self.shared.delivery.clone()
     }
 
-    pub(crate) fn subscription_requires_permission(&self, collection: &str) -> Option<bool> {
+    pub fn subscription_requires_permission(&self, collection: &str) -> Option<bool> {
         self.collection_if_loaded(collection).map(|definition| {
             matches!(
                 definition.subscribe,
@@ -4998,7 +5011,7 @@ impl LocalEphemeralBackend {
         })
     }
 
-    pub(crate) fn begin_final_send(
+    pub fn begin_final_send(
         &self,
         envelope: &RealtimeEnvelope,
     ) -> Result<Option<RealtimePublicationPermit>, EphemeralError> {
@@ -5122,7 +5135,7 @@ impl LocalEphemeralBackend {
         self.ensure_collections_with_error_detail(collections, true)
     }
 
-    pub(crate) fn ensure_collections_redacted(
+    pub fn ensure_collections_redacted(
         &self,
         collections: Vec<EphemeralCollection>,
     ) -> Result<CollectionEnsureOutcome, EphemeralError> {
@@ -5238,7 +5251,7 @@ impl LocalEphemeralBackend {
         self.publish_with_room_authority(request, now_ms, None)
     }
 
-    pub(crate) fn publish_with_room_authority(
+    pub fn publish_with_room_authority(
         &self,
         request: PublishRequest,
         now_ms: Millis,
@@ -5478,7 +5491,7 @@ impl LocalEphemeralBackend {
         self.delete_with_room_authority(request, now_ms, None)
     }
 
-    pub(crate) fn delete_with_room_authority(
+    pub fn delete_with_room_authority(
         &self,
         request: DeleteRequest,
         now_ms: Millis,
@@ -5757,7 +5770,7 @@ impl LocalEphemeralBackend {
         self.unsubscribe_with_room_authority(request, None)
     }
 
-    pub(crate) fn unsubscribe_with_room_authority(
+    pub fn unsubscribe_with_room_authority(
         &self,
         request: SubscribeRequest,
         admitted: Option<&RoomAuthorityPermit>,
@@ -5820,7 +5833,7 @@ impl LocalEphemeralBackend {
         self.subscribe_with_room_authority_and_effect_fence(request, now_ms, None, None)
     }
 
-    pub(crate) fn subscribe_with_room_authority(
+    pub fn subscribe_with_room_authority(
         &self,
         request: SubscribeRequest,
         now_ms: Millis,
@@ -5829,7 +5842,7 @@ impl LocalEphemeralBackend {
         self.subscribe_with_room_authority_and_effect_fence(request, now_ms, admitted, None)
     }
 
-    pub(crate) fn subscribe_with_room_authority_and_effect_fence(
+    pub fn subscribe_with_room_authority_and_effect_fence(
         &self,
         request: SubscribeRequest,
         now_ms: Millis,
@@ -6017,7 +6030,7 @@ impl LocalEphemeralBackend {
     /// mint-only containment. Unlike an administrative disconnect, this path
     /// must not synthesize a recovery marker or wake the terminal socket: an
     /// exact typed auth event, when present, remains the sole wake owner.
-    pub(crate) fn disconnect_terminal_retired(&self, connection_id: &str, now_ms: Millis) {
+    pub fn disconnect_terminal_retired(&self, connection_id: &str, now_ms: Millis) {
         self.disconnect_inner(connection_id, now_ms, false, false);
     }
 
@@ -6619,7 +6632,7 @@ impl LocalEphemeralBackend {
     /// Wake the current transport after publishing level-triggered durable
     /// state that the drain projects directly. No physical outbox entry is
     /// created: the retained state remains the sole delivery authority.
-    pub(crate) fn wake_durable_projection(&self, connection_id: &str) {
+    pub fn wake_durable_projection(&self, connection_id: &str) {
         self.shared.delivery.wake(connection_id);
     }
 
@@ -6627,7 +6640,7 @@ impl LocalEphemeralBackend {
     /// This is a no-op when the connection has no pending outbox. The Local
     /// owner calls it only while the evaluation scheduler is installed; the
     /// legacy inline lane never enters this coalescing path.
-    pub(crate) fn supersede_pending_live_watermarks(
+    pub fn supersede_pending_live_watermarks(
         &self,
         connection_id: &str,
         subscription_id: &str,
@@ -6640,7 +6653,7 @@ impl LocalEphemeralBackend {
         0
     }
 
-    pub(crate) fn enqueue_durable_with_network_egress(
+    pub fn enqueue_durable_with_network_egress(
         &self,
         connection_id: impl Into<String>,
         payload: Vec<u8>,
@@ -6664,7 +6677,7 @@ impl LocalEphemeralBackend {
     ///
     /// @ref LLP 0058#same-mode-provisioning — no unscoped predecessor live
     /// payload may transfer after successor activation.
-    pub(crate) fn invalidate_durable_backlog_for_activation(
+    pub fn invalidate_durable_backlog_for_activation(
         &self,
         connection_id: &str,
         effect_fence: Option<&ConnectionEffectFence>,
@@ -6715,7 +6728,7 @@ impl LocalEphemeralBackend {
         )
     }
 
-    pub(crate) fn enqueue_authorized_durable_with_network_egress(
+    pub fn enqueue_authorized_durable_with_network_egress(
         &self,
         connection_id: impl Into<String>,
         payload: Vec<u8>,
@@ -6735,7 +6748,7 @@ impl LocalEphemeralBackend {
         }
     }
 
-    pub(crate) fn enqueue_durable_bound(
+    pub fn enqueue_durable_bound(
         &self,
         connection_id: impl Into<String>,
         payload: Vec<u8>,
@@ -6744,7 +6757,7 @@ impl LocalEphemeralBackend {
         self.enqueue_durable_message(connection_id, DurableMessage::bound(payload, effect_fence))
     }
 
-    pub(crate) fn enqueue_durable_bound_with_network_egress(
+    pub fn enqueue_durable_bound_with_network_egress(
         &self,
         connection_id: impl Into<String>,
         payload: Vec<u8>,
@@ -6760,7 +6773,7 @@ impl LocalEphemeralBackend {
         }
     }
 
-    pub(crate) fn enqueue_authorized_durable_bound_with_network_egress(
+    pub fn enqueue_authorized_durable_bound_with_network_egress(
         &self,
         connection_id: impl Into<String>,
         payload: Vec<u8>,
@@ -6857,7 +6870,7 @@ impl LocalEphemeralBackend {
 
     /// Remove retained subscriber and queued state for one exact grant while
     /// preserving any replacement that reused the readable connection id.
-    pub(crate) fn purge_connection_effects(
+    pub fn purge_connection_effects(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
@@ -6873,7 +6886,7 @@ impl LocalEphemeralBackend {
     ///
     /// @ref LLP 0059#typed-terminal-auth-error — terminal data becomes visible
     /// under the notifier mutex before the single terminal wake.
-    pub(crate) fn purge_connection_effects_silently(
+    pub fn purge_connection_effects_silently(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
@@ -7038,8 +7051,8 @@ impl LocalEphemeralBackend {
     /// Destructively drain only effects produced by the exact connection
     /// grant. A readable connection id is intentionally insufficient: local
     /// profiles may reuse it and terminal cleanup may race with replacement.
-    #[cfg(test)]
-    pub(crate) fn drain_outbox_for_send_bound(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn drain_outbox_for_send_bound(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
@@ -7051,7 +7064,7 @@ impl LocalEphemeralBackend {
         )
     }
 
-    pub(crate) fn has_eligible_recovery_marker_bound(
+    pub fn has_eligible_recovery_marker_bound(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
@@ -7067,7 +7080,7 @@ impl LocalEphemeralBackend {
     /// must not pass a recovery marker installed after handler selection.
     /// Ordinary leased batches likewise lose to a cross-domain marker that did
     /// not itself invalidate their physical lease.
-    pub(crate) fn acknowledge_outbox_handoff_bound(
+    pub fn acknowledge_outbox_handoff_bound(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
@@ -7121,7 +7134,7 @@ impl LocalEphemeralBackend {
     /// installation. The notifier and connection registry are held by the
     /// caller; keeping this outbox lock through the bounded writer offer gives
     /// notifier -> outbox -> writer ordering without a check/offer gap.
-    pub(crate) fn try_offer_projection_bound<T>(
+    pub fn try_offer_projection_bound<T>(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
@@ -7141,8 +7154,8 @@ impl LocalEphemeralBackend {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn overflow_outbox_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn overflow_outbox_for_test(
         &self,
         connection_id: &str,
         effect_fence: Option<ConnectionEffectFence>,
@@ -7152,8 +7165,8 @@ impl LocalEphemeralBackend {
         self.shared.delivery.wake(connection_id);
     }
 
-    #[cfg(test)]
-    pub(crate) fn durable_release_deadlines_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn durable_release_deadlines_for_test(
         &self,
         connection_id: &str,
     ) -> Vec<Option<std::time::Instant>> {
@@ -7167,8 +7180,8 @@ impl LocalEphemeralBackend {
             .collect()
     }
 
-    #[cfg(test)]
-    pub(crate) fn enqueue_ephemeral_for_test(
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn enqueue_ephemeral_for_test(
         &self,
         connection_id: &str,
         message: EphemeralMessage,
@@ -7179,14 +7192,14 @@ impl LocalEphemeralBackend {
         self.shared.delivery.wake(connection_id);
     }
 
-    #[cfg(test)]
-    pub(crate) fn has_connection_residue_for_test(&self, connection_id: &str) -> bool {
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn has_connection_residue_for_test(&self, connection_id: &str) -> bool {
         lock(&self.shared.connection_rooms).contains_key(connection_id)
             || lock(&self.shared.outboxes).contains_key(connection_id)
             || lock(&self.shared.rate_buckets).contains_key(connection_id)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn drain_outbox_for_send_bound_with_limit(
         &self,
         connection_id: &str,
@@ -7202,7 +7215,7 @@ impl LocalEphemeralBackend {
         )
     }
 
-    pub(crate) fn drain_outbox_for_send_bound_with_handoff_limit(
+    pub fn drain_outbox_for_send_bound_with_handoff_limit(
         &self,
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
@@ -7305,7 +7318,7 @@ impl LocalEphemeralBackend {
     /// Atomically prove socket-generation ownership and destructively drain.
     /// Registration replacement takes the same notifier lock, so an old task
     /// can never remove messages that became owned by a new generation.
-    pub(crate) fn drain_outbox_if_current(
+    pub fn drain_outbox_if_current(
         &self,
         connection_id: &str,
         generation: u64,
@@ -7328,7 +7341,7 @@ impl LocalEphemeralBackend {
         Some(Self::commit_compatibility_batch(admitted))
     }
 
-    pub(crate) fn drain_outbox_for_send_if_current(
+    pub fn drain_outbox_for_send_if_current(
         &self,
         connection_id: &str,
         generation: u64,
@@ -7341,7 +7354,7 @@ impl LocalEphemeralBackend {
             })
     }
 
-    pub(crate) fn drain_outbox_for_send_bound_if_current_with_handoff_limit(
+    pub fn drain_outbox_for_send_bound_if_current_with_handoff_limit(
         &self,
         connection_id: &str,
         generation: u64,
@@ -8020,7 +8033,7 @@ impl LocalEphemeralBackend {
 
         let message = Arc::new(message);
         let mut wakees = Vec::with_capacity(recipients.len());
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-support"))]
         self.pause_after_frame_construction_before_first_enqueue_for_test(message.as_ref());
         for (connection_id, outbox, effect_fence) in recipients {
             let result = lock(&outbox).push_ephemeral(
@@ -8053,7 +8066,7 @@ impl LocalEphemeralBackend {
         self.shared.delivery.wake_many(&wakees);
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-support"))]
     fn pause_after_frame_construction_before_first_enqueue_for_test(
         &self,
         message: &EphemeralMessage,
@@ -8772,7 +8785,6 @@ impl ClientEphemeralOverlay {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::SchemaManifestValidationExt as _;
 
     #[test]
     fn redacted_collection_ensure_errors_report_counts_without_names() {
@@ -9561,101 +9573,6 @@ mod tests {
         );
         assert!(selector.matches(&room()));
         assert!(selector.matches(&other_room));
-    }
-
-    #[test]
-    fn codegen_emitted_membership_projection_parses_and_activates_in_sessions() {
-        use crate::contract_types::AuthMode;
-        use crate::manifest::SchemaManifest;
-
-        fn canonical_json(value: &serde_json::Value) -> String {
-            match value {
-                serde_json::Value::Null
-                | serde_json::Value::Bool(_)
-                | serde_json::Value::Number(_)
-                | serde_json::Value::String(_) => serde_json::to_string(value)
-                    .expect("canonical primitive JSON serialization succeeds"),
-                serde_json::Value::Array(values) => format!(
-                    "[{}]",
-                    values
-                        .iter()
-                        .map(canonical_json)
-                        .collect::<Vec<_>>()
-                        .join(",")
-                ),
-                serde_json::Value::Object(entries) => {
-                    let mut keys = entries.keys().collect::<Vec<_>>();
-                    keys.sort_unstable();
-                    let fields = keys
-                        .into_iter()
-                        .map(|key| {
-                            format!(
-                                "{}:{}",
-                                serde_json::to_string(key)
-                                    .expect("canonical object key serialization succeeds"),
-                                canonical_json(&entries[key])
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join(",");
-                    format!("{{{fields}}}")
-                }
-            }
-        }
-
-        let embedded: serde_json::Value =
-            serde_json::from_str(CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_JSON)
-                .expect("slice-1 codegen schema manifest is valid JSON");
-        let digest = format!(
-            "{:x}",
-            Sha256::digest(canonical_json(&embedded).as_bytes())
-        );
-        assert_eq!(
-            digest, CODEGEN_MEMBERSHIP_SCHEMA_MANIFEST_CANONICAL_SHA256,
-            "embedded manifest drifted from the actual-codegen JS fixture"
-        );
-
-        let schema: SchemaManifest = serde_json::from_value(embedded)
-            .expect("slice-1 codegen schema manifest parses through the Rust carrier");
-        schema
-            .validate_artifact()
-            .expect("slice-1 codegen schema artifact header is valid");
-        assert_eq!(schema.effective_auth_mode(), AuthMode::Sessions);
-
-        let collection = schema
-            .ephemeral_collections
-            .iter()
-            .find(|collection| collection.name == "typing")
-            .expect("codegen emitted the membership-backed collection");
-        assert_eq!(
-            collection.permission_backing,
-            Some(RoomPermissionProjection {
-                table: "conversationMembers".to_owned(),
-                subject_field: "userId".to_owned(),
-                scope_fields: BTreeMap::from([(
-                    "conversationId".to_owned(),
-                    "conversationId".to_owned(),
-                )]),
-            })
-        );
-        for policy in [&collection.publish, &collection.subscribe] {
-            assert_eq!(
-                policy,
-                &AccessPolicy::RequireRoomPermission {
-                    prefix: "m_conversation_members".to_owned(),
-                },
-                "publish and subscribe must carry one generated membership authority"
-            );
-        }
-
-        validate_collection_definitions(&schema.ephemeral_collections)
-            .expect("codegen-emitted collection definitions are valid");
-        validate_collection_permission_backing(
-            &schema.ephemeral_collections,
-            &schema.tables,
-            schema.effective_auth_mode() == AuthMode::Sessions,
-        )
-        .expect("sessions activation accepts the codegen-emitted membership projection");
     }
 
     #[test]

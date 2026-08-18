@@ -58,7 +58,7 @@ pub(crate) mod authoring_suggestion;
 pub mod bench;
 #[doc(hidden)]
 pub mod bench_fixture;
-pub(crate) mod bounded_children_cursor;
+pub(crate) use snapback_sync::bounded_children_cursor;
 #[doc(hidden)]
 pub use snapback_kernel::branches;
 #[doc(hidden)]
@@ -72,7 +72,7 @@ pub mod completeness;
 #[doc(hidden)]
 pub mod config;
 pub use snapback_kernel::conformance;
-pub(crate) mod connected_clients;
+pub(crate) use snapback_sync::connected_clients;
 pub(crate) mod contract_exact;
 // @ref LLP 0225#1-ownership-map — owner 1: crate-private generation
 // activation coordinator.
@@ -80,7 +80,9 @@ pub(crate) mod elevated_read_trace;
 pub(crate) use snapback_activation::generation_activation;
 #[doc(hidden)]
 pub use snapback_types::visibility_governance;
-pub(crate) mod spike_trace;
+pub(crate) use snapback_sync::spike_trace;
+#[cfg(test)]
+mod sync_upward_tests;
 // @ref LLP 0225#1-ownership-map — dependency-free shared contract/types
 // leaf consumed downward by Rust owners and generated-artifact producers.
 #[doc(hidden)]
@@ -100,7 +102,7 @@ pub use snapback_auth::dev_identity;
 #[doc(hidden)]
 pub mod diagnostic;
 #[doc(hidden)]
-pub mod ephemeral;
+pub use snapback_sync::ephemeral;
 #[doc(hidden)]
 pub mod error_tracking;
 #[doc(hidden)]
@@ -127,7 +129,7 @@ pub mod instance_fork;
 pub(crate) use snapback_kernel::instance_lock;
 #[doc(hidden)]
 pub mod jobs;
-pub mod live_coalesce;
+pub use snapback_sync::live_coalesce;
 pub(crate) mod outbound_policy;
 pub(crate) mod watches;
 pub(crate) mod webhooks;
@@ -158,7 +160,7 @@ pub(crate) use snapback_types::owner_only_file;
 pub(crate) use snapback_kernel::proof_checkpoint;
 #[doc(hidden)]
 pub mod push;
-pub mod realtime;
+pub use snapback_sync::realtime;
 #[doc(hidden)]
 pub mod remediation;
 #[doc(hidden)]
@@ -168,7 +170,7 @@ pub use snapback_types::result_contract;
 #[doc(hidden)]
 pub use snapback_types::result_transform;
 #[doc(hidden)]
-pub mod rqs;
+pub use snapback_sync::rqs;
 pub use snapback_types::rqs_contract;
 #[doc(hidden)]
 pub mod runtime;
@@ -183,15 +185,15 @@ pub use snapback_kernel::seed_identity;
 pub mod server;
 #[doc(hidden)]
 pub use snapback_types::service_profile;
-pub(crate) mod snapshot_batch_cursor;
+pub(crate) use snapback_sync::snapshot_batch_cursor;
 #[doc(hidden)]
-pub mod snapshot_batch_cursor_v2;
+pub use snapback_sync::snapshot_batch_cursor_v2;
 #[doc(hidden)]
 pub use snapback_kernel::storage;
 #[doc(hidden)]
 pub mod store_state;
 #[doc(hidden)]
-pub mod stream_attempt;
+pub use snapback_sync::stream_attempt;
 #[doc(hidden)]
 pub mod telemetry;
 #[doc(hidden)]

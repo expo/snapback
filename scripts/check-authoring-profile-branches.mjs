@@ -37,6 +37,7 @@ export const AUTHORING_PROFILE_READ_ALLOWLIST = Object.freeze([
 
 export const AUTHORING_PROFILE_SCAN_ROOTS = Object.freeze([
   'crates/snapback/src',
+  'crates/snapback-sync/src',
   'packages/snapback-client',
   'packages/snapback-react',
   'packages/snapback-harness',

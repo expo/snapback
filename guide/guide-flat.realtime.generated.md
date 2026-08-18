@@ -9,7 +9,7 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0222-connected-client-predicate.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, crates/snapback-sync/src/connected_clients.rs, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
@@ -286,7 +286,7 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback/src/admin.rs, crates/snapback/src/ephemeral.rs, crates/snapback/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0056-scoped-roles-and-memberships.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0247-ordinary-client-normalization-and-recovery.rfc.md, llp/0257-activity-scoped-presence-convenience.rfc.md, llp/0184-agent-accessible-control-plane.rfc.md, crates/snapback/src/admin.rs, crates/snapback-sync/src/ephemeral.rs, crates/snapback/src/server.rs, crates/snapback/src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/activity-presence.test.mjs, packages/snapback-expo/activity-presence.mjs, packages/snapback-expo/activity-presence.test.mjs, demos/_kit/tests/regression-multiplexed-lanes.mjs, demos/messaging-snapback/snapback/schema.mjs, demos/messaging-snapback/tests/acceptance/headless.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback]
 status: current
 targets: [local]

@@ -1,4 +1,5 @@
-use super::*;
+use serde_json::{Value, json};
+use std::collections::{BTreeMap, VecDeque};
 
 /// Receipt retention (LLP 0034 §3 / ENG-22478): bounded in-memory rings — one
 /// global ring for connectionless facts (mutation receipts, disposed-on-
@@ -12,17 +13,17 @@ use super::*;
 const RECEIPT_RING_CAP: usize = 256;
 
 #[derive(Default)]
-pub(super) struct ReceiptLog {
+pub struct ReceiptLog {
     global: VecDeque<Value>,
     per_connection: BTreeMap<String, VecDeque<Value>>,
 }
 
 impl ReceiptLog {
-    pub(super) fn push_global(&mut self, receipt: Value) {
+    pub fn push_global(&mut self, receipt: Value) {
         push_capped(&mut self.global, receipt);
     }
 
-    pub(super) fn push_connection(&mut self, connection_id: &str, receipt: Value) {
+    pub fn push_connection(&mut self, connection_id: &str, receipt: Value) {
         push_capped(
             self.per_connection
                 .entry(connection_id.to_owned())
@@ -31,11 +32,11 @@ impl ReceiptLog {
         );
     }
 
-    pub(super) fn drop_connection(&mut self, connection_id: &str) {
+    pub fn drop_connection(&mut self, connection_id: &str) {
         self.per_connection.remove(connection_id);
     }
 
-    pub(super) fn snapshot(&self, connection_id: Option<&str>) -> Value {
+    pub fn snapshot(&self, connection_id: Option<&str>) -> Value {
         match connection_id {
             Some(id) => json!({
                 "connection": id,
