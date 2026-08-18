@@ -36,7 +36,7 @@ export async function buildBundle() {
   const mapBytes = readFileSync(mapPath);
   const sourceMap = JSON.parse(mapBytes);
   const absoluteSources = sourceMap.sources.filter((sourcePath) => sourcePath.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(sourcePath));
-  const checkoutPathPresent = mapBytes.includes(Buffer.from(resolve(spikeRoot, '..')));
+  const checkoutPathPresent = mapBytes.includes(Buffer.from(resolve(spikeRoot, '../..')));
   if (absoluteSources.length > 0 || checkoutPathPresent) {
     throw new Error(`source map contains absolute paths: ${absoluteSources.join(', ') || 'checkout path in bytes'}`);
   }

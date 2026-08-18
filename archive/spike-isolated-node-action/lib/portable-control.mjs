@@ -3,11 +3,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { generate } from '../../packages/snapback-codegen/index.mjs';
+import { generate } from '../../../packages/snapback-codegen/index.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const spikeRoot = resolve(here, '..');
-const repositoryRoot = resolve(spikeRoot, '..');
+const repositoryRoot = resolve(spikeRoot, '../..');
 const defineUrl = pathToFileURL(join(repositoryRoot, 'packages/snapback-codegen/define.mjs')).href;
 
 export async function runPortableProfileControl() {

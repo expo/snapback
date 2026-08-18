@@ -1,6 +1,6 @@
 # LLP 0097 Implementation Plan — Ephemeral data branches & effect isolation
 
-Working plan for implementing [LLP 0097](../llp/0097-ephemeral-data-branches-and-effect-isolation.rfc.md) (Accepted). Built in **verifiable slices** on the local SQLite reference target; each slice compiles + tests before the next. Claim boundary (0097 §Status) holds until the Acceptance corpus passes: no target advertises a branch capability above `Missing`, no effect is marked branch-safe.
+Working plan for implementing [LLP 0097](../../llp/0097-ephemeral-data-branches-and-effect-isolation.rfc.md) (Accepted). Built in **verifiable slices** on the local SQLite reference target; each slice compiles + tests before the next. Claim boundary (0097 §Status) holds until the Acceptance corpus passes: no target advertises a branch capability above `Missing`, no effect is marked branch-safe.
 
 ## Code reality (grounding)
 

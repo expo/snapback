@@ -19,15 +19,15 @@ version is recorded in the result.
 From the repository root:
 
 ```sh
-cd spike-isolated-node-action
+cd archive/spike-isolated-node-action
 env -u NPM_TOKEN -u NODE_AUTH_TOKEN \
   npm_config_userconfig=/dev/null \
   npm_config_registry=https://registry.npmjs.org/ \
   npm_config_cache=/private/tmp/llp0249-npm-cache \
   npm install --ignore-scripts --no-audit --no-fund
-cd ..
-npm_config_cache=/private/tmp/llp0249-npm-cache node spike-isolated-node-action/run.mjs \
-  --out spike-isolated-node-action/RESULTS-20260812.json
+cd ../..
+npm_config_cache=/private/tmp/llp0249-npm-cache node archive/spike-isolated-node-action/run.mjs \
+  --out archive/spike-isolated-node-action/RESULTS-20260812.json
 ```
 
 The first install supplies only the rig's exact Ajv and esbuild tool versions.
@@ -42,7 +42,7 @@ used.
 To validate only the six draft schemas and their 12 goldens:
 
 ```sh
-cd spike-isolated-node-action
+cd archive/spike-isolated-node-action
 npm run schemas
 ```
 
