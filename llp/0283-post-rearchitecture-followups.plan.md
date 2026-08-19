@@ -5,7 +5,8 @@
 **Systems:** Project, Build, Security/authorization, Verification, Packaging
 **Author:** Charlie Cheever / Claude (Opus 5, orchestrating codex gpt-5.6-sol + grok-4.6)
 **Date:** 2026-08-19
-**Revised:** 2026-08-19 (c — record follow-up dispatch: F-1 designed in
+**Revised:** 2026-08-19 (d — F-2's gate rewrite and F-4 landed; F-1 designed
+and still open. (c — record follow-up dispatch: F-1 designed in
 LLP 0285, F-2 specified in LLP 0284, F-4 fixed; author rulings of 2026-08-19;
 defect 4 added and reclassified after a second independent review)
 **Related:** LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0041, LLP 0214, LLP 0264, LLP 0010,
@@ -47,8 +48,8 @@ publication must wait until F-1 below is closed.
 | Item | State |
 | --- | --- |
 | F-1 | **Designed, not implemented — and now FOUR defects, not three.** Two independent blind designs commissioned; synthesized as **LLP 0285**. Author approved the two LLP 0225 ownership moves the closure requires. Implementation runs as its own reviewed program. Publication remains blocked. |
-| F-2 | **Specified as LLP 0284**, independently authored by a model family that wrote neither the code nor the original gates. Gate rewrite in progress. |
-| F-3 | Not started; blocked behind F-1. Battery maps to `scripts/verify-local-proof --complete` (36 gates, already covering cloudflare/admin/swift-client/native-runtime/guide) plus `scripts/cold-clone-check.sh` and the npm closure/cold-install witnesses. |
+| F-2 | **Done.** Specified as **LLP 0284**, independently authored by a model family that wrote neither the code nor the original gates, then implemented across four rounds under adversarial review. The three gates are rewritten on syn + `cargo metadata` + `rustc` span assertions (rustdoc JSON is unavailable on the pinned 1.97.0 toolchain). They are **RED on `main` by design** — 127 privilege violations over 26 feature cells, and 23 of 33 compile-fail attacks still compiling — because LLP 0284 §8.5 forbids allowlisting a live F-1 defect. Wired to the scheduled complete battery, not the landing path, until F-1 closes (`issues/20260819-security-gates-expected-red-until-f1.md`). |
+| F-3 | Not started; blocked behind F-1 (unchanged). Battery maps to `scripts/verify-local-proof --complete` (36 gates, already covering cloudflare/admin/swift-client/native-runtime/guide) plus `scripts/cold-clone-check.sh` and the npm closure/cold-install witnesses. |
 | F-4 | **Fixed.** `caught_denial_with_unrelated_failure_is_not_restored` triaged **pre-existing** (traced to `7437e6e07`; redaction landed in `a8787cb53`; reproduced at `pre-0276-rearchitecture`). The `auth_invocation_v1` refusal-precedence divergence was ruled a defect by the author and the JS-path ordering was fixed. Fixture drift repaired. |
 | F-5 | Unchanged backlog; all three burn-down tickets exist under `issues/`. |
 | F-6 | Unchanged; still correct to defer. |
@@ -72,6 +73,19 @@ left as assertions: a by-value `-> rusqlite::Connection` return planted in the
 kernel passes `check-kernel-raw-sql-api` (rc=0), and
 `#[path = r"..."]` (raw string) passes `check-cross-crate-path-includes` while
 the identical plain-string spelling is caught.
+
+**What the rewritten gates found that this plan did not name.** Beyond the four
+defects below, the LLP 0284 suite reports kernel-`storage` re-exports in
+`snapback-activation` and `snapback-server` (not only `snapback-auth`),
+`bench_support` and `ask_spend` privilege seeds, a public
+`PushSendReservation::authority` field, and the membership plan families. Four
+adversarial review rounds also closed evasions the first implementation had —
+renamed imports, `pub use` from private modules and through `crate::`,
+`AsRef`/`From` conversions, `default-features = false` cells, nested `cfg_attr`
+`#[path]`, and a phantom sink registry entry that named a function existing
+nowhere in the tree. The residuals that remain open are recorded honestly in
+LLP 0284 §3.7 and `issues/20260819-privilege-scanner-residual-evasions.md`:
+the scanner is a ratchet, not a proof, and now says so.
 
 ## F-1 — The authorization model is not closed (BLOCKING publication)
 
