@@ -590,6 +590,29 @@ The fixed invocation tail passes its one serialized payload to
 `__snapbackDispatch`; that helper decodes it with the captured `JSON.parse`
 before selecting the export. Application replacement of reachable `JSON.parse`
 therefore cannot redirect or erase host-owned export selection.
+
+**What this does not yet close.** Two independent reviews established that the
+two boundaries above are necessary but not sufficient, and both bypasses were
+reproduced against the bundled Hermes engine. Do not read this section as
+"the host-selected export cannot be replaced."
+
+- `__snapbackHandlers` is neither a sealed property nor a protected object, so
+  application source can install a `Proxy` handler map, or overwrite an entry,
+  and make a generated admission wrapper name resolve to the underlying
+  handler — `ctx.permissions.*` never runs
+  (`issues/20260819-snapback-handlers-registry-admission-substitution.md`).
+- Ibex submits ambient + allowlist + bootstrap + application + tail as one
+  Script, so Hermes instantiates the whole Script's global function
+  declarations before the first statement. An application-level
+  `function globalThis() {}` therefore replaces the real global's `globalThis`
+  property *before* the bootstrap runs, and the seal is then applied to — and
+  verified against — the attacker's object
+  (`issues/20260819-ibex-single-script-declaration-instantiation-shadows-globals.md`).
+  The `value === g` self-check cannot detect this, because it proves only that
+  the object passed as `g` points at itself, not that `g` is the realm global.
+
+Until both are closed, host-owned export selection is hardened against late
+assignment, not established as an invariant.
 Settlement also captures its serializer, string conversion, error constructor,
 and descriptor primitives before the module runs. The outer failure envelope
 is assembled from separately encoded primitives instead of passing a plain
