@@ -32,7 +32,9 @@ ryu-js = "1.0.2"
 schemars = "1.2.1"
 scrypt = { version = "0.12.0", features = ["phc"] }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+# @ref LLP 0132#vector-values-and-declarations — vector JSON decimals require
+# correctly rounded binary64 conversion at any input length.
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
 serde_path_to_error = "0.1"
 sha2 = "0.10"
 snapback-types = { path = "../snapback-types" }
