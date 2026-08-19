@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "sourceDigest": "sha256:8330336254c1ce08af7e73f503f391d97895f17ec6ad132b4717a6154ec63442"
+    "sourceDigest": "sha256:22743278732e90d16f71c587e2ac2791a4f72248624502220f2d1fd9c2295063"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -5356,8 +5356,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-08",
-      "reviewedAuthoritiesDigest": "sha256:595a8bcfd76defc857b0948993e5f02386cba9cb9b084088f2c813559b7a5316",
-      "sha256": "d53b6d5316e4ebd7b27f30ca64926dfc637fefe3e1d0e5faa66a8abe8204c8d4",
+      "reviewedAuthoritiesDigest": "sha256:9c1329f88b0c2b81b0837ac177b95ca207033ce192ff802272a67d3ad4d0e1ee",
+      "sha256": "70e8f996f5b9335c34bde18d99b8c523732ca9303479974668e3755b07b54ba1",
       "snippets": []
     },
     "reference.api.expo.snapback.cli.verify": {
@@ -8348,7 +8348,7 @@
       "examples": [],
       "reviewed": "2026-08-08",
       "reviewedAuthoritiesDigest": "sha256:1e941a7daecd9e15a2aa849542738725e080a0794966c426fce5c8bf0422abf4",
-      "sha256": "258a2c0904e344cf0564d85bb21b15d580d543110a62bb9e7b7cd3ba7cc5dd81",
+      "sha256": "5bfc350b4630b10f0ec59da4298d905d5f0ab09142bcc662f0fb20873f08c7c6",
       "snippets": [
         {
           "lang": "ts",
@@ -12309,8 +12309,8 @@
       "path": "guide/reference/registry.json",
       "title": "Build-bound public API symbol registry",
       "mediaType": "application/json",
-      "bytes": 4696707,
-      "sha256": "c8cab8061371e79ac0f7d3bb1553e290c6aeb19aa6f6a064cd600f12dd48321a",
+      "bytes": 4696884,
+      "sha256": "900511adfcd66995180160711aec482571f908af9e8922ad78677ac8573d1170",
       "uri": "snapback-guide://reference/registry",
       "servedPath": "/_snapback/guide/reference/registry.json",
       "projections": {
@@ -12327,8 +12327,8 @@
       "path": "guide/reference/diagnostics-registry.json",
       "title": "Build-bound diagnostic code registry",
       "mediaType": "application/json",
-      "bytes": 2579205,
-      "sha256": "547f0ad210575705dbac615d20b583ec47681df6209af0edcd50be065a2be785",
+      "bytes": 2582021,
+      "sha256": "0ce5f6f49269acdd4c37990bd4027d9a5cd1fdba3ff9651df993b969b01034e5",
       "uri": "snapback-guide://reference/diagnostics",
       "servedPath": "/_snapback/guide/reference/diagnostics-registry.json",
       "projections": {
@@ -12337,9 +12337,9 @@
         "llms": true
       },
       "schemaVersion": "snapback-diagnostics-registry.v1",
-      "sourceDigest": "sha256:a78a9262dcfe5d5dc0a645928a3bcced16c30e2f5dbd53c4426bacf45c014c14",
-      "codes": 3429,
-      "emittingSites": 11822
+      "sourceDigest": "sha256:3c56936617011cda9054a2c5be376e8ab0aa32ba0655857223dbfaa1842f7c5f",
+      "codes": 3434,
+      "emittingSites": 11835
     }
   },
   "capabilities": {
@@ -12475,8 +12475,8 @@
       "path": "guide/guide-flat.generated.md",
       "servedPath": "/_snapback/guide/flat.md",
       "uri": "snapback-guide://flat",
-      "bytes": 3564004,
-      "sha256": "67f784f33eadd1bbd07af0fd1d44f652b28c0174dcd9d39b233370273a2fc94a"
+      "bytes": 3564967,
+      "sha256": "c97d4d692d0d03d3b01e22467793ddca935f78e2a9f6da5bda9e0ce3531bd211"
     },
     "sections": {
       "meta": {
@@ -12553,8 +12553,8 @@
         "path": "guide/guide-flat.reference.generated.md",
         "servedPath": "/_snapback/guide/guide-flat.reference.generated.md",
         "uri": "snapback-guide://flat/reference",
-        "bytes": 2034221,
-        "sha256": "471794cd1f66d758aeed63b64b1a888f7a872d7b4d9ac5e1bd04c4ce2cf98ed5"
+        "bytes": 2035184,
+        "sha256": "e351e1d7d09f2e3eacbc5662bc56d38d87b94be7bf86e90ea846212c1ab018b7"
       },
       "start": {
         "path": "guide/guide-flat.start.generated.md",
@@ -12579,5 +12579,5 @@
       }
     }
   },
-  "contentHash": "8330336254c1ce08af7e73f503f391d97895f17ec6ad132b4717a6154ec63442"
+  "contentHash": "22743278732e90d16f71c587e2ac2791a4f72248624502220f2d1fd9c2295063"
 }
