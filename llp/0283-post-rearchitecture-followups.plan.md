@@ -5,8 +5,10 @@
 **Systems:** Project, Build, Security/authorization, Verification, Packaging
 **Author:** Charlie Cheever / Claude (Opus 5, orchestrating codex gpt-5.6-sol + grok-4.6)
 **Date:** 2026-08-19
-**Revised:** 2026-08-19
-**Related:** LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0041, LLP 0214, LLP 0264, LLP 0010
+**Revised:** 2026-08-19 (b — record follow-up dispatch: F-1 designed in
+LLP 0285, F-2 specified in LLP 0284, F-4 fixed; author rulings of 2026-08-19)
+**Related:** LLP 0276, LLP 0225, LLP 0189, LLP 0232, LLP 0041, LLP 0214, LLP 0264, LLP 0010,
+LLP 0284 (F-2 threat model), LLP 0285 (F-1 closure design)
 
 ## Summary
 
@@ -38,6 +40,30 @@ rewritten; rollback is ordinary forward `revert` commits per LLP 0276.
 **npm publication was deliberately NOT performed.** Published packages are
 immutable (LLP 0041) and the runtime packages carry the sealed binary, so
 publication must wait until F-1 below is closed.
+
+## Status of this plan (revised 2026-08-19b)
+
+| Item | State |
+| --- | --- |
+| F-1 | **Designed, not implemented.** Two independent blind designs commissioned; synthesized as **LLP 0285**. Author approved the two LLP 0225 ownership moves the closure requires. Implementation runs as its own reviewed program. Publication remains blocked. |
+| F-2 | **Specified as LLP 0284**, independently authored by a model family that wrote neither the code nor the original gates. Gate rewrite in progress. |
+| F-3 | Not started; blocked behind F-1. Battery maps to `scripts/verify-local-proof --complete` (36 gates, already covering cloudflare/admin/swift-client/native-runtime/guide) plus `scripts/cold-clone-check.sh` and the npm closure/cold-install witnesses. |
+| F-4 | **Fixed.** `caught_denial_with_unrelated_failure_is_not_restored` triaged **pre-existing** (traced to `7437e6e07`; redaction landed in `a8787cb53`; reproduced at `pre-0276-rearchitecture`). The `auth_invocation_v1` refusal-precedence divergence was ruled a defect by the author and the JS-path ordering was fixed. Fixture drift repaired. |
+| F-5 | Unchanged backlog; all three burn-down tickets exist under `issues/`. |
+| F-6 | Unchanged; still correct to defer. |
+
+**Three findings added by the follow-up that make F-1 worse than described
+below** (all verified against `ede899a20`, detailed in LLP 0285 §4):
+`ResolvedAppAuthority` is a `pub` enum with `pub` variants, so
+`ResolvedAppAuthority::System` is freely constructible; the comment at
+`crates/snapback-engine/src/push.rs:27` asserts an invariant that is false in
+both halves; and defect 3 spans **four** launderer crates and ~33 sites, not two.
+
+Two F-2 evasions were also **proved empirically** with controls, rather than
+left as assertions: a by-value `-> rusqlite::Connection` return planted in the
+kernel passes `check-kernel-raw-sql-api` (rc=0), and
+`#[path = r"..."]` (raw string) passes `check-cross-crate-path-includes` while
+the identical plain-string spelling is caught.
 
 ## F-1 — The authorization model is not closed (BLOCKING publication)
 
@@ -146,6 +172,13 @@ is the shape the Phase 4 witness needs.
   whether it is pre-existing or introduced by the hardening.
 - Vector decimal halfway witness — pre-existing and unrelated;
   `issues/20260819-vector-decimal-halfway-witness.md`.
+- `auth_invocation_v1` refusal-precedence — **RESOLVED 2026-08-19.** Author
+  ruled "fix the ordering." The three JS generic-write sites now share
+  `prepare_generic_write_target`, which runs the identity-binding seal, then
+  permission-backing specialization, then generic write-policy resolution, so
+  LLP 0214 §5.9's policy-independent refusal is no longer preempted and the JS
+  and HostPlan paths agree. Original description follows.
+
 - `auth_invocation_v1` refusal-precedence — a real product bug found when a
   36-hour compile hole was repaired. On the JS handler path `ctx.db.insert`
   resolves generic write policy before the identity-binding seal, so LLP 0214
@@ -199,3 +232,10 @@ reviewed design.
 F-1 and F-2 together, by an author independent of the previous attempts, then
 F-4's triage, then F-3's battery, and only then publication. F-5 and F-6 are
 ordinary backlog.
+
+**Revised sequencing (author ruling 2026-08-19).** F-4 and F-2's gate rewrite
+land first, alongside F-1's design (LLP 0285); F-1's implementation then runs as
+its own reviewed program, followed by F-3's battery and publication. The
+independence requirement was met by commissioning the F-2 threat model and both
+F-1 designs from authors that wrote neither the constrained code nor the
+original gates.
