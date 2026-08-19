@@ -15182,7 +15182,7 @@ impl LocalSnapback {
         // gate order so credential-generation drift cannot be disguised as a
         // descriptor mismatch.
         self.persist_and_validate_prepared_service_authority(prepared.authority())?;
-        refuse_unprovenanced_host_plan_authority_creation(&prepared, &function, self.db.schema())?;
+        preflight_host_plan_authority_writes(&prepared, &function, self.db.schema())?;
         if client_mutation_id.is_some() {
             let incarnation = self.db.ensure_authorization_stream_incarnation()?;
             let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
@@ -16003,7 +16003,7 @@ impl LocalSnapback {
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
         self.persist_and_validate_prepared_service_authority(prepared.authority())?;
-        refuse_unprovenanced_host_plan_authority_creation(&prepared, &function, self.db.schema())?;
+        preflight_host_plan_authority_writes(&prepared, &function, self.db.schema())?;
         let admission = prepared.admission_lease().clone();
         let mut input = prepared.canonicalize_input(input);
         let identity = if let Some(id) = client_mutation_id {
@@ -16243,7 +16243,7 @@ impl LocalSnapback {
                 format!("{name} is not a mutation"),
             ));
         }
-        refuse_unprovenanced_host_plan_authority_creation(prepared, &function, self.db.schema())?;
+        preflight_host_plan_authority_writes(prepared, &function, self.db.schema())?;
         // @ref LLP 0131#runtime-ingress-validation — nested host-plan
         // mutations (runMutation from actions) are fresh executions and see
         // the same seam as every other evaluator lane.
@@ -21042,11 +21042,7 @@ impl LocalSnapback {
             | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
                 crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
             )) => {
-                refuse_unprovenanced_host_plan_authority_creation(
-                    &invocation,
-                    &function,
-                    self.db.schema(),
-                )?;
+                preflight_host_plan_authority_writes(&invocation, &function, self.db.schema())?;
                 let _epoch_scopes = evaluate_permission_epoch_scopes(&function, &canonical_input)?;
                 let preview = self
                     .db
@@ -36132,11 +36128,37 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
     }
 }
 
+/// Compose every HostPlan authority-write refusal at the last runtime seam
+/// before plan execution. The identity-binding seal is policy-independent and
+/// therefore precedes the narrower service-principal provenance refusal for
+/// both HostPlan mutation wrappers.
+///
+/// @ref LLP 0214#59-relationship-to-the-guide-binding-gap — ordinary HostPlan
+///   writers cannot reach a declared identity-binding table under any caller
+///   authority.
+/// @ref LLP 0264#d10-diagnostics-and-refusal-vocabulary — the binding seal is
+///   outside, and precedes, the generic policy-refusal precedence list.
+pub(crate) fn preflight_host_plan_authority_writes(
+    prepared: &PreparedInvocation,
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    if matches!(
+        function.runtime,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(_) | HandlerPlan::WriteWithActivity(_))
+    ) {
+        let (_, writes) = plan_io(function);
+        for table in writes {
+            crate::storage::enforce_identity_binding_write_seal(schema, &table)?;
+        }
+    }
+    refuse_unprovenanced_host_plan_authority_creation(prepared, function, schema)
+}
+
 /// HostPlan writes do not traverse the Ibex host-call dispatcher and cannot
 /// attach LLP 0056's full provenance. Refuse their permission-backing effects
-/// under service-principal authority at the last runtime seam before plan
-/// execution; ordinary app-data HostPlans and every human invocation remain
-/// unchanged.
+/// under service-principal authority after the policy-independent binding seal;
+/// ordinary app-data HostPlans and every human invocation remain unchanged.
 ///
 /// @ref LLP 0055#grants — non-provenanced permission-backing writes have no
 ///   consentable service-principal lane in v1.

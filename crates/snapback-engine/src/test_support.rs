@@ -7,7 +7,10 @@ use base64::Engine as _;
 use sha2::Digest as _;
 
 use crate::assets::AssetReadAccessPolicy;
-use crate::auth::invocation::{InvocationGate, InvocationSource, PreparedAuthority};
+use crate::auth::invocation::{
+    InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority, ResolvedGrantScope,
+    WireAuthorityFields,
+};
 use crate::contract_types::ServerProfile;
 use crate::diagnostic::SnapbackResult;
 use crate::local::LocalSnapback;
@@ -16,8 +19,8 @@ use crate::local::{
 };
 use crate::manifest::{
     AssetAcceptPolicy, AssetAccessPolicy, AssetDeliveryPolicy, AssetImagePolicy, AssetImageVariant,
-    AssetLocationPolicy, AssetUploadIntentDefinition, AuthInput, FunctionManifest, FunctionRuntime,
-    HandlerInput, IbexModule, MutationOutput,
+    AssetLocationPolicy, AssetUploadIntentDefinition, AuthInput, AuthMode, FunctionDefinition,
+    FunctionManifest, FunctionRuntime, HandlerInput, IbexModule, MutationOutput, SchemaManifest,
 };
 
 const ASSET_INTENT_SOURCE: &str = r#"
@@ -116,6 +119,57 @@ pub fn invoke_mutation_with_authority(
     authority: PreparedAuthority,
 ) -> SnapbackResult<MutationOutput> {
     snapback.invoke_mutation_with_authority(name, input, authority)
+}
+
+/// Exercise the real JavaScript host-call dispatcher as a service principal
+/// without creating a durable scoped-token fixture. Buffered effects are not
+/// committed; this seam exists only for refusal-precedence integration tests.
+pub fn run_service_principal_ibex_mutation_host_calls(
+    snapback: &mut LocalSnapback,
+    module: &IbexModule,
+    input: HandlerInput,
+) -> SnapbackResult<serde_json::Value> {
+    crate::runtime::run_service_principal_ibex_mutation_for_test(
+        snapback.auth_database_mut(),
+        module,
+        input,
+    )
+}
+
+/// Exercise the engine preflight that composes the HostPlan binding seal and
+/// service-principal provenance guard. The synthetic authority is exact to
+/// `function`; no plan effects execute.
+pub fn preflight_service_principal_host_plan_authority_writes(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    let scope = ResolvedGrantScope::from_exact(crate::storage::auth_grants::ExactGrantScope {
+        function_id: function.id.clone(),
+        kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+        basis: 0,
+        authority_creating: function.authority_creating,
+    });
+    let authority = InvocationGate::prepare_authority(
+        InvocationSource::HttpMutation,
+        AuthMode::Sessions,
+        ServerProfile::Test,
+        1,
+        1,
+        &WireAuthorityFields::default(),
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent-test".to_owned(),
+            credential_id: "credential-test".to_owned(),
+            credential_generation: 1,
+            grant_id: "grant-test".to_owned(),
+            token_id: "token-test".to_owned(),
+            effective_user_id: Some("user-test".to_owned()),
+            scopes: vec![scope],
+            token_expires_at_ms: u64::MAX,
+            integration_status: None,
+        },
+    )?;
+    let prepared = InvocationGate::prepare_function(authority, function)?;
+    crate::local::preflight_host_plan_authority_writes(&prepared, function, schema)
 }
 
 /// Build the bounded engine state needed by the façade's signed-URL route test.

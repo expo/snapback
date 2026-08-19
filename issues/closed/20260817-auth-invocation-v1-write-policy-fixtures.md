@@ -25,7 +25,7 @@ still carries `visibility: None`, so after `4fe648fd0` the allowed action now
 fails with `SNAPBACK_TABLE_WRITE_UNDECLARED_REFUSED`. The fixture predates the
 staged migration window and should declare a policy.
 
-Fix: give `records` an explicit policy per LLP 0264 D3 (`owner` + `Principal`,
+Fix: give `records` an explicit policy per LLP 0264 D3 (`owner` + `String`,
 omitting the authored owner). **Trap:** setting `owner` on `principal` without
 also dropping `principal:` from `createBinding` yields
 `SNAPBACK_AUTH_OWNER_INPUT_REFUSED`, not the code the sibling test asserts.
@@ -98,12 +98,15 @@ capacity check, and table-argument parsing remain earlier than target-policy
 preparation, so their precedence is unchanged.
 
 The genuine fixture drift was repaired separately in the same test: `records`
-now declares `owner { field: "owner" }` over its `Principal` field, and
+now declares `owner { field: "owner" }` over its admitted `String` field, and
 `createRecord` omits authored owner input so the host stamps it. The nested
 authenticated action succeeds and still produces an owner of `user_1`.
 
-No LLP amendment was needed: the implementation now conforms to LLP 0214 §5.9
-and LLP 0264 D3/D5.
+LLP 0264 D10 was amended in the follow-up fix round: its statement that owning
+parse/schema failures always remain earlier contradicted both the repaired
+JavaScript path and existing HostPlan preflight. D10 now places LLP 0214
+§5.9's independent seal ahead of the policy-refusal list and records the
+bounded schema-enumeration consequence explicitly.
 
 ## Verification
 

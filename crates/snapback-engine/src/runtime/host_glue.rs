@@ -6668,7 +6668,7 @@ fn membership_writer_from_resolved_for_test(
     membership_writer_from_resolved_for_test_with_consent(resolved, false)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-support"))]
 fn membership_writer_from_resolved_for_test_with_consent(
     resolved: &crate::auth::invocation::ResolvedAppAuthority,
     authority_creating_consent: bool,
@@ -6699,6 +6699,39 @@ fn membership_writer_from_resolved_for_test_with_consent(
         ResolvedAppAuthority::Anonymous => ResolvedMembershipWriter::Anonymous,
     };
     MembershipWriter::from_resolved_with_authority_creating(&resolved, authority_creating_consent)
+}
+
+/// Run only the JavaScript host-call phase under a synthetic service-principal
+/// projection. This feature-gated seam lets higher-rank integration tests pin
+/// host-call refusal precedence without manufacturing a durable scoped-token
+/// carrier; it does not commit buffered effects.
+#[cfg(feature = "test-support")]
+pub(crate) fn run_service_principal_ibex_mutation_for_test(
+    db: &LocalDatabase,
+    module: &IbexModule,
+    input: HandlerInput,
+) -> SnapbackResult<Value> {
+    let authority = crate::auth::invocation::ResolvedAppAuthority::ServicePrincipal {
+        actor_user_id: "agent-test".to_owned(),
+        credential_id: "credential-test".to_owned(),
+        credential_generation: 1,
+        grant_id: "grant-test".to_owned(),
+        token_id: "token-test".to_owned(),
+        effective_user_id: input.auth.user_id.clone(),
+        scopes: Vec::new(),
+        token_expires_at_ms: u64::MAX,
+        integration_status: None,
+    };
+    let mut invocation = IbexHostContext::new_with_projection(
+        DbRead::Live(db),
+        input,
+        HandlerAuthProjection::from_authority(&authority, None)?,
+        AdmissionLease::unmanaged(0, 0),
+        membership_writer_from_resolved_for_test_with_consent(&authority, true),
+        true,
+        true,
+    )?;
+    run_ibex_handler_with_context(module, &mut invocation, None)
 }
 
 #[cfg(test)]

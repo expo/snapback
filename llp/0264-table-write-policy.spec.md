@@ -5,8 +5,8 @@
 **Systems:** Auth, Security/authorization, Storage, Code generation, Application data API, Generated artifacts, Diagnostics, Testing
 **Author:** Codex (gpt-5.6-sol) / Charlie Cheever
 **Date:** 2026-08-15
-**Revised:** 2026-08-16 (Phase 1a migration window and Phase 1b flip gate)
-**Related:** LLP 0231, LLP 0234, LLP 0255, LLP 0173, LLP 0240, LLP 0056, LLP 0065, LLP 0135, LLP 0239
+**Revised:** 2026-08-19 (identity-binding seal precedence clarified)
+**Related:** LLP 0214, LLP 0231, LLP 0234, LLP 0255, LLP 0173, LLP 0240, LLP 0056, LLP 0065, LLP 0135, LLP 0239
 
 ## Summary
 
@@ -575,11 +575,36 @@ operands. A future target that cannot provide the authoritative transaction
 semantics refuses with `SNAPBACK_TABLE_WRITE_UNCOMPOSED_SURFACE`; it does not
 fall back to handler checks or post-filtered writes.
 
-Policy-refusal precedence is: uncomposed surface; authority-table class;
-removal/unrooted omission; ineligible policy kind; unique-disclosure gate;
-owner input/default/immutability; missing principal/row. Thus a membership or
-permission-backing table refuses on the authority-table class even when its
-row policy is also ineligible. Owning parse/schema failures remain earlier.
+LLP 0214 §5.9's identity-binding write seal is **not a policy refusal**. It is
+policy-independent and precedes this section's complete policy-refusal order,
+including the write operation's owning parse/schema failures. On the
+JavaScript path the host must first extract a string target table name so it
+can test the declaration; after that discriminant, the seal precedes unknown-
+table lookup, `id`/`values` parsing, insert ctx-ledger consumption, authority-
+table classification, and owner-policy checks. On the HostPlan path, closed-IR
+artifact-shape admission remains an earlier generation/activation concern;
+runtime preflight applies the seal to every write target before `schema_table`
+lookup and before the policy dispatcher. Both `HandlerPlan::Mutation` and
+`HandlerPlan::WriteWithActivity` use that order.
+
+This deliberately means that a handler which passes a caller-controlled table
+name can distinguish a declared identity-binding table from an unknown table
+before the rest of that write's arguments are validated. That distinction is
+acceptable on this surface: installed schema shape is not secret from
+application handlers or generated artifacts; `refuse_binding_write()` carries
+no table name or caller value in its public details; and HostPlan runtime
+preflight already exposed the same declaration-derived distinction. Moving
+unknown-table or value parsing ahead of the seal would restore cross-runtime
+disagreement and let incidental malformed input shadow LLP 0214's categorical
+ordinary-writer prohibition.
+
+After that independent seal, policy-refusal precedence is: uncomposed surface;
+authority-table class; removal/unrooted omission; ineligible policy kind;
+unique-disclosure gate; owner input/default/immutability; missing principal/row.
+Thus a membership or permission-backing table refuses on the authority-table
+class even when its row policy is also ineligible. Owning parse/schema failures
+remain earlier than this **policy** list only when no identity-binding seal
+applies.
 
 **Refusal-vocabulary note (2026-08-16, Phase-1a integration).** At GENERATION
 time the authority-table class refuses with
@@ -838,6 +863,11 @@ The independent Phase 1b write-migration closure remains outstanding.
 
 ## Revision history
 
+- 2026-08-19 — clarified D10 after the JavaScript/HostPlan parity repair:
+  LLP 0214 §5.9's identity-binding seal is policy-independent, precedes owning
+  write parse/schema failures once the target table-name string is available,
+  and applies before the policy-refusal list in both HostPlan mutation wrappers.
+  Recorded the bounded schema-enumeration consequence and why it is acceptable.
 - 2026-08-16 — round 4 made history admission predecessor-version aware: exact
   v1 and v2 artifacts validate under their own rules, the D2-derived v1 -> v2
   representation lift preserves retained nodes and exact-set identity without
