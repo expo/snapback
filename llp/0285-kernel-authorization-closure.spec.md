@@ -8,7 +8,9 @@ Verification, Packaging
 Claude (Opus 5) and codex `gpt-5.6-sol` — commissioned by Charlie Cheever
 (author rulings 2026-08-19, recorded in §2)
 **Date:** 2026-08-19
-**Revised:** 2026-08-19 (b — revised after an independent blind review of
+**Revised:** 2026-08-19 (c — second independent review fact-checked every
+citation; §5.4 reclassified from Attacker A to Attacker C and three factual
+errors in it corrected; counts and line citations corrected. (b — revised after an independent blind review of
 revision (a) returned NEEDS REVISION with four BLOCKERs, three of which the
 orchestrator re-verified against the tree; adds defect 4, corrects the step-2
 checkpoint, and resolves a self-contradiction in revision (a))
@@ -136,7 +138,7 @@ than LLP 0283 F-1 describes.
    two. `remainder-tests` also pulls `snapback-kernel/test-support`, making it
    the delivery vehicle for defects 1 and 2's test-only backdoors.
 5. **`LocalSnapback::open_commit_graph_sibling_for_test`**
-   (`crates/snapback-engine/src/local/engine.rs:6129`) is a feature-selectable
+   (`crates/snapback-engine/src/local/engine.rs:6132`) is a feature-selectable
    public API that **clones the authority onto a second writable handle of a
    serving store**. It is the sharpest single instance and is easy to miss.
 
@@ -145,7 +147,7 @@ than LLP 0283 F-1 describes.
 ### 5.1 Defect 1 — the publicly claimable authority root
 
 **Structural half (cheap, and insufficient on its own).**
-`KernelCommitAuthority` (`crates/snapback-kernel/src/storage.rs:536`) conflates
+`KernelCommitAuthority` (`crates/snapback-kernel/src/storage.rs:538`) conflates
 three unrelated jobs:
 
 | Job | Privileged? | Sites |
@@ -209,7 +211,7 @@ and do **not** require `self.admission.owns_lease`:
 (`crates/snapback-engine/src/local/engine.rs:20912`) and
 `stage_job_action_invocation_with_admission` (`:20935`). The legitimate server
 cron/job paths hold real claim carriers but discard them when calling these
-generic methods (`crates/snapback-server/src/server.rs:3171`, `:3375`).
+generic methods (`crates/snapback-server/src/server.rs:3176`, `:3384`).
 **Delete the public `prepare_admitted_authority` and both generic staging APIs,
 replacing them with exact durable cron/job claim operations.** The private
 `execute_cron_claims` path (`:25631`) is already tieable to durable work — its
@@ -293,29 +295,49 @@ Found by the blind review of revision (a) and re-verified by the orchestrator.
 It is the same anti-pattern as the other three and is **live today**:
 
 ```rust
-// reachable from ANY crate holding a shared &LocalDatabase
-db.membership_plans_read()                       // pub, takes &self
-  .plan_privileged_membership_insert(            // pub
-      &MembershipWriter::Admin { .. },           // pub enum, pub variants
-      table, values)?;
-db.commit_membership_plan(plan)?;                // pub
+// works today from any crate that depends on snapback-kernel
+let mut db = LocalDatabase::memory()?;             // pub (storage.rs:1805/:1844)
+let writer = MembershipWriter::Admin;              // pub UNIT variant
+let plan = db.membership_plans()                   // pub, &mut self (storage.rs:1741)
+    .plan_privileged_membership_insert(&writer, table, values)?;
+db.membership_plans().commit_membership_plan(&writer, plan)?;
 ```
 
-- `LocalDatabase::membership_plans_read(&self)` is `pub`
-  (`crates/snapback-kernel/src/storage.rs:1745`) and needs only a **shared**
-  borrow, so `Deref` alone exposes it.
-- `MembershipWriter` is a `pub` enum with `pub` variants including `System`
-  (`crates/snapback-kernel/src/storage.rs:13520`).
-- The only guard is `writer.is_privileged_noninvocation()`
-  (`crates/snapback-kernel/src/storage/membership_plans.rs:388`) — it inspects
-  the **caller-selected enum**, which is precisely LLP 0283 Method lesson 1's
-  "public enum as authority."
+- `MembershipWriter` is a `pub` enum with `pub` variants
+  (`crates/snapback-kernel/src/storage.rs:13520`). Privileged insert requires
+  `Seed | Import | Admin` (`storage/membership_plans.rs:388`); `System` does
+  **not** qualify.
+- The plan-time authority check is only
+  `writer.is_privileged_noninvocation()` — the **caller-selected enum**, which
+  is LLP 0283 Method lesson 1's "public enum as authority."
+- Commit-time guards do run inside the transaction
+  (`revalidate_sanctioned_membership_write`, `storage.rs:14620`), but they
+  re-check **resource existence and protected-role eligibility only**. They do
+  **not** re-derive the writer class. Provenance is then recorded straight from
+  the caller's own enum (`Admin` → `"hostOps:dataEdit"`, `storage.rs:13688`).
 
-**Closure:** `MembershipWriter`'s privileged variants must not be
-caller-constructible. Derive the writer class from a `ResolvedPrincipal`
-(§5.1) inside the kernel; make the privileged constructors `pub(crate)`; and
-narrow `membership_plans_read`'s privileged surface. This defect must be added
-to LLP 0283 F-1's list and covered by LLP 0284's gates.
+**Classification (corrected after review).** An earlier draft of this section
+claimed reachability "from a shared borrow" and named `MembershipWriter::Admin { .. }`.
+Both were wrong: planning needs `&self` but committing needs `&mut self` via
+`membership_plans()`, and `Admin` is a unit variant. More importantly, because
+`LocalDatabase::memory()` and `open()` are themselves `pub`, an attacker never
+needed to borrow anyone's handle — which per §1's stated non-threat means this
+is **not** an Attacker-A "obtain write access" defect.
+
+It is an **Attacker C** defect, the class §3 calls the one that actually
+matters: a module inside an already-trusted crate can cause the kernel to
+**durably record an authority fact the kernel never verified** — a membership
+row stamped with `hostOps:dataEdit` provenance and a caller-chosen
+principal/role/resource. The receipt lies about who authorized it.
+
+**Closure.** Derive the writer class from a `ResolvedPrincipal` (§5.1) inside
+the kernel, make the privileged variants non-constructible outside it, and
+re-derive the writer class in the commit-time revalidation rather than trusting
+the passed enum. Note that removing `DerefMut` (§8 risk 6) independently closes
+the route through a *serving* database, which is the case that matters most;
+the standalone-handle case is closed only by making the variants
+unconstructible. This defect must be added to LLP 0283 F-1's list and covered
+by LLP 0284's gates.
 
 ## 6. Migration order, and the trap in it
 
@@ -337,8 +359,10 @@ Each step must leave `cargo check --all-targets --workspace` green.
    `snapback-engine/src/local/engine.rs:3195`, `:24221`, `:29838`, `:34676`.
    The checkpoint passes only when each named site is either gone or
    demonstrably carrying `DatabaseBinding`, and when the **semantic census** of
-   the ~36 lowercase `kernel_commit_authority` identifier occurrences outside
-   the kernel has been walked individually. Count thresholds are not evidence.
+   the 33 lowercase `kernel_commit_authority` identifier occurrences outside
+   the kernel has been walked individually (30 in `engine.rs`, 2 in
+   `push/authority_tests.rs`, 1 in `auth_room_kick_acceptance.rs:1693`; zero in
+   `snapback-auth`, `-server`, `-sync`, and `snapback`). Count thresholds are not evidence.
 3. Introduce `ServingDatabase`; replace the `engine.rs:24202` claim with
    `ServingDatabase::adopt`.
 4. Make the root `pub(crate)`, drop `Clone`, delete the façade re-exports. The
@@ -371,8 +395,8 @@ Each step must leave `cargo check --all-targets --workspace` green.
 itself: §1 required facts to be re-derived "inside the same transaction" while
 §6 required authorization to run *before* the transaction with SQL ordering
 unchanged. Those are incompatible, and the pre-transaction reading is unsafe —
-today erasure admission captures caller facts at
-`crates/snapback-kernel/src/proof_checkpoint.rs:769` while `BEGIN IMMEDIATE`
+today erasure admission stuffs caller strings into `from_admitted_facts` at
+`crates/snapback-kernel/src/proof_checkpoint.rs:786` while `BEGIN IMMEDIATE`
 occurs later at `:2937`, so a credential can be **revoked between verification
 and commit** and the erasure still commits on the stale fact.
 
@@ -436,7 +460,7 @@ forgery. The gate must inspect privileged parameters and effects, and adoptable
    reach `collections`, `authorization_issuer`, or `expiry_index`; it only
    delegates into registry state
    (`crates/snapback-sync/src/ephemeral.rs:3586`). The real coupling is in
-   `reserve_authorization_commit` (`:4636`), the binding checks (`:4213`), and
+   `reserve_authorization_commit` (`:4603`), the binding checks (`:4213`), and
    publication/resync (`:4690`); `expiry_index` is not on this path at all.
    The blocking constraint is different and harder: the same registry implements
    `drain_outbox` using sync-private `SharedOutbox`, `ConnectionEffectFence`, and

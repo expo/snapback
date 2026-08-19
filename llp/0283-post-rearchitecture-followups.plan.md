@@ -106,20 +106,27 @@ with evidence:
    a transaction and commit. Cargo features are public and caller-controlled;
    `#[doc(hidden)]` and "intended for tests" provide no confinement.
 
-4. **Privileged membership writes are forgeable from a shared borrow (added
-   2026-08-19b; found by the blind review of LLP 0285, re-verified against the
-   tree).** `LocalDatabase::membership_plans_read(&self)` is `pub`
-   (`crates/snapback-kernel/src/storage.rs:1745`) and needs only a **shared**
-   borrow; `MembershipPlansReadKernel::plan_privileged_membership_insert` and
-   `commit_membership_plan` are `pub`; and `MembershipWriter`
-   (`storage.rs:13520`) is a `pub` enum with `pub` variants. The sole guard,
+4. **Privileged membership provenance is forgeable (added 2026-08-19b, revised
+   2026-08-19c after a second independent review).** `MembershipWriter`
+   (`crates/snapback-kernel/src/storage.rs:13520`) is a `pub` enum with `pub`
+   variants; `plan_privileged_membership_insert` and `commit_membership_plan`
+   are `pub` on the handles returned by `LocalDatabase::membership_plans()`
+   (`storage.rs:1741`). The plan-time authority check is only
    `writer.is_privileged_noninvocation()`
-   (`storage/membership_plans.rs:388`), inspects the **caller-selected enum**.
-   So any crate holding `&LocalDatabase` can forge
-   `MembershipWriter::Admin` and commit a privileged membership write. This is
-   Method lesson 1's "public enum as authority" in its purest form, and it was
-   missed by both the original review round and both independent F-1 designs.
-   Closure design: LLP 0285 §5.4.
+   (`storage/membership_plans.rs:388`) — the caller-selected enum. Commit-time
+   revalidation re-checks resource existence and protected-role eligibility but
+   **does not re-derive the writer class**, and provenance is then recorded from
+   the caller's own enum (`Admin` → `"hostOps:dataEdit"`, `storage.rs:13688`).
+
+   This is an **Attacker C** defect, not an Attacker A one: because
+   `LocalDatabase::memory()`/`open()` are themselves `pub`, obtaining write
+   access was never the barrier. The defect is that a module inside an
+   already-trusted crate can make the kernel **durably record an authority fact
+   it never verified** — a membership row whose receipt lies about who
+   authorized it. That is exactly the property LLP 0285 §3 identifies as the one
+   that matters most. Missed by the original review round, by both independent
+   designs, and mis-classified by the first draft of this entry. Closure design:
+   LLP 0285 §5.4.
 
 **Direction for the fix (do not repeat the previous three attempts).** Each
 attempt narrowed *where* the capability could be obtained without removing the
